@@ -51,10 +51,9 @@ type BufferedReadConfig struct {
 
 const (
 	defaultPrefetchMultiplier = 2
-	ReadOp                    = "readOp"
+	readOp                    = "readOp"
+	readHandleValidity        = 5 * time.Minute // source go/gcsfuse-zonal-buckets-read-design-doc
 )
-
-const ReadHandleValidity = 5 * time.Minute
 
 // Struct for holding readHandle data.
 type ReadHandle struct {
@@ -277,7 +276,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	var bytesRead int
 	var err error
 	handleID := int64(-1) // As 0 is a valid handle ID, we use -1 to indicate no handle.
-	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
+	if readOp, ok := ctx.Value(readOp).(*fuseops.ReadFileOp); ok {
 		handleID = int64(readOp.Handle)
 	}
 
@@ -628,7 +627,7 @@ func (br *BufferedReader) UpdateReadHandle(readHandle []byte) {
 	// Create the new ReadHandle instance.
 	newReadHandle := &ReadHandle{
 		readHandle: readHandle,
-		expiry:     time.Now().Add(ReadHandleValidity),
+		expiry:     time.Now().Add(readHandleValidity),
 	}
 
 	// Atomically store the new handle, overwriting the old one. We are intentionaly using
