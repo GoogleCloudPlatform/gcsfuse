@@ -1313,13 +1313,13 @@ func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 	}{
 		{
 			name:                           "normal",
-			args:                           []string{"gcsfuse", "--enable-unsupported-path-support=true", "abc", "pqr"},
-			expectedUnsupportedPathSupport: true,
+			args:                           []string{"gcsfuse", "--enable-unsupported-path-support=false", "abc", "pqr"},
+			expectedUnsupportedPathSupport: false,
 		},
 		{
 			name:                           "default",
 			args:                           []string{"gcsfuse", "abc", "pqr"},
-			expectedUnsupportedPathSupport: false,
+			expectedUnsupportedPathSupport: true,
 		},
 	}
 
