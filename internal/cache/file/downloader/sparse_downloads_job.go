@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // HandleSparseRead manages the download and validation of sparse file ranges.
@@ -180,6 +181,8 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 		return fmt.Errorf("downloadSparseRange: error creating reader for range [%d, %d): %w", start, end, err)
 	}
 	defer newReader.Close()
+
+	metrics.CaptureGCSReadMetrics(job.metricsHandle, metrics.ReadTypeNames[metrics.ReadTypeRandom], int64(end-start))
 
 	// Open cache file for writing
 	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY, job.fileSpec.FilePerm)
