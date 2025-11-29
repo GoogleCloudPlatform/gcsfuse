@@ -112,6 +112,7 @@ func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 	pmb := prefetchMemoryBlock{
 		memoryBlock: memoryBlock{
 			buffer: addr,
+			currentSize: 0,
 		},
 		status:       BlockStatus{Size: 0},
 		notification: make(chan BlockStatus, (blockSize+MiB-1)/MiB),

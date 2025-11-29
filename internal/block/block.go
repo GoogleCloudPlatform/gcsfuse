@@ -171,7 +171,8 @@ func createBlock(blockSize int64) (Block, error) {
 	}
 
 	mb := memoryBlock{
-		buffer: addr,
+		buffer:      addr,
+		currentSize: 0,
 	}
 	return &mb, nil
 }

@@ -363,7 +363,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			break
 		}
 
-		if off >= blk.AbsStartOff()+int64(blk.Size()) {
+		if off >= blk.AbsStartOff()+int64(blk.Cap()) {
 			entry := p.blockQueue.Pop()
 			p.releaseOrMarkEvicted(entry)
 
