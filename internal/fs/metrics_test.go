@@ -40,9 +40,10 @@ import (
 
 // serverConfigParams holds parameters for creating a test file system.
 type serverConfigParams struct {
-	enableBufferedRead bool
-	enableNewReader    bool
-	enableFileCache    bool
+	enableBufferedRead    bool
+	enableNewReader       bool
+	enableFileCache       bool
+	enableSparseFileCache bool
 }
 
 func defaultServerConfigParams() *serverConfigParams {
@@ -89,15 +90,17 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 		SequentialReadSizeMb: 200,
 	}
 
-	if params.enableFileCache {
+	if params.enableFileCache || params.enableSparseFileCache {
 		cacheDir := t.TempDir()
 		t.Cleanup(func() {
 			os.RemoveAll(cacheDir)
 		})
 		serverCfg.NewConfig.CacheDir = cfg.ResolvedPath(cacheDir)
 		serverCfg.NewConfig.FileCache = cfg.FileCacheConfig{
-			MaxSizeMb:             1,
-			CacheFileForRangeRead: true,
+			MaxSizeMb:                    100,
+			CacheFileForRangeRead:        true,
+			ExperimentalEnableBlockCache: params.enableSparseFileCache,
+			DownloadChunkSizeMb:          1, // 1MB chunks for testing
 		}
 	}
 
@@ -355,6 +358,44 @@ func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 		attribute.NewSet(attribute.Bool("cache_hit", true)),
 		uint64(2),
 	)
+}
+
+func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableSparseFileCache = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "sparse_test.txt"
+	content := "test content for sparse file download"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	// Read at a non-zero offset to trigger random/sparse read
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 5,
+		Dst:    make([]byte, 10),
+	}
+
+	// First read triggers sparse download from GCS
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	// Verify GCS read metrics for sparse download with Random read type
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(1))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(len(content)))
 }
 
 func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
