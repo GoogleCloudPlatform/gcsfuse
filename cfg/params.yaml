@@ -240,7 +240,6 @@ params:
     type: "string"
     usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
     default: ""
-    hide-flag: true
 
   - config-path: "file-cache.experimental-enable-block-cache"
     flag-name: "file-cache-experimental-enable-block-cache"
@@ -261,7 +260,6 @@ params:
     type: "string"
     usage: "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching."
     default: ""
-    hide-flag: true
  
   - config-path: "file-cache.max-parallel-downloads"
     flag-name: "file-cache-max-parallel-downloads"
