@@ -367,7 +367,12 @@ func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
 	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "sparse_test.txt"
-	content := "test content for sparse file download"
+	// Create a file larger than the chunk size (1MB) to test sparse behavior.
+	// With a 3MB file and 1MB chunks, reading from the middle should only
+	// download that chunk, not the entire file.
+	chunkSize := 1024 * 1024 // 1MB chunk size configured in test
+	fileSize := 3 * chunkSize
+	content := string(make([]byte, fileSize))
 	createWithContents(ctx, t, bucket, fileName, content)
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
@@ -380,12 +385,13 @@ func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
 	}
 	err = server.OpenFile(ctx, openOp)
 	require.NoError(t, err, "OpenFile")
-	// Read at a non-zero offset to trigger random/sparse read
+	// Read from the middle chunk (offset 1.5MB) to trigger sparse download
+	// of only that chunk, not the entire file
 	readOp := &fuseops.ReadFileOp{
 		Inode:  lookupOp.Entry.Child,
 		Handle: openOp.Handle,
-		Offset: 5,
-		Dst:    make([]byte, 10),
+		Offset: int64(chunkSize + chunkSize/2), // 1.5MB offset
+		Dst:    make([]byte, 100),
 	}
 
 	// First read triggers sparse download from GCS
@@ -393,9 +399,11 @@ func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
 	require.NoError(t, err, "ReadFile")
 	waitForMetricsProcessing()
 
-	// Verify GCS read metrics for sparse download with Random read type
+	// Verify GCS read metrics for sparse download with Random read type.
+	// Only the chunk containing the read offset should be downloaded (1MB),
+	// not the entire file (3MB), demonstrating sparse download behavior.
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(1))
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(chunkSize))
 }
 
 func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
