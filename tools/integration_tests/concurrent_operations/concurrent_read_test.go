@@ -134,13 +134,13 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 // with each reader handling a distinct segment of the file for comprehensive coverage.
 func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	const (
-		fileSize    = 100 * operations.OneMiB // 100 MiB file
+		fileSize= 100 * operations.OneMiB // 100 MiB file
 		numReaders  = 5                       // Number of concurrent readers
 		segmentSize = fileSize / numReaders   // Each reader reads 20 MiB segment
 	)
 	// Create a 100MiB test file
 	testFilePath := path.Join(testDirPathForRead, "segment_test_file.bin")
-	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
+	operations.CreateFileOfSize(fileSize, testFilePath,s.T())
 	// Open shared file handle that will be used by all goroutines
 	sharedFile, err := os.Open(testFilePath)
 	require.NoError(s.T(), err, "Failed to open shared file handle")
