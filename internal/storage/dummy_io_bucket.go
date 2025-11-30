@@ -24,8 +24,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-type dummyIOBucketParams struct {
-	readerLatency time.Duration
+type DummyIOBucketParams struct {
+	ReaderLatency time.Duration
+	PerMBLatency  time.Duration
 }
 
 // dummyIOBucket is a wrapper over gcs.Bucket that implements gcs.Bucket interface.
@@ -34,18 +35,20 @@ type dummyIOBucketParams struct {
 type dummyIOBucket struct {
 	wrapped       gcs.Bucket
 	readerLatency time.Duration
+	perMBLatency  time.Duration
 }
 
 // NewDummyIOBucket creates a new dummyIOBucket wrapping the given gcs.Bucket.
 // If the wrapped bucket is nil, it returns nil.
-func NewDummyIOBucket(wrapped gcs.Bucket, params dummyIOBucketParams) gcs.Bucket {
+func NewDummyIOBucket(wrapped gcs.Bucket, params DummyIOBucketParams) gcs.Bucket {
 	if wrapped == nil {
 		return nil
 	}
 
 	return &dummyIOBucket{
 		wrapped:       wrapped,
-		readerLatency: params.readerLatency,
+		readerLatency: params.ReaderLatency,
+		perMBLatency:  params.PerMBLatency,
 	}
 }
 
@@ -79,7 +82,7 @@ func (d *dummyIOBucket) NewReaderWithReadHandle(
 		time.Sleep(d.readerLatency)
 	}
 
-	return newDummyReader(uint64(rangeLen)), nil
+	return newDummyReader(uint64(rangeLen), d.perMBLatency), nil
 }
 
 // NewMultiRangeDownloader creates a multi-range downloader for object contents.
@@ -230,17 +233,19 @@ func (d *dummyIOBucket) GCSName(object *gcs.MinObject) string {
 // Reading beyond the specified length returns io.EOF.
 // Also, it always returns a non-nil read handle.
 type dummyReader struct {
-	totalLen   uint64 // Total length of data to serve
-	bytesRead  uint64 // Number of bytes already read
-	readHandle storagev2.ReadHandle
+	totalLen       uint64 // Total length of data to serve
+	bytesRead      uint64 // Number of bytes already read
+	readHandle     storagev2.ReadHandle
+	perByteLatency time.Duration
 }
 
 // newDummyReader creates a new dummyReader with the specified total length.
-func newDummyReader(totalLen uint64) *dummyReader {
+func newDummyReader(totalLen uint64, perMBLatency time.Duration) *dummyReader {
 	return &dummyReader{
-		totalLen:   totalLen,
-		bytesRead:  0,
-		readHandle: []byte{}, // Always return a non-nil read handle
+		totalLen:       totalLen,
+		bytesRead:      0,
+		readHandle:     []byte{}, // Always return a non-nil read handle
+		perByteLatency: time.Duration(perMBLatency.Microseconds() / (1024 * 1024)),
 	}
 }
 
@@ -259,6 +264,11 @@ func (dr *dummyReader) Read(p []byte) (n int, err error) {
 	toRead := uint64(len(p))
 	if toRead > remaining {
 		toRead = remaining
+	}
+
+	// Simulate per-MB latency if specified
+	if dr.perByteLatency > 0 {
+		time.Sleep(time.Duration(toRead) * dr.perByteLatency)
 	}
 
 	// Fill the buffer with zeros (dummy data).

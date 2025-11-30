@@ -46,7 +46,7 @@ func TestNewDummyIOBucket(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := NewDummyIOBucket(tc.wrapped, dummyIOBucketParams{})
+			result := NewDummyIOBucket(tc.wrapped, DummyIOBucketParams{})
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -55,7 +55,7 @@ func TestNewDummyIOBucket(t *testing.T) {
 func TestDummyIOBucket_Name(t *testing.T) {
 	mockBucket := &TestifyMockBucket{}
 	mockBucket.On("Name").Return("test-bucket")
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 
 	result := dummyBucket.Name()
 
@@ -67,7 +67,7 @@ func TestDummyIOBucket_BucketType(t *testing.T) {
 	mockBucket := &TestifyMockBucket{}
 	expectedType := gcs.BucketType{Hierarchical: false, Zonal: false}
 	mockBucket.On("BucketType").Return(expectedType)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	result := dummyBucket.BucketType()
@@ -81,7 +81,7 @@ func TestDummyIOBucket_DeleteObject(t *testing.T) {
 	ctx := context.Background()
 	req := &gcs.DeleteObjectRequest{Name: "test-object"}
 	mockBucket.On("DeleteObject", ctx, req).Return(nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	err := dummyBucket.DeleteObject(ctx, req)
@@ -96,7 +96,7 @@ func TestDummyIOBucket_DeleteObject_Error(t *testing.T) {
 	req := &gcs.DeleteObjectRequest{Name: "test-object"}
 	expectedErr := errors.New("delete failed")
 	mockBucket.On("DeleteObject", ctx, req).Return(expectedErr)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	err := dummyBucket.DeleteObject(ctx, req)
@@ -113,7 +113,7 @@ func TestDummyIOBucket_StatObject(t *testing.T) {
 	expectedMinObj := &gcs.MinObject{Name: "test-object"}
 	expectedExtAttrs := &gcs.ExtendedObjectAttributes{}
 	mockBucket.On("StatObject", ctx, req).Return(expectedMinObj, expectedExtAttrs, nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	minObj, extAttrs, err := dummyBucket.StatObject(ctx, req)
@@ -130,7 +130,7 @@ func TestDummyIOBucket_ListObjects(t *testing.T) {
 	req := &gcs.ListObjectsRequest{Prefix: "test-"}
 	expectedListing := &gcs.Listing{}
 	mockBucket.On("ListObjects", ctx, req).Return(expectedListing, nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	listing, err := dummyBucket.ListObjects(ctx, req)
@@ -149,7 +149,7 @@ func TestDummyIOBucket_CopyObject(t *testing.T) {
 	}
 	expectedObj := &gcs.Object{Name: "dest-object"}
 	mockBucket.On("CopyObject", ctx, req).Return(expectedObj, nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	obj, err := dummyBucket.CopyObject(ctx, req)
@@ -164,7 +164,7 @@ func TestDummyIOBucket_DeleteFolder(t *testing.T) {
 	ctx := context.Background()
 	folderName := "test-folder"
 	mockBucket.On("DeleteFolder", ctx, folderName).Return(nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	err := dummyBucket.DeleteFolder(ctx, folderName)
@@ -179,7 +179,7 @@ func TestDummyIOBucket_GetFolder(t *testing.T) {
 	folderName := "test-folder"
 	expectedFolder := &gcs.Folder{Name: folderName}
 	mockBucket.On("GetFolder", ctx, folderName).Return(expectedFolder, nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	folder, err := dummyBucket.GetFolder(ctx, folderName)
@@ -195,7 +195,7 @@ func TestDummyIOBucket_CreateFolder(t *testing.T) {
 	folderName := "new-folder"
 	expectedFolder := &gcs.Folder{Name: folderName}
 	mockBucket.On("CreateFolder", ctx, folderName).Return(expectedFolder, nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	folder, err := dummyBucket.CreateFolder(ctx, folderName)
@@ -210,7 +210,7 @@ func TestDummyIOBucket_GCSName(t *testing.T) {
 	obj := &gcs.MinObject{Name: "test-object"}
 	expectedName := "gcs-name"
 	mockBucket.On("GCSName", obj).Return(expectedName)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	name := dummyBucket.GCSName(obj)
@@ -228,7 +228,7 @@ func TestDummyIOBucket_MoveObject(t *testing.T) {
 	}
 	expectedObj := &gcs.Object{Name: "dest-object"}
 	mockBucket.On("MoveObject", ctx, req).Return(expectedObj, nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	obj, err := dummyBucket.MoveObject(ctx, req)
@@ -246,7 +246,7 @@ func TestDummyIOBucket_UpdateObject(t *testing.T) {
 	}
 	expectedObj := &gcs.Object{Name: "test-object"}
 	mockBucket.On("UpdateObject", ctx, req).Return(expectedObj, nil)
-	dummyBucket := NewDummyIOBucket(mockBucket, dummyIOBucketParams{})
+	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
 	obj, err := dummyBucket.UpdateObject(ctx, req)
@@ -264,7 +264,7 @@ func TestDummyIOBucket_NewReaderWithReadHandle(t *testing.T) {
 			Limit: 100,
 		},
 	}
-	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, dummyIOBucketParams{readerLatency: 0})
+	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, DummyIOBucketParams{ReaderLatency: 0})
 
 	reader, err := dummyBucket.NewReaderWithReadHandle(context.Background(), req)
 
@@ -280,7 +280,7 @@ func TestDummyIOBucket_NewReaderWithReadHandle_NoRange(t *testing.T) {
 		Name: "test-object",
 		// No Range specified
 	}
-	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, dummyIOBucketParams{readerLatency: 0})
+	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, DummyIOBucketParams{ReaderLatency: 0})
 
 	reader, err := dummyBucket.NewReaderWithReadHandle(context.Background(), req)
 
@@ -296,7 +296,7 @@ func TestDummyIOBucket_NewReaderWithReadHandle_InvalidRange(t *testing.T) {
 			Limit: 50, // Invalid range: Limit < Start
 		},
 	}
-	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, dummyIOBucketParams{readerLatency: 0})
+	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, DummyIOBucketParams{ReaderLatency: 0})
 
 	reader, err := dummyBucket.NewReaderWithReadHandle(context.Background(), req)
 
@@ -312,7 +312,7 @@ func TestDummyIOBucket_NewReaderWithReadHandle_WithLatency(t *testing.T) {
 			Limit: 100,
 		},
 	}
-	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, dummyIOBucketParams{readerLatency: 5 * time.Millisecond})
+	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, DummyIOBucketParams{ReaderLatency: 5 * time.Millisecond})
 
 	start := time.Now()
 	reader, err := dummyBucket.NewReaderWithReadHandle(context.Background(), req)
@@ -330,7 +330,7 @@ func TestDummyIOBucket_NewReaderWithReadHandle_WithLatency(t *testing.T) {
 // Test for dummyReader
 // //////////////////////////////////////////////////////////////////////
 func TestDummyReader_NewDummyReader(t *testing.T) {
-	dummyReader := newDummyReader(10)
+	dummyReader := newDummyReader(10, 0)
 
 	assert.Equal(t, uint64(10), dummyReader.totalLen)
 	assert.Equal(t, uint64(0), dummyReader.bytesRead)
@@ -338,7 +338,7 @@ func TestDummyReader_NewDummyReader(t *testing.T) {
 }
 
 func TestDummyReader_ReadFull(t *testing.T) {
-	dummyReader := newDummyReader(10)
+	dummyReader := newDummyReader(10, 0)
 
 	buffer := make([]byte, 10)
 	n, err := dummyReader.Read(buffer)
@@ -350,7 +350,7 @@ func TestDummyReader_ReadFull(t *testing.T) {
 }
 
 func TestDummyReader_ReadPartial(t *testing.T) {
-	dummyReader := newDummyReader(10)
+	dummyReader := newDummyReader(10, 0)
 
 	buffer := make([]byte, 5)
 	n, err := dummyReader.Read(buffer)
@@ -361,7 +361,7 @@ func TestDummyReader_ReadPartial(t *testing.T) {
 }
 
 func TestDummyReader_ReadBeyondEOF(t *testing.T) {
-	dummyReader := newDummyReader(10)
+	dummyReader := newDummyReader(10, 0)
 	// First read 8 bytes
 	buffer1 := make([]byte, 8)
 	n1, err1 := dummyReader.Read(buffer1)
