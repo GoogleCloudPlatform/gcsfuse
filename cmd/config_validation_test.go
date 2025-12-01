@@ -938,8 +938,8 @@ func TestValidateConfigFile_MachineTypeConfig(t *testing.T) {
 		expectedConfig *cfg.Config
 	}{
 		{
-			name:       "set_machine_type",
-			configFile: "testdata/set_machine_type.yaml",
+			name:       "set_machine_type_in_config_file",
+			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				MachineType: "config-file-machine-type",
 			},

@@ -144,7 +144,7 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 		expectedMachineType string
 	}{
 		{
-			name: "CLI flag set",
+			name: "CLI_flag_set",
 			isSet: &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "cli-machine-type"},
@@ -153,7 +153,7 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			expectedMachineType: "cli-machine-type",
 		},
 		{
-			name:  "Config file set",
+			name:  "Config_file_set",
 			isSet: &mockIsValueSet{},
 			config: &Config{
 				MachineType: "config-file-machine-type",
@@ -161,7 +161,7 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			expectedMachineType: "config-file-machine-type",
 		},
 		{
-			name: "CLI flag and Config file set (CLI priority)",
+			name: "CLI_flag_and_Config_file_set_(CLI_priority)",
 			isSet: &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "cli-machine-type"},
@@ -170,6 +170,12 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 				MachineType: "config-file-machine-type",
 			},
 			expectedMachineType: "cli-machine-type",
+		},
+		{
+			name:                "no_CLI_flag_or_Config_file_set",
+			isSet:               &mockIsValueSet{},
+			config:              &Config{},
+			expectedMachineType: "n1-standard-1",
 		},
 	}
 
