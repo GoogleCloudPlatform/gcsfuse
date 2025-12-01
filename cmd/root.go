@@ -52,31 +52,23 @@ type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
 // pflagAsIsValueSet is an adapter that makes a pflag.FlagSet satisfy the
 // cfg.isValueSet interface, allowing us to check for user-set flags reliably.
 type pflagAsIsValueSet struct {
-	fs *pflag.FlagSet
+	v *viper.Viper
 }
 
 // IsSet correctly checks if a flag was set by the user on the command line.
 func (p *pflagAsIsValueSet) IsSet(name string) bool {
 	// The pflag.Changed method is the reliable way to check this.
-	return p.fs.Changed(name)
+	return p.v.IsSet(name)
 }
 
 // GetString is required to satisfy the interface used by getMachineType.
 func (p *pflagAsIsValueSet) GetString(name string) string {
-	val, err := p.fs.GetString(name)
-	if err != nil {
-		return ""
-	}
-	return val
+	return p.v.GetString(name)
 }
 
 // GetBool is required to satisfy the interface.
 func (p *pflagAsIsValueSet) GetBool(name string) bool {
-	val, err := p.fs.GetBool(name)
-	if err != nil {
-		return false
-	}
-	return val
+	return p.v.GetBool(name)
 }
 
 // getCliFlags returns the cli flags set by the user in map[string]string format.
@@ -156,7 +148,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return fmt.Errorf("invalid config: %w", err)
 			}
 
-			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
+			isSet := &pflagAsIsValueSet{v: v}
 			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			for k := range optimizedFlags {

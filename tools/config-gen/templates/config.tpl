@@ -71,7 +71,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 
 	profileName := c.Profile
-	machineType, err := getMachineType(isSet, c)
+	machineType, err := getMachineType(isSet)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
 		machineType = ""

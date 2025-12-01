@@ -104,19 +104,15 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 }
 
 // getMachineType fetches the machine type from the metadata server if not set in isSet, cfg.
-func getMachineType(isSet isValueSet, cfg *Config) (string, error) {
-	// Precedence: 1. CLI flag, 2. Config file, 3. Metadata server.
-	// 1. Check if the machine-type flag is set in CLI flag.
+func getMachineType(isSet isValueSet) (string, error) {
+	// Precedence: 1. CLI flag+Config file, 2. Metadata server.
+	// 1. Check if the machine-type flag is set in CLI flag or config-file.
 	if isSet.IsSet(machineTypeFlg) {
 		if currentMachineType := isSet.GetString(machineTypeFlg); currentMachineType != "" {
 			return currentMachineType, nil
 		}
 	}
-	// 2. Check if machine-type flag is set in config-file.
-	if cfg != nil && cfg.MachineType != "" {
-		return cfg.MachineType, nil
-	}
-	// 3. Get machine-type from metadata server.
+	// 2. Get machine-type from metadata server.
 	client := http.Client{Timeout: httpTimeout}
 	for range maxRetries {
 		for _, endpoint := range metadataEndpoints {
