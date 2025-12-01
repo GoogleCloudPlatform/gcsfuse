@@ -52,10 +52,6 @@ func (t *TrieTest) TestCountFiles() {
 	trie.Insert("/a/c", &FileInfo{size: 2})
 	ExpectEq(2, trie.CountFiles())
 
-	// Insert a directory (should not be counted as a file)
-	trie.InsertDir("/a/d")
-	ExpectEq(2, trie.CountFiles())
-
 	// Overwrite a file (count should not change)
 	trie.Insert("/a/b", &FileInfo{size: 3})
 	ExpectEq(2, trie.CountFiles())
@@ -143,30 +139,6 @@ func (t *TrieTest) TestInsertAndGet() {
 	ExpectEq(2, trie.CountLeafs()) // Count should not change on overwrite
 }
 
-func (t *TrieTest) TestInsertDirAndPathExists() {
-	trie := NewTrie()
-	trie.InsertDir("/a/b")
-
-	// Directory should exist
-	ExpectTrue(trie.PathExists("/a/b"))
-	ExpectTrue(trie.PathExists("/a"))
-
-	// It should not be a file
-	_, ok := trie.Get("/a/b")
-	ExpectFalse(ok)
-
-	// File count should be zero
-	ExpectEq(0, trie.CountLeafs())
-
-	// Path that doesn't exist
-	ExpectFalse(trie.PathExists("/a/c"))
-
-	// Insert a file inside the directory
-	trie.Insert("/a/b/c", &FileInfo{size: 1})
-	ExpectTrue(trie.PathExists("/a/b/c"))
-	ExpectEq(1, trie.CountLeafs())
-}
-
 func (t *TrieTest) TestDelete() {
 	trie := NewTrie()
 	trie.Insert("/a/b/c", &FileInfo{size: 1})
@@ -184,13 +156,6 @@ func (t *TrieTest) TestDelete() {
 	_, ok = trie.Get("/a/b/d")
 	ExpectTrue(ok)
 
-	// Delete a path that is a prefix to another path (but not a leaf)
-	trie.InsertDir("/a/b")
-	trie.Delete("/a/b") // This should do nothing as it's not a leaf
-	_, ok = trie.Get("/a/b/d")
-	ExpectTrue(ok) // Child should still exist
-	ExpectEq(2, trie.CountLeafs())
-
 	// Delete the rest of the /a/b branch
 	trie.Delete("/a/b/d")
 	_, ok = trie.Get("/a/b/d")
@@ -207,37 +172,6 @@ func (t *TrieTest) TestDelete() {
 
 	// Delete non-existent path
 	trie.Delete("/x/y/z") // no-op, should not panic
-	ExpectEq(1, trie.CountLeafs())
-}
-
-func (t *TrieTest) TestDeleteFile() {
-	trie := NewTrie()
-	fileInfo := &FileInfo{size: 123}
-	trie.Insert("/a/b/c", fileInfo)
-	trie.Insert("/a/b/d", &FileInfo{size: 456})
-	ExpectEq(2, trie.CountLeafs())
-
-	// Delete a file and check returned data
-	deletedFile, ok := trie.DeleteFile("/a/b/c")
-	ExpectTrue(ok)
-	ExpectEq(fileInfo, deletedFile)
-	ExpectEq(1, trie.CountLeafs())
-
-	// Verify the file is gone
-	_, ok = trie.Get("/a/b/c")
-	ExpectFalse(ok)
-
-	// Verify parent node is not pruned
-	ExpectTrue(trie.PathExists("/a/b"))
-
-	// Verify sibling is not affected
-	_, ok = trie.Get("/a/b/d")
-	ExpectTrue(ok)
-
-	// Delete non-existent file
-	deletedFile, ok = trie.DeleteFile("/x/y/z")
-	ExpectFalse(ok)
-	ExpectEq(nil, deletedFile)
 	ExpectEq(1, trie.CountLeafs())
 }
 
@@ -329,7 +263,7 @@ func (t *TrieTest) TestConcurrentInsertDelete() {
 		go func(i int) {
 			defer wg.Done()
 			path := fmt.Sprintf("/path/%d", i)
-			trie.DeleteFile(path)
+			trie.Delete(path)
 		}(i)
 	}
 	wg.Wait()
@@ -361,7 +295,7 @@ func (t *TrieTest) TestMove() {
 
 	trie.Insert("/a/b/c", &FileInfo{size: 1})
 	trie.Insert("/a/b/d", &FileInfo{size: 2})
-	trie.InsertDir("/x/y")
+	trie.Insert("/x/y", nil)
 	ExpectEq(2, trie.CountLeafs())
 
 	// Move /a/b to /x/y/z
@@ -413,7 +347,7 @@ func (t *TrieTest) TestConcurrentMove() {
 	for i := 0; i < numRoutines; i++ {
 		trie.Insert(fmt.Sprintf("/src/%d", i), &FileInfo{size: int64(i)})
 	}
-	trie.InsertDir("/dest")
+	trie.Insert("/dest", nil)
 	ExpectEq(numRoutines, trie.CountLeafs())
 
 	// Concurrently move them
@@ -545,69 +479,6 @@ func BenchmarkConcurrentInsertDeepNesting(b *testing.B) {
 			b.ReportMetric(float64(memStats.HeapAlloc)/1024/1024, "MB/op")
 		}
 	}
-}
-
-func BenchmarkTrieMemory(b *testing.B) {
-	// This benchmark is memory-intensive. Run it with care.
-	const totalEntries = 15_000_000 //15 million
-	const nestingLevel = 20
-
-	{
-		var memStats2 runtime.MemStats
-		runtime.ReadMemStats(&memStats2)
-		b.Logf("Stats before start heap: %d MB and sys: %d MB",
-			memStats2.HeapAlloc/1024/1024, memStats2.Sys/1024/1024)
-	}
-
-	// Generate paths
-	paths := make([]string, totalEntries)
-	for i := range totalEntries {
-		var p strings.Builder
-		for j := range nestingLevel {
-			// Create directory names based on the file index to spread them out.
-			// This creates a deep but also wide structure.
-			fmt.Fprintf(&p, "/sub_dir_long_enough_to_crib%d", j)
-		}
-		fmt.Fprintf(&p, "/file_%d.txt", i)
-		paths[i] = p.String()
-	}
-
-	fileInfo := &FileInfo{size: 1}
-
-	b.ResetTimer()
-
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	{
-		var memStats2 runtime.MemStats
-		runtime.ReadMemStats(&memStats2)
-		b.Logf("Stats after initialise data : %d MB and sys: %d MB",
-			memStats2.HeapAlloc/1024/1024, memStats2.Sys/1024/1024)
-	}
-
-	trie := NewTrie()
-	for i := 0; i < totalEntries; i++ {
-		trie.InsertDirect(&paths[i], fileInfo)
-	}
-
-	paths = nil
-	runtime.GC()
-	var endStats runtime.MemStats
-	runtime.ReadMemStats(&endStats)
-
-	{
-		var memStats2 runtime.MemStats
-		runtime.ReadMemStats(&memStats2)
-		b.Logf("Stats after setting data : %d MB and sys: %d MB ",
-			memStats2.HeapAlloc/1024/1024, memStats2.Sys/1024/1024)
-	}
-
-	b.Logf("HeapAlloc after trie creation = %d MB (count: %d heap: %d MB))",
-		int64((endStats.HeapAlloc-memStats.HeapAlloc)/1024/1024), trie.CountLeafs(),
-		endStats.Sys/1024/1024)
-	b.ReportMetric(float64(endStats.HeapAlloc)/1024/1024, "MB/op")
-
 }
 
 func (t *TrieTest) TestTwoPhaseEviction() {

@@ -18,8 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folder"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
@@ -57,7 +56,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 
 	// Set up dependencies.
 	const cacheCapacity = 100
-	lruCache := lru.NewCache(cfg.AverageSizeOfPositiveStatCacheEntry * cacheCapacity)
+	lruCache := folder.NewTrie()
 	cache := metadata.NewStatCacheBucketView(lruCache, "")
 	t.wrapped = fake.NewFakeBucket(&t.clock, bucketName, gcs.BucketType{})
 
