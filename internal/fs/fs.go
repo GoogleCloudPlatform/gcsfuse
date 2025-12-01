@@ -929,7 +929,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	}
 
 	// Handle implicit directories.
-	if ic.MinObject.ImplicitDir {
+	if ic.MinObject != nil && ic.MinObject.ImplicitDir {
 		logger.Infof("In Implicit Dir")
 		return fs.createDirInode(ic, fs.implicitDirInodes)
 	}
