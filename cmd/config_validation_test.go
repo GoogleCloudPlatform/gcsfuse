@@ -127,16 +127,6 @@ func TestValidateConfigFile(t *testing.T) {
 			configFile: "testdata/valid_profile.yaml",
 			wantErr:    false,
 		},
-		{
-			name:       "set_machine_type",
-			configFile: "testdata/set_machine_type.yaml",
-			wantErr:    false,
-		},
-		{
-			name:       "unset_machine_type",
-			configFile: "testdata/unset_machine_type.yaml",
-			wantErr:    false,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -937,6 +927,39 @@ func TestValidateConfigFile_MetricsConfigInvalid(t *testing.T) {
 			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			assert.Error(t, err)
+		})
+	}
+}
+
+func TestValidateConfigFile_MachineTypeConfig(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:       "set_machine_type",
+			configFile: "testdata/set_machine_type.yaml",
+			expectedConfig: &cfg.Config{
+				MachineType: "config-file-machine-type",
+			},
+		},
+		{
+			name:       "unset_machine_type",
+			configFile: "testdata/unset_machine_type.yaml",
+			expectedConfig: &cfg.Config{
+				MachineType: "",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.MachineType, gotConfig.MachineType)
+			}
 		})
 	}
 }
