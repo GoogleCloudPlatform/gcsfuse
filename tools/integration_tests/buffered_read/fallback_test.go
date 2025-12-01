@@ -102,14 +102,13 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 	assert.Empty(s.T(), logEntries, "Expected no buffered read log entries")
 }
 
-func (s *RandomReadFallbackSuite) TestRandomRead_LargeFile_Fallback() {
+func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
 	const randomReadsThreshold = 3
 	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
-	// The distant block to read is just outside the initial prefetch window.
-	// Initial prefetch window size = (1 + initial_prefetch_blocks) blocks.
-	// So, we read the block at index (initial_prefetch_blocks + 1).
-	distantBlockIndex := s.testFlags.startBlocksPerHandle + 1
-	fileSize := blockSizeInBytes * (distantBlockIndex + 1)
+	// Create a file with 4 blocks. We will read backwards from block 3 to 0
+	// to trigger random seek detection.
+	numBlocks := 4
+	fileSize := blockSizeInBytes * int64(numBlocks)
 	chunkSize := int64(1 * util.KiB)
 	testDir := setup.SetupTestDirectory(testDirName)
 	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
@@ -117,9 +116,8 @@ func (s *RandomReadFallbackSuite) TestRandomRead_LargeFile_Fallback() {
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
 	defer operations.CloseFileShouldNotThrowError(s.T(), f)
-	distantOffset := distantBlockIndex * blockSizeInBytes
 
-	induceRandomReadFallback(s.T(), f, path.Base(testDir), fileName, chunkSize, distantOffset, randomReadsThreshold)
+	induceRandomReadFallback(s.T(), f, path.Base(testDir), fileName, chunkSize, blockSizeInBytes, randomReadsThreshold)
 
 	bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(s.T())
 	expected := &Expected{BucketName: setup.TestBucket(), ObjectName: path.Join(path.Base(testDir), fileName)}

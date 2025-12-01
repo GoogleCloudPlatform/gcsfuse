@@ -25,7 +25,7 @@ import (
 var readFileRegex = regexp.MustCompile(`fuse_debug: Op (0x[0-9a-fA-F]+)\s+connection\.go:\d+\] <- ReadFile \(inode (\d+), PID (\d+), handle (\d+), offset (\d+), (\d+) bytes\)`)
 var readAtReqRegex = regexp.MustCompile(`([a-f0-9-]+) <- ReadAt\(([^:]+):/([^,]+), (\d+), (\d+), (\d+), (\d+)\)`)
 var readAtSimpleRespRegex = regexp.MustCompile(`([a-f0-9-]+) -> ReadAt\(\): Ok\(([0-9.]+(?:s|ms|µs))\)`)
-var fallbackFromHandleRegex = regexp.MustCompile(`Fallback to another reader for object "[^"]+", handle (\d+)\.(?: Random seek count (\d+) exceeded threshold \d+\.)?`)
+var fallbackFromHandleRegex = regexp.MustCompile(`Fallback to another reader for object "[^"]+", handle (\d+)\.(?: Random seek count (\d+) exceeded threshold \d+.*)?`)
 
 // ParseBufferedReadLogsFromLogReader parses buffered read logs from an io.Reader and
 // returns a map of BufferedReadLogEntry keyed by file handle.

@@ -107,6 +107,10 @@ type BufferedReader struct {
 	// FUSE read callback goroutines. This ensures that all callbacks for
 	// in-flight data slices have completed before the reader is fully torn down.
 	inflightCallbackWg sync.WaitGroup
+
+	// readTypeClassifier tracks the read access pattern (e.g., sequential, random)
+	// to optimize read strategies. It is shared across different reader layers.
+	readTypeClassifier *gcsx.ReadTypeClassifier
 }
 
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
@@ -117,6 +121,7 @@ type BufferedReaderOptions struct {
 	GlobalMaxBlocksSem *semaphore.Weighted
 	WorkerPool         workerpool.WorkerPool
 	MetricHandle       metrics.MetricHandle
+	ReadTypeClassifier *gcsx.ReadTypeClassifier
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -149,6 +154,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		metricHandle:             opts.MetricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
+		readTypeClassifier:       opts.ReadTypeClassifier,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -159,13 +165,19 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 // random if the requested offset is outside the currently prefetched window.
 // If the number of detected random reads exceeds a configured threshold, it
 // returns a gcsx.FallbackToAnotherReader error to signal that another reader
-// should be used. It takes handleID for logging purposes.
+// should be used. It takes handleID for logging purposes. If the read pattern
+// changes back to sequential, it resets the reader state to resume buffered reading.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	// Exit early if we have already decided to fall back to another reader.
 	// This avoids re-evaluating the read pattern on every call when the random
 	// read threshold has been met.
 	if p.randomSeekCount > p.randomReadsThreshold {
+		if p.readTypeClassifier.IsReadSequential() {
+			logger.Tracef("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, handleID)
+			p.resetBufferedReaderState()
+			return nil
+		}
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -185,7 +197,13 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
-		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
+		// If the read pattern becomes sequential again, reset the state to resume buffered reading.
+		if p.readTypeClassifier.IsReadSequential() {
+			logger.Tracef("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, handleID)
+			p.resetBufferedReaderState()
+			return nil
+		}
+		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d and read pattern is not sequential.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
 		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return gcsx.FallbackToAnotherReader
 	}
@@ -596,4 +614,13 @@ func (p *BufferedReader) CheckInvariants() {
 	if p.randomSeekCount > p.randomReadsThreshold {
 		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
 	}
+}
+
+// resetBufferedReaderState resets the internal state to restart buffered reading.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) resetBufferedReaderState() {
+	// Reset the reader state
+	p.randomSeekCount = 0
+	p.nextBlockIndexToPrefetch = 0
+	p.numPrefetchBlocks = p.config.InitialPrefetchBlockCnt
 }
