@@ -82,3 +82,4 @@ metrics:
   cloud-metrics-export-interval-secs: 10
   workers: 10
   buffer-size: 128
+machine-type: "config-file-machine-type"
