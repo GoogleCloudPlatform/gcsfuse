@@ -1645,7 +1645,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values with autoconfig disabled",
+			name: "high_performance_default_config_values_with_autoconfig_disabled",
 			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
@@ -1662,7 +1662,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values with autoconfig enabled",
+			name: "high_performance_default_config_values_with_autoconfig_enabled",
 			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
@@ -1679,7 +1679,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values obey customer flags",
+			name: "high_performance_default_config_values_obey_customer_flags",
 			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
@@ -1696,7 +1696,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values use deprecated flags",
+			name: "high_performance_default_config_values_use_deprecated_flags",
 			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=4m", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
