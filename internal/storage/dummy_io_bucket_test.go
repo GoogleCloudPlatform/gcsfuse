@@ -378,3 +378,33 @@ func TestDummyReader_ReadBeyondEOF(t *testing.T) {
 	assert.Equal(t, 2, n2)
 	assert.Equal(t, []byte{0, 0}, buffer2[:n2])
 }
+
+func TestDummyReader_Close(t *testing.T) {
+	dummyReader := newDummyReader(10, 0)
+
+	err := dummyReader.Close()
+
+	assert.NoError(t, err)
+}
+
+func TestDummyReader_ReadHandle(t *testing.T) {
+	dummyReader := newDummyReader(10, 0)
+
+	handle := dummyReader.ReadHandle()
+
+	assert.NotNil(t, handle)
+}
+
+func TestDummyReader_ReadWithLatency(t *testing.T) {
+	perMBLatency := 10 * time.Millisecond
+	dummyReader := newDummyReader(1024*1024, perMBLatency) // 1 MB total length
+
+	buffer := make([]byte, 512*1024) // Read 512 KB
+	start := time.Now()
+	n, err := dummyReader.Read(buffer)
+	elapsed := time.Since(start)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 512*1024, n)
+	assert.GreaterOrEqual(t, elapsed, 5*time.Millisecond)
+}

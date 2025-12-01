@@ -24,6 +24,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
+const MB = 1024 * 1024
+
 type DummyIOBucketParams struct {
 	ReaderLatency time.Duration
 	PerMBLatency  time.Duration
@@ -229,7 +231,6 @@ func (d *dummyIOBucket) GCSName(object *gcs.MinObject) string {
 ////////////////////////////////////////////////////////////////////////
 
 // dummyReader is an efficient reader that serves dummy data.
-// It implements the StorageReader interface and returns zeros for all reads.
 // Reading beyond the specified length returns io.EOF.
 // Also, it always returns a non-nil read handle.
 type dummyReader struct {
@@ -245,7 +246,7 @@ func newDummyReader(totalLen uint64, perMBLatency time.Duration) *dummyReader {
 		totalLen:       totalLen,
 		bytesRead:      0,
 		readHandle:     []byte{}, // Always return a non-nil read handle
-		perByteLatency: time.Duration(perMBLatency.Microseconds() / (1024 * 1024)),
+		perByteLatency: time.Duration(perMBLatency.Nanoseconds()+MB-1) / MB,
 	}
 }
 
@@ -269,11 +270,6 @@ func (dr *dummyReader) Read(p []byte) (n int, err error) {
 	// Simulate per-MB latency if specified
 	if dr.perByteLatency > 0 {
 		time.Sleep(time.Duration(toRead) * dr.perByteLatency)
-	}
-
-	// Fill the buffer with zeros (dummy data).
-	for i := uint64(0); i < toRead; i++ {
-		p[i] = 0
 	}
 
 	dr.bytesRead += toRead
