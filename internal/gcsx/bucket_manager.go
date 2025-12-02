@@ -71,8 +71,8 @@ type BucketConfig struct {
 	// Used in Zonal buckets to determine if objects should be finalized or not.
 	FinalizeFileForRapid bool
 
-	// Enable dummy I/O mode for testing purposes. In this mode all reads and writes are
-	// simulated and no actual data is transferred to or from Cloud Storage.
+	// Enable dummy I/O mode for testing purposes, simulated read without
+	// any read data read from GCS.
 	// All the metadata operations like object listing and stats are real.
 	DummyIOCfg cfg.DummyIoConfig
 }
