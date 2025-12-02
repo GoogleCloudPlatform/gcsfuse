@@ -396,7 +396,15 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandleWithBidiConfig() {
 
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.KeyFile = "incorrect_path"
+
+	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
+}
+
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithAnonymousAccess() {
+	sc := storageutil.GetDefaultStorageClientConfig("incorrect_path")
 	sc.AnonymousAccess = true
 
 	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
