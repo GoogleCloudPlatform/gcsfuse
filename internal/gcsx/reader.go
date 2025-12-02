@@ -32,6 +32,9 @@ type ReadRequest struct {
 	Buffer []byte
 
 	// Offset specifies the starting position in the object from where data should be read.
+	// Note: This value should not be modified by any reader. It is used by the
+	// read manager to fall back to the next reader and to record the read operation
+	// correctly.
 	Offset int64
 
 	// ReadInfo contains metadata about the read pattern.
@@ -40,14 +43,20 @@ type ReadRequest struct {
 
 // GCSReaderRequest represents the request parameters needed to read a data from a GCS object.
 type GCSReaderRequest struct {
-	// ReadRequest encapsulates the parameters for a read operation.
-	ReadRequest
+	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
+	Buffer []byte
+
+	// Offset specifies the starting position in the object from where data should be read.
+	Offset int64
 
 	// This determines GCS range request.
 	EndOffset int64
 
 	// This parameter specifies whether the reader needs to be discarded for a new reader.
 	ForceCreateReader bool
+
+	// ReadInfo contains metadata about the read pattern.
+	ReadInfo
 }
 
 // ReadResponse represents the response returned as part of a ReadAt call.
