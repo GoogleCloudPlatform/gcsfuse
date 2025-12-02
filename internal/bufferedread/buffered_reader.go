@@ -259,8 +259,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	resp := gcsx.ReadResponse{}
 	reqID := uuid.New()
 	start := time.Now()
-	initOff := req.Offset
-	blockIdx := initOff / p.config.PrefetchBlockSizeBytes
+	readOffset := req.Offset
+	blockIdx := readOffset / p.config.PrefetchBlockSizeBytes
 	var bytesRead int
 	var err error
 	handleID := int64(-1) // As 0 is a valid handle ID, we use -1 to indicate no handle.
@@ -268,9 +268,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		handleID = int64(readOp.Handle)
 	}
 
-	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, req.Offset, len(req.Buffer), blockIdx)
+	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, readOffset, len(req.Buffer), blockIdx)
 
-	if req.Offset >= int64(p.object.Size) {
+	if readOffset >= int64(p.object.Size) {
 		err = io.EOF
 		return resp, err
 	}
@@ -291,7 +291,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		}
 	}()
 
-	if err = p.handleRandomRead(req.Offset, handleID); err != nil {
+	if err = p.handleRandomRead(readOffset, handleID); err != nil {
 		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 	}
 
@@ -300,10 +300,10 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	var dataSlices [][]byte
 	var entriesToCallback []*blockQueueEntry
 	for bytesRead < len(req.Buffer) {
-		p.prepareQueueForOffset(req.Offset)
+		p.prepareQueueForOffset(readOffset)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(req.Offset); err != nil {
+			if err = p.freshStart(readOffset); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
@@ -334,12 +334,12 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 			break
 		}
 
-		relOff := req.Offset - blk.AbsStartOff()
+		relOff := readOffset - blk.AbsStartOff()
 		bytesToRead := len(req.Buffer) - bytesRead
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen
-		req.Offset += int64(sliceLen)
+		readOffset += int64(sliceLen)
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
@@ -353,11 +353,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 			entriesToCallback = append(entriesToCallback, entry)
 		}
 
-		if req.Offset >= int64(p.object.Size) {
+		if readOffset >= int64(p.object.Size) {
 			break
 		}
 
-		if req.Offset >= blk.AbsStartOff()+blk.Size() {
+		if readOffset >= blk.AbsStartOff()+blk.Size() {
 			entry := p.blockQueue.Pop()
 			p.releaseOrMarkEvicted(entry)
 

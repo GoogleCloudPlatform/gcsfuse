@@ -94,11 +94,10 @@ func getReader(size int) *fake.FakeReader {
 
 func (t *rangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
-		ReadRequest: gcsx.ReadRequest{
-			Offset: offset,
-			Buffer: dst,
-		},
+		Offset:    offset,
+		Buffer:    dst,
 		EndOffset: offset + int64(len(dst)),
+		ReadInfo:  &gcsx.ReadInfo{},
 	}
 	t.rangeReader.checkInvariants()
 	defer t.rangeReader.checkInvariants()
@@ -445,11 +444,10 @@ func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
 
 	go func() {
 		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
-			ReadRequest: gcsx.ReadRequest{
-				Buffer: make([]byte, 2),
-				Offset: 0,
-			},
+			Buffer:    make([]byte, 2),
+			Offset:    0,
 			EndOffset: 2,
+			ReadInfo:  &gcsx.ReadInfo{},
 		})
 		close(readReturned)
 	}()
@@ -496,10 +494,9 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 
 	// Successfully read two bytes using a context whose cancellation we control.
 	readResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
-		ReadRequest: gcsx.ReadRequest{
-			Buffer: buf,
-			Offset: 0,
-		},
+		Buffer:    buf,
+		Offset:    0,
+		ReadInfo:  &gcsx.ReadInfo{},
 		EndOffset: 2,
 	})
 
@@ -660,11 +657,10 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 
 	// 2. Read with forceCreateReader = false (default)
 	req1 := &gcsx.GCSReaderRequest{
-		ReadRequest: gcsx.ReadRequest{
-			Offset: offset,
-			Buffer: make([]byte, readSize),
-		},
+		Offset:    offset,
+		Buffer:    make([]byte, readSize),
 		EndOffset: offset + size,
+		ReadInfo:  &gcsx.ReadInfo{},
 	}
 	resp1, err := t.rangeReader.ReadAt(t.ctx, req1)
 
@@ -682,12 +678,11 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 	// 4. Read with forceCreateReader = true. The existing reader can serve this
 	// request, but it will be discarded because ForceCreateReader is true.
 	req2 := &gcsx.GCSReaderRequest{
-		ReadRequest: gcsx.ReadRequest{
-			Offset: offset + readSize,
-			Buffer: make([]byte, readsize2),
-		},
+		Offset:            offset + readSize,
+		Buffer:            make([]byte, readsize2),
 		EndOffset:         offset + size,
 		ForceCreateReader: true,
+		ReadInfo:          &gcsx.ReadInfo{},
 	}
 	resp2, err := t.rangeReader.ReadAt(t.ctx, req2)
 

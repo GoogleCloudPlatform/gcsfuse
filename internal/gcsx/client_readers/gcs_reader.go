@@ -96,34 +96,36 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 	return true
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {
+func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {
 
-	if req.Offset >= int64(gr.object.Size) {
+	if readRequest.Offset >= int64(gr.object.Size) {
 		return readResponse, io.EOF
-	} else if req.Offset < 0 {
+	} else if readRequest.Offset < 0 {
 		err := fmt.Errorf(
 			"illegal offset %d for %d byte object",
-			req.Offset,
+			readRequest.Offset,
 			gr.object.Size)
 		return readResponse, err
 	}
 
-	readReq := &gcsx.GCSReaderRequest{
-		ReadRequest:       *req,
-		EndOffset:         req.Offset + int64(len(req.Buffer)),
+	gcsReaderRequest := &gcsx.GCSReaderRequest{
+		Buffer:            readRequest.Buffer,
+		Offset:            readRequest.Offset,
+		EndOffset:         readRequest.Offset + int64(len(readRequest.Buffer)),
+		ReadInfo:          &readRequest.ReadInfo,
 		ForceCreateReader: false,
 	}
 
-	bytesRead, err := gr.read(ctx, readReq)
+	bytesRead, err := gr.read(ctx, gcsReaderRequest)
 	readResponse.Size = bytesRead
 
 	// Retry reading in case of short read.
-	if shouldRetryForShortRead(err, bytesRead, req.Buffer, req.Offset, gr.object.Size, gr.bucket.BucketType()) {
-		readReq.Offset += int64(bytesRead)
-		readReq.Buffer = req.Buffer[bytesRead:]
-		readReq.ForceCreateReader = true
+	if shouldRetryForShortRead(err, bytesRead, readRequest.Buffer, readRequest.Offset, gr.object.Size, gr.bucket.BucketType()) {
+		gcsReaderRequest.Offset += int64(bytesRead)
+		gcsReaderRequest.Buffer = readRequest.Buffer[bytesRead:]
+		gcsReaderRequest.ForceCreateReader = true
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = gr.read(ctx, readReq)
+		bytesReadOnRetry, err = gr.read(ctx, gcsReaderRequest)
 		readResponse.Size += bytesReadOnRetry
 	}
 
@@ -147,11 +149,11 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 		// random reads. For regional buckets, it helps in adjusting the prefetch window for the range
 		// reader when the read pattern changes.
 		if readReq.ExpectedOffset != gr.readTypeClassifier.NextExpectedOffset() {
-			readReq.ReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
+			*readReq.ReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
 			reqReaderType = gr.readerType(readReq.ReadType, gr.bucket.BucketType())
 		}
 		// If the readerType is range reader after re calculation, then use range reader.
-		// Otherwise fall back to MultiRange Downloder
+		// Otherwise, fall back to MultiRange Downloader.
 		if reqReaderType == RangeReaderType {
 			defer gr.mu.Unlock()
 			// Calculate the end offset based on previous read requests.
