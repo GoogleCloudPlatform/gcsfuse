@@ -56,7 +56,7 @@ type GCSReaderRequest struct {
 	ForceCreateReader bool
 
 	// ReadInfo contains metadata about the read pattern.
-	ReadInfo
+	*ReadInfo
 }
 
 // ReadResponse represents the response returned as part of a ReadAt call.

@@ -97,6 +97,7 @@ func (t *rangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, e
 		Offset:    offset,
 		Buffer:    dst,
 		EndOffset: offset + int64(len(dst)),
+		ReadInfo:  &gcsx.ReadInfo{},
 	}
 	t.rangeReader.checkInvariants()
 	defer t.rangeReader.checkInvariants()
@@ -446,6 +447,7 @@ func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
 			Buffer:    make([]byte, 2),
 			Offset:    0,
 			EndOffset: 2,
+			ReadInfo:  &gcsx.ReadInfo{},
 		})
 		close(readReturned)
 	}()
@@ -494,6 +496,7 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	readResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
 		Buffer:    buf,
 		Offset:    0,
+		ReadInfo:  &gcsx.ReadInfo{},
 		EndOffset: 2,
 	})
 
@@ -657,6 +660,7 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 		Offset:    offset,
 		Buffer:    make([]byte, readSize),
 		EndOffset: offset + size,
+		ReadInfo:  &gcsx.ReadInfo{},
 	}
 	resp1, err := t.rangeReader.ReadAt(t.ctx, req1)
 
@@ -678,6 +682,7 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 		Buffer:            make([]byte, readsize2),
 		EndOffset:         offset + size,
 		ForceCreateReader: true,
+		ReadInfo:          &gcsx.ReadInfo{},
 	}
 	resp2, err := t.rangeReader.ReadAt(t.ctx, req2)
 

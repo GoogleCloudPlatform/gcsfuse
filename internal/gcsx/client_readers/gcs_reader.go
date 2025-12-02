@@ -112,7 +112,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) 
 		Buffer:            readRequest.Buffer,
 		Offset:            readRequest.Offset,
 		EndOffset:         readRequest.Offset + int64(len(readRequest.Buffer)),
-		ReadInfo:          readRequest.ReadInfo,
+		ReadInfo:          &readRequest.ReadInfo,
 		ForceCreateReader: false,
 	}
 
@@ -149,11 +149,11 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 		// random reads. For regional buckets, it helps in adjusting the prefetch window for the range
 		// reader when the read pattern changes.
 		if readReq.ExpectedOffset != gr.readTypeClassifier.NextExpectedOffset() {
-			readReq.ReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
+			*readReq.ReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
 			reqReaderType = gr.readerType(readReq.ReadType, gr.bucket.BucketType())
 		}
 		// If the readerType is range reader after re calculation, then use range reader.
-		// Otherwise fall back to MultiRange Downloder
+		// Otherwise, fall back to MultiRange Downloader.
 		if reqReaderType == RangeReaderType {
 			defer gr.mu.Unlock()
 			// Calculate the end offset based on previous read requests.
