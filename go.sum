@@ -27,8 +27,8 @@ cloud.google.com/go/pubsub/v2 v2.0.0 h1:0qS6mRJ41gD1lNmM/vdm6bR7DQu6coQcVwD+VPf0
 cloud.google.com/go/pubsub/v2 v2.0.0/go.mod h1:0aztFxNzVQIRSZ8vUr79uH2bS3jwLebwK6q1sgEub+E=
 cloud.google.com/go/secretmanager v1.15.0 h1:RtkCMgTpaBMbzozcRUGfZe46jb9a3qh5EdEtVRUATF8=
 cloud.google.com/go/secretmanager v1.15.0/go.mod h1:1hQSAhKK7FldiYw//wbR/XPfPc08eQ81oBsnRUHEvUc=
-cloud.google.com/go/storage v1.57.3-0.20251202045833-079c4d960a2b h1:eYX6XK+yP6z9C0VWt90MnZA/BWxF6c/Os7qsVVHgne8=
-cloud.google.com/go/storage v1.57.3-0.20251202045833-079c4d960a2b/go.mod h1:cMWbtM+anpC74gn6qjLh+exqYcfmB9Hqe5z6adx+CLI=
+cloud.google.com/go/storage v1.57.3-0.20251202100723-377eb13bbadb h1:XAS9743KNZD9jisOMKqstYcZPuK/xe1r5D1pMVuBHgc=
+cloud.google.com/go/storage v1.57.3-0.20251202100723-377eb13bbadb/go.mod h1:cMWbtM+anpC74gn6qjLh+exqYcfmB9Hqe5z6adx+CLI=
 cloud.google.com/go/trace v1.11.6 h1:2O2zjPzqPYAHrn3OKl029qlqG6W8ZdYaOWRyr8NgMT4=
 cloud.google.com/go/trace v1.11.6/go.mod h1:GA855OeDEBiBMzcckLPE2kDunIpC72N+Pq8WFieFjnI=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
