@@ -211,7 +211,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	var clientOpts []option.ClientOption
 	var tokenSrc oauth2.TokenSource = nil
 
-	if clientConfig.EnableGoogleLibAuth {
+	if clientConfig.AnonymousAccess {
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
 		authOpts, tokenSrc, err = storageutil.GetClientAuthOptionsAndToken(ctx, clientConfig)
 		if err != nil {
@@ -229,10 +231,6 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
-
-	if clientConfig.AnonymousAccess {
-		clientOpts = append(clientOpts, option.WithoutAuthentication())
-	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
 	if clientConfig.ExperimentalEnableJsonRead {
