@@ -681,13 +681,19 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+
+	includeTrailingDelimeter := true // Important for flat bucket to list explicit directory.
 	if d.isBucketHierarchical() {
 		d.includeFoldersAsPrefixes = true
+		// Not needed for hierarchical bucket.
+		// And setting it to true causes performance issues - b/465295359
+		includeTrailingDelimeter = false // Not needed for hierarchical bucket.
+
 	}
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
-		IncludeTrailingDelimiter: true,
+		IncludeTrailingDelimiter: includeTrailingDelimeter,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
 		MaxResults:               MaxResultsForListObjectsCall,
