@@ -422,7 +422,7 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
 
-	if len(listing.MinObjects) == 0 {
+	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 {
 		return nil, nil
 	}
 
@@ -431,9 +431,10 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		FullName: name,
 	}
 
-	fmt.Println("Min Objects: ", &listing.MinObjects)
-	if o := listing.MinObjects[0]; o.Name == name.GcsObjectName() {
-		result.MinObject = o
+	if len(listing.MinObjects) != 0 {
+		if o := listing.MinObjects[0]; o.Name == name.GcsObjectName() {
+			result.MinObject = o
+		}
 	}
 	return result, nil
 }
