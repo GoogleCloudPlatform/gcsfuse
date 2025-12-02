@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
@@ -69,6 +70,11 @@ type BucketConfig struct {
 	TmpObjectPrefix          string
 	// Used in Zonal buckets to determine if objects should be finalized or not.
 	FinalizeFileForRapid bool
+
+	// Enable dummy I/O mode for testing purposes, simulated read without
+	// any data read from GCS.
+	// All the metadata operations like object listing and stats are real.
+	DummyIOCfg cfg.DummyIoConfig
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -176,6 +182,15 @@ func (bm *bucketManager) SetUpBucket(
 			err = fmt.Errorf("BucketHandle: %w", err)
 			return
 		}
+	}
+
+	if bm.config.DummyIOCfg.Enable {
+		logger.Infof("Enabling dummy I/O mode for bucket %q\n", name)
+		// Wrap in a dummy I/O bucket, which serves the data without actually going to network (GCS).
+		b = storage.NewDummyIOBucket(b, storage.DummyIOBucketParams{
+			ReaderLatency: bm.config.DummyIOCfg.ReaderLatency,
+			PerMBLatency:  bm.config.DummyIOCfg.PerMbLatency,
+		})
 	}
 
 	// Enable monitoring.
