@@ -345,6 +345,8 @@ type Config struct {
 
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
+	DummyIo DummyIoConfig `yaml:"dummy-io"`
+
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
@@ -396,6 +398,14 @@ type DebugConfig struct {
 	Gcs bool `yaml:"gcs"`
 
 	LogMutex bool `yaml:"log-mutex"`
+}
+
+type DummyIoConfig struct {
+	Enable bool `yaml:"enable"`
+
+	PerMbLatency time.Duration `yaml:"per-mb-latency"`
+
+	ReaderLatency time.Duration `yaml:"reader-latency"`
 }
 
 type FileCacheConfig struct {
@@ -720,6 +730,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.DurationP("dummy-io-per-mb-latency", "", 0*time.Nanosecond, "Simulates reading from the reader latency in dummy I/O mode. This value is only used when dummy I/O mode is enabled.")
+
+	if err := flagSet.MarkHidden("dummy-io-per-mb-latency"); err != nil {
+		return err
+	}
+
+	flagSet.DurationP("dummy-io-reader-latency", "", 0*time.Nanosecond, "Simulates reader creation latency in dummy I/O mode. This value is only used when dummy I/O mode is enabled.")
+
+	if err := flagSet.MarkHidden("dummy-io-reader-latency"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-atomic-rename-object", "", true, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
@@ -731,6 +753,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-cloud-profiler", "", false, "Enables cloud-profiler, by default disabled.")
 
 	if err := flagSet.MarkHidden("enable-cloud-profiler"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-dummy-io", "", false, "Enable dummy I/O mode for testing purposes. In this mode all reads and writes are simulated and no actual data is transferred to or from Cloud Storage. All the metadata operations like object listing and stats are real.")
+
+	if err := flagSet.MarkHidden("enable-dummy-io"); err != nil {
 		return err
 	}
 
@@ -1171,6 +1199,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("dummy-io.per-mb-latency", flagSet.Lookup("dummy-io-per-mb-latency")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("dummy-io.reader-latency", flagSet.Lookup("dummy-io-reader-latency")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
 		return err
 	}
@@ -1180,6 +1216,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cloud-profiler.enabled", flagSet.Lookup("enable-cloud-profiler")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("dummy-io.enable", flagSet.Lookup("enable-dummy-io")); err != nil {
 		return err
 	}
 
