@@ -109,6 +109,7 @@ WORKDIR ${GCSFUSE_PKG}
 # Build the package
 RUN dpkg-deb --build ${GCSFUSE_BIN}
 RUN mv ${GCSFUSE_BIN}.deb .
+RUN rm -rf ${GCSFUSE_BIN}/DEBIAN
 RUN fpm \
     -s dir \
     -t rpm \
