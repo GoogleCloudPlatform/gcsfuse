@@ -243,9 +243,9 @@ type dummyReader struct {
 // newDummyReader creates a new dummyReader with the specified total length.
 func newDummyReader(totalLen uint64, perMBLatency time.Duration) *dummyReader {
 	return &dummyReader{
-		totalLen:       totalLen,
-		bytesRead:      0,
-		readHandle:     []byte{}, // Always return a non-nil read handle
+		totalLen:   totalLen,
+		bytesRead:  0,
+		readHandle: []byte{}, // Always return a non-nil read handle
 		// TODO: fix precision issue in perByteLatency because of upper bound.
 		perByteLatency: time.Duration(perMBLatency.Nanoseconds()+MB-1) / MB,
 	}
