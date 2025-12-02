@@ -142,9 +142,11 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 		// In case of multiple threads reading parallely, it is possible that many of them might be waiting
 		// at this lock and hence the earlier calculated value of readerType might not be valid once they
 		// acquire the lock. Hence, needs to be calculated again.
-		// Recalculating only for ZB and only when another read had been performed between now and
-		// the time when readerType was calculated for this request.
-		if gr.bucket.BucketType().Zonal && readReq.ExpectedOffset != gr.readTypeClassifier.NextExpectedOffset() {
+		// We recalculate the read type if the expected offset has changed. This is important for both
+		// zonal and regional buckets. For zonal buckets, it allows switching to MRD for high-performance
+		// random reads. For regional buckets, it helps in adjusting the prefetch window for the range
+		// reader when the read pattern changes.
+		if readReq.ExpectedOffset != gr.readTypeClassifier.NextExpectedOffset() {
 			readReq.ReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
 			reqReaderType = gr.readerType(readReq.ReadType, gr.bucket.BucketType())
 		}
