@@ -278,7 +278,7 @@ func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
 			content := "abcde"
 			rc := &fake.FakeReader{ReadCloser: getReadCloser([]byte(content))}
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Times(1)
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
 			requestSize := 6
 			buf := make([]byte, requestSize)
 
@@ -414,7 +414,7 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 				ReadHandle:     nil, // No existing read handle
 			}
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, expectedReadObjectRequest).Return(rc, nil).Once()
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Times(3)
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Times(2)
 			buf := make([]byte, readLength)
 
 			objectData := t.readAt(t.ctx, &gcsx.ReadRequest{
