@@ -17,6 +17,10 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: fio-data-loader-{{ .Values.fio.fileSize | lower }}
+  {{- if .Values.createUsingGcsfuse }}
+  annotations:
+    gke-gcsfuse/volumes: "true"
+  {{- end }}
 spec:
   restartPolicy: Never
   nodeSelector:
@@ -50,6 +54,17 @@ spec:
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
         apt-get update && apt-get install -y google-cloud-cli
 
+        {{ if .Values.preprod }}
+        # switch to preprod environment
+        gcloud config configurations create preprod || gcloud config configurations activate preprod
+        gcloud config set pass_credentials_to_gsutil true
+        gcloud config set disable_usage_reporting true
+        # preprod endpoint from go/gcs-universes
+        gcloud config set api_endpoint_overrides/storage https://storage-preprod-test-unified.googleusercontent.com/storage/v1_preprod/
+        # Requires gcloud version Google Cloud SDK 422.0.0 or later.
+        gcloud config set storage/json_api_version v1_preprod
+        {{ end }}
+
         echo "Installing fio..."
         git clone -b fio-3.36 https://github.com/axboe/fio.git
         cd fio
@@ -74,7 +89,7 @@ spec:
         create_serialize=0
         allrandrepeat=1
         numjobs=1
-        filename=/data/0
+        filename=/local-data/0
 
         [Workload]
         bs=1M
@@ -85,16 +100,56 @@ spec:
         offset_increment=1%
         EOF
         {{ else }}
-        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/master/perfmetrics/scripts/job_files/read_cache_load_test.fio
+        cat > $filename << EOF
+        ; -- use nrfiles and rw to CLI args to control readtype and number of files --
+        [global]
+        ioengine=libaio
+        direct=1
+        fadvise_hint=0
+        iodepth=64
+        invalidate=1
+        nrfiles={{ .Values.fio.filesPerThread }}
+        thread=1
+        openfiles=1
+        group_reporting=1
+        create_serialize=0
+        allrandrepeat=0
+        file_service_type=random
+        numjobs={{ .Values.fio.numThreads }}
+        filename_format=\$jobname.\$jobnum/\$filenum
+
+        [Workload]
+        directory=/local-data
+        bs={{ .Values.fio.blockSize }}
+        filesize={{ .Values.fio.fileSize }}
+        rw=write
+        EOF
         {{ end }}
 
-        NUMJOBS=50 NRFILES={{ .Values.fio.filesPerThread }} FILE_SIZE={{ .Values.fio.fileSize }} BLOCK_SIZE={{ .Values.fio.blockSize }} READ_TYPE=read DIR=/data fio ${filename} --alloc-size=1048576
+        fio ${filename} --alloc-size=1048576
 
         echo "Uploading data to bucket {{ .Values.bucketName }}..."
-        gcloud cp -r /data/* gs://{{ .Values.bucketName }}
+        {{ if .Values.createUsingGcsfuse }}
+        cp -rfv /local-data/* /data/
+        {{ else }}
+        gcloud storage cp -r /local-data/* gs://{{ .Values.bucketName }}/
+        {{ end }}
     volumeMounts:
     - name: local-dir
+      mountPath: /local-data
+    - name: data-vol
       mountPath: /data
   volumes:
   - name: local-dir
     emptyDir: {}
+  - name: data-vol
+    {{- if .Values.createUsingGcsfuse }}
+    csi:
+      driver: gcsfuse.csi.storage.gke.io
+      volumeAttributes:
+        bucketName: {{ .Values.bucketName }}
+        mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
+        skipCSIBucketAccessCheck: "true"
+    {{- else }}
+    emptyDir: {}
+    {{- end }}
