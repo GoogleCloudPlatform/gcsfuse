@@ -990,7 +990,6 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
-	d.cache.Erase(name)
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
