@@ -994,11 +994,8 @@ func (t *DeleteObjectTest) deleteObject(name string) (err error) {
 	return
 }
 
-func (t *DeleteObjectTest) CallsEraseAndWrapped() {
+func (t *DeleteObjectTest) CallsWrapped() {
 	const name = "taco"
-
-	// Erase
-	ExpectCall(t.cache, "Erase")(name)
 
 	// Wrapped
 	var wrappedReq *gcs.DeleteObjectRequest
@@ -1012,12 +1009,9 @@ func (t *DeleteObjectTest) CallsEraseAndWrapped() {
 	ExpectEq(name, wrappedReq.Name)
 }
 
-func (t *DeleteObjectTest) WrappedFails() {
+func (t *DeleteObjectTest) WrappedFails_NonPreconditionError() {
 	const name = ""
 	var err error
-
-	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
 	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
@@ -1029,7 +1023,21 @@ func (t *DeleteObjectTest) WrappedFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *DeleteObjectTest) WrappedSucceeds() {
+func (t *DeleteObjectTest) WrappedReturnsPreconditionError() {
+	const name = "taco"
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
+		WillOnce(Return(&gcs.PreconditionError{Err: errors.New("precondition failed")}))
+
+	// Call.
+	err := t.deleteObject(name)
+
+	ExpectThat(err, Error(HasSubstr("precondition failed")))
+}
+
+func (t *DeleteObjectTest) WrappedSucceeds_AddsNegativeEntry() {
 	const name = ""
 	var err error
 
