@@ -2217,3 +2217,97 @@ func TestGetConfigFileFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestArgsParsing_DummyIOFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				DummyIo: cfg.DummyIoConfig{
+					Enable:        false,
+					ReaderLatency: 0,
+					PerMbLatency:  0,
+				},
+			},
+		},
+		{
+			name: "normal",
+			args: []string{"gcsfuse", "--dummy-io-reader-latency=150ms", "--dummy-io-per-mb-latency=20ms", "--enable-dummy-io", "pqr"},
+			expectedConfig: &cfg.Config{
+				DummyIo: cfg.DummyIoConfig{
+					Enable:        true,
+					ReaderLatency: 150 * time.Millisecond,
+					PerMbLatency:  20 * time.Millisecond,
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedConfig.DummyIo, gotConfig.DummyIo)
+		})
+	}
+}
+
+func TestArgsParsing_DummyIOConfigFile(t *testing.T) {
+	tests := []struct {
+		name           string
+		cfgFile        string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:    "default",
+			cfgFile: "empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				DummyIo: cfg.DummyIoConfig{
+					Enable:        false,
+					ReaderLatency: 0,
+					PerMbLatency:  0,
+				},
+			},
+		},
+		{
+			name:    "normal",
+			cfgFile: "valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				DummyIo: cfg.DummyIoConfig{
+					Enable:        true,
+					ReaderLatency: 150 * time.Millisecond,
+					PerMbLatency:  20 * time.Millisecond,
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedConfig.DummyIo, gotConfig.DummyIo)
+		})
+	}
+}
