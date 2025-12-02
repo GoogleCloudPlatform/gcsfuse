@@ -144,8 +144,10 @@ func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
 	for _, o := range listing.MinObjects {
-		b.cache.Insert(o, expiration)
-		minObjectNames[o.Name] = struct{}{}
+		if !strings.HasSuffix(o.Name, "/") {
+			b.cache.Insert(o, expiration)
+			minObjectNames[o.Name] = struct{}{}
+		}
 	}
 
 	for _, p := range listing.CollapsedRuns {
@@ -202,6 +204,7 @@ func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	logger.Info("Add negative entry for folder: ", name)
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntryForFolder(name, expiration)
 }
@@ -391,23 +394,49 @@ func (b *fastStatBucket) ListObjects(
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// If ForceFetchFromCache is true, we will try to serve listing from cache.
 	if req.ForceFetchFromCache {
-		if hit, entry := b.lookUp(req.Prefix); hit {
+		if !b.BucketType().Hierarchical {
+			if hit, entry := b.lookUp(req.Prefix); hit {
 
-			// Negative entries result in NotFoundError.
-			if entry == nil {
-				err = &gcs.NotFoundError{
-					Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+				// Negative entries result in NotFoundError.
+				if entry == nil {
+					err = &gcs.NotFoundError{
+						Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+					}
+
+					return nil, err
 				}
 
-				return nil, err
+				logger.Info("In force fetch", req.Prefix, entry, hit)
+				// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+				if entry.ImplicitDir {
+					listing = &gcs.Listing{
+						CollapsedRuns: []string{entry.Name},
+					}
+				} else {
+					listing = &gcs.Listing{
+						MinObjects: []*gcs.MinObject{entry},
+					}
+				}
+				return listing, nil
 			}
+		} else {
+			if hit, entry := b.lookUpFolder(req.Prefix); hit {
 
-			fmt.Println("In force fetch", req.Prefix, entry, hit)
-			// Otherwise, return MinObject and nil ExtendedObjectAttributes.
-			listing = &gcs.Listing{
-				MinObjects: []*gcs.MinObject{entry},
+				// Negative entries result in NotFoundError.
+				if entry == nil {
+					err = &gcs.NotFoundError{
+						Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+					}
+
+					return nil, err
+				}
+
+				logger.Info("In force fetch", req.Prefix, entry, hit)
+				listing = &gcs.Listing{
+					CollapsedRuns: []string{entry.Name},
+				}
+				return listing, nil
 			}
-			return listing, nil
 		}
 	}
 
@@ -418,6 +447,7 @@ func (b *fastStatBucket) ListObjects(
 	}
 
 	if b.BucketType().Hierarchical {
+		logger.Errorf("In Hierarchical listing")
 		b.insertHierarchicalListing(listing)
 		return
 	}
@@ -519,7 +549,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Fol
 			err := &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for folder %v", prefix),
 			}
-
+			logger.Errorf("In Negative Get Folder...", prefix)
 			return nil, err
 		}
 
