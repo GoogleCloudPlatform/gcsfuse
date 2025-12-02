@@ -26,6 +26,7 @@ var readFileRegex = regexp.MustCompile(`fuse_debug: Op (0x[0-9a-fA-F]+)\s+connec
 var readAtReqRegex = regexp.MustCompile(`([a-f0-9-]+) <- ReadAt\(([^:]+):/([^,]+), (\d+), (\d+), (\d+), (\d+)\)`)
 var readAtSimpleRespRegex = regexp.MustCompile(`([a-f0-9-]+) -> ReadAt\(\): Ok\(([0-9.]+(?:s|ms|µs))\)`)
 var fallbackFromHandleRegex = regexp.MustCompile(`Fallback to another reader for object "[^"]+", handle (\d+)\.(?: Random seek count (\d+) exceeded threshold \d+.*)?`)
+var restartFromHandleRegex = regexp.MustCompile(`Restarting buffered reader.*handle (\d+)`)
 
 // ParseBufferedReadLogsFromLogReader parses buffered read logs from an io.Reader and
 // returns a map of BufferedReadLogEntry keyed by file handle.
@@ -79,9 +80,10 @@ func ParseBufferedReadLogsFromLogReader(reader io.Reader) (map[int64]*BufferedRe
 
 	// Filter out entries that have no chunks, as they represent file handles
 	// that were opened but never read from using the buffered reader.
+	// However, keep entries that have fallback or restart events.
 	filteredLogsMap := make(map[int64]*BufferedReadLogEntry)
 	for handle, entry := range bufferedReadLogsMap {
-		if len(entry.Chunks) > 0 {
+		if len(entry.Chunks) > 0 || entry.Fallback || entry.Restarted {
 			filteredLogsMap[handle] = entry
 		}
 	}
@@ -129,6 +131,10 @@ func filterAndParseLogLineForBufferedRead(
 		if err := parseFallbackLogFromHandle(logMessage, bufferedReadLogsMap); err != nil {
 			return fmt.Errorf("parseFallbackLogFromHandle failed: %v", err)
 		}
+	case strings.Contains(logMessage, "Restarting buffered reader"):
+		if err := parseRestartLogFromHandle(logMessage, bufferedReadLogsMap); err != nil {
+			return fmt.Errorf("parseRestartLogFromHandle failed: %v", err)
+		}
 	}
 	return nil
 }
@@ -160,6 +166,26 @@ func parseFallbackLogFromHandle(
 			return fmt.Errorf("invalid random seek count in fallback log: %v", err)
 		}
 		logEntry.RandomSeekCount = randomSeekCount
+	}
+	return nil
+}
+
+func parseRestartLogFromHandle(
+	logMessage string,
+	bufferedReadLogsMap map[int64]*BufferedReadLogEntry) error {
+
+	matches := restartFromHandleRegex.FindStringSubmatch(logMessage)
+	if len(matches) < 2 {
+		return nil
+	}
+
+	handleID, err := parseToInt64(matches[1])
+	if err != nil {
+		return fmt.Errorf("invalid handle ID in restart log: %w", err)
+	}
+
+	if logEntry, ok := bufferedReadLogsMap[handleID]; ok {
+		logEntry.Restarted = true
 	}
 	return nil
 }
@@ -229,7 +255,15 @@ func parseReadAtRequestLog(
 
 	logEntry, ok := bufferedReadLogsMap[handle]
 	if !ok || logEntry == nil {
-		return fmt.Errorf("BufferedReadLogEntry for handle %d not found", handle)
+		// If a ReadAt log appears for a handle that hasn't been seen in a ReadFile
+		// log, it's likely due to multiple reads on the same handle where only one
+		// ReadFile log is emitted. We create a new entry to track it.
+		bufferedReadLogsMap[handle] = &BufferedReadLogEntry{
+			CommonReadLog: CommonReadLog{
+				Handle: handle,
+			},
+		}
+		logEntry = bufferedReadLogsMap[handle]
 	}
 
 	if logEntry.BucketName == "" || logEntry.ObjectName == "" {

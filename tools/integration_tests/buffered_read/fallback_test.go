@@ -148,6 +148,36 @@ func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
 	assert.Equal(s.T(), int64(0), bufferedReadLogEntry.RandomSeekCount, "RandomSeekCount should be 0 for small file reads.")
 }
 
+// TestRandomThenSequential_SwitchesBackToBufferedRead verifies that after a fallback
+// due to random reads, the buffered reader is re-engaged once the read pattern
+// becomes sequential again.
+func (s *RandomReadFallbackSuite) TestRandomThenSequential_SwitchesBackToBufferedRead() {
+	fileSize := int64(20 * util.MiB)
+	testDir := setup.SetupTestDirectory(testDirName)
+	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	filePath := path.Join(testDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
+	require.NoError(s.T(), err)
+	defer operations.CloseFileShouldNotThrowError(s.T(), f)
+	// We perform 4 backward reads of 5 MiB. This size keeps the average read size
+	// below the maxReadSize (8 MiB), ensuring the pattern is classified as random.
+	// The 4th read exceeds the randomReadsThreshold, triggering a fallback.
+	readAndValidateChunk(f, path.Base(testDir), fileName, 8*util.MiB, 5*util.MiB, s.T())
+	readAndValidateChunk(f, path.Base(testDir), fileName, 7*util.MiB, 5*util.MiB, s.T())
+	readAndValidateChunk(f, path.Base(testDir), fileName, 6*util.MiB, 5*util.MiB, s.T())
+	readAndValidateChunk(f, path.Base(testDir), fileName, 5*util.MiB, 5*util.MiB, s.T())
+
+	// The initial 1 MiB chunks are handled by the GCSReader due to the fallback.
+	// The ReadTypeClassifier observes this, re-classifies the pattern as sequential,
+	// and the BufferedReader restarts to serve the remaining chunks of this read.
+	readAndValidateChunk(f, path.Base(testDir), fileName, 0, 20*util.MiB, s.T())
+
+	bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(s.T())
+	require.NotNil(s.T(), bufferedReadLogEntry, "Log entry for the file handle not found.")
+	assert.True(s.T(), bufferedReadLogEntry.Fallback, "Expected fallback to be true.")
+	assert.True(s.T(), bufferedReadLogEntry.Restarted, "Expected reader to be restarted.")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
