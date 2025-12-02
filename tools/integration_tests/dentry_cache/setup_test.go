@@ -54,7 +54,7 @@ type env struct {
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
-	if setup.MountedDirectory() == "" {
+	if testEnv.cfg.GKEMountedDirectory == "" {
 		setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
 	}
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
