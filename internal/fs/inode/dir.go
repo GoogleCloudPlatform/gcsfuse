@@ -670,6 +670,15 @@ func (d *dirInode) readObjects(
 	cores = make(map[Name]*Core)
 
 	for _, o := range listing.MinObjects {
+		if storageutil.IsUnsupportedPath(o.Name) {
+			unsupportedDirs = append(unsupportedDirs, o.Name)
+			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
+			// TODO: Remove this check once we gain confidence that it is not causing any issues.
+			if d.isUnsupportedDirSupportEnabled {
+				continue
+			}
+		}
+
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
