@@ -72,7 +72,7 @@ type BucketConfig struct {
 	FinalizeFileForRapid bool
 
 	// Enable dummy I/O mode for testing purposes, simulated read without
-	// any read data read from GCS.
+	// any data read from GCS.
 	// All the metadata operations like object listing and stats are real.
 	DummyIOCfg cfg.DummyIoConfig
 }
