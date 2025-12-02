@@ -505,6 +505,27 @@ read_gcs_algo:
           zonal: true
         run_on_gke: true
 
+unfinalized_object:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+        - "--metadata-cache-ttl-secs=-1"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestUnfinalizedObjectReadTest
+        run_on_gke: true
+      - flags:
+        - "--metadata-cache-ttl-secs=0"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestUnfinalizedObjectOperationTest
+        run_on_gke: true
+
 interrupt:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
@@ -526,6 +547,20 @@ interrupt:
           hns: true
           zonal: true
         run_on_gke: true
+
+log_rotation:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # To be removed
+    configs:
+      - flags:
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: false
 
 flag_optimizations:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -582,3 +617,62 @@ flag_optimizations:
           zonal: false
         run_on_gke: true
 
+unsupported_path:
+- mounted_directory: "${MOUNTED_DIR}"
+  test_bucket: "${BUCKET_NAME}"
+  only_dir: "${ONLY_DIR}"
+  log_file: # Optional
+  configs:
+  - flags:
+    - "--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    compatible:
+      flat: true
+      hns: true
+      zonal: false
+    run_on_gke: true
+  - flags:
+    - "--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    compatible:
+      flat: true
+      hns: true
+      zonal: true
+    run_on_gke: true
+
+kernel_list_cache:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - "--kernel-list-cache-ttl-secs=-1"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestInfiniteKernelListCacheTest"
+        run_on_gke: true
+      - flags:
+          # Note: metadata cache is disabled to avoid cache consistency issue between gcsfuse cache and kernel cache. As
+          # gcsfuse cache might hold the entry which already became stale due to delete operation.
+          - "--kernel-list-cache-ttl-secs=-1 --metadata-cache-ttl-secs=0 --metadata-cache-negative-ttl-secs=0"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestInfiniteKernelListCacheDeleteDirTest"
+        run_on_gke: true
+      - flags:
+          - "--kernel-list-cache-ttl-secs=5 --rename-dir-limit=10"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestFiniteKernelListCacheTest"
+        run_on_gke: true
+      - flags:
+          - "--kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestDisabledKernelListCacheTest"
+        run_on_gke: true

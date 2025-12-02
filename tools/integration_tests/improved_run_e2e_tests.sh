@@ -75,6 +75,7 @@ PROJECT_ID="${DEFAULT_PROJECT_ID}"
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 
 LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error "Unable to create lock file"; exit 1; }
+BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX") || { log_error "Unable to create bucket creation lock file"; exit 1; }
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
@@ -217,6 +218,7 @@ TEST_PACKAGES_COMMON=(
   "log_rotation"
   "monitoring"
   "mounting"
+  "unsupported_path"
   # "grpc_validation"
   "negative_stat_cache"
   "stale_handle"
@@ -314,38 +316,19 @@ create_bucket() {
       cat "$bucket_cmd_log"
       return 1
     fi
+    acquire_lock "$BUCKET_CREATION_LOCK_FILE"
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
-    if [ $? -eq 0 ]; then
-      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets. 
+    local status=$?
+    sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
+    release_lock "$BUCKET_CREATION_LOCK_FILE"
+    if [ $status -eq 0 ]; then
       break
     fi
   done
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
   echo "$bucket_name"
+  rm -rf "$bucket_cmd_log"
   return 0
-}
-
-# Helper method to create buckets for each of the package.
-setup_package_buckets () {
-  if [[ "$#" -ne 3 ]]; then 
-    log_error "setup_buckets() called with incorrect number of arguments."
-    exit 1
-  fi
-  local -n package_array="$1"
-  local -n package_bucket_array="$2"
-  local bucket_type="$3"
-  local exit_code=0
-  for package in "${package_array[@]}"; do
-    local output
-    output=$(create_bucket "$package" "$bucket_type")
-    if [ $? -eq 0 ]; then
-      package_bucket_array+=("${package} ${output} ${bucket_type}")
-    else
-      exit_code=1
-      log_error_locked "$output"
-    fi
-  done
-  return $exit_code
 }
 
 # Helper method to delete the bucket.
@@ -400,7 +383,7 @@ clean_up() {
         log_info "Successfully deleted all buckets."
     fi
   fi
-  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then 
+  if ! rm -rf /tmp/"${TMP_PREFIX}"*; then 
     log_error "Failed to delete temporary files"
   else 
     log_info "Successfully cleaned up temporary files"
@@ -417,29 +400,20 @@ process_any_pid() {
   wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
   pid_status=$?
 
-  local cmd_and_output_file="${cmds_by_pid_ref[$waited_pid]}"
-  local parallel_cmd_executed="${cmd_and_output_file%%;*}"
-  local output_file="${cmd_and_output_file#*;}"
   unset "cmds_by_pid_ref[$waited_pid]"
   if [[ "$pid_status" -ne 0 ]]; then
-    acquire_lock "$LOG_LOCK_FILE"
-    log_error "Parallel Command failed: $parallel_cmd_executed"
-    cat "$output_file"
-    release_lock "$LOG_LOCK_FILE"
     return 1
   fi
-  log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
   return 0
 }
 
 # run_parallel: Executes commands in parallel based on a template and substitutes.
-#   Prints output (stdout/stderr) if the command errors out.
-#   Prints success message if command succeeds.
 #   The function returns a non-zero exit status if any of the parallel commands fail.
 #
 # Usage: run_parallel "parallelism" "command_template_with_@" "substitute1" "substitute2" ...
-#   The '@' in the command_template will be replaced by each substitute argument.
-#   This first argument is exten of parallelism for this command.
+#   First argument is extent of parallelism for this command.
+#   Second argument is the command template with single @.
+#   Rest of the arguments are values that would be substituted in the command template.
 #
 # Example:
 #   run_parallel 2 "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
@@ -454,15 +428,13 @@ run_parallel() {
   local cmd_template="$1"
   shift
   local -A cmds_by_pid=()
-  local overall_exit_code=0 parallel_cmd parallel_cmd_output pid
+  local overall_exit_code=0 parallel_cmd pid
   # Launch parallel commands in the background based on parallelism.
   for arg in "$@"; do
     parallel_cmd="${cmd_template//@/$arg}"
-    parallel_cmd_output=$(mktemp "/tmp/${TMP_PREFIX}_{$parallel_cmd}_output.XXXXXX")
-    log_info_locked "Executing Parallel Command: $parallel_cmd"
-    eval "$parallel_cmd" > "$parallel_cmd_output" 2>&1 &
+    eval "$parallel_cmd" &
     pid=$!
-    cmds_by_pid["$pid"]="$parallel_cmd;$parallel_cmd_output"
+    cmds_by_pid["$pid"]="$parallel_cmd"
     if [[ ${#cmds_by_pid[@]} -eq $parallelism ]]; then
       process_any_pid "cmds_by_pid"
       overall_exit_code=$((overall_exit_code || $? ))
@@ -474,6 +446,22 @@ run_parallel() {
       overall_exit_code=$((overall_exit_code || $? ))
   done
   return $overall_exit_code
+}
+
+# Helper method that creates a bucket and then runs the test package.
+create_bucket_and_run_test() {
+  if [[ $# -ne 2 ]]; then
+    log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
+    return 1
+  fi
+  local package_name="$1"
+  local bucket_type="$2"
+
+  if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
+    log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
+    return 1
+  fi
+  test_package "$package_name" "$bucket_name" "$bucket_type"
 }
 
 # Helper method to executes e2e test package.
@@ -511,24 +499,26 @@ test_package() {
   if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
+
+  local go_test_cmd test_package_log_file start=$SECONDS exit_code=0 
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
-  local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-  
+  go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")  
+  test_package_log_file=$(mktemp "/tmp/${TMP_PREFIX}_${package_name}_${bucket_type}_log.XXXXXX")
   # Run the package test command and capture log output with runtime stats.
-  local start=$SECONDS exit_code=0 
-  local log_file=$(mktemp)
-  # Ensure the temporary log file is removed on function exit.
-  trap 'rm -f "$log_file"' RETURN
-
-  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
+  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
+  if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
+    log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
+  else
+    log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
   fi
   local end=$SECONDS
+
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
   # Generate Kokoro artifacts(log) files.
-  generate_test_log_artifacts "$log_file" "$package_name" "$bucket_type"
+  generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
   return "$exit_code"
 }
 
@@ -554,8 +544,8 @@ generate_test_log_artifacts() {
 
   local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}/${package_name}"
   mkdir -p "$output_dir"
-  local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
-  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
+  local sponge_log_file="${output_dir}/sponge_log.log"
+  local sponge_xml_file="${output_dir}/sponge_log.xml"
 
   cp "$log_file" "$sponge_log_file"
   
@@ -621,6 +611,8 @@ install_packages() {
   # Install latest gcloud version.
   bash ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+  export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
   if ${KOKORO_DIR_AVAILABLE} ; then
     # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
@@ -631,21 +623,18 @@ install_packages() {
 # Generic function to run a group of E2E tests for a given bucket type.
 # Args:
 #   $1: Descriptive group name (e.g., "REGIONAL", "ZONAL", "TPC")
-#   $2: Name of the array holding test packages (e.g., "TEST_PACKAGES_FOR_RB", "TEST_PACKAGES_FOR_ZB")
-#   $3: Bucket type ("flat", "hns", "zonal")
+#   $2: Bucket type ("flat", "hns", "zonal")
+#   $@: A list of test package names to run.
 run_test_group() {
   local group_name="$1"
-  local test_packages_var_name="$2"
-  local bucket_type="$3"
-  local packages_for_run=()
+  local bucket_type="$2"
+  shift 2
+  local -a test_packages=("$@")
   local group_exit_code=0
   log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  setup_package_buckets "${test_packages_var_name}" "packages_for_run" "${bucket_type}"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type}" "${test_packages[@]}"
   group_exit_code=$?
-
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${packages_for_run[@]}"
-  group_exit_code=$((group_exit_code || $?))
 
   if [ "$group_exit_code" -ne 0 ]; then
     log_error_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) FAILED."
@@ -711,16 +700,16 @@ main() {
   local pids=()
   local overall_exit_code=0
   if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_test_group "ZONAL" "TEST_PACKAGES_FOR_ZB" "$ZONAL" & pids+=($!)
+    run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
   elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
     # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
     PROJECT_ID="$TPCZERO_PROJECT_ID"
     BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
-    run_test_group "TPC" "TEST_PACKAGES_FOR_TPC" "$HNS" & pids+=($!)
-    run_test_group "TPC" "TEST_PACKAGES_FOR_TPC" "$FLAT" & pids+=($!)
+    run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
+    run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
   else
-    run_test_group "REGIONAL" "TEST_PACKAGES_FOR_RB" "$HNS" & pids+=($!)
-    run_test_group "REGIONAL" "TEST_PACKAGES_FOR_RB" "$FLAT" & pids+=($!)
+    run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
+    run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
     run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
   fi
   # Wait for all background processes to complete and aggregate their exit codes

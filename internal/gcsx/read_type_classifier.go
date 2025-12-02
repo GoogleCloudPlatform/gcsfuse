@@ -173,6 +173,11 @@ func (rtc *ReadTypeClassifier) IsReadSequential() bool {
 	return rtc.readType.Load() == metrics.ReadTypeSequential
 }
 
+// NextExpectedOffset returns the next expected offset for a sequential read.
+func (rtc *ReadTypeClassifier) NextExpectedOffset() int64 {
+	return rtc.expectedOffset.Load()
+}
+
 // avgReadBytes calculates the average read bytes per seek.
 // If no seeks have been recorded, it returns the total read bytes.
 func avgReadBytes(totalReadBytes uint64, numSeeks uint64) uint64 {
@@ -180,4 +185,10 @@ func avgReadBytes(totalReadBytes uint64, numSeeks uint64) uint64 {
 		return totalReadBytes / numSeeks
 	}
 	return totalReadBytes
+}
+
+// GetSeeks returns the current number of seeks recorded.
+// This method is intended for testing purposes.
+func (rtc *ReadTypeClassifier) GetSeeks() uint64 {
+	return rtc.seeks.Load()
 }

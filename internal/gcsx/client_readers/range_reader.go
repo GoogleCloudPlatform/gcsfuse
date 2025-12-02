@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package client_readers
 
 import (
 	"context"
@@ -312,9 +312,6 @@ func (rr *RangeReader) skipBytes(offset int64) {
 // invalidateReaderIfMisalignedOrTooSmall ensures that the existing reader is valid
 // for the requested offset and length. If the reader is misaligned (not at the requested
 // offset) or cannot serve the full request within its limit, it is closed and discarded.
-//
-// It attempts to skip forward to the requested offset if possible to avoid creating
-// a new reader unnecessarily.
 //
 // Parameters:
 //   - startOffset: the starting byte position of the requested read.

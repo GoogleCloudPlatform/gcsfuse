@@ -34,13 +34,13 @@ echo "Upgrade gcloud version"
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 
-# Conditionally install python3.9 and run gcloud installer with it for RHEL 8 and Rocky 8
+# Conditionally install python3.11 and run gcloud installer with it for RHEL 8 and Rocky 8
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [[ ($ID == "rhel" || $ID == "rocky") && $VERSION_ID == 8* ]]; then
-        sudo yum install -y python39
-        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.9 /usr/local/google-cloud-sdk/install.sh --quiet"
+        sudo yum install -y python311
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
 fi
 $INSTALL_COMMAND 
@@ -58,8 +58,10 @@ ZONE_NAME=$(basename "$ZONE")
 # This parameter is passed as the GCE VM metadata at the time of creation.(Logic is handled in louhi stage script)
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
 RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
+RUN_LIGHT_TEST=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-light-test)')
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
+echo "RUN_LIGHT_TEST flag set to : \"${RUN_LIGHT_TEST}\""
 
 # Logging the tests being run on the active GCE VM
 if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
@@ -71,6 +73,11 @@ fi
 # Logging the tests being run on the active GCE VM
 if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
 	echo "Running read cache test only..."
+fi
+
+# Logging the tests being run on the active GCE VM
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+	echo "Running light tests only..."
 fi
 
 #details.txt file contains the release version and commit hash of the current release.
@@ -173,6 +180,7 @@ export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 # and can be used for conditional logic or decisions within that script.
 export RUN_ON_ZB_ONLY='$RUN_ON_ZB_ONLY'
 export RUN_READ_CACHE_TESTS_ONLY='$RUN_READ_CACHE_TESTS_ONLY'
+export RUN_LIGHT_TEST='$RUN_LIGHT_TEST'
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
@@ -303,12 +311,14 @@ TEST_DIR_PARALLEL=(
   "negative_stat_cache"
   "streaming_writes"
   "release_version"
-  "readdirplus"
-  "dentry_cache"
+  # Reenable when b/461334834 is done.
+  # "readdirplus"
+  # "dentry_cache"
   "buffered_read"
   # Disabled because of b/451462914.
   #"requester_pays_bucket"
   "flag_optimizations"
+  "unsupported_path"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -323,7 +333,8 @@ TEST_DIR_NON_PARALLEL=(
 TEST_DIR_PARALLEL_ZONAL=(
   buffered_read
   concurrent_operations
-  dentry_cache
+  # Reenable when b/461334834 is done.
+  # dentry_cache
   explicit_dir
   flag_optimizations
   gzip
@@ -339,13 +350,15 @@ TEST_DIR_PARALLEL_ZONAL=(
   operations
   rapid_appends
   read_large_files
-  readdirplus
+  # Reenable when b/461334834 is done.
+  # readdirplus
   release_version
   rename_dir_limit
   stale_handle
   streaming_writes
   unfinalized_object
   write_large_files
+  "unsupported_path"
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
@@ -560,9 +573,22 @@ function run_e2e_tests_for_emulator_and_log() {
     gcloud storage cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 }
 
+
 # Declare an associative array to store the exit status of different test runs.
 declare -A exit_status
-if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+    light_test_dir_non_parallel=("monitoring")
+    light_test_dir_parallel=()
+
+    run_e2e_tests "flat"  light_test_dir_parallel light_test_dir_non_parallel false
+    exit_status["flat"]=$?
+
+    run_e2e_tests "hns"  light_test_dir_parallel light_test_dir_non_parallel false
+    exit_status["hns"]=$?
+
+    run_e2e_tests "zonal"  light_test_dir_parallel light_test_dir_non_parallel true
+    exit_status["zonal"]=$?
+elif [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
     read_cache_test_dir_parallel=() # Empty for read cache tests only
     read_cache_test_dir_non_parallel=("read_cache")
 

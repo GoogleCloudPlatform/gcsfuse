@@ -88,7 +88,8 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics())
 
 	// Mocked cached handler object.
-	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex)
+	isSparse := fileCacheConfig != nil && fileCacheConfig.ExperimentalEnableBlockCache
+	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)

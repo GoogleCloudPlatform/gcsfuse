@@ -274,7 +274,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableBlockCache)
 	return
 }
 
@@ -2190,11 +2190,14 @@ func (fs *fileSystem) RmDir(
 			return err
 		}
 
-		// If there are unsupported objects, delete them recursively.
-		if len(unsupportedPaths) > 0 {
-			err = childDir.DeleteObjects(ctx, unsupportedPaths)
-			if err != nil {
-				return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
+		// TODO: Remove this check once we gain confidence that it is not causing any issues.
+		if fs.newConfig.EnableUnsupportedPathSupport {
+			// If there are unsupported objects, delete them recursively.
+			if len(unsupportedPaths) > 0 {
+				err = childDir.DeleteObjects(ctx, unsupportedPaths)
+				if err != nil {
+					return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
+				}
 			}
 		}
 
@@ -2860,8 +2863,13 @@ func (fs *fileSystem) ReadFile(
 
 	if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
-		resp, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		req := &gcsx.ReadRequest{
+			Buffer: op.Dst,
+			Offset: op.Offset,
+		}
+		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
 		op.BytesRead = resp.Size
+		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)

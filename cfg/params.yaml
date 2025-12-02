@@ -159,6 +159,35 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "dummy-io.enable"
+    flag-name: "enable-dummy-io"
+    type: "bool"
+    usage: >- 
+      Enable dummy I/O mode for testing purposes. In this mode all reads
+      and writes are simulated and no actual data is transferred to or from
+      Cloud Storage. All the metadata operations like object listing and stats
+      are real.
+    default: false
+    hide-flag: true
+
+  - config-path: "dummy-io.per-mb-latency"
+    flag-name: "dummy-io-per-mb-latency"
+    type: "duration"
+    usage: >- 
+      Simulates reading from the reader latency in dummy I/O mode. This value
+      is only used when dummy I/O mode is enabled.
+    default: "0s"
+    hide-flag: true
+
+  - config-path: "dummy-io.reader-latency"
+    flag-name: "dummy-io-reader-latency"
+    type: "duration"
+    usage: >- 
+      Simulates reader creation latency in dummy I/O mode. This value
+      is only used when dummy I/O mode is enabled.
+    default: "0s"
+    hide-flag: true
+
   - config-path: "enable-atomic-rename-object"
     flag-name: "enable-atomic-rename-object"
     type: "bool"
@@ -194,7 +223,7 @@ params:
       Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /). 
       When set, GCSFuse will ignore these objects during listing and copying operations. 
       For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.
-    default: false
+    default: true
     hide-flag: true
 
   - config-path: "file-cache.cache-file-for-range-read"
@@ -240,6 +269,13 @@ params:
     type: "string"
     usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
     default: ""
+    hide-flag: true
+
+  - config-path: "file-cache.experimental-enable-block-cache"
+    flag-name: "file-cache-experimental-enable-block-cache"
+    type: "bool"
+    usage: "Enable block cache mode for random I/O optimization that downloads only requested blocks."
+    default: false
     hide-flag: true
 
   - config-path: "file-cache.experimental-parallel-downloads-default-on"

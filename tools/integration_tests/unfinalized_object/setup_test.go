@@ -15,12 +15,16 @@
 package unfinalized_object
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -28,27 +32,74 @@ const (
 )
 
 var (
-	mountFunc func([]string) error
+	testEnv   env
+	mountFunc func(*test_suite.TestConfig, []string) error
+	// mount directory is where our tests run.
+	mountDir string
 )
 
-////////////////////////////////////////////////////////////////////////
-// TestMain
-////////////////////////////////////////////////////////////////////////
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	// flags to be set, as operations tests validates content from the bucket.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		setup.RunTestsForMountedDirectoryFlag(m)
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.UnfinalizedObject) == 0 {
+		log.Println("No configuration found for unfinalized_object tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.UnfinalizedObject = make([]test_suite.TestConfig, 1)
+		cfg.UnfinalizedObject[0].TestBucket = setup.TestBucket()
+		cfg.UnfinalizedObject[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.UnfinalizedObject[0].LogFile = setup.LogFile()
+		cfg.UnfinalizedObject[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.UnfinalizedObject[0].Configs[0].Flags = []string{
+			"--metadata-cache-ttl-secs=-1",
+		}
+		cfg.UnfinalizedObject[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.UnfinalizedObject[0].Configs[0].Run = "TestUnfinalizedObjectReadTest"
+		cfg.UnfinalizedObject[0].Configs[1].Flags = []string{
+			"--metadata-cache-ttl-secs=0",
+		}
+		cfg.UnfinalizedObject[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.UnfinalizedObject[0].Configs[1].Run = "TestUnfinalizedObjectOperationTest"
 	}
 
+	testEnv.ctx = context.Background()
+	testEnv.cfg = &cfg.UnfinalizedObject[0]
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
+
+	// 2. Create storage client before running tests.
+	var err error
+	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer testEnv.storageClient.Close()
+
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		mountDir = testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	}
+
+	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+
+	// Save mount and root directory variables.
+	mountDir = setup.MntDir()
 
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
+
 	os.Exit(successCode)
 }

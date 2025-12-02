@@ -40,6 +40,10 @@ type ReadManager struct {
 	// readers holds a list of data readers, prioritized for reading.
 	// e.g., File cache reader, GCS reader.
 	readers []gcsx.Reader
+
+	// readTypeClassifier tracks the read access pattern (e.g., sequential, random)
+	// across all readers for a file handle to optimize read strategies.
+	readTypeClassifier *gcsx.ReadTypeClassifier
 }
 
 // ReadManagerConfig holds the configuration parameters for creating a new ReadManager.
@@ -100,22 +104,24 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	}
 
 	// Initialize the GCS reader, which is always present.
+	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB))
 	gcsReader := clientReaders.NewGCSReader(
 		object,
 		bucket,
 		&clientReaders.GCSReaderConfig{
-			MetricHandle:         config.MetricHandle,
-			MrdWrapper:           config.MrdWrapper,
-			SequentialReadSizeMb: config.SequentialReadSizeMB,
-			Config:               config.Config,
+			MetricHandle:       config.MetricHandle,
+			MrdWrapper:         config.MrdWrapper,
+			Config:             config.Config,
+			ReadTypeClassifier: readClassifier,
 		},
 	)
 	// Add the GCS reader as a fallback.
 	readers = append(readers, gcsReader)
 
 	return &ReadManager{
-		object:  object,
-		readers: readers, // Readers are prioritized: file cache first, then GCS.
+		object:             object,
+		readers:            readers, // Readers are prioritized: file cache first, then GCS.
+		readTypeClassifier: readClassifier,
 	}
 }
 
@@ -132,21 +138,27 @@ func (rr *ReadManager) CheckInvariants() {
 // ReadAt attempts to read data from the provided offset, using the configured readers.
 // It prioritizes readers in the order they are defined (file cache first, then GCS).
 // If a reader returns a FallbackToAnotherReader error, it tries the next reader.
-func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReadResponse, error) {
+func (rr *ReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	var readResponse gcsx.ReadResponse
-	if offset >= int64(rr.object.Size) {
+	if req.Offset >= int64(rr.object.Size) {
 		return readResponse, io.EOF
 	}
 
 	// empty read
-	if len(p) == 0 {
+	if len(req.Buffer) == 0 {
 		return readResponse, nil
 	}
 
+	// Get read-related information (e.g., read type) and add it to the read request.
+	// This information is used by underlying readers to optimize read strategies
+	// based on the access pattern.
+	req.ReadInfo = rr.readTypeClassifier.GetReadInfo(req.Offset, false)
+
 	var err error
 	for _, r := range rr.readers {
-		readResponse, err = r.ReadAt(ctx, p, offset)
+		readResponse, err = r.ReadAt(ctx, req)
 		if err == nil {
+			rr.readTypeClassifier.RecordRead(req.Offset, int64(readResponse.Size))
 			return readResponse, nil
 		}
 		if !errors.Is(err, gcsx.FallbackToAnotherReader) {

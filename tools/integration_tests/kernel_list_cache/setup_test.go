@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -27,37 +28,32 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
 	testDirName    = "KernelListCacheTest"
 	onlyDirMounted = "OnlyDirMountKernelListCache"
+	GKETempDir     = "/gcsfuse-tmp"
 )
 
 var (
-	testDirPath string
-	mountFunc   func([]string) error
+	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
-	rootDir       string
-	storageClient *storage.Client
-	ctx           context.Context
+	rootDir string
 )
 
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
-	// When tests are running in GKE environment, use the mounted directory provided as test flag.
-	if setup.MountedDirectory() != "" {
-		mountDir = setup.MountedDirectory()
-	}
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	setup.SetMntDir(mountDir)
-	testDirPath = setup.SetupTestDirectory(testDirName)
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
 }
+
+var testEnv env
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -65,36 +61,73 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	// Create common storage client to be used in test.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.KernelListCache) == 0 {
+		log.Println("No configuration found for kernel_list_cache tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.KernelListCache = make([]test_suite.TestConfig, 1)
+		cfg.KernelListCache[0].TestBucket = setup.TestBucket()
+		cfg.KernelListCache[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.KernelListCache[0].LogFile = setup.LogFile()
+		// Initialize the slice to hold 15 specific test configurations
+		cfg.KernelListCache[0].Configs = make([]test_suite.ConfigItem, 4)
+		cfg.KernelListCache[0].Configs[0].Flags = []string{"--kernel-list-cache-ttl-secs=-1"}
+		cfg.KernelListCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.KernelListCache[0].Configs[0].Run = "TestInfiniteKernelListCacheTest"
+		// Note: metadata cache is disabled to avoid cache consistency issue between
+		// gcsfuse cache and kernel cache. As gcsfuse cache might hold the entry which
+		// already became stale due to delete operation.
+		cfg.KernelListCache[0].Configs[1].Flags = []string{"--kernel-list-cache-ttl-secs=-1 --metadata-cache-ttl-secs=0 --metadata-cache-negative-ttl-secs=0"}
+		cfg.KernelListCache[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.KernelListCache[0].Configs[1].Run = "TestInfiniteKernelListCacheDeleteDirTest"
+		cfg.KernelListCache[0].Configs[2].Flags = []string{"--kernel-list-cache-ttl-secs=5 --rename-dir-limit=10"}
+		cfg.KernelListCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.KernelListCache[0].Configs[2].Run = "TestFiniteKernelListCacheTest"
+		cfg.KernelListCache[0].Configs[3].Flags = []string{"--kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10"}
+		cfg.KernelListCache[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.KernelListCache[0].Configs[3].Run = "TestDisabledKernelListCacheTest"
+	}
+
+	testEnv.ctx = context.Background()
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.KernelListCache[0])
+	testEnv.cfg = &cfg.KernelListCache[0]
+
+	// 2. Create storage client before running tests.
+	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
+			log.Printf("closeStorageClient failed: %v\n", err)
 		}
 	}()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		// Save mount and root directory variables.
+		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	}
+
+	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
+	overrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
 	// Save mount and root directory variables.
-	mountDir, rootDir = setup.MntDir(), setup.MntDir()
+	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
 	if successCode == 0 {
 		log.Println("Running dynamic mounting tests...")
 		// Save mount directory variable to have path of bucket to run tests.
-		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
-		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+		mountDir = path.Join(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.TestBucket)
+		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig
 		successCode = m.Run()
 	}
 
@@ -102,12 +135,21 @@ func TestMain(m *testing.M) {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
 		mountDir = rootDir
-		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, setup.OnlyDirMounted(), testDirName))
 	}
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	os.Exit(successCode)
+}
+
+func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
+	for _, flags := range t.Configs {
+		for i := range flags.Flags {
+			// Iterate over the indices of the flags slice
+			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
+		}
+	}
 }
