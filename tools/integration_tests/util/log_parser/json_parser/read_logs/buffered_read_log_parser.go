@@ -80,10 +80,9 @@ func ParseBufferedReadLogsFromLogReader(reader io.Reader) (map[int64]*BufferedRe
 
 	// Filter out entries that have no chunks, as they represent file handles
 	// that were opened but never read from using the buffered reader.
-	// However, keep entries that have fallback or restart events.
 	filteredLogsMap := make(map[int64]*BufferedReadLogEntry)
 	for handle, entry := range bufferedReadLogsMap {
-		if len(entry.Chunks) > 0 || entry.Fallback || entry.Restarted {
+		if len(entry.Chunks) > 0 {
 			filteredLogsMap[handle] = entry
 		}
 	}
@@ -255,15 +254,7 @@ func parseReadAtRequestLog(
 
 	logEntry, ok := bufferedReadLogsMap[handle]
 	if !ok || logEntry == nil {
-		// If a ReadAt log appears for a handle that hasn't been seen in a ReadFile
-		// log, it's likely due to multiple reads on the same handle where only one
-		// ReadFile log is emitted. We create a new entry to track it.
-		bufferedReadLogsMap[handle] = &BufferedReadLogEntry{
-			CommonReadLog: CommonReadLog{
-				Handle: handle,
-			},
-		}
-		logEntry = bufferedReadLogsMap[handle]
+		return fmt.Errorf("BufferedReadLogEntry for handle %d not found", handle)
 	}
 
 	if logEntry.BucketName == "" || logEntry.ObjectName == "" {
