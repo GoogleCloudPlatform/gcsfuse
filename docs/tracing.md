@@ -1,53 +1,42 @@
-## **Tracing in GCSFuse**
+## GCSFuse Tracing
 
-### **Introduction to Tracing in GCSFuse**
+### Introduction
 
-You can learn about cloud tracing and tracing in general through the document: [https://docs.cloud.google.com/trace/docs/overview](https://docs.cloud.google.com/trace/docs/overview).
+GCSFuse traces each of the fuse file system operations inside GCSFuse. It further traces both the standard http and grpc client calls inside every fuse filesystem operation. GCSFuse supports exporting the traces locally to the process output stream and also the google cloud trace. All the permissions and other requirements needed to export traces to google cloud trace, basic concepts of tracing are available in the below mentioned document.
 
-### **Enabling tracing in GCSFuse**
+[Google Cloud Trace Docs](https://docs.cloud.google.com/trace/docs/overview).
 
-To enable tracing for GCSFuse and visualize the data as a waterfall in the Google Cloud Trace Explorer, add the required configuration to your GCSFuse YAML file.
-By default, traces are exported to the Google Cloud project where GCSFuse is running. You can specify a different destination project using the **experimental-tracing-project-id** setting.
-The sampling ratio controls the percentage of available GCSFuse traces that are exported. This mechanism ensures that all spans belonging to an exported root trace are fully captured, while limiting the total volume of exported trace data.
+### Enabling tracing
+
+To enable tracing in GCSFuse and visualize the data as a waterfall in the Google Cloud Trace Explorer, add the required configuration to your GCSFuse YAML file similar to below:
 
 ```
 monitoring:
   experimental-tracing-mode: gcptrace
-  experimental-tracing-sampling-ratio: 1.0
-  experimental-tracing-project-id: gcs-fuse-test
+  experimental-tracing-sampling-ratio: 0.1
+  experimental-tracing-project-id: <google-cloud-project-id>
 ```
 
-### **Controlling Trace Volume with Sampling**
+| Key | Value | Function |
+| :--- | :--- | :--- |
+| **`experimental-tracing-mode`** | `gcptrace` | Specifies the **exporter mode**. Supported Values: gcptrace, stdout. The value `gcptrace` indicates that the collected traces should be formatted and sent specifically to **Google Cloud Trace** (GCP Trace). The value `stdout` exports to the gcsfuse process output stream. |
+| **`experimental-tracing-sampling-ratio`** | `0.1` | Sets the **sampling rate**. This means **10%** (0.1 out of 1.0) of all incoming requests or operations will have a trace generated and exported. This helps manage cost and overhead in high-traffic applications. |
+| **`experimental-tracing-project-id`** | `<google-cloud-project-id>` | If exporting to gcptrace it defines the target **destination**. By default, traces are exported to the Google Cloud project where GCSFuse is running. This is the unique ID of the Google Cloud Project where the traces will be sent and stored. This value must be replaced with the desired GCP Project ID. |
 
-Trace sampling is a critical mechanism for managing the operational overhead and costs associated with tracing in high-throughput environments.
+### Accessing and Viewing Trace Exports
 
-**Sampling Ratio:** The sampling-ratio controls the percentage of available GCSFuse traces (the root traces) that are actually exported to Google Cloud Trace.
-
-This ratio is a floating-point number between 0.0 (no traces exported) and 1.0 (all traces exported).
-
-**Crucially:** Once a root trace is selected for export by the sampling mechanism, all of its associated spans (sub-operations) are guaranteed to be fully captured. This ensures that the exported trace is complete and useful for analysis.
-
-| Sampling Ratio | Effect |
-| :---- | :---- |
-| **1.0** | Exports **100%** of all GCSFuse operations (Highest detail, highest cost/overhead). |
-| **0.1** | Exports **10%** of all GCSFuse operations (Good for production monitoring, balances detail and cost). |
-| **0.01** | Exports **1%** of all GCSFuse operations (Used for high-volume traffic/low-cost scenarios). |
-
-### **Accessing and Viewing Trace Exports**
-
-Access the trace exporter link on pantheon using the below:
+To be able to use better visualization of the traces exported in GCSFuse, it is recommended to export it to google cloud trace using the gcptrace option. With this you can access the trace exporter link on Google Cloud Console using the following link and find the traces.
 
 [Trace Explorer Link](https://console.cloud.google.com/traces/explorer)
 
 To restrict the exported traces in the filter input to only the current running instance of the GCSFuse mount, use the following attribute filter:
 
-**Attribute Filter**
-
 ```
 Key = service.instance.id
 Value = {Your unique mount instance id}
 ```
-You can find your unique mount instance ID in any GCSFuse log line from the beginning of the mount, for example: mount-id={# Mount instance id}. A sample ID looks like thrivikramks_fio_test_us_west4-7f7fe248.
+
+You can find your unique mount instance ID in any GCSFuse log line from the beginning of the mount, for example: mount-id=<your-unique-mount-id>. A sample ID looks like thrivikramks_fio_test_us_west4-7f7fe248.
 
 The trace explorer provides a view of the underlying spans generated by GCSFuse, allowing you to filter current instance spans and traces. Filtering options include the instance ID (as previously mentioned) and other gcloud attributes such as the host type (machine type). These attributes can often be visualized to gain more insight into the corresponding trace or span.
 
@@ -55,15 +44,15 @@ The trace explorer provides a view of the underlying spans generated by GCSFuse,
 
                                    Trace Explorer view filtering by mount instance id
 
-### **Filtering tracing in GCSFuse**
+#### Filtering tracing in GCSFuse
 
-We can filter by several attributes and also filter only specific spans to get a timeline view of what all calls are attributed to a single trace. Once you get a trace ID, you can also search spans using a unique trace ID. 
+We can filter by several attributes and also filter only specific spans to get a timeline view of all the calls are attributed to a single trace. Once you get a trace ID, you can also search spans using a unique trace ID.
 
 ![](https://github.com/user-attachments/assets/4956965e-1b7c-4bce-b6d0-18def4fc239e)
 
-### **Interpreting GCSFuse Spans (The Data)**
+### Interpreting GCSFuse Spans (The Data)
 
-Common Spans recorded and what each of them signify
+Common Spans recorded and what each of them signifies
 
 | Span Name (as visible in trace explorer) | Description (of what the underlying span traces) |
 | :---- | :---- |
@@ -114,18 +103,18 @@ Common Spans recorded and what each of them signify
 | **google.storage.v2.Storage/ReadObject** | The gRPC calls to stream the content (data) of a specific GCS object. |
 | **google.storage.v2.Storage/GetObject** | The gRPC call to retrieve the **metadata/attributes** (not the data content) of a single GCS object. |
 
-### **Differentiating gRPC from HTTP Spans**
+### Differentiating gRPC from HTTP Spans
 
 You can differentiate gRPC traces and spans from traditional HTTP ones based on two key characteristics: **Naming Convention** and **Trace Content/Attributes**.
 
-#### **Naming Convention**
+#### Naming Convention
 
 | Trace Type | Naming Pattern | Example |
 | :---- | :---- | :---- |
 | **gRPC** | Uses the full **Service/Method** format, often starting with the API version and service name. | google.storage.v2.Storage/ListObjects |
 | **HTTP** | Uses the **HTTP method** or lower-level network phases. | HTTP GET, http.dns, http.send |
 
-#### **Trace Content and Attributes**
+#### Trace Content and Attributes
 
 The attributes (tags) attached to the span clearly indicate the protocol:
 
@@ -137,3 +126,21 @@ The attributes (tags) attached to the span clearly indicate the protocol:
   * `http.method`: The HTTP verb (`GET`, `POST`)  
   * `http.url`: The full resource URL  
   * `http.status_code`: The three-digit HTTP status code (e.g., `200`, `404`)
+
+### Best practices
+
+#### Controlling Trace Volume with Sampling
+
+Trace sampling is a critical mechanism for managing the operational overhead and costs associated with tracing in high-throughput environments.
+
+**Sampling Ratio:** The sampling-ratio controls the percentage of available GCSFuse traces (the root traces) that are actually exported to Google Cloud Trace.
+
+This ratio is a floating-point number between 0.0 (no traces exported) and 1.0 (all traces exported).
+
+**Crucially:** Once a root trace is selected for export by the sampling mechanism, all of its associated spans (sub-operations) are guaranteed to be fully captured. This ensures that the exported trace is complete and useful for analysis.
+
+| Sampling Ratio | Effect |
+| :---- | :---- |
+| **1.0** | Exports **100%** of all GCSFuse operations (Highest detail, highest cost/overhead). |
+| **0.1** | Exports **10%** of all GCSFuse operations (Good for production monitoring, balances detail and cost). |
+| **0.01** | Exports **1%** of all GCSFuse operations (Used for high-volume traffic/low-cost scenarios). |
