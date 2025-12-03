@@ -98,10 +98,10 @@ func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // This poses a challenge for writing unit tests for includeFoldersAsPrefixes.
 
 func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache bool) {
-	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, true, 4, typeCacheTTL)
+	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, true)
 }
 
-func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
+func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -117,11 +117,9 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		implicitDirs,
 		enableManagedFoldersListing,
 		enableNonexistentTypeCache,
-		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		typeCacheMaxSizeMB,
 		false,
 		true,
 	)
@@ -144,11 +142,9 @@ func (t *DirTest) createDirInode(dirInodeName string) DirInode {
 		false,
 		false,
 		true,
-		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		4,
 		false,
 		true,
 	)
@@ -694,70 +690,6 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-}
-
-func (t *DirTest) LookUpChild_TypeCacheEnabled() {
-	inputs := []struct {
-		typeCacheMaxSizeMB int64
-		typeCacheTTL       time.Duration
-	}{{
-		typeCacheMaxSizeMB: 4,
-		typeCacheTTL:       time.Second,
-	}, {
-		typeCacheMaxSizeMB: -1,
-		typeCacheTTL:       time.Second,
-	}}
-
-	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
-
-		const name = "qux"
-		objName := path.Join(dirInodeName, name)
-
-		// Create a backing object.
-		o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
-
-		AssertEq(nil, err)
-		AssertNe(nil, o)
-
-		// Look up nonexistent object, return nil
-		result, err := t.in.LookUpChild(t.ctx, name)
-
-		AssertEq(nil, err)
-		AssertNe(nil, result)
-	}
-}
-
-func (t *DirTest) LookUpChild_TypeCacheDisabled() {
-	inputs := []struct {
-		typeCacheMaxSizeMB int64
-		typeCacheTTL       time.Duration
-	}{{
-		typeCacheMaxSizeMB: 0,
-		typeCacheTTL:       time.Second,
-	}, {
-		typeCacheMaxSizeMB: 4,
-		typeCacheTTL:       0,
-	}}
-
-	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
-
-		const name = "qux"
-		objName := path.Join(dirInodeName, name)
-
-		// Create a backing object.
-		o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
-
-		AssertEq(nil, err)
-		AssertNe(nil, o)
-
-		// Look up nonexistent object, return nil
-		result, err := t.in.LookUpChild(t.ctx, name)
-
-		AssertEq(nil, err)
-		AssertNe(nil, result)
-	}
 }
 
 func (t *DirTest) ReadDescendants_Empty() {

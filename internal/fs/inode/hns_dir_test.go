@@ -82,10 +82,10 @@ func (t *NonHNSDirTest) SetupTest() {
 }
 
 func (t *hnsDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
-	t.resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, 4, typeCacheTTL)
+	t.resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing)
 }
 
-func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
+func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
 	t.fixedTime.SetTime(time.Date(2024, 7, 22, 2, 15, 0, 0, time.Local))
 
 	t.in = NewDirInode(
@@ -99,11 +99,9 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		implicitDirs,
 		enableManagedFoldersListing,
 		enableNonexistentTypeCache,
-		typeCacheTTL,
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
-		typeCacheMaxSizeMB,
 		true,
 		true,
 	)
@@ -127,11 +125,9 @@ func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 		false,
 		false,
 		true,
-		typeCacheTTL,
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
-		4,
 		false,
 		true,
 	)

@@ -263,11 +263,9 @@ func NewDirInode(
 	implicitDirs bool,
 	includeFoldersAsPrefixes bool,
 	enableNonexistentTypeCache bool,
-	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int64,
 	isHNSEnabled bool,
 	isUnsupportedPathSupportEnabled bool,
 ) (d DirInode) {
@@ -413,15 +411,22 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 	}
 
 	req := &gcs.ListObjectsRequest{
-		Prefix:     name.GcsObjectName(),
-		MaxResults: 1,
+		Prefix:              name.GcsObjectName(),
+		MaxResults:          1,
+		ForceFetchFromCache: true,
 	}
 	listing, err := bucket.ListObjects(ctx, req)
+	// Suppress "not found" errors.
+	var gcsErr *gcs.NotFoundError
+	if errors.As(err, &gcsErr) {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
 
-	if len(listing.MinObjects) == 0 {
+	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 {
 		return nil, nil
 	}
 
@@ -429,8 +434,11 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		Bucket:   bucket,
 		FullName: name,
 	}
-	if o := listing.MinObjects[0]; o.Name == name.GcsObjectName() {
-		result.MinObject = o
+
+	if len(listing.MinObjects) != 0 {
+		if o := listing.MinObjects[0]; o.Name == name.GcsObjectName() {
+			result.MinObject = o
+		}
 	}
 	return result, nil
 }
@@ -655,6 +663,7 @@ func (d *dirInode) readObjects(
 		// required.
 		ProjectionVal:            gcs.NoAcl,
 		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+		ForceFetchFromCache:      false,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
