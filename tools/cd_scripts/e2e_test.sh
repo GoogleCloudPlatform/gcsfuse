@@ -331,42 +331,10 @@ TEST_DIR_NON_PARALLEL=(
 
 # For Zonal buckets : Test directory arrays
 TEST_DIR_PARALLEL_ZONAL=(
-  buffered_read
-  concurrent_operations
-  # Reenable when b/461334834 is done.
-  # dentry_cache
-  explicit_dir
-  flag_optimizations
-  gzip
-  implicit_dir
-  interrupt
-  kernel_list_cache
-  local_file
-  log_rotation
-  monitoring
-  mount_timeout
-  mounting
-  negative_stat_cache
-  operations
-  rapid_appends
-#  read_large_files
-  # Reenable when b/461334834 is done.
-  # readdirplus
-  release_version
-  rename_dir_limit
-  stale_handle
-  streaming_writes
-  unfinalized_object
-#  write_large_files
-  "unsupported_path"
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL_ZONAL=(
-#  "managed_folders"
-  "readonly"
-  "readonly_creds"
-  "list_large_dir"
 )
 
 # Create a temporary file to store the log file name.
