@@ -72,6 +72,7 @@ type BufferedReader struct {
 
 	metricHandle metrics.MetricHandle
 
+	// handleID is the file handle id, used for logging.
 	handleID fuseops.HandleID
 
 	readHandle []byte // For zonal bucket.

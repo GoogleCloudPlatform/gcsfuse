@@ -77,7 +77,7 @@ type FileHandle struct {
 	// that can be allocated for buffered read across all files in the file system.
 	globalMaxReadBlocksSem *semaphore.Weighted
 
-	// HandleID is an opaque 64-bit number used to create this FileHandle.
+	// HandleID is an opaque 64-bit number used to create this File Handle, used for logging.
 	handleID fuseops.HandleID
 }
 
