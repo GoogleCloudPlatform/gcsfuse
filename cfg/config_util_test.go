@@ -215,7 +215,6 @@ func TestIsGKEEnvironment(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
