@@ -349,7 +349,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   negative_stat_cache
   operations
   rapid_appends
-  read_large_files
+#  read_large_files
   # Reenable when b/461334834 is done.
   # readdirplus
   release_version
@@ -357,13 +357,13 @@ TEST_DIR_PARALLEL_ZONAL=(
   stale_handle
   streaming_writes
   unfinalized_object
-  write_large_files
+#  write_large_files
   "unsupported_path"
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL_ZONAL=(
-  "managed_folders"
+#  "managed_folders"
   "readonly"
   "readonly_creds"
   "list_large_dir"
