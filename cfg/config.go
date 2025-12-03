@@ -878,7 +878,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
+	flagSet.StringP("experimental-tracing-mode", "", "gcptrace", "Experimental: specify tracing mode")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
 		return err
@@ -890,7 +890,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.Float64P("experimental-tracing-sampling-ratio", "", 0, "Experimental: Trace sampling ratio")
+	flagSet.Float64P("experimental-tracing-sampling-ratio", "", 0.01, "Experimental: Trace sampling ratio")
 
 	if err := flagSet.MarkHidden("experimental-tracing-sampling-ratio"); err != nil {
 		return err

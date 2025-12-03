@@ -919,7 +919,7 @@ params:
     flag-name: "experimental-tracing-mode"
     type: "string"
     usage: "Experimental: specify tracing mode"
-    default: ""
+    default: "gcptrace"
     hide-flag: true
 
   - config-path: "monitoring.experimental-tracing-project-id"
@@ -933,7 +933,7 @@ params:
     flag-name: "experimental-tracing-sampling-ratio"
     type: "float64"
     usage: "Experimental: Trace sampling ratio"
-    default: 0
+    default: 0.01
     hide-flag: true
 
   - config-path: "only-dir"
