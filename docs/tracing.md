@@ -50,7 +50,7 @@ We can filter by several attributes and also filter only specific spans to get a
 
 ![](https://github.com/user-attachments/assets/4956965e-1b7c-4bce-b6d0-18def4fc239e)
 
-### Interpreting GCSFuse Spans (The Data)
+### Interpreting GCSFuse Spans
 
 Common Spans recorded and what each of them signifies
 
