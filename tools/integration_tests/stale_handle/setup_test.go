@@ -56,6 +56,10 @@ func TestMain(m *testing.M) {
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.StaleHandle) == 0 {
 		log.Println("No configuration found for stale_handle tests in config. Using flags instead.")
+		if(setup.MountedDirectory()!=""){
+			log.Println("Skip mounted directory tests if no config file has been passed.")
+			os.Exit(0)
+		}
 		// Populate the config manually.
 		cfg.StaleHandle = make([]test_suite.TestConfig, 1)
 		cfg.StaleHandle[0].TestBucket = setup.TestBucket()
@@ -94,6 +98,7 @@ func TestMain(m *testing.M) {
 	// flags to be set, as stale handle tests validates content from the bucket.
 	// Note: These tests by default can only be run for non streaming mounts.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+
 		mountDir = testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
