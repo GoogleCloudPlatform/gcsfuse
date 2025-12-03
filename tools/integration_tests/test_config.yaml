@@ -421,7 +421,7 @@ stale_handle:
           flat: true
           hns: true
           zonal: true
-        run: "TestStaleFileHandleLocalFileTestStreamingWritesEnabled"
+        run: "TestStaleHandleStreamingWritesEnabled"
         run_on_gke: true
       - flags:
           - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
@@ -430,25 +430,7 @@ stale_handle:
           flat: true
           hns: true
           zonal: true
-        run: "TestStaleFileHandleLocalFileTestStreamingWritesDisabled"
-        run_on_gke: true
-      - flags:
-          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1"
-          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-        run: "TestStaleFileHandleEmptyGcsFileTestStreamingWritesEnabled"
-        run_on_gke: true
-      - flags:
-          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
-          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-        run: "TestStaleFileHandleEmptyGcsFileTestStreamingWritesDisabled"
+        run: "TestStaleHandleStreamingWritesDisabled"
         run_on_gke: true
 
 readdirplus:

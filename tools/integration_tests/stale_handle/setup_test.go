@@ -33,6 +33,8 @@ const (
 var (
 	testEnv   env
 	mountFunc func(*test_suite.TestConfig, []string) error
+	// mount directory is where our tests run.
+	mountDir string
 )
 
 type env struct {
@@ -65,28 +67,14 @@ func TestMain(m *testing.M) {
 			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc",
 		}
 		cfg.StaleHandle[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[0].Run = "TestStaleFileHandleLocalFileTestStreamingWritesEnabled"
+		cfg.StaleHandle[0].Configs[0].Run = "TestStaleHandleStreamingWritesEnabled"
 
 		cfg.StaleHandle[0].Configs[1].Flags = []string{
 			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
 			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc",
 		}
 		cfg.StaleHandle[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[1].Run = "TestStaleFileHandleLocalFileTestStreamingWritesDisabled"
-
-		cfg.StaleHandle[0].Configs[2].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1",
-			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc",
-		}
-		cfg.StaleHandle[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[2].Run = "TestStaleFileHandleEmptyGcsFileTestStreamingWritesEnabled"
-
-		cfg.StaleHandle[0].Configs[3].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc",
-		}
-		cfg.StaleHandle[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[3].Run = "TestStaleFileHandleEmptyGcsFileTestStreamingWritesDisabled"
+		cfg.StaleHandle[0].Configs[1].Run = "TestStaleHandleStreamingWritesDisabled"
 	}
 
 	testEnv.ctx = context.Background()
@@ -106,11 +94,13 @@ func TestMain(m *testing.M) {
 	// flags to be set, as stale handle tests validates content from the bucket.
 	// Note: These tests by default can only be run for non streaming mounts.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		mountDir = testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	mountDir = setup.MntDir()
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile

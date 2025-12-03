@@ -30,6 +30,9 @@ import (
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
+type staleFileHandleLocalFile struct {
+	staleFileHandleCommon
+}
 
 type staleFileHandleEmptyGcsFile struct {
 	staleFileHandleCommon
@@ -38,6 +41,16 @@ type staleFileHandleEmptyGcsFile struct {
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
+
+func (s *staleFileHandleLocalFile) SetupTest() {
+	// Create a local file.
+	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(testEnv.testDirPath, s.fileName))
+	s.isLocal = true
+}
+func (s *staleFileHandleLocalFile) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+}
 
 func (s *staleFileHandleEmptyGcsFile) SetupTest() {
 	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
@@ -117,36 +130,62 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestStaleFileHandleEmptyGcsFileTestStreamingWritesEnabled(t *testing.T) {
+func TestStaleHandleStreamingWritesEnabled(t *testing.T) {
 	// Run tests for mounted directory if the flag is set and return.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, new(staleFileHandleEmptyGcsFile))
+		// Run tests for local file.
+		suite.Run(t, &staleFileHandleLocalFile{staleFileHandleCommon{isStreamingWritesEnabled: true}})
+
+		// Run tests for empty gcs file.
+		suite.Run(t, &staleFileHandleEmptyGcsFile{staleFileHandleCommon{isStreamingWritesEnabled: true}})
+
 		return
 	}
 
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
-		s := new(staleFileHandleEmptyGcsFile)
-		s.flags = flags
-		log.Printf("Running tests with flags: %s", s.flags)
-		s.isStreamingWritesEnabled = true
-		suite.Run(t, s)
+		// Run local file tests
+		sLocal := new(staleFileHandleLocalFile)
+		sLocal.flags = flags
+		log.Printf("Running local file tests with flags: %s", sLocal.flags)
+		sLocal.isStreamingWritesEnabled = true
+		suite.Run(t, sLocal)
+
+		// Run empty GCS file tests
+		sEmptyGCS := new(staleFileHandleEmptyGcsFile)
+		sEmptyGCS.flags = flags
+		log.Printf("Running empty GCS file tests with flags: %s", sEmptyGCS.flags)
+		sEmptyGCS.isStreamingWritesEnabled = true
+		suite.Run(t, sEmptyGCS)
 	}
 }
 
-func TestStaleFileHandleEmptyGcsFileTestStreamingWritesDisabled(t *testing.T) {
+func TestStaleHandleStreamingWritesDisabled(t *testing.T) {
 	// Run tests for mounted directory if the flag is set and return.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, new(staleFileHandleEmptyGcsFile))
+		// Run tests for local file.
+		suite.Run(t, &staleFileHandleLocalFile{staleFileHandleCommon{isStreamingWritesEnabled: false}})
+
+		// Run tests for empty gcs file.
+		suite.Run(t, &staleFileHandleEmptyGcsFile{staleFileHandleCommon{isStreamingWritesEnabled: false}})
+
 		return
 	}
 
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
-		s := new(staleFileHandleEmptyGcsFile)
-		s.flags = flags
-		log.Printf("Running tests with flags: %s", s.flags)
-		s.isStreamingWritesEnabled = false
-		suite.Run(t, s)
+		// Run local file tests
+		sLocal := new(staleFileHandleLocalFile)
+		sLocal.flags = flags
+		log.Printf("Running local file tests with flags: %s", sLocal.flags)
+		sLocal.isStreamingWritesEnabled = false
+		suite.Run(t, sLocal)
+
+		// Run empty GCS file tests
+		sEmptyGCS := new(staleFileHandleEmptyGcsFile)
+		sEmptyGCS.flags = flags
+		log.Printf("Running empty GCS file tests with flags: %s", sEmptyGCS.flags)
+		sEmptyGCS.isStreamingWritesEnabled = false
+		suite.Run(t, sEmptyGCS)
 	}
 }

@@ -44,6 +44,9 @@ type staleFileHandleCommon struct {
 
 func (s *staleFileHandleCommon) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	if testEnv.cfg.GKEMountedDirectory == "" {
+		setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
+	}
 	testEnv.testDirPath = SetupTestDirectory(testEnv.ctx, testEnv.storageClient, testDirName)
 	s.data = setup.GenerateRandomString(5 * util.MiB)
 }
