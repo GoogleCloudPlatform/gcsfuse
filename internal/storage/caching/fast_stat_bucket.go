@@ -394,9 +394,17 @@ func (b *fastStatBucket) ListObjects(
 
 		if hit {
 			// Negative entries result in NotFoundError.
-			if entry == nil {
-				return nil, &gcs.NotFoundError{
-					Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+			if b.BucketType().Hierarchical {
+				if entry.(*gcs.Folder) == nil {
+					return nil, &gcs.NotFoundError{
+						Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+					}
+				}
+			} else {
+				if entry.(*gcs.MinObject) == nil {
+					return nil, &gcs.NotFoundError{
+						Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+					}
 				}
 			}
 
@@ -406,6 +414,7 @@ func (b *fastStatBucket) ListObjects(
 				return &gcs.Listing{CollapsedRuns: []string{folder.Name}}, nil
 			}
 			if minObject, ok := entry.(*gcs.MinObject); ok {
+				logger.Info("MinObject: ", entry.(*gcs.MinObject))
 				if minObject.Generation == 0 { // Assumed to be a directory-like object from a collapsed run.
 					return &gcs.Listing{CollapsedRuns: []string{minObject.Name}}, nil
 				}
