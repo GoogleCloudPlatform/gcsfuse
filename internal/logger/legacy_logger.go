@@ -28,9 +28,8 @@ import (
 // This method is created to support jacobsa/fuse loggers and will be removed
 // after slog support is added.
 func NewLegacyLogger(level slog.Level, prefix, fsName string) *log.Logger {
-	var programLevel = new(slog.LevelVar)
 	handler := defaultLoggerFactory.handler(programLevel, prefix).WithAttrs(loggerAttr(fsName))
 	logger := slog.NewLogLogger(handler, level)
-	setLoggingLevel(defaultLoggerFactory.level, programLevel)
+	setLoggingLevel(defaultLoggerFactory.level)
 	return logger
 }
