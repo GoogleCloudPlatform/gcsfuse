@@ -19,9 +19,6 @@ spec:
       args:
       - |
         echo always > /sys/kernel/mm/transparent_hugepage/enabled
-        apt update -y
-        apt-get install -y ethtool
-        ethtool -K eth0 lro on
       volumeMounts:
       - name: sys-mm
         mountPath: /sys/kernel/mm
