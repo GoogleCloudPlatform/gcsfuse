@@ -94,8 +94,8 @@ func (t *fileCacheReaderTest) SetupTest() {
 	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: false}
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics())
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false)
-	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics())
-	t.reader_unfinalized_object = NewFileCacheReader(t.unfinalized_object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics())
+	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), 0)
+	t.reader_unfinalized_object = NewFileCacheReader(t.unfinalized_object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), 0)
 	t.ctx = context.Background()
 }
 
@@ -120,7 +120,7 @@ func getReadCloser(content []byte) io.ReadCloser {
 }
 
 func (t *fileCacheReaderTest) TestNewFileCacheReader() {
-	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil)
+	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil, 0)
 
 	assert.NotNil(t.T(), reader)
 	assert.Equal(t.T(), t.object, reader.object)
@@ -132,7 +132,7 @@ func (t *fileCacheReaderTest) TestNewFileCacheReader() {
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_NilFileCacheHandlerThrowFallBackError() {
-	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, nil)
+	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, nil, 0)
 
 	readResponse, err := reader.ReadAt(t.ctx, &ReadRequest{
 		Buffer: make([]byte, 10),

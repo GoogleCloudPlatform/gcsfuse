@@ -2037,13 +2037,12 @@ func (fs *fileSystem) CreateFile(
 	// Allocate a handle.
 	fs.mu.Lock()
 
-	handleID := fs.nextHandleID
+	op.Handle = fs.nextHandleID
 	fs.nextHandleID++
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem)
-	op.Handle = handleID
+	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
 
 	fs.mu.Unlock()
 
@@ -2807,13 +2806,12 @@ func (fs *fileSystem) OpenFile(
 	defer fs.mu.Unlock()
 
 	// Allocate a handle.
-	handleID := fs.nextHandleID
+	op.Handle = fs.nextHandleID
 	fs.nextHandleID++
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op)
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem)
-	op.Handle = handleID
+	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, fs.nextHandleID)
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
@@ -2829,8 +2827,6 @@ func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
-	// Save readOp in context for access in logs.
-	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
 
 	// Find the handle and lock it.
 	fs.mu.Lock()

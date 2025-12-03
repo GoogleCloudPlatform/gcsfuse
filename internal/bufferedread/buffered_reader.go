@@ -50,7 +50,6 @@ type BufferedReadConfig struct {
 
 const (
 	defaultPrefetchMultiplier = 2
-	ReadOp                    = "readOp"
 )
 
 type BufferedReader struct {
@@ -72,6 +71,8 @@ type BufferedReader struct {
 	numPrefetchBlocks int64
 
 	metricHandle metrics.MetricHandle
+
+	handleID fuseops.HandleID
 
 	readHandle []byte // For zonal bucket.
 
@@ -122,6 +123,7 @@ type BufferedReaderOptions struct {
 	WorkerPool         workerpool.WorkerPool
 	MetricHandle       metrics.MetricHandle
 	ReadTypeClassifier *gcsx.ReadTypeClassifier
+	HandleID           fuseops.HandleID
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -152,6 +154,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		blockPool:                blockpool,
 		workerPool:               opts.WorkerPool,
 		metricHandle:             opts.MetricHandle,
+		handleID:                 opts.HandleID,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
 		readTypeClassifier:       opts.ReadTypeClassifier,
@@ -168,7 +171,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 // should be used. It takes handleID for logging purposes. If the read pattern
 // changes back to sequential, it resets the reader state to resume buffered reading.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
+func (p *BufferedReader) handleRandomRead(offset int64, handleID fuseops.HandleID) error {
 	// Exit early if we have already decided to fall back to another reader.
 	// This avoids re-evaluating the read pattern on every call when the random
 	// read threshold has been met.
@@ -281,12 +284,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	blockIdx := readOffset / p.config.PrefetchBlockSizeBytes
 	var bytesRead int
 	var err error
-	handleID := int64(-1) // As 0 is a valid handle ID, we use -1 to indicate no handle.
-	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
-		handleID = int64(readOp.Handle)
-	}
 
-	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, readOffset, len(req.Buffer), blockIdx)
+	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, p.handleID, req.Offset, len(req.Buffer), blockIdx)
 
 	if readOffset >= int64(p.object.Size) {
 		err = io.EOF
@@ -309,7 +308,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		}
 	}()
 
-	if err = p.handleRandomRead(readOffset, handleID); err != nil {
+	if err = p.handleRandomRead(req.Offset, p.handleID); err != nil {
 		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 	}
 
@@ -321,8 +320,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		p.prepareQueueForOffset(readOffset)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(readOffset); err != nil {
-				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
+			if err = p.freshStart(req.Offset); err != nil {
+				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, p.handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
 			}

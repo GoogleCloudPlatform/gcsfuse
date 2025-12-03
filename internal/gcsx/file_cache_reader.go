@@ -65,15 +65,18 @@ type FileCacheReader struct {
 	fileCacheHandle *file.CacheHandle
 
 	metricHandle metrics.MetricHandle
+
+	handleID fuseops.HandleID
 }
 
-func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle) *FileCacheReader {
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, handleID fuseops.HandleID) *FileCacheReader {
 	return &FileCacheReader{
 		object:                o,
 		bucket:                bucket,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
+		handleID:              handleID,
 	}
 }
 
@@ -101,12 +104,8 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	// By default, consider read type random if the offset is non-zero.
 	isSequential := offset == 0
 
-	var handleID uint64
-	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
-		handleID = uint64(readOp.Handle)
-	}
 	requestID := uuid.New()
-	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestID, fc.bucket.Name(), fc.object.Name, offset, len(p), handleID)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestID, fc.bucket.Name(), fc.object.Name, offset, len(p), fc.handleID)
 
 	startTime := time.Now()
 	var bytesRead int
