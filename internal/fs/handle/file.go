@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -75,6 +76,8 @@ type FileHandle struct {
 	// globalMaxReadBlocksSem is a semaphore that limits the total number of blocks
 	// that can be allocated for buffered read across all files in the file system.
 	globalMaxReadBlocksSem *semaphore.Weighted
+
+	openTime time.Time
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
@@ -88,6 +91,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		config:                 c,
 		bufferedReadWorkerPool: bufferedReadWorkerPool,
 		globalMaxReadBlocksSem: globalMaxReadBlocksSem,
+		openTime:               time.Now(),
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
@@ -112,6 +116,8 @@ func (fh *FileHandle) Destroy() {
 	if fh.readManager != nil {
 		fh.readManager.Destroy()
 	}
+
+	logger.Infof("total time for fileHandle: %v is %v", fh.inode.Name(), time.Since(fh.openTime).Milliseconds())
 }
 
 // Inode returns the inode backing this handle.
