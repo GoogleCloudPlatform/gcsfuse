@@ -220,7 +220,7 @@ func (t *fileTest) Test_IsValidReadManager_GenerationValidation() {
 		t.Run(tc.name, func() {
 			minObj := in.Source()
 			minObj.Generation = tc.readerGeneration
-			fh.readManager = read_manager.NewReadManager(minObj, &t.bucket, &read_manager.ReadManagerConfig{Config: config}, 0)
+			fh.readManager = read_manager.NewReadManager(minObj, &t.bucket, &read_manager.ReadManagerConfig{Config: config})
 
 			result := fh.isValidReadManager()
 

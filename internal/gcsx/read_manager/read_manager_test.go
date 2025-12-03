@@ -142,7 +142,7 @@ func (t *readManagerTest) SetupTest() {
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.ctx = context.Background()
-	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(true, false), 0)
+	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(true, false))
 }
 
 func (t *readManagerTest) TearDownTest() {
@@ -159,7 +159,7 @@ func (t *readManagerTest) TearDownTest() {
 func (t *readManagerTest) Test_NewReadManager_WithFileCacheHandlerOnly() {
 	config := t.readManagerConfig(true, false)
 
-	rm := NewReadManager(t.object, t.mockBucket, config, 0)
+	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
 	assert.Len(t.T(), rm.readers, 2)
@@ -172,7 +172,7 @@ func (t *readManagerTest) Test_NewReadManager_WithFileCacheHandlerOnly() {
 func (t *readManagerTest) Test_NewReadManager_WithoutFileCacheAndBufferedRead() {
 	config := t.readManagerConfig(false, false)
 
-	rm := NewReadManager(t.object, t.mockBucket, config, 0)
+	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
 	assert.Len(t.T(), rm.readers, 1)
@@ -183,7 +183,7 @@ func (t *readManagerTest) Test_NewReadManager_WithoutFileCacheAndBufferedRead() 
 func (t *readManagerTest) Test_NewReadManager_WithBufferedRead() {
 	config := t.readManagerConfig(false, true)
 
-	rm := NewReadManager(t.object, t.mockBucket, config, 0)
+	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
 	assert.Len(t.T(), rm.readers, 2) // BufferedReader and GCSReader
@@ -197,7 +197,7 @@ func (t *readManagerTest) Test_NewReadManager_WithFileCacheAndBufferedRead() {
 	config := t.readManagerConfig(true, true)
 	defer os.RemoveAll(path.Join(os.Getenv("HOME"), "test_cache_dir"))
 
-	rm := NewReadManager(t.object, t.mockBucket, config, 0)
+	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
 	assert.Len(t.T(), rm.readers, 3) // FileCacheReader, BufferedReader, GCSReader
@@ -214,7 +214,7 @@ func (t *readManagerTest) Test_NewReadManager_BufferedReaderCreationFails() {
 	// Exhaust the semaphore
 	config.GlobalMaxBlocksSem = semaphore.NewWeighted(0)
 
-	rm := NewReadManager(t.object, t.mockBucket, config, 0)
+	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
 	assert.Len(t.T(), rm.readers, 1) // Only GCSReader
@@ -268,7 +268,7 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 }
 
 func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
-	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(false, false), 0)
+	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(false, false))
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()

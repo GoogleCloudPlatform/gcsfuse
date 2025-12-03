@@ -57,12 +57,13 @@ type ReadManagerConfig struct {
 	Config                *cfg.Config
 	GlobalMaxBlocksSem    *semaphore.Weighted
 	WorkerPool            workerpool.WorkerPool
+	HandleID              fuseops.HandleID
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
 // using the provided configuration. It initializes the manager with a
 // file cache reader and a GCS reader, prioritizing the file cache reader if available.
-func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManagerConfig, handleID fuseops.HandleID) *ReadManager {
+func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManagerConfig) *ReadManager {
 	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
 	var readers []gcsx.Reader
 
@@ -74,7 +75,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			config.FileCacheHandler,
 			config.CacheFileForRangeRead,
 			config.MetricHandle,
-			handleID,
+			config.HandleID,
 		)
 		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
 	}
@@ -99,7 +100,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			WorkerPool:         config.WorkerPool,
 			MetricHandle:       config.MetricHandle,
 			ReadTypeClassifier: readClassifier,
-			HandleID:           handleID,
+			HandleID:           config.HandleID,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(opts)
 		if err != nil {
