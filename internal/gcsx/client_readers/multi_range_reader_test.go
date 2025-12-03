@@ -49,10 +49,8 @@ type multiRangeReaderTest struct {
 
 func (t *multiRangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
-		ReadRequest: gcsx.ReadRequest{
-			Offset: offset,
-			Buffer: dst,
-		},
+		Offset:    offset,
+		Buffer:    dst,
 		EndOffset: offset + int64(len(dst)),
 	}
 	return t.multiRangeReader.ReadAt(t.ctx, req)

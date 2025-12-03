@@ -83,3 +83,7 @@ metrics:
   workers: 10
   buffer-size: 128
 machine-type: "config-file-machine-type"
+dummy-io:
+  enable: true
+  reader-latency: 150ms
+  per-mb-latency: 20ms

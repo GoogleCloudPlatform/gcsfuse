@@ -159,6 +159,35 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "dummy-io.enable"
+    flag-name: "enable-dummy-io"
+    type: "bool"
+    usage: >- 
+      Enable dummy I/O mode for testing purposes. In this mode all reads
+      and writes are simulated and no actual data is transferred to or from
+      Cloud Storage. All the metadata operations like object listing and stats
+      are real.
+    default: false
+    hide-flag: true
+
+  - config-path: "dummy-io.per-mb-latency"
+    flag-name: "dummy-io-per-mb-latency"
+    type: "duration"
+    usage: >- 
+      Simulates reading from the reader latency in dummy I/O mode. This value
+      is only used when dummy I/O mode is enabled.
+    default: "0s"
+    hide-flag: true
+
+  - config-path: "dummy-io.reader-latency"
+    flag-name: "dummy-io-reader-latency"
+    type: "duration"
+    usage: >- 
+      Simulates reader creation latency in dummy I/O mode. This value
+      is only used when dummy I/O mode is enabled.
+    default: "0s"
+    hide-flag: true
+
   - config-path: "enable-atomic-rename-object"
     flag-name: "enable-atomic-rename-object"
     type: "bool"

@@ -48,7 +48,17 @@ func (t *unfinalizedObjectReads) SetupTest() {
 	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 }
 
-func (t *unfinalizedObjectReads) TeardownTest() {}
+func (s *unfinalizedObjectReads) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (s *unfinalizedObjectReads) SetupSuite() {
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	if testEnv.cfg.GKEMountedDirectory == "" {
+		setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
+	}
+	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
@@ -74,34 +84,18 @@ func (t *unfinalizedObjectReads) TestUnfinalizedObjectsCanBeRead() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestUnfinalizedObjectReadTest(t *testing.T) {
-	ts := &unfinalizedObjectReads{ctx: context.Background()}
-	// Create storage client before running tests.
-	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			t.Errorf("closeStorageClient failed: %v", err)
-		}
-	}()
+	ts := &unfinalizedObjectReads{ctx: context.Background(), storageClient: testEnv.storageClient}
 
 	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
 		return
 	}
 
-	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--metadata-cache-ttl-secs=-1"},
-	}
-
-	// Run tests.
-	for _, flags := range flagsSet {
-		ts.flags = flags
-		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
 		log.Printf("Running tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseAndDeleteLogFile(setup.MntDir())
 	}
 }
