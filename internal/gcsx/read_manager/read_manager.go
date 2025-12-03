@@ -77,6 +77,8 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
 	}
 
+	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB))
+
 	// If buffered read is enabled, initialize the buffered reader and add it to the readers.
 	if config.Config.Read.EnableBufferedRead {
 		readConfig := config.Config.Read
@@ -94,6 +96,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			GlobalMaxBlocksSem: config.GlobalMaxBlocksSem,
 			WorkerPool:         config.WorkerPool,
 			MetricHandle:       config.MetricHandle,
+			ReadTypeClassifier: readClassifier,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(opts)
 		if err != nil {
@@ -104,7 +107,6 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	}
 
 	// Initialize the GCS reader, which is always present.
-	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB))
 	gcsReader := clientReaders.NewGCSReader(
 		object,
 		bucket,
