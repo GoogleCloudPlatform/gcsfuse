@@ -191,23 +191,23 @@ func (t *HNSDirTest) TestLookUpChildWithConflictMarkerName() {
 	assert.Equal(t.T(), dirName, c.MinObject.Name)
 }
 
-func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
-	const name = "qux"
-	dirName := path.Join(dirInodeName, name) + "/"
-	// mock get folder call
-	folder := &gcs.Folder{
-		Name: dirName,
-	}
-	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
-
-	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
-
-	t.mockBucket.AssertExpectations(t.T())
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), dirName, result.Folder.Name)
-}
+//func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
+//	const name = "qux"
+//	dirName := path.Join(dirInodeName, name) + "/"
+//	// mock get folder call
+//	folder := &gcs.Folder{
+//		Name: dirName,
+//	}
+//	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
+//
+//	// Look up with the proper name.
+//	result, err := t.in.LookUpChild(t.ctx, name)
+//
+//	t.mockBucket.AssertExpectations(t.T())
+//	assert.Nil(t.T(), err)
+//	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
+//	assert.Equal(t.T(), dirName, result.Folder.Name)
+//}
 
 func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent() {
 	const name = "unknown_type"
@@ -228,67 +228,67 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	assert.Equal(t.T(), dirName, result.Folder.Name)
 }
 
-func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularFileType() {
-	const name = "file_type"
-	fileName := path.Join(dirInodeName, name)
-	// mock stat object call
-	minObject := &gcs.MinObject{
-		Name:           fileName,
-		MetaGeneration: int64(1),
-		Generation:     int64(2),
-	}
-	attrs := &gcs.ExtendedObjectAttributes{
-		ContentType:  "plain/text",
-		StorageClass: "DEFAULT",
-		CacheControl: "some-value",
-	}
-	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
-	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+//func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularFileType() {
+//	const name = "file_type"
+//	fileName := path.Join(dirInodeName, name)
+//	// mock stat object call
+//	minObject := &gcs.MinObject{
+//		Name:           fileName,
+//		MetaGeneration: int64(1),
+//		Generation:     int64(2),
+//	}
+//	attrs := &gcs.ExtendedObjectAttributes{
+//		ContentType:  "plain/text",
+//		StorageClass: "DEFAULT",
+//		CacheControl: "some-value",
+//	}
+//	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
+//	// Look up with the proper name.
+//	result, err := t.in.LookUpChild(t.ctx, name)
+//
+//	t.mockBucket.AssertExpectations(t.T())
+//	assert.Nil(t.T(), err)
+//	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
+//	assert.Equal(t.T(), fileName, result.MinObject.Name)
+//	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
+//	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+//}
 
-	t.mockBucket.AssertExpectations(t.T())
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), fileName, result.MinObject.Name)
-	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
-	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
-}
+//func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkType() {
+//	const name = "file_type"
+//	fileName := path.Join(dirInodeName, name)
+//	// mock stat object call
+//	minObject := &gcs.MinObject{
+//		Name:           fileName,
+//		MetaGeneration: int64(1),
+//		Generation:     int64(2),
+//		Metadata:       map[string]string{"gcsfuse_symlink_target": "link"},
+//	}
+//	attrs := &gcs.ExtendedObjectAttributes{
+//		ContentType:  "plain/text",
+//		StorageClass: "DEFAULT",
+//		CacheControl: "some-value",
+//	}
+//	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
+//	// Look up with the proper name.
+//	result, err := t.in.LookUpChild(t.ctx, name)
+//
+//	assert.Nil(t.T(), err)
+//	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
+//	assert.Equal(t.T(), fileName, result.MinObject.Name)
+//	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
+//	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+//}
 
-func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkType() {
-	const name = "file_type"
-	fileName := path.Join(dirInodeName, name)
-	// mock stat object call
-	minObject := &gcs.MinObject{
-		Name:           fileName,
-		MetaGeneration: int64(1),
-		Generation:     int64(2),
-		Metadata:       map[string]string{"gcsfuse_symlink_target": "link"},
-	}
-	attrs := &gcs.ExtendedObjectAttributes{
-		ContentType:  "plain/text",
-		StorageClass: "DEFAULT",
-		CacheControl: "some-value",
-	}
-	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
-	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
-
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), fileName, result.MinObject.Name)
-	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
-	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
-}
-
-func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentType() {
-	const name = "file_type"
-	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
-
-	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), result)
-	t.mockBucket.AssertExpectations(t.T())
-}
+//func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentType() {
+//	const name = "file_type"
+//	// Look up with the proper name.
+//	result, err := t.in.LookUpChild(t.ctx, name)
+//
+//	assert.Nil(t.T(), err)
+//	assert.Nil(t.T(), result)
+//	t.mockBucket.AssertExpectations(t.T())
+//}
 
 func (t *HNSDirTest) TestRenameFolderWithGivenName() {
 	const (

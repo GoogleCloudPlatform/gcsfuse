@@ -589,6 +589,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	var result *Core
+	fmt.Println("Result: ", dirResult, fileResult)
 	if dirResult != nil {
 		result = dirResult
 	} else if fileResult != nil {
