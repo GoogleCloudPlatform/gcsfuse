@@ -110,12 +110,6 @@ type DirInode interface {
 	// CreateLocalChildFileCore returns an empty local child file core.
 	CreateLocalChildFileCore(name string) (Core, error)
 
-	// InsertFileIntoTypeCache adds the given name to type-cache
-	InsertFileIntoTypeCache(name string)
-
-	// EraseFromTypeCache removes the given name from type-cache
-	EraseFromTypeCache(name string)
-
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
@@ -227,11 +221,6 @@ type dirInode struct {
 	// GUARDED_BY(mu)
 	lc lookupCount
 
-	// cache.CheckInvariants() does not panic.
-	//
-	// GUARDED_BY(mu)
-	cache metadata.TypeCache
-
 	// prevDirListingTimeStamp is the time stamp of previous listing when user asked
 	// (via kernel) the directory listing from the filesystem.
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
@@ -297,7 +286,6 @@ func NewDirInode(
 		enableNonexistentTypeCache:      enableNonexistentTypeCache,
 		name:                            name,
 		attrs:                           attrs,
-		cache:                           metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
 		isHNSEnabled:                    isHNSEnabled,
 		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
 		unlinked:                        false,
@@ -577,37 +565,15 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
-
-	cachedType := d.cache.Get(d.cacheClock.Now(), name)
-	switch cachedType {
-	case metadata.ImplicitDirType:
-		dirResult = &Core{
-			Bucket:    d.Bucket(),
-			FullName:  NewDirName(d.Name(), name),
-			MinObject: nil,
-		}
-	case metadata.ExplicitDirType:
-		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
+	group.Go(lookUpFile)
+	if d.isBucketHierarchical() {
+		group.Go(lookUpHNSDir)
+	} else {
+		if d.implicitDirs {
+			group.Go(lookUpImplicitOrExplicitDir)
 		} else {
 			group.Go(lookUpExplicitDir)
 		}
-	case metadata.RegularFileType, metadata.SymlinkType:
-		group.Go(lookUpFile)
-	case metadata.NonexistentType:
-		return nil, nil
-	case metadata.UnknownType:
-		group.Go(lookUpFile)
-		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
-		} else {
-			if d.implicitDirs {
-				group.Go(lookUpImplicitOrExplicitDir)
-			} else {
-				group.Go(lookUpExplicitDir)
-			}
-		}
-
 	}
 
 	if err := group.Wait(); err != nil {
@@ -619,12 +585,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		result = dirResult
 	} else if fileResult != nil {
 		result = fileResult
-	}
-
-	if result != nil {
-		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
 	}
 
 	return result, nil
@@ -704,12 +664,6 @@ func (d *dirInode) readObjects(
 	}
 
 	cores = make(map[Name]*Core)
-	defer func() {
-		now := d.cacheClock.Now()
-		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
-		}
-	}()
 
 	for _, o := range listing.MinObjects {
 		if storageutil.IsUnsupportedPath(o.Name) {
@@ -856,7 +810,6 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}
 	m := storageutil.ConvertObjToMinObject(o)
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
@@ -874,19 +827,7 @@ func (d *dirInode) CreateLocalChildFileCore(name string) (Core, error) {
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) InsertFileIntoTypeCache(name string) {
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
-}
-
-// LOCKS_REQUIRED(d)
-func (d *dirInode) EraseFromTypeCache(name string) {
-	d.cache.Erase(name)
-}
-
-// LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
-	// Erase any existing type information for this name.
-	d.cache.Erase(name)
 	fullName := NewFileName(d.Name(), name)
 
 	// Clone over anything that might already exist for the name.
@@ -908,7 +849,6 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 		FullName:  fullName,
 		MinObject: m,
 	}
-	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
 	return c, nil
 }
 
@@ -924,8 +864,6 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 		return nil, err
 	}
 	m := storageutil.ConvertObjToMinObject(o)
-
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
 
 	return &Core{
 		Bucket:    d.Bucket(),
@@ -960,9 +898,6 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		m = storageutil.ConvertObjToMinObject(o)
 	}
 
-	// Insert the new directory into the type cache.
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
-
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
@@ -977,7 +912,6 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
-	d.cache.Erase(name)
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -992,7 +926,6 @@ func (d *dirInode) DeleteChildFile(
 		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
-	d.cache.Erase(name)
 
 	return
 }
@@ -1003,7 +936,6 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool,
 	dirInode DirInode) error {
-	d.cache.Erase(name)
 
 	// If the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
@@ -1027,7 +959,6 @@ func (d *dirInode) DeleteChildDir(
 		if err != nil {
 			return fmt.Errorf("DeleteObject: %w", err)
 		}
-		d.cache.Erase(name)
 		return nil
 	}
 
@@ -1042,7 +973,6 @@ func (d *dirInode) DeleteChildDir(
 		dirInode.Unlink()
 	}
 
-	d.cache.Erase(name)
 	return nil
 }
 
@@ -1197,9 +1127,6 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 
 	o, err := d.bucket.MoveObject(ctx, req)
 
-	// Invalidate the cache entry for the old object name.
-	d.cache.Erase(fileToRename.Name)
-
 	return o, err
 }
 
@@ -1208,10 +1135,6 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
-	// Remove old entry from type cache.
-	d.cache.Erase(folderName)
 
 	return folder, nil
 }
