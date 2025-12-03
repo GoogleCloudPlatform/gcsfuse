@@ -20,6 +20,7 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/jacobsa/fuse/fuseops"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -56,6 +57,7 @@ type ReadManagerConfig struct {
 	Config                *cfg.Config
 	GlobalMaxBlocksSem    *semaphore.Weighted
 	WorkerPool            workerpool.WorkerPool
+	HandleID              fuseops.HandleID
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -73,6 +75,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			config.FileCacheHandler,
 			config.CacheFileForRangeRead,
 			config.MetricHandle,
+			config.HandleID,
 		)
 		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
 	}
@@ -97,6 +100,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			WorkerPool:         config.WorkerPool,
 			MetricHandle:       config.MetricHandle,
 			ReadTypeClassifier: readClassifier,
+			HandleID:           config.HandleID,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(opts)
 		if err != nil {

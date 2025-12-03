@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
@@ -75,10 +76,13 @@ type FileHandle struct {
 	// globalMaxReadBlocksSem is a semaphore that limits the total number of blocks
 	// that can be allocated for buffered read across all files in the file system.
 	globalMaxReadBlocksSem *semaphore.Weighted
+
+	// HandleID is an opaque 64-bit number used to create this File Handle, used for logging.
+	handleID fuseops.HandleID
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted, handleID fuseops.HandleID) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                  inode,
 		fileCacheHandler:       fileCacheHandler,
@@ -88,6 +92,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		config:                 c,
 		bufferedReadWorkerPool: bufferedReadWorkerPool,
 		globalMaxReadBlocksSem: globalMaxReadBlocksSem,
+		handleID:               handleID,
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
@@ -203,6 +208,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 			Config:                fh.config,
 			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
 			WorkerPool:            fh.bufferedReadWorkerPool,
+			HandleID:              fh.handleID,
 		})
 
 		// Override the read-manager with visual-read-manager (a wrapper over read_manager with visualizer) if configured.
@@ -274,7 +280,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 		fh.destroyReader()
 		// Attempt to create an appropriate reader.
-		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config)
+		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config, fh.handleID)
 
 		// Release RWLock and take RLock on file handle again
 		fh.mu.Unlock()

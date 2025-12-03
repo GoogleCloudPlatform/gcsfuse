@@ -107,7 +107,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config, handleID fuseops.HandleID) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -119,6 +119,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
 		config:                config,
+		handleID:              handleID,
 	}
 }
 
@@ -166,6 +167,8 @@ type randomReader struct {
 	// This will be used while making the new connection to bypass auth and metadata
 	// checks.
 	readHandle []byte
+
+	handleID fuseops.HandleID
 
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *MultiRangeDownloaderWrapper
@@ -240,8 +243,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
-	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), rr.handleID)
 	startTime := time.Now()
 
 	// Response log
