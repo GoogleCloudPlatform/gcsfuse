@@ -309,7 +309,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		}
 	}()
 
-	if err = p.handleRandomRead(req.Offset, p.handleID); err != nil {
+	if err = p.handleRandomRead(readOffset, p.handleID); err != nil {
 		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 	}
 
@@ -321,7 +321,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		p.prepareQueueForOffset(readOffset)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(req.Offset); err != nil {
+			if err = p.freshStart(readOffset); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, p.handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
