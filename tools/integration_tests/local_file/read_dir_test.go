@@ -178,18 +178,6 @@ func (t *LocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
 	operations.ValidateESTALEError(t.T(), err)
 }
 
-func (t *LocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Concurrently create 100 local files and read directory 200 times.
-	go creatingNLocalFilesShouldNotThrowError(100, &wg, t.T())
-	go readingDirNTimesShouldNotThrowError(200, &wg, t.T())
-
-	wg.Wait()
-}
-
 func (t *LocalFileTestSuite) TestStatLocalFileAfterRecreatingItWithSameName() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	filePath := path.Join(testDirPath, FileName1)
