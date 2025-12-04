@@ -1076,15 +1076,16 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 	folder := &gcs.Folder{
 		Name: name,
 	}
+	req := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
 		WillOnce(Return())
-	ExpectCall(t.wrapped, "GetFolder")(Any(), &gcs.GetFolderRequest{Name: name}).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), req).
 		WillOnce(Return(folder, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
+	result, err := t.bucket.GetFolder(context.TODO(), req)
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1093,13 +1094,14 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 func (t *StatObjectTest) TestShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
 	const name = "some-name"
 	error := errors.New("connection error")
+	req := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
-	ExpectCall(t.wrapped, "GetFolder")(Any(), &gcs.GetFolderRequest{Name: name}).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), req).
 		WillOnce(Return(nil, error))
 
-	folder, result := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
+	folder, result := t.bucket.GetFolder(context.TODO(), req)
 
 	AssertEq(nil, folder)
 	AssertEq(error, result)
@@ -1167,10 +1169,10 @@ func (t *CreateFolderTest) TestCreateFolderWhenGCSCallSucceeds() {
 		WillOnce(Return())
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
 		WillOnce(Return())
-	ExpectCall(t.wrapped, "GetFolder")(Any(), &gcs.GetFolderRequest{Name: name}).
+	ExpectCall(t.wrapped, "CreateFolder")(Any(), name).
 		WillOnce(Return(folder, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
+	result, err := t.bucket.CreateFolder(context.TODO(), name)
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
