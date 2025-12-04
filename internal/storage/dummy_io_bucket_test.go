@@ -177,12 +177,13 @@ func TestDummyIOBucket_GetFolder(t *testing.T) {
 	mockBucket := &TestifyMockBucket{}
 	ctx := context.Background()
 	folderName := "test-folder"
+	req := &gcs.GetFolderRequest{Name: folderName}
 	expectedFolder := &gcs.Folder{Name: folderName}
-	mockBucket.On("GetFolder", ctx, folderName).Return(expectedFolder, nil)
+	mockBucket.On("GetFolder", ctx, req).Return(expectedFolder, nil)
 	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
-	folder, err := dummyBucket.GetFolder(ctx, &gcs.GetFolderRequest{Name: folderName})
+	folder, err := dummyBucket.GetFolder(ctx, req)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedFolder, folder)
