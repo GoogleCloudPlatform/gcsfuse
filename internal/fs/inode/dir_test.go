@@ -1547,6 +1547,48 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 	ExpectEq(dirObjName, result.MinObject.Name)
 }
 
+func (t *DirTest) DeleteChildFile_Succeeds_TypeCacheEvicted() {
+	const name = "qux"
+	objName := path.Join(dirInodeName, name)
+	var err error
+	// Create a backing object.
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	AssertEq(nil, err)
+	// Prime the type cache.
+	t.in.InsertFileIntoTypeCache(name)
+	AssertEq(metadata.RegularFileType, t.getTypeFromCache(name))
+
+	// Call the inode.
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation, &o.MetaGeneration)
+
+	AssertEq(nil, err)
+	// Check the bucket.
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
+	// Check that the type cache has been updated.
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
+}
+
+func (t *DirTest) DeleteChildFile_ReturnsError_TypeCacheRetained() {
+	const name = "qux"
+	objName := path.Join(dirInodeName, name)
+	var err error
+	// Create a backing object.
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	AssertEq(nil, err)
+	// Prime the type cache.
+	t.in.InsertFileIntoTypeCache(name)
+	AssertEq(metadata.RegularFileType, t.getTypeFromCache(name))
+
+	// Call the inode with a meta-generation that will cause a precondition error.
+	wrongMetaGeneration := o.MetaGeneration + 1
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation, &wrongMetaGeneration)
+
+	ExpectThat(err, Error(HasSubstr("DeleteObject: gcs.PreconditionError")))
+	AssertEq(metadata.RegularFileType, t.getTypeFromCache(name))
+}
+
 func (t *DirTest) CreateChildDir_DoesntExist() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
