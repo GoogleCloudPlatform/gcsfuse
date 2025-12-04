@@ -176,6 +176,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
 		// attributes in a single operation.
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
+		// Symlink target is not mutable (removing and re-creating would cause a different
+		// inode to be created), so it's safe to enable symlink caching.
+		EnableSymlinkCaching: newConfig.FileSystem.ExperimentalEnableSymlinkCache,
 	}
 
 	// GCSFuse to Jacobsa Fuse Log Level mapping:
