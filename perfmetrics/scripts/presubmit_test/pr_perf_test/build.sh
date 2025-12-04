@@ -78,10 +78,7 @@ function install_requirements() {
   echo Installing Bigquery module requirements...
   pip install --require-hashes -r ./perfmetrics/scripts/bigquery/requirements.txt --user
   echo Installing libraries to run python script
-  pip install google-cloud
-  pip install google-cloud-vision
-  pip install google-api-python-client
-  pip install prettytable
+  pip install --require-hashes -r ./perfmetrics/scripts/presubmit_test/pr_perf_test/requirements.txt --user
   "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/fio/install_fio.sh" "${KOKORO_ARTIFACTS_DIR}/github"
   cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 }

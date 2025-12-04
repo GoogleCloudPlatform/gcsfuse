@@ -1,0 +1,7 @@
+pandas
+google-cloud-bigquery
+google-cloud-storage
+pyarrow
+pandas_gbq
+google-crc32c
+psutil
