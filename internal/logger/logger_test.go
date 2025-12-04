@@ -50,11 +50,10 @@ func expectedLogRegex(t *testing.T, format, severity, message string) string {
 }
 
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
-	var programLevel = new(slog.LevelVar)
 	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
 	handler = handler.WithAttrs(loggerAttr(testFsName))
 	defaultLogger = slog.New(handler)
-	setLoggingLevel(level, programLevel)
+	setLoggingLevel(level)
 }
 
 func getTestLoggingFunctions() []func() {
@@ -313,9 +312,7 @@ func TestSetLoggingLevel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			programLevel := new(slog.LevelVar)
-
-			setLoggingLevel(tc.inputLevel, programLevel)
+			setLoggingLevel(tc.inputLevel)
 
 			assert.Equal(t, tc.expectedProgramLevel, programLevel.Level())
 		})

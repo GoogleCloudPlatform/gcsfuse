@@ -37,7 +37,7 @@ const (
 	nanosKey     = "nanos"
 )
 
-func setLoggingLevel(level string, programLevel *slog.LevelVar) {
+func setLoggingLevel(level string) {
 	switch level {
 	// logs having severity >= the configured value will be logged.
 	case cfg.TRACE:

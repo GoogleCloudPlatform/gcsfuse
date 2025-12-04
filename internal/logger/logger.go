@@ -49,6 +49,7 @@ var (
 	defaultLogger        *slog.Logger
 	mountUUID            string
 	setupMountUUIDOnce   sync.Once
+	programLevel         = new(slog.LevelVar)
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -174,37 +175,51 @@ func UpdateDefaultLogger(format, fsName string) {
 
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...any) {
-	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
+	if LevelTrace >= programLevel.Level() {
+		defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
+	}
 }
 
 // Debugf prints the message with DEBUG severity in the specified format.
 func Debugf(format string, v ...any) {
-	defaultLogger.Debug(fmt.Sprintf(format, v...))
+	if LevelDebug >= programLevel.Level() {
+		defaultLogger.Debug(fmt.Sprintf(format, v...))
+	}
 }
 
 // Infof prints the message with INFO severity in the specified format.
 func Infof(format string, v ...any) {
-	defaultLogger.Info(fmt.Sprintf(format, v...))
+	if LevelInfo >= programLevel.Level() {
+		defaultLogger.Info(fmt.Sprintf(format, v...))
+	}
 }
 
 // Info prints the message with info severity.
 func Info(message string, args ...any) {
-	defaultLogger.Info(message, args...)
+	if LevelInfo >= programLevel.Level() {
+		defaultLogger.Info(message, args...)
+	}
 }
 
 // Warnf prints the message with WARNING severity in the specified format.
 func Warnf(format string, v ...any) {
-	defaultLogger.Warn(fmt.Sprintf(format, v...))
+	if LevelWarn >= programLevel.Level() {
+		defaultLogger.Warn(fmt.Sprintf(format, v...))
+	}
 }
 
 // Errorf prints the message with ERROR severity in the specified format.
 func Errorf(format string, v ...any) {
-	defaultLogger.Error(fmt.Sprintf(format, v...))
+	if LevelError >= programLevel.Level() {
+		defaultLogger.Error(fmt.Sprintf(format, v...))
+	}
 }
 
 // Error prints the message with ERROR severity.
 func Error(error string) {
-	defaultLogger.Error(error)
+	if LevelError >= programLevel.Level() {
+		defaultLogger.Error(error)
+	}
 }
 
 // Fatal prints an error log and exits with non-zero exit code.
@@ -226,10 +241,9 @@ type loggerFactory struct {
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
-	var programLevel = new(slog.LevelVar)
 	logger := slog.New(f.handler(programLevel, ""))
 	slog.SetDefault(logger)
-	setLoggingLevel(level, programLevel)
+	setLoggingLevel(level)
 	return logger
 }
 
@@ -239,10 +253,9 @@ func loggerAttr(fsName string) []slog.Attr {
 
 // create a new logger with mountInstanceID set as custom attribute on logger.
 func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName string) *slog.Logger {
-	var programLevel = new(slog.LevelVar)
 	logger := slog.New(f.handler(programLevel, "").WithAttrs(loggerAttr(fsName)))
 	slog.SetDefault(logger)
-	setLoggingLevel(level, programLevel)
+	setLoggingLevel(level)
 	return logger
 }
 
