@@ -35,7 +35,6 @@ STAGINGVERSION ?= $(_STAGINGVERSION_FALLBACK)
 override STAGINGVERSION := $(STAGINGVERSIONPREFIX)$(patsubst $(STAGINGVERSIONPREFIX)%,%,$(STAGINGVERSION))
 
 PROJECT ?= $(shell gcloud config get-value project 2>/dev/null)
-
 .DEFAULT_GOAL := build
 
 .PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi
