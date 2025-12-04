@@ -24,7 +24,7 @@ type MockReader struct {
 	mock.Mock
 }
 
-func (m *MockReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
+func (m *MockReader) ReadAt(ctx context.Context, req *ReadRequest, skipSizeChecks bool) (ReadResponse, error) {
 	args := m.Called(ctx, req)
 	return args.Get(0).(ReadResponse), args.Error(1)
 }

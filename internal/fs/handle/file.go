@@ -225,9 +225,12 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 		fh.mu.RLock()
 	}
 
+	//skip size checks in the ReadAt method if reading an unfinalized object via handle opened in O_DIRECT mode.
+	skipSizeChecks := fh.readManager.Object().IsUnfinalized() && fh.OpenMode().IsDirect() && req.Offset >= 0 && uint64(req.Offset)+uint64(len(req.Buffer)) > fh.readManager.Object().Size
+
 	// Use the readManager to read data.
 	var readResponse gcsx.ReadResponse
-	readResponse, err := fh.readManager.ReadAt(ctx, req)
+	readResponse, err := fh.readManager.ReadAt(ctx, req, skipSizeChecks)
 	switch {
 	case errors.Is(err, io.EOF):
 		if err != io.EOF {
