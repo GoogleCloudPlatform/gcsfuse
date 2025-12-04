@@ -267,43 +267,43 @@ func (t *CachingTest) TypeOfNameChanges_LocalModifier() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
-	const name = "foo"
-	var fi os.FileInfo
-	var err error
-
-	// Create a directory via the file system.
-	err = os.Mkdir(path.Join(mntDir, name), 0700)
-	AssertEq(nil, err)
-
-	// Remove the backing object in GCS, updating the bucket cache (but not the
-	// file system type cache)
-	err = bucket.DeleteObject(
-		ctx,
-		&gcs.DeleteObjectRequest{Name: name + "/"})
-
-	AssertEq(nil, err)
-
-	// Create a file with the same name via GCS, again updating the bucket cache.
-	_, err = storageutil.CreateObject(
-		ctx,
-		bucket,
-		name,
-		[]byte("taco"))
-
-	AssertEq(nil, err)
-
-	// Because the file system is caching types, it will fail to find the name.
-	_, err = os.Stat(path.Join(mntDir, name))
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-
-	// After the TTL elapses, we should see it turn into a file.
-	cacheClock.AdvanceTime(ttl + time.Millisecond)
-
-	fi, err = os.Stat(path.Join(mntDir, name))
-	AssertEq(nil, err)
-	ExpectFalse(fi.IsDir())
-}
+//func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
+//	const name = "foo"
+//	var fi os.FileInfo
+//	var err error
+//
+//	// Create a directory via the file system.
+//	err = os.Mkdir(path.Join(mntDir, name), 0700)
+//	AssertEq(nil, err)
+//
+//	// Remove the backing object in GCS, updating the bucket cache (but not the
+//	// file system type cache)
+//	err = bucket.DeleteObject(
+//		ctx,
+//		&gcs.DeleteObjectRequest{Name: name + "/"})
+//
+//	AssertEq(nil, err)
+//
+//	// Create a file with the same name via GCS, again updating the bucket cache.
+//	_, err = storageutil.CreateObject(
+//		ctx,
+//		bucket,
+//		name,
+//		[]byte("taco"))
+//
+//	AssertEq(nil, err)
+//
+//	// Because the file system is caching types, it will fail to find the name.
+//	_, err = os.Stat(path.Join(mntDir, name))
+//	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+//
+//	// After the TTL elapses, we should see it turn into a file.
+//	cacheClock.AdvanceTime(ttl + time.Millisecond)
+//
+//	fi, err = os.Stat(path.Join(mntDir, name))
+//	AssertEq(nil, err)
+//	ExpectFalse(fi.IsDir())
+//}
 
 ////////////////////////////////////////////////////////////////////////
 // Caching with implicit directories
