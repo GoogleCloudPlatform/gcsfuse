@@ -522,12 +522,12 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	return
 }
 
-func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Folder, error) {
-	if hit, entry := b.lookUpFolder(prefix); hit {
+func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	if hit, entry := b.lookUpFolder(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err := &gcs.NotFoundError{
-				Err: fmt.Errorf("negative cache entry for folder %v", prefix),
+				Err: fmt.Errorf("negative cache entry for folder %v", req.Name),
 			}
 
 			return nil, err
@@ -537,11 +537,11 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Fol
 	}
 
 	// Fetch the Folder from GCS
-	return b.getFolderFromGCS(ctx, prefix)
+	return b.getFolderFromGCS(ctx, req)
 }
 
-func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, prefix string) (*gcs.Folder, error) {
-	f, err := b.wrapped.GetFolder(ctx, prefix)
+func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	f, err := b.wrapped.GetFolder(ctx, req)
 
 	if err == nil {
 		b.insertFolder(f)
@@ -550,7 +550,7 @@ func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, prefix string) (*
 
 	// Special case: NotFoundError -> negative entry.
 	if _, ok := err.(*gcs.NotFoundError); ok {
-		b.addNegativeEntryForFolder(prefix)
+		b.addNegativeEntryForFolder(req.Name)
 	}
 	return nil, err
 }

@@ -446,3 +446,11 @@ type CreateObjectChunkWriterRequest struct {
 	// Default value is zero which means it's a new object write.
 	Offset int64
 }
+
+// A request to get a folder by name.
+type GetFolderRequest struct {
+	// The name of the folder in question.
+	Name string
+
+	ForceFetchFromCache bool
+}

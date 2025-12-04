@@ -147,7 +147,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	folder := &gcs.Folder{
 		Name: dirName,
 	}
-	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
+	t.mockBucket.On("GetFolder", mock.Anything, mock.AnythingOfType("*gcs.GetFolderRequest")).Return(folder, nil)
 
 	// Look up with the name.
 	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name), true)
@@ -161,7 +161,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 
 func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
-	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(nil, notFoundErr)
+	t.mockBucket.On("GetFolder", mock.Anything, mock.AnythingOfType("*gcs.GetFolderRequest")).Return(nil, notFoundErr)
 
 	// Look up with the name.
 	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"), true)
@@ -178,10 +178,11 @@ func (t *HNSDirTest) TestLookUpChildWithConflictMarkerName() {
 		Name: dirName,
 	}
 	statObjectRequest := gcs.StatObjectRequest{
-		Name: path.Join(dirInodeName, name),
+		Name:                path.Join(dirInodeName, name),
+		ForceFetchFromCache: true,
 	}
 	object := gcs.MinObject{Name: dirName}
-	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
+	t.mockBucket.On("GetFolder", mock.Anything, mock.MatchedBy(func(req *gcs.GetFolderRequest) bool { return req.Name == dirName })).Return(folder, nil)
 	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
 
 	c, err := t.in.LookUpChild(t.ctx, name+"\n")
@@ -216,7 +217,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	folder := &gcs.Folder{
 		Name: dirName,
 	}
-	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
+	t.mockBucket.On("GetFolder", mock.Anything, mock.AnythingOfType("*gcs.GetFolderRequest")).Return(folder, nil)
 	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
 	// Look up with the proper name.

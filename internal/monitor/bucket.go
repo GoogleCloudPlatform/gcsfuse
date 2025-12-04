@@ -182,9 +182,9 @@ func (mb *monitoringBucket) DeleteFolder(ctx context.Context, folderName string)
 	return err
 }
 
-func (mb *monitoringBucket) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
+func (mb *monitoringBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
 	startTime := time.Now()
-	folder, err := mb.wrapped.GetFolder(ctx, folderName)
+	folder, err := mb.wrapped.GetFolder(ctx, req)
 	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodGetFolderAttr, startTime)
 	return folder, err
 }

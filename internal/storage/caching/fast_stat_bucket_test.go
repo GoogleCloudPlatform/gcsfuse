@@ -1053,7 +1053,7 @@ func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, folder))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1065,7 +1065,7 @@ func (t *StatObjectTest) TestShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	AssertEq(nil, result)
@@ -1081,10 +1081,10 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 		WillOnce(Return(false, nil))
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
 		WillOnce(Return())
-	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), &gcs.GetFolderRequest{Name: name}).
 		WillOnce(Return(folder, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1096,10 +1096,10 @@ func (t *StatObjectTest) TestShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
-	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), &gcs.GetFolderRequest{Name: name}).
 		WillOnce(Return(nil, error))
 
-	folder, result := t.bucket.GetFolder(context.TODO(), name)
+	folder, result := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	AssertEq(nil, folder)
 	AssertEq(error, result)
@@ -1167,10 +1167,10 @@ func (t *CreateFolderTest) TestCreateFolderWhenGCSCallSucceeds() {
 		WillOnce(Return())
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
 		WillOnce(Return())
-	ExpectCall(t.wrapped, "CreateFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), &gcs.GetFolderRequest{Name: name}).
 		WillOnce(Return(folder, nil))
 
-	result, err := t.bucket.CreateFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
