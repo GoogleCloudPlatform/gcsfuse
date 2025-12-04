@@ -201,3 +201,24 @@ func TestIsMetricsEnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestIsGKEEnvironment(t *testing.T) {
+	t.Parallel()
+	var testCases = []struct {
+		testName   string
+		mountPoint string
+		expected   bool
+	}{
+		{"non-GKE", "/usr/local/mount-folder", false},
+		{"GKE mountpoint", "/dev/fd/", true},
+		{"GKE /dev/fd/N", "/dev/fd/8", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.expected, IsGKEEnvironment(tc.mountPoint))
+		})
+	}
+}

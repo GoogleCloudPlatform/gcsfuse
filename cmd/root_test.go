@@ -1538,6 +1538,15 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				BufferSize: 1024,
 			},
 		},
+		{
+			name: "enable_grpc_metrics_non_default",
+			args: []string{"gcsfuse", "--enable-grpc-metrics=false", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				Workers:           3,
+				BufferSize:        256,
+				EnableGrpcMetrics: false,
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
