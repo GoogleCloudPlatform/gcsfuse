@@ -616,8 +616,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	// This is the optimistic/fast path.
 	var notFoundErr *gcs.NotFoundCacheError
 	if err = runLookups(ctx, true); errors.As(err, &notFoundErr) && fileResult == nil && dirResult == nil {
-		logger.Errorf("Cache lookup failed (%v). Attempting force fetch from source.", err)
-		err = nil
+		// logger.Errorf("Cache lookup failed (%v). Attempting force fetch from source.", err)
 		// Run the lookups again, forcing a refresh.
 		if err = runLookups(ctx, false); err != nil {
 			// Both lookups failed (cache and force fetch), return the final error.
@@ -626,7 +625,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	if err != nil && !errors.As(err, &notFoundErr) {
-		logger.Errorf("Error: ", err)
 		return nil, err
 	}
 
