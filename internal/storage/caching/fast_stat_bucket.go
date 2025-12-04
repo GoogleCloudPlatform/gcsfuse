@@ -536,6 +536,10 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 		return entry, nil
 	}
 
+	if req.ForceFetchFromCache {
+		return nil, &gcs.NotFoundCacheError{Err: fmt.Errorf("Not found cache entry for %v", req.Name)}
+	}
+
 	// Fetch the Folder from GCS
 	return b.getFolderFromGCS(ctx, req)
 }

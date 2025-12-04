@@ -625,7 +625,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 	}
 
-	if err != nil {
+	if err != nil && !errors.As(err, &notFoundErr) {
+		logger.Errorf("Error: ", err)
 		return nil, err
 	}
 
