@@ -82,12 +82,6 @@ Common Spans recorded and what each of them signifies
 | **FlushFile** | Called when a file handle is being closed. This is an opportunity to flush any cached data. |
 | **ReleaseFileHandle** | Releases an open file handle, called when a process closes a file. |
 | **ReadSymlink** | Reads the target of a symbolic link. |
-| **RemoveXattr** | Removes an **extended attribute** from a file or directory. |
-| **GetXattr** | Retrieves the value of an **extended attribute**. |
-| **ListXattr** | Lists the names of all **extended attributes** on a file or directory. |
-| **SetXattr** | Sets the value of an **extended attribute**. |
-| **Fallocate** | Pre-allocates space for a file. |
-| **SyncFS** | Requests that all cached data for the **entire file system** be written to the underlying storage. |
 | **GCS Operations (gRPC)** | |
 | **google.storage.v2.Storage/ListObjects** | The gRPC call to list a collection of objects (like a directory listing) within a Google Cloud Storage bucket. |
 | **cloud.google.com/go/storage.grpcStorageClient.ObjectsListCall** | The gRPC client-side function call within the Go library that initiates the object listing operation. |
