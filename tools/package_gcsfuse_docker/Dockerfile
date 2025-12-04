@@ -27,7 +27,7 @@ RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; the
     exit 1; \
 fi
 
-RUN wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-${ARCHITECTURE}.tar.gz -q
+RUN wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-${ARCHITECTURE}.tar.gz -q
 RUN rm -rf /usr/local/go
 RUN tar -C /usr/local -xzf go_tar.tar.gz
 RUN PATH=$PATH:/usr/local/go/bin
