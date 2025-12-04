@@ -581,10 +581,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	// Helper function to encapsulate all concurrent lookup logic
 	runLookups := func(ctx context.Context, forceFetchFromCache bool) error {
-		logger.Errorf("In run lookups: forceFetchFromCache=%t", forceFetchFromCache) // Use %t for boolean
+		// logger.Errorf("In run lookups: forceFetchFromCache=%t", forceFetchFromCache) // Use %t for boolean
 
 		// Always create a fresh errgroup for each phase (cache-check or force-fetch)
-		group, ctx := errgroup.WithContext(ctx)
+		group, _ := errgroup.WithContext(ctx)
 
 		// Always look up the file path concurrently
 		group.Go(func() error {
@@ -623,6 +623,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			// Both lookups failed (cache and force fetch), return the final error.
 			return nil, err
 		}
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	// 4. Consolidate and return the result
