@@ -410,6 +410,29 @@ read_cache:
         run: TestCacheFileForIncludeRegexTest
         run_on_gke: true
 
+stale_handle:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1"
+          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestStaleHandleStreamingWritesEnabled"
+        run_on_gke: true
+      - flags:
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestStaleHandleStreamingWritesDisabled"
+        run_on_gke: true
+
 readdirplus:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"

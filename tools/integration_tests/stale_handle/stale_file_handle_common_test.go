@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,28 +33,26 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type staleFileHandleCommon struct {
+	suite.Suite
 	flags                    []string
 	f1                       *os.File
 	fileName                 string
 	data                     string
-	testDirPath              string
 	isStreamingWritesEnabled bool
 	isLocal                  bool
-	suite.Suite
 }
 
-// //////////////////////////////////////////////////////////////////////
-// Helpers
-// //////////////////////////////////////////////////////////////////////
 func (s *staleFileHandleCommon) SetupSuite() {
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
-	s.testDirPath = setup.SetupTestDirectory(testDirName)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	if testEnv.cfg.GKEMountedDirectory == "" {
+		setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
+	}
+	testEnv.testDirPath = SetupTestDirectory(testEnv.ctx, testEnv.storageClient, testDirName)
 	s.data = setup.GenerateRandomString(5 * util.MiB)
 }
 
 func (s *staleFileHandleCommon) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
-	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -69,13 +67,14 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Clobber file by replacing the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
+	err := WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
+
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, s.fileName, FileContents, s.T())
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, FileContents, s.T())
 }
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
@@ -91,7 +90,7 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, s.fileName, s.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, s.T())
 }
 
 func (s *staleFileHandleCommon) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
@@ -100,7 +99,7 @@ func (s *staleFileHandleCommon) TestRenamedFileSyncAndCloseThrowsStaleFileHandle
 	assert.NoError(s.T(), err)
 	newFile := "new" + s.fileName
 
-	err = operations.RenameFile(s.f1.Name(), path.Join(s.testDirPath, newFile))
+	err = operations.RenameFile(s.f1.Name(), path.Join(testEnv.testDirPath, newFile))
 
 	assert.NoError(s.T(), err)
 	_, err = s.f1.WriteString(s.data)

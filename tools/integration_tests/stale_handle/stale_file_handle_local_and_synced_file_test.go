@@ -15,8 +15,8 @@
 package stale_handle
 
 import (
+	"log"
 	"path"
-	"slices"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -30,6 +30,9 @@ import (
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
+type staleFileHandleLocalFile struct {
+	staleFileHandleCommon
+}
 
 type staleFileHandleEmptyGcsFile struct {
 	staleFileHandleCommon
@@ -39,12 +42,24 @@ type staleFileHandleEmptyGcsFile struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
-func (s *staleFileHandleEmptyGcsFile) SetupTest() {
-	// Create an empty object on GCS.
+func (s *staleFileHandleLocalFile) SetupTest() {
+	// Create a local file.
 	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, s.fileName), "")
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(testEnv.testDirPath, s.fileName))
+	s.isLocal = true
+}
+func (s *staleFileHandleLocalFile) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+}
+
+func (s *staleFileHandleEmptyGcsFile) SetupTest() {
+	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
+	err := CreateObjectOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), "")
 	assert.NoError(s.T(), err)
-	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, s.fileName))
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(testEnv.testDirPath, s.fileName))
+}
+func (s *staleFileHandleEmptyGcsFile) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -62,7 +77,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 	operations.SyncFile(s.f1, s.T())
 
 	// Replace the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
+	err = WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 
 	assert.NoError(s.T(), err)
 	buffer := make([]byte, len(s.data))
@@ -76,7 +91,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
 	// Clobber file by replacing the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
+	err := WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	// Attempt first write to the file should give stale NFS file handle error.
@@ -86,7 +101,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, s.fileName, FileContents, s.T())
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, FileContents, s.T())
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
@@ -97,10 +112,10 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Delete the file remotely.
-	err := DeleteObjectOnGCS(ctx, storageClient, path.Join(testDirName, s.fileName))
+	err := DeleteObjectOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName))
 	assert.NoError(s.T(), err)
 	// Verify unlink operation succeeds.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, s.fileName, s.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, s.T())
 	// Attempt to write to file should not give any error.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 
@@ -108,23 +123,69 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, s.fileName, s.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestStaleFileHandleEmptyGcsFileTest(t *testing.T) {
+func TestStaleHandleStreamingWritesEnabled(t *testing.T) {
 	// Run tests for mounted directory if the flag is set and return.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, new(staleFileHandleEmptyGcsFile))
+		// Run tests for local file.
+		suite.Run(t, &staleFileHandleLocalFile{staleFileHandleCommon{isStreamingWritesEnabled: true}})
+
+		// Run tests for empty gcs file.
+		suite.Run(t, &staleFileHandleEmptyGcsFile{staleFileHandleCommon{isStreamingWritesEnabled: true}})
+
 		return
 	}
+
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
-		s := new(staleFileHandleEmptyGcsFile)
-		s.flags = flags
-		s.isStreamingWritesEnabled = !slices.Contains(s.flags, "--enable-streaming-writes=false")
-		suite.Run(t, s)
+		// Run local file tests
+		sLocal := new(staleFileHandleLocalFile)
+		sLocal.flags = flags
+		log.Printf("Running local file tests with flags: %s", sLocal.flags)
+		sLocal.isStreamingWritesEnabled = true
+		suite.Run(t, sLocal)
+
+		// Run empty GCS file tests
+		sEmptyGCS := new(staleFileHandleEmptyGcsFile)
+		sEmptyGCS.flags = flags
+		log.Printf("Running empty GCS file tests with flags: %s", sEmptyGCS.flags)
+		sEmptyGCS.isStreamingWritesEnabled = true
+		suite.Run(t, sEmptyGCS)
+	}
+}
+
+func TestStaleHandleStreamingWritesDisabled(t *testing.T) {
+	// Run tests for mounted directory if the flag is set and return.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		// Run tests for local file.
+		suite.Run(t, &staleFileHandleLocalFile{staleFileHandleCommon{isStreamingWritesEnabled: false}})
+
+		// Run tests for empty gcs file.
+		suite.Run(t, &staleFileHandleEmptyGcsFile{staleFileHandleCommon{isStreamingWritesEnabled: false}})
+
+		return
+	}
+
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		// Run local file tests
+		sLocal := new(staleFileHandleLocalFile)
+		sLocal.flags = flags
+		log.Printf("Running local file tests with flags: %s", sLocal.flags)
+		sLocal.isStreamingWritesEnabled = false
+		suite.Run(t, sLocal)
+
+		// Run empty GCS file tests
+		sEmptyGCS := new(staleFileHandleEmptyGcsFile)
+		sEmptyGCS.flags = flags
+		log.Printf("Running empty GCS file tests with flags: %s", sEmptyGCS.flags)
+		sEmptyGCS.isStreamingWritesEnabled = false
+		suite.Run(t, sEmptyGCS)
 	}
 }

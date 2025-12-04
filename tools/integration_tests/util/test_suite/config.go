@@ -64,7 +64,7 @@ type Config struct {
 	ManagedFolders        []TestConfig `yaml:"managed_folders"`
 	ConcurrentOperations  []TestConfig `yaml:"concurrent_operations"`
 	Benchmarking          []TestConfig `yaml:"benchmarking"`
-	StaleHandles          []TestConfig `yaml:"stale_handles"`
+	StaleHandle           []TestConfig `yaml:"stale_handle"`
 	StreamingWrites       []TestConfig `yaml:"streaming_writes"`
 	InactiveStreamTimeout []TestConfig `yaml:"inactive_stream_timeout"`
 	CloudProfiler         []TestConfig `yaml:"cloud_profiler"`
@@ -107,7 +107,7 @@ func (c *Config) postProcessConfig() {
 	processTestConfigs(c.ManagedFolders)
 	processTestConfigs(c.ConcurrentOperations)
 	processTestConfigs(c.Benchmarking)
-	processTestConfigs(c.StaleHandles)
+	processTestConfigs(c.StaleHandle)
 	processTestConfigs(c.StreamingWrites)
 	processTestConfigs(c.InactiveStreamTimeout)
 	processTestConfigs(c.CloudProfiler)
