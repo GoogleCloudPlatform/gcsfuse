@@ -375,6 +375,10 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
+	if req.ForceFetchFromCache {
+		return nil, nil, &gcs.NotFoundCacheError{Err: fmt.Errorf("Not found cache entry for %v", req.Name)}
+	}
+
 	return b.StatObjectFromGcs(ctx, req)
 }
 
@@ -420,6 +424,7 @@ func (b *fastStatBucket) ListObjects(
 				return &gcs.Listing{MinObjects: []*gcs.MinObject{minObject}}, nil
 			}
 		}
+		return nil, &gcs.NotFoundCacheError{Err: fmt.Errorf("Not found cache entry for %v", req.Prefix)}
 	}
 
 	// Fetch the listing.

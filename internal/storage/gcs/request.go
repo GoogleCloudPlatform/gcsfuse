@@ -242,6 +242,8 @@ type StatObjectRequest struct {
 
 	// Controls whether StatObject response includes GCS ExtendedObjectAttributes.
 	ReturnExtendedObjectAttributes bool
+
+	ForceFetchFromCache bool
 }
 
 type Projection int64

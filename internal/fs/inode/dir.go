@@ -310,19 +310,19 @@ func (d *dirInode) checkInvariants() {
 }
 
 func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
-	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
 }
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
 	if d.isBucketHierarchical() {
-		return findExplicitFolder(ctx, d.Bucket(), childName)
+		return findExplicitFolder(ctx, d.Bucket(), childName, true)
 	}
 
 	if d.implicitDirs {
-		return findDirInode(ctx, d.Bucket(), childName)
+		return findDirInode(ctx, d.Bucket(), childName, true)
 	}
-	return findExplicitInode(ctx, d.Bucket(), childName)
+	return findExplicitInode(ctx, d.Bucket(), childName, true)
 }
 
 // Look up the file for a (file, dir) pair with conflicting names, overriding
@@ -356,10 +356,11 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
-func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, forceFetchFromCache bool) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
-		Name: name.GcsObjectName(),
+		Name:                name.GcsObjectName(),
+		ForceFetchFromCache: forceFetchFromCache,
 	}
 
 	m, _, err := bucket.StatObject(ctx, req)
@@ -382,7 +383,7 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
-func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, forceFetchFromGcs bool) (*Core, error) {
 	folder, err := bucket.GetFolder(ctx, name.GcsObjectName())
 
 	// Suppress "not found" errors.
@@ -405,7 +406,7 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
-func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, forceFetchFromCache bool) (*Core, error) {
 	if !name.IsDir() {
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
@@ -413,7 +414,7 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 	req := &gcs.ListObjectsRequest{
 		Prefix:              name.GcsObjectName(),
 		MaxResults:          1,
-		ForceFetchFromCache: true,
+		ForceFetchFromCache: forceFetchFromCache,
 	}
 	listing, err := bucket.ListObjects(ctx, req)
 	// Suppress "not found" errors.
@@ -423,7 +424,7 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("list objects: %w", err)
+		return nil, err
 	}
 
 	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 {
@@ -546,48 +547,81 @@ func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 // See also the notes on DirInode.LookUpChild.
 const ConflictingFileNameSuffix = "\n"
 
-// LOCKS_REQUIRED(d)
 func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
-	// Is this a conflict marker name?
+	// 1. Check for conflict marker name
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
 		return d.lookUpConflicting(ctx, name)
 	}
 
-	group, ctx := errgroup.WithContext(ctx)
-
+	// Define result variables outside to be updated by concurrent lookups
 	var fileResult *Core
 	var dirResult *Core
-	lookUpFile := func() (err error) {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+
+	// Define the inner lookup functions as closures (necessary for context)
+	lookUpFile := func(forceFetchFromCache bool) (err error) {
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), forceFetchFromCache)
 		return
 	}
-	lookUpExplicitDir := func() (err error) {
-		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+	lookUpExplicitDir := func(forceFetchFromCache bool) (err error) {
+		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), forceFetchFromCache)
 		return
 	}
-	lookUpImplicitOrExplicitDir := func() (err error) {
-		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+	lookUpImplicitOrExplicitDir := func(forceFetchFromCache bool) (err error) {
+		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name), forceFetchFromCache)
 		return
 	}
-	lookUpHNSDir := func() (err error) {
-		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
+	lookUpHNSDir := func(forceFetchFromCache bool) (err error) {
+		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), forceFetchFromCache)
 		return
 	}
-	group.Go(lookUpFile)
-	if d.isBucketHierarchical() {
-		group.Go(lookUpHNSDir)
-	} else {
-		if d.implicitDirs {
-			group.Go(lookUpImplicitOrExplicitDir)
+
+	// Helper function to encapsulate all concurrent lookup logic
+	runLookups := func(ctx context.Context, forceFetchFromCache bool) error {
+		logger.Errorf("In run lookups: forceFetchFromCache=%t", forceFetchFromCache) // Use %t for boolean
+
+		// Always create a fresh errgroup for each phase (cache-check or force-fetch)
+		group, ctx := errgroup.WithContext(ctx)
+
+		// Always look up the file path concurrently
+		group.Go(func() error {
+			return lookUpFile(forceFetchFromCache)
+		})
+
+		// Determine which directory lookup to run based on bucket configuration
+		if d.isBucketHierarchical() {
+			group.Go(func() error {
+				return lookUpHNSDir(forceFetchFromCache)
+			})
 		} else {
-			group.Go(lookUpExplicitDir)
+			if d.implicitDirs {
+				group.Go(func() error {
+					return lookUpImplicitOrExplicitDir(forceFetchFromCache)
+				})
+			} else {
+				group.Go(func() error {
+					return lookUpExplicitDir(forceFetchFromCache)
+				})
+			}
+		}
+
+		return group.Wait()
+	}
+
+	var err error
+	// 2. First attempt: Try cache only (forceFetchFromCache = false)
+	// This is the optimistic/fast path.
+	var notFoundErr *gcs.NotFoundCacheError
+	if err = runLookups(ctx, true); errors.As(err, &notFoundErr) && fileResult == nil && dirResult == nil {
+		logger.Errorf("Cache lookup failed (%v). Attempting force fetch from source.", err)
+		err = nil
+		// Run the lookups again, forcing a refresh.
+		if err = runLookups(ctx, false); err != nil {
+			// Both lookups failed (cache and force fetch), return the final error.
+			return nil, err
 		}
 	}
 
-	if err := group.Wait(); err != nil {
-		return nil, err
-	}
-
+	// 4. Consolidate and return the result
 	var result *Core
 	if dirResult != nil {
 		result = dirResult
@@ -595,6 +629,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		result = fileResult
 	}
 
+	// If both are nil, the function returns nil, nil (not found).
 	return result, nil
 }
 
