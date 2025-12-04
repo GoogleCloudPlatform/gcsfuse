@@ -32,16 +32,11 @@ function fetch_meta_data_value() {
   metadata_key=$1
   # Fetch metadata value of the key
   gcloud compute instances describe create-gcsfuse-packages --zone us-west1-b --flatten="metadata[$metadata_key]" >>  metadata.txt
-  # cat metadata.txt.txt
+  # cat metadata.txt
   # ---
   #   value
-  x=$(sed '2!d' metadata.txt)
-  #   value(contains preceding spaces)
-  # Remove spaces
-  # value
-  value=$(echo "$x" | sed 's/[[:space:]]//g')
-  # echo $value
-  # value
+  x=$(sed '2!d' metadata.txt) # fetch 2nd line -> " value"
+  value=$(echo "$x" | sed 's/[[:space:]]//g') # remove preceeding spaces -> "value"
   rm metadata.txt
   echo $value
 }
@@ -59,6 +54,10 @@ echo RELEASE_VERSION_TAG="$RELEASE_VERSION_TAG"
 UPLOAD_BUCKET=$(fetch_meta_data_value "UPLOAD_BUCKET")
 echo UPLOAD_BUCKET="$UPLOAD_BUCKET"
 
+# Fetch metadata value of the key "COMMIT_HASH"
+COMMIT_HASH=$(fetch_meta_data_value "COMMIT_HASH")
+echo COMMIT_HASH="$COMMIT_HASH"
+
 sudo apt-get update
 echo Install docker
 sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
@@ -72,9 +71,9 @@ sudo apt-get install git -y
 sudo apt-get install qemu-user-static binfmt-support
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse/tools/package_gcsfuse_docker/
-git checkout "v$RELEASE_VERSION_TAG"
+git checkout "$COMMIT_HASH"
 echo "Building docker for ${architecture} ..."
-sudo docker buildx build --load . -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=${architecture} --build-arg BRANCH_NAME="v$RELEASE_VERSION_TAG" &> docker_${architecture}.log
+sudo docker buildx build --load . -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=${architecture} --build-arg BRANCH_NAME="$COMMIT_HASH" &> docker_${architecture}.log
 gsutil cp docker_${architecture}.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
 sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" cp -r /packages/. /release/v"$RELEASE_VERSION"
 

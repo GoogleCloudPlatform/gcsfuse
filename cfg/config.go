@@ -207,7 +207,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 
 	profileName := c.Profile
-	machineType, err := getMachineType(isSet)
+	machineType, err := getMachineType(isSet, c)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
 		machineType = ""
@@ -353,6 +353,8 @@ type Config struct {
 
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
+	DummyIo DummyIoConfig `yaml:"dummy-io"`
+
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
@@ -410,6 +412,14 @@ type DebugConfig struct {
 	LogMutex bool `yaml:"log-mutex"`
 }
 
+type DummyIoConfig struct {
+	Enable bool `yaml:"enable"`
+
+	PerMbLatency time.Duration `yaml:"per-mb-latency"`
+
+	ReaderLatency time.Duration `yaml:"reader-latency"`
+}
+
 type FileCacheConfig struct {
 	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read"`
 
@@ -422,6 +432,8 @@ type FileCacheConfig struct {
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
 	ExcludeRegex string `yaml:"exclude-regex"`
+
+	ExperimentalEnableBlockCache bool `yaml:"experimental-enable-block-cache"`
 
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
 
@@ -750,6 +762,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.DurationP("dummy-io-per-mb-latency", "", 0*time.Nanosecond, "Simulates reading from the reader latency in dummy I/O mode. This value is only used when dummy I/O mode is enabled.")
+
+	if err := flagSet.MarkHidden("dummy-io-per-mb-latency"); err != nil {
+		return err
+	}
+
+	flagSet.DurationP("dummy-io-reader-latency", "", 0*time.Nanosecond, "Simulates reader creation latency in dummy I/O mode. This value is only used when dummy I/O mode is enabled.")
+
+	if err := flagSet.MarkHidden("dummy-io-reader-latency"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-atomic-rename-object", "", true, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
@@ -761,6 +785,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-cloud-profiler", "", false, "Enables cloud-profiler, by default disabled.")
 
 	if err := flagSet.MarkHidden("enable-cloud-profiler"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-dummy-io", "", false, "Enable dummy I/O mode for testing purposes. In this mode all reads and writes are simulated and no actual data is transferred to or from Cloud Storage. All the metadata operations like object listing and stats are real.")
+
+	if err := flagSet.MarkHidden("enable-dummy-io"); err != nil {
 		return err
 	}
 
@@ -806,7 +836,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-unsupported-path-support", "", false, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
+	flagSet.BoolP("enable-unsupported-path-support", "", true, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
 	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
 		return err
@@ -887,6 +917,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
 	if err := flagSet.MarkHidden("file-cache-exclude-regex"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("file-cache-experimental-enable-block-cache", "", false, "Enable block cache mode for random I/O optimization that downloads only requested blocks.")
+
+	if err := flagSet.MarkHidden("file-cache-experimental-enable-block-cache"); err != nil {
 		return err
 	}
 
@@ -1255,6 +1291,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("dummy-io.per-mb-latency", flagSet.Lookup("dummy-io-per-mb-latency")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("dummy-io.reader-latency", flagSet.Lookup("dummy-io-reader-latency")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
 		return err
 	}
@@ -1264,6 +1308,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cloud-profiler.enabled", flagSet.Lookup("enable-cloud-profiler")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("dummy-io.enable", flagSet.Lookup("enable-dummy-io")); err != nil {
 		return err
 	}
 
@@ -1364,6 +1412,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.exclude-regex", flagSet.Lookup("file-cache-exclude-regex")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-enable-block-cache", flagSet.Lookup("file-cache-experimental-enable-block-cache")); err != nil {
 		return err
 	}
 

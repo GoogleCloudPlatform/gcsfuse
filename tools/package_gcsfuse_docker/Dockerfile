@@ -12,10 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build an image with gcsfuse packages:
-#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
-# Copy the gcsfuse packages to the host:
-#   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
+# This Dockerfile builds gcsfuse DEB and RPM packages for different linux architectures.
+#
+# Build Arguments:
+#   GCSFUSE_VERSION  - Version string for the package (required, e.g., "0.39.2")
+#   BRANCH_NAME      - Git commit, branch or tag to build from (default: "v${GCSFUSE_VERSION}")
+#   ARCHITECTURE     - Target architecture: "amd64" or "arm64" (default: "amd64")
+#   GCSFUSE_REPO     - Repository URL (default: https://github.com/googlecloudplatform/gcsfuse/)
+#
+# Examples:
+#
+#   Build from version tag (standard release):
+#     docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
+#
+#   Build from specific branch/commit/tag (e.g., for testing unreleased changes):
+#     docker build . -t gcsfuse-release \
+#       --build-arg GCSFUSE_VERSION=0.40.0 \
+#       --build-arg BRANCH_NAME=<commit_hash_or_branch_name>
+#
+#   Build for ARM64 architecture:
+#     docker build . -t gcsfuse-release \
+#       --build-arg GCSFUSE_VERSION=0.39.2 \
+#       --build-arg ARCHITECTURE=arm64
+#
+#   Extract packages from the container to host:
+#     docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
+#
+# Output:
+#   - /packages/gcsfuse_{VERSION}_{ARCH}.deb
+#   - /packages/gcsfuse-{VERSION}-1.x86_64.rpm (or aarch64 for arm64)
 
 FROM golang:1.24.5 as builder
 
@@ -25,7 +50,7 @@ ARG ARCHITECTURE="amd64"
 RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; then \
     echo "Architecture should be amd64 or arm64"; \
     exit 1; \
-fi
+    fi
 
 RUN wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-${ARCHITECTURE}.tar.gz -q
 RUN rm -rf /usr/local/go
@@ -43,7 +68,7 @@ ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
 RUN git clone ${GCSFUSE_REPO} 
 ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
-RUN git checkout ${BRANCH_NAME}
+RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}" && git checkout ${BRANCH_NAME}
 
 ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
 ARG DEBFULLNAME="GCSFuse Team"
@@ -91,6 +116,7 @@ RUN fpm \
     -C ${GCSFUSE_BIN} \
     -v ${GCSFUSE_VERSION} \
     -d fuse \
+    --exclude DEBIAN \
     --rpm-digest sha256 \
     --license Apache-2.0 \
     --vendor "" \

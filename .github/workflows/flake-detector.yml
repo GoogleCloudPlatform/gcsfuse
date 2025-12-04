@@ -8,7 +8,7 @@ on:
 jobs:
   flake-detector:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
         run: go mod download
 
       - name: Test all
-        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+        run: CGO_ENABLED=0 go test -p 1 -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
 
       - name: RaceDetector Test
-        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 5 ./internal/cache/... ./internal/gcsx/...
+        run: CGO_ENABLED=0 go test -p 1 -count 5 ./internal/cache/... ./internal/gcsx/...

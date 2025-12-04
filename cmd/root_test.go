@@ -30,6 +30,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+////////////////////
+// Helpers
+////////////////////
+
+func createTempConfigFile(t *testing.T, content string) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "config.yaml")
+	require.NoError(t, err)
+	_, err = f.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	return f.Name()
+}
+
+////////////////////
+// Tests
+////////////////////
+
 func TestDefaultMaxParallelDownloads(t *testing.T) {
 	var actual *cfg.Config
 	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
@@ -1154,6 +1172,24 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "cli_flag_overrides_config_file",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "machine-type: config-file-type"), "--machine-type=cli-type", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedDefaultFileSystemConfig,
+				MachineType: "cli-type",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "config_file_overrides_metadata_server",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "machine-type: config-file-type"), "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedDefaultFileSystemConfig,
+				MachineType: "config-file-type",
+			},
+			checkMachineType: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -1313,13 +1349,13 @@ func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 	}{
 		{
 			name:                           "normal",
-			args:                           []string{"gcsfuse", "--enable-unsupported-path-support=true", "abc", "pqr"},
-			expectedUnsupportedPathSupport: true,
+			args:                           []string{"gcsfuse", "--enable-unsupported-path-support=false", "abc", "pqr"},
+			expectedUnsupportedPathSupport: false,
 		},
 		{
 			name:                           "default",
 			args:                           []string{"gcsfuse", "abc", "pqr"},
-			expectedUnsupportedPathSupport: false,
+			expectedUnsupportedPathSupport: true,
 		},
 	}
 
@@ -1609,7 +1645,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values with autoconfig disabled",
+			name: "high_performance_default_config_values_with_autoconfig_disabled",
 			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
@@ -1626,7 +1662,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values with autoconfig enabled",
+			name: "high_performance_default_config_values_with_autoconfig_enabled",
 			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
@@ -1643,7 +1679,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values obey customer flags",
+			name: "high_performance_default_config_values_obey_customer_flags",
 			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
@@ -1660,7 +1696,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values use deprecated flags",
+			name: "high_performance_default_config_values_use_deprecated_flags",
 			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=4m", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
@@ -2214,6 +2250,100 @@ func TestGetConfigFileFlags(t *testing.T) {
 			} else {
 				assert.Equal(t, tc.expected, got)
 			}
+		})
+	}
+}
+
+func TestArgsParsing_DummyIOFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				DummyIo: cfg.DummyIoConfig{
+					Enable:        false,
+					ReaderLatency: 0,
+					PerMbLatency:  0,
+				},
+			},
+		},
+		{
+			name: "normal",
+			args: []string{"gcsfuse", "--dummy-io-reader-latency=150ms", "--dummy-io-per-mb-latency=20ms", "--enable-dummy-io", "pqr"},
+			expectedConfig: &cfg.Config{
+				DummyIo: cfg.DummyIoConfig{
+					Enable:        true,
+					ReaderLatency: 150 * time.Millisecond,
+					PerMbLatency:  20 * time.Millisecond,
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedConfig.DummyIo, gotConfig.DummyIo)
+		})
+	}
+}
+
+func TestArgsParsing_DummyIOConfigFile(t *testing.T) {
+	tests := []struct {
+		name           string
+		cfgFile        string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:    "default",
+			cfgFile: "empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				DummyIo: cfg.DummyIoConfig{
+					Enable:        false,
+					ReaderLatency: 0,
+					PerMbLatency:  0,
+				},
+			},
+		},
+		{
+			name:    "normal",
+			cfgFile: "valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				DummyIo: cfg.DummyIoConfig{
+					Enable:        true,
+					ReaderLatency: 150 * time.Millisecond,
+					PerMbLatency:  20 * time.Millisecond,
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedConfig.DummyIo, gotConfig.DummyIo)
 		})
 	}
 }

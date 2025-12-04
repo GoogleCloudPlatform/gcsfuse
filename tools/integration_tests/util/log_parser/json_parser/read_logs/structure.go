@@ -86,6 +86,7 @@ type BufferedReadLogEntry struct {
 	Chunks          []BufferedReadChunkData
 	Fallback        bool
 	RandomSeekCount int64
+	Restarted       bool
 }
 
 type BufferedReadChunkData struct {

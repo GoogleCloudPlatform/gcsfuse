@@ -157,6 +157,30 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 	})
 }
 
+// TestReadSpanningTwoBlocks verifies that a read spanning two buffer blocks is
+// handled correctly.
+func (s *SequentialReadSuite) TestReadSpanningTwoBlocks() {
+	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
+	// Ensure file is large enough for multi-block reads.
+	fileSize := 3 * blockSizeInBytes
+	// We want to read 512KB, with 256KB in the first block and 256KB in the second.
+	readSize := int64(512 * util.KiB)
+	// Start the read 256KB before the end of the first block.
+	readOffset := blockSizeInBytes - (256 * util.KiB)
+	testDir := setup.SetupTestDirectory(testDirName)
+	// Truncate the log file before the read operation.
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
+	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+
+	// readFileAndValidate opens, reads, and closes the file in one go.
+	expected := readFileAndValidate(ctx, storageClient, testDir, fileName, false, readOffset, readSize, s.T())
+
+	bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(s.T())
+	validate(expected, bufferedReadLogEntry, false, s.T())
+	assert.Equal(s.T(), int64(0), bufferedReadLogEntry.RandomSeekCount)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////

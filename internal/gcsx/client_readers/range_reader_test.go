@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package client_readers
 
 import (
 	"bytes"
@@ -95,8 +95,9 @@ func getReader(size int) *fake.FakeReader {
 func (t *rangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
 		Offset:    offset,
-		EndOffset: offset + int64(len(dst)),
 		Buffer:    dst,
+		EndOffset: offset + int64(len(dst)),
+		ReadInfo:  &gcsx.ReadInfo{},
 	}
 	t.rangeReader.checkInvariants()
 	defer t.rangeReader.checkInvariants()
@@ -446,6 +447,7 @@ func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
 			Buffer:    make([]byte, 2),
 			Offset:    0,
 			EndOffset: 2,
+			ReadInfo:  &gcsx.ReadInfo{},
 		})
 		close(readReturned)
 	}()
@@ -494,6 +496,7 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	readResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
 		Buffer:    buf,
 		Offset:    0,
+		ReadInfo:  &gcsx.ReadInfo{},
 		EndOffset: 2,
 	})
 
@@ -655,8 +658,9 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 	// 2. Read with forceCreateReader = false (default)
 	req1 := &gcsx.GCSReaderRequest{
 		Offset:    offset,
-		EndOffset: offset + size,
 		Buffer:    make([]byte, readSize),
+		EndOffset: offset + size,
+		ReadInfo:  &gcsx.ReadInfo{},
 	}
 	resp1, err := t.rangeReader.ReadAt(t.ctx, req1)
 
@@ -675,9 +679,10 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 	// request, but it will be discarded because ForceCreateReader is true.
 	req2 := &gcsx.GCSReaderRequest{
 		Offset:            offset + readSize,
-		EndOffset:         offset + size,
 		Buffer:            make([]byte, readsize2),
+		EndOffset:         offset + size,
 		ForceCreateReader: true,
+		ReadInfo:          &gcsx.ReadInfo{},
 	}
 	resp2, err := t.rangeReader.ReadAt(t.ctx, req2)
 

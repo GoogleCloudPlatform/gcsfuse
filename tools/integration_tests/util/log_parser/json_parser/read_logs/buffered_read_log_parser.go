@@ -25,7 +25,8 @@ import (
 var readFileRegex = regexp.MustCompile(`fuse_debug: Op (0x[0-9a-fA-F]+)\s+connection\.go:\d+\] <- ReadFile \(inode (\d+), PID (\d+), handle (\d+), offset (\d+), (\d+) bytes\)`)
 var readAtReqRegex = regexp.MustCompile(`([a-f0-9-]+) <- ReadAt\(([^:]+):/([^,]+), (\d+), (\d+), (\d+), (\d+)\)`)
 var readAtSimpleRespRegex = regexp.MustCompile(`([a-f0-9-]+) -> ReadAt\(\): Ok\(([0-9.]+(?:s|ms|µs))\)`)
-var fallbackFromHandleRegex = regexp.MustCompile(`Fallback to another reader for object "[^"]+", handle (\d+)\.(?: Random seek count (\d+) exceeded threshold \d+\.)?`)
+var fallbackFromHandleRegex = regexp.MustCompile(`Fallback to another reader for object "[^"]+", handle (\d+)\.(?: Random seek count (\d+) exceeded threshold \d+.*)?`)
+var restartFromHandleRegex = regexp.MustCompile(`Restarting buffered reader.*handle (\d+)`)
 
 // ParseBufferedReadLogsFromLogReader parses buffered read logs from an io.Reader and
 // returns a map of BufferedReadLogEntry keyed by file handle.
@@ -129,6 +130,10 @@ func filterAndParseLogLineForBufferedRead(
 		if err := parseFallbackLogFromHandle(logMessage, bufferedReadLogsMap); err != nil {
 			return fmt.Errorf("parseFallbackLogFromHandle failed: %v", err)
 		}
+	case strings.Contains(logMessage, "Restarting buffered reader"):
+		if err := parseRestartLogFromHandle(logMessage, bufferedReadLogsMap); err != nil {
+			return fmt.Errorf("parseRestartLogFromHandle failed: %v", err)
+		}
 	}
 	return nil
 }
@@ -160,6 +165,26 @@ func parseFallbackLogFromHandle(
 			return fmt.Errorf("invalid random seek count in fallback log: %v", err)
 		}
 		logEntry.RandomSeekCount = randomSeekCount
+	}
+	return nil
+}
+
+func parseRestartLogFromHandle(
+	logMessage string,
+	bufferedReadLogsMap map[int64]*BufferedReadLogEntry) error {
+
+	matches := restartFromHandleRegex.FindStringSubmatch(logMessage)
+	if len(matches) < 2 {
+		return nil
+	}
+
+	handleID, err := parseToInt64(matches[1])
+	if err != nil {
+		return fmt.Errorf("invalid handle ID in restart log: %w", err)
+	}
+
+	if logEntry, ok := bufferedReadLogsMap[handleID]; ok {
+		logEntry.Restarted = true
 	}
 	return nil
 }

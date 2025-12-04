@@ -50,15 +50,7 @@ type BufferedReadConfig struct {
 
 const (
 	defaultPrefetchMultiplier = 2
-	ReadOp                    = "readOp"
 )
-
-// blockQueueEntry holds a data block with a function
-// to cancel its in-flight download.
-type blockQueueEntry struct {
-	block  block.PrefetchBlock
-	cancel context.CancelFunc
-}
 
 type BufferedReader struct {
 	gcsx.Reader
@@ -79,6 +71,9 @@ type BufferedReader struct {
 	numPrefetchBlocks int64
 
 	metricHandle metrics.MetricHandle
+
+	// handleID is the file handle id, used for logging.
+	handleID fuseops.HandleID
 
 	readHandle []byte // For zonal bucket.
 
@@ -109,6 +104,15 @@ type BufferedReader struct {
 	// of blocks that can be allocated across all BufferedReader instances.
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
+
+	// A WaitGroup to synchronize the destruction of the reader with any ongoing
+	// FUSE read callback goroutines. This ensures that all callbacks for
+	// in-flight data slices have completed before the reader is fully torn down.
+	inflightCallbackWg sync.WaitGroup
+
+	// readTypeClassifier tracks the read access pattern (e.g., sequential, random)
+	// to optimize read strategies. It is shared across different reader layers.
+	readTypeClassifier *gcsx.ReadTypeClassifier
 }
 
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
@@ -119,6 +123,8 @@ type BufferedReaderOptions struct {
 	GlobalMaxBlocksSem *semaphore.Weighted
 	WorkerPool         workerpool.WorkerPool
 	MetricHandle       metrics.MetricHandle
+	ReadTypeClassifier *gcsx.ReadTypeClassifier
+	HandleID           fuseops.HandleID
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -149,8 +155,10 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		blockPool:                blockpool,
 		workerPool:               opts.WorkerPool,
 		metricHandle:             opts.MetricHandle,
+		handleID:                 opts.HandleID,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
+		readTypeClassifier:       opts.ReadTypeClassifier,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -161,13 +169,19 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 // random if the requested offset is outside the currently prefetched window.
 // If the number of detected random reads exceeds a configured threshold, it
 // returns a gcsx.FallbackToAnotherReader error to signal that another reader
-// should be used. It takes handleID for logging purposes.
+// should be used. If the read pattern changes back to sequential, it resets
+// the reader state to resume buffered reading.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
+func (p *BufferedReader) handleRandomRead(offset int64) error {
 	// Exit early if we have already decided to fall back to another reader.
 	// This avoids re-evaluating the read pattern on every call when the random
 	// read threshold has been met.
 	if p.randomSeekCount > p.randomReadsThreshold {
+		if p.readTypeClassifier.IsReadSequential() {
+			logger.Tracef("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, p.handleID)
+			p.resetBufferedReaderState()
+			return nil
+		}
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -182,15 +196,18 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	// release the blocks back to the pool.
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
-		entry.cancel()
-		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
-			logger.Warnf("handleRandomRead: AwaitReady during discard (offset=%d): %v", offset, waitErr)
-		}
-		p.blockPool.Release(entry.block)
+		entry.cancelAndWait()
+		p.releaseOrMarkEvicted(entry)
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
-		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
+		// If the read pattern becomes sequential again, reset the state to resume buffered reading.
+		if p.readTypeClassifier.IsReadSequential() {
+			logger.Tracef("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, p.handleID)
+			p.resetBufferedReaderState()
+			return nil
+		}
+		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d and read pattern is not sequential.", p.object.Name, p.handleID, p.randomSeekCount, p.randomReadsThreshold)
 		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return gcsx.FallbackToAnotherReader
 	}
@@ -230,13 +247,8 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 		if offset < blockStart || offset >= blockEnd {
 			// Offset is either before or beyond this block – discard.
 			p.blockQueue.Pop()
-			entry.cancel()
-
-			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil {
-				logger.Warnf("prepareQueueForOffset: AwaitReady during discard (offset=%d): %v", offset, waitErr)
-			}
-
-			p.blockPool.Release(block)
+			entry.cancelAndWait()
+			p.releaseOrMarkEvicted(entry)
 		} else {
 			break
 		}
@@ -265,27 +277,23 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
+func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	resp := gcsx.ReadResponse{}
 	reqID := uuid.New()
 	start := time.Now()
-	initOff := off
-	blockIdx := initOff / p.config.PrefetchBlockSizeBytes
+	readOffset := req.Offset
+	blockIdx := readOffset / p.config.PrefetchBlockSizeBytes
 	var bytesRead int
 	var err error
-	handleID := int64(-1) // As 0 is a valid handle ID, we use -1 to indicate no handle.
-	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
-		handleID = int64(readOp.Handle)
-	}
 
-	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, off, len(inputBuf), blockIdx)
+	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, p.handleID, readOffset, len(req.Buffer), blockIdx)
 
-	if off >= int64(p.object.Size) {
+	if readOffset >= int64(p.object.Size) {
 		err = io.EOF
 		return resp, err
 	}
 
-	if len(inputBuf) == 0 {
+	if len(req.Buffer) == 0 {
 		return resp, nil
 	}
 
@@ -301,18 +309,20 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}()
 
-	if err = p.handleRandomRead(off, handleID); err != nil {
+	if err = p.handleRandomRead(readOffset); err != nil {
 		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 	}
 
 	prefetchTriggered := false
 
-	for bytesRead < len(inputBuf) {
-		p.prepareQueueForOffset(off)
+	var dataSlices [][]byte
+	var entriesToCallback []*blockQueueEntry
+	for bytesRead < len(req.Buffer) {
+		p.prepareQueueForOffset(readOffset)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(off); err != nil {
-				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
+			if err = p.freshStart(readOffset); err != nil {
+				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, p.handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
 			}
@@ -342,23 +352,32 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			break
 		}
 
-		relOff := off - blk.AbsStartOff()
-		n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
-		bytesRead += n
-		off += int64(n)
+		relOff := readOffset - blk.AbsStartOff()
+		bytesToRead := len(req.Buffer) - bytesRead
+		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
+		sliceLen := len(dataSlice)
+		bytesRead += sliceLen
+		readOffset += int64(sliceLen)
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
 			break
 		}
 
-		if off >= int64(p.object.Size) {
+		if sliceLen > 0 {
+			dataSlices = append(dataSlices, dataSlice)
+			p.inflightCallbackWg.Add(1)
+			blk.IncRef()
+			entriesToCallback = append(entriesToCallback, entry)
+		}
+
+		if readOffset >= int64(p.object.Size) {
 			break
 		}
 
-		if off >= blk.AbsStartOff()+blk.Size() {
-			p.blockQueue.Pop()
-			p.blockPool.Release(blk)
+		if readOffset >= blk.AbsStartOff()+blk.Size() {
+			entry := p.blockQueue.Pop()
+			p.releaseOrMarkEvicted(entry)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -369,8 +388,29 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}
 
+	resp.Data = dataSlices
+	resp.Callback = func() { p.callback(entriesToCallback) }
 	resp.Size = bytesRead
 	return resp, err
+}
+
+// callback is called when the FUSE library is finished with buffer slices that
+// were returned directly from blocks. It decrements the reference count for each
+// associated block and releases it back to the pool if the count drops to zero
+// and it was previously marked for eviction.
+func (p *BufferedReader) callback(entries []*blockQueueEntry) {
+	defer func() {
+		for range entries {
+			p.inflightCallbackWg.Done()
+		}
+	}()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, entry := range entries {
+		if entry.block.DecRef() && entry.wasEvicted {
+			p.blockPool.Release(entry.block)
+		}
+	}
 }
 
 // prefetch schedules the next set of blocks for prefetching starting from
@@ -495,33 +535,58 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	for !p.blockQueue.IsEmpty() {
 		bqe := p.blockQueue.Pop()
-		bqe.cancel()
+		bqe.cancelAndWait()
+		p.releaseOrMarkEvicted(bqe)
+	}
+	p.mu.Unlock()
 
-		// We wait for the block's worker goroutine to finish. We expect its
-		// status to contain a context.Canceled error because we just called cancel.
-		status, err := bqe.block.AwaitReady(context.Background())
-		if err != nil {
-			logger.Warnf("Destroy: AwaitReady for block failed: %v", err)
-		} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
-			logger.Warnf("Destroy: waiting for block on destroy: %v", status.Err)
-		}
-		p.blockPool.Release(bqe.block)
+	// Wait for any remaining operations where data slices were returned directly
+	// to complete, with a timeout to prevent indefinite blocking. Their Done
+	// callbacks will handle the final release of those blocks.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		p.inflightCallbackWg.Wait()
+	}()
+
+	select {
+	case <-done:
+		// Wait completed successfully.
+	case <-time.After(10 * time.Second):
+		logger.Warnf("BufferedReader.Destroy: timed out waiting for outstanding data slice references to be released.")
 	}
 
+	// After the wait, no new read calls can arrive. This is because the kernel
+	// prevents read operations on a closed file handle, so no further locking is
+	// necessary for the final cleanup.
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
 	}
 
-	err := p.blockPool.ClearFreeBlockChannel(true)
-	if err != nil {
+	if err := p.blockPool.ClearFreeBlockChannel(true); err != nil {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
+}
+
+// releaseOrMarkEvicted handles the release of a block that has been removed
+// from the prefetch queue. If the block has no outstanding references (i.e.,
+// it has not been returned to a FUSE read), it is immediately returned to the
+// block pool. Otherwise, the block is marked as evicted, and its final release
+// is deferred until the last reference's callback is executed.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) releaseOrMarkEvicted(entry *blockQueueEntry) {
+	// If the block still has outstanding references, do not release it to the
+	// pool. Instead, mark it as evicted so the callback can release it later,
+	// when the reference count drops to zero.
+	if entry.block.RefCount() > 0 {
+		entry.wasEvicted = true
+	} else {
+		p.blockPool.Release(entry.block)
+	}
 }
 
 // CheckInvariants checks for internal consistency of the reader.
@@ -549,4 +614,13 @@ func (p *BufferedReader) CheckInvariants() {
 	if p.randomSeekCount > p.randomReadsThreshold {
 		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
 	}
+}
+
+// resetBufferedReaderState resets the internal state to restart buffered reading.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) resetBufferedReaderState() {
+	// Reset the reader state
+	p.randomSeekCount = 0
+	p.nextBlockIndexToPrefetch = 0
+	p.numPrefetchBlocks = p.config.InitialPrefetchBlockCnt
 }

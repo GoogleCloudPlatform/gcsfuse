@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
@@ -44,23 +46,24 @@ type CacheHandle struct {
 
 	// isSequential saves if the current read performed via cache handle is sequential or
 	// random.
-	isSequential bool
+	isSequential atomic.Bool
 
 	// prevOffset stores the offset of previous cache handle read call. This is used
 	// to decide the type of read.
-	prevOffset int64
+	prevOffset atomic.Int64
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
-	return &CacheHandle{
+	fch := CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
 		fileInfoCache:         fileInfoCache,
 		cacheFileForRangeRead: cacheFileForRangeRead,
-		isSequential:          initialOffset == 0,
-		prevOffset:            initialOffset,
 	}
+	fch.isSequential.Store(initialOffset == 0)
+	fch.prevOffset.Store(initialOffset)
+	return &fch
 }
 
 func (fch *CacheHandle) validateCacheHandle() error {
@@ -179,7 +182,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	isSequentialRead := fch.IsSequential(offset)
 	waitForDownload := true
 	if !isSequentialRead {
-		fch.isSequential = false
+		fch.isSequential.Store(false)
 		waitForDownload = false
 	}
 
@@ -194,9 +197,20 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		requiredOffset = objSize
 	}
 
-	// If fileDownloadJob is not nil, it's better to get status of cache file
-	// from the job itself than to use file info cache.
-	if fch.fileDownloadJob != nil {
+	// Handle sparse file reads
+	if fileInfoData.SparseMode {
+		cacheHit, err = fch.fileDownloadJob.HandleSparseRead(ctx, offset, requiredOffset)
+		if err != nil {
+			// Log the error and fallback to GCS
+			logger.Infof("Sparse file read failed: %v. Falling back to GCS.", err)
+			return 0, false, util.ErrFallbackToGCS
+		}
+		if !cacheHit {
+			return 0, false, util.ErrFallbackToGCS
+		}
+	} else if fch.fileDownloadJob != nil {
+		// If fileDownloadJob is not nil, it's better to get status of cache file
+		// from the job itself than to use file info cache.
 		jobStatus := fch.fileDownloadJob.GetStatus()
 		// If cacheFileForRangeRead is false and readType is random, download will
 		// not be initiated.
@@ -210,7 +224,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			cacheHit = true
 		}
 
-		fch.prevOffset = offset
+		fch.prevOffset.Store(offset)
 
 		if fch.fileDownloadJob.IsParallelDownloadsEnabled() && !fch.fileDownloadJob.IsExperimentalParallelDownloadsDefaultOn() {
 			waitForDownload = false
@@ -271,15 +285,15 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 // IsSequential returns true if the sequential read is being performed, false for
 // random read.
 func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
-	if !fch.isSequential {
+	if !fch.isSequential.Load() {
 		return false
 	}
 
-	if currentOffset < fch.prevOffset {
+	if currentOffset < fch.prevOffset.Load() {
 		return false
 	}
 
-	if currentOffset-fch.prevOffset > downloader.ReadChunkSize {
+	if currentOffset-fch.prevOffset.Load() > downloader.ReadChunkSize {
 		return false
 	}
 

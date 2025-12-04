@@ -132,7 +132,7 @@ func (t *BaseSuite) unmountAndCleanupMount(m mountPoint, name string) {
 	err := os.RemoveAll(m.rootDir)
 	require.NoError(t.T(), err, "Failed to clean up %v mount root directory", name)
 	// Cleaning up the intermediate generated test files.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, m.testDirPath)
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 }
 
 func (t *BaseSuite) createUnfinalizedObject() {

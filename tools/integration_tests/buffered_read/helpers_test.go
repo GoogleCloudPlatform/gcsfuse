@@ -119,19 +119,14 @@ func readAndValidateChunk(f *os.File, testDir, fileName string, offset, chunkSiz
 	client.ValidateObjectChunkFromGCS(ctx, storageClient, testDir, fileName, offset, chunkSize, string(readBuffer), t)
 }
 
-// induceRandomReadFallback performs a sequence of reads designed to trigger the
-// random read fallback mechanism in the buffered reader. It starts with a
-// sequential read and then alternates between a distant offset and offset 0.
-func induceRandomReadFallback(t *testing.T, f *os.File, testDir, fileName string, chunkSize, distantOffset int64, randomReadsThreshold int) {
+// induceRandomReadFallback performs a sequence of backward reads to trigger the
+// random read fallback mechanism. It reads blocks in reverse order, from block
+// randomReadsThreshold down to 0, to ensure each is counted as a random seek.
+func induceRandomReadFallback(t *testing.T, f *os.File, testDir, fileName string, chunkSize, blockSize int64, randomReadsThreshold int) {
 	t.Helper()
-	// We need 1 sequential read + randomReadsThreshold successful random reads before
-	// the final one that triggers fallback.
-	offset := int64(0)
-	for i := 0; i < randomReadsThreshold+1; i++ {
+	// Perform randomReadsThreshold + 1 backward reads to trigger the fallback.
+	for i := 0; i <= randomReadsThreshold; i++ {
+		offset := (int64(randomReadsThreshold-i) * blockSize)
 		readAndValidateChunk(f, testDir, fileName, offset, chunkSize, t)
-		offset = distantOffset ^ offset
 	}
-
-	// The next read should trigger the fallback but still succeed from the user's perspective.
-	readAndValidateChunk(f, testDir, fileName, offset, chunkSize, t)
 }

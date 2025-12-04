@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package client_readers
 
 import (
 	"context"
@@ -50,8 +50,8 @@ type multiRangeReaderTest struct {
 func (t *multiRangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
 		Offset:    offset,
-		EndOffset: offset + int64(len(dst)),
 		Buffer:    dst,
+		EndOffset: offset + int64(len(dst)),
 	}
 	return t.multiRangeReader.ReadAt(t.ctx, req)
 }

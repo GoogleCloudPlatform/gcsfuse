@@ -17,6 +17,7 @@
 
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
+set -x
 
 if [[ $# -ne 0 ]]; then
     echo "This script requires no argument."
@@ -57,13 +58,8 @@ if ! install_latest_gcloud >"$INSTALLATION_LOG" 2>&1; then
     exit 1
 else
     echo "latest gcloud installed successfully."
-    # If this script is run in background or different shell then
-    # export PATH needs to be called from the shell or use absolute gcloud path
-    # or permanently add this path to path variable in bashrc.
-    echo 'export PATH="/usr/local/google-cloud-sdk/bin:$PATH"' >> "$HOME/.bashrc"
-    echo 'export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"' >> "$HOME/.bashrc"
-    source "$HOME/.bashrc"
     echo "gcloud Version is:"
+    export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
     gcloud version
     echo "Gcloud is present at: $( (which gcloud) )"
     rm -f "$INSTALLATION_LOG"

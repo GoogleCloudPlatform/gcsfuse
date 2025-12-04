@@ -13,22 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Script to run e2e tests for regional or zonal buckets.
+# Script to run e2e tests for regional or zonal buckets if env variable RUN_TESTS_WITH_ZONAL_BUCKET is set to 'true'.
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
 
-if [[ $# -gt 1 ]]; then
-    echo "This script requires at most one argument" 
-    echo "Usage: $0 true, for zonal e2e test runs."
-    echo "Usage: $0 false, for regional e2e test runs."
-    echo "Example: $0 false"
+if [[ $# -gt 0 ]]; then
+    echo "This script requires no argument. Pass env variable RUN_TESTS_WITH_ZONAL_BUCKET set to 'true' to run this script for zonal buckets." 
     exit 1
 fi
 
 readonly BUCKET_LOCATION="us-central1"
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
-IS_ZONAL=${1:-false}
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
@@ -56,10 +52,15 @@ else
     echo "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) meets or exceeds the required version (${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}). Skipping Bash installation."
 fi
 
-if $IS_ZONAL; then
-  echo "Running zonal e2e tests on installed package...."
-  "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
-  exit 0
+if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET-}" == "true" ]]; then
+    echo "Running zonal e2e tests on installed package...."
+    "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
+else
+    if [[ -n "${RUN_TESTS_WITH_ZONAL_BUCKET-}" ]]; then
+        echo "Warning: RUN_TESTS_WITH_ZONAL_BUCKET is set to '${RUN_TESTS_WITH_ZONAL_BUCKET}', which is not 'true'. Running regional tests."
+    else
+        echo "RUN_TESTS_WITH_ZONAL_BUCKET is not set. Running regional tests by default."
+    fi
+    echo "Running regional e2e tests on installed package...."
+    "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package
 fi
-echo "Running regional e2e tests on installed package...."
-"${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package
