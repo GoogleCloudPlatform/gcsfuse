@@ -182,40 +182,44 @@ func Tracef(format string, v ...any) {
 
 // Debugf prints the message with DEBUG severity in the specified format.
 func Debugf(format string, v ...any) {
-	if slog.LevelDebug >= programLevel.Level() {
+	if LevelDebug >= programLevel.Level() {
 		defaultLogger.Debug(fmt.Sprintf(format, v...))
 	}
 }
 
 // Infof prints the message with INFO severity in the specified format.
 func Infof(format string, v ...any) {
-	if slog.LevelInfo >= programLevel.Level() {
+	if LevelInfo >= programLevel.Level() {
 		defaultLogger.Info(fmt.Sprintf(format, v...))
 	}
 }
 
 // Info prints the message with info severity.
 func Info(message string, args ...any) {
-	defaultLogger.Info(message, args...)
+	if LevelInfo >= programLevel.Level() {
+		defaultLogger.Info(message, args...)
+	}
 }
 
 // Warnf prints the message with WARNING severity in the specified format.
 func Warnf(format string, v ...any) {
-	if slog.LevelWarn >= programLevel.Level() {
+	if LevelWarn >= programLevel.Level() {
 		defaultLogger.Warn(fmt.Sprintf(format, v...))
 	}
 }
 
 // Errorf prints the message with ERROR severity in the specified format.
 func Errorf(format string, v ...any) {
-	if slog.LevelError >= programLevel.Level() {
+	if LevelError >= programLevel.Level() {
 		defaultLogger.Error(fmt.Sprintf(format, v...))
 	}
 }
 
 // Error prints the message with ERROR severity.
 func Error(error string) {
-	defaultLogger.Error(error)
+	if LevelError >= programLevel.Level() {
+		defaultLogger.Error(error)
+	}
 }
 
 // Fatal prints an error log and exits with non-zero exit code.
