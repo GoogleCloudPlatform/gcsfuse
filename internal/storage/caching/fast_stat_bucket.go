@@ -414,7 +414,6 @@ func (b *fastStatBucket) ListObjects(
 				return &gcs.Listing{CollapsedRuns: []string{folder.Name}}, nil
 			}
 			if minObject, ok := entry.(*gcs.MinObject); ok {
-				logger.Info("MinObject: ", entry.(*gcs.MinObject))
 				if minObject.Generation == 0 { // Assumed to be a directory-like object from a collapsed run.
 					return &gcs.Listing{CollapsedRuns: []string{minObject.Name}}, nil
 				}

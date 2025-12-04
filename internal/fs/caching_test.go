@@ -16,6 +16,7 @@ package fs_test
 
 import (
 	"context"
+	"log"
 	"os"
 	"path"
 	"time"
@@ -370,6 +371,7 @@ func (t *CachingWithImplicitDirsTest) SymlinksWork() {
 
 	// Create a file.
 	fileName := path.Join(mntDir, "foo")
+	log.Println("filename: ", fileName)
 	const contents = "taco"
 
 	err = os.WriteFile(fileName, []byte(contents), 0400)
