@@ -202,9 +202,6 @@ if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
 fi
 
 if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
-    # Note: The new script strictly defines packages in its source. 
-    # If specific filtering is needed, it relies on the script internal groups.
-    # For now, we log this intent.
     echo "Notice: RUN_READ_CACHE_TESTS_ONLY is set. The new script will run the standard suite for the selected bucket type."
 fi
 
@@ -215,7 +212,12 @@ echo "----------------------------------------------------------------"
 
 # Capture exit code, but do not exit immediately on failure to allow log upload
 set +e
-$TEST_SCRIPT $ARGS > ~/e2e_run_logs.txt 2>&1
+
+# Generate timestamped log filename
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOG_FILENAME="e2e_run_logs_${TIMESTAMP}.txt"
+
+$TEST_SCRIPT $ARGS > ~/"$LOG_FILENAME" 2>&1
 EXIT_CODE=$?
 set -e
 
@@ -228,8 +230,8 @@ RELEASE_VERSION=$(sed -n 1p ~/details.txt)
 COMMIT_HASH=$(sed -n 3p ~/details.txt)
 GCS_DEST="gs://gcsfuse-release-packages/v${RELEASE_VERSION}/${COMMIT_HASH}/"
 
-# Upload the consolidated log
-gcloud storage cp ~/e2e_run_logs.txt "${GCS_DEST}combined_e2e_logs.txt"
+# Upload the consolidated log with fixed name for pipeline compatibility
+gcloud storage cp ~/"$LOG_FILENAME" "${GCS_DEST}combined_e2e_logs.txt"
 
 # If success, create and upload success markers matching old script behavior
 if [ $EXIT_CODE -eq 0 ]; then
@@ -243,7 +245,7 @@ if [ $EXIT_CODE -eq 0 ]; then
         gcloud storage cp ~/success.txt "${GCS_DEST}"
     fi
 else
-    echo "Tests failed. Check combined_e2e_logs.txt in GCS bucket."
+    echo "Tests failed. Check ${LOG_FILENAME} in VM or combined_e2e_logs.txt in GCS bucket."
 fi
 
 # Exit with the actual test code so the VM/Job fails appropriately
