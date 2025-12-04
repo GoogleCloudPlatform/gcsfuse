@@ -397,17 +397,16 @@ func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
 	err = b.wrapped.DeleteObject(ctx, req)
-	var preconditionErr *gcs.PreconditionError
-	// In case of other errors during delete other than precondition error, we
-	// should not invalidate the stat cache, because the file might still exist.
-	if err != nil && !errors.As(err, &preconditionErr) {
-		return
-	}
-	// In case of successful delete or precondition error, we should invalidate the
-	// stat cache.
+	// In case of successful delete, add a negative entry to the cache.
 	if err == nil {
 		b.addNegativeEntry(req.Name)
-	} else {
+		return
+	}
+	// If the delete failed due to a precondition error, invalidate the cache entry
+	// as the object's state is uncertain. For other errors, we don't touch the
+	// cache because the object likely still exists.
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		b.invalidate(req.Name)
 	}
 	return
