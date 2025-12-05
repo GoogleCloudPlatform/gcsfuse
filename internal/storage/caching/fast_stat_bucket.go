@@ -350,8 +350,10 @@ func (b *fastStatBucket) StatObject(
 	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
 		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true")
 	}
+	logger.Debugf("StatObject")
 	// If fetching from gcs is enabled, directly make a call to GCS.
 	if req.ForceFetchFromGcs {
+		logger.Debugf("In force fetch GCS")
 		m, e, err = b.StatObjectFromGcs(ctx, req)
 		if !req.ReturnExtendedObjectAttributes {
 			e = nil

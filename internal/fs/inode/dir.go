@@ -364,10 +364,8 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}
 
 	m, _, err := bucket.StatObject(ctx, req)
-
-	// Suppress "not found" errors.
-	var gcsErr *gcs.NotFoundError
-	if errors.As(err, &gcsErr) {
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
 		return nil, nil
 	}
 
@@ -389,10 +387,8 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 		ForceFetchFromCache: forceFetchFromCache,
 	}
 	folder, err := bucket.GetFolder(ctx, req)
-
-	// Suppress "not found" errors.
-	var gcsErr *gcs.NotFoundError
-	if errors.As(err, &gcsErr) {
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
 		return nil, nil
 	}
 
@@ -421,9 +417,8 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, for
 		ForceFetchFromCache: forceFetchFromCache,
 	}
 	listing, err := bucket.ListObjects(ctx, req)
-	// Suppress "not found" errors.
-	var gcsErr *gcs.NotFoundError
-	if errors.As(err, &gcsErr) {
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
 		return nil, nil
 	}
 
@@ -560,6 +555,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	// Define result variables outside to be updated by concurrent lookups
 	var fileResult *Core
 	var dirResult *Core
+	var err error
 
 	// Define the inner lookup functions as closures (necessary for context)
 	lookUpFile := func(forceFetchFromCache bool) (err error) {
@@ -579,52 +575,58 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return
 	}
 
-	// Helper function to encapsulate all concurrent lookup logic
-	runLookups := func(ctx context.Context, forceFetchFromCache bool) error {
-		// logger.Errorf("In run lookups: forceFetchFromCache=%t", forceFetchFromCache) // Use %t for boolean
+	fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
+	// logger.Errorf("fileResult and err: ", fileResult, err)
+	// Suppress "not found" errors.
+	var gcsErr *gcs.NotFoundCacheError
+	if err != nil && !errors.As(err, &gcsErr) {
+		return nil, fmt.Errorf("lookUpFile: %w", err)
+	}
+	if fileResult != nil {
+		return fileResult, nil
+	}
 
-		// Always create a fresh errgroup for each phase (cache-check or force-fetch)
-		group, _ := errgroup.WithContext(ctx)
+	if d.isBucketHierarchical() {
+		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+	} else {
+		if d.implicitDirs {
+			dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+		} else {
+			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+		}
+	}
+	if err != nil && !errors.As(err, &gcsErr) {
+		return nil, fmt.Errorf("lookUpdir: %w", err)
+	}
+	if dirResult != nil {
+		return dirResult, nil
+	}
 
-		// Always look up the file path concurrently
+	// Always create a fresh errgroup for each phase (cache-check or force-fetch)
+	group, _ := errgroup.WithContext(ctx)
+
+	// Always look up the file path concurrently
+	group.Go(func() error {
+		return lookUpFile(false)
+	})
+
+	// Determine which directory lookup to run based on bucket configuration
+	if d.isBucketHierarchical() {
 		group.Go(func() error {
-			return lookUpFile(forceFetchFromCache)
+			return lookUpHNSDir(false)
 		})
-
-		// Determine which directory lookup to run based on bucket configuration
-		if d.isBucketHierarchical() {
+	} else {
+		if d.implicitDirs {
 			group.Go(func() error {
-				return lookUpHNSDir(forceFetchFromCache)
+				return lookUpImplicitOrExplicitDir(false)
 			})
 		} else {
-			if d.implicitDirs {
-				group.Go(func() error {
-					return lookUpImplicitOrExplicitDir(forceFetchFromCache)
-				})
-			} else {
-				group.Go(func() error {
-					return lookUpExplicitDir(forceFetchFromCache)
-				})
-			}
-		}
-
-		return group.Wait()
-	}
-
-	var err error
-	// 2. First attempt: Try cache only (forceFetchFromCache = false)
-	// This is the optimistic/fast path.
-	var notFoundErr *gcs.NotFoundCacheError
-	if err = runLookups(ctx, true); errors.As(err, &notFoundErr) && fileResult == nil && dirResult == nil {
-		// logger.Errorf("Cache lookup failed (%v). Attempting force fetch from source.", err)
-		// Run the lookups again, forcing a refresh.
-		if err = runLookups(ctx, false); err != nil {
-			// Both lookups failed (cache and force fetch), return the final error.
-			return nil, err
+			group.Go(func() error {
+				return lookUpExplicitDir(false)
+			})
 		}
 	}
-
-	if err != nil && !errors.As(err, &notFoundErr) {
+	if err := group.Wait(); err != nil {
 		return nil, err
 	}
 
