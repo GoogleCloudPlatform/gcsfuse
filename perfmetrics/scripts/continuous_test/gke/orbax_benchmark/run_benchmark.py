@@ -38,7 +38,10 @@ from datetime import datetime
 from string import Template
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-STAGING_VERSION = "orbax-benchmark"
+# The prefix prow-gob-internal-boskos- is needed to allow passing machine-type from gke csi driver to gcsfuse,
+# bypassing the check at
+# https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/15afd00dcc2cfe0f9753ddc53c81631ff037c3f2/pkg/csi_driver/utils.go#L532.
+STAGING_VERSION = "prow-gob-internal-boskos-orbax-benchmark"
 DEFAULT_MTU = 8896
 
 # Helper functions for running commands
