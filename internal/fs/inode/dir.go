@@ -576,14 +576,11 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
-	// logger.Errorf("fileResult and err: ", fileResult, err)
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundCacheError
 	if err != nil && !errors.As(err, &gcsErr) {
 		return nil, fmt.Errorf("lookUpFile: %w", err)
 	}
-
-	logger.Debugf("File Result: ", fileResult, err)
 
 	if d.isBucketHierarchical() {
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
@@ -594,7 +591,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		}
 	}
-	logger.Debugf("Dir Result: ", dirResult, err)
 	if err != nil && !errors.As(err, &gcsErr) {
 		return nil, fmt.Errorf("lookUpdir: %w", err)
 	}
