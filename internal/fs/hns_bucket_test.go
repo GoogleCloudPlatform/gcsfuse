@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folder"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
@@ -159,7 +160,7 @@ func TestHNSCachedBucketTests(t *testing.T) { suite.Run(t, new(HNSCachedBucketMo
 func (t *HNSCachedBucketMountTest) SetupSuite() {
 	bucketType = gcs.BucketType{Hierarchical: true}
 	uncachedHNSBucket = fake.NewFakeBucket(timeutil.RealClock(), cachedHnsBucketName, bucketType)
-	lruCache := newLruCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
+	lruCache := folder.NewTrie()
 	statCache := metadata.NewStatCacheBucketView(lruCache, "")
 	bucket = caching.NewFastStatBucket(
 		ttl,
