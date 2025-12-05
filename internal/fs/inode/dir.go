@@ -110,12 +110,6 @@ type DirInode interface {
 	// CreateLocalChildFileCore returns an empty local child file core.
 	CreateLocalChildFileCore(name string) (Core, error)
 
-	// InsertFileIntoTypeCache adds the given name to type-cache
-	InsertFileIntoTypeCache(name string)
-
-	// EraseFromTypeCache removes the given name from type-cache
-	EraseFromTypeCache(name string)
-
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
@@ -227,11 +221,6 @@ type dirInode struct {
 	// GUARDED_BY(mu)
 	lc lookupCount
 
-	// cache.CheckInvariants() does not panic.
-	//
-	// GUARDED_BY(mu)
-	cache metadata.TypeCache
-
 	// prevDirListingTimeStamp is the time stamp of previous listing when user asked
 	// (via kernel) the directory listing from the filesystem.
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
@@ -274,11 +263,9 @@ func NewDirInode(
 	implicitDirs bool,
 	includeFoldersAsPrefixes bool,
 	enableNonexistentTypeCache bool,
-	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int64,
 	isHNSEnabled bool,
 	isUnsupportedPathSupportEnabled bool,
 ) (d DirInode) {
@@ -297,7 +284,6 @@ func NewDirInode(
 		enableNonexistentTypeCache:      enableNonexistentTypeCache,
 		name:                            name,
 		attrs:                           attrs,
-		cache:                           metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
 		isHNSEnabled:                    isHNSEnabled,
 		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
 		unlinked:                        false,
@@ -324,19 +310,19 @@ func (d *dirInode) checkInvariants() {
 }
 
 func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
-	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
 }
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
 	if d.isBucketHierarchical() {
-		return findExplicitFolder(ctx, d.Bucket(), childName)
+		return findExplicitFolder(ctx, d.Bucket(), childName, true)
 	}
 
 	if d.implicitDirs {
-		return findDirInode(ctx, d.Bucket(), childName)
+		return findDirInode(ctx, d.Bucket(), childName, true)
 	}
-	return findExplicitInode(ctx, d.Bucket(), childName)
+	return findExplicitInode(ctx, d.Bucket(), childName, true)
 }
 
 // Look up the file for a (file, dir) pair with conflicting names, overriding
@@ -370,17 +356,16 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
-func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, forceFetchFromCache bool) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
-		Name: name.GcsObjectName(),
+		Name:                name.GcsObjectName(),
+		ForceFetchFromCache: forceFetchFromCache,
 	}
 
 	m, _, err := bucket.StatObject(ctx, req)
-
-	// Suppress "not found" errors.
-	var gcsErr *gcs.NotFoundError
-	if errors.As(err, &gcsErr) {
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
 		return nil, nil
 	}
 
@@ -396,12 +381,14 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
-func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
-	folder, err := bucket.GetFolder(ctx, name.GcsObjectName())
-
-	// Suppress "not found" errors.
-	var gcsErr *gcs.NotFoundError
-	if errors.As(err, &gcsErr) {
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, forceFetchFromCache bool) (*Core, error) {
+	req := &gcs.GetFolderRequest{
+		Name:                name.GcsObjectName(),
+		ForceFetchFromCache: forceFetchFromCache,
+	}
+	folder, err := bucket.GetFolder(ctx, req)
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
 		return nil, nil
 	}
 
@@ -419,21 +406,27 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
-func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, forceFetchFromCache bool) (*Core, error) {
 	if !name.IsDir() {
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
 
 	req := &gcs.ListObjectsRequest{
-		Prefix:     name.GcsObjectName(),
-		MaxResults: 1,
+		Prefix:              name.GcsObjectName(),
+		MaxResults:          1,
+		ForceFetchFromCache: forceFetchFromCache,
 	}
 	listing, err := bucket.ListObjects(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("list objects: %w", err)
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
+		return nil, nil
 	}
 
-	if len(listing.MinObjects) == 0 {
+	if err != nil {
+		return nil, err
+	}
+
+	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 {
 		return nil, nil
 	}
 
@@ -441,8 +434,11 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		Bucket:   bucket,
 		FullName: name,
 	}
-	if o := listing.MinObjects[0]; o.Name == name.GcsObjectName() {
-		result.MinObject = o
+
+	if len(listing.MinObjects) != 0 {
+		if o := listing.MinObjects[0]; o.Name == name.GcsObjectName() {
+			result.MinObject = o
+		}
 	}
 	return result, nil
 }
@@ -550,70 +546,54 @@ func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 // See also the notes on DirInode.LookUpChild.
 const ConflictingFileNameSuffix = "\n"
 
-// LOCKS_REQUIRED(d)
 func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
-	// Is this a conflict marker name?
+	// 1. Check for conflict marker name
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
 		return d.lookUpConflicting(ctx, name)
 	}
 
-	group, ctx := errgroup.WithContext(ctx)
-
+	// Define result variables outside to be updated by concurrent lookups
 	var fileResult *Core
 	var dirResult *Core
-	lookUpFile := func() (err error) {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+	var err error
+
+	// Define the inner lookup functions as closures (necessary for context)
+	lookUpFile := func(forceFetchFromCache bool) (err error) {
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), forceFetchFromCache)
 		return
 	}
-	lookUpExplicitDir := func() (err error) {
-		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+	lookUpExplicitDir := func(forceFetchFromCache bool) (err error) {
+		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), forceFetchFromCache)
 		return
 	}
-	lookUpImplicitOrExplicitDir := func() (err error) {
-		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+	lookUpImplicitOrExplicitDir := func(forceFetchFromCache bool) (err error) {
+		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name), forceFetchFromCache)
 		return
 	}
-	lookUpHNSDir := func() (err error) {
-		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
+	lookUpHNSDir := func(forceFetchFromCache bool) (err error) {
+		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), forceFetchFromCache)
 		return
 	}
 
-	cachedType := d.cache.Get(d.cacheClock.Now(), name)
-	switch cachedType {
-	case metadata.ImplicitDirType:
-		dirResult = &Core{
-			Bucket:    d.Bucket(),
-			FullName:  NewDirName(d.Name(), name),
-			MinObject: nil,
-		}
-	case metadata.ExplicitDirType:
-		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
+	fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
+	// Suppress "not found" errors.
+	var gcsErr *gcs.NotFoundCacheError
+	if err != nil && !errors.As(err, &gcsErr) {
+		return nil, fmt.Errorf("lookUpFile: %w", err)
+	}
+
+	if d.isBucketHierarchical() {
+		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+	} else {
+		if d.implicitDirs {
+			dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		} else {
-			group.Go(lookUpExplicitDir)
+			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		}
-	case metadata.RegularFileType, metadata.SymlinkType:
-		group.Go(lookUpFile)
-	case metadata.NonexistentType:
-		return nil, nil
-	case metadata.UnknownType:
-		group.Go(lookUpFile)
-		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
-		} else {
-			if d.implicitDirs {
-				group.Go(lookUpImplicitOrExplicitDir)
-			} else {
-				group.Go(lookUpExplicitDir)
-			}
-		}
-
 	}
-
-	if err := group.Wait(); err != nil {
-		return nil, err
+	if err != nil && !errors.As(err, &gcsErr) {
+		return nil, fmt.Errorf("lookUpdir: %w", err)
 	}
-
 	var result *Core
 	if dirResult != nil {
 		result = dirResult
@@ -622,11 +602,45 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	if result != nil {
-		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+		return result, nil
 	}
 
+	// Always create a fresh errgroup for each phase (cache-check or force-fetch)
+	group, _ := errgroup.WithContext(ctx)
+
+	// Always look up the file path concurrently
+	group.Go(func() error {
+		return lookUpFile(false)
+	})
+
+	// Determine which directory lookup to run based on bucket configuration
+	if d.isBucketHierarchical() {
+		group.Go(func() error {
+			return lookUpHNSDir(false)
+		})
+	} else {
+		if d.implicitDirs {
+			group.Go(func() error {
+				return lookUpImplicitOrExplicitDir(false)
+			})
+		} else {
+			group.Go(func() error {
+				return lookUpExplicitDir(false)
+			})
+		}
+	}
+	if err := group.Wait(); err != nil {
+		return nil, err
+	}
+
+	// 4. Consolidate and return the result
+	if dirResult != nil {
+		result = dirResult
+	} else if fileResult != nil {
+		result = fileResult
+	}
+
+	// If both are nil, the function returns nil, nil (not found).
 	return result, nil
 }
 
@@ -695,6 +709,7 @@ func (d *dirInode) readObjects(
 		// required.
 		ProjectionVal:            gcs.NoAcl,
 		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+		ForceFetchFromCache:      false,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -704,12 +719,6 @@ func (d *dirInode) readObjects(
 	}
 
 	cores = make(map[Name]*Core)
-	defer func() {
-		now := d.cacheClock.Now()
-		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
-		}
-	}()
 
 	for _, o := range listing.MinObjects {
 		if storageutil.IsUnsupportedPath(o.Name) {
@@ -856,7 +865,6 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}
 	m := storageutil.ConvertObjToMinObject(o)
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
@@ -874,19 +882,7 @@ func (d *dirInode) CreateLocalChildFileCore(name string) (Core, error) {
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) InsertFileIntoTypeCache(name string) {
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
-}
-
-// LOCKS_REQUIRED(d)
-func (d *dirInode) EraseFromTypeCache(name string) {
-	d.cache.Erase(name)
-}
-
-// LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
-	// Erase any existing type information for this name.
-	d.cache.Erase(name)
 	fullName := NewFileName(d.Name(), name)
 
 	// Clone over anything that might already exist for the name.
@@ -908,7 +904,6 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 		FullName:  fullName,
 		MinObject: m,
 	}
-	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
 	return c, nil
 }
 
@@ -924,8 +919,6 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 		return nil, err
 	}
 	m := storageutil.ConvertObjToMinObject(o)
-
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
 
 	return &Core{
 		Bucket:    d.Bucket(),
@@ -960,9 +953,6 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		m = storageutil.ConvertObjToMinObject(o)
 	}
 
-	// Insert the new directory into the type cache.
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
-
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
@@ -977,7 +967,6 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
-	d.cache.Erase(name)
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -992,7 +981,6 @@ func (d *dirInode) DeleteChildFile(
 		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
-	d.cache.Erase(name)
 
 	return
 }
@@ -1003,7 +991,6 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool,
 	dirInode DirInode) error {
-	d.cache.Erase(name)
 
 	// If the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
@@ -1027,7 +1014,6 @@ func (d *dirInode) DeleteChildDir(
 		if err != nil {
 			return fmt.Errorf("DeleteObject: %w", err)
 		}
-		d.cache.Erase(name)
 		return nil
 	}
 
@@ -1042,7 +1028,6 @@ func (d *dirInode) DeleteChildDir(
 		dirInode.Unlink()
 	}
 
-	d.cache.Erase(name)
 	return nil
 }
 
@@ -1197,9 +1182,6 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 
 	o, err := d.bucket.MoveObject(ctx, req)
 
-	// Invalidate the cache entry for the old object name.
-	d.cache.Erase(fileToRename.Name)
-
 	return o, err
 }
 
@@ -1208,10 +1190,6 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
-	// Remove old entry from type cache.
-	d.cache.Erase(folderName)
 
 	return folder, nil
 }

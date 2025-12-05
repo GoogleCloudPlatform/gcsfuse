@@ -124,8 +124,8 @@ func (m *TestifyMockBucket) DeleteFolder(ctx context.Context, folderName string)
 	return args.Error(0)
 }
 
-func (m *TestifyMockBucket) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
-	args := m.Called(ctx, folderName)
+func (m *TestifyMockBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	args := m.Called(ctx, req)
 	if args.Get(0) != nil {
 		return args.Get(0).(*gcs.Folder), nil
 	}

@@ -22,6 +22,17 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
+type Type int
+
+const (
+	UnknownType     Type = 0
+	SymlinkType     Type = 1
+	RegularFileType Type = 2
+	ExplicitDirType Type = 3
+	ImplicitDirType Type = 4
+	NonexistentType Type = 5
+)
+
 // Core contains critical information about an inode before its creation.
 type Core struct {
 	// The full name of the file or directory. Required for all inodes.

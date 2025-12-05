@@ -242,6 +242,8 @@ type StatObjectRequest struct {
 
 	// Controls whether StatObject response includes GCS ExtendedObjectAttributes.
 	ReturnExtendedObjectAttributes bool
+
+	ForceFetchFromCache bool
 }
 
 type Projection int64
@@ -320,6 +322,8 @@ type ListObjectsRequest struct {
 	// the current flow, default value will be full and callers can override it
 	// using this param.
 	ProjectionVal Projection
+
+	ForceFetchFromCache bool
 }
 
 // Listing contains a set of objects and delimter-based collapsed runs returned
@@ -441,4 +445,12 @@ type CreateObjectChunkWriterRequest struct {
 	// Offset from where write has to start. Used only in case of appends flows.
 	// Default value is zero which means it's a new object write.
 	Offset int64
+}
+
+// A request to get a folder by name.
+type GetFolderRequest struct {
+	// The name of the folder in question.
+	Name string
+
+	ForceFetchFromCache bool
 }

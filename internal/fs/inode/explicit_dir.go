@@ -54,11 +54,9 @@ func NewExplicitDirInode(
 		implicitDirs,
 		includeFoldersAsPrefixes,
 		enableNonexistentTypeCache,
-		typeCacheTTL,
 		bucket,
 		mtimeClock,
 		cacheClock,
-		typeCacheMaxSizeMB,
 		enableHNS,
 		enableUnsupportedPathSupport)
 
