@@ -1,0 +1,8 @@
+# Cf. http://docs.travis-ci.com/user/getting-started/
+# Cf. http://docs.travis-ci.com/user/languages/go/
+
+language: go
+
+go:
+  - 1.5.3
+  - 1.6
