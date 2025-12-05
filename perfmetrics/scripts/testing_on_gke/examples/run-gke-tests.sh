@@ -669,7 +669,10 @@ function createCustomCsiDriverIfNeeded() {
       # confirm that it got installed.
       which uuidgen
     fi
-    stagingversion=$(uuid)
+    # The prefix prow-gob-internal-boskos- is needed to allow passing machine-type from gke csi driver to gcsfuse,
+    # bypassing the check at
+    # https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/15afd00dcc2cfe0f9753ddc53c81631ff037c3f2/pkg/csi_driver/utils.go#L532.
+    stagingversion=prow-gob-internal-boskos-$(uuid)
     make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket} STAGINGVERSION=${stagingversion}
 
     readonly subregistry=gcs-fuse-csi-driver-sidecar-mounter
