@@ -116,7 +116,6 @@ RUN fpm \
     -C ${GCSFUSE_BIN} \
     -v ${GCSFUSE_VERSION} \
     -d fuse \
-    --exclude DEBIAN \
     --rpm-digest sha256 \
     --license Apache-2.0 \
     --vendor "" \
