@@ -363,7 +363,7 @@ function installDependencies() {
   # python3 -m pip install --upgrade pip
   # python3 -m pip --version
   # Ensure that python-absl is installed.
-  pip install --require-hashes -r "${src_dir}/perfmetrics/scripts/testing_on_gke/examples/requirements.txt" --user >/dev/null
+  pip install --require-hashes -r "${src_dir}/perfmetrics/scripts/testing_on_gke/examples/requirements.txt" >/dev/null
   # Ensure that helm is installed
   which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
@@ -393,8 +393,6 @@ function installDependencies() {
     apt-cache policy docker-ce
     sudo apt install docker-ce -y >/dev/null
   fi
-  # Ensure that gcloud monitoring tools are installed.
-  # Already installed via requirements.txt above
   # Ensure that jq is installed.
   which jq || sudo apt-get install -y jq >/dev/null
   # Ensure sudoless docker is installed.
@@ -403,9 +401,6 @@ function installDependencies() {
     echoerror "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
     return 1
   fi
-  # Install python client for bigquery.
-  # TODO: Make this conditional on bigquery export !
-  # Already installed via requirements.txt above
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
