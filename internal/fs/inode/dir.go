@@ -582,9 +582,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	if err != nil && !errors.As(err, &gcsErr) {
 		return nil, fmt.Errorf("lookUpFile: %w", err)
 	}
-	if fileResult != nil {
-		return fileResult, nil
-	}
+
+	logger.Debugf("File Result: ", fileResult, err)
 
 	if d.isBucketHierarchical() {
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
@@ -595,11 +594,19 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		}
 	}
+	logger.Debugf("Dir Result: ", dirResult, err)
 	if err != nil && !errors.As(err, &gcsErr) {
 		return nil, fmt.Errorf("lookUpdir: %w", err)
 	}
+	var result *Core
 	if dirResult != nil {
-		return dirResult, nil
+		result = dirResult
+	} else if fileResult != nil {
+		result = fileResult
+	}
+
+	if result != nil {
+		return result, nil
 	}
 
 	// Always create a fresh errgroup for each phase (cache-check or force-fetch)
@@ -631,7 +638,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	// 4. Consolidate and return the result
-	var result *Core
 	if dirResult != nil {
 		result = dirResult
 	} else if fileResult != nil {
