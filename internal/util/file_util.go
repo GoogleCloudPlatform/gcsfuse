@@ -14,36 +14,99 @@
 
 package util
 
-import (
-	"github.com/jacobsa/fuse/fuseops"
-)
-
-// OpenMode represents the file access mode.
-type OpenMode int
-
-// Available file open modes.
+// Available file access modes, corresponding to O_RDONLY, O_WRONLY, O_RDWR.
 const (
-	Read OpenMode = iota
-	Write
-	Append
+	ReadOnly int = iota
+	WriteOnly
+	ReadWrite
 )
+
+// Available file flags.
+const (
+	O_APPEND int = 1 << iota // O_APPEND
+	O_DIRECT                 // O_DIRECT
+)
+
+// OpenMode represents the file open mode.
+type OpenMode struct {
+	// accessMode defines the mutually exclusive access modes for opening a file.
+	accessMode int
+
+	// fileFlags defines flags that modify the open/read/write behavior.
+	// These can be combined using bitwise OR.
+	fileFlags int
+}
+
+// NewOpenMode constructs OpenMode given the accessMode and fileFlags.
+func NewOpenMode(accessMode int, fileFlags int) OpenMode {
+	return OpenMode{
+		accessMode: accessMode,
+		fileFlags:  fileFlags,
+	}
+}
+
+func (om OpenMode) AccessMode() int {
+	return om.accessMode
+}
+
+func (om OpenMode) FileFlags() int {
+	return om.fileFlags
+}
+
+// IsAppend checks if the file was opened in append mode.
+// A file is considered in append mode (as suited for GCSFuse logic) if it is not
+// opened as read-only and the O_APPEND flag is set.
+func (om OpenMode) IsAppend() bool {
+	return om.accessMode != ReadOnly && om.fileFlags&O_APPEND != 0
+}
+
+// IsDirect checks if the O_DIRECT flag is set, indicating that I/O should
+// bypass the kernel's page cache.
+func (om OpenMode) IsDirect() bool {
+	return om.fileFlags&O_DIRECT != 0
+}
+
+// OpenFlagAttributes provides an abstraction for the open flags received from
+// the FUSE kernel. This interface is necessary because the concrete type for open
+// flags in `jacobsa/fuse` (e.g., in `fuseops.OpenFileOp` and `fuseops.CreateFileOp`)
+// resides in an internal package and cannot be directly referenced.
+//
+// This abstraction allows a single function, `FileOpenMode`, to process flags
+// from different FUSE operations and also simplifies unit testing.
+type OpenFlagAttributes interface {
+	IsReadOnly() bool
+	IsWriteOnly() bool
+	IsReadWrite() bool
+	IsAppend() bool
+	IsDirect() bool
+}
+
+// Function to obtain the mutually exclusive access mode based on the flags passed.
+func getAccessMode(flags OpenFlagAttributes) int {
+	if flags.IsReadOnly() {
+		return ReadOnly
+	} else if flags.IsWriteOnly() {
+		return WriteOnly
+	} else {
+		return ReadWrite
+	}
+}
+
+// Combine behavior-modifying file flags like O_DIRECT and O_APPEND.
+func getFileFlags(flags OpenFlagAttributes) int {
+	var fileFlags int
+	if flags.IsAppend() {
+		fileFlags |= O_APPEND
+	}
+	if flags.IsDirect() {
+		fileFlags |= O_DIRECT
+	}
+	return fileFlags
+}
 
 // FileOpenMode analyzes the open flags to determine the file's open mode.
-// It returns Read, Write, or Append.
-//
-// GCSFuse needs to distinguish between the append mode, readonly mode and modes where
-// writes are supported.
-// read vs write is required to initialize the writeHandle count currently in fileHandle.
-// The main difference of r vs (r+, w, w+) is the support for reads which is
-// implicitly handled by kernel. Hence combining r+, w, w+ as writes.
-// Same goes for a vs a+, hence grouped as append.
-func FileOpenMode(op *fuseops.OpenFileOp) OpenMode {
-	switch {
-	case op.OpenFlags.IsAppend():
-		return Append
-	case op.OpenFlags.IsReadOnly():
-		return Read
-	default:
-		return Write
-	}
+func FileOpenMode(flags OpenFlagAttributes) OpenMode {
+	accessMode := getAccessMode(flags)
+	fileFlags := getFileFlags(flags)
+	return NewOpenMode(accessMode, fileFlags)
 }
