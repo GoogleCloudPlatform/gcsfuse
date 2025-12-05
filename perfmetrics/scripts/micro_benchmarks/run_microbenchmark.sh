@@ -40,7 +40,7 @@ prepare_venv() {
     python3 -m venv "$VENV_DIR"
   fi
   source "$VENV_DIR/bin/activate"
-  pip install --require-hashes -r "requirements.txt" --user
+  pip install --require-hashes -r "requirements.txt"
 }
 
 run_benchmark() {

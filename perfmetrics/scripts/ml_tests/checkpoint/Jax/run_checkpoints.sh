@@ -70,7 +70,7 @@ rm get-pip.py
 python3.11 -m venv .venv
 source .venv/bin/activate
 # Install JAX dependencies.
-pip install --require-hashes -r ./perfmetrics/scripts/ml_tests/checkpoint/Jax/requirements.txt --user
+pip install --require-hashes -r ./perfmetrics/scripts/ml_tests/checkpoint/Jax/requirements.txt
 
 ZONE=$(curl -s -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/zone | cut -d'/' -f4)
 # Run tests in parallel on flat, hns and zonal bucket.
