@@ -7,7 +7,7 @@
 argparse==1.4.0 \
     --hash=sha256:62b089a55be1d8949cd2bc7e0df0bddb9e028faefc8c32038cc84862aefdd6e4 \
     --hash=sha256:c31647edb69fd3d465a847ea3157d37bed1f95f19760b11a47aa91c04b666314
-    # via -r requirements.in
+    # via -r hns_rename_folders_metrics/requirements.in
 cachetools==5.5.0 \
     --hash=sha256:02134e8439cdc2ffb62023ce1debca2944c3f289d66bb17ead3ab3dede74b292 \
     --hash=sha256:2cc24fb4cbe39633fb7badd9db9ca6295d766d9c2995f245725a46715d050f2a
@@ -121,12 +121,12 @@ google-api-core[grpc]==2.19.2 \
 google-api-python-client==2.145.0 \
     --hash=sha256:8b84dde11aaccadc127e4846f5cd932331d804ea324e353131595e3f25376e97 \
     --hash=sha256:d74da1358f3f2d63daf3c6f26bd96d89652051183bc87cf10a56ceb2a70beb50
-    # via -r requirements.in
+    # via -r hns_rename_folders_metrics/requirements.in
 google-auth==2.34.0 \
     --hash=sha256:72fd4733b80b6d777dcde515628a9eb4a577339437012874ea286bca7261ee65 \
     --hash=sha256:8eb87396435c19b20d32abd2f984e31c191a15284af72eb922f10e5bde9c04cc
     # via
-    #   -r requirements.in
+    #   -r hns_rename_folders_metrics/requirements.in
     #   google-api-core
     #   google-api-python-client
     #   google-auth-httplib2
@@ -138,7 +138,7 @@ google-auth-httplib2==0.2.0 \
 google-cloud-monitoring==2.22.2 \
     --hash=sha256:3f07aead6a80a894c5f8e151f1cccf78478eab14e14294f4b83aaa3f478b5c4e \
     --hash=sha256:9fc22dac48d14dd1c7fb83ee4a54f7a57bf9852ee6b5c9dca9e3bb093b04c7ee
-    # via -r requirements.in
+    # via -r hns_rename_folders_metrics/requirements.in
 googleapis-common-protos==1.65.0 \
     --hash=sha256:2972e6c496f435b92590fd54045060867f3fe9be2c82ab148fc8885035479a63 \
     --hash=sha256:334a29d07cddc3aa01dee4988f9afd9b2916ee2ff49d6b757155dc0d197852c0
@@ -238,7 +238,7 @@ numpy==1.24.4 \
     --hash=sha256:ed094d4f0c177b1b8e7aa9cba7d6ceed51c0e569a5318ac0ca9a090680a6a1b1 \
     --hash=sha256:f136bab9c2cfd8da131132c2cf6cc27331dd6fae65f95f69dcd4ae3c3639c810 \
     --hash=sha256:f3a86ed21e4f87050382c7bc96571755193c4c1392490744ac73d660e8f564a9
-    # via -r requirements.in
+    # via -r hns_rename_folders_metrics/requirements.in
 proto-plus==1.24.0 \
     --hash=sha256:30b72a5ecafe4406b0d339db35b56c4059064e69227b8c3bda7462397f966445 \
     --hash=sha256:402576830425e5f6ce4c2a6702400ac79897dab0b4343821aa5188b0fab81a12
@@ -275,9 +275,9 @@ pyparsing==3.1.4 \
     --hash=sha256:a6a7ee4235a3f944aa1fa2249307708f893fe5717dc603503c6c7969c070fb7c \
     --hash=sha256:f86ec8d1a83f11977c9a6ea7598e8c27fc5cddfa5b07ea2241edbbde1d7bc032
     # via httplib2
-requests==2.32.3 \
-    --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 \
-    --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
+requests==2.32.4 \
+    --hash=sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c \
+    --hash=sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422
     # via google-api-core
 rsa==4.9 \
     --hash=sha256:90260d9058e514786967344d0ef75fa8727eed8a7d2e43ce9f4bcf1b536174f7 \
@@ -285,7 +285,7 @@ rsa==4.9 \
     # via google-auth
 statistics==1.0.3.5 \
     --hash=sha256:2dc379b80b07bf2ddd5488cad06b2b9531da4dd31edb04dc9ec0dc226486c138
-    # via -r requirements.in
+    # via -r hns_rename_folders_metrics/requirements.in
 uritemplate==4.1.1 \
     --hash=sha256:4346edfc5c3b79f694bccd6d6099a322bbeb628dbf2cd86eea55a456ce5124f0 \
     --hash=sha256:830c08b8d99bdd312ea4ead05994a38e8936266f84b9a7878232db50b044e02e
