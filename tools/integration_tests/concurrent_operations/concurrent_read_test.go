@@ -207,7 +207,9 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	}
 }
 
-func (s *concurrentReadTest) Test_ConcurrentReadPlusWrite() {
+// Test_MultiThreadedWritePlusRead tests multiple threads doing write followed by read concurrently on different files.
+// It creates 10 goroutines, each writing a 32 MiB file and then reading it sequentially.
+func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 	const (
 		fileSize      = 32 * operations.OneMiB  // 32 MiB file
 		numGoRoutines = 10                      // Number of concurrent readers
