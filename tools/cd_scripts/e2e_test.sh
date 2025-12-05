@@ -81,7 +81,7 @@ if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
 fi
 
 #details.txt file contains the release version and commit hash of the current release.
-gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
+gcloud storage cp gs://test-release-flow/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
@@ -212,7 +212,7 @@ then
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
+    gcloud storage cp gs://test-release-flow/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
     sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${LOG_FILE}
 
     # install wget
@@ -247,7 +247,7 @@ else
     sudo yum -y install fuse
 
     #download and install gcsfuse rpm package
-    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
+    gcloud storage cp gs://test-release-flow/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
     sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
 
     #install wget
@@ -552,9 +552,9 @@ function log_based_on_exit_status() {
             echo "Test failures detected in $testcase bucket." &>> $logfile
         else
             touch $successfile
-            gcloud storage cp $successfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+            gcloud storage cp $successfile gs://test-release-flow/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
         fi
-    gcloud storage cp $logfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp $logfile gs://test-release-flow/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
     done
 
 }
@@ -568,9 +568,9 @@ function run_e2e_tests_for_emulator_and_log() {
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else
         touch success-emulator.txt
-        gcloud storage cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+        gcloud storage cp success-emulator.txt gs://test-release-flow/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
     fi
-    gcloud storage cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp ~/logs-emulator.txt gs://test-release-flow/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 }
 
 
