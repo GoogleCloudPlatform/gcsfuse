@@ -14,7 +14,8 @@
 # limitations under the License.
 #!/bin/bash
 
-set -e
+set -euo pipefail
+set -x
 
 PYTHON_VERSION=3.11.9
 INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"
@@ -35,7 +36,7 @@ elif command -v yum &> /dev/null; then
     # The '-devel' packages provide the necessary header files for compilation.
     sudo yum -y groupinstall "Development Tools" > /dev/null
     sudo yum -y install \
-          zlib-devel ncurses-devel gdbm-devel nss-devel openssl-devel \
+          zlib-devel ncurses-devel nss-devel openssl-devel \
           readline-devel libffi-devel curl sqlite-devel bzip2-devel \
           xz-devel tk-devel libuuid-devel wget > /dev/null
 else
