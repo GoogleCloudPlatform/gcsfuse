@@ -53,14 +53,6 @@ func (om OpenMode) FileFlags() int {
 	return om.fileFlags
 }
 
-func (om *OpenMode) SetAccessMode(accessMode int) {
-	om.accessMode = accessMode
-}
-
-func (om *OpenMode) SetFileFlags(fileFlags int) {
-	om.fileFlags = fileFlags
-}
-
 // IsAppend checks if the file was opened in append mode.
 // A file is considered in append mode (as suited for GCSFuse logic) if it is not
 // opened as read-only and the O_APPEND flag is set.
