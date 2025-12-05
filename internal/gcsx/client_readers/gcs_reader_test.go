@@ -52,7 +52,7 @@ func (t *gcsReaderTest) readAt(ctx context.Context, req *gcsx.ReadRequest) gcsx.
 		Buffer:   req.Buffer,
 		Offset:   req.Offset,
 		ReadInfo: readInfo,
-	})
+	}, false)
 	require.NoError(t.T(), err)
 	t.gcsReader.readTypeClassifier.RecordRead(req.Offset, int64(resp.Size))
 	return resp
@@ -144,7 +144,7 @@ func (t *gcsReaderTest) Test_ReadAt_InvalidOffset() {
 			_, err := t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: int64(tc.start),
-			})
+			}, false)
 
 			assert.Error(t.T(), err)
 		})
@@ -326,7 +326,7 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 		Offset: 0,
 	}
 	go func() {
-		_, err = t.gcsReader.ReadAt(ctx, req)
+		_, err = t.gcsReader.ReadAt(ctx, req, false)
 
 		assert.Error(t.T(), err)
 

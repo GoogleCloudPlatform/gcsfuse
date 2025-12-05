@@ -65,13 +65,13 @@ func NewVisualReadManager(wrapped gcsx.ReadManager, ioRenderer *workloadinsight.
 }
 
 // ReadAt records the read I/O range and delegates the read to the wrapped ReadManager.
-func (vrm *VisualReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+func (vrm *VisualReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest, skipSizeChecks bool) (gcsx.ReadResponse, error) {
 	// Capture the range in the visualizer
 	if len(req.Buffer) > 0 {
 		vrm.acceptRange(uint64(req.Offset), uint64(req.Offset)+uint64(len(req.Buffer)))
 	}
 	// Delegate to the wrapped ReadManager
-	return vrm.wrapped.ReadAt(ctx, req)
+	return vrm.wrapped.ReadAt(ctx, req, skipSizeChecks)
 }
 
 // Destroy outputs the read I/O visualization and destroys the wrapped ReadManager.

@@ -196,7 +196,7 @@ func TestVisualReadManager_ReadAt(t *testing.T) {
 	_, err = vrm.ReadAt(context.Background(), &gcsx.ReadRequest{
 		Buffer: make([]byte, 20),
 		Offset: 10,
-	})
+	}, false)
 	require.NoError(t, err, "ReadAt should not return an error")
 
 	expectedRange := workloadinsight.Range{Start: 10, End: 30}

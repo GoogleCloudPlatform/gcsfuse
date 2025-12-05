@@ -1010,7 +1010,7 @@ func (t *BufferedReaderTest) TestReadAtOffsetBeyondEOF() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: int64(t.object.Size + 1),
-	})
+	}, false)
 
 	assert.ErrorIs(t.T(), err, io.EOF)
 	assert.Zero(t.T(), resp.Size)
@@ -1032,7 +1032,7 @@ func (t *BufferedReaderTest) TestReadAtEmptyBuffer() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	assert.NoError(t.T(), err)
 	assert.Zero(t.T(), resp.Size)
@@ -1062,7 +1062,7 @@ func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: startOffset,
-	})
+	}, false)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), int64(1), reader.randomSeekCount, "First read should be counted as random.")
 	require.Equal(t.T(), 3, reader.blockQueue.Len(), "Queue should be populated after first read.")
@@ -1076,7 +1076,7 @@ func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), int(1024), resp.Size)
@@ -1125,7 +1125,7 @@ func (t *BufferedReaderTest) TestReadAtForwardSeekDiscardsPreviousBlocks() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 1024),
 		Offset: readOffset,
-	})
+	}, false)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 2, cancelCount, "Expected 2 blocks to be discarded")
@@ -1159,7 +1159,7 @@ func (t *BufferedReaderTest) TestReadAtInitialDownloadFails() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	assert.ErrorContains(t.T(), err, "download failed")
 	assert.ErrorIs(t.T(), err, downloadError)
@@ -1202,7 +1202,7 @@ func (t *BufferedReaderTest) TestReadAtAwaitReadyCancelled() {
 	_, err = reader.ReadAt(ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 0,
-	})
+	}, false)
 
 	assert.ErrorIs(t.T(), err, context.Canceled)
 }
@@ -1230,7 +1230,7 @@ func (t *BufferedReaderTest) TestReadAtBlockStateDownloadFailed() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 0,
-	})
+	}, false)
 
 	assert.ErrorIs(t.T(), err, downloadError)
 	status, err := b.AwaitReady(t.ctx)
@@ -1262,7 +1262,7 @@ func (t *BufferedReaderTest) TestReadAtBlockDownloadCancelled() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 0,
-	})
+	}, false)
 
 	assert.ErrorIs(t.T(), err, context.Canceled)
 	status, err := b.AwaitReady(t.ctx)
@@ -1294,7 +1294,7 @@ func (t *BufferedReaderTest) TestReadAtBlockStateUnexpected() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 0,
-	})
+	}, false)
 
 	assert.ErrorContains(t.T(), err, "unexpected block state")
 	status, err := b.AwaitReady(t.ctx)
@@ -1330,7 +1330,7 @@ func (t *BufferedReaderTest) TestReadAtFromDownloadedBlock() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, resp.Size)
@@ -1358,7 +1358,7 @@ func (t *BufferedReaderTest) TestReadAtExactlyToEndOfFile() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(t.object.Size), resp.Size)
@@ -1388,7 +1388,7 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenPrefetchFails() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), int(testPrefetchBlockSizeBytes), resp.Size)
@@ -1439,7 +1439,7 @@ func (t *BufferedReaderTest) TestReadAtSpanningMultipleBlocks() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: readOffset,
-	})
+	}, false)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 2560, resp.Size)
@@ -1483,12 +1483,12 @@ func (t *BufferedReaderTest) TestReadAtSequentialReadAcrossBlocks() {
 	resp1, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf1,
 		Offset: 0,
-	})
+	}, false)
 	require.NoError(t.T(), err)
 	resp2, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf2,
 		Offset: testPrefetchBlockSizeBytes,
-	})
+	}, false)
 	require.NoError(t.T(), err)
 
 	assert.Equal(t.T(), int64(0), reader.randomSeekCount)
@@ -1527,7 +1527,7 @@ func (t *BufferedReaderTest) TestReadAtFallsBackAfterRandomReads() {
 		Buffer:   buf,
 		Offset:   5 * testPrefetchBlockSizeBytes,
 		ReadInfo: reader.readTypeClassifier.GetReadInfo(5*testPrefetchBlockSizeBytes, false),
-	})
+	}, false)
 	require.NoError(t.T(), err, "Random read #1 should succeed")
 	reader.readTypeClassifier.RecordRead(5*testPrefetchBlockSizeBytes, int64(resp.Size))
 	// Mock GCS calls for the second random read, which will download block 4 and prefetch block 5.
@@ -1537,8 +1537,7 @@ func (t *BufferedReaderTest) TestReadAtFallsBackAfterRandomReads() {
 	resp, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   4 * testPrefetchBlockSizeBytes,
-		ReadInfo: reader.readTypeClassifier.GetReadInfo(4*testPrefetchBlockSizeBytes, false),
-	})
+		ReadInfo: reader.readTypeClassifier.GetReadInfo(4*testPrefetchBlockSizeBytes, false)}, false)
 	require.NoError(t.T(), err, "Random read #2 should succeed")
 	reader.readTypeClassifier.RecordRead(4*testPrefetchBlockSizeBytes, int64(resp.Size))
 
@@ -1546,8 +1545,8 @@ func (t *BufferedReaderTest) TestReadAtFallsBackAfterRandomReads() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   3 * testPrefetchBlockSizeBytes,
-		ReadInfo: reader.readTypeClassifier.GetReadInfo(3*testPrefetchBlockSizeBytes, false),
-	})
+		ReadInfo: reader.readTypeClassifier.GetReadInfo(3*testPrefetchBlockSizeBytes, false)},
+		false)
 
 	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "Error should be FallbackToAnotherReader")
 	t.bucket.AssertExpectations(t.T())
@@ -1579,8 +1578,8 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 	resp1, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   offset1,
-		ReadInfo: reader.readTypeClassifier.GetReadInfo(offset1, false),
-	})
+		ReadInfo: reader.readTypeClassifier.GetReadInfo(offset1, false)},
+		false)
 	require.NoError(t.T(), err, "Random read #1 should succeed")
 	reader.readTypeClassifier.RecordRead(offset1, int64(resp1.Size))
 	// Second random read (offset 4)
@@ -1592,8 +1591,8 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 	resp2, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   offset2,
-		ReadInfo: reader.readTypeClassifier.GetReadInfo(offset2, false),
-	})
+		ReadInfo: reader.readTypeClassifier.GetReadInfo(offset2, false)},
+		false)
 	require.NoError(t.T(), err, "Random read #2 should succeed")
 	reader.readTypeClassifier.RecordRead(offset2, int64(resp2.Size))
 	// Third random read (offset 3) - this should trigger fallback
@@ -1601,8 +1600,8 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 	resp3, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   offset3,
-		ReadInfo: reader.readTypeClassifier.GetReadInfo(offset3, false),
-	})
+		ReadInfo: reader.readTypeClassifier.GetReadInfo(offset3, false)},
+		false)
 	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "Third random read should trigger fallback")
 	assert.Equal(t.T(), reader.randomReadsThreshold+1, reader.randomSeekCount)
 	reader.readTypeClassifier.RecordRead(offset3, int64(resp3.Size))
@@ -1622,7 +1621,7 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: readBuf,
 		Offset: readOffset,
-	})
+	}, false)
 	reader.readTypeClassifier.RecordRead(readOffset, int64(resp.Size))
 
 	require.NoError(t.T(), err, "Read should succeed after pattern becomes sequential")
@@ -1657,7 +1656,7 @@ func (t *BufferedReaderTest) TestReadAtFallbackOnFreshStartFailure() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 0,
-	})
+	}, false)
 
 	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "ReadAt should fall back when freshStart fails to get a block")
 }
@@ -1681,7 +1680,7 @@ func (t *BufferedReaderTest) TestReadAtFallbackOnMmapFailure() {
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 0,
-	})
+	}, false)
 
 	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "ReadAt should fall back when mmap fails")
 }
@@ -1710,7 +1709,7 @@ func (t *BufferedReaderTest) TestReadAtExceedsObjectSize() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: readOffset,
-	})
+	}, false)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 512, resp.Size)
@@ -1744,7 +1743,7 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsDueToG
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 1024, resp.Size)
@@ -1781,7 +1780,7 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsOnGCSE
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 10, resp.Size)
@@ -1791,7 +1790,7 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsOnGCSE
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 1024,
-	})
+	}, false)
 	assert.ErrorIs(t.T(), err, gcsError)
 	assert.ErrorContains(t.T(), err, "download failed")
 }
@@ -1818,8 +1817,8 @@ func (t *BufferedReaderTest) TestReadAtSubsequentReadAfterFallbackAlsoFallsBack(
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   5 * testPrefetchBlockSizeBytes,
-		ReadInfo: reader.readTypeClassifier.GetReadInfo(2*testPrefetchBlockSizeBytes, false),
-	})
+		ReadInfo: reader.readTypeClassifier.GetReadInfo(2*testPrefetchBlockSizeBytes, false)},
+		false)
 	// Check that the first random read was successful.
 	require.NoError(t.T(), err, "Random read #1 should succeed")
 	reader.readTypeClassifier.RecordRead(5*testPrefetchBlockSizeBytes, int64(resp.Size))
@@ -1832,8 +1831,8 @@ func (t *BufferedReaderTest) TestReadAtSubsequentReadAfterFallbackAlsoFallsBack(
 	resp, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   4 * testPrefetchBlockSizeBytes,
-		ReadInfo: reader.readTypeClassifier.GetReadInfo(4*testPrefetchBlockSizeBytes, false),
-	})
+		ReadInfo: reader.readTypeClassifier.GetReadInfo(4*testPrefetchBlockSizeBytes, false)},
+		false)
 	// Check that the second random read was successful.
 	require.NoError(t.T(), err, "Random read #2 should succeed")
 	reader.readTypeClassifier.RecordRead(4*testPrefetchBlockSizeBytes, int64(resp.Size))
@@ -1842,8 +1841,8 @@ func (t *BufferedReaderTest) TestReadAtSubsequentReadAfterFallbackAlsoFallsBack(
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   3 * testPrefetchBlockSizeBytes,
-		ReadInfo: reader.readTypeClassifier.GetReadInfo(3*testPrefetchBlockSizeBytes, false),
-	})
+		ReadInfo: reader.readTypeClassifier.GetReadInfo(3*testPrefetchBlockSizeBytes, false)},
+		false)
 	// Check that the read correctly triggered a fallback.
 	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "Random read #2 should trigger fallback")
 	assert.Equal(t.T(), int64(3), reader.randomSeekCount)
@@ -1852,7 +1851,7 @@ func (t *BufferedReaderTest) TestReadAtSubsequentReadAfterFallbackAlsoFallsBack(
 	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
-	})
+	}, false)
 
 	// The reader is in a fallback state, so this read should also fall back.
 	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "Subsequent read should also fallback")
@@ -1915,7 +1914,7 @@ func (t *BufferedReaderTest) TestReadAtConcurrentReads() {
 			resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 				Buffer: readBuf,
 				Offset: offset,
-			})
+			}, false)
 
 			require.NoError(t.T(), err)
 			require.Equal(t.T(), readSize, resp.Size)
@@ -1954,7 +1953,7 @@ func (t *BufferedReaderTest) TestDestroyWaitsForCallback() {
 	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: startOffset,
-	})
+	}, false)
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), resp.Callback)
 	destroyFinished := make(chan struct{})
@@ -2012,14 +2011,14 @@ func (t *BufferedReaderTest) TestConcurrentReadsOnSameBlock() {
 		resp1, err1 = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 			Buffer: make([]byte, readSize),
 			Offset: startOffset,
-		})
+		}, false)
 	}()
 	go func() {
 		defer wg.Done()
 		resp2, err2 = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 			Buffer: make([]byte, readSize),
 			Offset: startOffset,
-		})
+		}, false)
 	}()
 	wg.Wait()
 
@@ -2070,14 +2069,14 @@ func (t *BufferedReaderTest) TestEvictedBlockIsReleasedOnlyAfterCallback() {
 	resp1, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 0,
-	})
+	}, false)
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), resp1.Callback)
 	// This random read evicts the prefetched blocks (1 and 2) from the queue. Block 0 is not evicted as it's in use by the first read.
 	resp2, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 5 * testPrefetchBlockSizeBytes,
-	})
+	}, false)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 0, reader.blockPool.TotalFreeBlocks(), "Free blocks should be consumed by the new prefetch.")
 

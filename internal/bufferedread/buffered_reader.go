@@ -277,7 +277,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest, skipSizeChecks bool) (gcsx.ReadResponse, error) {
 	resp := gcsx.ReadResponse{}
 	reqID := uuid.New()
 	start := time.Now()
@@ -288,7 +288,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, p.handleID, readOffset, len(req.Buffer), blockIdx)
 
-	if readOffset >= int64(p.object.Size) {
+	if readOffset >= int64(p.object.Size) && !skipSizeChecks {
 		err = io.EOF
 		return resp, err
 	}

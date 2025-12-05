@@ -1075,7 +1075,7 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if f.config.Write.EnableRapidAppends && openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)

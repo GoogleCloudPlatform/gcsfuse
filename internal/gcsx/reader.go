@@ -83,7 +83,7 @@ type Reader interface {
 	// ReadResponse. To indicate that the operation should be handled by an
 	// alternative reader, return the error FallbackToAnotherReader.
 	// If an error occurs, the size in ReadResponse will be zero.
-	ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error)
+	ReadAt(ctx context.Context, req *ReadRequest, skipSizeChecks bool) (ReadResponse, error)
 
 	// Destroy is called to release any resources held by the reader.
 	Destroy()

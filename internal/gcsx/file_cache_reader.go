@@ -201,10 +201,13 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	return 0, false, nil
 }
 
-func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
+func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest, skipSizeChecks bool) (ReadResponse, error) {
 	var readResponse ReadResponse
 
 	if req.Offset >= int64(fc.object.Size) {
+		if skipSizeChecks {
+			logger.Tracef("Requested offset from file cache exceeds the cached content size. Triggering job to download...")
+		}
 		return readResponse, io.EOF
 	}
 

@@ -109,7 +109,7 @@ func (t *readManagerTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, e
 	return t.readManager.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: dst,
 		Offset: offset,
-	})
+	}, false)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -346,7 +346,7 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 	resp, err := rm.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: offset,
-	})
+	}, false)
 	rm.Destroy()
 
 	assert.NoError(t.T(), err, "expected no error when second reader succeeds")
@@ -373,7 +373,7 @@ func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
 	resp, err := rm.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: offset,
-	})
+	}, false)
 	rm.Destroy()
 
 	assert.NoError(t.T(), err)

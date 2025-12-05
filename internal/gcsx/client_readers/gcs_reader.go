@@ -96,9 +96,9 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 	return true
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {
+func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest, skipSizeChecks bool) (readResponse gcsx.ReadResponse, err error) {
 
-	if readRequest.Offset >= int64(gr.object.Size) {
+	if readRequest.Offset >= int64(gr.object.Size) && !skipSizeChecks {
 		return readResponse, io.EOF
 	} else if readRequest.Offset < 0 {
 		err := fmt.Errorf(
@@ -116,7 +116,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) 
 		ForceCreateReader: false,
 	}
 
-	bytesRead, err := gr.read(ctx, gcsReaderRequest)
+	bytesRead, err := gr.read(ctx, gcsReaderRequest, skipSizeChecks)
 	readResponse.Size = bytesRead
 
 	// Retry reading in case of short read.
@@ -125,14 +125,14 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) 
 		gcsReaderRequest.Buffer = readRequest.Buffer[bytesRead:]
 		gcsReaderRequest.ForceCreateReader = true
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = gr.read(ctx, gcsReaderRequest)
+		bytesReadOnRetry, err = gr.read(ctx, gcsReaderRequest, skipSizeChecks)
 		readResponse.Size += bytesReadOnRetry
 	}
 
 	return readResponse, err
 }
 
-func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (bytesRead int, err error) {
+func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest, skipSizeChecks bool) (bytesRead int, err error) {
 	// We don't take a lock here to allow random reads to proceed without waiting.
 	// The read type is re-evaluated for zonal buckets inside the lock if necessary.
 	reqReaderType := gr.readerType(readReq.ReadType, gr.bucket.BucketType())
@@ -165,7 +165,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 		gr.mu.Unlock()
 	}
 
-	readResp, err = gr.mrr.ReadAt(ctx, readReq)
+	readResp, err = gr.mrr.ReadAt(ctx, readReq, skipSizeChecks)
 	return readResp.Size, err
 }
 
