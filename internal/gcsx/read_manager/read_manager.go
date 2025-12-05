@@ -104,7 +104,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(opts)
 		if err != nil {
-			logger.Warnf("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
+			logger.Tracef("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
 		} else {
 			readers = append(readers, bufferedReader)
 		}
