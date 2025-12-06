@@ -2858,15 +2858,17 @@ func (fs *fileSystem) ReadFile(
 	// Serve the read.
 
 	if fs.newConfig.EnableNewReader {
-		var resp gcsx.ReadResponse
+		var resp *gcsx.ReadResponse
 		req := &gcsx.ReadRequest{
 			Buffer: op.Dst,
 			Offset: op.Offset,
 		}
 		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
-		op.BytesRead = resp.Size
-		op.Data = resp.Data
-		op.Callback = resp.Callback
+		if resp != nil {
+			op.BytesRead = resp.Size
+			op.Data = resp.Data
+			op.Callback = resp.Callback
+		}
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}

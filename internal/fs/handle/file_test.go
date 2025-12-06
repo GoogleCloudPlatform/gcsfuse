@@ -468,7 +468,7 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 				Offset: 0,
 			}, 200)
 
-			assert.Zero(t.T(), resp.Size, "expected 0 bytes read")
+			assert.Nil(t.T(), resp, "expected nil response")
 			assert.True(t.T(), errors.Is(err, tc.returnErr), "expected error to match")
 			mockRM.AssertExpectations(t.T())
 		})
