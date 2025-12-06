@@ -140,7 +140,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_NilFileCacheHandlerThrowFallBackError(
 	})
 
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_FileSizeIsGreaterThanCacheSize() {
@@ -153,7 +153,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_FileSizeIsGreaterThanCacheSize() {
 	})
 
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_OffsetGreaterThanFileSizeWillReturnEOF() {
@@ -165,7 +165,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_OffsetGreaterThanFileSizeWillReturnEOF
 	})
 
 	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 }
 
 func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_CacheHit() {
@@ -251,7 +251,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCa
 		Offset: int64(start),
 	})
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	job := t.jobManager.CreateJobIfNotExists(t.object, t.mockBucket)
 	jobStatus := job.GetStatus()
 	assert.True(t.T(), jobStatus.Name == downloader.NotStarted)
@@ -262,7 +262,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCa
 	})
 
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -284,7 +284,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCa
 	})
 
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
 	assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Downloading)
 	assert.NotNil(t.T(), t.reader.fileCacheHandle)
@@ -321,7 +321,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 
 	// Assuming a download with a start offset of start2 is in progress, a fallback to another reader will be required.
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
 	assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Downloading)
 	assert.NotNil(t.T(), t.reader.fileCacheHandle)
@@ -356,7 +356,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 		Offset: int64(start2),
 	})
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	// Assuming start3 offset is downloaded
 	start3 := 4 * util.MiB
 	end3 := start3 + util.MiB
@@ -400,7 +400,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 
 	// As job is invalidated Need to get served from GCS reader
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -432,7 +432,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInv
 		Offset: 0,
 	})
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	assert.Nil(t.T(), t.reader.fileCacheHandle)
 	rd2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(t.object.Size, rd2)
@@ -470,7 +470,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInv
 		Offset: 0,
 	})
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	assert.Nil(t.T(), t.reader.fileCacheHandle)
 	clear(buf)
 
@@ -514,7 +514,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	})
 
 	assert.True(t.T(), errors.Is(err, util.ErrFileNotPresentInCache))
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen() {
@@ -565,7 +565,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_FailedJobNextReadCreatesNewJobAndCache
 		Offset: 0,
 	})
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
 	assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Failed)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
@@ -602,7 +602,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_NegativeOffsetShouldThrowError() {
 	})
 
 	assert.Error(t.T(), err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_OffsetBeyondObjectSizeShouldThrowEOFError() {
@@ -612,7 +612,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_OffsetBeyondObjectSizeShouldThrowEOFEr
 	})
 
 	assert.Error(t.T(), err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	assert.ErrorIs(t.T(), err, io.EOF)
 }
 
@@ -670,7 +670,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondC
 	})
 
 	assert.Error(t.T(), err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
 	t.mockBucket.AssertExpectations(t.T())
 }
@@ -694,7 +694,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondO
 	})
 
 	assert.Error(t.T(), err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	assert.ErrorIs(t.T(), err, io.EOF)
 	t.mockBucket.AssertExpectations(t.T())
 }
@@ -719,7 +719,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 	})
 
 	assert.Error(t.T(), err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
 	t.mockBucket.AssertExpectations(t.T())
 }
@@ -744,7 +744,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 	})
 
 	assert.Error(t.T(), err)
-	assert.Zero(t.T(), readResponse.Size)
+	assert.Nil(t.T(), readResponse)
 	assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
 	t.mockBucket.AssertExpectations(t.T())
 }

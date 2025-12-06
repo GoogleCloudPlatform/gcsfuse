@@ -44,7 +44,7 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (t *gcsReaderTest) readAt(ctx context.Context, req *gcsx.ReadRequest) gcsx.ReadResponse {
+func (t *gcsReaderTest) readAt(ctx context.Context, req *gcsx.ReadRequest) *gcsx.ReadResponse {
 	t.gcsReader.CheckInvariants()
 	defer t.gcsReader.CheckInvariants()
 	readInfo := t.gcsReader.readTypeClassifier.GetReadInfo(req.Offset, false)

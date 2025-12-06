@@ -83,7 +83,7 @@ type Reader interface {
 	// ReadResponse. To indicate that the operation should be handled by an
 	// alternative reader, return the error FallbackToAnotherReader.
 	// If an error occurs, the size in ReadResponse will be zero.
-	ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error)
+	ReadAt(ctx context.Context, req *ReadRequest) (*ReadResponse, error)
 
 	// Destroy is called to release any resources held by the reader.
 	Destroy()
@@ -104,5 +104,5 @@ type GCSReader interface {
 	// ReadAt reads data into the `Buffer` field of the provided `GCSReaderRequest`,
 	// starting from the specified offset and ending at the specified end offset.
 	// It returns a `ReadResponse` indicating the number of bytes successfully read and any error encountered.
-	ReadAt(ctx context.Context, req *GCSReaderRequest) (ReadResponse, error)
+	ReadAt(ctx context.Context, req *GCSReaderRequest) (*ReadResponse, error)
 }

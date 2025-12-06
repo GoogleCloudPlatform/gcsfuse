@@ -201,11 +201,9 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	return 0, false, nil
 }
 
-func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
-	var readResponse ReadResponse
-
+func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (*ReadResponse, error) {
 	if req.Offset >= int64(fc.object.Size) {
-		return readResponse, io.EOF
+		return nil, io.EOF
 	}
 
 	// Note: If we are reading the file for the first time and read type is sequential
@@ -214,16 +212,15 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadRe
 	// false in that case.
 	bytesRead, cacheHit, err := fc.tryReadingFromFileCache(ctx, req.Buffer, req.Offset)
 	if err != nil {
-		return readResponse, fmt.Errorf("ReadAt: while reading from cache: %w", err)
+		return nil, fmt.Errorf("ReadAt: while reading from cache: %w", err)
 	}
 	// Data was served from cache.
 	if cacheHit || bytesRead == len(req.Buffer) || (bytesRead < len(req.Buffer) && uint64(req.Offset)+uint64(bytesRead) == fc.object.Size) {
-		readResponse.Size = bytesRead
-		return readResponse, nil
+		return &ReadResponse{Size: bytesRead}, nil
 	}
 
 	// The cache is unable to serve data and requires a fallback to another reader.
-	return readResponse, FallbackToAnotherReader
+	return nil, FallbackToAnotherReader
 }
 
 func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHandle, readType metrics.ReadType, readDataSize int, cacheHit bool, readLatency time.Duration) {

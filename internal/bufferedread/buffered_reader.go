@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
@@ -178,7 +177,6 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	// read threshold has been met.
 	if p.randomSeekCount > p.randomReadsThreshold {
 		if p.readTypeClassifier.IsReadSequential() {
-			logger.Tracef("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, p.handleID)
 			p.resetBufferedReaderState()
 			return nil
 		}
@@ -203,11 +201,9 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	if p.randomSeekCount > p.randomReadsThreshold {
 		// If the read pattern becomes sequential again, reset the state to resume buffered reading.
 		if p.readTypeClassifier.IsReadSequential() {
-			logger.Tracef("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, p.handleID)
 			p.resetBufferedReaderState()
 			return nil
 		}
-		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d and read pattern is not sequential.", p.object.Name, p.handleID, p.randomSeekCount, p.randomReadsThreshold)
 		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return gcsx.FallbackToAnotherReader
 	}
@@ -277,24 +273,19 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
-	resp := gcsx.ReadResponse{}
-	reqID := uuid.New()
+func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (*gcsx.ReadResponse, error) {
 	start := time.Now()
 	readOffset := req.Offset
-	blockIdx := readOffset / p.config.PrefetchBlockSizeBytes
 	var bytesRead int
 	var err error
 
-	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, p.handleID, readOffset, len(req.Buffer), blockIdx)
-
 	if readOffset >= int64(p.object.Size) {
 		err = io.EOF
-		return resp, err
+		return nil, err
 	}
 
 	if len(req.Buffer) == 0 {
-		return resp, nil
+		return &gcsx.ReadResponse{Size: 0}, nil
 	}
 
 	p.mu.Lock()
@@ -304,13 +295,10 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		dur := time.Since(start)
 		p.metricHandle.BufferedReadReadLatency(ctx, dur)
 		p.metricHandle.GcsReadBytesCount(int64(bytesRead), metrics.ReaderBufferedAttr)
-		if err == nil || errors.Is(err, io.EOF) {
-			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
-		}
 	}()
 
 	if err = p.handleRandomRead(readOffset); err != nil {
-		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
+		return nil, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 	}
 
 	prefetchTriggered := false
@@ -324,7 +312,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 			if err = p.freshStart(readOffset); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, p.handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
-				return resp, gcsx.FallbackToAnotherReader
+				return nil, gcsx.FallbackToAnotherReader
 			}
 			prefetchTriggered = true
 		}
@@ -387,11 +375,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 			}
 		}
 	}
-
-	resp.Data = dataSlices
-	resp.Callback = func() { p.callback(entriesToCallback) }
-	resp.Size = bytesRead
-	return resp, err
+	return &gcsx.ReadResponse{Data: dataSlices, Size: bytesRead, Callback: func() { p.callback(entriesToCallback) }}, err
 }
 
 // callback is called when the FUSE library is finished with buffer slices that
@@ -493,7 +477,6 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 		// can't get a block. For the buffered reader, this is a recoverable
 		// condition that should either trigger a fallback to another reader (for
 		// urgent reads) or be ignored (for background prefetches).
-		logger.Tracef("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
 		return ErrPrefetchBlockNotAvailable
 	}
 
@@ -523,7 +506,6 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 		metricHandle: p.metricHandle,
 	}
 
-	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
 		block:  b,
 		cancel: cancel,
