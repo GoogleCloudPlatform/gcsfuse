@@ -27,9 +27,9 @@ type MockReadManager struct {
 	mock.Mock
 }
 
-func (m *MockReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+func (m *MockReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (*gcsx.ReadResponse, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(gcsx.ReadResponse), args.Error(1)
+	return args.Get(0).(*gcsx.ReadResponse), args.Error(1)
 }
 
 func (m *MockReadManager) Object() *gcs.MinObject {

@@ -459,7 +459,7 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil, 0)
 			fh.inode.Lock()
 			mockRM := new(read_manager.MockReadManager)
-			mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, tc.returnErr)
+			mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return((*gcsx.ReadResponse)(nil), tc.returnErr)
 			mockRM.On("Object").Return(&object)
 			fh.readManager = mockRM
 

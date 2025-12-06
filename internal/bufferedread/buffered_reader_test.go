@@ -91,7 +91,7 @@ func assertBlockContent(t *testing.T, blk block.PrefetchBlock, expectedOffset in
 // assertReadResponseContent iterates through the data slices in a ReadResponse
 // and validates their content against the expected A-Z repeating pattern,
 // starting from a given absolute offset.
-func assertReadResponseContent(t *testing.T, resp gcsx.ReadResponse, expectedStartOffset int64) {
+func assertReadResponseContent(t *testing.T, resp *gcsx.ReadResponse, expectedStartOffset int64) {
 	t.Helper()
 	var totalBytesVerified int
 	currentOffset := expectedStartOffset
@@ -1013,7 +1013,7 @@ func (t *BufferedReaderTest) TestReadAtOffsetBeyondEOF() {
 	})
 
 	assert.ErrorIs(t.T(), err, io.EOF)
-	assert.Zero(t.T(), resp.Size)
+	assert.Nil(t.T(), resp)
 }
 
 func (t *BufferedReaderTest) TestReadAtEmptyBuffer() {
@@ -1598,14 +1598,13 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 	reader.readTypeClassifier.RecordRead(offset2, int64(resp2.Size))
 	// Third random read (offset 3) - this should trigger fallback
 	offset3 := 3 * testPrefetchBlockSizeBytes
-	resp3, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
+	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   offset3,
 		ReadInfo: reader.readTypeClassifier.GetReadInfo(offset3, false),
 	})
 	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "Third random read should trigger fallback")
 	assert.Equal(t.T(), reader.randomReadsThreshold+1, reader.randomSeekCount)
-	reader.readTypeClassifier.RecordRead(offset3, int64(resp3.Size))
 	// Simulate sequential reads to reset the classifier
 	const thirtyThreeMiB = 33 * 1024 * 1024
 	reader.readTypeClassifier.RecordRead(0, thirtyThreeMiB)
@@ -2005,7 +2004,7 @@ func (t *BufferedReaderTest) TestConcurrentReadsOnSameBlock() {
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	var resp1, resp2 gcsx.ReadResponse
+	var resp1, resp2 *gcsx.ReadResponse
 	var err1, err2 error
 	go func() {
 		defer wg.Done()

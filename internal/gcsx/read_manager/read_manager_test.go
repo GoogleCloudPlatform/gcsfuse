@@ -103,7 +103,7 @@ func getReadCloser(content []byte) io.ReadCloser {
 	return rc
 }
 
-func (t *readManagerTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
+func (t *readManagerTest) readAt(dst []byte, offset int64) (*gcsx.ReadResponse, error) {
 	t.readManager.CheckInvariants()
 	defer t.readManager.CheckInvariants()
 	return t.readManager.ReadAt(t.ctx, &gcsx.ReadRequest{
@@ -249,7 +249,7 @@ func (t *readManagerTest) Test_ReadAt_InvalidOffset() {
 		t.Run(tc.name, func() {
 			readResponse, err := t.readAt(make([]byte, 1), tc.offset)
 
-			assert.Zero(t.T(), readResponse.Size)
+			assert.Nil(t.T(), readResponse)
 			assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
 		})
 	}
@@ -330,7 +330,7 @@ func (t *readManagerTest) Test_ReadAt_FullObjectFromCache() {
 func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 	offset := int64(0)
 	buf := make([]byte, 10)
-	expectedResp := gcsx.ReadResponse{Size: 10}
+	expectedResp := &gcsx.ReadResponse{Size: 10}
 	mockReader1 := new(gcsx.MockReader)
 	mockReader2 := new(gcsx.MockReader)
 	rm := &ReadManager{
@@ -338,7 +338,7 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 		readers:            []gcsx.Reader{mockReader1, mockReader2},
 		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb),
 	}
-	mockReader1.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
+	mockReader1.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(&gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
 	mockReader1.On("Destroy").Once()
 	mockReader2.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, nil).Once()
 	mockReader2.On("Destroy").Once()
@@ -365,9 +365,9 @@ func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
 		readers:            []gcsx.Reader{mockBufferedReader, mockGCSReader},
 		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb),
 	}
-	mockBufferedReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
+	mockBufferedReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(&gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
 	mockBufferedReader.On("Destroy").Once()
-	mockGCSReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{Size: 10}, nil).Once()
+	mockGCSReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(&gcsx.ReadResponse{Size: 10}, nil).Once()
 	mockGCSReader.On("Destroy").Once()
 
 	resp, err := rm.ReadAt(t.ctx, &gcsx.ReadRequest{
@@ -377,7 +377,7 @@ func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
 	rm.Destroy()
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), gcsx.ReadResponse{Size: 10}, resp)
+	assert.Equal(t.T(), &gcsx.ReadResponse{Size: 10}, resp)
 	mockBufferedReader.AssertExpectations(t.T())
 	mockGCSReader.AssertExpectations(t.T())
 }

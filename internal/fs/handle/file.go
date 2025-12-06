@@ -226,7 +226,6 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	}
 
 	// Use the readManager to read data.
-	var readResponse gcsx.ReadResponse
 	readResponse, err := fh.readManager.ReadAt(ctx, req)
 	switch {
 	case errors.Is(err, io.EOF):
@@ -239,7 +238,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 		return nil, fmt.Errorf("fh.readManager.ReadAt: %w", err)
 	}
 
-	return &readResponse, nil
+	return readResponse, nil
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
