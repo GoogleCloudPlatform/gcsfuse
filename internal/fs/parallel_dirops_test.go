@@ -59,7 +59,6 @@ func (t *ParallelDiropsWithoutCachesTest) SetupSuite() {
 			DisableParallelDirops: false,
 		}}
 	t.serverCfg.RenameDirLimit = 10
-	t.serverCfg.DirTypeCacheTTL = 0
 	t.serverCfg.InodeAttributeCacheTTL = 0
 	t.fsTest.SetUpTestSuite()
 }

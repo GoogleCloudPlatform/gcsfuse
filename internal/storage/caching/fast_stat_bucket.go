@@ -92,14 +92,37 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insertMultipleMinObjects(minObjs []*gcs.MinObject) {
+func (b *fastStatBucket) insertMultipleMinObjects(listing *gcs.Listing) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	minObjectNames := make(map[string]struct{})
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
-	for _, o := range minObjs {
+
+	for _, o := range listing.MinObjects {
 		b.cache.Insert(o, expiration)
+		minObjectNames[o.Name] = struct{}{}
 	}
+
+	for _, p := range listing.CollapsedRuns {
+		// If a MinObject with the same name as the CollapsedRun already exists,
+		// we don't need to insert it again as a Folder.
+		if _, ok := minObjectNames[p]; ok {
+			continue
+		}
+		if !strings.HasSuffix(p, "/") {
+			// log the error for incorrect prefix but don't fail the operation
+			logger.Errorf("error in prefix name: %s", p)
+		} else {
+			f := &gcs.MinObject{
+				Name:        p,
+				ImplicitDir: true,
+			}
+			fmt.Println("Cache implicit dir: ", f)
+			b.cache.Insert(f, expiration)
+		}
+	}
+
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -117,15 +140,22 @@ func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	minObjectNames := make(map[string]struct{})
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
 	for _, o := range listing.MinObjects {
 		if !strings.HasSuffix(o.Name, "/") {
 			b.cache.Insert(o, expiration)
+			minObjectNames[o.Name] = struct{}{}
 		}
 	}
 
 	for _, p := range listing.CollapsedRuns {
+		// If a MinObject with the same name as the CollapsedRun already exists,
+		// we don't need to insert it again as a Folder.
+		if _, ok := minObjectNames[p]; ok {
+			continue
+		}
 		if !strings.HasSuffix(p, "/") {
 			// log the error for incorrect prefix but don't fail the operation
 			logger.Errorf("error in prefix name: %s", p)
@@ -145,7 +175,11 @@ func (b *fastStatBucket) insert(o *gcs.Object) {
 }
 
 func (b *fastStatBucket) insertMinObject(o *gcs.MinObject) {
-	b.insertMultipleMinObjects([]*gcs.MinObject{o})
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.primaryCacheTTL)
+	b.cache.Insert(o, expiration)
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -170,6 +204,7 @@ func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	logger.Info("Add negative entry for folder: ", name)
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntryForFolder(name, expiration)
 }
@@ -357,6 +392,54 @@ func (b *fastStatBucket) StatObject(
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	// If ForceFetchFromCache is true, we will try to serve listing from cache.
+	if req.ForceFetchFromCache {
+		if !b.BucketType().Hierarchical {
+			if hit, entry := b.lookUp(req.Prefix); hit {
+
+				// Negative entries result in NotFoundError.
+				if entry == nil {
+					err = &gcs.NotFoundError{
+						Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+					}
+
+					return nil, err
+				}
+
+				logger.Info("In force fetch", req.Prefix, entry, hit)
+				// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+				if entry.ImplicitDir {
+					listing = &gcs.Listing{
+						CollapsedRuns: []string{entry.Name},
+					}
+				} else {
+					listing = &gcs.Listing{
+						MinObjects: []*gcs.MinObject{entry},
+					}
+				}
+				return listing, nil
+			}
+		} else {
+			if hit, entry := b.lookUpFolder(req.Prefix); hit {
+
+				// Negative entries result in NotFoundError.
+				if entry == nil {
+					err = &gcs.NotFoundError{
+						Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+					}
+
+					return nil, err
+				}
+
+				logger.Info("In force fetch", req.Prefix, entry, hit)
+				listing = &gcs.Listing{
+					CollapsedRuns: []string{entry.Name},
+				}
+				return listing, nil
+			}
+		}
+	}
+
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
@@ -364,12 +447,13 @@ func (b *fastStatBucket) ListObjects(
 	}
 
 	if b.BucketType().Hierarchical {
+		logger.Errorf("In Hierarchical listing")
 		b.insertHierarchicalListing(listing)
 		return
 	}
 
 	// note anything we found.
-	b.insertMultipleMinObjects(listing.MinObjects)
+	b.insertMultipleMinObjects(listing)
 	return
 }
 
@@ -396,6 +480,11 @@ func (b *fastStatBucket) UpdateObject(
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
+	if req.IsImplicitDir {
+		fmt.Println("In DeleteObject")
+		b.invalidate(req.Name)
+		return nil
+	}
 	err = b.wrapped.DeleteObject(ctx, req)
 	if err != nil {
 		b.invalidate(req.Name)
@@ -460,7 +549,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Fol
 			err := &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for folder %v", prefix),
 			}
-
+			logger.Errorf("In Negative Get Folder...", prefix)
 			return nil, err
 		}
 

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -213,6 +214,8 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expiration time.Time) {
 	name := sc.key(folderName)
 
+	logger.Errorf("f: ", name)
+
 	// Insert a negative entry.
 	e := entry{
 		f:          nil,
@@ -273,6 +276,7 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
+	logger.Info("In insert folder: ", f.Name)
 	name := sc.key(f.Name)
 
 	e := entry{

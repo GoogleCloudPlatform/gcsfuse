@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 // Predefined errors returned by the Cache.
@@ -146,8 +147,10 @@ func (c *Cache) evictOne() ValueType {
 // the given key. The value must be non-nil.
 // Also returns a slice of ValueType evicted by the new inserted entry.
 func (c *Cache) Insert(
-	key string,
-	value ValueType) ([]ValueType, error) {
+		key string,
+		value ValueType) ([]ValueType, error) {
+
+	logger.Errorf("IN Cache insert: ", key)
 	if value == nil {
 		return nil, ErrInvalidEntry
 	}
@@ -245,8 +248,8 @@ func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 // entry with given key doesn't exist. Also, the size of value for entry
 // shouldn't be updated with this method (use c.Insert for updating size).
 func (c *Cache) UpdateWithoutChangingOrder(
-	key string,
-	value ValueType) error {
+		key string,
+		value ValueType) error {
 	if value == nil {
 		return ErrInvalidEntry
 	}

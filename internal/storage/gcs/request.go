@@ -320,6 +320,8 @@ type ListObjectsRequest struct {
 	// the current flow, default value will be full and callers can override it
 	// using this param.
 	ProjectionVal Projection
+
+	ForceFetchFromCache bool
 }
 
 // Listing contains a set of objects and delimter-based collapsed runs returned
@@ -413,6 +415,8 @@ type DeleteObjectRequest struct {
 	// with the given name (and optionally generation), and its meta-generation
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
+
+	IsImplicitDir bool
 }
 
 // MoveObjectRequest represents a request to move or rename an object.
