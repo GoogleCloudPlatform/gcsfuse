@@ -189,40 +189,8 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	if fh.isValidReadManager() {
 		fh.inode.Unlock()
 	} else {
-		minObj := fh.inode.Source()
-		bucket := fh.inode.Bucket()
-		mrdWrapper := &fh.inode.MRDWrapper
-
-		// Acquire a RWLock on file handle as we will update readManager
-		fh.unlockHandleAndInode(true)
-		fh.mu.Lock()
-
-		fh.destroyReadManager()
-		// Create a new read manager for the current inode state.
-		fh.readManager = read_manager.NewReadManager(minObj, bucket, &read_manager.ReadManagerConfig{
-			SequentialReadSizeMB:  sequentialReadSizeMb,
-			FileCacheHandler:      fh.fileCacheHandler,
-			CacheFileForRangeRead: fh.cacheFileForRangeRead,
-			MetricHandle:          fh.metricHandle,
-			MrdWrapper:            mrdWrapper,
-			Config:                fh.config,
-			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
-			WorkerPool:            fh.bufferedReadWorkerPool,
-			HandleID:              fh.handleID,
-		})
-
-		// Override the read-manager with visual-read-manager (a wrapper over read_manager with visualizer) if configured.
-		if fh.config.WorkloadInsight.Visualize {
-			if renderer, err := workloadinsight.NewRenderer(); err == nil {
-				fh.readManager = read_manager.NewVisualReadManager(fh.readManager, renderer, fh.config.WorkloadInsight)
-			} else {
-				logger.Warnf("Failed to construct workload insight visualizer: %v", err)
-			}
-		}
-
-		// Release RWLock and take RLock on file handle again. Inode lock is not needed now.
-		fh.mu.Unlock()
-		fh.mu.RLock()
+		// initReadManager handles the unlocking of the inode and the re-locking of fh.mu.
+		fh.initReadManager(sequentialReadSizeMb)
 	}
 
 	// Use the readManager to read data.
@@ -239,6 +207,54 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	}
 
 	return readResponse, nil
+}
+
+// initReadManager handles creation of a new read manager.
+// It manages the lock transitions:
+// Input:  Holds fh.inode.mu (Lock) and fh.mu (RLock)
+// Output: Holds fh.mu (RLock), fh.inode.mu is Unlocked.
+//
+// LOCKS_REQUIRED(fh.mu.RLock)
+// LOCKS_REQUIRED(fh.inode.mu)
+// UNLOCK_FUNCTION(fh.inode.mu)
+func (fh *FileHandle) initReadManager(sequentialReadSizeMb int32) {
+	minObj := fh.inode.Source()
+	bucket := fh.inode.Bucket()
+	mrdWrapper := &fh.inode.MRDWrapper
+
+	// Acquire a RWLock on file handle as we will update readManager
+	// We currently hold RLock (via lockHandleAndRelockInode in caller), so we must drop it first.
+	fh.unlockHandleAndInode(true)
+	fh.mu.Lock()
+
+	// Ensure we downgrade back to RLock before returning to the caller.
+	defer func() {
+		fh.mu.Unlock()
+		fh.mu.RLock()
+	}()
+
+	fh.destroyReadManager()
+	// Create a new read manager for the current inode state.
+	fh.readManager = read_manager.NewReadManager(minObj, bucket, &read_manager.ReadManagerConfig{
+		SequentialReadSizeMB:  sequentialReadSizeMb,
+		FileCacheHandler:      fh.fileCacheHandler,
+		CacheFileForRangeRead: fh.cacheFileForRangeRead,
+		MetricHandle:          fh.metricHandle,
+		MrdWrapper:            mrdWrapper,
+		Config:                fh.config,
+		GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
+		WorkerPool:            fh.bufferedReadWorkerPool,
+		HandleID:              fh.handleID,
+	})
+
+	// Override the read-manager with visual-read-manager (a wrapper over read_manager with visualizer) if configured.
+	if fh.config.WorkloadInsight.Visualize {
+		if renderer, err := workloadinsight.NewRenderer(); err == nil {
+			fh.readManager = read_manager.NewVisualReadManager(fh.readManager, renderer, fh.config.WorkloadInsight)
+		} else {
+			logger.Warnf("Failed to construct workload insight visualizer: %v", err)
+		}
+	}
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
