@@ -170,19 +170,14 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
-		fh.inode.Unlock()
-		return nil, fmt.Errorf("failed to ensure inode content: %w", err)
+		return fh.handleCacheEnsureError(err)
 	}
 
 	if !fh.inode.SourceGenerationIsAuthoritative() {
-		// Read from inode if source generation is not authoratative
-		defer fh.inode.Unlock()
-		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
-		return &gcsx.ReadResponse{Size: n}, err
+		return fh.readFromInodeFallback(ctx, req)
 	}
 
 	fh.lockHandleAndRelockInode(true)
-	defer fh.mu.RUnlock()
 
 	// If the inode is dirty, there's nothing we can do. Throw away our readManager if
 	// we have one & create a new readManager
@@ -195,18 +190,40 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 
 	// Use the readManager to read data.
 	readResponse, err := fh.readManager.ReadAt(ctx, req)
-	switch {
-	case errors.Is(err, io.EOF):
+	fh.mu.RUnlock()
+	if err != nil {
+		return fh.handleReadError(err)
+	}
+	return readResponse, nil
+}
+
+// handleCacheEnsureError outlines the interface spilling for fmt.Errorf
+// LOCKS_REQUIRED(fh.inode.mu)
+// UNLOCK_FUNCTION(fh.inode.mu)
+func (fh *FileHandle) handleCacheEnsureError(err error) (*gcsx.ReadResponse, error) {
+	fh.inode.Unlock()
+	return nil, fmt.Errorf("failed to ensure inode content: %w", err)
+}
+
+// readFromInodeFallback handles the case where SourceGenerationIsAuthoritative is false.
+// This removes the stack overhead of variables 'n' and the inode.Read call from the main path.
+//
+// LOCKS_REQUIRED(fh.inode.mu)
+// UNLOCK_FUNCTION(fh.inode.mu)
+func (fh *FileHandle) readFromInodeFallback(ctx context.Context, req *gcsx.ReadRequest) (*gcsx.ReadResponse, error) {
+	defer fh.inode.Unlock()
+	n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
+	return &gcsx.ReadResponse{Size: n}, err
+}
+
+func (fh *FileHandle) handleReadError(err error) (*gcsx.ReadResponse, error) {
+	if errors.Is(err, io.EOF) {
 		if err != io.EOF {
 			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
 		}
 		return nil, io.EOF
-
-	case err != nil:
-		return nil, fmt.Errorf("fh.readManager.ReadAt: %w", err)
 	}
-
-	return readResponse, nil
+	return nil, fmt.Errorf("fh.readManager.ReadAt: %w", err)
 }
 
 // initReadManager handles creation of a new read manager.
