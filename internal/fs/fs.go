@@ -272,7 +272,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
 	}
 
-	diskSizeCalculator := file.NewFileCacheDiskUtilizationCalculator(cacheDir, 1*time.Minute, false)
+	diskSizeCalculator := file.NewFileCacheDiskUtilizationCalculator(cacheDir, time.Duration(serverCfg.NewConfig.FileCache.SizeScanFrequencySeconds)*time.Second, serverCfg.NewConfig.FileCache.SizeScanFiles)
 	fileInfoCache := lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator)
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)

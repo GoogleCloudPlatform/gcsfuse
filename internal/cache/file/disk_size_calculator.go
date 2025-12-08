@@ -24,6 +24,10 @@ import (
 	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
+const (
+	defaultFileCacheDiskSizeScanFrequency time.Duration = time.Minute
+)
+
 type FileCacheDiskUtilizationCalculator struct {
 	// filesSize tracks the size of files in the cache.
 	filesSize atomic.Uint64
@@ -45,6 +49,9 @@ type FileCacheDiskUtilizationCalculator struct {
 // NewFileCacheDiskUtilizationCalculator creates a new calculator and starts the
 // background directory size calculation.
 func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool) *FileCacheDiskUtilizationCalculator {
+	if frequency <= 0 {
+		frequency = defaultFileCacheDiskSizeScanFrequency
+	}
 	c := &FileCacheDiskUtilizationCalculator{
 		cacheDir:     cacheDir,
 		frequency:    frequency,
