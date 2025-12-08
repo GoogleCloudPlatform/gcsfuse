@@ -73,6 +73,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 		ObjectGeneration: dt.object.Generation,
 		FileSize:         dt.object.Size,
 		Offset:           0,
+		SizeOnDisk:       dt.object.Size,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
