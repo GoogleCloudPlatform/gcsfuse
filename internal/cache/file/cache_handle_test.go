@@ -511,6 +511,13 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
 
 	assert.Nil(cht.T(), err)
+	// Inserting new entry should evict the entry corresponding to cht.object.
+	fileInfoKey = data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: "one more object",
+	}
+	fileInfoKeyName, err = fileInfoKey.Key()
+	assert.Nil(cht.T(), err)
 	fileInfo = data.FileInfo{
 		Key:              fileInfoKey,
 		ObjectGeneration: 1,
