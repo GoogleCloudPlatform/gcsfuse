@@ -207,6 +207,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	}
 
 	if addEntryToCache {
+		logger.Debugf("Adding file info entry and creating download job for %s", object.Name)
 		newFileInfo := data.FileInfo{
 			Key:              fileInfoKey,
 			ObjectGeneration: object.Generation,
@@ -239,6 +240,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			}
 		}
 	} else {
+		logger.Warnf("Skipping cache insertion for %s: entry already exists or condition met", object.Name)
 		// Move this entry on top of LRU.
 		_ = chr.fileInfoCache.LookUp(fileInfoKeyName)
 	}
@@ -263,6 +265,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 
 	// Check if file should be excluded from cache
 	if chr.shouldExcludeFromCache(bucket, object) {
+		logger.Warnf("Cache insertion aborted: file %s excluded by regex", object.Name)
 		return nil, util.ErrFileExcludedFromCacheByRegex
 	}
 
@@ -282,6 +285,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 
 		fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 		if fileInfo == nil {
+			logger.Warnf("Cache insertion aborted: random read for %s and cache handle not required", object.Name)
 			return nil, fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w", util.ErrCacheHandleNotRequiredForRandomRead)
 		}
 	}

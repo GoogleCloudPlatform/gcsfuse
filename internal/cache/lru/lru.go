@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 // Predefined errors returned by the Cache.
@@ -215,6 +216,7 @@ func (c *Cache) Insert(
 
 	valueSize := value.Size()
 	if valueSize > c.maxSize {
+		logger.Warnf("Cache insertion aborted: entry size %d is greater than max size %d for key %s", valueSize, c.maxSize, key)
 		return nil, ErrInvalidEntrySize
 	}
 
@@ -229,6 +231,7 @@ func (c *Cache) Insert(
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
+		logger.Debugf("Inserting new cache entry: key %s, size %d", key, valueSize)
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
 		c.sizeCalculator.AccountForInsertedEntry(value)
