@@ -50,7 +50,7 @@ type FileInfo struct {
 	FileSize         uint64
 	SparseMode       bool          // Whether this file is using sparse file mode
 	DownloadedRanges *ByteRangeMap // For sparse files: tracks which byte ranges have been downloaded
-	SizeOnDisk       uint64
+	SizeOnDisk       uint64        // Actual disk utilization of this file on cache-dir.
 }
 
 func (fi FileInfo) Size() uint64 {

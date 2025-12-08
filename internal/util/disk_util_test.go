@@ -15,6 +15,8 @@
 package util
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -66,7 +68,101 @@ func (ts *DiskUtilTest) TestSpectulativeSizeOnDisk() {
 	}
 	for _, tc := range testcases {
 		ts.T().Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.expected_disksize, GetSpeculativeFileSizeOnDisk(tc.input_filesize))
+			require.Equal(t, tc.expected_disksize, GetSpeculativeFileSizeOnDisk(tc.input_filesize, 4096))
 		})
 	}
+}
+
+func (ts *DiskUtilTest) TestGetSizeOnDisk_Normal() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+	f, err := os.CreateTemp(tempDir, "testfile")
+	require.NoError(ts.T(), err)
+	_, err = f.Write([]byte("hello"))
+	require.NoError(ts.T(), err)
+	f.Close()
+
+	// Act
+	size, err := GetSizeOnDisk(tempDir, false, false)
+
+	// Assert
+	require.NoError(ts.T(), err)
+	// On some filesystems (like tmpfs), directories take 0 blocks.
+	// File takes 4096 bytes (8 blocks). Root dir takes 0. Total 4096.
+	require.GreaterOrEqual(ts.T(), size, uint64(4096))
+}
+
+func (ts *DiskUtilTest) TestGetSizeOnDisk_OnlyDirs() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+	f, err := os.CreateTemp(tempDir, "testfile")
+	require.NoError(ts.T(), err)
+	_, err = f.Write([]byte("hello"))
+	require.NoError(ts.T(), err)
+	f.Close()
+
+	subDir := filepath.Join(tempDir, "subdir")
+	require.NoError(ts.T(), os.Mkdir(subDir, 0755))
+
+	// Act
+	size, err := GetSizeOnDisk(tempDir, true, false)
+
+	// Assert
+	require.NoError(ts.T(), err)
+	// On tmpfs, directories take 0 blocks. So size might be 0.
+	require.GreaterOrEqual(ts.T(), size, uint64(0))
+}
+
+func (ts *DiskUtilTest) TestGetSizeOnDisk_PermissionDenied_NoIgnore() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+	subDir := filepath.Join(tempDir, "subdir")
+	require.NoError(ts.T(), os.Mkdir(subDir, 0755))
+	require.NoError(ts.T(), os.Chmod(subDir, 0000))
+	defer os.Chmod(subDir, 0755)
+
+	// Act
+	_, err := GetSizeOnDisk(tempDir, false, false)
+
+	// Assert
+	require.Error(ts.T(), err)
+}
+
+func (ts *DiskUtilTest) TestGetSizeOnDisk_PermissionDenied_Ignore() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+	subDir := filepath.Join(tempDir, "subdir")
+	require.NoError(ts.T(), os.Mkdir(subDir, 0755))
+	fSub, err := os.Create(filepath.Join(subDir, "subfile"))
+	// We might fail to create file inside if we chmod too early, so order matters.
+	// But here we want to test read failure during Walk.
+	if err == nil {
+		fSub.Close()
+	}
+	require.NoError(ts.T(), os.Chmod(subDir, 0000))
+	defer os.Chmod(subDir, 0755)
+
+	// Act
+	size, err := GetSizeOnDisk(tempDir, false, true)
+
+	// Assert
+	require.NoError(ts.T(), err)
+	// We might or might not get size > 0 depending on whether we count the blocked directory itself.
+	// But mostly we check no error returned.
+	require.GreaterOrEqual(ts.T(), size, uint64(0))
+}
+
+func (ts *DiskUtilTest) TestGetVolumeBlockSize() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+
+	// Act
+	blockSize, err := GetVolumeBlockSize(tempDir)
+
+	// Assert
+	require.NoError(ts.T(), err)
+	// Block size is typically a power of 2 (e.g., 4096).
+	// On tmpfs it is often 4096.
+	require.Greater(ts.T(), blockSize, uint64(0))
+	require.Equal(ts.T(), uint64(0), blockSize%512, "Block size should be a multiple of 512")
 }

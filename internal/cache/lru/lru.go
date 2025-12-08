@@ -34,6 +34,10 @@ var (
 
 type SizeCalculator interface {
 	GetCurrentSize() uint64
+	AccountForEvictedEntry(evictedEntry ValueType)
+	AccountForInsertedEntry(insertedEntry ValueType)
+	AccountForReplacedEntry(replacedEntry, newEntry ValueType)
+	AddDeltaUsage(delta int64)
 }
 
 type defaultSizeCalculator struct {
@@ -43,6 +47,33 @@ type defaultSizeCalculator struct {
 
 func (dsc *defaultSizeCalculator) GetCurrentSize() uint64 {
 	return dsc.currentSize
+}
+
+func (dsc *defaultSizeCalculator) AccountForEvictedEntry(evictedEntry ValueType) {
+	dsc.currentSize -= evictedEntry.Size()
+}
+
+func (dsc *defaultSizeCalculator) AccountForInsertedEntry(insertedEntry ValueType) {
+	dsc.currentSize += insertedEntry.Size()
+}
+
+func (dsc *defaultSizeCalculator) AccountForReplacedEntry(replacedEntry, newEntry ValueType) {
+	dsc.currentSize -= replacedEntry.Size()
+	dsc.currentSize += newEntry.Size()
+}
+
+func (dsc *defaultSizeCalculator) AddDeltaUsage(delta int64) {
+	if delta < 0 {
+		negDelta := uint64(-delta)
+		if negDelta > dsc.currentSize {
+			dsc.currentSize = 0
+		} else {
+			dsc.currentSize = dsc.currentSize - negDelta
+		}
+	} else {
+		// assuming dsc.currentSize + delta <= UINT64_MAX
+		dsc.currentSize += uint64(delta)
+	}
 }
 
 // Cache is a LRU cache for any lru.ValueType indexed by string keys.
@@ -160,7 +191,7 @@ func (c *Cache) evictOne() ValueType {
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry).Value
-	//c.currentSize -= evictedEntry.Size()
+	c.sizeCalculator.AccountForEvictedEntry(evictedEntry)
 
 	c.entries.Remove(e)
 	delete(c.index, key)
@@ -193,15 +224,14 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		//c.currentSize -= e.Value.(entry).Value.Size()
-		//c.currentSize += valueSize
+		c.sizeCalculator.AccountForReplacedEntry(e.Value.(entry).Value, value)
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
-		//c.currentSize += valueSize
+		c.sizeCalculator.AccountForInsertedEntry(value)
 	}
 
 	var evictedValues []ValueType
@@ -224,7 +254,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry).Value
-	//c.currentSize -= deletedEntry.Size()
+	c.sizeCalculator.AccountForEvictedEntry(deletedEntry)
 
 	delete(c.index, key)
 	c.entries.Remove(e)
@@ -315,7 +345,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	// Update currentSize accounting
 	// Note: This may temporarily violate currentSize <= maxSize invariant
 	// Eviction will happen on the next Insert() call
-	c.currentSize += sizeDelta
+	c.sizeCalculator.AddDeltaUsage(int64(sizeDelta))
 
 	return nil
 }

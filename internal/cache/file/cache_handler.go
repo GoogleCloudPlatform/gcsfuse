@@ -63,6 +63,9 @@ type CacheHandler struct {
 
 	// isSparse indicates whether sparse file mode is enabled
 	isSparse bool
+
+	// volumeBlockSize stores the block size of the volume where cacheDir resides
+	volumeBlockSize uint64
 }
 
 func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool) *CacheHandler {
@@ -72,16 +75,23 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	compiledExcludeRegex = compileRegex(excludeRegex)
 	compiledIncludeRegex = compileRegex(includeRegex)
 
+	volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
+	if err != nil {
+		logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default 4096.", cacheDir, err)
+		volumeBlockSize = 4096
+	}
+
 	return &CacheHandler{
-		fileInfoCache: fileInfoCache,
-		jobManager:    jobManager,
-		cacheDir:      cacheDir,
-		filePerm:      filePerm,
-		dirPerm:       dirPerm,
-		mu:            locker.New("FileCacheHandler", func() {}),
-		excludeRegex:  compiledExcludeRegex,
-		includeRegex:  compiledIncludeRegex,
-		isSparse:      isSparse,
+		fileInfoCache:   fileInfoCache,
+		jobManager:      jobManager,
+		cacheDir:        cacheDir,
+		filePerm:        filePerm,
+		dirPerm:         dirPerm,
+		mu:              locker.New("FileCacheHandler", func() {}),
+		excludeRegex:    compiledExcludeRegex,
+		includeRegex:    compiledIncludeRegex,
+		isSparse:        isSparse,
+		volumeBlockSize: volumeBlockSize,
 	}
 }
 
@@ -200,7 +210,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			FileSize:         object.Size,
 			SparseMode:       chr.isSparse,
 			DownloadedRanges: nil,
-			SizeOnDisk:       baseutil.GetSpeculativeFileSizeOnDisk(object.Size),
+			SizeOnDisk:       baseutil.GetSpeculativeFileSizeOnDisk(object.Size, chr.volumeBlockSize),
 		}
 		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
 		// sparse mode, so Offset < requiredOffset checks always fail

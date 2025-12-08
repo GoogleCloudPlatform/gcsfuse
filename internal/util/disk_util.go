@@ -24,13 +24,8 @@ import (
 	"syscall"
 )
 
-// getDiskUsage extracts the allocated size from the system specific info
-func getDiskUsage(entry fs.DirEntry) int64 {
-	info, err := entry.Info()
-	if err != nil {
-		return 0
-	}
-
+// getDiskUsageFromInfo extracts the allocated size from the system specific info
+func getDiskUsageFromInfo(info fs.FileInfo) int64 {
 	// Retrieve the underlying system-specific stats
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
@@ -44,46 +39,107 @@ func getDiskUsage(entry fs.DirEntry) int64 {
 	return int64(stat.Blocks) * 512
 }
 
-func walkDir(dir string, wg *sync.WaitGroup, sem chan struct{}, totalSizeOnDisk *int64, onlyDir bool) {
-	defer wg.Done()
-	sem <- struct{}{}
-	defer func() { <-sem }()
-
-	entries, err := os.ReadDir(dir)
+// getDiskUsage extracts the allocated size from the system specific info
+func getDiskUsage(entry fs.DirEntry) int64 {
+	info, err := entry.Info()
 	if err != nil {
-		// Remember: Permission errors are common in DU, handle or log as needed
-		return
+		return 0
 	}
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			wg.Add(1)
-			go walkDir(filepath.Join(dir, entry.Name()), wg, sem, totalSizeOnDisk, onlyDir)
-
-			// Directories themselves also take up space on disk (metadata)
-			// We should count the directory's own block usage too.
-			atomic.AddInt64(totalSizeOnDisk, getDiskUsage(entry))
-		} else if !onlyDir {
-			atomic.AddInt64(totalSizeOnDisk, getDiskUsage(entry))
-		}
-	}
+	return getDiskUsageFromInfo(info)
 }
 
-func GetSizeOnDisk(dirPath string, onlyDirs bool) (uint64, error) {
+func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, error) {
 	var sizeOnDisk int64
 	var sem = make(chan struct{}, 32)
 	var wg sync.WaitGroup
+	var errMu sync.Mutex
+
+	// firstErr captures the first error encountered during the concurrent walk.
+	// It is only used/populated when ignoreErrors is false.
+	var firstErr error
+
+	// Add the size of the root directory itself
+	info, err := os.Stat(dirPath)
+	if err != nil {
+		if !ignoreErrors {
+			return 0, fmt.Errorf("failed to stat root dir %q: %w", dirPath, err)
+		}
+	} else {
+		sizeOnDisk = getDiskUsageFromInfo(info)
+	}
+
+	var walkDir func(dir string)
+	walkDir = func(dir string) {
+		defer wg.Done()
+		sem <- struct{}{}
+		defer func() { <-sem }()
+
+		if !ignoreErrors {
+			errMu.Lock()
+			if firstErr != nil {
+				errMu.Unlock()
+				return
+			}
+			errMu.Unlock()
+		}
+
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if !ignoreErrors {
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("failed to read dir %q: %w", dir, err)
+				}
+				errMu.Unlock()
+			}
+			return
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				wg.Add(1)
+				go walkDir(filepath.Join(dir, entry.Name()))
+
+				// Directories themselves also take up space on disk (metadata)
+				// We should count the directory's own block usage too.
+				atomic.AddInt64(&sizeOnDisk, getDiskUsage(entry))
+			} else if !onlyDirs {
+				atomic.AddInt64(&sizeOnDisk, getDiskUsage(entry))
+			}
+		}
+	}
+
 	wg.Add(1)
-	walkDir(dirPath, &wg, sem, &sizeOnDisk, onlyDirs)
+	walkDir(dirPath)
 	wg.Wait()
+
+	if firstErr != nil {
+		return 0, firstErr
+	}
+
 	if sizeOnDisk < 0 {
 		return 0, fmt.Errorf("Something failed while calculating disk utilization of %q", dirPath)
 	}
-	return (uint64)(sizeOnDisk), nil
+	return uint64(sizeOnDisk), nil
 }
 
-func GetSpeculativeFileSizeOnDisk(fileSize uint64) uint64 {
-	blockSize := uint64(4096)
-	numBlocks := (fileSize + blockSize - 1) / blockSize
-	return numBlocks * blockSize
+func GetSpeculativeFileSizeOnDisk(fileContentSize uint64, volumeBlockSize uint64) uint64 {
+	if volumeBlockSize == 0 {
+		return 0
+	}
+	numBlocks := (fileContentSize + volumeBlockSize - 1) / volumeBlockSize
+	return numBlocks * volumeBlockSize
+}
+
+// GetVolumeBlockSize retrieves the block size of the file system containing the given path.
+// It returns the block size in bytes (e.g., 4096).
+func GetVolumeBlockSize(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return 0, fmt.Errorf("failed to get stats for path %q: %w", path, err)
+	}
+	// Bsize is int64 on some platforms (like Linux/amd64) and uint32 on others (like Linux/arm).
+	// Casting to uint64 ensures consistency.
+	return uint64(stat.Bsize), nil
 }
