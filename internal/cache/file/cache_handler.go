@@ -215,7 +215,6 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			FileSize:         object.Size,
 			SparseMode:       chr.isSparse,
 			DownloadedRanges: nil,
-			SizeOnDisk:       baseutil.GetSpeculativeFileSizeOnDisk(object.Size, chr.volumeBlockSize),
 		}
 		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
 		// sparse mode, so Offset < requiredOffset checks always fail

@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
@@ -39,6 +40,8 @@ type FileCacheDiskUtilizationCalculator struct {
 	frequency time.Duration
 	// includeFiles determines if the disk scan includes files (true) or just directories (false).
 	includeFiles bool
+	// volumeBlockSize stores the block size of the volume.
+	volumeBlockSize uint64
 
 	// stopCh is used to signal the background goroutine to stop.
 	stopCh chan struct{}
@@ -48,15 +51,16 @@ type FileCacheDiskUtilizationCalculator struct {
 
 // NewFileCacheDiskUtilizationCalculator creates a new calculator and starts the
 // background directory size calculation.
-func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool) *FileCacheDiskUtilizationCalculator {
+func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
 	if frequency <= 0 {
 		frequency = defaultFileCacheDiskSizeScanFrequency
 	}
 	c := &FileCacheDiskUtilizationCalculator{
-		cacheDir:     cacheDir,
-		frequency:    frequency,
-		includeFiles: includeFiles,
-		stopCh:       make(chan struct{}),
+		cacheDir:        cacheDir,
+		frequency:       frequency,
+		includeFiles:    includeFiles,
+		volumeBlockSize: volumeBlockSize,
+		stopCh:          make(chan struct{}),
 	}
 	c.wg.Add(1)
 	go c.monitorScannedSize()
@@ -114,20 +118,24 @@ func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 	return total
 }
 
+func (c *FileCacheDiskUtilizationCalculator) SizeOf(entry lru.ValueType) uint64 {
+	if fi, ok := entry.(data.FileInfo); ok {
+		return baseutil.GetSpeculativeFileSizeOnDisk(fi.FileSize, c.volumeBlockSize)
+	}
+	return entry.Size()
+}
+
 func (c *FileCacheDiskUtilizationCalculator) EvictEntry(evictedEntry lru.ValueType) {
-	c.filesSize.Add(-evictedEntry.Size())
-	//logger.Debugf("file-cache's filesSize reduced to %v", c.filesSize.Load())
+	c.filesSize.Add(-c.SizeOf(evictedEntry))
 }
 
 func (c *FileCacheDiskUtilizationCalculator) InsertEntry(insertedEntry lru.ValueType) {
-	c.filesSize.Add(insertedEntry.Size())
-	//logger.Debugf("file-cache's filesSize increased to %v", c.filesSize.Load())
+	c.filesSize.Add(c.SizeOf(insertedEntry))
 }
 
 func (c *FileCacheDiskUtilizationCalculator) ReplaceEntry(replacedEntry, newEntry lru.ValueType) {
-	c.filesSize.Add(-replacedEntry.Size())
-	c.filesSize.Add(newEntry.Size())
-	//logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
+	c.filesSize.Add(-c.SizeOf(replacedEntry))
+	c.filesSize.Add(c.SizeOf(newEntry))
 }
 
 func (c *FileCacheDiskUtilizationCalculator) AddDelta(delta int64) {

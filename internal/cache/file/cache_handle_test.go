@@ -78,7 +78,6 @@ func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
 		ObjectGeneration: cht.object.Generation,
 		FileSize:         cht.object.Size,
 		Offset:           0,
-		SizeOnDisk:       cht.object.Size,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
@@ -369,7 +368,6 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoPresent() 
 		ObjectGeneration: cht.object.Generation,
 		FileSize:         cht.object.Size,
 		Offset:           cht.object.Size,
-		SizeOnDisk:       cht.object.Size,
 	}
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -405,7 +403,6 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGeneration
 		ObjectGeneration: cht.object.Generation + 1,
 		FileSize:         cht.object.Size,
 		Offset:           cht.object.Size,
-		SizeOnDisk:       cht.object.Size,
 	}
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -427,7 +424,6 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLess
 		ObjectGeneration: cht.object.Generation,
 		FileSize:         cht.object.Size,
 		Offset:           10, // Insert offset less than required
-		SizeOnDisk:       cht.object.Size,
 	}
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -454,7 +450,6 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 		ObjectGeneration: 1,                              // Adding random generation.
 		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
 		Offset:           1,                              // Insert offset less than required
-		SizeOnDisk:       CacheMaxSize - cht.object.Size,
 	}
 	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -477,7 +472,6 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 		ObjectGeneration: 1,
 		FileSize:         1,
 		Offset:           1,
-		SizeOnDisk:       1,
 	}
 	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -501,7 +495,6 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 		ObjectGeneration: 1,                              // Adding random generation.
 		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
 		Offset:           1,                              // Insert offset less than required
-		SizeOnDisk:       CacheMaxSize - cht.object.Size,
 	}
 	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -523,7 +516,6 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 		ObjectGeneration: 1,
 		FileSize:         1,
 		Offset:           1,
-		SizeOnDisk:       1,
 	}
 	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -682,7 +674,6 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 		ObjectGeneration: 1,                              // Adding random generation.
 		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
 		Offset:           1,                              // Insert offset less than required
-		SizeOnDisk:       CacheMaxSize - cht.object.Size,
 	}
 	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -714,7 +705,6 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 		ObjectGeneration: 1,
 		FileSize:         1,
 		Offset:           1,
-		SizeOnDisk:       1,
 	}
 	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)

@@ -142,7 +142,6 @@ func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.Min
 		ObjectGeneration: object.Generation,
 		FileSize:         object.Size,
 		Offset:           0,
-		SizeOnDisk:       object.Size,
 	}
 
 	fileInfoKeyName, err := fileInfoKey.Key()
