@@ -66,9 +66,12 @@ type CacheHandler struct {
 
 	// volumeBlockSize stores the block size of the volume where cacheDir resides
 	volumeBlockSize uint64
+
+	// diskSizeCalculator calculates the disk utilization of the cache directory
+	diskSizeCalculator *FileCacheDiskUtilizationCalculator
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, diskSizeCalculator *FileCacheDiskUtilizationCalculator) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
@@ -82,16 +85,17 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	}
 
 	return &CacheHandler{
-		fileInfoCache:   fileInfoCache,
-		jobManager:      jobManager,
-		cacheDir:        cacheDir,
-		filePerm:        filePerm,
-		dirPerm:         dirPerm,
-		mu:              locker.New("FileCacheHandler", func() {}),
-		excludeRegex:    compiledExcludeRegex,
-		includeRegex:    compiledIncludeRegex,
-		isSparse:        isSparse,
-		volumeBlockSize: volumeBlockSize,
+		fileInfoCache:      fileInfoCache,
+		jobManager:         jobManager,
+		cacheDir:           cacheDir,
+		filePerm:           filePerm,
+		dirPerm:            dirPerm,
+		mu:                 locker.New("FileCacheHandler", func() {}),
+		excludeRegex:       compiledExcludeRegex,
+		includeRegex:       compiledIncludeRegex,
+		isSparse:           isSparse,
+		volumeBlockSize:    volumeBlockSize,
+		diskSizeCalculator: diskSizeCalculator,
 	}
 }
 
@@ -333,6 +337,9 @@ func (chr *CacheHandler) Destroy() (err error) {
 	defer chr.mu.Unlock()
 
 	chr.jobManager.Destroy()
+	if chr.diskSizeCalculator != nil {
+		chr.diskSizeCalculator.Stop()
+	}
 	return
 }
 
