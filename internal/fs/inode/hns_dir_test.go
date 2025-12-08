@@ -632,7 +632,7 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 		Prefix:                   dirInodeName,
 		Delimiter:                "/",
 		IncludeFoldersAsPrefixes: true,
-		IncludeTrailingDelimiter: true,
+		IncludeTrailingDelimiter: false,
 		MaxResults:               5000,
 		ProjectionVal:            gcs.NoAcl,
 	}
