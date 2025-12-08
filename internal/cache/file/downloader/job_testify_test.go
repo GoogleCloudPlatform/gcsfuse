@@ -75,6 +75,7 @@ func (t *JobTestifyTest) initReadCacheTestifyTest(objectName string, objectConte
 		ObjectGeneration: t.object.Generation,
 		FileSize:         t.object.Size,
 		Offset:           0,
+		SizeOnDisk:       t.object.Size,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Equal(t.T(), nil, err)
