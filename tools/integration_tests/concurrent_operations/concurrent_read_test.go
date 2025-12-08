@@ -55,7 +55,7 @@ func (s *concurrentReadTest) SetupTest() {
 
 func (s *concurrentReadTest) TearDownTest() {
 	setup.UnmountGCSFuse(setup.MntDir())
-	operations.RemoveDir(cacheDirPath)
+	setup.CleanUpDir(cacheDirPath)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -273,7 +273,11 @@ func TestConcurrentRead(t *testing.T) {
 		return
 	}
 
-	cacheDirPath = fmt.Sprintf("/tmp/gcsfuse-file-cache-concurrent-read-%s", setup.GenerateRandomString(5))
+	var err error
+	cacheDirPath, err = os.MkdirTemp("", fmt.Sprintf("gcsfuse-file-cache-concurrent-read-%s", setup.GenerateRandomString(5)))
+	require.NoError(t, err)
+	defer operations.RemoveDir(cacheDirPath)
+
 	cacheDirFlag := fmt.Sprintf("--cache-dir=%s", cacheDirPath)
 	// Define flag sets specific for concurrent read tests
 	flagsSet := [][]string{
