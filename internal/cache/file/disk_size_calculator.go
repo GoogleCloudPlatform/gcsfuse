@@ -82,18 +82,18 @@ func (c *FileCacheDiskUtilizationCalculator) monitorScannedSize() {
 }
 
 func (c *FileCacheDiskUtilizationCalculator) updateScannedSize() {
-	//start := time.Now()
+	start := time.Now()
 	// Recalculate size: if includeFiles is true, we scan everything (onlyDirs=false).
 	// If includeFiles is false, we scan only directories (onlyDirs=true).
 	s, err := baseutil.GetSizeOnDisk(c.cacheDir, !c.includeFiles, true)
-	//duration := time.Since(start)
+	duration := time.Since(start)
 
 	if err != nil {
 		logger.Warnf("Failed to calculate disk usage for %q: %v", c.cacheDir, err)
 		return
 	}
 	c.scannedSize.Store(s)
-	//logger.Debugf("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v)", c.cacheDir, s, duration, c.includeFiles)
+	logger.Debugf("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v)", c.cacheDir, s, duration, c.includeFiles)
 }
 
 func (c *FileCacheDiskUtilizationCalculator) Stop() {
@@ -104,13 +104,13 @@ func (c *FileCacheDiskUtilizationCalculator) Stop() {
 func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 	if c.includeFiles {
 		total := c.scannedSize.Load()
-		//logger.Debugf("Returning GetCurrentSize for file-cache: %v", total)
+		logger.Debugf("Returning GetCurrentSize for file-cache: %v", total)
 		return total
 	}
 	filesDiskUtilization := c.filesSize.Load()
 	dirsDiskUtilization := c.scannedSize.Load()
 	total := filesDiskUtilization + dirsDiskUtilization
-	//logger.Debugf("Returning GetCurrentSize for file-cache: files = %v, dirs = %v, total = %v", filesDiskUtilization, dirsDiskUtilization, total)
+	logger.Debugf("Returning GetCurrentSize for file-cache: files = %v, dirs = %v, total = %v", filesDiskUtilization, dirsDiskUtilization, total)
 	return total
 }
 
