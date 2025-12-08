@@ -39,6 +39,7 @@ type SizeCalculator interface {
 	InsertEntry(insertedEntry ValueType)
 	ReplaceEntry(replacedEntry, newEntry ValueType)
 	AddDelta(delta int64)
+	SizeOf(entry ValueType) uint64
 }
 
 type defaultSizeCalculator struct {
@@ -48,6 +49,10 @@ type defaultSizeCalculator struct {
 
 func (dsc *defaultSizeCalculator) GetCurrentSize() uint64 {
 	return dsc.currentSize
+}
+
+func (dsc *defaultSizeCalculator) SizeOf(entry ValueType) uint64 {
+	return entry.Size()
 }
 
 func (dsc *defaultSizeCalculator) EvictEntry(evictedEntry ValueType) {
@@ -214,7 +219,7 @@ func (c *Cache) Insert(
 		return nil, ErrInvalidEntry
 	}
 
-	valueSize := value.Size()
+	valueSize := c.sizeCalculator.SizeOf(value)
 	if valueSize > c.maxSize {
 		logger.Warnf("Cache insertion aborted: entry size %d is greater than max size %d for key %s", valueSize, c.maxSize, key)
 		return nil, ErrInvalidEntrySize
@@ -323,7 +328,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 		return ErrEntryNotExist
 	}
 
-	if value.Size() != e.Value.(entry).Value.Size() {
+	if c.sizeCalculator.SizeOf(value) != c.sizeCalculator.SizeOf(e.Value.(entry).Value) {
 		return ErrInvalidUpdateEntrySize
 	}
 
