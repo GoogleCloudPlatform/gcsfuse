@@ -68,7 +68,7 @@ func isValidParallelDownloadConfig(config *Config) error {
 	return nil
 }
 
-func isValidFileCacheConfig(config *FileCacheConfig) error {
+func isValidFileCacheConfig(v isSet, config *FileCacheConfig) error {
 	if config.MaxSizeMb < -1 {
 		return errors.New(FileCacheMaxSizeMBInvalidValueError)
 	}
@@ -87,6 +87,19 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 
 	if _, err := regexp.Compile(config.IncludeRegex); err != nil {
 		return fmt.Errorf("invalid regex value %q provided for include-regex", config.IncludeRegex)
+	}
+
+	if config.SizeScanEnable {
+		if config.SizeScanFrequencySeconds <= 0 {
+			return errors.New("the value of file-cache-size-scan-frequency-seconds must be greater than 0 when size scan is enabled")
+		}
+	} else {
+		if config.SizeScanFiles {
+			return errors.New("file-cache-size-scan-files must be false when file-cache-size-scan-enable is false")
+		}
+		if v.IsSet("file-cache.size-scan-frequency-seconds") && config.SizeScanFrequencySeconds != 0 {
+			return errors.New("file-cache-size-scan-frequency-seconds must be 0 when file-cache-size-scan-enable is false")
+		}
 	}
 
 	return nil
@@ -283,7 +296,7 @@ func ValidateConfig(v isSet, config *Config) error {
 		return fmt.Errorf("error parsing custom-endpoint config: %w", err)
 	}
 
-	if err = isValidFileCacheConfig(&config.FileCache); err != nil {
+	if err = isValidFileCacheConfig(v, &config.FileCache); err != nil {
 		return fmt.Errorf("error parsing file cache config: %w", err)
 	}
 
