@@ -172,6 +172,9 @@ func UpdateDefaultLogger(format, fsName string) {
 	defaultLoggerFactory.format = format
 	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName)
 }
+func TraceEnabled() bool {
+	return LevelTrace >= programLevel.Level()
+}
 
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...any) {
