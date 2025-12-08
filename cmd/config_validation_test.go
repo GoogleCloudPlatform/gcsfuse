@@ -63,6 +63,9 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 		ParallelDownloadsPerFile:               16,
 		WriteBufferSize:                        4 * 1024 * 1024,
 		EnableODirect:                          false,
+		SizeScanEnable:                         false,
+		SizeScanFiles:                          false,
+		SizeScanFrequencySeconds:               cfg.DefaultFileCacheSizeScanFrequencySeconds,
 	}
 }
 
@@ -435,6 +438,9 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 					WriteBufferSize:                        8192,
 					EnableODirect:                          true,
 					ExperimentalParallelDownloadsDefaultOn: true,
+					SizeScanEnable:                         false,
+					SizeScanFiles:                          false,
+					SizeScanFrequencySeconds:               cfg.DefaultFileCacheSizeScanFrequencySeconds,
 				},
 			},
 		},
