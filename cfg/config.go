@@ -445,6 +445,10 @@ type FileCacheConfig struct {
 
 	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file"`
 
+	SizeScanFiles bool `yaml:"size-scan-files"`
+
+	SizeScanFrequencySeconds int64 `yaml:"size-scan-frequency-seconds"`
+
 	WriteBufferSize int64 `yaml:"write-buffer-size"`
 }
 
@@ -946,6 +950,10 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("file-cache-parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
 
+	flagSet.BoolP("file-cache-size-scan-files", "", false, "Whether or not to scan files' disk sizes also during periodic disk-size scan of file-cache cache-dir.")
+
+	flagSet.IntP("file-cache-size-scan-frequency-seconds", "", 10, "The duration in seconds after the size of the file-cache cache-dir is calculated again.")
+
 	flagSet.IntP("file-cache-write-buffer-size", "", 4194304, "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache.")
 
 	if err := flagSet.MarkHidden("file-cache-write-buffer-size"); err != nil {
@@ -1440,6 +1448,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("file-cache-parallel-downloads-per-file")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.size-scan-files", flagSet.Lookup("file-cache-size-scan-files")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.size-scan-frequency-seconds", flagSet.Lookup("file-cache-size-scan-frequency-seconds")); err != nil {
 		return err
 	}
 
