@@ -272,9 +272,20 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 		return err
 	}
 
+	var sizeOnDisk uint64
+	existingEntry := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+	if existingEntry != nil {
+		if info, ok := existingEntry.(data.FileInfo); ok {
+			sizeOnDisk = info.SizeOnDisk
+		}
+	}
+	// If existingEntry is nil, UpdateWithoutChangingOrder will fail with ErrEntryNotExist,
+	// so the 0 value for sizeOnDisk won't cause any issue (like incorrect size update).
+
 	updatedFileInfo := data.FileInfo{
 		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
 		FileSize: job.object.Size, Offset: uint64(downloadedOffset),
+		SizeOnDisk: sizeOnDisk,
 	}
 
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
