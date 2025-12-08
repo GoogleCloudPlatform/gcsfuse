@@ -27,12 +27,14 @@ import (
 type FileCacheDiskUtilizationCalculator struct {
 	// filesSize tracks the size of files in the cache.
 	filesSize atomic.Uint64
-	// dirsSize tracks the size of directories in the cache.
-	dirsSize atomic.Uint64
+	// scannedSize tracks the size calculated from disk scan (directories or full).
+	scannedSize atomic.Uint64
 	// cacheDir is the directory path of the cache.
 	cacheDir string
-	// frequency is the duration after which dirsSize is recalculated.
+	// frequency is the duration after which scannedSize is recalculated.
 	frequency time.Duration
+	// includeFiles determines if the disk scan includes files (true) or just directories (false).
+	includeFiles bool
 
 	// stopCh is used to signal the background goroutine to stop.
 	stopCh chan struct{}
@@ -42,43 +44,49 @@ type FileCacheDiskUtilizationCalculator struct {
 
 // NewFileCacheDiskUtilizationCalculator creates a new calculator and starts the
 // background directory size calculation.
-func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration) *FileCacheDiskUtilizationCalculator {
+func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool) *FileCacheDiskUtilizationCalculator {
 	c := &FileCacheDiskUtilizationCalculator{
-		cacheDir:  cacheDir,
-		frequency: frequency,
-		stopCh:    make(chan struct{}),
+		cacheDir:     cacheDir,
+		frequency:    frequency,
+		includeFiles: includeFiles,
+		stopCh:       make(chan struct{}),
 	}
 	c.wg.Add(1)
-	go c.monitorDirSize()
+	go c.monitorScannedSize()
 	return c
 }
 
-func (c *FileCacheDiskUtilizationCalculator) monitorDirSize() {
+func (c *FileCacheDiskUtilizationCalculator) monitorScannedSize() {
 	defer c.wg.Done()
 	ticker := time.NewTicker(c.frequency)
 	defer ticker.Stop()
 
 	// Initial calculation
-	c.updateDirSize()
+	c.updateScannedSize()
 
 	for {
 		select {
 		case <-ticker.C:
-			c.updateDirSize()
+			c.updateScannedSize()
 		case <-c.stopCh:
 			return
 		}
 	}
 }
 
-func (c *FileCacheDiskUtilizationCalculator) updateDirSize() {
-	// Recalculate directories size: onlyDirs=true, ignoreErrors=true
-	s, err := baseutil.GetSizeOnDisk(c.cacheDir, true, true)
+func (c *FileCacheDiskUtilizationCalculator) updateScannedSize() {
+	start := time.Now()
+	// Recalculate size: if includeFiles is true, we scan everything (onlyDirs=false).
+	// If includeFiles is false, we scan only directories (onlyDirs=true).
+	s, err := baseutil.GetSizeOnDisk(c.cacheDir, !c.includeFiles, true)
+	duration := time.Since(start)
+
 	if err != nil {
-		logger.Warnf("Failed to calculate directory size for %q: %v", c.cacheDir, err)
+		logger.Warnf("Failed to calculate disk usage for %q: %v", c.cacheDir, err)
 		return
 	}
-	c.dirsSize.Store(s)
+	c.scannedSize.Store(s)
+	logger.Infof("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v)", c.cacheDir, s, duration, c.includeFiles)
 }
 
 func (c *FileCacheDiskUtilizationCalculator) Stop() {
@@ -87,7 +95,10 @@ func (c *FileCacheDiskUtilizationCalculator) Stop() {
 }
 
 func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
-	return c.filesSize.Load() + c.dirsSize.Load()
+	if c.includeFiles {
+		return c.scannedSize.Load()
+	}
+	return c.filesSize.Load() + c.scannedSize.Load()
 }
 
 func (c *FileCacheDiskUtilizationCalculator) AccountForEvictedEntry(evictedEntry lru.ValueType) {
