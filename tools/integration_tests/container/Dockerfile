@@ -49,14 +49,14 @@ WORKDIR /workspace
 # Copy the repository
 COPY . .
 
-# Patch the improved_run_e2e_tests.sh to disable the CALL to install_packages in main()
+# Patch the internal_run_e2e_tests.sh to disable the CALL to install_packages in main()
 # We found that `install_packages` is called at line 669 inside `main()`.
 # We will use sed to comment out the line that matches exactly "  install_packages" (with two spaces indentation)
 # or just "install_packages" if it's the only content of the line.
 # A safe way is to replace the line containing the function call within the main block.
 # Since we know the file content, we can target the call in the main function.
 # The call is inside main(), preceded by `set -e`.
-RUN sed -i 's/^\s*install_packages$/# install_packages/g' tools/integration_tests/improved_run_e2e_tests.sh
+RUN sed -i 's/^\s*install_packages$/# install_packages/g' tools/integration_tests/internal_run_e2e_tests.sh
 
 # Entrypoint
-ENTRYPOINT ["tools/integration_tests/improved_run_e2e_tests.sh"]
+ENTRYPOINT ["tools/integration_tests/internal_run_e2e_tests.sh"]
