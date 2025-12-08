@@ -82,18 +82,18 @@ func (c *FileCacheDiskUtilizationCalculator) monitorScannedSize() {
 }
 
 func (c *FileCacheDiskUtilizationCalculator) updateScannedSize() {
-	start := time.Now()
+	//start := time.Now()
 	// Recalculate size: if includeFiles is true, we scan everything (onlyDirs=false).
 	// If includeFiles is false, we scan only directories (onlyDirs=true).
 	s, err := baseutil.GetSizeOnDisk(c.cacheDir, !c.includeFiles, true)
-	duration := time.Since(start)
+	//duration := time.Since(start)
 
 	if err != nil {
 		logger.Warnf("Failed to calculate disk usage for %q: %v", c.cacheDir, err)
 		return
 	}
 	c.scannedSize.Store(s)
-	logger.Debugf("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v)", c.cacheDir, s, duration, c.includeFiles)
+	//logger.Debugf("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v)", c.cacheDir, s, duration, c.includeFiles)
 }
 
 func (c *FileCacheDiskUtilizationCalculator) Stop() {
@@ -104,34 +104,34 @@ func (c *FileCacheDiskUtilizationCalculator) Stop() {
 func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 	if c.includeFiles {
 		total := c.scannedSize.Load()
-		logger.Debugf("Returning GetCurrentSize for file-cache: %v", total)
+		//logger.Debugf("Returning GetCurrentSize for file-cache: %v", total)
 		return total
 	}
 	filesDiskUtilization := c.filesSize.Load()
 	dirsDiskUtilization := c.scannedSize.Load()
 	total := filesDiskUtilization + dirsDiskUtilization
-	logger.Debugf("Returning GetCurrentSize for file-cache: files = %v, dirs = %v, total = %v", filesDiskUtilization, dirsDiskUtilization, total)
+	//logger.Debugf("Returning GetCurrentSize for file-cache: files = %v, dirs = %v, total = %v", filesDiskUtilization, dirsDiskUtilization, total)
 	return total
 }
 
 func (c *FileCacheDiskUtilizationCalculator) AccountForEvictedEntry(evictedEntry lru.ValueType) {
 	c.filesSize.Add(-evictedEntry.Size())
-	logger.Debugf("file-cache's filesSize reduced to %v", c.filesSize.Load())
+	//logger.Debugf("file-cache's filesSize reduced to %v", c.filesSize.Load())
 }
 
 func (c *FileCacheDiskUtilizationCalculator) AccountForInsertedEntry(insertedEntry lru.ValueType) {
 	c.filesSize.Add(insertedEntry.Size())
-	logger.Debugf("file-cache's filesSize increased to %v", c.filesSize.Load())
+	//logger.Debugf("file-cache's filesSize increased to %v", c.filesSize.Load())
 }
 
 func (c *FileCacheDiskUtilizationCalculator) AccountForReplacedEntry(replacedEntry, newEntry lru.ValueType) {
 	c.filesSize.Add(-replacedEntry.Size())
 	c.filesSize.Add(newEntry.Size())
-	logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
+	//logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
 }
 
 func (c *FileCacheDiskUtilizationCalculator) AddDeltaUsage(delta int64) {
 	// Casting int64 to uint64 correctly handles negative values as 2's complement
 	c.filesSize.Add(uint64(delta))
-	logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
+	//logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
 }
