@@ -114,23 +114,23 @@ func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 	return total
 }
 
-func (c *FileCacheDiskUtilizationCalculator) AccountForEvictedEntry(evictedEntry lru.ValueType) {
+func (c *FileCacheDiskUtilizationCalculator) EvictEntry(evictedEntry lru.ValueType) {
 	c.filesSize.Add(-evictedEntry.Size())
 	//logger.Debugf("file-cache's filesSize reduced to %v", c.filesSize.Load())
 }
 
-func (c *FileCacheDiskUtilizationCalculator) AccountForInsertedEntry(insertedEntry lru.ValueType) {
+func (c *FileCacheDiskUtilizationCalculator) InsertEntry(insertedEntry lru.ValueType) {
 	c.filesSize.Add(insertedEntry.Size())
 	//logger.Debugf("file-cache's filesSize increased to %v", c.filesSize.Load())
 }
 
-func (c *FileCacheDiskUtilizationCalculator) AccountForReplacedEntry(replacedEntry, newEntry lru.ValueType) {
+func (c *FileCacheDiskUtilizationCalculator) ReplaceEntry(replacedEntry, newEntry lru.ValueType) {
 	c.filesSize.Add(-replacedEntry.Size())
 	c.filesSize.Add(newEntry.Size())
 	//logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
 }
 
-func (c *FileCacheDiskUtilizationCalculator) AddDeltaUsage(delta int64) {
+func (c *FileCacheDiskUtilizationCalculator) AddDelta(delta int64) {
 	// Casting int64 to uint64 correctly handles negative values as 2's complement
 	c.filesSize.Add(uint64(delta))
 	//logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
