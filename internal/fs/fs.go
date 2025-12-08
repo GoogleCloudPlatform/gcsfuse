@@ -272,8 +272,15 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
 	}
 
-	diskSizeCalculator := file.NewFileCacheDiskUtilizationCalculator(cacheDir, time.Duration(serverCfg.NewConfig.FileCache.SizeScanFrequencySeconds)*time.Second, serverCfg.NewConfig.FileCache.SizeScanFiles)
-	fileInfoCache := lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator)
+	var diskSizeCalculator *file.FileCacheDiskUtilizationCalculator
+	var fileInfoCache *lru.Cache
+
+	if serverCfg.NewConfig.FileCache.SizeScanEnable {
+		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(cacheDir, time.Duration(serverCfg.NewConfig.FileCache.SizeScanFrequencySeconds)*time.Second, serverCfg.NewConfig.FileCache.SizeScanFiles)
+		fileInfoCache = lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator)
+	} else {
+		fileInfoCache = lru.NewCache(sizeInBytes)
+	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache, diskSizeCalculator)
