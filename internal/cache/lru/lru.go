@@ -37,7 +37,6 @@ type SizeCalculator interface {
 	GetCurrentSize() uint64
 	EvictEntry(evictedEntry ValueType)
 	InsertEntry(insertedEntry ValueType)
-	ReplaceEntry(replacedEntry, newEntry ValueType)
 	AddDelta(delta int64)
 	SizeOf(entry ValueType) uint64
 }
@@ -232,7 +231,8 @@ func (c *Cache) Insert(
 	if ok {
 		// Update an entry if already exist.
 		//logger.Debugf("Updating cache entry: key %s, size %d", key, valueSize)
-		c.sizeCalculator.ReplaceEntry(e.Value.(entry).Value, value)
+		c.sizeCalculator.AddDelta(-int64(c.sizeCalculator.SizeOf(e.Value.(entry).Value)))
+		c.sizeCalculator.AddDelta(int64(valueSize))
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
@@ -240,7 +240,7 @@ func (c *Cache) Insert(
 		//logger.Debugf("Inserting new cache entry: key %s, size %d", key, valueSize)
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
-		c.sizeCalculator.InsertEntry(value)
+		c.sizeCalculator.AddDelta(int64(valueSize))
 	}
 
 	var evictedValues []ValueType
