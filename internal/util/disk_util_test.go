@@ -229,3 +229,57 @@ func (ts *DiskUtilTest) TestRemoveEmptyDirs() {
 	_, err = os.Stat(filepath.Join(nestedNonEmptyDir, "level2"))
 	require.NoError(ts.T(), err)
 }
+
+func (ts *DiskUtilTest) TestPrettyPrintOf() {
+	testcases := []struct {
+		name     string
+		input    uint64
+		expected string
+	}{
+		{
+			name:     "zero",
+			input:    0,
+			expected: "0",
+		},
+		{
+			name:     "one_digit",
+			input:    9,
+			expected: "9",
+		},
+		{
+			name:     "three_digits",
+			input:    123,
+			expected: "123",
+		},
+		{
+			name:     "four_digits",
+			input:    1234,
+			expected: "1,234",
+		},
+		{
+			name:     "five_digits",
+			input:    12345,
+			expected: "12,345",
+		},
+		{
+			name:     "six_digits",
+			input:    123456,
+			expected: "123,456",
+		},
+		{
+			name:     "seven_digits",
+			input:    1234567,
+			expected: "1,234,567",
+		},
+		{
+			name:     "max_uint64",
+			input:    18446744073709551615,
+			expected: "18,446,744,073,709,551,615",
+		},
+	}
+	for _, tc := range testcases {
+		ts.T().Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, PrettyPrintOf(tc.input))
+		})
+	}
+}

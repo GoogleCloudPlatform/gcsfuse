@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -51,7 +52,8 @@ func getDiskUsage(entry fs.DirEntry) int64 {
 
 func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, error) {
 	var sizeOnDisk int64
-	var sem = make(chan struct{}, 32)
+	semSize := (runtime.NumCPU() + 4) / 5
+	var sem = make(chan struct{}, semSize)
 	var wg sync.WaitGroup
 	var errMu sync.Mutex
 
@@ -158,4 +160,21 @@ func RemoveEmptyDirs(dir string) {
 			_ = os.Remove(fullPath)
 		}
 	}
+}
+
+// PrettyPrintOf takes a uint64 number and returns a command-separated number string.
+// e.g. input 12345678 and output "12,345,678"
+func PrettyPrintOf(n uint64) string {
+	s := fmt.Sprintf("%d", n)
+	if len(s) <= 3 {
+		return s
+	}
+	var result []byte
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result = append(result, ',')
+		}
+		result = append(result, byte(c))
+	}
+	return string(result)
 }
