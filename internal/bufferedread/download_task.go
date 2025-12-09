@@ -98,9 +98,13 @@ func (p *downloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	n, err = io.CopyN(p.block, newReader, int64(end-start))
+	n, err = io.Copy(p.block, newReader)
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
+		return
+	}
+	if n != int64(end-start) {
+		err = fmt.Errorf("DownloadTask.Execute: downloaded %d bytes, expected %d", n, int64(end-start))
 		return
 	}
 }

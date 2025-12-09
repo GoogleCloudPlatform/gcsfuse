@@ -15,6 +15,7 @@
 package block
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"sync"
@@ -368,4 +369,104 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockDecRefPanics() 
 	assert.PanicsWithValue(testSuite.T(), "DecRef called more times than IncRef, resulting in a negative refCount.", func() {
 		pmb.DecRef()
 	})
+}
+
+// errorReader is a reader that returns an error.
+type errorReader struct {
+	err error
+}
+
+func (r *errorReader) Read(p []byte) (n int, err error) {
+	return 0, r.err
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestReadFrom() {
+	t := testSuite.T()
+	tests := []struct {
+		name          string
+		blockSize     int64
+		initialData   []byte
+		readerData    []byte
+		reader        io.Reader
+		expectedN     int64
+		expectedData  []byte
+		expectedError error
+	}{
+		{
+			name:         "Reader has less data than buffer capacity",
+			blockSize:    10,
+			readerData:   []byte("hello"),
+			expectedN:    5,
+			expectedData: []byte("hello"),
+		},
+		{
+			name:         "Reader has more data than buffer capacity",
+			blockSize:    5,
+			readerData:   []byte("helloworld"),
+			expectedN:    5,
+			expectedData: []byte("hello"),
+		},
+		{
+			name:         "Reader is empty",
+			blockSize:    10,
+			readerData:   []byte{},
+			expectedN:    0,
+			expectedData: []byte{},
+		},
+		{
+			name:          "Reader returns an error",
+			blockSize:     10,
+			reader:        &errorReader{err: assert.AnError},
+			expectedN:     0,
+			expectedData:  []byte{},
+			expectedError: assert.AnError,
+		},
+		{
+			name:         "Buffer is already full",
+			blockSize:    5,
+			initialData:  []byte("abcde"),
+			readerData:   []byte("fgh"),
+			expectedN:    0,
+			expectedData: []byte("abcde"),
+		},
+		{
+			name:         "Buffer is partially full",
+			blockSize:    10,
+			initialData:  []byte("abcde"),
+			readerData:   []byte("fghij"),
+			expectedN:    5,
+			expectedData: []byte("abcdefghij"),
+		},
+		{
+			name:         "Buffer is partially full and reader has more data",
+			blockSize:    10,
+			initialData:  []byte("abc"),
+			readerData:   []byte("defghijkl"),
+			expectedN:    7,
+			expectedData: []byte("abcdefghij"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pmb, err := createPrefetchBlock(tt.blockSize)
+			require.NoError(t, err)
+			if len(tt.initialData) > 0 {
+				n, err := pmb.Write(tt.initialData)
+				require.NoError(t, err)
+				require.Equal(t, len(tt.initialData), n)
+			}
+			reader := tt.reader
+			if reader == nil {
+				reader = bytes.NewReader(tt.readerData)
+			}
+			n, err := pmb.(*prefetchMemoryBlock).ReadFrom(reader)
+			assert.Equal(t, tt.expectedN, n)
+			if tt.expectedError != nil {
+				assert.ErrorIs(t, err, tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedData, pmb.(*prefetchMemoryBlock).buffer)
+		})
+	}
 }

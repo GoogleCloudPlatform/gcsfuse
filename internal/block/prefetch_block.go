@@ -238,3 +238,29 @@ func (pmb *prefetchMemoryBlock) DecRef() bool {
 func (pmb *prefetchMemoryBlock) RefCount() int32 {
 	return pmb.refCount.Load()
 }
+
+// ReadFrom implements io.ReaderFrom to efficiently read from a reader,
+// avoiding an intermediate buffer.
+func (pmb *prefetchMemoryBlock) ReadFrom(r io.Reader) (n int64, err error) {
+	for {
+		if len(pmb.buffer) == cap(pmb.buffer) {
+			// Buffer is full.
+			return n, nil
+		}
+
+		// Read into the remaining capacity of the buffer.
+		m, e := r.Read(pmb.buffer[len(pmb.buffer):cap(pmb.buffer)])
+		if m > 0 {
+			// Update buffer length and bytes read count.
+			pmb.buffer = pmb.buffer[:len(pmb.buffer)+m]
+			n += int64(m)
+		}
+		if e == io.EOF {
+			// End of reader, we are done.
+			return n, nil
+		}
+		if e != nil {
+			return n, e
+		}
+	}
+}
