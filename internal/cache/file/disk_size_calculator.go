@@ -63,29 +63,29 @@ func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Durat
 		stopCh:          make(chan struct{}),
 	}
 	c.wg.Add(1)
-	go c.monitorScannedSize()
+	go c.periodicSizeScan()
 	return c
 }
 
-func (c *FileCacheDiskUtilizationCalculator) monitorScannedSize() {
+func (c *FileCacheDiskUtilizationCalculator) periodicSizeScan() {
 	defer c.wg.Done()
 	ticker := time.NewTicker(c.frequency)
 	defer ticker.Stop()
 
 	// Initial calculation
-	c.updateScannedSize()
+	c.scanSize()
 
 	for {
 		select {
 		case <-ticker.C:
-			c.updateScannedSize()
+			c.scanSize()
 		case <-c.stopCh:
 			return
 		}
 	}
 }
 
-func (c *FileCacheDiskUtilizationCalculator) updateScannedSize() {
+func (c *FileCacheDiskUtilizationCalculator) scanSize() {
 	start := time.Now()
 	// Recalculate size: if includeFiles is true, we scan everything (onlyDirs=false).
 	// If includeFiles is false, we scan only directories (onlyDirs=true).
@@ -100,11 +100,16 @@ func (c *FileCacheDiskUtilizationCalculator) updateScannedSize() {
 	logger.Debugf("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v)", c.cacheDir, s, duration, c.includeFiles)
 }
 
+// Stop stops the periodic size scanner.
 func (c *FileCacheDiskUtilizationCalculator) Stop() {
 	close(c.stopCh)
 	c.wg.Wait()
 }
 
+// GetCurrentSize returns the latest size of the file-cache cache-dir
+// returned on the last scan.
+// If the scanned size included files, then this is the latest scanned size directly,
+// otherwise it adds the incremently updated size for all files and returns that.
 func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 	if c.includeFiles {
 		total := c.scannedSize.Load()
@@ -118,6 +123,7 @@ func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 	return total
 }
 
+// SizeOf returns the actual disk utilization of the underlying cached file.
 func (c *FileCacheDiskUtilizationCalculator) SizeOf(entry lru.ValueType) uint64 {
 	if fi, ok := entry.(data.FileInfo); ok {
 		return baseutil.GetSpeculativeFileSizeOnDisk(fi.FileSize, c.volumeBlockSize)
@@ -125,19 +131,19 @@ func (c *FileCacheDiskUtilizationCalculator) SizeOf(entry lru.ValueType) uint64 
 	return entry.Size()
 }
 
+// EvictEntry subtracts the size for the given entry.
 func (c *FileCacheDiskUtilizationCalculator) EvictEntry(evictedEntry lru.ValueType) {
 	c.filesSize.Add(-c.SizeOf(evictedEntry))
 }
 
+// EvictEntry adds the size for the given entry.
 func (c *FileCacheDiskUtilizationCalculator) InsertEntry(insertedEntry lru.ValueType) {
 	c.filesSize.Add(c.SizeOf(insertedEntry))
 }
 
-func (c *FileCacheDiskUtilizationCalculator) ReplaceEntry(replacedEntry, newEntry lru.ValueType) {
-	c.filesSize.Add(-c.SizeOf(replacedEntry))
-	c.filesSize.Add(c.SizeOf(newEntry))
-}
-
+// AddDelta directly add the given delta to the stored files' size.
+// It can be negative as well, in which case it reduces the existing stored files' size.
+// If it's negative, the value of stored files' size is not allowed to go below 0.
 func (c *FileCacheDiskUtilizationCalculator) AddDelta(delta int64) {
 	// Casting int64 to uint64 correctly handles negative values as 2's complement
 	c.filesSize.Add(uint64(delta))
