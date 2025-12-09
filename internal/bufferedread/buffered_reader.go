@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
@@ -279,14 +278,9 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	resp := gcsx.ReadResponse{}
-	reqID := uuid.New()
-	start := time.Now()
 	readOffset := req.Offset
-	blockIdx := readOffset / p.config.PrefetchBlockSizeBytes
 	var bytesRead int
 	var err error
-
-	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, p.handleID, readOffset, len(req.Buffer), blockIdx)
 
 	if readOffset >= int64(p.object.Size) {
 		err = io.EOF
@@ -299,15 +293,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
-	defer func() {
-		dur := time.Since(start)
-		p.metricHandle.BufferedReadReadLatency(ctx, dur)
-		p.metricHandle.GcsReadBytesCount(int64(bytesRead), metrics.ReaderBufferedAttr)
-		if err == nil || errors.Is(err, io.EOF) {
-			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
-		}
-	}()
 
 	if err = p.handleRandomRead(readOffset); err != nil {
 		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
