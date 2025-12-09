@@ -130,6 +130,11 @@ func TestDir() string {
 	return testDir
 }
 
+// SetTestBucket sets the name of the bucket.
+func SetTestBucket(testBucketValue string) {
+	testBucket = &testBucketValue
+}
+
 func SetMntDir(mntDirValue string) {
 	mntDir = mntDirValue
 }
@@ -582,10 +587,18 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	// Create storage client.
 	storageClient, err := storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
+	defer func(storageClient *storage.Client) {
+		err := storageClient.Close()
+		if err != nil {
+			log.Printf("Error in closing storage client: %v", err)
+		}
+	}(storageClient)
+
 	attrs, err := storageClient.Bucket(testBucket).Attrs(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get bucket attributes: %w", err)
