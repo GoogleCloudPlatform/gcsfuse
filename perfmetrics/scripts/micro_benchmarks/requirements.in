@@ -5,3 +5,4 @@ pyarrow
 pandas_gbq
 google-crc32c
 psutil
+setuptools
