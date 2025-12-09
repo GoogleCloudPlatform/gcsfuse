@@ -445,6 +445,8 @@ type FileCacheConfig struct {
 
 	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file"`
 
+	SizeScanDeleteEmptyDirs bool `yaml:"size-scan-delete-empty-dirs"`
+
 	SizeScanEnable bool `yaml:"size-scan-enable"`
 
 	SizeScanFiles bool `yaml:"size-scan-files"`
@@ -952,11 +954,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("file-cache-parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
 
+	flagSet.BoolP("file-cache-size-scan-delete-empty-dirs", "", false, "Whether or not to delete empty directories inside cache-dir during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true.")
+
 	flagSet.BoolP("file-cache-size-scan-enable", "", false, "Whether or not to scan disk sizes of file-cache cache-dir.")
 
-	flagSet.BoolP("file-cache-size-scan-files", "", false, "Whether or not to scan files' disk sizes also during periodic disk-size scan of file-cache cache-dir. It is useful only when file-cache-size-scan-enable is true.")
+	flagSet.BoolP("file-cache-size-scan-files", "", false, "Whether or not to scan files' disk sizes also during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true.")
 
-	flagSet.IntP("file-cache-size-scan-frequency-seconds", "", 10, "The duration in seconds after the size of the file-cache cache-dir is calculated again. It is useful only when file-cache-size-scan-enable is true.")
+	flagSet.IntP("file-cache-size-scan-frequency-seconds", "", 10, "The duration in seconds after the size of the file-cache cache-dir is calculated again. It should be set only when file-cache-size-scan-enable is true.")
 
 	flagSet.IntP("file-cache-write-buffer-size", "", 4194304, "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache.")
 
@@ -1452,6 +1456,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("file-cache-parallel-downloads-per-file")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.size-scan-delete-empty-dirs", flagSet.Lookup("file-cache-size-scan-delete-empty-dirs")); err != nil {
 		return err
 	}
 

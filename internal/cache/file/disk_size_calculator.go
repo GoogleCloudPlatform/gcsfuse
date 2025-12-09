@@ -40,6 +40,8 @@ type FileCacheDiskUtilizationCalculator struct {
 	frequency time.Duration
 	// includeFiles determines if the disk scan includes files (true) or just directories (false).
 	includeFiles bool
+	// deleteEmptyDirs determines if empty directories are deleted during scan.
+	deleteEmptyDirs bool
 	// volumeBlockSize stores the block size of the volume.
 	volumeBlockSize uint64
 
@@ -51,7 +53,7 @@ type FileCacheDiskUtilizationCalculator struct {
 
 // NewFileCacheDiskUtilizationCalculator creates a new calculator and starts the
 // background directory size calculation.
-func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
+func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool, deleteEmptyDirs bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
 	if frequency <= 0 {
 		frequency = time.Duration(DefaultFileCacheSizeScanFrequencySeconds) * time.Second
 	}
@@ -59,6 +61,7 @@ func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Durat
 		cacheDir:        cacheDir,
 		frequency:       frequency,
 		includeFiles:    includeFiles,
+		deleteEmptyDirs: deleteEmptyDirs,
 		volumeBlockSize: volumeBlockSize,
 		stopCh:          make(chan struct{}),
 	}
@@ -73,20 +76,26 @@ func (c *FileCacheDiskUtilizationCalculator) periodicSizeScan() {
 	defer ticker.Stop()
 
 	// Initial calculation
-	c.scanSize()
+	c.clearEmptyDirsAndRescanSize()
 
 	for {
 		select {
 		case <-ticker.C:
-			c.scanSize()
+			c.clearEmptyDirsAndRescanSize()
 		case <-c.stopCh:
 			return
 		}
 	}
 }
 
-func (c *FileCacheDiskUtilizationCalculator) scanSize() {
+func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 	start := time.Now()
+
+	// First, remove empty directories. We ignore errors here.
+	if c.deleteEmptyDirs {
+		baseutil.RemoveEmptyDirs(c.cacheDir)
+	}
+
 	// Recalculate size: if includeFiles is true, we scan everything (onlyDirs=false).
 	// If includeFiles is false, we scan only directories (onlyDirs=true).
 	s, err := baseutil.GetSizeOnDisk(c.cacheDir, !c.includeFiles, true)

@@ -143,3 +143,19 @@ func GetVolumeBlockSize(path string) (uint64, error) {
 	// Casting to uint64 ensures consistency.
 	return uint64(stat.Bsize), nil
 }
+
+// RemoveEmptyDirs recursively removes all empty subdirectories within the given directory.
+// It does not remove the given directory itself.
+func RemoveEmptyDirs(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			fullPath := filepath.Join(dir, entry.Name())
+			RemoveEmptyDirs(fullPath)
+			_ = os.Remove(fullPath)
+		}
+	}
+}

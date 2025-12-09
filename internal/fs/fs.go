@@ -280,7 +280,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		if err != nil {
 			return nil, fmt.Errorf("createFileCacheHandler: failed to get the block-size for volume containing cache-dir %q: %v", cacheDir, err)
 		}
-		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(cacheDir, time.Duration(serverCfg.NewConfig.FileCache.SizeScanFrequencySeconds)*time.Second, serverCfg.NewConfig.FileCache.SizeScanFiles, cacheDirVolumeBlockSize)
+		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(cacheDir, time.Duration(serverCfg.NewConfig.FileCache.SizeScanFrequencySeconds)*time.Second, serverCfg.NewConfig.FileCache.SizeScanFiles, serverCfg.NewConfig.FileCache.SizeScanDeleteEmptyDirs, cacheDirVolumeBlockSize)
 		fileInfoCache = lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator)
 	} else {
 		fileInfoCache = lru.NewCache(sizeInBytes)

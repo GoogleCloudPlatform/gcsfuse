@@ -166,3 +166,60 @@ func (ts *DiskUtilTest) TestGetVolumeBlockSize() {
 	require.Greater(ts.T(), blockSize, uint64(0))
 	require.Equal(ts.T(), uint64(0), blockSize%512, "Block size should be a multiple of 512")
 }
+
+func (ts *DiskUtilTest) TestRemoveEmptyDirs() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+	// Create nested structure:
+	// tempDir/
+	//   emptyDir/
+	//   nonEmptyDir/
+	//     file.txt
+	//   nestedEmptyDir/
+	//     level2/
+	//   nestedNonEmptyDir/
+	//     level2/
+	//       file.txt
+
+	emptyDir := filepath.Join(tempDir, "emptyDir")
+	require.NoError(ts.T(), os.Mkdir(emptyDir, 0755))
+
+	nonEmptyDir := filepath.Join(tempDir, "nonEmptyDir")
+	require.NoError(ts.T(), os.Mkdir(nonEmptyDir, 0755))
+	f, err := os.Create(filepath.Join(nonEmptyDir, "file.txt"))
+	require.NoError(ts.T(), err)
+	f.Close()
+
+	nestedEmptyDir := filepath.Join(tempDir, "nestedEmptyDir")
+	require.NoError(ts.T(), os.MkdirAll(filepath.Join(nestedEmptyDir, "level2"), 0755))
+
+	nestedNonEmptyDir := filepath.Join(tempDir, "nestedNonEmptyDir")
+	require.NoError(ts.T(), os.MkdirAll(filepath.Join(nestedNonEmptyDir, "level2"), 0755))
+	f2, err := os.Create(filepath.Join(nestedNonEmptyDir, "level2", "file.txt"))
+	require.NoError(ts.T(), err)
+	f2.Close()
+
+	// Act
+	RemoveEmptyDirs(tempDir)
+
+	// Assert
+	// emptyDir should be gone
+	_, err = os.Stat(emptyDir)
+	require.True(ts.T(), os.IsNotExist(err))
+
+	// nonEmptyDir should exist
+	_, err = os.Stat(nonEmptyDir)
+	require.NoError(ts.T(), err)
+
+	// nestedEmptyDir should be gone (both level2 and parent)
+	_, err = os.Stat(nestedEmptyDir)
+	require.True(ts.T(), os.IsNotExist(err))
+
+	// nestedNonEmptyDir should exist
+	_, err = os.Stat(nestedNonEmptyDir)
+	require.NoError(ts.T(), err)
+
+	// nestedNonEmptyDir/level2 should exist
+	_, err = os.Stat(filepath.Join(nestedNonEmptyDir, "level2"))
+	require.NoError(ts.T(), err)
+}
