@@ -129,13 +129,13 @@ func (c *FileCacheDiskUtilizationCalculator) Stop() {
 func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 	if c.includeFiles {
 		total := c.scannedSize.Load()
-		logger.Tracef("Returning GetCurrentSize for file-cache: %v", total)
+		logger.Tracef("GetCurrentSize for file-cache: %s", baseutil.PrettyPrintOf(total))
 		return total
 	}
 	filesDiskUtilization := c.filesSize.Load()
 	dirsDiskUtilization := c.scannedSize.Load()
 	total := filesDiskUtilization + dirsDiskUtilization
-	logger.Tracef("Returning GetCurrentSize for file-cache: files = %v, dirs = %v, total = %v", filesDiskUtilization, dirsDiskUtilization, total)
+	logger.Tracef("GetCurrentSize for file-cache: files = %s, dirs = %s, total = %s", baseutil.PrettyPrintOf(filesDiskUtilization), baseutil.PrettyPrintOf(dirsDiskUtilization), baseutil.PrettyPrintOf(total))
 	return total
 }
 
