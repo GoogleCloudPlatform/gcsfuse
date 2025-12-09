@@ -392,32 +392,14 @@ func (b *fastStatBucket) ListObjects(
 	if req.ForceFetchFromCache {
 		var hit bool
 		var entry any
-		if b.BucketType().Hierarchical {
-			hit, entry = b.lookUpFolder(req.Prefix)
-		} else {
-			hit, entry = b.lookUp(req.Prefix)
-		}
+		hit, entry = b.lookUp(req.Prefix)
 
 		if hit {
 			// Negative entries result in NotFoundError.
-			if b.BucketType().Hierarchical {
-				if entry.(*gcs.Folder) == nil {
-					return nil, &gcs.NotFoundError{
-						Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
-					}
+			if entry.(*gcs.MinObject) == nil {
+				return nil, &gcs.NotFoundError{
+					Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
 				}
-			} else {
-				if entry.(*gcs.MinObject) == nil {
-					return nil, &gcs.NotFoundError{
-						Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
-					}
-				}
-			}
-
-			// For a positive hit, we construct a listing.
-			// Note: This does not return the contents of a directory, just the directory entry itself.
-			if folder, ok := entry.(*gcs.Folder); ok {
-				return &gcs.Listing{CollapsedRuns: []string{folder.Name}}, nil
 			}
 			if minObject, ok := entry.(*gcs.MinObject); ok {
 				if minObject.Generation == 0 { // Assumed to be a directory-like object from a collapsed run.
