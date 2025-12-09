@@ -230,14 +230,12 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		//logger.Debugf("Updating cache entry: key %s, size %d", key, valueSize)
 		c.sizeCalculator.AddDelta(-int64(c.sizeCalculator.SizeOf(e.Value.(entry).Value)))
 		c.sizeCalculator.AddDelta(int64(valueSize))
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
-		//logger.Debugf("Inserting new cache entry: key %s, size %d", key, valueSize)
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
 		c.sizeCalculator.AddDelta(int64(valueSize))

@@ -164,5 +164,4 @@ func (c *FileCacheDiskUtilizationCalculator) AddDelta(delta int64) {
 	} else {
 		c.filesSize.Add(uint64(delta))
 	}
-	//logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
 }
