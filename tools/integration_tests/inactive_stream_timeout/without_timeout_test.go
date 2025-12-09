@@ -46,7 +46,6 @@ func (s *timeoutDisabledSuite) SetupTest() {
 	gcsDir := path.Join(kTestDirName, s.T().Name())
 	testEnv.testDirPath = path.Join(mountDir, gcsDir)
 	SetupNestedTestDir(testEnv.testDirPath, 0755, s.T())
-	setup.CleanupDirectoryOnGCS(s.ctx, s.storageClient, gcsDir)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, gcsDir, kTestFileName, kFileSize, s.T())
 }
 
@@ -55,7 +54,6 @@ func (s *timeoutDisabledSuite) TearDownSuite() {
 }
 
 func (s *timeoutDisabledSuite) TearDownTest() {
-	setup.CleanupDirectoryOnGCS(s.ctx, s.storageClient, path.Join(kTestDirName, s.T().Name()))
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
