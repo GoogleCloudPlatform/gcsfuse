@@ -864,12 +864,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse daemon. ")
-
-	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("experimental-grpc-conn-pool-size", "", 1, "The number of gRPC channel in grpc client.")
 
 	if err := flagSet.MarkDeprecated("experimental-grpc-conn-pool-size", "Experimental flag: can be removed in a minor release."); err != nil {
@@ -885,6 +879,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
 
 	if err := flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse daemon.")
+
+	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
 		return err
 	}
 
@@ -1375,10 +1375,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size")); err != nil {
 		return err
 	}
@@ -1388,6 +1384,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
 		return err
 	}
 
