@@ -18,20 +18,108 @@ set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Install wget
+if command -v apt-get &> /dev/null; then
+    # For Debian/Ubuntu-based systems
+    sudo apt-get update && sudo apt-get install -y wget
+elif command -v yum &> /dev/null; then
+    # For RHEL/CentOS-based systems
+    sudo yum install -y wget
+else
+    exit 1
+fi
+
+# Upgrade gcloud
+echo "Upgrade gcloud version"
+gcloud version
+wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
+sudo /usr/local/google-cloud-sdk/install.sh
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
+gcloud version && rm gcloud.tar.gz
+
 #details.txt file contains the release version and commit hash of the current release.
-gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 
-# Based on the os type(from vm instance name) in detail.txt, run the following commands to add starterscriptuser
-if grep -q ubuntu details.txt || grep -q debian details.txt;
-then
-#  For ubuntu and debian os
-    sudo adduser --ingroup google-sudoers --disabled-password --home=/home/starterscriptuser --gecos "" starterscriptuser
-else
-#  For rhel and centos
-    sudo adduser -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
-fi
+# Function to create the local user
+create_user() {
+  local USERNAME=$1
+  local HOMEDIR=$2
+  local DETAILS=$3
+  if id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} already exists."
+    return 0
+  fi
+
+  echo "Creating user ${USERNAME}..."
+  if grep -qi -E 'ubuntu|debian' $DETAILS; then
+    # For Ubuntu and Debian
+    sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
+  elif grep -qi -E 'rhel|centos|rocky' $DETAILS; then
+    # For RHEL, CentOS, Rocky Linux
+    sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}" && sudo passwd -d "${USERNAME}"
+  else
+    echo "Unsupported OS type in details file." >&2
+    return 1
+  fi
+  local exit_code=$?
+
+  if [ ${exit_code} -eq 0 ]; then
+    echo "User ${USERNAME} created successfully."
+  else
+    echo "Failed to create user ${USERNAME}." >&2
+  fi
+  return ${exit_code}
+}
+
+# Function to grant sudo access by creating a file in /etc/sudoers.d/
+grant_sudo() {
+  local USERNAME=$1
+  local HOMEDIR=$2
+  if ! id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} does not exist. Cannot grant sudo."
+    return 1
+  fi
+
+  sudo mkdir -p /etc/sudoers.d/
+  SUDOERS_FILE="/etc/sudoers.d/${USERNAME}"
+
+  if sudo test -f "${SUDOERS_FILE}"; then
+    echo "Sudoers file ${SUDOERS_FILE} already exists."
+  else
+    echo "Granting ${USERNAME} NOPASSWD sudo access..."
+    # Create the sudoers file with the correct content
+    if ! echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${SUDOERS_FILE}" > /dev/null; then
+      echo "Failed to create sudoers file." >&2
+      return 1
+    fi
+
+    # Set the correct permissions on the sudoers file
+    if ! sudo chmod 440 "${SUDOERS_FILE}"; then
+      echo "Failed to set permissions on sudoers file." >&2
+      # Attempt to clean up the partially created file
+      sudo rm -f "${SUDOERS_FILE}"
+      return 1
+    fi
+    echo "Sudo access granted to ${USERNAME} via ${SUDOERS_FILE}."
+  fi
+  return 0
+}
+################################################################################
+# Main script execution flow starts here.
+# The script will first attempt to create the user specified by $USERNAME.
+# If the user creation is successful, it will then proceed to grant sudo
+# privileges to the newly created user.
+################################################################################
+USERNAME=starterscriptuser
+HOMEDIR="/home/${USERNAME}"
+DETAILS_FILE=$(pwd)/details.txt
+
+create_user $USERNAME $HOMEDIR $DETAILS_FILE
+grant_sudo  $USERNAME $HOMEDIR
+
 
 # Run the following as starterscriptuser
 sudo -u starterscriptuser bash -c '
@@ -62,7 +150,7 @@ then
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
+    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
     sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ~/logs.txt
 
     # install wget
@@ -82,7 +170,7 @@ then
 else
 #  For rhel and centos
     # uname can be aarch or x86_64
-    uname=$(uname -i)
+    uname=$(uname -m)
 
     if [[ $uname == "x86_64" ]]; then
       architecture="amd64"
@@ -97,7 +185,7 @@ else
     sudo yum -y install fuse
 
     #download and install gcsfuse rpm package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
+    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
     sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
 
     #install wget
