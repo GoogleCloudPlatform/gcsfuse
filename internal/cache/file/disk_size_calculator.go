@@ -106,7 +106,14 @@ func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 		return
 	}
 	c.scannedSize.Store(s)
-	logger.Debugf("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v)", c.cacheDir, s, duration, c.includeFiles)
+
+	// Debugging data
+	filesSize := c.filesSize.Load()
+	total := s
+	if !c.includeFiles {
+		total += filesSize
+	}
+	logger.Debugf("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v). filesSize=%d, total=%d", c.cacheDir, s, duration, c.includeFiles, filesSize, total)
 }
 
 // Stop stops the periodic size scanner.
