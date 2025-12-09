@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -584,7 +585,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					ParallelDownloadsPerFile:               2,
 					SizeScanEnable:                         false,
 					SizeScanFiles:                          false,
-					SizeScanFrequencySeconds:               cfg.DefaultFileCacheSizeScanFrequencySeconds,
+					SizeScanFrequencySeconds:               file.DefaultFileCacheSizeScanFrequencySeconds,
 					WriteBufferSize:                        4 * 1024 * 1024,
 					EnableODirect:                          false,
 				},
@@ -607,7 +608,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					ParallelDownloadsPerFile:               16,
 					SizeScanEnable:                         false,
 					SizeScanFiles:                          false,
-					SizeScanFrequencySeconds:               cfg.DefaultFileCacheSizeScanFrequencySeconds,
+					SizeScanFrequencySeconds:               file.DefaultFileCacheSizeScanFrequencySeconds,
 					WriteBufferSize:                        4 * 1024 * 1024,
 					EnableODirect:                          false,
 				},
@@ -2398,7 +2399,7 @@ func TestArgsParsing_FileCacheSizeScanFlags(t *testing.T) {
 				FileCache: cfg.FileCacheConfig{
 					SizeScanEnable:                         false,
 					SizeScanFiles:                          false,
-					SizeScanFrequencySeconds:               cfg.DefaultFileCacheSizeScanFrequencySeconds,
+					SizeScanFrequencySeconds:               file.DefaultFileCacheSizeScanFrequencySeconds,
 					CacheFileForRangeRead:                  false,
 					DownloadChunkSizeMb:                    200,
 					EnableCrc:                              false,

@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	defaultFileCacheDiskSizeScanFrequency time.Duration = time.Minute
+	DefaultFileCacheSizeScanFrequencySeconds = 10
 )
 
 type FileCacheDiskUtilizationCalculator struct {
@@ -53,7 +53,7 @@ type FileCacheDiskUtilizationCalculator struct {
 // background directory size calculation.
 func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
 	if frequency <= 0 {
-		frequency = defaultFileCacheDiskSizeScanFrequency
+		frequency = time.Duration(DefaultFileCacheSizeScanFrequencySeconds) * time.Second
 	}
 	c := &FileCacheDiskUtilizationCalculator{
 		cacheDir:        cacheDir,

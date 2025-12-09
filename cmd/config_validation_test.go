@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +66,7 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 		EnableODirect:                          false,
 		SizeScanEnable:                         false,
 		SizeScanFiles:                          false,
-		SizeScanFrequencySeconds:               cfg.DefaultFileCacheSizeScanFrequencySeconds,
+		SizeScanFrequencySeconds:               file.DefaultFileCacheSizeScanFrequencySeconds,
 	}
 }
 
@@ -440,7 +441,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 					ExperimentalParallelDownloadsDefaultOn: true,
 					SizeScanEnable:                         false,
 					SizeScanFiles:                          false,
-					SizeScanFrequencySeconds:               cfg.DefaultFileCacheSizeScanFrequencySeconds,
+					SizeScanFrequencySeconds:               file.DefaultFileCacheSizeScanFrequencySeconds,
 				},
 			},
 		},

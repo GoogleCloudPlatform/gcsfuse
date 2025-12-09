@@ -21,8 +21,6 @@ import (
 	"time"
 )
 
-const DefaultFileCacheSizeScanFrequencySeconds = 10
-
 func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
 }
