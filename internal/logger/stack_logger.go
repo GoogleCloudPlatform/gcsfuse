@@ -17,6 +17,8 @@ type g struct {
 }
 
 // getg is implemented in asm_amd64.s
+//
+//go:nosplit
 func getg() *g
 
 // StackStatus holds the calculated stack metrics
@@ -28,7 +30,9 @@ type StackStatus struct {
 	Remaining uintptr // Physical bytes left in current frame
 }
 
-// GetStackLeft calculates the available stack space in the current frame.
+// AddStackLeft calculates the available stack space in the current frame.
+//
+//go:nosplit
 func GetStackLeft() StackStatus {
 	// 1. Get the current Goroutine pointer (from assembly)
 	gp := getg()
@@ -48,15 +52,10 @@ func GetStackLeft() StackStatus {
 	}
 }
 
-// PrintStackHealth prints a human-readable summary.
-func PrintStackHealth(label string) {
-	s := GetStackLeft()
-
-	status := "HEALTHY"
-	if s.Remaining < 900 {
-		status = "CRITICAL (Split Imminent)"
-	}
-
-	Infof("[%s] Status: %s | Used: %d | Rem: %d | Size: %d",
-		label, status, s.Used, s.Remaining, s.StackHi-s.StackLo)
+// Capture captures the current stack usage and limit.
+//
+//go:nosplit
+func (s *StackGrowthData) Capture() {
+	status := GetStackLeft()
+	s.Add(int(status.Used), int(status.Used+status.Remaining))
 }

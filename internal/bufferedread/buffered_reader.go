@@ -273,7 +273,29 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 // LOCKS_EXCLUDED(p.mu)
 
 func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (*gcsx.ReadResponse, error) {
-	resp, err := p.readAtWithLock(ctx, req)
+	readOffset := req.Offset
+
+	// 1. Checks
+	if readOffset >= int64(p.object.Size) {
+		return nil, io.EOF
+	}
+	if len(req.Buffer) == 0 {
+		return &gcsx.ReadResponse{Size: 0}, nil
+	}
+
+	// 2. Lock
+	p.mu.Lock()
+
+	// 3. Handle Random Read
+	if err := p.handleRandomRead(readOffset); err != nil {
+		p.mu.Unlock() // Manual Unlock (saves defer overhead)
+		return nil, p.makeError("handleRandomRead", err)
+	}
+	// 4. Execute
+	// executeRead returns the constructed ReadResponse directly.
+	resp, _, err := p.executeRead(ctx, readOffset, len(req.Buffer))
+
+	p.mu.Unlock() // Manual Unlock
 	return resp, err
 }
 
@@ -359,36 +381,6 @@ func (p *BufferedReader) executeRead(ctx context.Context, startOffset int64, buf
 	}
 
 	return resp, bytesRead, err
-}
-
-//
-//go:noinline
-func (p *BufferedReader) readAtWithLock(ctx context.Context, req *gcsx.ReadRequest) (*gcsx.ReadResponse, error) {
-	readOffset := req.Offset
-
-	// 1. Checks
-	if readOffset >= int64(p.object.Size) {
-		return nil, io.EOF
-	}
-	if len(req.Buffer) == 0 {
-		return &gcsx.ReadResponse{Size: 0}, nil
-	}
-
-	// 2. Lock
-	p.mu.Lock()
-
-	// 3. Handle Random Read
-	if err := p.handleRandomRead(readOffset); err != nil {
-		p.mu.Unlock() // Manual Unlock (saves defer overhead)
-		return nil, p.makeError("handleRandomRead", err)
-	}
-
-	// 4. Execute
-	// executeRead returns the constructed ReadResponse directly.
-	resp, _, err := p.executeRead(ctx, readOffset, len(req.Buffer))
-
-	p.mu.Unlock() // Manual Unlock
-	return resp, err
 }
 
 //go:noinline

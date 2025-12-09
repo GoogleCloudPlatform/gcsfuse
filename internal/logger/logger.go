@@ -17,7 +17,9 @@ package logger
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"io"
+	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
@@ -27,6 +29,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
+	"gonum.org/v1/plot/vg/draw"
+	"gonum.org/v1/plot/vg/vgimg"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -278,4 +285,169 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
 	}
 	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+}
+
+// StackGrowthData holds the limit and usage data for stack growth analysis.
+type StackGrowthData struct {
+	Label string
+	Limit []int
+	Usage []int
+}
+
+// Add appends the usage and limit to the StackGrowthData.
+//
+//go:nosplit
+func (s *StackGrowthData) Add(usage, limit int) {
+	s.Usage = append(s.Usage, usage)
+	s.Limit = append(s.Limit, limit)
+}
+
+var (
+	// Before holds the stack growth data before the operation.
+	Before = &StackGrowthData{Label: "before"}
+	// After holds the stack growth data after the operation.
+	After = &StackGrowthData{Label: "after"}
+)
+
+// ResetStackGrowthData resets the Before and After stack growth data.
+func ResetStackGrowthData() {
+	Before.Limit = nil
+	Before.Usage = nil
+	After.Limit = nil
+	After.Usage = nil
+}
+
+// --- The Plotting Logic ---
+
+// PlotStackGrowth generates a 2x2 grid of bar charts based on the global
+// Before and After variables and saves it to the specified filename.
+func PlotStackGrowth(filename string) {
+	// Print statistics about the data points.
+	Infof("--- Stack Growth Statistics ---")
+	Infof("Before.Limit has %d data points.", len(Before.Limit))
+	Infof("Before.Usage has %d data points.", len(Before.Usage))
+	Infof("After.Limit has %d data points.", len(After.Limit))
+	Infof("After.Usage has %d data points.", len(After.Usage))
+	Infof("-----------------------------")
+	// 1. Calculate Global Max to ensure a single scale across all 4 graphs
+	globalMax := 0.0
+	updateMax := func(vals []int) {
+		for _, v := range vals {
+			if float64(v) > globalMax {
+				globalMax = float64(v)
+			}
+		}
+	}
+
+	updateMax(Before.Limit)
+	updateMax(Before.Usage)
+	updateMax(After.Limit)
+	updateMax(After.Usage)
+
+	// Avoid 0 max if data is empty, and add 10% padding for aesthetics
+	if globalMax == 0 {
+		globalMax = 10
+	} else {
+		globalMax = globalMax * 1.1
+	}
+
+	// 2. Helper to create a single plot with fixed scale
+	createSubPlot := func(title string, data []int, c color.Color) *plot.Plot {
+		p := plot.New()
+		p.Title.Text = title
+		p.Title.Padding = vg.Points(5)
+
+		// Force the single scale
+		p.Y.Min = 0
+		p.Y.Max = globalMax
+
+		p.X.Label.Text = "Index"
+		p.Y.Label.Text = "Bytes"
+
+		// Add ticks every 200 units on the Y-axis.
+		var ticks []plot.Tick
+		for i := 0.0; i <= globalMax; i += 200 {
+			ticks = append(ticks, plot.Tick{
+				Value: i,
+				Label: fmt.Sprintf("%.0f", i),
+			})
+		}
+		p.Y.Tick.Marker = plot.ConstantTicks(ticks)
+		// Create Bar Chart
+		// width is set to 2 points for visibility, adjust if data is huge
+		bars, err := plotter.NewBarChart(intToValues(data), vg.Points(2))
+		if err != nil {
+			log.Printf("Error creating bar chart for %s: %v", title, err)
+			return p
+		}
+		bars.LineStyle.Width = vg.Length(0) // No outline
+		bars.Color = c
+
+		p.Add(bars)
+		return p
+	}
+
+	// 3. Generate the 4 plots
+	// Colors: Blue, Orange, Green, Red
+	p1 := createSubPlot("Limit (Before)", Before.Limit, color.RGBA{R: 0, G: 0, B: 255, A: 255})
+	p2 := createSubPlot("Usage (Before)", Before.Usage, color.RGBA{R: 255, G: 165, B: 0, A: 255})
+	p3 := createSubPlot("Limit (After)", After.Limit, color.RGBA{R: 0, G: 128, B: 0, A: 255})
+	p4 := createSubPlot("Usage (After)", After.Usage, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+
+	// 4. Create the Image Canvas (2x2 Grid)
+	const rows, cols = 2, 2
+	// Canvas size: 1000x800 points
+	c := vgimg.New(vg.Points(1000), vg.Points(800))
+	dc := draw.New(c)
+
+	// Create a tiled layout
+	t := draw.Tiles{
+		Rows:      rows,
+		Cols:      cols,
+		PadX:      vg.Points(20),
+		PadY:      vg.Points(20),
+		PadTop:    vg.Points(20),
+		PadBottom: vg.Points(20),
+		PadLeft:   vg.Points(20),
+		PadRight:  vg.Points(20),
+	}
+
+	plots := [][]*plot.Plot{
+		{p1, p2},
+		{p3, p4},
+	}
+
+	// Align the plots on the canvas
+	canvases := plot.Align(plots, t, dc)
+
+	// Draw each plot onto its respective sub-canvas
+	for i := 0; i < rows; i++ {
+		for j := 0; j < cols; j++ {
+			plots[i][j].Draw(canvases[i][j])
+		}
+	}
+
+	// 5. Save to File
+	w, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Failed to create file %s: %v", filename, err)
+	}
+	defer w.Close()
+
+	png := vgimg.PngCanvas{Canvas: c}
+	if _, err := png.WriteTo(w); err != nil {
+		log.Fatalf("Failed to write to file %s: %v", filename, err)
+	}
+
+	fmt.Printf("Graph saved to %s\n", filename)
+	ResetStackGrowthData()
+}
+
+// intToValues converts []int to plotter.Values (which is []float64)
+func intToValues(data []int) plotter.Values {
+	vs := make(plotter.Values, len(data))
+	for i, v := range data {
+		vs[i] = float64(v)
+	}
+	return vs
 }
