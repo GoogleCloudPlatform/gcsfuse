@@ -119,7 +119,10 @@ func (ts *DiskUtilTest) TestGetSizeOnDisk_PermissionDenied_NoIgnore() {
 	subDir := filepath.Join(tempDir, "subdir")
 	require.NoError(ts.T(), os.Mkdir(subDir, 0755))
 	require.NoError(ts.T(), os.Chmod(subDir, 0000))
-	defer os.Chmod(subDir, 0755)
+	defer func() {
+		err := os.Chmod(subDir, 0755)
+		require.NoError(ts.T(), err)
+	}()
 
 	// Act
 	_, err := GetSizeOnDisk(tempDir, false, false)
@@ -140,7 +143,10 @@ func (ts *DiskUtilTest) TestGetSizeOnDisk_PermissionDenied_Ignore() {
 		fSub.Close()
 	}
 	require.NoError(ts.T(), os.Chmod(subDir, 0000))
-	defer os.Chmod(subDir, 0755)
+	defer func() {
+		err := os.Chmod(subDir, 0755)
+		require.NoError(ts.T(), err)
+	}()
 
 	// Act
 	size, err := GetSizeOnDisk(tempDir, false, true)
