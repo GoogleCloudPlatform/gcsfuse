@@ -348,7 +348,7 @@ params:
   - config-path: "file-cache.size-scan-frequency-seconds"
     flag-name: "file-cache-size-scan-frequency-seconds"
     type: "int"
-    usage: "The duration in seconds after the size of the file-cache cache-dir is calculated again. It should be set only when file-cache-size-scan-enable is true."
+    usage: "The duration in seconds after which the size of the file-cache cache-dir is calculated again. It should be set only when file-cache-size-scan-enable is true."
     default: "10" # 10 seconds
     hide-flag: false
 

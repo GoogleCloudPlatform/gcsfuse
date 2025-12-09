@@ -106,7 +106,14 @@ func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 		return
 	}
 	c.scannedSize.Store(s)
-	logger.Debugf("Calculated disk usage for %q: %d bytes. Took %v. (includeFiles=%v)", c.cacheDir, s, duration, c.includeFiles)
+
+	// Debugging data
+	filesSize := c.filesSize.Load()
+	total := s
+	if !c.includeFiles {
+		total += filesSize
+	}
+	logger.Debugf("Calculated disk usage for %q: %s bytes. Took %v. (includeFiles=%v). filesSize=%s, total=%s", c.cacheDir, baseutil.PrettyPrintOf(s), duration, c.includeFiles, baseutil.PrettyPrintOf(filesSize), baseutil.PrettyPrintOf(total))
 }
 
 // Stop stops the periodic size scanner.
@@ -122,13 +129,13 @@ func (c *FileCacheDiskUtilizationCalculator) Stop() {
 func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 	if c.includeFiles {
 		total := c.scannedSize.Load()
-		logger.Tracef("Returning GetCurrentSize for file-cache: %v", total)
+		logger.Tracef("GetCurrentSize for file-cache: %s", baseutil.PrettyPrintOf(total))
 		return total
 	}
 	filesDiskUtilization := c.filesSize.Load()
 	dirsDiskUtilization := c.scannedSize.Load()
 	total := filesDiskUtilization + dirsDiskUtilization
-	logger.Tracef("Returning GetCurrentSize for file-cache: files = %v, dirs = %v, total = %v", filesDiskUtilization, dirsDiskUtilization, total)
+	logger.Tracef("GetCurrentSize for file-cache: files = %s, dirs = %s, total = %s", baseutil.PrettyPrintOf(filesDiskUtilization), baseutil.PrettyPrintOf(dirsDiskUtilization), baseutil.PrettyPrintOf(total))
 	return total
 }
 
