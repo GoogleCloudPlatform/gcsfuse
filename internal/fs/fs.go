@@ -38,6 +38,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -220,6 +221,20 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		fs.bufferedReadWorkerPool, err = workerpool.NewStaticWorkerPoolForCurrentCPU(serverCfg.NewConfig.Read.GlobalMaxBlocks)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create worker pool for buffered read: %w", err)
+		}
+		// Initialize the global read block cache.
+		cacheSize := uint64(serverCfg.NewConfig.Read.GlobalMaxBlocks) * uint64(serverCfg.NewConfig.Read.BlockSizeMb*cacheutil.MiB)
+		if cacheSize > 0 {
+			fs.readBlockCache = lru.NewCache(cacheSize)
+		} else {
+			logger.Warnf("Read block cache size is 0. Buffered reads will not be cached.")
+		}
+		// Initialize the global read block pool.
+		fs.readBlockPool, err = block.NewPrefetchBlockPool(
+			serverCfg.NewConfig.Read.BlockSizeMb*cacheutil.MiB,
+			serverCfg.NewConfig.Read.GlobalMaxBlocks, 4, fs.globalMaxReadBlocksSem)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create block pool for buffered read: %w", err)
 		}
 	}
 
@@ -533,6 +548,14 @@ type fileSystem struct {
 	// that can be allocated for buffered read across all file-handles in the file system.
 	// This helps control the overall memory usage for buffered reads.
 	globalMaxReadBlocksSem *semaphore.Weighted
+
+	// A global cache for data blocks read from GCS for buffered reads.
+	// Shared across all inodes and file handles.
+	readBlockCache *lru.Cache
+
+	// A global pool of blocks for buffered reads.
+	// Shared across all inodes and file handles.
+	readBlockPool *block.GenBlockPool[block.PrefetchBlock]
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -2043,7 +2066,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, fs.readBlockCache, fs.readBlockPool, op.Handle)
 
 	fs.mu.Unlock()
 
@@ -2812,7 +2835,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, fs.readBlockCache, fs.readBlockPool, op.Handle)
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the

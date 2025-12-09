@@ -22,9 +22,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
-// blockQueueEntry holds a data block with a function
+// blockCacheEntry holds a data block with a function
 // to cancel its in-flight download.
-type blockQueueEntry struct {
+type blockCacheEntry struct {
 	block  block.PrefetchBlock
 	cancel context.CancelFunc
 
@@ -33,10 +33,15 @@ type blockQueueEntry struct {
 	wasEvicted bool
 }
 
+// Size returns the size of the block in the entry, fulfilling the lru.ValueType interface.
+func (bqe *blockCacheEntry) Size() uint64 {
+	return uint64(bqe.block.Cap())
+}
+
 // cancelAndWait cancels the download context for the entry and waits for the
 // download goroutine to finish. It logs a warning if the download terminates
 // with an error other than context.Canceled.
-func (bqe *blockQueueEntry) cancelAndWait() {
+func (bqe *blockCacheEntry) cancelAndWait() {
 	bqe.cancel()
 	// We wait for the block's worker goroutine to finish. We expect its
 	// status to contain a context.Canceled error because we just called cancel.

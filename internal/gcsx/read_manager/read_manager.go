@@ -22,8 +22,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fuseops"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	clientReaders "github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/client_readers"
@@ -58,6 +60,9 @@ type ReadManagerConfig struct {
 	GlobalMaxBlocksSem    *semaphore.Weighted
 	WorkerPool            workerpool.WorkerPool
 	HandleID              fuseops.HandleID
+	InodeID               fuseops.InodeID
+	BlockCache            *lru.Cache
+	BlockPool             *block.GenBlockPool[block.PrefetchBlock]
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -101,6 +106,9 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			MetricHandle:       config.MetricHandle,
 			ReadTypeClassifier: readClassifier,
 			HandleID:           config.HandleID,
+			InodeID:            config.InodeID,
+			BlockCache:         config.BlockCache,
+			BlockPool:          config.BlockPool,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(opts)
 		if err != nil {

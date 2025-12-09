@@ -19,12 +19,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -75,6 +77,9 @@ type BufferedReader struct {
 	// handleID is the file handle id, used for logging.
 	handleID fuseops.HandleID
 
+	// inodeID is the inode id, used for cache key generation.
+	inodeID fuseops.InodeID
+
 	readHandle []byte // For zonal bucket.
 
 	ctx        context.Context
@@ -91,10 +96,10 @@ type BufferedReader struct {
 	// GUARDED by (mu)
 	workerPool workerpool.WorkerPool
 
-	// blockQueue is the core of the prefetching pipeline, holding blocks that are
-	// either downloaded or in the process of being downloaded.
+	// blockCache is the core of the prefetching pipeline, holding blocks that are
+	// either downloaded or in the process of being downloaded, managed by LRU policy.
 	// GUARDED by (mu)
-	blockQueue common.Queue[*blockQueueEntry]
+	blockCache *lru.Cache
 
 	// blockPool is a pool of blocks that can be reused for prefetching.
 	// It is used to avoid allocating new blocks for each prefetch operation.
@@ -104,6 +109,9 @@ type BufferedReader struct {
 	// of blocks that can be allocated across all BufferedReader instances.
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
+
+	// GUARDED by (mu)
+	globalMaxBlocksSem *semaphore.Weighted
 
 	// A WaitGroup to synchronize the destruction of the reader with any ongoing
 	// FUSE read callback goroutines. This ensures that all callbacks for
@@ -124,24 +132,16 @@ type BufferedReaderOptions struct {
 	WorkerPool         workerpool.WorkerPool
 	MetricHandle       metrics.MetricHandle
 	ReadTypeClassifier *gcsx.ReadTypeClassifier
+	BlockCache         *lru.Cache
 	HandleID           fuseops.HandleID
+	BlockPool          *block.GenBlockPool[block.PrefetchBlock]
+	InodeID            fuseops.InodeID
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
 func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	if opts.Config.PrefetchBlockSizeBytes <= 0 {
 		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", opts.Config.PrefetchBlockSizeBytes)
-	}
-	// To optimize resource usage, reserve only the number of blocks required for
-	// the file, capped by the configured minimum.
-	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
-	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
-	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
-	if err != nil {
-		if errors.Is(err, block.CantAllocateAnyBlockError) {
-			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
-		}
-		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
 	}
 
 	reader := &BufferedReader{
@@ -151,11 +151,13 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		nextBlockIndexToPrefetch: 0,
 		randomSeekCount:          0,
 		numPrefetchBlocks:        opts.Config.InitialPrefetchBlockCnt,
-		blockQueue:               common.NewLinkedListQueue[*blockQueueEntry](),
-		blockPool:                blockpool,
+		blockCache:               opts.BlockCache,
+		blockPool:                opts.BlockPool,
 		workerPool:               opts.WorkerPool,
+		globalMaxBlocksSem:       opts.GlobalMaxBlocksSem,
 		metricHandle:             opts.MetricHandle,
 		handleID:                 opts.HandleID,
+		inodeID:                  opts.InodeID,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
 		readTypeClassifier:       opts.ReadTypeClassifier,
@@ -165,12 +167,11 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	return reader, nil
 }
 
-// handleRandomRead detects and handles random read patterns. A read is considered
-// random if the requested offset is outside the currently prefetched window.
-// If the number of detected random reads exceeds a configured threshold, it
-// returns a gcsx.FallbackToAnotherReader error to signal that another reader
-// should be used. If the read pattern changes back to sequential, it resets
-// the reader state to resume buffered reading.
+// handleRandomRead evaluates the read pattern based on the given offset.
+// If a random read is detected, it increments a counter. If the counter
+// exceeds a threshold, it may trigger a fallback to a different reader,
+// unless a sequential read pattern is re-established, in which case it
+// resets the reader's state to resume efficient prefetching.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) handleRandomRead(offset int64) error {
 	// Exit early if we have already decided to fall back to another reader.
@@ -191,15 +192,6 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 
 	p.randomSeekCount++
 
-	// When a random seek is detected, the prefetched blocks in the queue become
-	// irrelevant. We must clear the queue, cancel any ongoing downloads, and
-	// release the blocks back to the pool.
-	for !p.blockQueue.IsEmpty() {
-		entry := p.blockQueue.Pop()
-		entry.cancelAndWait()
-		p.releaseOrMarkEvicted(entry)
-	}
-
 	if p.randomSeekCount > p.randomReadsThreshold {
 		// If the read pattern becomes sequential again, reset the state to resume buffered reading.
 		if p.readTypeClassifier.IsReadSequential() {
@@ -218,41 +210,12 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 // isRandomSeek checks if the read for the given offset is random or not.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) isRandomSeek(offset int64) bool {
-	if p.blockQueue.IsEmpty() {
-		return offset != 0
-	}
-
-	start := p.blockQueue.Peek().block.AbsStartOff()
-	end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
-	if offset < start || offset >= end {
-		return true
-	}
-
-	return false
-}
-
-// prepareQueueForOffset cleans the head of the block queue by discarding any
-// blocks that are no longer relevant for the given read offset. This occurs on
-// seeks (both forward and backward) that land outside the current block.
-// For each discarded block, its download is cancelled, and it is returned to
-// the block pool.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) prepareQueueForOffset(offset int64) {
-	for !p.blockQueue.IsEmpty() {
-		entry := p.blockQueue.Peek()
-		block := entry.block
-		blockStart := block.AbsStartOff()
-		blockEnd := blockStart + block.Cap()
-
-		if offset < blockStart || offset >= blockEnd {
-			// Offset is either before or beyond this block – discard.
-			p.blockQueue.Pop()
-			entry.cancelAndWait()
-			p.releaseOrMarkEvicted(entry)
-		} else {
-			break
-		}
-	}
+	blockIndex := offset / p.config.PrefetchBlockSizeBytes
+	key := p.generateCacheKey(blockIndex)
+	// A read is considered random if the offset is not zero and the
+	// corresponding block is not present in the cache.
+	isBlockInCache := p.blockCache.LookUpWithoutChangingOrder(key) != nil
+	return offset != 0 && !isBlockInCache
 }
 
 // ReadAt reads data from the GCS object into the provided buffer starting at
@@ -263,10 +226,8 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //  1. Detect if the read pattern is random. If so, and if the random read
 //     threshold is exceeded, it returns a FallbackToAnotherReader error.
 //  2. Prepare the internal block queue by discarding any stale blocks from the
-//     head of the queue that are before the requested offset.
-//  3. If the queue becomes empty (e.g., on a fresh read or a large seek), it
-//     initiates a "fresh start" to prefetch blocks starting from the current
-//     offset.
+//     head of the queue that are before the requested offset. This is now handled by LRU.
+//  3. If the required block is not in the cache, it initiates a "fresh start" to prefetch blocks.
 //  4. It then enters a loop to fill the destination buffer:
 //     a. It waits for the block at the head of the queue to be downloaded.
 //     b. If the download failed or was cancelled, it returns an appropriate error.
@@ -315,21 +276,32 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 	prefetchTriggered := false
 
+	urgentFetchJustHappened := false
+	// urgentFetch indicates if the current ReadAt call triggered an urgent download.
 	var dataSlices [][]byte
-	var entriesToCallback []*blockQueueEntry
+	var entriesToCallback []*blockCacheEntry
 	for bytesRead < len(req.Buffer) {
-		p.prepareQueueForOffset(readOffset)
+		currentBlockIndex := readOffset / p.config.PrefetchBlockSizeBytes
+		key := p.generateCacheKey(currentBlockIndex)
+		val := p.blockCache.LookUp(key)
 
-		if p.blockQueue.IsEmpty() {
+		if val == nil {
 			if err = p.freshStart(readOffset); err != nil {
-				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, p.handleID, err)
+				logger.Warnf("Fallback to another reader for object %q, handle %d, block %d, due to freshStart failure: %v", p.object.Name, p.handleID, currentBlockIndex, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
 			}
+			// An urgent download was just triggered for the required block.
+			urgentFetchJustHappened = true
 			prefetchTriggered = true
+			val = p.blockCache.LookUp(key)
+			if val == nil {
+				err = fmt.Errorf("BufferedReader.ReadAt: block %d not found after freshStart", currentBlockIndex)
+				break
+			}
 		}
 
-		entry := p.blockQueue.Peek()
+		entry := val.(*blockCacheEntry)
 		blk := entry.block
 
 		status, waitErr := blk.AwaitReady(ctx)
@@ -339,7 +311,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		}
 
 		if status.State != block.BlockStateDownloaded {
-			p.blockQueue.Pop()
+			p.blockCache.Erase(key)
 			p.blockPool.Release(blk)
 			entry.cancel()
 
@@ -367,7 +339,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		if sliceLen > 0 {
 			dataSlices = append(dataSlices, dataSlice)
 			p.inflightCallbackWg.Add(1)
-			blk.IncRef()
+			// The ref count for an urgently fetched block is already incremented
+			// during scheduling. We only increment here if it was a cache hit.
+			if !urgentFetchJustHappened {
+				blk.IncRef()
+			}
 			entriesToCallback = append(entriesToCallback, entry)
 		}
 
@@ -375,9 +351,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 			break
 		}
 
+		// Reset the flag after the first block is processed.
+		urgentFetchJustHappened = false
+
 		if readOffset >= blk.AbsStartOff()+blk.Size() {
-			entry := p.blockQueue.Pop()
-			p.releaseOrMarkEvicted(entry)
+			// Block is fully read, but we don't remove it from cache here. LRU will handle it.
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -398,7 +376,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 // were returned directly from blocks. It decrements the reference count for each
 // associated block and releases it back to the pool if the count drops to zero
 // and it was previously marked for eviction.
-func (p *BufferedReader) callback(entries []*blockQueueEntry) {
+func (p *BufferedReader) callback(entries []*blockCacheEntry) {
 	defer func() {
 		for range entries {
 			p.inflightCallbackWg.Done()
@@ -419,7 +397,7 @@ func (p *BufferedReader) callback(entries []*blockQueueEntry) {
 func (p *BufferedReader) prefetch() error {
 	// Determine the number of blocks to prefetch in this cycle, respecting the
 	// MaxPrefetchBlockCnt and the number of blocks remaining in the file.
-	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
+	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockCache.Len())
 	if availableSlots <= 0 {
 		return nil
 	}
@@ -487,6 +465,10 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 // scheduleNextBlock schedules the next block for prefetch.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
+	// If the cache is full, evict some blocks to make space for new ones.
+	if int64(p.blockCache.Len()) >= 30 {
+		p.handleEvictedEntries(p.blockCache.Evict(10))
+	}
 	b, err := p.blockPool.TryGet()
 	if err != nil {
 		// Any error from TryGet (e.g., pool exhausted, mmap failure) means we
@@ -524,10 +506,22 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
-	p.blockQueue.Push(&blockQueueEntry{
+	entry := &blockCacheEntry{
 		block:  b,
 		cancel: cancel,
-	})
+	}
+
+	if urgent {
+		b.IncRef()
+	}
+
+	key := p.generateCacheKey(blockIndex)
+	evicted, err := p.blockCache.Insert(key, entry)
+	if err != nil {
+		return fmt.Errorf("scheduleBlockWithIndex: inserting into cache: %w", err)
+	}
+	p.handleEvictedEntries(evicted)
+
 	p.workerPool.Schedule(urgent, task)
 	return nil
 }
@@ -535,11 +529,8 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
-	for !p.blockQueue.IsEmpty() {
-		bqe := p.blockQueue.Pop()
-		bqe.cancelAndWait()
-		p.releaseOrMarkEvicted(bqe)
-	}
+	evicted := p.blockCache.EraseAll()
+	p.handleEvictedEntries(evicted)
 	p.mu.Unlock()
 
 	// Wait for any remaining operations where data slices were returned directly
@@ -565,11 +556,15 @@ func (p *BufferedReader) Destroy() {
 		p.cancelFunc()
 		p.cancelFunc = nil
 	}
+}
 
-	if err := p.blockPool.ClearFreeBlockChannel(true); err != nil {
-		logger.Warnf("Destroy: clearing free block channel: %v", err)
+func (p *BufferedReader) handleEvictedEntries(evicted []lru.ValueType) {
+	for _, val := range evicted {
+		if entry, ok := val.(*blockCacheEntry); ok {
+			entry.cancelAndWait()
+			p.releaseOrMarkEvicted(entry)
+		}
 	}
-	p.blockPool = nil
 }
 
 // releaseOrMarkEvicted handles the release of a block that has been removed
@@ -578,7 +573,7 @@ func (p *BufferedReader) Destroy() {
 // block pool. Otherwise, the block is marked as evicted, and its final release
 // is deferred until the last reference's callback is executed.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) releaseOrMarkEvicted(entry *blockQueueEntry) {
+func (p *BufferedReader) releaseOrMarkEvicted(entry *blockCacheEntry) {
 	// If the block still has outstanding references, do not release it to the
 	// pool. Instead, mark it as evicted so the callback can release it later,
 	// when the reference count drops to zero.
@@ -606,8 +601,8 @@ func (p *BufferedReader) CheckInvariants() {
 	}
 
 	// The number of items in the blockQueue should not exceed MaxPrefetchBlockCnt.
-	if int64(p.blockQueue.Len()) > p.config.MaxPrefetchBlockCnt {
-		panic(fmt.Sprintf("BufferedReader: blockQueue length %d exceeds limit %d", p.blockQueue.Len(), p.config.MaxPrefetchBlockCnt))
+	if int64(p.blockCache.Len()) > p.config.MaxPrefetchBlockCnt {
+		panic(fmt.Sprintf("BufferedReader: blockCache length %d exceeds limit %d", p.blockCache.Len(), p.config.MaxPrefetchBlockCnt))
 	}
 
 	// The random seek count should never exceed randomReadsThreshold.
@@ -623,4 +618,22 @@ func (p *BufferedReader) resetBufferedReaderState() {
 	p.randomSeekCount = 0
 	p.nextBlockIndexToPrefetch = 0
 	p.numPrefetchBlocks = p.config.InitialPrefetchBlockCnt
+}
+
+// generateCacheKey creates a unique key for a block based on the inode ID and block index.
+func (p *BufferedReader) generateCacheKey(blockIndex int64) string {
+	var sb strings.Builder
+	sb.WriteString(strconv.FormatUint(uint64(p.inodeID), 10))
+	sb.WriteString(strconv.FormatInt(blockIndex, 10))
+	return sb.String()
+}
+
+// getLruKeys returns a comma-separated string of keys currently in the LRU cache.
+// This is intended for logging and debugging purposes only.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) getLruKeys() string {
+	if p.blockCache == nil {
+		return ""
+	}
+	return p.blockCache.Keys()
 }

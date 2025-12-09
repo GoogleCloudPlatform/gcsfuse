@@ -127,6 +127,9 @@ func (c *Cache) checkInvariants() {
 
 func (c *Cache) evictOne() ValueType {
 	e := c.entries.Back()
+	if e == nil {
+		return nil
+	}
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry).Value
@@ -136,6 +139,19 @@ func (c *Cache) evictOne() ValueType {
 	delete(c.index, key)
 
 	return evictedEntry
+}
+
+// Evict removes the n oldest entries from the cache and returns them.
+// If n is greater than the number of entries in the cache, it removes all entries.
+func (c *Cache) Evict(n int) []ValueType {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var evictedValues []ValueType
+	for i := 0; i < n && c.entries.Len() > 0; i++ {
+		evictedValues = append(evictedValues, c.evictOne())
+	}
+	return evictedValues
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -181,6 +197,22 @@ func (c *Cache) Insert(
 	}
 
 	return evictedValues, nil
+}
+
+// EraseAll erases all the entries from the cache.
+func (c *Cache) EraseAll() []ValueType {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var evictedValues []ValueType
+	for c.entries.Len() != 0 {
+		evictedValues = append(evictedValues, c.evictOne())
+	}
+
+	if c.currentSize != 0 || len(c.index) != 0 || c.entries.Len() != 0 {
+		panic(fmt.Sprintf("EraseAll: cache not empty after eviction: size=%d, index len=%d, entries len=%d", c.currentSize, len(c.index), c.entries.Len()))
+	}
+	return evictedValues
 }
 
 // Erase any entry for the supplied key, also returns the value of erased key.
@@ -296,4 +328,25 @@ func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
 			c.Erase(key)
 		}
 	}
+}
+
+// Len returns the number of entries in the cache.
+func (c *Cache) Len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.entries.Len()
+}
+
+// Keys returns a comma-separated string of all keys in the cache, from most
+// to least recently used. This is intended for debugging and logging.
+func (c *Cache) Keys() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	var keys []string
+	for e := c.entries.Front(); e != nil; e = e.Next() {
+		keys = append(keys, e.Value.(entry).Key)
+	}
+
+	return strings.Join(keys, ", ")
 }

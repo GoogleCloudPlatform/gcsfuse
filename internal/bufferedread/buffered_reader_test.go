@@ -293,7 +293,7 @@ func (t *BufferedReaderTest) TestDestroySuccess() {
 		<-ctx.Done()
 		b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: context.Canceled})
 	}()
-	reader.blockQueue.Push(&blockQueueEntry{
+	reader.blockQueue.Push(&blockCacheEntry{
 		block:  b,
 		cancel: cancel,
 	})
@@ -319,7 +319,7 @@ func (t *BufferedReaderTest) TestDestroyAwaitReadyError() {
 	require.NoError(t.T(), err, "Failed to get block from pool")
 	err = b.SetAbsStartOff(0)
 	require.NoError(t.T(), err)
-	reader.blockQueue.Push(&blockQueueEntry{
+	reader.blockQueue.Push(&blockCacheEntry{
 		block:  b,
 		cancel: func() {},
 	})
@@ -347,9 +347,9 @@ func (t *BufferedReaderTest) TestCheckInvariantsBlockQueueExceedsLimit() {
 	require.NoError(t.T(), err, "Failed to get block from pool")
 
 	// Push 3 blocks to exceed the limit of 2.
-	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
-	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
-	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+	reader.blockQueue.Push(&blockCacheEntry{block: b, cancel: func() {}})
+	reader.blockQueue.Push(&blockCacheEntry{block: b, cancel: func() {}})
+	reader.blockQueue.Push(&blockCacheEntry{block: b, cancel: func() {}})
 
 	assert.Panics(t.T(), func() { reader.CheckInvariants() })
 }
@@ -843,8 +843,8 @@ func (t *BufferedReaderTest) TestPrefetchWhenQueueIsFull() {
 	b, err := reader.blockPool.Get()
 	require.NoError(t.T(), err)
 	// Fill the block queue to its maximum capacity.
-	reader.blockQueue.Push(&blockQueueEntry{block: b})
-	reader.blockQueue.Push(&blockQueueEntry{block: b})
+	reader.blockQueue.Push(&blockCacheEntry{block: b})
+	reader.blockQueue.Push(&blockCacheEntry{block: b})
 
 	err = reader.prefetch()
 
@@ -870,8 +870,8 @@ func (t *BufferedReaderTest) TestPrefetchWhenQueueIsPartiallyFull() {
 	require.NoError(t.T(), err)
 	b, err := reader.blockPool.Get()
 	require.NoError(t.T(), err)
-	reader.blockQueue.Push(&blockQueueEntry{block: b})
-	reader.blockQueue.Push(&blockQueueEntry{block: b})
+	reader.blockQueue.Push(&blockCacheEntry{block: b})
+	reader.blockQueue.Push(&blockCacheEntry{block: b})
 	// blockCountToPrefetch = min(numPrefetchBlocks (2), availableSlots (2)) = 2.
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 0), nil).Once()
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1024 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 1024), nil).Once()
@@ -917,9 +917,9 @@ func (t *BufferedReaderTest) TestPrefetchLimitedByAvailableSlots() {
 	reader.numPrefetchBlocks = 4
 	b, err := reader.blockPool.Get()
 	require.NoError(t.T(), err)
-	reader.blockQueue.Push(&blockQueueEntry{block: b})
-	reader.blockQueue.Push(&blockQueueEntry{block: b})
-	reader.blockQueue.Push(&blockQueueEntry{block: b})
+	reader.blockQueue.Push(&blockCacheEntry{block: b})
+	reader.blockQueue.Push(&blockCacheEntry{block: b})
+	reader.blockQueue.Push(&blockCacheEntry{block: b})
 	// blockCountToPrefetch = min(numPrefetchBlocks (4), availableSlots (1)) = 1.
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 0), nil).Once()
 
@@ -1104,7 +1104,7 @@ func (t *BufferedReaderTest) TestReadAtForwardSeekDiscardsPreviousBlocks() {
 		_, writeErr := b.Write(make([]byte, testPrefetchBlockSizeBytes))
 		require.NoError(t.T(), writeErr)
 		b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
-		reader.blockQueue.Push(&blockQueueEntry{
+		reader.blockQueue.Push(&blockCacheEntry{
 			block:  b,
 			cancel: func() { cancelCount++ },
 		})
@@ -1193,7 +1193,7 @@ func (t *BufferedReaderTest) TestReadAtAwaitReadyCancelled() {
 	require.NoError(t.T(), err)
 	err = b.SetAbsStartOff(0)
 	require.NoError(t.T(), err)
-	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+	reader.blockQueue.Push(&blockCacheEntry{block: b, cancel: func() {}})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
@@ -1223,7 +1223,7 @@ func (t *BufferedReaderTest) TestReadAtBlockStateDownloadFailed() {
 	require.NoError(t.T(), err)
 	downloadError := errors.New("simulated download error")
 	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: downloadError})
-	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+	reader.blockQueue.Push(&blockCacheEntry{block: b, cancel: func() {}})
 	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
 
 	// Read from a reader where the next block has failed to download.
@@ -1255,7 +1255,7 @@ func (t *BufferedReaderTest) TestReadAtBlockDownloadCancelled() {
 	err = b.SetAbsStartOff(0)
 	require.NoError(t.T(), err)
 	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: context.Canceled})
-	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+	reader.blockQueue.Push(&blockCacheEntry{block: b, cancel: func() {}})
 	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
 
 	// Read from a reader where the next block download was cancelled.
@@ -1287,7 +1287,7 @@ func (t *BufferedReaderTest) TestReadAtBlockStateUnexpected() {
 	err = b.SetAbsStartOff(0)
 	require.NoError(t.T(), err)
 	b.NotifyReady(block.BlockStatus{State: block.BlockStateInProgress})
-	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+	reader.blockQueue.Push(&blockCacheEntry{block: b, cancel: func() {}})
 	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
 
 	// Read from a reader where the next block is in an unexpected state.
@@ -1322,7 +1322,7 @@ func (t *BufferedReaderTest) TestReadAtFromDownloadedBlock() {
 	_, err = b.Write(content)
 	require.NoError(t.T(), err)
 	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
-	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+	reader.blockQueue.Push(&blockCacheEntry{block: b, cancel: func() {}})
 	buf := make([]byte, 5)
 	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
 
