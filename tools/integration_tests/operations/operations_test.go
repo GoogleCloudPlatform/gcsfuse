@@ -104,7 +104,7 @@ func RunTestOnTPCEndPoint(cfg test_suite.Config, m *testing.M) int {
 	}
 	cfg.Operations = make([]test_suite.TestConfig, 1)
 	cfg.Operations[0].TestBucket = setup.TestBucket()
-	cfg.Operations[0].MountedDirectory = setup.MountedDirectory()
+	cfg.Operations[0].GKEMountedDirectory = setup.GKEMountedDirectory()
 	cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
 	cfg.Operations[0].Configs[0].Flags = []string{
 		"--enable-atomic-rename-object=true",
@@ -163,7 +163,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.Operations = make([]test_suite.TestConfig, 1)
 		cfg.Operations[0].TestBucket = setup.TestBucket()
-		cfg.Operations[0].MountedDirectory = setup.MountedDirectory()
+		cfg.Operations[0].GKEMountedDirectory = setup.GKEMountedDirectory()
 		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.Operations[0].Configs[0].Flags = []string{
 			"--enable-atomic-rename-object=true",
@@ -187,36 +187,28 @@ func TestMain(m *testing.M) {
 		cfg.Operations[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 	}
 
-	// 2. Create storage client before running tests.
-	setup.SetTestBucket(cfg.Operations[0].TestBucket)
 	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Printf("closeStorageClient failed: %v", err)
-		}
-	}()
+	bucketType := setup.TestEnvironment(ctx, &cfg.RenameDirLimit[0])
+
+	// 2. Create storage client before running tests.
+	var err error
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer storageClient.Close()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	// flags to be set, as operations tests validates content from the bucket.
-	if cfg.Operations[0].MountedDirectory != "" && cfg.Operations[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.Operations[0].MountedDirectory, m))
+	if cfg.Operations[0].GKEMountedDirectory != "" && cfg.Operations[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.Operations[0].GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	bucketType, err := setup.BucketType(ctx, cfg.Operations[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-	if bucketType == setup.ZonalBucket {
-		setup.SetIsZonalBucketRun(true)
-	}
-	flags := setup.BuildFlagSets(cfg.Operations[0], bucketType)
+	flags := setup.BuildFlagSets(cfg.RenameDirLimit[0], bucketType, "")
+	setup.SetUpTestDirForTestBucket(&cfg.RenameDirLimit[0])
 
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucket(cfg.Operations[0].TestBucket)
 	if successCode == 0 {
 		successCode = static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 	}
