@@ -154,7 +154,15 @@ func (c *FileCacheDiskUtilizationCalculator) InsertEntry(insertedEntry lru.Value
 // It can be negative as well, in which case it reduces the existing stored files' size.
 // If it's negative, the value of stored files' size is not allowed to go below 0.
 func (c *FileCacheDiskUtilizationCalculator) AddDelta(delta int64) {
-	// Casting int64 to uint64 correctly handles negative values as 2's complement
-	c.filesSize.Add(uint64(delta))
+	if delta < 0 {
+		negDelta := uint64(-delta)
+		if negDelta > c.filesSize.Load() {
+			c.filesSize.Store(0)
+		} else {
+			c.filesSize.Add(-negDelta)
+		}
+	} else {
+		c.filesSize.Add(uint64(delta))
+	}
 	//logger.Debugf("file-cache's filesSize changed to %v", c.filesSize.Load())
 }
