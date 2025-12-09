@@ -76,7 +76,7 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 // Detects whether the read was short or not and returns whether it should be retried or not.
 // Reads would only be retried in case of zonal buckets and when the read data was less than requested (& object size)
 // and there was no error apart from EOF or short reads.
-func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, objectSize uint64, bucketType gcs.BucketType) bool {
+func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, objectSize uint64, bucketType gcs.BucketType, skipSizeChecks bool) bool {
 	if !bucketType.Zonal {
 		return false
 	}
@@ -85,7 +85,7 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 		return false
 	}
 
-	if offset+int64(bytesRead) >= int64(objectSize) {
+	if offset+int64(bytesRead) >= int64(objectSize) && !skipSizeChecks {
 		return false
 	}
 
@@ -117,10 +117,10 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest, 
 	}
 
 	bytesRead, err := gr.read(ctx, gcsReaderRequest, skipSizeChecks)
-	readResponse.Size = bytesRead
+	readResponse.Size = bytesRead / 2
 
 	// Retry reading in case of short read.
-	if shouldRetryForShortRead(err, bytesRead, readRequest.Buffer, readRequest.Offset, gr.object.Size, gr.bucket.BucketType()) {
+	if shouldRetryForShortRead(err, bytesRead, readRequest.Buffer, readRequest.Offset, gr.object.Size, gr.bucket.BucketType(), skipSizeChecks) {
 		gcsReaderRequest.Offset += int64(bytesRead)
 		gcsReaderRequest.Buffer = readRequest.Buffer[bytesRead:]
 		gcsReaderRequest.ForceCreateReader = true
@@ -135,7 +135,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest, 
 func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest, skipSizeChecks bool) (bytesRead int, err error) {
 	// We don't take a lock here to allow random reads to proceed without waiting.
 	// The read type is re-evaluated for zonal buckets inside the lock if necessary.
-	reqReaderType := gr.readerType(readReq.ReadType, gr.bucket.BucketType())
+	reqReaderType := gr.readerType(readReq, gr.bucket.BucketType(), skipSizeChecks)
 	var readResp gcsx.ReadResponse
 
 	if reqReaderType == RangeReaderType {
@@ -150,7 +150,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest, s
 		// reader when the read pattern changes.
 		if readReq.ExpectedOffset != gr.readTypeClassifier.NextExpectedOffset() {
 			*readReq.ReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
-			reqReaderType = gr.readerType(readReq.ReadType, gr.bucket.BucketType())
+			reqReaderType = gr.readerType(readReq, gr.bucket.BucketType(), skipSizeChecks)
 		}
 		// If the readerType is range reader after re calculation, then use range reader.
 		// Otherwise, fall back to MultiRange Downloader.
@@ -158,8 +158,8 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest, s
 			defer gr.mu.Unlock()
 			// Calculate the end offset based on previous read requests.
 			// It will be used if a new range reader needs to be created.
-			readReq.EndOffset = gr.getEndOffset(readReq.Offset)
-			readResp, err = gr.rangeReader.ReadAt(ctx, readReq)
+			readReq.EndOffset = gr.getEndOffset(readReq.Offset, skipSizeChecks)
+			readResp, err = gr.rangeReader.ReadAt(ctx, readReq, skipSizeChecks)
 			return readResp.Size, err
 		}
 		gr.mu.Unlock()
@@ -170,16 +170,16 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest, s
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) ReaderType {
-	if readType == metrics.ReadTypeRandom && bucketType.Zonal {
+func (gr *GCSReader) readerType(readReq *gcsx.GCSReaderRequest, bucketType gcs.BucketType, skipSizeChecks bool) ReaderType {
+	if (readReq.ReadType == metrics.ReadTypeRandom || (skipSizeChecks && readReq.Offset+int64(len(readReq.Buffer)) > int64(gr.object.Size))) && bucketType.Zonal {
 		return MultiRangeReaderType
 	}
 	return RangeReaderType
 }
 
-func (gr *GCSReader) getEndOffset(start int64) int64 {
+func (gr *GCSReader) getEndOffset(start int64, skipSizeChecks bool) int64 {
 	end := start + gr.readTypeClassifier.ComputeSeqPrefetchWindowAndAdjustType()
-	if end > int64(gr.object.Size) {
+	if end > int64(gr.object.Size) && !skipSizeChecks {
 		end = int64(gr.object.Size)
 	}
 	return end

@@ -111,7 +111,7 @@ func (rr *RangeReader) closeReader() {
 	}
 }
 
-func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
+func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest, skipSizeChecks bool) (gcsx.ReadResponse, error) {
 	var (
 		readResponse gcsx.ReadResponse
 		err          error
@@ -125,7 +125,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 		rr.limit = -1
 	}
 
-	readResponse.Size, err = rr.readFromExistingReader(ctx, req)
+	readResponse.Size, err = rr.readFromExistingReader(ctx, req, skipSizeChecks)
 	if errors.Is(err, gcsx.FallbackToAnotherReader) {
 		readResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ReadType)
 	}
@@ -316,12 +316,12 @@ func (rr *RangeReader) skipBytes(offset int64) {
 // Parameters:
 //   - startOffset: the starting byte position of the requested read.
 //   - endOffset: the ending byte position of the requested read.
-func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64) {
+func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64, skipSizeChecks bool) {
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(endOffset), float64(rr.object.Size))
-	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) {
+	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) || (skipSizeChecks && endOffset > rr.limit) {
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
@@ -331,12 +331,12 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOf
 // readFromExistingReader attempts to read data from an existing reader if one is available.
 // If a reader exists and the read is successful, the data is returned.
 // Otherwise, it returns an error indicating that a fallback to another reader is needed.
-func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (int, error) {
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest, skipSizeChecks bool) (int, error) {
 	rr.skipBytes(req.Offset)
 	// Since we are reading from an existing reader, we only need to read what was requested.
 	endOffset := min(req.Offset + int64(len(req.Buffer)))
 
-	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, endOffset)
+	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, endOffset, skipSizeChecks)
 	if rr.reader != nil {
 		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, endOffset, req.ReadType)
 	}
