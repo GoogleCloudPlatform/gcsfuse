@@ -22,12 +22,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fuseops"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	cachefolio "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folio"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	clientReaders "github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/client_readers"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -58,6 +58,8 @@ type ReadManagerConfig struct {
 	GlobalMaxBlocksSem    *semaphore.Weighted
 	WorkerPool            workerpool.WorkerPool
 	HandleID              fuseops.HandleID
+	SmartPool             *folio.SmartPool
+	LRUCache              *cachefolio.LRUCache
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -82,32 +84,15 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 
 	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB))
 
-	// If buffered read is enabled, initialize the buffered reader and add it to the readers.
-	if config.Config.Read.EnableBufferedRead {
-		readConfig := config.Config.Read
-		bufferedReadConfig := &bufferedread.BufferedReadConfig{
-			MaxPrefetchBlockCnt:     readConfig.MaxBlocksPerHandle,
-			PrefetchBlockSizeBytes:  readConfig.BlockSizeMb * util.MiB,
-			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
-			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
-			RandomSeekThreshold:     readConfig.RandomSeekThreshold,
-		}
-		opts := &bufferedread.BufferedReaderOptions{
-			Object:             object,
-			Bucket:             bucket,
-			Config:             bufferedReadConfig,
-			GlobalMaxBlocksSem: config.GlobalMaxBlocksSem,
-			WorkerPool:         config.WorkerPool,
-			MetricHandle:       config.MetricHandle,
-			ReadTypeClassifier: readClassifier,
-			HandleID:           config.HandleID,
-		}
-		bufferedReader, err := bufferedread.NewBufferedReader(opts)
-		if err != nil {
-			logger.Warnf("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
-		} else {
-			readers = append(readers, bufferedReader)
-		}
+	// If buffered read is enabled and SmartPool/LRUCache are provided, initialize the buffered cache reader.
+	if config.Config.Read.EnableBufferedRead && config.SmartPool != nil && config.LRUCache != nil {
+		// Create BufferedCacheReader configuration
+		bufferedCacheConfig := bufferedcache.DefaultConfig()
+		// TODO: Configure based on config.Config.Read settings if needed
+
+		// Create BufferedCacheReader using the shared pool and cache
+		bufferedCacheReader := bufferedcache.NewBufferedCacheReader(object, bucket, bufferedCacheConfig, nil, config.SmartPool, config.LRUCache)
+		readers = append(readers, bufferedCacheReader)
 	}
 
 	// Initialize the GCS reader, which is always present.
