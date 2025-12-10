@@ -101,9 +101,9 @@ func (b *fastStatBucket) insertMultipleMinObjects(listing *gcs.Listing, dirName 
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
 	if len(listing.MinObjects) != 0 {
-		logger.Info("MinObject name: ", listing.MinObjects[0].Name, dirName)
+		// logger.Info("MinObject name: ", listing.MinObjects[0].Name, dirName)
 		if listing.MinObjects[0].Name != dirName {
-			logger.Info("In Implicit dir caching", dirName)
+			// logger.Info("In Implicit dir caching", dirName)
 			f := &gcs.MinObject{
 				Name: dirName,
 			}
