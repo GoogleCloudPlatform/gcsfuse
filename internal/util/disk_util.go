@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -51,7 +52,8 @@ func getDiskUsage(entry fs.DirEntry) int64 {
 
 func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, error) {
 	var sizeOnDisk int64
-	var sem = make(chan struct{}, 32)
+	semSize := (runtime.NumCPU() + 4) / 5
+	var sem = make(chan struct{}, semSize)
 	var wg sync.WaitGroup
 	var errMu sync.Mutex
 
