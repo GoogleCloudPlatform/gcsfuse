@@ -954,9 +954,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("file-cache-parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
 
-	flagSet.BoolP("file-cache-size-scan-delete-empty-dirs", "", false, "Whether or not to delete empty directories inside cache-dir during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true.")
+	flagSet.BoolP("file-cache-size-scan-delete-empty-dirs", "", true, "Whether or not to delete empty directories inside cache-dir during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true.")
 
-	flagSet.BoolP("file-cache-size-scan-enable", "", false, "Whether or not to scan disk sizes of file-cache cache-dir.")
+	flagSet.BoolP("file-cache-size-scan-enable", "", true, "Whether or not to scan disk sizes of file-cache cache-dir.")
 
 	flagSet.BoolP("file-cache-size-scan-files", "", false, "Whether or not to scan files' disk sizes also during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true.")
 

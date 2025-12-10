@@ -312,14 +312,14 @@ params:
     flag-name: "file-cache-size-scan-delete-empty-dirs"
     type: "bool"
     usage: "Whether or not to delete empty directories inside cache-dir during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true."
-    default: false
+    default: true
     hide-flag: false
 
   - config-path: "file-cache.size-scan-enable"
     flag-name: "file-cache-size-scan-enable"
     type: "bool"
     usage: "Whether or not to scan disk sizes of file-cache cache-dir."
-    default: false
+    default: true
     hide-flag: false
 
   - config-path: "file-cache.size-scan-files"
