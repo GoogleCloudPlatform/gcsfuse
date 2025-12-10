@@ -92,13 +92,24 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insertMultipleMinObjects(listing *gcs.Listing) {
-	logger.Info("insertMultipleMinObjects: ", listing)
+func (b *fastStatBucket) insertMultipleMinObjects(listing *gcs.Listing, dirName string) {
+	// logger.Info("insertMultipleMinObjects: ", listing)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	minObjectNames := make(map[string]struct{})
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
+
+	if len(listing.MinObjects) != 0 {
+		logger.Info("MinObject name: ", listing.MinObjects[0].Name, dirName)
+		if listing.MinObjects[0].Name != dirName {
+			logger.Info("In Implicit dir caching", dirName)
+			f := &gcs.MinObject{
+				Name: dirName,
+			}
+			b.cache.Insert(f, expiration)
+		}
+	}
 
 	for _, o := range listing.MinObjects {
 		b.cache.Insert(o, expiration)
@@ -106,7 +117,7 @@ func (b *fastStatBucket) insertMultipleMinObjects(listing *gcs.Listing) {
 	}
 
 	for _, p := range listing.CollapsedRuns {
-		logger.Info("CollapsedRuns: ", p)
+		// logger.Info("CollapsedRuns: ", p)
 		// If a MinObject with the same name as the CollapsedRun already exists,
 		// we don't need to insert it again as a Folder.
 		if _, ok := minObjectNames[p]; ok {
@@ -116,7 +127,7 @@ func (b *fastStatBucket) insertMultipleMinObjects(listing *gcs.Listing) {
 			// log the error for incorrect prefix but don't fail the operation
 			logger.Errorf("error in prefix name: %s", p)
 		} else {
-			logger.Info("In Implicit dir caching", p)
+			// logger.Info("In Implicit dir caching", p)
 			f := &gcs.MinObject{
 				Name: p,
 			}
@@ -353,7 +364,7 @@ func (b *fastStatBucket) StatObject(
 	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
 		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true")
 	}
-	logger.Debugf("StatObject")
+	// logger.Debugf("StatObject")
 	// If fetching from gcs is enabled, directly make a call to GCS.
 	if req.ForceFetchFromGcs {
 		logger.Debugf("In force fetch GCS")
@@ -395,15 +406,15 @@ func (b *fastStatBucket) ListObjects(
 	if req.ForceFetchFromCache {
 		var hit bool
 		var entry any
-		logger.Infof("req Prefix: ", req.Prefix)
-		hit, entry = b.lookUp(req.Prefix + "/")
+		// logger.Infof("req Prefix: ", req.Prefix)
+		hit, entry = b.lookUp(req.Prefix)
 
 		if hit {
 			// Negative entries result in NotFoundError.
-			logger.Infof("entry: ", entry)
+			// logger.Infof("entry: ", entry)
 			if entry.(*gcs.MinObject) == nil {
 				return nil, &gcs.NotFoundError{
-					Err: fmt.Errorf("negative cache entry for %v", req.Prefix + "/"),
+					Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
 				}
 			}
 			if minObject, ok := entry.(*gcs.MinObject); ok {
@@ -413,7 +424,7 @@ func (b *fastStatBucket) ListObjects(
 				return &gcs.Listing{MinObjects: []*gcs.MinObject{minObject}}, nil
 			}
 		}
-		return nil, &gcs.NotFoundCacheError{Err: fmt.Errorf("Not found cache entry for %v", req.Prefix+ "/")}
+		return nil, &gcs.NotFoundCacheError{Err: fmt.Errorf("Not found cache entry for %v", req.Prefix)}
 	}
 
 	// Fetch the listing.
@@ -427,7 +438,7 @@ func (b *fastStatBucket) ListObjects(
 	}
 
 	// note anything we found.
-	b.insertMultipleMinObjects(listing)
+	b.insertMultipleMinObjects(listing, req.Prefix)
 	return listing, nil
 }
 

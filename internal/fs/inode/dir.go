@@ -410,16 +410,11 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, for
 	if !name.IsDir() {
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
-	gcsObjectName := name.GcsObjectName()
-
-	// Trim the trailing slash if it exists
-	trimmedName := strings.TrimSuffix(gcsObjectName, "/")
 
 	req := &gcs.ListObjectsRequest{
-		Prefix:              trimmedName,
+		Prefix:              name.GcsObjectName(),
 		MaxResults:          1,
 		ForceFetchFromCache: forceFetchFromCache,
-		Delimiter:           "/",
 	}
 	listing, err := bucket.ListObjects(ctx, req)
 	var notFoundErr *gcs.NotFoundError
@@ -587,7 +582,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, fmt.Errorf("lookUpFile: %w", err)
 	}
 
-	logger.Infof("fileResult err: ", err)
+	// logger.Infof("fileResult err: ", err)
 	if d.isBucketHierarchical() {
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 	} else {
@@ -601,7 +596,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, fmt.Errorf("lookUpdir: %w", err)
 	}
 
-	logger.Infof("dirResult err: ", err)
+	// logger.Infof("dirResult err: ", err)
 	var result *Core
 	if dirResult != nil {
 		result = dirResult
