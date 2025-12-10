@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,4 +138,46 @@ func TestFileCacheDiskUtilizationCalculator_AddDelta(t *testing.T) {
 	// Add negative delta to zero out added amount
 	calc.AddDelta(-120)
 	assert.Equal(t, initialSize, calc.GetCurrentSize())
+}
+
+func TestFileCacheDiskUtilizationCalculator_SizeOf_NonSparseFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, time.Hour, false, false, 4096)
+	defer calc.Stop()
+	// FileSize: 10000. Block size: 4096.
+	// Blocks: ceil(10000/4096) = 3. Size: 3 * 4096 = 12288.
+	fiNonSparse := data.FileInfo{
+		FileSize:   10000,
+		SparseMode: false,
+	}
+	expectedNonSparse := uint64(12288)
+
+	size := calc.SizeOf(fiNonSparse)
+
+	assert.Equal(t, expectedNonSparse, size)
+}
+
+func TestFileCacheDiskUtilizationCalculator_SizeOf_SparseFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, time.Hour, false, false, 4096)
+	defer calc.Stop()
+	// Downloaded: 2 chunks of 1024 bytes.
+	// Chunk 0: [0, 1024)
+	// Chunk 2: [2048, 3072)
+	brm := data.NewByteRangeMap(1024)
+	brm.AddRange(0, 1024)
+	brm.AddRange(2048, 3072)
+	fiSparse := data.FileInfo{
+		FileSize:         10000,
+		SparseMode:       true,
+		DownloadedRanges: brm,
+	}
+	// Total downloaded bytes = 2048.
+	// Block size: 4096.
+	// ceil(2048/4096) = 1. Size: 4096.
+	expectedSparse := uint64(4096)
+
+	size := calc.SizeOf(fiSparse)
+
+	assert.Equal(t, expectedSparse, size)
 }
