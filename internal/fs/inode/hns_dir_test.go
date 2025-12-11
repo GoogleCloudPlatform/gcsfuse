@@ -385,6 +385,12 @@ func (t *HNSDirTest) TestRenameFileWithNonExistentSourceFile() {
 func (t *NonHNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagTrueOnNonHNSBucket() {
 	const folderName = "folder"
 	dirName := path.Join(dirInodeName, folderName) + "/"
+	deleteObjectReq := gcs.DeleteObjectRequest{
+		Name:            dirName,
+		Generation:      0,
+		DeleteFromCache: true,
+	}
+	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(nil)
 	dirIn := t.createDirInode(dirName)
 
 	// Delete dir

@@ -868,7 +868,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 		WillOnce(Return(expected, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(2)
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(3)
 
 	// Call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})

@@ -995,23 +995,26 @@ func (d *dirInode) DeleteChildDir(
 	isImplicitDir bool,
 	dirInode DirInode) error {
 
+	childName := NewDirName(d.Name(), name)
+
+	req := gcs.DeleteObjectRequest{
+		Name:       childName.GcsObjectName(),
+		Generation: 0, // Delete the latest version of object named after dir.
+	}
+
 	// If the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
 	// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
 	if isImplicitDir {
-		return nil
+		req.DeleteFromCache = true
 	}
-
-	childName := NewDirName(d.Name(), name)
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
 	err := d.bucket.DeleteObject(
 		ctx,
-		&gcs.DeleteObjectRequest{
-			Name:       childName.GcsObjectName(),
-			Generation: 0, // Delete the latest version of object named after dir.
-		})
+		&req,
+	)
 
 	if !d.isBucketHierarchical() {
 		if err != nil {
