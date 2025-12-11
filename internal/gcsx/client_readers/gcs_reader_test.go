@@ -442,7 +442,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	t.object.Size = 20 * MiB
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{}, false)
 	assert.NoError(t.T(), err, "Error in creating MRDWrapper")
 	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Twice()
@@ -483,7 +483,7 @@ func (t *gcsReaderTest) Test_ReadAt_MRDShortReadOnZonal() {
 	t.object.Size = 200
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{})
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, false)
 	require.NoError(t.T(), err)
 	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Times(2)
@@ -521,7 +521,7 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 	// Mock bucket and MRD
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{})
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, false)
 	require.NoError(t.T(), err)
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Twice()
 	// Sequential read #1

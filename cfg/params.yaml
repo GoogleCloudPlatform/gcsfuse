@@ -317,6 +317,15 @@ params:
     default: "4194304" # 4MiB
     hide-flag: true
 
+  - config-path: "file-system.congestion-threshold"
+    flag-name: "congestion-threshold"
+    type: "int"
+    usage: >-
+      Sets the number of outstanding requests at which the kernel starts throttling its
+      aggressive I/O optimizations, such as read-ahead and write-back, for the mount.
+    default: "0"
+    hide-flag: true
+
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
     type: "octal"
@@ -388,6 +397,15 @@ params:
       profiles:
         - name: "aiml-serving"
           value: -1
+  
+  - config-path: "file-system.max-background"
+    flag-name: "max-background"
+    type: "int"
+    usage: >-
+      Sets the maximum number of outstanding, asynchronous requests the kernel can send
+      to the user-space FUSE daemon for the mount.
+    default: "0"
+    hide-flag: true
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -1017,6 +1035,7 @@ params:
       Specifies the random seek threshold to switch to another reader when random reads are detected.
     default: 3
     hide-flag: true
+
 
   - config-path: "read.start-blocks-per-handle"
     flag-name: "read-start-blocks-per-handle"

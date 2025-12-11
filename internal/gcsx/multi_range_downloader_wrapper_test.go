@@ -59,7 +59,7 @@ func (t *mrdWrapperTest) SetupTest() {
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.mrdTimeout = time.Millisecond
-	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, &cfg.Config{})
+	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, &cfg.Config{}, false)
 	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
 	t.mrdWrapper.refCount = 0
@@ -258,7 +258,7 @@ func (t *mrdWrapperTest) Test_NewMultiRangeDownloaderWrapper() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			_, err := NewMultiRangeDownloaderWrapper(tc.bucket, tc.obj, &cfg.Config{})
+			_, err := NewMultiRangeDownloaderWrapper(tc.bucket, tc.obj, &cfg.Config{}, false)
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 			} else {

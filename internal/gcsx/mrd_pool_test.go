@@ -1,4 +1,4 @@
-// Copyright 2015 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"io"
 	"testing"
-
-	"cloud.google.com/go/storage"
 )
 
 // mockMultiRangeDownloader is a mock implementation for testing.
@@ -82,11 +80,6 @@ func (m *mockMultiRangeDownloader) GetHandle() []byte {
 
 // Override createMultiRangeDownloader for testing
 var testMRDCounter = 0
-
-func createMockMRD(client *storage.Client) (MultiRangeDownloader, error) {
-	testMRDCounter++
-	return &mockMultiRangeDownloader{id: testMRDCounter}, nil
-}
 
 func TestNewMRDPool(t *testing.T) {
 	tests := []struct {
@@ -444,11 +437,6 @@ func ExampleMRDPool() {
 			completed = true
 		}
 	})
-
-	if err != nil {
-		fmt.Printf("Add failed: %v\n", err)
-		return
-	}
 
 	// Wait for all downloads to complete
 	pool.Wait()

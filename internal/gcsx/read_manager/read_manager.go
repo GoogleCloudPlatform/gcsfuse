@@ -64,7 +64,7 @@ type ReadManagerConfig struct {
 // using the provided configuration. It initializes the manager with a
 // file cache reader and a GCS reader, prioritizing the file cache reader if available.
 func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManagerConfig) *ReadManager {
-	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
+	// Create a slice to hold all readers. The file cache reader will gibe added first if it exists.
 	var readers []gcsx.Reader
 
 	// If a file cache handler is provided, initialize the file cache reader and add it to the readers slice first.
@@ -82,6 +82,21 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 
 	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB))
 
+	if bucket.BucketType().Zonal {
+		mrdReader := gcsx.NewMRDReader(
+			object,
+			config.MetricHandle,
+			config.MrdWrapper,
+		)
+		readers = append(readers, mrdReader)
+		logger.Infof("Zonal bucket detected. MRDReader added to ReadManager for object %q.", object.Name)
+
+		return &ReadManager{
+			object:             object,
+			readers:            readers, // Readers are prioritized: file cache first, then GCS.
+			readTypeClassifier: readClassifier,
+		}
+	}
 	// If buffered read is enabled, initialize the buffered reader and add it to the readers.
 	if config.Config.Read.EnableBufferedRead {
 		readConfig := config.Config.Read
