@@ -268,6 +268,40 @@ func setMaxReadAhead(mountPoint string, readAheadKb int) error {
 	return nil
 }
 
+// setCongestion sets the kernel-read-ahead for the filesystem mounted at
+// the given mountPoint to readAheadKb.
+func setCongestionAndMaxBackground(mountPoint string, parallelReads int) error {
+	_, minor, err := getDeviceMajorMinor(mountPoint)
+	if err != nil {
+		return fmt.Errorf("getting device major/minor for mount point %s: %v", mountPoint, err)
+	}
+
+	sysPathMxBg := filepath.Join("/sys/fs/fuse/connections", fmt.Sprintf("%d", minor), "max_background")
+	sysPathCgTh := filepath.Join("/sys/fs/fuse/connections", fmt.Sprintf("%d", minor), "congestion_threshold")
+	cmd := exec.Command("sudo", "-n", "tee", sysPathMxBg)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", parallelReads))
+
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("setting the max-background on mount-path %s: %v, stderr: %s", mountPoint, err, stderr.String())
+		return err
+	}
+
+	cmd = exec.Command("sudo", "-n", "tee", sysPathCgTh)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", parallelReads))
+
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("setting the congestion threshold on mount-path %s: %v, stderr: %s", mountPoint, err, stderr.String())
+		return err
+	}
+
+	return nil
+}
+
 func populateArgs(args []string) (
 	bucketName string,
 	mountPoint string,
@@ -564,6 +598,13 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 				logger.Infof("Failed to set the max read ahead: %v", err)
 			} else {
 				logger.Infof("Max read-ahead set to %d KB successfully.", newConfig.FileSystem.MaxReadAheadKb)
+			}
+
+			err = setCongestionAndMaxBackground(mountPoint, 32)
+			if err != nil {
+				logger.Infof("Failed to set the congestion and max-background: %v", err)
+			} else {
+				logger.Infof("Congestion and max-background set successfully.")
 			}
 		}
 
