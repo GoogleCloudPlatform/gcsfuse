@@ -41,7 +41,7 @@ func (*noopMetrics) FsOpsLatency(ctx context.Context, latency time.Duration, fsO
 
 func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType ReadType) {}
 
-func (*noopMetrics) GcsReadBytesCount(inc int64, reader Reader) {}
+func (*noopMetrics) GcsReadBytesCount(inc int64) {}
 
 func (*noopMetrics) GcsReadCount(inc int64, readType ReadType) {}
 
