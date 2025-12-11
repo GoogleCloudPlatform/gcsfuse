@@ -970,7 +970,7 @@ params:
       When enabled, read starts using buffer to prefetch (asynchronous and in parallel)
       data from GCS. This improves performance for large file sequential reads.
       Note: Enabling this flag can increase the memory usage significantly.
-    default: false
+    default: true
 
   - config-path: "read.global-max-blocks"
     flag-name: "read-global-max-blocks"
