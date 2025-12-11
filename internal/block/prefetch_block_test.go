@@ -380,93 +380,85 @@ func (r *errorReader) Read(p []byte) (n int, err error) {
 	return 0, r.err
 }
 
-func (testSuite *PrefetchMemoryBlockTest) TestReadFrom() {
-	t := testSuite.T()
-	tests := []struct {
-		name          string
-		blockSize     int64
-		initialData   []byte
-		readerData    []byte
-		reader        io.Reader
-		expectedN     int64
-		expectedData  []byte
-		expectedError error
-	}{
-		{
-			name:         "Reader has less data than buffer capacity",
-			blockSize:    10,
-			readerData:   []byte("hello"),
-			expectedN:    5,
-			expectedData: []byte("hello"),
-		},
-		{
-			name:         "Reader has more data than buffer capacity",
-			blockSize:    5,
-			readerData:   []byte("helloworld"),
-			expectedN:    5,
-			expectedData: []byte("hello"),
-		},
-		{
-			name:         "Reader is empty",
-			blockSize:    10,
-			readerData:   []byte{},
-			expectedN:    0,
-			expectedData: []byte{},
-		},
-		{
-			name:          "Reader returns an error",
-			blockSize:     10,
-			reader:        &errorReader{err: assert.AnError},
-			expectedN:     0,
-			expectedData:  []byte{},
-			expectedError: assert.AnError,
-		},
-		{
-			name:         "Buffer is already full",
-			blockSize:    5,
-			initialData:  []byte("abcde"),
-			readerData:   []byte("fgh"),
-			expectedN:    0,
-			expectedData: []byte("abcde"),
-		},
-		{
-			name:         "Buffer is partially full",
-			blockSize:    10,
-			initialData:  []byte("abcde"),
-			readerData:   []byte("fghij"),
-			expectedN:    5,
-			expectedData: []byte("abcdefghij"),
-		},
-		{
-			name:         "Buffer is partially full and reader has more data",
-			blockSize:    10,
-			initialData:  []byte("abc"),
-			readerData:   []byte("defghijkl"),
-			expectedN:    7,
-			expectedData: []byte("abcdefghij"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pmb, err := createPrefetchBlock(tt.blockSize)
-			require.NoError(t, err)
-			if len(tt.initialData) > 0 {
-				n, err := pmb.Write(tt.initialData)
-				require.NoError(t, err)
-				require.Equal(t, len(tt.initialData), n)
-			}
-			reader := tt.reader
-			if reader == nil {
-				reader = bytes.NewReader(tt.readerData)
-			}
-			n, err := pmb.(*prefetchMemoryBlock).ReadFrom(reader)
-			assert.Equal(t, tt.expectedN, n)
-			if tt.expectedError != nil {
-				assert.ErrorIs(t, err, tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-			}
-			assert.Equal(t, tt.expectedData, pmb.(*prefetchMemoryBlock).buffer)
-		})
-	}
+func (testSuite *PrefetchMemoryBlockTest) TestReadFrom_ReaderHasLessDataThanBufferCapacity() {
+	pmb, err := createPrefetchBlock(10)
+	require.NoError(testSuite.T(), err)
+
+	n, err := pmb.(*prefetchMemoryBlock).ReadFrom(bytes.NewReader([]byte("hello")))
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(5), n)
+	assert.Equal(testSuite.T(), []byte("hello"), pmb.(*prefetchMemoryBlock).buffer)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestReadFrom_ReaderHasMoreDataThanBufferCapacity() {
+	pmb, err := createPrefetchBlock(5)
+	require.NoError(testSuite.T(), err)
+
+	n, err := pmb.(*prefetchMemoryBlock).ReadFrom(bytes.NewReader([]byte("helloworld")))
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(5), n)
+	assert.Equal(testSuite.T(), []byte("hello"), pmb.(*prefetchMemoryBlock).buffer)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestReadFrom_ReaderIsEmpty() {
+	pmb, err := createPrefetchBlock(10)
+	require.NoError(testSuite.T(), err)
+
+	n, err := pmb.(*prefetchMemoryBlock).ReadFrom(bytes.NewReader([]byte{}))
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(0), n)
+	assert.Equal(testSuite.T(), []byte{}, pmb.(*prefetchMemoryBlock).buffer)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestReadFrom_ReaderReturnsError() {
+	pmb, err := createPrefetchBlock(10)
+	require.NoError(testSuite.T(), err)
+
+	n, err := pmb.(*prefetchMemoryBlock).ReadFrom(&errorReader{err: assert.AnError})
+
+	assert.ErrorIs(testSuite.T(), err, assert.AnError)
+	assert.Equal(testSuite.T(), int64(0), n)
+	assert.Equal(testSuite.T(), []byte{}, pmb.(*prefetchMemoryBlock).buffer)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestReadFrom_BufferIsAlreadyFull() {
+	pmb, err := createPrefetchBlock(5)
+	require.NoError(testSuite.T(), err)
+	_, err = pmb.Write([]byte("abcde"))
+	require.NoError(testSuite.T(), err)
+
+	n, err := pmb.(*prefetchMemoryBlock).ReadFrom(bytes.NewReader([]byte("fgh")))
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(0), n)
+	assert.Equal(testSuite.T(), []byte("abcde"), pmb.(*prefetchMemoryBlock).buffer)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestReadFrom_BufferIsPartiallyFull() {
+	pmb, err := createPrefetchBlock(10)
+	require.NoError(testSuite.T(), err)
+	_, err = pmb.Write([]byte("abcde"))
+	require.NoError(testSuite.T(), err)
+
+	n, err := pmb.(*prefetchMemoryBlock).ReadFrom(bytes.NewReader([]byte("fghij")))
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(5), n)
+	assert.Equal(testSuite.T(), []byte("abcdefghij"), pmb.(*prefetchMemoryBlock).buffer)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestReadFrom_BufferIsPartiallyFullAndReaderHasMoreData() {
+	pmb, err := createPrefetchBlock(10)
+	require.NoError(testSuite.T(), err)
+	_, err = pmb.Write([]byte("abc"))
+	require.NoError(testSuite.T(), err)
+
+	n, err := pmb.(*prefetchMemoryBlock).ReadFrom(bytes.NewReader([]byte("defghijkl")))
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(7), n)
+	assert.Equal(testSuite.T(), []byte("abcdefghij"), pmb.(*prefetchMemoryBlock).buffer)
 }
