@@ -235,6 +235,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			MaxSize:     512 * 1024 * 1024, // 512 MB
 			MaxEntries:  10000,
 			BTreeDegree: 32,
+			SmartPool:   fs.smartPool,
 		})
 	}
 

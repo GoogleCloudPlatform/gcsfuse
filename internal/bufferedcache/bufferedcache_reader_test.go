@@ -1,11 +1,25 @@
-// Copyright 2025 Google Inc. All Rights Reserved.
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package bufferedcache
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	cachefolio "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 )
@@ -17,6 +31,29 @@ func TestBufferedCacheReaderImplementsInterface(t *testing.T) {
 	var _ gcsx.Reader = &BufferedCacheReader{}
 }
 
+// createPool creates a SmartPool for testing
+func createPool() *folio.SmartPool {
+	pool, err := folio.NewSmartPool(int(folio.Size1MB), int(folio.Size64KB))
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create smart pool: %v", err))
+	}
+	return pool
+}
+
+// createTestReader creates a BufferedCacheReader for testing with proper LRUCache
+func createTestReader(pool *folio.SmartPool, config *BufferedCacheReaderConfig) *BufferedCacheReader {
+	lruCache := cachefolio.NewLRUCache(cachefolio.LRUCacheConfig{
+		MaxSize:    512 * 1024 * 1024,
+		MaxEntries: 10000,
+		SmartPool:  pool,
+	})
+	reader, err := NewBufferedCacheReader(nil, nil, config, nil, pool, lruCache)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create reader: %v", err))
+	}
+	return reader
+}
+
 // TestNewBufferedCacheReader verifies that a new reader can be created with default config.
 func TestNewBufferedCacheReader(t *testing.T) {
 	pool, err := folio.NewSmartPool(int(folio.Size1MB), int(folio.Size64KB))
@@ -24,7 +61,14 @@ func TestNewBufferedCacheReader(t *testing.T) {
 		t.Fatalf("Failed to create smart pool: %v", err)
 	}
 
-	reader := NewBufferedCacheReader(nil, nil, nil, nil, pool, nil)
+	// Test error case: nil lruCache
+	_, err = NewBufferedCacheReader(nil, nil, nil, nil, pool, nil)
+	if err == nil {
+		t.Fatal("Expected error when lruCache is nil, got nil")
+	}
+
+	// Test success case: with lruCache
+	reader := createTestReader(pool, nil)
 	if reader == nil {
 		t.Fatal("NewBufferedCacheReader returned nil")
 	}
@@ -49,7 +93,7 @@ func TestBufferedCacheReaderMethods(t *testing.T) {
 		t.Fatalf("Failed to create smart pool: %v", err)
 	}
 
-	reader := NewBufferedCacheReader(nil, nil, nil, nil, pool, nil)
+	reader := createTestReader(pool, nil)
 
 	// Test CheckInvariants
 	reader.CheckInvariants()
@@ -72,12 +116,9 @@ func TestBufferedCacheReaderMethods(t *testing.T) {
 
 // TestPeekWindow verifies the Peek method updates window state correctly.
 func TestPeekWindow(t *testing.T) {
-	pool, err := folio.NewSmartPool(int(folio.Size1MB))
-	if err != nil {
-		t.Fatalf("Failed to create smart pool: %v", err)
-	}
+	pool := createPool()
 
-	reader := NewBufferedCacheReader(nil, nil, nil, nil, pool, nil)
+	reader := createTestReader(pool, nil)
 	ctx := context.Background()
 
 	// First read at offset 0 should create a window
@@ -119,17 +160,14 @@ func TestPeekWindow(t *testing.T) {
 
 // TestWindowScaling verifies that window sizes scale correctly.
 func TestWindowScaling(t *testing.T) {
-	pool, err := folio.NewSmartPool(int(folio.Size1MB))
-	if err != nil {
-		t.Fatalf("Failed to create smart pool: %v", err)
-	}
+	pool := createPool()
 
 	config := &BufferedCacheReaderConfig{
 		PageSize:  4096,
 		MaxWindow: 128 * 1024 * 1024,
 		MergeGap:  64 * 1024,
 	}
-	reader := NewBufferedCacheReader(nil, nil, config, nil, pool, nil)
+	reader := createTestReader(pool, config)
 
 	testCases := []struct {
 		name     string

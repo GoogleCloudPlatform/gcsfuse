@@ -1,12 +1,26 @@
-// Copyright 2025 Google Inc. All Rights Reserved.
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package folio
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/google/btree"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/folio"
+	"github.com/jacobsa/fuse/fuseops"
 )
 
 const PageSize = 4096
@@ -35,12 +49,14 @@ type LRUCache struct {
 	maxEntries  int
 	entryCount  int
 	btreeDegree int
+	smartPool   *folio.SmartPool
 }
 
 type LRUCacheConfig struct {
 	MaxSize     int64
 	MaxEntries  int
 	BTreeDegree int
+	SmartPool   *folio.SmartPool
 }
 
 type CacheStats struct {
@@ -60,20 +76,17 @@ func NewLRUCache(config LRUCacheConfig) *LRUCache {
 		maxSize:     config.MaxSize,
 		maxEntries:  config.MaxEntries,
 		btreeDegree: config.BTreeDegree,
+		smartPool:   config.SmartPool,
 	}
 }
 
-func alignOffset(offset int64) int64 {
-	return (offset / PageSize) * PageSize
-}
-
-func alignSize(size int64) int64 {
-	return ((size + PageSize - 1) / PageSize) * PageSize
-}
-
-func (c *LRUCache) Get(inode uint64, offset, size int64) []*folio.Folio {
+func (c *LRUCache) Get(inode uint64, offset, size int64) ([]*folio.Folio, error) {
 	if size <= 0 {
-		return nil
+		return nil, nil
+	}
+
+	if c.smartPool == nil {
+		return nil, fmt.Errorf("SmartPool is required but not configured")
 	}
 
 	// Assume offset and size are already page-aligned
@@ -91,6 +104,7 @@ func (c *LRUCache) Get(inode uint64, offset, size int64) []*folio.Folio {
 
 	var result []*folio.Folio
 	var newEntries []*CacheEntry
+	var allocErr error
 
 	// Iterate through existing entries starting from the requested offset
 	tree.AscendGreaterOrEqual(&CacheEntry{Offset: start}, func(item btree.Item) bool {
@@ -105,22 +119,21 @@ func (c *LRUCache) Get(inode uint64, offset, size int64) []*folio.Folio {
 				gapEnd = end
 			}
 
-			// Break gap into page-sized chunks
-			for currentOffset := start; currentOffset < gapEnd; currentOffset += PageSize {
-				chunkEnd := currentOffset + PageSize
-				if chunkEnd > gapEnd {
-					chunkEnd = gapEnd
-				}
-				chunkSize := chunkEnd - currentOffset
+			// Allocate folios for the gap using SmartPool
+			gapFolios, err := folio.AllocateFolios(start, gapEnd, fuseops.InodeID(inode), c.smartPool)
+			if err != nil {
+				allocErr = fmt.Errorf("failed to allocate folios for gap [%d, %d): %w", start, gapEnd, err)
+				return false
+			}
 
-				newFolio := folio.NewFolio(currentOffset, chunkEnd, nil)
-				result = append(result, newFolio)
-
+			// Add folios to result and create cache entries
+			for _, f := range gapFolios {
+				result = append(result, f)
 				newEntry := &CacheEntry{
 					Inode:  inode,
-					Offset: currentOffset,
-					Size:   chunkSize,
-					Folio:  newFolio,
+					Offset: f.Start,
+					Size:   f.End - f.Start,
+					Folio:  f,
 				}
 				newEntries = append(newEntries, newEntry)
 			}
@@ -142,24 +155,25 @@ func (c *LRUCache) Get(inode uint64, offset, size int64) []*folio.Folio {
 		return start < end
 	})
 
+	if allocErr != nil {
+		return nil, allocErr
+	}
+
 	// Create final folios if there's still a gap at the end
 	if start < end {
-		// Break remaining gap into page-sized chunks
-		for currentOffset := start; currentOffset < end; currentOffset += PageSize {
-			chunkEnd := currentOffset + PageSize
-			if chunkEnd > end {
-				chunkEnd = end
-			}
-			chunkSize := chunkEnd - currentOffset
+		finalFolios, err := folio.AllocateFolios(start, end, fuseops.InodeID(inode), c.smartPool)
+		if err != nil {
+			return nil, fmt.Errorf("failed to allocate folios for final gap [%d, %d): %w", start, end, err)
+		}
 
-			newFolio := folio.NewFolio(currentOffset, chunkEnd, nil)
-			result = append(result, newFolio)
-
+		// Add folios to result and create cache entries
+		for _, f := range finalFolios {
+			result = append(result, f)
 			newEntry := &CacheEntry{
 				Inode:  inode,
-				Offset: currentOffset,
-				Size:   chunkSize,
-				Folio:  newFolio,
+				Offset: f.Start,
+				Size:   f.End - f.Start,
+				Folio:  f,
 			}
 			newEntries = append(newEntries, newEntry)
 		}
@@ -175,12 +189,12 @@ func (c *LRUCache) Get(inode uint64, offset, size int64) []*folio.Folio {
 
 	c.evictIfNeeded()
 
-	return result
+	return result, nil
 }
 
 func (c *LRUCache) Remove(inode uint64, offset, size int64) {
-	alignedOffset := alignOffset(offset)
-	alignedEnd := alignOffset(offset + size + PageSize - 1)
+	alignedOffset := offset
+	alignedEnd := offset + size
 
 	c.mu.Lock()
 	defer c.mu.Unlock()

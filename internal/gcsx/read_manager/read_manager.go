@@ -17,6 +17,7 @@ package read_manager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -91,7 +92,11 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		// TODO: Configure based on config.Config.Read settings if needed
 
 		// Create BufferedCacheReader using the shared pool and cache
-		bufferedCacheReader := bufferedcache.NewBufferedCacheReader(object, bucket, bufferedCacheConfig, nil, config.SmartPool, config.LRUCache)
+		bufferedCacheReader, err := bufferedcache.NewBufferedCacheReader(object, bucket, bufferedCacheConfig, nil, config.SmartPool, config.LRUCache)
+		if err != nil {
+			// This should not happen if SmartPool and LRUCache are properly configured
+			panic(fmt.Sprintf("failed to create buffered cache reader: %v", err))
+		}
 		readers = append(readers, bufferedCacheReader)
 	}
 

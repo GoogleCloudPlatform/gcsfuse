@@ -1,4 +1,16 @@
-// Copyright 2025 Google Inc. All Rights Reserved.
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package folio
 
@@ -15,12 +27,12 @@ type FolioTests struct {
 }
 
 func (s *FolioTests) TestBasic() {
-	f := NewFolio(10, 50, nil)
+	f := NewFolio(10, 50, 0)
 	s.Equal(f.Size(), int64(40))
 }
 
 func (s *FolioTests) TestRefcount() {
-	f := NewFolio(0, 0, nil)
+	f := NewFolio(0, 0, 0)
 	s.Equal(f.Refcount(), 0)
 	for i := range 5 {
 		f.IncRef()
@@ -34,14 +46,14 @@ func (s *FolioTests) TestRefcount() {
 }
 
 func (s *FolioTests) TestDecRefZeroPanics() {
-	f := NewFolio(0, 0, nil)
+	f := NewFolio(0, 0, 0)
 	s.Panics(func() {
 		f.DecRef()
 	})
 }
 
 func (s *FolioTests) TestDone() {
-	f := NewFolio(0, 0, nil)
+	f := NewFolio(0, 0, 0)
 	s.False(f.IsDone())
 	close(f.done)
 	s.True(f.IsDone())
@@ -53,7 +65,7 @@ type FolioRefsTests struct {
 
 func (s *FolioRefsTests) TestAdd() {
 	refs := FolioRefs{}
-	f := NewFolio(0, 10, nil)
+	f := NewFolio(0, 10, 0)
 	refs.Add(f)
 	s.Equal(f.Refcount(), 1)
 }
@@ -61,7 +73,7 @@ func (s *FolioRefsTests) TestAdd() {
 func (s *FolioRefsTests) TestWait() {
 	refs := FolioRefs{}
 	for i := range 5 {
-		refs.Add(NewFolio(int64(i*10), int64((i+1)*10), nil))
+		refs.Add(NewFolio(int64(i*10), int64((i+1)*10), 0))
 	}
 	isDone := false
 	go func() {
@@ -80,7 +92,7 @@ func (s *FolioRefsTests) TestWait() {
 
 func (s *FolioRefsTests) TestSliceSingle() {
 	refs := FolioRefs{}
-	folio := NewFolio(0, 4, nil)
+	folio := NewFolio(0, 4, 0)
 	folio.block = &Block{Data: []byte{0, 1, 2, 3}}
 	refs.Add(folio)
 	n, sg := refs.Slice(1, 3)
@@ -90,7 +102,7 @@ func (s *FolioRefsTests) TestSliceSingle() {
 
 func (s *FolioRefsTests) TestSliceEmpty() {
 	refs := FolioRefs{}
-	folio := NewFolio(0, 4, nil)
+	folio := NewFolio(0, 4, 0)
 	folio.block = &Block{Data: []byte{0, 1, 2, 3}}
 	refs.Add(folio)
 	n, sg := refs.Slice(1, 1)
@@ -101,7 +113,7 @@ func (s *FolioRefsTests) TestSliceEmpty() {
 func (s *FolioRefsTests) TestSliceMultiple() {
 	refs := FolioRefs{}
 	for i := range 4 {
-		folio := NewFolio(int64(i*4), int64((i+1)*4), nil)
+		folio := NewFolio(int64(i*4), int64((i+1)*4), 0)
 		folio.block = &Block{Data: bytes.Repeat([]byte{byte(i)}, 4)}
 		refs.Add(folio)
 	}
@@ -124,7 +136,7 @@ func (s *FolioRefsTests) TestSliceMultiple() {
 
 func (s *FolioRefsTests) TestSliceBeforeAfter() {
 	refs := FolioRefs{}
-	folio := NewFolio(4, 8, nil)
+	folio := NewFolio(4, 8, 0)
 	folio.block = &Block{Data: make([]byte, 4)}
 	refs.Add(folio)
 	n, sg := refs.Slice(0, 2)
@@ -146,7 +158,7 @@ func (s *FolioRefsTests) TestSliceBeforeAfter() {
 
 func (s *FolioRefsTests) TestSlicePartial() {
 	refs := FolioRefs{}
-	folio := NewFolio(0, 10, nil)
+	folio := NewFolio(0, 10, 0)
 	folio.block = &Block{Data: make([]byte, 6)} // Data is smaller than folio
 	refs.Add(folio)
 	n, sg := refs.Slice(4, 8)
@@ -196,7 +208,7 @@ func TestAllocateFolios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			folios, err := AllocateFolios(tt.start, tt.end, nil, pool)
+			folios, err := AllocateFolios(tt.start, tt.end, 0, pool)
 			if err != nil {
 				t.Fatalf("AllocateFolios failed: %v", err)
 			}

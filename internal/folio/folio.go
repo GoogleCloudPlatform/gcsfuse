@@ -1,4 +1,16 @@
-// Copyright 2025 Google Inc. All Rights Reserved.
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package folio
 
@@ -7,16 +19,16 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
+	"github.com/jacobsa/fuse/fuseops"
 )
 
 // Create a new folio.
-func NewFolio(start, end int64, inode *inode.Inode) *Folio {
+func NewFolio(start, end int64, inodeID fuseops.InodeID) *Folio {
 	return &Folio{
-		Start: start,
-		End:   end,
-		inode: inode,
-		done:  make(chan struct{}),
+		Start:   start,
+		End:     end,
+		inodeID: inodeID,
+		done:    make(chan struct{}),
 	}
 }
 
@@ -24,7 +36,7 @@ func NewFolio(start, end int64, inode *inode.Inode) *Folio {
 // The range is distributed across multiple folios, where each folio corresponds
 // to one or more buffers from the allocated blocks. Each folio's size is determined
 // by the buffer length(s) it contains.
-func AllocateFolios(start, end int64, inode *inode.Inode, pool *SmartPool) ([]*Folio, error) {
+func AllocateFolios(start, end int64, inodeID fuseops.InodeID, pool *SmartPool) ([]*Folio, error) {
 	size := end - start
 	if size <= 0 {
 		return nil, fmt.Errorf("invalid range size: %d", size)
@@ -62,11 +74,11 @@ func AllocateFolios(start, end int64, inode *inode.Inode, pool *SmartPool) ([]*F
 		}
 
 		folio := &Folio{
-			Start: currentOffset,
-			End:   folioEnd,
-			inode: inode,
-			block: block,
-			done:  make(chan struct{}),
+			Start:   currentOffset,
+			End:     folioEnd,
+			inodeID: inodeID,
+			block:   block,
+			done:    make(chan struct{}),
 		}
 
 		folios = append(folios, folio)
@@ -88,7 +100,7 @@ type Folio struct {
 	End      int64
 	refcount int
 
-	inode    *inode.Inode
+	inodeID  fuseops.InodeID
 	block    *Block
 	listNode *list.Element
 	done     chan struct{}
@@ -147,7 +159,7 @@ func (f *Folio) IsDone() bool {
 // FolioRefs owns references to multiple folios. It is used to protect folios
 // from reclamation when reading them in and returning slices to FUSE.
 type FolioRefs struct {
-	inode       *inode.Inode
+	inodeID     fuseops.InodeID
 	folios      []*Folio
 	newReads    int64 // for stats
 	cachedReads int64 // for stats

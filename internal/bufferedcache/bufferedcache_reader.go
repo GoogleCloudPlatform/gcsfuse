@@ -1,4 +1,16 @@
-// Copyright 2025 Google Inc. All Rights Reserved.
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package bufferedcache
 
@@ -64,18 +76,14 @@ type BufferedCacheReader struct {
 var _ gcsx.Reader = &BufferedCacheReader{}
 
 // NewBufferedCacheReader creates a new BufferedCacheReader instance.
-func NewBufferedCacheReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedCacheReaderConfig, inode *inode.Inode, pool *folio.SmartPool, lruCache *cachefolio.LRUCache) *BufferedCacheReader {
+// Returns nil and error if lruCache is nil.
+func NewBufferedCacheReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedCacheReaderConfig, inode *inode.Inode, pool *folio.SmartPool, lruCache *cachefolio.LRUCache) (*BufferedCacheReader, error) {
 	if config == nil {
 		config = DefaultConfig()
 	}
 
-	// Create LRU cache with reasonable defaults if not provided
 	if lruCache == nil {
-		lruCache = cachefolio.NewLRUCache(cachefolio.LRUCacheConfig{
-			MaxSize:     512 * 1024 * 1024, // 512 MB
-			MaxEntries:  10000,
-			BTreeDegree: 32,
-		})
+		return nil, fmt.Errorf("lruCache is required but not provided")
 	}
 
 	return &BufferedCacheReader{
@@ -85,7 +93,7 @@ func NewBufferedCacheReader(object *gcs.MinObject, bucket gcs.Bucket, config *Bu
 		inode:    inode,
 		pool:     pool,
 		lruCache: lruCache,
-	}
+	}, nil
 }
 
 // describe returns a description of the current readahead state.
@@ -226,9 +234,12 @@ func (ra *BufferedCacheReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest
 	}
 
 	// Get folios from LRU cache for the requested range only
-	folios := ra.lruCache.Get(uint64(inodeID), offset, size)
+	folios, err := ra.lruCache.Get(uint64(inodeID), offset, size)
+	if err != nil {
+		return gcsx.ReadResponse{}, fmt.Errorf("failed to get folios from cache: %w", err)
+	}
 	if len(folios) == 0 {
-		return gcsx.ReadResponse{}, fmt.Errorf("failed to get folios from cache")
+		return gcsx.ReadResponse{}, fmt.Errorf("failed to get folios from cache: no folios returned")
 	}
 
 	// If we have a readahead window, prefetch it separately (asynchronously)
@@ -237,7 +248,7 @@ func (ra *BufferedCacheReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest
 		windowEnd := req.ReadAhead.WindowEnd
 		go func() {
 			// Prefetch readahead window in background
-			_ = ra.lruCache.Get(uint64(inodeID), windowStart, windowEnd-windowStart)
+			_, _ = ra.lruCache.Get(uint64(inodeID), windowStart, windowEnd-windowStart)
 		}()
 	}
 

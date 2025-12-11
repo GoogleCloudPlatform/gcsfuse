@@ -29,10 +29,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
-        cachefolio "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folio"
-        "github.com/googlecloudplatform/gcsfuse/v3/internal/folio"
+	cachefolio "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	clientReaders "github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/client_readers"
@@ -87,6 +87,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 			MaxSize:     512 * 1024 * 1024,
 			MaxEntries:  10000,
 			BTreeDegree: 32,
+			SmartPool:   pool,
 		})
 	}
 
