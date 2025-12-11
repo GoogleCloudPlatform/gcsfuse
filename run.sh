@@ -4,6 +4,21 @@ echo "Prince" > ~/logs.txt
 echo 256 | sudo tee /proc/sys/fs/fuse/max_pages_limit
 go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congestion-threshold=96 --log-severity=info --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
 
+# mkdir -p /home/princer_google_com/gcs1/2G
+
+# fio --name=multi_file_64gb \
+#     --directory=/home/princer_google_com/gcs1/2G \
+#     --rw=read \
+#     --bs=1M \
+#     --nrfiles=64 \
+#     --filesize=2G \
+#     --numjobs=1 \
+#     --ioengine=libaio \
+#     --direct=0 \
+#     --group_reporting
+
+# 2577 MB/s, 2637 MB/s, 2652 MB/s - Seems too high - needs investigation.
+
 # mkdir -p /home/princer_google_com/gcs1/1G
 
 # fio --name=multi_file_64gb \
@@ -17,7 +32,7 @@ go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congesti
 #     --direct=0 \
 #     --group_reporting
 
-# 2.4 GB/s 2477 MB/s, 2500 MB/s
+# 2.4 GB/s 2477 MB/s, 2500 MB/s - Seems too high - needs investigation.
 
 # mkdir -p /home/princer_google_com/gcs1/100M
 
