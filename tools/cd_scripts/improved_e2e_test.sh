@@ -24,8 +24,10 @@ set -e
 
 # Install wget
 if command -v apt-get &> /dev/null; then
+    # For Debian/Ubuntu-based systems
     sudo apt-get update && sudo apt-get install -y wget
 elif command -v yum &> /dev/null; then
+    # For RHEL/CentOS-based systems
     sudo yum install -y wget
 else
     exit 1
@@ -36,10 +38,9 @@ echo "Upgrade gcloud version"
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 
-# Conditionally install python3.11 for RHEL 8/Rocky 8
+# Conditionally install python3.11 and run gcloud installer with it for RHEL 8 and Rocky 8
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
-    # shellcheck source=/dev/null
     . /etc/os-release
     if [[ ($ID == "rhel" || $ID == "rocky") && $VERSION_ID == 8* ]]; then
         sudo yum install -y python311
@@ -51,22 +52,25 @@ $INSTALL_COMMAND
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
 
-# Retrieve Metadata
+# Extract the metadata parameters passed, for which we need the zone of the GCE VM
+# on which the tests are supposed to run.
 ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
+echo "Got ZONE=\"${ZONE}\" from metadata server."
+# The format for the above extracted zone is projects/{project-id}/zones/{zone}, thus, from this
+# need extracted zone name.
 ZONE_NAME=$(basename "$ZONE")
+# This parameter is passed as the GCE VM metadata at the time of creation.(Logic is handled in louhi stage script)
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
 RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
-
-echo "Got ZONE=\"${ZONE}\" (Name: ${ZONE_NAME})"
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
 
-# Download details.txt (Release version info)
+#details.txt file contains the release version and commit hash of the current release.
 gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
-# Append instance name to details.txt
+# Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
-# Create User Function
+# Function to create the local user
 create_user() {
   local USERNAME=$1
   local HOMEDIR=$2
@@ -78,25 +82,56 @@ create_user() {
 
   echo "Creating user ${USERNAME}..."
   if grep -qi -E 'ubuntu|debian' "$DETAILS"; then
+    # For Ubuntu and Debian
     sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
   elif grep -qi -E 'rhel|centos|rocky' "$DETAILS"; then
+    # For RHEL, CentOS, Rocky Linux
     sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}" && sudo passwd -d "${USERNAME}"
   else
     echo "Unsupported OS type in details file." >&2
     return 1
   fi
+  local exit_code=$?
+
+  if [ ${exit_code} -eq 0 ]; then
+    echo "User ${USERNAME} created successfully."
+  else
+    echo "Failed to create user ${USERNAME}." >&2
+  fi
+  return ${exit_code}
 }
 
-# Grant Sudo Function
+# Function to grant sudo access by creating a file in /etc/sudoers.d/
 grant_sudo() {
   local USERNAME=$1
-  if ! id "${USERNAME}" &>/dev/null; then return 1; fi
+  if ! id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} does not exist. Cannot grant sudo."
+    return 1
+  fi
+  
   sudo mkdir -p /etc/sudoers.d/
   SUDOERS_FILE="/etc/sudoers.d/${USERNAME}"
-  if ! sudo test -f "${SUDOERS_FILE}"; then
-    echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${SUDOERS_FILE}" > /dev/null
-    sudo chmod 440 "${SUDOERS_FILE}"
+  
+  if sudo test -f "${SUDOERS_FILE}"; then
+    echo "Sudoers file ${SUDOERS_FILE} already exists."
+  else
+    echo "Granting ${USERNAME} NOPASSWD sudo access..."
+    # Create the sudoers file with the correct content
+    if ! echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${SUDOERS_FILE}" > /dev/null; then
+      echo "Failed to create sudoers file." >&2
+      return 1
+    fi
+
+    # Set the correct permissions on the sudoers file
+    if ! sudo chmod 440 "${SUDOERS_FILE}"; then
+      echo "Failed to set permissions on sudoers file." >&2
+      # Attempt to clean up the partially created file
+      sudo rm -f "${SUDOERS_FILE}"
+      return 1
+    fi
+    echo "Sudo access granted to ${USERNAME} via ${SUDOERS_FILE}."
   fi
+  return 0
 }
 
 USERNAME=starterscriptuser
@@ -169,6 +204,7 @@ export HOME=/home/'"$USERNAME"'
 
 # Import environment variables
 ZONE_NAME='"$ZONE_NAME"'
+LOG_FILE='"$LOG_FILE"'
 RUN_ON_ZB_ONLY='"$RUN_ON_ZB_ONLY"'
 RUN_READ_CACHE_TESTS_ONLY='"$RUN_READ_CACHE_TESTS_ONLY"'
 
@@ -192,7 +228,7 @@ REGION=${ZONE_NAME%-*}
 # We pass --test-installed-package because we installed the deb/rpm above.
 # We pass --no-build-binary-in-script because we want to test that installed package.
 
-TEST_SCRIPT="./tools/integration_tests/run_e2e_tests.sh"
+TEST_SCRIPT="./tools/integration_tests/improved_run_e2e_tests.sh"
 chmod +x $TEST_SCRIPT
 
 ARGS="--bucket-location $REGION --test-installed-package --no-build-binary-in-script"
@@ -214,10 +250,10 @@ echo "----------------------------------------------------------------"
 set +e
 
 # Generate timestamped log filename
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+TIMESTAMP=$(date +%d-%m-%H-%M)
 LOG_FILENAME="e2e_run_logs_${TIMESTAMP}.txt"
 
-$TEST_SCRIPT $ARGS > ~/"$LOG_FILENAME" 2>&1
+$TEST_SCRIPT $ARGS 2>&1 | tee -a "$LOG_FILE"
 EXIT_CODE=$?
 set -e
 
@@ -231,7 +267,7 @@ COMMIT_HASH=$(sed -n 3p ~/details.txt)
 GCS_DEST="gs://gcsfuse-release-packages/v${RELEASE_VERSION}/${COMMIT_HASH}/"
 
 # Upload the consolidated log with fixed name for pipeline compatibility
-gcloud storage cp ~/"$LOG_FILENAME" "${GCS_DEST}combined_e2e_logs.txt"
+gcloud storage cp "$LOG_FILE" "${GCS_DEST}combined_e2e_logs_${TIMESTAMP}.txt"
 
 # If success, create and upload success markers matching old script behavior
 if [ $EXIT_CODE -eq 0 ]; then
