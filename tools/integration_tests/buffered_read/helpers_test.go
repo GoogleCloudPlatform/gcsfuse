@@ -50,7 +50,9 @@ func readFileAndValidate(ctx context.Context, storageClient *storage.Client, tes
 		expected.BucketName = setup.DynamicBucketMounted()
 	}
 	if readFullFile {
-		content, err := operations.ReadFileSequentially(path.Join(testDir, fileName), chunkSizeToRead)
+		file, err := os.OpenFile(path.Join(testDir, fileName), os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+		require.NoError(t, err)
+		content, err := operations.ReadFileSequentially(file, chunkSizeToRead)
 		require.NoError(t, err, "Failed to read file sequentially")
 		obj := storageClient.Bucket(expected.BucketName).Object(expected.ObjectName)
 		attrs, err := obj.Attrs(ctx)
