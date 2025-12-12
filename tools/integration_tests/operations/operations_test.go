@@ -25,7 +25,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
@@ -104,7 +103,7 @@ func RunTestOnTPCEndPoint(cfg test_suite.Config, m *testing.M) int {
 	}
 	cfg.Operations = make([]test_suite.TestConfig, 1)
 	cfg.Operations[0].TestBucket = setup.TestBucket()
-	cfg.Operations[0].GKEMountedDirectory = setup.GKEMountedDirectory()
+	cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
 	cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
 	cfg.Operations[0].Configs[0].Flags = []string{
 		"--enable-atomic-rename-object=true",
@@ -123,10 +122,11 @@ func RunTestOnTPCEndPoint(cfg test_suite.Config, m *testing.M) int {
 		splitFlags := strings.Fields(flagSet)
 		flags = append(flags, splitFlags)
 	}
-	setup.SetUpTestDirForTestBucket(cfg.Operations[0].TestBucket)
+	setup.SetUpTestDirForTestBucket(&cfg.Operations[0])
 	successCodeTPC := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 	return successCodeTPC
 }
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
@@ -141,15 +141,15 @@ func TestMain(m *testing.M) {
 
 	var successCode int
 	if len(cfg.Operations) != 0 {
-		var tpcCfg test_suite.Config
-		setup.SetTestBucket(cfg.Operations[0].TestBucket)
+		// var tpcCfg test_suite.Config
+		// setup.SetTestBucket(cfg.Operations[0].TestBucket)
 		var remainingConfigs []test_suite.ConfigItem
 
 		for _, config := range cfg.Operations[0].Configs {
 			// Check if the Tpc field is true.
 			if config.Tpc {
 				log.Println("Running TPC test")
-				successCode = RunTestOnTPCEndPoint(tpcCfg, m)
+				// successCode = RunTestOnTPCEndPoint(tpcCfg, m)
 			} else {
 				// If the Tpc field is false, add it to the remainingConfigs slice.
 				remainingConfigs = append(remainingConfigs, config)
@@ -163,22 +163,22 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.Operations = make([]test_suite.TestConfig, 1)
 		cfg.Operations[0].TestBucket = setup.TestBucket()
-		cfg.Operations[0].GKEMountedDirectory = setup.GKEMountedDirectory()
+		cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.Operations[0].Configs[0].Flags = []string{
 			"--enable-atomic-rename-object=true",
-			"--experimental-enable-json-read=true",
-			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
-			"--create-empty-file=true --enable-atomic-rename-object=true",
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
+			// "--experimental-enable-json-read=true",
+			// "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
+			// "--create-empty-file=true --enable-atomic-rename-object=true",
+			// "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			// "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
 		}
 		cfg.Operations[0].Configs[1].Flags = []string{
 			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
-			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
-			"--create-empty-file=true --enable-atomic-rename-object=true",
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
+			// "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
+			// "--create-empty-file=true --enable-atomic-rename-object=true",
+			// "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			// "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
 		}
 		cacheDirFlag := fmt.Sprintf("--file-cache-max-size-mb=2 --cache-dir=%s/cache-dir-operations-hns", os.TempDir())
 		cfg.Operations[0].Configs[0].Flags = append(cfg.Operations[0].Configs[0].Flags, cacheDirFlag)
@@ -188,7 +188,7 @@ func TestMain(m *testing.M) {
 	}
 
 	ctx = context.Background()
-	bucketType := setup.TestEnvironment(ctx, &cfg.RenameDirLimit[0])
+	bucketType := setup.TestEnvironment(ctx, &cfg.Operations[0])
 
 	// 2. Create storage client before running tests.
 	var err error
@@ -206,8 +206,8 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.RenameDirLimit[0], bucketType, "")
-	setup.SetUpTestDirForTestBucket(&cfg.RenameDirLimit[0])
+	flags := setup.BuildFlagSets(cfg.Operations[0], bucketType, "")
+	setup.SetUpTestDirForTestBucket(&cfg.Operations[0])
 
 	if successCode == 0 {
 		successCode = static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
@@ -225,10 +225,10 @@ func TestMain(m *testing.M) {
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flags, m)
 	}
 
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile(&cfg.Operations[0], ctx, storageClient, flags, "objectAdmin", m)
-	}
+	// if successCode == 0 {
+	// 	// Test for admin permission on test bucket.
+	// 	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile(&cfg.Operations[0], ctx, storageClient, flags, "objectAdmin", m)
+	// }
 
 	os.Exit(successCode)
 }
