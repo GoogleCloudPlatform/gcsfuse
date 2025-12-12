@@ -110,4 +110,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
 )
 
-replace github.com/ncruces/go-dns => github.com/kislaykishore/go-dns v0.0.0-20250417074934-97163c1ea04a
+replace github.com/ncruces/go-dns => github.com/kislaykishore/go-dns v0.0.0-20251212071853-d43c1405ea49
