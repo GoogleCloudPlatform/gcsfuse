@@ -503,8 +503,6 @@ var (
 	gcsDownloadBytesCountReadTypeParallelAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsDownloadBytesCountReadTypeRandomAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsDownloadBytesCountReadTypeSequentialAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
-	gcsReadBytesCountReaderBufferedAttrSet                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("reader", "Buffered")))
-	gcsReadBytesCountReaderOthersAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("reader", "Others")))
 	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
@@ -1009,8 +1007,7 @@ type otelMetrics struct {
 	gcsDownloadBytesCountReadTypeParallelAtomic                                        *atomic.Int64
 	gcsDownloadBytesCountReadTypeRandomAtomic                                          *atomic.Int64
 	gcsDownloadBytesCountReadTypeSequentialAtomic                                      *atomic.Int64
-	gcsReadBytesCountReaderBufferedAtomic                                              *atomic.Int64
-	gcsReadBytesCountReaderOthersAtomic                                                *atomic.Int64
+	gcsReadBytesCountAtomic                                                            *atomic.Int64
 	gcsReadCountReadTypeParallelAtomic                                                 *atomic.Int64
 	gcsReadCountReadTypeRandomAtomic                                                   *atomic.Int64
 	gcsReadCountReadTypeSequentialAtomic                                               *atomic.Int64
@@ -2210,20 +2207,12 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 }
 
 func (o *otelMetrics) GcsReadBytesCount(
-	inc int64, reader Reader) {
+	inc int64) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/read_bytes_count received a negative increment: %d", inc)
 		return
 	}
-	switch reader {
-	case ReaderBufferedAttr:
-		o.gcsReadBytesCountReaderBufferedAtomic.Add(inc)
-	case ReaderOthersAttr:
-		o.gcsReadBytesCountReaderOthersAtomic.Add(inc)
-	default:
-		updateUnrecognizedAttribute(string(reader))
-		return
-	}
+	o.gcsReadBytesCountAtomic.Add(inc)
 }
 
 func (o *otelMetrics) GcsReadCount(
@@ -2872,8 +2861,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic atomic.Int64
 
-	var gcsReadBytesCountReaderBufferedAtomic,
-		gcsReadBytesCountReaderOthersAtomic atomic.Int64
+	var gcsReadBytesCountAtomic atomic.Int64
 
 	var gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic,
@@ -3416,8 +3404,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserve(obsrv, &gcsReadBytesCountReaderBufferedAtomic, gcsReadBytesCountReaderBufferedAttrSet)
-			conditionallyObserve(obsrv, &gcsReadBytesCountReaderOthersAtomic, gcsReadBytesCountReaderOthersAttrSet)
+			conditionallyObserve(obsrv, &gcsReadBytesCountAtomic)
 			return nil
 		}))
 
@@ -3953,8 +3940,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsDownloadBytesCountReadTypeParallelAtomic:                &gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic:                  &gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic:              &gcsDownloadBytesCountReadTypeSequentialAtomic,
-		gcsReadBytesCountReaderBufferedAtomic:                      &gcsReadBytesCountReaderBufferedAtomic,
-		gcsReadBytesCountReaderOthersAtomic:                        &gcsReadBytesCountReaderOthersAtomic,
+		gcsReadBytesCountAtomic:                                    &gcsReadBytesCountAtomic,
 		gcsReadCountReadTypeParallelAtomic:                         &gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic:                           &gcsReadCountReadTypeRandomAtomic,
 		gcsReadCountReadTypeSequentialAtomic:                       &gcsReadCountReadTypeSequentialAtomic,
