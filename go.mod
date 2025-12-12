@@ -25,7 +25,7 @@ require (
 	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
-	github.com/ncruces/go-dns v1.2.7
+	github.com/ncruces/go-dns v1.3.0
 	github.com/pkg/xattr v0.4.10
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/client_model v0.6.2
