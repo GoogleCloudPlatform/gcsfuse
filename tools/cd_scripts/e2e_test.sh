@@ -74,7 +74,7 @@ if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
 fi
 
 #details.txt file contains the release version and commit hash of the current release.
-gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
+gcloud storage cp gs://ashmeenbkt/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
@@ -162,7 +162,7 @@ sudo -u starterscriptuser bash -c '
 set -e
 # Print commands and their arguments as they are executed.
 set -x
-KOKORO_ARTIFACTS_DIR=$(pwd)/failure_logs
+export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
 mkdir -p "$KOKORO_ARTIFACTS_DIR"
 # Since we are now operating as the starterscriptuser, we need to set the environment variable for this user again.
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
@@ -205,8 +205,8 @@ then
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
-    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${LOG_FILE}
+    gcloud storage cp gs://gcsfuse-release-packages/v3.5.4/gcsfuse_3.5.4_${architecture}.deb .
+    sudo dpkg -i gcsfuse_3.5.4_${architecture}.deb |& tee -a ${LOG_FILE}
 
     # install wget
     sudo apt install -y wget
@@ -240,8 +240,8 @@ else
     sudo yum -y install fuse
 
     #download and install gcsfuse rpm package
-    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
-    sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
+#    gcloud storage cp gs://gcsfuse-release-packages/v3.5.4/gcsfuse-3.5.4-1.${uname}.rpm .
+#    sudo yum -y localinstall gcsfuse-3.5.4-1.${uname}.rpm
 
     #install wget
     sudo yum -y install wget
@@ -280,6 +280,10 @@ then
 fi
 
 git checkout $(sed -n 2p ~/details.txt) |& tee -a ${LOG_FILE}
+# install GCSFuse
+GOOS=linux GOARCH=arm64 go run tools/build_gcsfuse/main.go . . $(sed -n 1p ~/details.txt)
+sudo cp bin/* /usr/bin/
+sudo cp sbin/* /usr/sbin/
 
 #run tests with testbucket flag
 set +e
@@ -540,10 +544,10 @@ function log_based_on_exit_status() {
             echo "Test failures detected in $testcase bucket." &>> "$logfile"
         else
             touch "$success_file"
-            gcloud storage cp "$success_file" gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+            gcloud storage cp "$success_file" gs://ashmeenbkt/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
         fi
-    gcloud storage cp "$logfile" gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
-    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/
+    gcloud storage cp "$logfile" gs://ashmeenbkt/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://ashmeenbkt/v$(sed -n 1p ~/details.txt)/
     done
 
 }
@@ -557,9 +561,9 @@ function run_e2e_tests_for_emulator_and_log() {
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else
         touch success-emulator.txt
-        gcloud storage cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+        gcloud storage cp success-emulator.txt gs://ashmeenbkt/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
     fi
-    gcloud storage cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp ~/logs-emulator.txt gs://ashmeenbkt/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 }
 
 # Declare an associative array to store the exit status of different test runs.
