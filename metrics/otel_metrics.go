@@ -552,6 +552,7 @@ var (
 	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")))
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")))
+	gcsfuseMemoryBytesComponentBlockPoolAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("component", "BlockPool")))
 	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1")))
 	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2")))
 )
@@ -1039,6 +1040,7 @@ type otelMetrics struct {
 	gcsRequestCountGcsMethodUpdateObjectAtomic                                         *atomic.Int64
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic                                   *atomic.Int64
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic                            *atomic.Int64
+	gcsfuseMemoryBytesComponentBlockPoolAtomic                                         *atomic.Int64
 	testUpdownCounterAtomic                                                            *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr1Atomic                                   *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr2Atomic                                   *atomic.Int64
@@ -2387,6 +2389,17 @@ func (o *otelMetrics) GcsRetryCount(
 	}
 }
 
+func (o *otelMetrics) GcsfuseMemoryBytes(
+	inc int64, component Component) {
+	switch component {
+	case ComponentBlockPoolAttr:
+		o.gcsfuseMemoryBytesComponentBlockPoolAtomic.Add(inc)
+	default:
+		updateUnrecognizedAttribute(string(component))
+		return
+	}
+}
+
 func (o *otelMetrics) TestUpdownCounter(
 	inc int64) {
 	o.testUpdownCounterAtomic.Add(inc)
@@ -2906,6 +2919,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 	var gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
+
+	var gcsfuseMemoryBytesComponentBlockPoolAtomic atomic.Int64
 
 	var testUpdownCounterAtomic atomic.Int64
 
@@ -3482,7 +3497,15 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err15 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	_, err15 := meter.Int64ObservableUpDownCounter("gcsfuse/memory_bytes",
+		metric.WithDescription("The cumulative memory usage of GCSFuse."),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			observeUpDownCounter(obsrv, &gcsfuseMemoryBytesComponentBlockPoolAtomic, gcsfuseMemoryBytesComponentBlockPoolAttrSet)
+			return nil
+		}))
+
+	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3490,7 +3513,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err17 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3499,7 +3522,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -3984,6 +4007,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRequestLatencies:                                        gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:           &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:    &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
+		gcsfuseMemoryBytesComponentBlockPoolAtomic:                 &gcsfuseMemoryBytesComponentBlockPoolAtomic,
 		testUpdownCounterAtomic:                                    &testUpdownCounterAtomic,
 		testUpdownCounterWithAttrsRequestTypeAttr1Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
 		testUpdownCounterWithAttrsRequestTypeAttr2Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,

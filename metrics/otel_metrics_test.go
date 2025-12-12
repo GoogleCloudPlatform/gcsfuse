@@ -5315,6 +5315,56 @@ func TestGcsRetryCount(t *testing.T) {
 	}
 }
 
+func TestGcsfuseMemoryBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "component_BlockPool",
+			f: func(m *otelMetrics) {
+				m.GcsfuseMemoryBytes(5, "BlockPool")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("component", "BlockPool")): 5,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsfuseMemoryBytes(-5, "BlockPool")
+				m.GcsfuseMemoryBytes(2, "BlockPool")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("component", "BlockPool")): -3},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["gcsfuse/memory_bytes"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcsfuse/memory_bytes metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcsfuse/memory_bytes metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
 func TestTestUpdownCounter(t *testing.T) {
 	ctx := context.Background()
 	encoder := attribute.DefaultEncoder()

@@ -20,6 +20,13 @@ import (
 	"time"
 )
 
+// Component is a custom type for the component attribute.
+type Component string
+
+const (
+	ComponentBlockPoolAttr Component = "BlockPool"
+)
+
 // FsErrorCategory is a custom type for the fs_error_category attribute.
 type FsErrorCategory string
 
@@ -198,6 +205,9 @@ type MetricHandle interface {
 
 	// GcsRetryCount - The cumulative number of retry requests made to GCS.
 	GcsRetryCount(inc int64, retryErrorCategory RetryErrorCategory)
+
+	// GcsfuseMemoryBytes - The cumulative memory usage of GCSFuse.
+	GcsfuseMemoryBytes(inc int64, component Component)
 
 	// TestUpdownCounter - Test metric for updown counters.
 	TestUpdownCounter(inc int64)
