@@ -42,7 +42,7 @@ func init() { RegisterTestSuite(&sparseDownloaderTest{}) }
 
 func (dt *sparseDownloaderTest) SetUp(*TestInfo) {
 	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{
-		ExperimentalEnableBlockCache:           true,
+		ExperimentalEnablechunkCache:           true,
 		DownloadChunkSizeMb:                    20, // 20MB chunks for sparse files
 		EnableCrc:                              true,
 		ExperimentalParallelDownloadsDefaultOn: true,
@@ -146,7 +146,7 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), removeCallback)
 
 	// Set up sparse file mode
-	dt.job.fileCacheConfig.ExperimentalEnableBlockCache = true
+	dt.job.fileCacheConfig.ExperimentalEnableChunkCache = true
 	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20
 
 	// Create the cache file
@@ -205,7 +205,7 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_AlreadyDownloaded() {
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
 
-	dt.job.fileCacheConfig.ExperimentalEnableBlockCache = true
+	dt.job.fileCacheConfig.ExperimentalEnableChunkCache = true
 	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20
 
 	// Set up sparse file info with pre-downloaded range
@@ -246,7 +246,7 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
 
-	dt.job.fileCacheConfig.ExperimentalEnableBlockCache = true
+	dt.job.fileCacheConfig.ExperimentalEnableChunkCache = true
 	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20
 
 	// Create the cache file
