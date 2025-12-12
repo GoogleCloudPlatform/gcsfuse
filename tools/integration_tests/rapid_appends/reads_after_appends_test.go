@@ -46,7 +46,7 @@ func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []
 }
 
 func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
-	file, err := operations.OpenFileAsReadonly(filePath)
+	file, err := os.OpenFile(filePath, os.O_RDONLY, setup.FilePermission_0600)
 	require.NoErrorf(t, err, "failed to open file %q: %v", filePath, err)
 	defer operations.CloseFileShouldNotThrowError(t, file) // This line is already correct.
 	if len(expectedContent) == 0 {
