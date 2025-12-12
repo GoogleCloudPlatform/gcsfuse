@@ -21,7 +21,7 @@ readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly BUCKET_LOCATION=us-west4
-readonly GO_VERSION="1.24.5"
+readonly GO_VERSION="1.24.11"
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.3"
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
