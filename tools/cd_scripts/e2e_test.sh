@@ -31,10 +31,20 @@ fi
 
 # Upgrade gcloud
 echo "Upgrade gcloud version"
-gcloud version
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-sudo /usr/local/google-cloud-sdk/install.sh
+
+# Conditionally install python3.11 and run gcloud installer with it for RHEL 8 and Rocky 8
+INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ ($ID == "rhel" || $ID == "rocky") && $VERSION_ID == 8* ]]; then
+        sudo yum install -y python311
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
+    fi
+fi
+$INSTALL_COMMAND
+
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
 
@@ -48,8 +58,10 @@ ZONE_NAME=$(basename "$ZONE")
 # This parameter is passed as the GCE VM metadata at the time of creation.(Logic is handled in louhi stage script)
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
 RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
+RUN_LIGHT_TEST=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-light-test)')
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
+echo "RUN_LIGHT_TEST flag set to : \"${RUN_LIGHT_TEST}\""
 
 # Logging the tests being run on the active GCE VM
 if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
@@ -63,19 +75,93 @@ if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
 	echo "Running read cache test only..."
 fi
 
+# Logging the tests being run on the active GCE VM
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+	echo "Running light tests only..."
+fi
+
 #details.txt file contains the release version and commit hash of the current release.
 gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
-# Based on the os type(from vm instance name) in detail.txt, run the following commands to add starterscriptuser
-if grep -q ubuntu details.txt || grep -q debian details.txt; then
-	#  For ubuntu and debian os
-	sudo adduser --ingroup google-sudoers --disabled-password --home=/home/starterscriptuser --gecos "" starterscriptuser
-else
-	#  For rhel and centos
-	sudo adduser -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
-fi
+# Function to create the local user
+create_user() {
+  local USERNAME=$1
+  local HOMEDIR=$2
+  local DETAILS=$3
+  if id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} already exists."
+    return 0
+  fi
+
+  echo "Creating user ${USERNAME}..."
+  if grep -qi -E 'ubuntu|debian' $DETAILS; then
+    # For Ubuntu and Debian
+    sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
+  elif grep -qi -E 'rhel|centos|rocky' $DETAILS; then
+    # For RHEL, CentOS, Rocky Linux
+    sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}" && sudo passwd -d "${USERNAME}"
+  else
+    echo "Unsupported OS type in details file." >&2
+    return 1
+  fi
+  local exit_code=$?
+
+  if [ ${exit_code} -eq 0 ]; then
+    echo "User ${USERNAME} created successfully."
+  else
+    echo "Failed to create user ${USERNAME}." >&2
+  fi
+  return ${exit_code}
+}
+
+# Function to grant sudo access by creating a file in /etc/sudoers.d/
+grant_sudo() {
+  local USERNAME=$1
+  local HOMEDIR=$2
+  if ! id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} does not exist. Cannot grant sudo."
+    return 1
+  fi
+
+  sudo mkdir -p /etc/sudoers.d/
+  SUDOERS_FILE="/etc/sudoers.d/${USERNAME}"
+
+  if sudo test -f "${SUDOERS_FILE}"; then
+    echo "Sudoers file ${SUDOERS_FILE} already exists."
+  else
+    echo "Granting ${USERNAME} NOPASSWD sudo access..."
+    # Create the sudoers file with the correct content
+    if ! echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${SUDOERS_FILE}" > /dev/null; then
+      echo "Failed to create sudoers file." >&2
+      return 1
+    fi
+
+    # Set the correct permissions on the sudoers file
+    if ! sudo chmod 440 "${SUDOERS_FILE}"; then
+      echo "Failed to set permissions on sudoers file." >&2
+      # Attempt to clean up the partially created file
+      sudo rm -f "${SUDOERS_FILE}"
+      return 1
+    fi
+    echo "Sudo access granted to ${USERNAME} via ${SUDOERS_FILE}."
+  fi
+  return 0
+}
+################################################################################
+# Main script execution flow starts here.
+# The script will first attempt to create the user specified by $USERNAME.
+# If the user creation is successful, it will then proceed to grant sudo
+# privileges to the newly created user.
+################################################################################
+USERNAME=starterscriptuser
+HOMEDIR="/home/${USERNAME}"
+DETAILS_FILE=$(pwd)/details.txt
+
+create_user $USERNAME $HOMEDIR $DETAILS_FILE
+grant_sudo  $USERNAME $HOMEDIR
+
 
 # Run the following as starterscriptuser
 sudo -u starterscriptuser bash -c '
@@ -94,6 +180,7 @@ export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 # and can be used for conditional logic or decisions within that script.
 export RUN_ON_ZB_ONLY='$RUN_ON_ZB_ONLY'
 export RUN_READ_CACHE_TESTS_ONLY='$RUN_READ_CACHE_TESTS_ONLY'
+export RUN_LIGHT_TEST='$RUN_LIGHT_TEST'
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
@@ -145,7 +232,7 @@ then
 else
 #  For rhel and centos
     # uname can be aarch or x86_64
-    uname=$(uname -i)
+    uname=$(uname -m)
 
     if [[ $uname == "x86_64" ]]; then
       architecture="amd64"
@@ -174,7 +261,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.5.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -224,8 +311,9 @@ TEST_DIR_PARALLEL=(
   "negative_stat_cache"
   "streaming_writes"
   "release_version"
-  "readdirplus"
-  "dentry_cache"
+  # Reenable when b/461334834 is done.
+  # "readdirplus"
+  # "dentry_cache"
   "buffered_read"
 )
 
@@ -473,7 +561,22 @@ function run_e2e_tests_for_emulator_and_log() {
 
 # Declare an associative array to store the exit status of different test runs.
 declare -A exit_status
-if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+    light_test_dir_non_parallel=("monitoring")
+    light_test_dir_parallel=()
+
+    run_e2e_tests "flat"  light_test_dir_parallel light_test_dir_non_parallel false
+    exit_status["flat"]=$?
+
+    run_e2e_tests "hns"  light_test_dir_parallel light_test_dir_non_parallel false
+    exit_status["hns"]=$?
+
+    run_e2e_tests "zonal"  light_test_dir_parallel light_test_dir_non_parallel true
+    exit_status["zonal"]=$?
+
+    # Run emulator tests and log their results.
+    run_e2e_tests_for_emulator_and_log
+elif [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
     read_cache_test_dir_parallel=() # Empty for read cache tests only
     read_cache_test_dir_non_parallel=("read_cache")
 
