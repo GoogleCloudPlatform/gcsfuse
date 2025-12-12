@@ -274,8 +274,8 @@ params:
   - config-path: "file-cache.experimental-enable-chunk-cache"
     flag-name: "file-cache-experimental-enable-chunk-cache"
     type: "bool"
-    usage: "Enable block cache mode for random I/O optimization that downloads only requested blocks."
-    default: chunk
+    usage: "Enable chunk cache mode for random I/O optimization that downloads only requested blocks."
+    default: false
     hide-flag: true
 
   - config-path: "file-cache.experimental-parallel-downloads-default-on"

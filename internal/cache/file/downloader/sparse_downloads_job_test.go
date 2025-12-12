@@ -42,7 +42,7 @@ func init() { RegisterTestSuite(&sparseDownloaderTest{}) }
 
 func (dt *sparseDownloaderTest) SetUp(*TestInfo) {
 	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{
-		ExperimentalEnablechunkCache:           true,
+		ExperimentalEnableChunkCache:           true,
 		DownloadChunkSizeMb:                    20, // 20MB chunks for sparse files
 		EnableCrc:                              true,
 		ExperimentalParallelDownloadsDefaultOn: true,
