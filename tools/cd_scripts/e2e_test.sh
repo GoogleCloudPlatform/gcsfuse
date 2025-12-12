@@ -38,7 +38,7 @@ sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm 
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [[ ($ID == "rhel" || $ID == "rocky") && $VERSION_ID == 8* ]]; then
+    if [[ ($ID == "rhel" || $ID == "rocky")]]; then
         sudo yum install -y python311
         INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
@@ -89,10 +89,10 @@ create_user() {
   fi
 
   echo "Creating user ${USERNAME}..."
-  if grep -qi -E 'ubuntu|debian' $DETAILS; then
+  if grep -qi -E 'ubuntu|debian' "$DETAILS"; then
     # For Ubuntu and Debian
     sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
-  elif grep -qi -E 'rhel|centos|rocky' $DETAILS; then
+  elif grep -qi -E 'rhel|centos|rocky' "$DETAILS"; then
     # For RHEL, CentOS, Rocky Linux
     sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}" && sudo passwd -d "${USERNAME}"
   else
@@ -152,8 +152,8 @@ USERNAME=starterscriptuser
 HOMEDIR="/home/${USERNAME}"
 DETAILS_FILE=$(pwd)/details.txt
 
-create_user $USERNAME $HOMEDIR $DETAILS_FILE
-grant_sudo  $USERNAME $HOMEDIR
+create_user "$USERNAME" "$HOMEDIR" "$DETAILS_FILE"
+grant_sudo  "$USERNAME" "$HOMEDIR"
 
 
 # Run the following as starterscriptuser
@@ -162,17 +162,18 @@ sudo -u starterscriptuser bash -c '
 set -e
 # Print commands and their arguments as they are executed.
 set -x
-
+KOKORO_ARTIFACTS_DIR=$(pwd)/failure_logs
+mkdir -p "$KOKORO_ARTIFACTS_DIR"
 # Since we are now operating as the starterscriptuser, we need to set the environment variable for this user again.
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 
-# Export the RUN_ON_ZB_ONLY variable so that it is available in the environment of the 'starterscriptuser' user.
-# Since we are running the subsequent script as 'starterscriptuser' using sudo, the environment of 'starterscriptuser'
+# Export the RUN_ON_ZB_ONLY variable so that it is available in the environment of the "starterscriptuser" user.
+# Since we are running the subsequent script as "starterscriptuser" using sudo, the environment of "starterscriptuser"
 # would not automatically have access to the environment variables set by the original user (i.e. $RUN_ON_ZB_ONLY).
-# By exporting this variable, we ensure that the value of RUN_ON_ZB_ONLY is passed into the 'starterscriptuser' script
+# By exporting this variable, we ensure that the value of RUN_ON_ZB_ONLY is passed into the "starterscriptuser" script
 # and can be used for conditional logic or decisions within that script.
-export RUN_ON_ZB_ONLY='$RUN_ON_ZB_ONLY'
-export RUN_READ_CACHE_TESTS_ONLY='$RUN_READ_CACHE_TESTS_ONLY'
+export RUN_ON_ZB_ONLY="$RUN_ON_ZB_ONLY"
+export RUN_READ_CACHE_TESTS_ONLY="$RUN_READ_CACHE_TESTS_ONLY"
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
@@ -365,7 +366,7 @@ INTEGRATION_TEST_TIMEOUT=240m
 # permissions modification etc.
 # Arguments:
 #   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
-#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
+#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: "true" if the bucket is zonal, "false" otherwise.)
 #   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
 function run_non_parallel_tests() {
   if [ "$#" -ne 3 ]; then
@@ -379,7 +380,7 @@ function run_non_parallel_tests() {
   if [[ -z $3 ]]; then
     return 1 # The name of the test array cannot be empty.
   fi
-  local -n test_array=$3 # Create a nameref to this array.
+  local -n test_array=$3 # Create a name ref to this array.
 
   for test_dir_np in "${test_array[@]}"
   do
@@ -400,7 +401,7 @@ function run_non_parallel_tests() {
 #This method runs test packages in parallel.
 # Arguments:
 #   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
-#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
+#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: "true" if the bucket is zonal, "false" otherwise.)
 #   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
 function run_parallel_tests() {
   if [ "$#" -ne 3 ]; then
@@ -414,7 +415,7 @@ function run_parallel_tests() {
   if [[ -z $3 ]]; then
     return 1 # The name of the test array cannot be empty.
   fi
-  local -n test_array=$3 # Create a nameref to this array.
+  local -n test_array=$3 # Create a name ref to this array.
   local pids=()
 
   for test_dir_p in "${test_array[@]}"
@@ -443,7 +444,7 @@ function run_parallel_tests() {
 #   $1: BUCKET-TYPE (flat/hns/zonal)
 #   $2: TEST_DIR_PARALLEL (list of test packages that can be run in parallel)
 #   $3: TEST_DIR_NON_PARALLEL (list of test packages that should be run in sequence)
-#   $4: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
+#   $4: IS_ZONAL_BUCKET_FLAG (Boolean flag: "true" if the bucket is zonal, "false" otherwise.)
 function run_e2e_tests() {
   if [ "$#" -ne 4 ]; then
     echo "Incorrect number of arguments passed, Expecting <TESTCASE>
@@ -526,22 +527,23 @@ function log_based_on_exit_status() {
   for testcase in "${!exit_status_array[@]}"
     do
         local logfile=""
-        local successfile=""
+        local success_file=""
         if [[ "$testcase" == "flat" ]]; then
           logfile="$HOME/logs.txt"
-          successfile="$HOME/success.txt"
+          success_file="$HOME/success.txt"
         else
           logfile="$HOME/logs-$testcase.txt"
-          successfile="$HOME/success-$testcase.txt"
+          success_file="$HOME/success-$testcase.txt"
         fi
         if [ "${exit_status_array["$testcase"]}" != 0 ];
         then
-            echo "Test failures detected in $testcase bucket." &>> $logfile
+            echo "Test failures detected in $testcase bucket." &>> "$logfile"
         else
-            touch $successfile
-            gcloud storage cp $successfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+            touch "$success_file"
+            gcloud storage cp "$success_file" gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
         fi
-    gcloud storage cp $logfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp "$logfile" gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/
     done
 
 }
