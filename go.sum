@@ -156,8 +156,8 @@ github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6 h1:XKHJmHcgU9glxk
 github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6/go.mod h1:JEWKD6V8xETMW+DEv+IQVz++f8Cn8O/X0HPeDY3qNis=
 github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 h1:iQTw/8FWTuc7uiaSepXwyf3o52HaUYcV+Tu66S3F5GA=
 github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0/go.mod h1:1NbS8ALrpOvjt0rHPNLyCIeMtbizbir8U//inJ+zuB8=
-github.com/kislaykishore/go-dns v0.0.0-20251213181528-7c5b9128e351 h1:XO5WOPrzPKmv1u5dOHZupr898Un9pqVM6bjPvklS+Qg=
-github.com/kislaykishore/go-dns v0.0.0-20251213181528-7c5b9128e351/go.mod h1:tuzixNY8PY/M7yUzcvRbUaeLs3ifIdydpi5H2bfRU+s=
+github.com/kislaykishore/go-dns v0.0.0-20251213183049-43462375a6c6 h1:FwQxmnvuRwCnH+U1BLJ8+LhhAjfmQ7WcrvGCjGTrBQA=
+github.com/kislaykishore/go-dns v0.0.0-20251213183049-43462375a6c6/go.mod h1:tuzixNY8PY/M7yUzcvRbUaeLs3ifIdydpi5H2bfRU+s=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/klauspost/cpuid/v2 v2.2.9 h1:66ze0taIn2H33fBvCkXuv9BmCwDfafmiIVpKV9kKGuY=
