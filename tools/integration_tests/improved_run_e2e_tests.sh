@@ -61,7 +61,8 @@ readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=90 
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
-readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
+# e2e buckets created are retained for upto 30 days before deletion.
+readonly BUCKET_RETENTION_PERIOD_DAYS=30
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
 readonly DELAY_BETWEEN_BUCKET_CREATION=6 
@@ -76,7 +77,6 @@ BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 
 LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error "Unable to create lock file"; exit 1; }
 BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX") || { log_error "Unable to create bucket creation lock file"; exit 1; }
-BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
 
@@ -325,23 +325,27 @@ create_bucket() {
       break
     fi
   done
-  echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
   echo "$bucket_name"
   rm -rf "$bucket_cmd_log"
   return 0
 }
 
-# Helper method to delete the bucket.
-delete_bucket() {
-  if [[ $# -ne 1 ]]; then
-    log_error_locked "delete_bucket() called with incorrect number of arguments."
-    return 1
-  fi
-  local bucket="$1"
-  if ! gcloud -q storage rm -r "gs://${bucket}"; then
-    return 1
-  fi
-  return 0
+# Helper method to cleanup expired buckets.
+cleanup_expired_buckets() {
+    log_info "Deleting buckets older than ${BUCKET_RETENTION_PERIOD_DAYS} days having prefix ${BUCKET_PREFIX}."
+    local -a bucket_uris
+    mapfile -t bucket_uris < <(gcloud storage buckets list --project=${PROJECT_ID} "gs://${BUCKET_PREFIX}*" \
+        --filter="creation_time < -P${BUCKET_RETENTION_PERIOD_DAYS}D" \
+        --format="value(storage_url)")
+    if (( ${#bucket_uris[@]} == 0 )); then
+        log_info "No expired buckets found matching the criteria."
+        return 0
+    fi
+    log_info "Attempting to delete ${#bucket_uris[@]} expired buckets."
+    local bucket_deletion_logs
+    bucket_deletion_logs=$(mktemp "/tmp/${TMP_PREFIX}_bucket_deletion_log.XXXXXX")
+    gcloud storage rm -r "${bucket_uris[@]}" > "$bucket_deletion_logs" 2>&1
+    log_info "Bucket cleanup complete."
 }
 
 # Get command of the PID and check if it contains the string. Kill if it does.
@@ -370,19 +374,7 @@ clean_up() {
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
     rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   fi
-  local buckets=()
-  # Read each line from BUCKET_NAMES into buckets array
-  mapfile -t buckets < "$BUCKET_NAMES"
-  # Clean up buckets if any.
-  if [[ "${#buckets[@]}" -gt 0 ]]; then
-      local clean_up_log=$(mktemp "/tmp/${TMP_PREFIX}_clean_up.XXXXXX")
-      if ! run_parallel "$DELETE_BUCKET_PARALLELISM" "delete_bucket @" "${buckets[@]}" > "$clean_up_log" 2>&1; then
-        log_error "Failed to delete all buckets"
-        cat "$clean_up_log"
-      else
-        log_info "Successfully deleted all buckets."
-    fi
-  fi
+  cleanup_expired_buckets
   if ! rm -rf /tmp/"${TMP_PREFIX}"*; then 
     log_error "Failed to delete temporary files"
   else 
