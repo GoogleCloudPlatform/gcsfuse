@@ -2859,37 +2859,45 @@ func (fs *fileSystem) ReadFile(
 	// Serve the read.
 
 	if fs.newConfig.EnableNewReader {
-		var resp gcsx.ReadResponse
+		var resp *gcsx.ReadResponse
 		req := &gcsx.ReadRequest{
 			Buffer: op.Dst,
 			Offset: op.Offset,
 		}
 		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
-		op.BytesRead = resp.Size
-		op.Data = resp.Data
-		op.Callback = resp.Callback
+		if resp != nil {
+			op.BytesRead = resp.Size
+			op.Data = resp.Data
+			op.Callback = resp.Callback
+		}
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}
 
-	// A FileClobberedError indicates the underlying GCS object has changed,
-	// making the kernel's dentry for this file stale. We use the notifier to
-	// invalidate this entry, providing feedback to the kernel about the dynamic
-	// content change and ensuring subsequent lookups fetch the correct metadata.
+	return fs.handleReadFileError(op, err)
+}
+
+// handleReadFileError outlines the "sad path" for ReadFile.
+//
+//go:noinline
+func (fs *fileSystem) handleReadFileError(op *fuseops.ReadFileOp, err error) error {
+	if err == nil {
+		return nil
+	}
 	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
-		var clobberedErr *gcsfuse_errors.FileClobberedError
-		if err != nil && errors.As(err, &clobberedErr) {
-			if invalidateErr := fs.invalidateCachedEntry(op.Inode); invalidateErr != nil {
-				err = fmt.Errorf("%w; additionally failed to invalidate entry: %w", err, invalidateErr)
+		var clobberedError *gcsfuse_errors.FileClobberedError
+		if errors.As(err, &clobberedError) {
+			if invErr := fs.invalidateCachedEntry(op.Inode); invErr != nil {
+				return fmt.Errorf("%w; additionally failed to invalidate entry: %w", err, invErr)
 			}
 		}
 	}
-	// As required by fuse, we don't treat EOF as an error.
+
 	if err == io.EOF {
-		err = nil
+		return nil
 	}
 
-	return
+	return err
 }
 
 // LOCKS_EXCLUDED(fs.mu)

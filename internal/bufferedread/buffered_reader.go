@@ -22,12 +22,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -178,7 +176,6 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	// read threshold has been met.
 	if p.randomSeekCount > p.randomReadsThreshold {
 		if p.readTypeClassifier.IsReadSequential() {
-			logger.Tracef("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, p.handleID)
 			p.resetBufferedReaderState()
 			return nil
 		}
@@ -203,12 +200,9 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	if p.randomSeekCount > p.randomReadsThreshold {
 		// If the read pattern becomes sequential again, reset the state to resume buffered reading.
 		if p.readTypeClassifier.IsReadSequential() {
-			logger.Tracef("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, p.handleID)
 			p.resetBufferedReaderState()
 			return nil
 		}
-		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d and read pattern is not sequential.", p.object.Name, p.handleID, p.randomSeekCount, p.randomReadsThreshold)
-		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -277,54 +271,53 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
-	resp := gcsx.ReadResponse{}
-	reqID := uuid.New()
-	start := time.Now()
+
+func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (*gcsx.ReadResponse, error) {
 	readOffset := req.Offset
-	blockIdx := readOffset / p.config.PrefetchBlockSizeBytes
+
+	// 1. Checks
+	if readOffset >= int64(p.object.Size) {
+		return nil, io.EOF
+	}
+	if len(req.Buffer) == 0 {
+		return &gcsx.ReadResponse{Size: 0}, nil
+	}
+
+	// 2. Lock
+	p.mu.Lock()
+
+	// 3. Handle Random Read
+	if err := p.handleRandomRead(readOffset); err != nil {
+		p.mu.Unlock() // Manual Unlock (saves defer overhead)
+		return nil, p.makeError("handleRandomRead", err)
+	}
+	// 4. Execute
+	// executeRead returns the constructed ReadResponse directly.
+	resp, _, err := p.executeRead(ctx, readOffset, len(req.Buffer))
+
+	p.mu.Unlock() // Manual Unlock
+	return resp, err
+}
+
+// executeRead runs the loop AND constructs the response object.
+// Returns: Response (if success), TotalBytesRead (always), Error.
+//
+//go:noinline
+func (p *BufferedReader) executeRead(ctx context.Context, startOffset int64, bufferLen int) (*gcsx.ReadResponse, int, error) {
 	var bytesRead int
 	var err error
-
-	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, p.handleID, readOffset, len(req.Buffer), blockIdx)
-
-	if readOffset >= int64(p.object.Size) {
-		err = io.EOF
-		return resp, err
-	}
-
-	if len(req.Buffer) == 0 {
-		return resp, nil
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	defer func() {
-		dur := time.Since(start)
-		p.metricHandle.BufferedReadReadLatency(ctx, dur)
-		p.metricHandle.GcsReadBytesCount(int64(bytesRead), metrics.ReaderBufferedAttr)
-		if err == nil || errors.Is(err, io.EOF) {
-			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
-		}
-	}()
-
-	if err = p.handleRandomRead(readOffset); err != nil {
-		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
-	}
-
-	prefetchTriggered := false
-
 	var dataSlices [][]byte
 	var entriesToCallback []*blockQueueEntry
-	for bytesRead < len(req.Buffer) {
+
+	readOffset := startOffset
+	prefetchTriggered := false
+
+	for bytesRead < bufferLen {
 		p.prepareQueueForOffset(readOffset)
 
 		if p.blockQueue.IsEmpty() {
 			if err = p.freshStart(readOffset); err != nil {
-				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, p.handleID, err)
-				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
-				return resp, gcsx.FallbackToAnotherReader
+				return nil, bytesRead, p.handleFreshStartError()
 			}
 			prefetchTriggered = true
 		}
@@ -334,7 +327,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 		status, waitErr := blk.AwaitReady(ctx)
 		if waitErr != nil {
-			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
+			err = p.makeError("AwaitReady", waitErr)
 			break
 		}
 
@@ -342,25 +335,19 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 			p.blockQueue.Pop()
 			p.blockPool.Release(blk)
 			entry.cancel()
-
-			switch status.State {
-			case block.BlockStateDownloadFailed:
-				err = fmt.Errorf("BufferedReader.ReadAt: download failed: %w", status.Err)
-			default:
-				err = fmt.Errorf("BufferedReader.ReadAt: unexpected block state: %d", status.State)
-			}
+			err = p.handleBadBlockState(status)
 			break
 		}
 
 		relOff := readOffset - blk.AbsStartOff()
-		bytesToRead := len(req.Buffer) - bytesRead
+		bytesToRead := bufferLen - bytesRead
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen
 		readOffset += int64(sliceLen)
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
+			err = p.makeError("block.ReadAt", readErr)
 			break
 		}
 
@@ -381,17 +368,39 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
-				if pfErr := p.prefetch(); pfErr != nil {
-					logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
-				}
+				_ = p.prefetch()
 			}
 		}
 	}
 
-	resp.Data = dataSlices
-	resp.Callback = func() { p.callback(entriesToCallback) }
-	resp.Size = bytesRead
-	return resp, err
+	// Construct the response here, inside the helper's stack frame.
+	resp := &gcsx.ReadResponse{
+		Data:     dataSlices,
+		Size:     bytesRead,
+		Callback: func() { p.callback(entriesToCallback) },
+	}
+
+	return resp, bytesRead, err
+}
+
+//go:noinline
+func (p *BufferedReader) makeError(op string, err error) error {
+	return fmt.Errorf("BufferedReader.ReadAt: %s: %w", op, err)
+}
+
+//go:noinline
+func (p *BufferedReader) handleFreshStartError() error {
+	return gcsx.FallbackToAnotherReader
+}
+
+//go:noinline
+func (p *BufferedReader) handleBadBlockState(status block.BlockStatus) error {
+	switch status.State {
+	case block.BlockStateDownloadFailed:
+		return fmt.Errorf("BufferedReader.ReadAt: download failed: %w", status.Err)
+	default:
+		return fmt.Errorf("BufferedReader.ReadAt: unexpected block state: %d", status.State)
+	}
 }
 
 // callback is called when the FUSE library is finished with buffer slices that
@@ -479,7 +488,7 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 	if err := p.prefetch(); err != nil {
 		// A failure during the initial prefetch is not fatal, as the first block
 		// has already been scheduled. Log the error and continue.
-		logger.Warnf("freshStart: initial prefetch: %v", err)
+		// logger.Warnf("freshStart: initial prefetch: %v", err)
 	}
 	return nil
 }
@@ -493,7 +502,7 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 		// can't get a block. For the buffered reader, this is a recoverable
 		// condition that should either trigger a fallback to another reader (for
 		// urgent reads) or be ignored (for background prefetches).
-		logger.Tracef("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
+		// logger.Tracef("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
 		return ErrPrefetchBlockNotAvailable
 	}
 
@@ -522,8 +531,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 		readHandle:   p.readHandle,
 		metricHandle: p.metricHandle,
 	}
-
-	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
+	// logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
 		block:  b,
 		cancel: cancel,
@@ -555,7 +563,7 @@ func (p *BufferedReader) Destroy() {
 	case <-done:
 		// Wait completed successfully.
 	case <-time.After(10 * time.Second):
-		logger.Warnf("BufferedReader.Destroy: timed out waiting for outstanding data slice references to be released.")
+		// logger.Warnf("BufferedReader.Destroy: timed out waiting for outstanding data slice references to be released.")
 	}
 
 	// After the wait, no new read calls can arrive. This is because the kernel
@@ -567,7 +575,7 @@ func (p *BufferedReader) Destroy() {
 	}
 
 	if err := p.blockPool.ClearFreeBlockChannel(true); err != nil {
-		logger.Warnf("Destroy: clearing free block channel: %v", err)
+		// logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
 }
