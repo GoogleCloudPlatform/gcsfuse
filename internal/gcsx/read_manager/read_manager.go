@@ -26,7 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	clientReaders "github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/client_readers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
@@ -126,18 +125,23 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	}
 
 	// Initialize the GCS reader, which is always present.
-	gcsReader := clientReaders.NewGCSReader(
-		object,
-		bucket,
-		&clientReaders.GCSReaderConfig{
-			MetricHandle:       config.MetricHandle,
-			MrdWrapper:         config.MrdWrapper,
-			Config:             config.Config,
-			ReadTypeClassifier: readClassifier,
-		},
-	)
-	// Add the GCS reader as a fallback.
-	readers = append(readers, gcsReader)
+	// gcsReader := clientReaders.NewGCSReader(
+	// 	object,
+	// 	bucket,
+	// 	&clientReaders.GCSReaderConfig{
+	// 		MetricHandle:       config.MetricHandle,
+	// 		MrdWrapper:         config.MrdWrapper,
+	// 		Config:             config.Config,
+	// 		ReadTypeClassifier: readClassifier,
+	// 	},
+	// )
+	// // Add the GCS reader as a fallback.
+	// readers = append(readers, gcsReader)
+
+	// Initialize the Pooled Range Reader.
+	rangeReaderPool := gcsx.NewRangeReaderPool(bucket, object)
+	pooledRangeReader := gcsx.NewPooledRangeReader(rangeReaderPool, object)
+	readers = append(readers, pooledRangeReader)
 
 	return &ReadManager{
 		object:             object,
