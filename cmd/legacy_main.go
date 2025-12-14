@@ -58,6 +58,7 @@ const (
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
 	DynamicMountFSName             = "gcsfuse"
 	WaitTimeOnSignalReceive        = 30 * time.Second
+	MountTimeThreshold             = 5 * time.Second
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -511,6 +512,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
+		startTime := time.Now()
 		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
 
 		// This utility is to absorb the error
@@ -523,6 +525,10 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 
 		markSuccessfulMount := func() {
+			mountDuration := time.Since(startTime)
+			if mountDuration > MountTimeThreshold {
+				logger.Warnf("Mount slowness detected: mount time %v exceeded threshold %v", mountDuration, MountTimeThreshold)
+			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
 			callDaemonizeSignalOutcome(nil)
