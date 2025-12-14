@@ -277,7 +277,7 @@ async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet
             await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
     else:
         await create_network(project_id, network_name, subnet_name, region, DEFAULT_MTU)
-        cmd = ["gcloud", "container", "clusters", "create", cluster_name, f"--project={project_id}", f"--zone={zone}", f"--network={network_name}", f"--subnetwork={subnet_name}", f"--workload-pool={project_id}.svc.id.goog", "--addons=GcsFuseCsiDriver", "--num-nodes=1"]
+        cmd = ["gcloud", "container", "clusters", "create", cluster_name, "--release-channel=rapid", f"--project={project_id}", f"--zone={zone}", f"--network={network_name}", f"--subnetwork={subnet_name}", f"--workload-pool={project_id}.svc.id.goog", "--addons=GcsFuseCsiDriver", "--num-nodes=1"]
         await run_command_async(cmd)
         await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
 
