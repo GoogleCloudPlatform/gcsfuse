@@ -63,6 +63,34 @@ list_large_dir:
           zonal: false
         run_on_gke: true
 
+operations:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+        - "--enable-atomic-rename-object=true"
+        - "--experimental-enable-json-read=true"
+        - "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true"
+        - "--create-empty-file=true --enable-atomic-rename-object=true"
+        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+        - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
+        compatible:
+          flat: true
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - flags:
+        - "--experimental-enable-json-read=true --enable-atomic-rename-object=true"
+        - "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true"
+        - "--create-empty-file=true --enable-atomic-rename-object=true"
+        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+        - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
+        compatible:
+          flat: false
+          hns: true
+          zonal: true
+        run_on_gke: true
+
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"

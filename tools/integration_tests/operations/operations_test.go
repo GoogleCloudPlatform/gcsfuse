@@ -17,7 +17,6 @@ package operations_test
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -25,6 +24,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
@@ -106,14 +106,12 @@ func RunTestOnTPCEndPoint(cfg test_suite.Config, m *testing.M) int {
 	cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
 	cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
 	cfg.Operations[0].Configs[0].Flags = []string{
-		"--enable-atomic-rename-object=true",
-		"--experimental-enable-json-read=true",
-		"--create-empty-file=true --enable-atomic-rename-object=true",
-		"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-		"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
+		"--enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+		"--experimental-enable-json-read=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+		"--create-empty-file=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+		"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+		"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
 	}
-	cacheDirFlag := fmt.Sprintf("--file-cache-max-size-mb=2 --cache-dir=%s/cache-dir-operations-hns", os.TempDir())
-	cfg.Operations[0].Configs[0].Flags = append(cfg.Operations[0].Configs[0].Flags, cacheDirFlag)
 	cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
 	var flags [][]string
 
@@ -166,24 +164,21 @@ func TestMain(m *testing.M) {
 		cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.Operations[0].Configs[0].Flags = []string{
-			"--enable-atomic-rename-object=true",
-			// "--experimental-enable-json-read=true",
-			// "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
-			// "--create-empty-file=true --enable-atomic-rename-object=true",
-			// "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-			// "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
+			"--enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--experimental-enable-json-read=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--create-empty-file=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
 		}
-		cfg.Operations[0].Configs[1].Flags = []string{
-			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
-			// "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
-			// "--create-empty-file=true --enable-atomic-rename-object=true",
-			// "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-			// "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
-		}
-		cacheDirFlag := fmt.Sprintf("--file-cache-max-size-mb=2 --cache-dir=%s/cache-dir-operations-hns", os.TempDir())
-		cfg.Operations[0].Configs[0].Flags = append(cfg.Operations[0].Configs[0].Flags, cacheDirFlag)
-		cfg.Operations[0].Configs[1].Flags = append(cfg.Operations[0].Configs[1].Flags, cacheDirFlag)
 		cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": true}
+		cfg.Operations[0].Configs[1].Flags = []string{
+			"--experimental-enable-json-read=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--create-empty-file=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+		}
 		cfg.Operations[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 	}
 
@@ -222,13 +217,14 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flags, m)
+		successCode = dynamic_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 	}
 
-	// if successCode == 0 {
-	// 	// Test for admin permission on test bucket.
-	// 	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile(&cfg.Operations[0], ctx, storageClient, flags, "objectAdmin", m)
-	// }
+	if successCode == 0 {
+		// Test for admin permission on test bucket.
+		log.Printf("Running cred tests...")
+		successCode = creds_tests.RunTestsForDifferentAuthMethods(ctx, &cfg.Operations[0], storageClient, flags, "objectAdmin", m)
+	}
 
 	os.Exit(successCode)
 }

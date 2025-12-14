@@ -130,18 +130,7 @@ func RevokePermission(ctx context.Context, storageClient *storage.Client, servic
 	}
 }
 
-// Deprecated: Use RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
-func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
-	config := &test_suite.TestConfig{
-		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
-		LogFile:          setup.LogFile(),
-	}
-	return RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile(config, ctx, storageClient, testFlagSet, permission, m)
-}
-
-func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile(config *test_suite.TestConfig, ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
+func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
 	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 	defer RevokePermission(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
