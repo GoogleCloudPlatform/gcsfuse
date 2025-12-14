@@ -31,6 +31,7 @@ import (
 	"github.com/pkg/xattr"
 	promclient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -91,7 +92,7 @@ func (testSuite *PromTestBase) mountGcsfuse(bucketName string, flags []string) e
 }
 
 func (testSuite *PromTestBase) SetupSuite() {
-	setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
+	//setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
 	_, err := setup.SetUpTestDir()
 	require.NoError(testSuite.T(), err, "error while building GCSFuse")
 }
@@ -145,7 +146,7 @@ func parsePromFormat(t *testing.T) (map[string]*promclient.MetricFamily, error) 
 
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", prometheusPort))
 	require.NoError(t, err)
-	var parser expfmt.TextParser
+	parser := expfmt.NewTextParser(model.UTF8Validation)
 	return parser.TextToMetricFamilies(resp.Body)
 }
 
