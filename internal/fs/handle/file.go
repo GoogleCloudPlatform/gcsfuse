@@ -21,6 +21,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	cachefolio "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folio"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
@@ -77,12 +79,18 @@ type FileHandle struct {
 	// that can be allocated for buffered read across all files in the file system.
 	globalMaxReadBlocksSem *semaphore.Weighted
 
+	// smartPool is a shared memory pool for folio allocation used by buffered cache readers.
+	smartPool *folio.SmartPool
+
+	// lruCache is a shared LRU cache for managing folios across all buffered cache readers.
+	lruCache *cachefolio.LRUCache
+
 	// HandleID is an opaque 64-bit number used to create this File Handle, used for logging.
 	handleID fuseops.HandleID
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted, handleID fuseops.HandleID) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted, smartPool *folio.SmartPool, lruCache *cachefolio.LRUCache, handleID fuseops.HandleID) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                  inode,
 		fileCacheHandler:       fileCacheHandler,
@@ -92,6 +100,8 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		config:                 c,
 		bufferedReadWorkerPool: bufferedReadWorkerPool,
 		globalMaxReadBlocksSem: globalMaxReadBlocksSem,
+		smartPool:              smartPool,
+		lruCache:               lruCache,
 		handleID:               handleID,
 	}
 
@@ -208,6 +218,8 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 			Config:                fh.config,
 			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
 			WorkerPool:            fh.bufferedReadWorkerPool,
+			SmartPool:             fh.smartPool,
+			LRUCache:              fh.lruCache,
 			HandleID:              fh.handleID,
 		})
 

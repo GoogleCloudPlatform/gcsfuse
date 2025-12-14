@@ -26,11 +26,13 @@ import (
 	"testing/iotest"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	cachefolio "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	clientReaders "github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/client_readers"
@@ -77,6 +79,16 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 		t.workerPool, _ = workerpool.NewStaticWorkerPool(5, 20, 25)
 		t.workerPool.Start()
 		config.WorkerPool = t.workerPool
+
+		// Create SmartPool and LRUCache for buffered cache reader
+		pool, _ := folio.NewSmartPool(int(folio.Size1MB), int(folio.Size64KB))
+		config.SmartPool = pool
+		config.LRUCache = cachefolio.NewLRUCache(cachefolio.LRUCacheConfig{
+			MaxSize:     512 * 1024 * 1024,
+			MaxEntries:  10000,
+			BTreeDegree: 32,
+			SmartPool:   pool,
+		})
 	}
 
 	if fileCacheEnable {
@@ -186,10 +198,10 @@ func (t *readManagerTest) Test_NewReadManager_WithBufferedRead() {
 	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
-	assert.Len(t.T(), rm.readers, 2) // BufferedReader and GCSReader
-	_, ok1 := rm.readers[0].(*bufferedread.BufferedReader)
+	assert.Len(t.T(), rm.readers, 2) // BufferedCacheReader and GCSReader
+	_, ok1 := rm.readers[0].(*bufferedcache.BufferedCacheReader)
 	_, ok2 := rm.readers[1].(*clientReaders.GCSReader)
-	assert.True(t.T(), ok1, "First reader should be BufferedReader")
+	assert.True(t.T(), ok1, "First reader should be BufferedCacheReader")
 	assert.True(t.T(), ok2, "Second reader should be GCSReader")
 }
 
@@ -200,26 +212,28 @@ func (t *readManagerTest) Test_NewReadManager_WithFileCacheAndBufferedRead() {
 	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
-	assert.Len(t.T(), rm.readers, 3) // FileCacheReader, BufferedReader, GCSReader
+	assert.Len(t.T(), rm.readers, 3) // FileCacheReader, BufferedCacheReader, GCSReader
 	_, ok1 := rm.readers[0].(*gcsx.FileCacheReader)
-	_, ok2 := rm.readers[1].(*bufferedread.BufferedReader)
+	_, ok2 := rm.readers[1].(*bufferedcache.BufferedCacheReader)
 	_, ok3 := rm.readers[2].(*clientReaders.GCSReader)
 	assert.True(t.T(), ok1, "First reader should be FileCacheReader")
-	assert.True(t.T(), ok2, "Second reader should be BufferedReader")
+	assert.True(t.T(), ok2, "Second reader should be BufferedCacheReader")
 	assert.True(t.T(), ok3, "Third reader should be GCSReader")
 }
 
 func (t *readManagerTest) Test_NewReadManager_BufferedReaderCreationFails() {
 	config := t.readManagerConfig(false, true)
-	// Exhaust the semaphore
-	config.GlobalMaxBlocksSem = semaphore.NewWeighted(0)
+	// Note: BufferedCacheReader doesn't use semaphore, so it will be created successfully
+	// This test now verifies that BufferedCacheReader is created along with GCSReader
 
 	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
-	assert.Len(t.T(), rm.readers, 1) // Only GCSReader
-	_, ok := rm.readers[0].(*clientReaders.GCSReader)
-	assert.True(t.T(), ok, "Only reader should be GCSReader")
+	assert.Len(t.T(), rm.readers, 2) // BufferedCacheReader and GCSReader
+	_, ok1 := rm.readers[0].(*bufferedcache.BufferedCacheReader)
+	_, ok2 := rm.readers[1].(*clientReaders.GCSReader)
+	assert.True(t.T(), ok1, "First reader should be BufferedCacheReader")
+	assert.True(t.T(), ok2, "Second reader should be GCSReader")
 }
 
 func (t *readManagerTest) Test_ReadAt_EmptyRead() {

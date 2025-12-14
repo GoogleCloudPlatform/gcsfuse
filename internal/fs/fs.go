@@ -40,9 +40,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	cachefolio "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/folio"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -221,6 +223,20 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		if err != nil {
 			return nil, fmt.Errorf("failed to create worker pool for buffered read: %w", err)
 		}
+
+		// Create SmartPool for folio allocation
+		fs.smartPool, err = folio.NewSmartPool(int(folio.Size1MB), int(folio.Size64KB))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create smart pool for buffered cache: %w", err)
+		}
+
+		// Create LRU cache for folio management
+		fs.lruCache = cachefolio.NewLRUCache(cachefolio.LRUCacheConfig{
+			MaxSize:     512 * 1024 * 1024, // 512 MB
+			MaxEntries:  10000,
+			BTreeDegree: 32,
+			SmartPool:   fs.smartPool,
+		})
 	}
 
 	// Set up root bucket
@@ -533,6 +549,12 @@ type fileSystem struct {
 	// that can be allocated for buffered read across all file-handles in the file system.
 	// This helps control the overall memory usage for buffered reads.
 	globalMaxReadBlocksSem *semaphore.Weighted
+
+	// smartPool is a shared memory pool for folio allocation used by buffered cache readers.
+	smartPool *folio.SmartPool
+
+	// lruCache is a shared LRU cache for managing folios across all buffered cache readers.
+	lruCache *cachefolio.LRUCache
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -2043,7 +2065,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, fs.smartPool, fs.lruCache, op.Handle)
 
 	fs.mu.Unlock()
 
@@ -2812,7 +2834,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, fs.smartPool, fs.lruCache, op.Handle)
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the

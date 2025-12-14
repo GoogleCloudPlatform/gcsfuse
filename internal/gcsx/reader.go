@@ -26,6 +26,12 @@ import (
 // to an alternative reader.
 var FallbackToAnotherReader = errors.New("fallback to another reader is required")
 
+// ReadAhead contains the readahead window information.
+type ReadAhead struct {
+	WindowStart int64
+	WindowEnd   int64
+}
+
 // ReadRequest encapsulates the parameters for a read operation.
 type ReadRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
@@ -36,6 +42,9 @@ type ReadRequest struct {
 	// read manager to fall back to the next reader and to record the read operation
 	// correctly.
 	Offset int64
+
+	// ReadAhead is populated by Peek method with the readahead window boundaries.
+	ReadAhead *ReadAhead
 
 	// ReadInfo contains metadata about the read pattern.
 	ReadInfo
