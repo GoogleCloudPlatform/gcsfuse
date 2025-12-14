@@ -56,6 +56,7 @@ import (
 const (
 	SuccessfulMountMessage         = "File system has been successfully mounted."
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
+	MountSlownessMessage           = "Mount slowness detected: mount time %v exceeded threshold %v"
 	DynamicMountFSName             = "gcsfuse"
 	WaitTimeOnSignalReceive        = 30 * time.Second
 	MountTimeThreshold             = 5 * time.Second
@@ -490,7 +491,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 		mountDuration := time.Since(startTime)
 		if mountDuration > MountTimeThreshold {
-			logger.Warnf("Mount slowness detected: mount time %v exceeded threshold %v", mountDuration, MountTimeThreshold)
+			logger.Warnf(MountSlownessMessage, mountDuration, MountTimeThreshold)
 		}
 		logger.Infof(SuccessfulMountMessage)
 		return err
@@ -532,7 +533,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		markSuccessfulMount := func() {
 			mountDuration := time.Since(startTime)
 			if mountDuration > MountTimeThreshold {
-				logger.Warnf("Mount slowness detected: mount time %v exceeded threshold %v", mountDuration, MountTimeThreshold)
+				logger.Warnf(MountSlownessMessage, mountDuration, MountTimeThreshold)
 			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
