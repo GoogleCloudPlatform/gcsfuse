@@ -242,6 +242,7 @@ func (pmb *prefetchMemoryBlock) RefCount() int32 {
 // ReadFrom implements io.ReaderFrom on prefetch blocks
 // to efficiently read from reader avoiding an intermediate buffer.
 func (pmb *prefetchMemoryBlock) ReadFrom(r io.Reader) (n int64, err error) {
+	var bytesRead int
 	for {
 		// return if buffer is full.
 		if len(pmb.buffer) == cap(pmb.buffer) {
@@ -249,17 +250,18 @@ func (pmb *prefetchMemoryBlock) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 
 		// Read into the remaining capacity of the buffer.
-		m, e := r.Read(pmb.buffer[len(pmb.buffer):cap(pmb.buffer)])
-		if m > 0 {
-			pmb.buffer = pmb.buffer[:len(pmb.buffer)+m]
-			n += int64(m)
+		bytesRead, err = r.Read(pmb.buffer[len(pmb.buffer):cap(pmb.buffer)])
+		if bytesRead > 0 {
+			pmb.buffer = pmb.buffer[:len(pmb.buffer)+bytesRead]
+			n += int64(bytesRead)
 		}
-		if e == io.EOF {
+		if err == io.EOF {
 			// End of reader, we are done.
-			return n, nil
+			err = nil
+			return
 		}
-		if e != nil {
-			return n, e
+		if err != nil {
+			return
 		}
 	}
 }
