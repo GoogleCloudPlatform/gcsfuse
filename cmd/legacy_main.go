@@ -483,9 +483,14 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 		}
 		// Run.
+		startTime := time.Now()
 		err = daemonize.Run(path, args, env, os.Stdout, stderrFile)
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
+		}
+		mountDuration := time.Since(startTime)
+		if mountDuration > MountTimeThreshold {
+			logger.Warnf("Mount slowness detected: mount time %v exceeded threshold %v", mountDuration, MountTimeThreshold)
 		}
 		logger.Infof(SuccessfulMountMessage)
 		return err
