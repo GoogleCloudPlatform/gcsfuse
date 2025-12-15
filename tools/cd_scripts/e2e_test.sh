@@ -40,7 +40,7 @@ if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [[ ($ID == "rhel" || $ID == "rocky")]]; then
         sudo yum install -y python311
-        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
+        INSTALL_COMMAND="sudo export CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
 fi
 $INSTALL_COMMAND
@@ -115,7 +115,7 @@ create_user() {
   fi
   local exit_code=$?
 
-  if [ ${exit_code} -eq 0 ]; then
+  if [[ ${exit_code} -eq 0 ]]; then
     echo "User ${USERNAME} created successfully."
   else
     echo "Failed to create user ${USERNAME}." >&2
@@ -242,7 +242,7 @@ then
 else
     # For rhel and centos
     # Set CLOUDSDK_PYTHON to python3.11 for gcloud commands to work.
-    env CLOUDSDK_PYTHON=/usr/bin/python3.11
+    export CLOUDSDK_PYTHON=/usr/bin/python3.11
 
     # uname can be aarch or x86_64
     uname=$(uname -m)
@@ -406,7 +406,7 @@ INTEGRATION_TEST_TIMEOUT=240m
 #   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
 #   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
 function run_non_parallel_tests() {
-  if [ "$#" -ne 3 ]; then
+  if [[ "$#" -ne 3 ]]; then
     echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
     <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
     exit 1
@@ -426,14 +426,14 @@ function run_non_parallel_tests() {
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE" # Use double quotes for log_file
-    if [ -d "$test_path_non_parallel" ]; then
+    if [[ -d "$test_path_non_parallel" ]]; then
       GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
       exit_code_non_parallel=$?
     else
       echo "Test path $test_path_non_parallel does not exist. Skipping tests." >> "$log_file"
       exit_code_non_parallel=0 # Treat as success if test path doesnt exist
     fi
-    if [ $exit_code_non_parallel -ne 0 ]; then
+    if [[ $exit_code_non_parallel -ne 0 ]]; then
       exit_code=$exit_code_non_parallel
     fi
   done
@@ -446,7 +446,7 @@ function run_non_parallel_tests() {
 #   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
 #   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
 function run_parallel_tests() {
-  if [ "$#" -ne 3 ]; then
+  if [[ "$#" -ne 3 ]]; then
     echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
     <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
     exit 1
@@ -467,7 +467,7 @@ function run_parallel_tests() {
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE"
-    if [ -d "$test_path_parallel" ]; then
+    if [[ -d "$test_path_parallel" ]]; then
       GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
       pid=$!
       pids+=("$pid")
@@ -478,7 +478,7 @@ function run_parallel_tests() {
   for pid in "${pids[@]}"; do
     wait "$pid"
     exit_code_parallel=$?
-    if [ $exit_code_parallel -ne 0 ]; then
+    if [[ $exit_code_parallel -ne 0 ]]; then
       exit_code=$exit_code_parallel
     fi
   done
@@ -492,7 +492,7 @@ function run_parallel_tests() {
 #   $3: TEST_DIR_NON_PARALLEL (list of test packages that should be run in sequence)
 #   $4: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
 function run_e2e_tests() {
-  if [ "$#" -ne 4 ]; then
+  if [[ "$#" -ne 4 ]]; then
     echo "Incorrect number of arguments passed, Expecting <TESTCASE>
     <NAME_OF_PARALLEL_TEST_DIR_ARRAY> <NAME_OF_PARALLEL_TEST_DIR_ARRAY>
     <IS_ZONAL_BUCKET_FLAG>"
@@ -528,11 +528,11 @@ function run_e2e_tests() {
   wait "$non_parallel_tests_pid"
   local non_parallel_tests_exit_code=$?
 
-  if [ "$non_parallel_tests_exit_code" -ne 0 ]; then
+  if [[ "$non_parallel_tests_exit_code" -ne 0 ]]; then
     overall_exit_code=$non_parallel_tests_exit_code
   fi
 
-  if [ "$parallel_tests_exit_code" -ne 0 ]; then
+  if [[ "$parallel_tests_exit_code" -ne 0 ]]; then
     overall_exit_code=$parallel_tests_exit_code
   fi
   return $overall_exit_code
@@ -544,7 +544,7 @@ function gather_test_logs() {
   for test_log_file in "${test_logs_array[@]}"
   do
     log_file=${test_log_file}
-    if [ -f "$log_file" ]; then
+    if [[ -f "$log_file" ]]; then
       if [[ "$test_log_file" == *"hns"* ]]; then
         output_file="$HOME/logs-hns.txt"
       elif [[ "$test_log_file" == *"zonal"* ]]; then
@@ -563,7 +563,7 @@ function gather_test_logs() {
 # Function to log test results and upload them to GCS based on exit status.
 # Arguments: $1 = name of the associative array containing testcase exit statuses.
 function log_based_on_exit_status() {
-  if [ "$#" -ne 1 ]; then
+  if [[ "$#" -ne 1 ]]; then
     echo "Incorrect number of arguments passed, Expecting <EXIT_STATUS_ARRAY_NAME>"
     exit 1
   fi
@@ -581,7 +581,7 @@ function log_based_on_exit_status() {
           logfile="$HOME/logs-$testcase.txt"
           successfile="$HOME/success-$testcase.txt"
         fi
-        if [ "${exit_status_array["$testcase"]}" != 0 ];
+        if [[ "${exit_status_array["$testcase"]}" != 0 ]];
         then
             echo "Test failures detected in $testcase bucket." &>> $logfile
         else
@@ -598,7 +598,7 @@ function log_based_on_exit_status() {
 function run_e2e_tests_for_emulator_and_log() {
   ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
   emulator_test_status=$?
-  if [ $e2e_tests_emulator_status != 0 ];
+  if [[ $e2e_tests_emulator_status != 0 ]];
     then
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else
