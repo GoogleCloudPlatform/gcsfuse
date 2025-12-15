@@ -25,39 +25,24 @@ Before running the script, ensure you have the following tools installed and con
 -   `python3` with the `asyncio` library (standard in Python 3.7+).
 
 ### Workload Identity Setup (Critical)
-The test requires a Kubernetes Service Account (KSA) bound to a Google Service Account (GSA) with permissions to access the GCS bucket. This setup usually needs to be done once per cluster/project.
+The test uses GKE Workload Identity Federation. You must grant the Kubernetes Service Account (KSA) direct access to the GCS bucket.
+For this test, we use the `default` KSA in the `default` namespace.
 
-**1. Create GSA:**
-```bash
-gcloud iam service-accounts create gcsfuse-machine-type-test-gsa \
-    --project=<PROJECT_ID> \
-    --display-name="GCSFuse Machine Type Test GSA"
-```
+**1. Grant Bucket Permissions to the KSA Principal:**
+You need the **Project Number** (not ID) of the project hosting the GKE cluster.
 
-**2. Grant Bucket Permissions:**
 ```bash
+# Get Project Number
+PROJECT_NUMBER=$(gcloud projects describe <PROJECT_ID> --format="value(projectNumber)")
+
+# Grant Storage Object User role to the 'default' KSA principal
 gcloud storage buckets add-iam-policy-binding gs://<BUCKET_NAME> \
-    --member="serviceAccount:gcsfuse-machine-type-test-gsa@<PROJECT_ID>.iam.gserviceaccount.com" \
+    --member="principal://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/<PROJECT_ID>.svc.id.goog/subject/ns/default/sa/default" \
     --role=roles/storage.objectUser \
     --project=<BUCKET_PROJECT_ID>
 ```
+*Note: This has already been configured for the test environment (`gcs-fuse-test-ml`, `gargnitin_machine_type_test_hns_euw4`).
 
-**3. Create & Bind KSA (After Cluster Creation):**
-You must connect to the cluster first (`gcloud container clusters get-credentials ...`).
-```bash
-kubectl create serviceaccount gcsfuse-ksa --namespace default
-
-gcloud iam service-accounts add-iam-policy-binding gcsfuse-machine-type-test-gsa@<PROJECT_ID>.iam.gserviceaccount.com \
-    --role roles/iam.workloadIdentityUser \
-    --member "serviceAccount:<PROJECT_ID>.svc.id.goog[default/gcsfuse-ksa]" \
-    --project=<PROJECT_ID>
-
-kubectl annotate serviceaccount gcsfuse-ksa \
-    --namespace default \
-    iam.gke.io/gcp-service-account=gcsfuse-machine-type-test-gsa@<PROJECT_ID>.iam.gserviceaccount.com \
-    --overwrite
-```
-*Note: The `run.py` script does NOT perform these IAM steps automatically. You must ensure the `gcsfuse-ksa` exists in the cluster before running the test.
 
 ## Workflow
 

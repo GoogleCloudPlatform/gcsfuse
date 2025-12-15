@@ -50,8 +50,7 @@ spec:
     volumeMounts:
     - name: data-vol
       mountPath: /data_mnt
-# serviceAccountName: default
-  serviceAccountName: gcsfuse-ksa
+  serviceAccountName: default
   volumes:
   - name: data-vol
     csi:
