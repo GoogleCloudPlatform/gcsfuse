@@ -43,7 +43,7 @@ if [ -f /etc/os-release ]; then
         INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
 fi
-$INSTALL_COMMAND 
+$INSTALL_COMMAND
 
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
@@ -55,10 +55,16 @@ echo "Got ZONE=\"${ZONE}\" from metadata server."
 # The format for the above extracted zone is projects/{project-id}/zones/{zone}, thus, from this
 # need extracted zone name.
 ZONE_NAME=$(basename "$ZONE")
-# This parameter is passed as the GCE VM metadata at the time of creation.(Logic is handled in louhi stage script)
+
+# FETCH CUSTOM BUCKET OR USE DEFAULT
+CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
 RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
 RUN_LIGHT_TEST=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-light-test)')
+
+# If CUSTOM_BUCKET is empty, use the release-packages bucket as default
+BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
+echo "BUCKET_NAME_TO_USE set to: \"${BUCKET_NAME_TO_USE}\""
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
 echo "RUN_LIGHT_TEST flag set to : \"${RUN_LIGHT_TEST}\""
@@ -81,7 +87,8 @@ if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
 fi
 
 #details.txt file contains the release version and commit hash of the current release.
-gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
+# Using dynamic bucket.
+gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
@@ -159,8 +166,8 @@ USERNAME=starterscriptuser
 HOMEDIR="/home/${USERNAME}"
 DETAILS_FILE=$(pwd)/details.txt
 
-create_user $USERNAME $HOMEDIR $DETAILS_FILE
-grant_sudo  $USERNAME $HOMEDIR
+create_user "$USERNAME" "$HOMEDIR" "$DETAILS_FILE"
+grant_sudo  "$USERNAME" "$HOMEDIR"
 
 
 # Run the following as starterscriptuser
@@ -169,18 +176,16 @@ sudo -u starterscriptuser bash -c '
 set -e
 # Print commands and their arguments as they are executed.
 set -x
-
+export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
+mkdir -p "$KOKORO_ARTIFACTS_DIR"
 # Since we are now operating as the starterscriptuser, we need to set the environment variable for this user again.
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 
-# Export the RUN_ON_ZB_ONLY variable so that it is available in the environment of the 'starterscriptuser' user.
-# Since we are running the subsequent script as 'starterscriptuser' using sudo, the environment of 'starterscriptuser'
-# would not automatically have access to the environment variables set by the original user (i.e. $RUN_ON_ZB_ONLY).
-# By exporting this variable, we ensure that the value of RUN_ON_ZB_ONLY is passed into the 'starterscriptuser' script
-# and can be used for conditional logic or decisions within that script.
+# Exporting variables to the sub-shell
 export RUN_ON_ZB_ONLY='$RUN_ON_ZB_ONLY'
 export RUN_READ_CACHE_TESTS_ONLY='$RUN_READ_CACHE_TESTS_ONLY'
 export RUN_LIGHT_TEST='$RUN_LIGHT_TEST'
+export BUCKET_NAME_TO_USE='$BUCKET_NAME_TO_USE'
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
@@ -212,9 +217,14 @@ then
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
-    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${LOG_FILE}
-
+    # Only download and install the pre-built deb package if using the default release bucket.
+    if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
+        echo "Downloading pre-built debian package from release bucket..."
+        gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
+        sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${LOG_FILE}
+    else
+        echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built rpm package installation."
+    fi
     # install wget
     sudo apt install -y wget
 
@@ -246,9 +256,14 @@ else
     #Install fuse
     sudo yum -y install fuse
 
-    #download and install gcsfuse rpm package
-    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
-    sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
+    # Only download and install the pre-built rpm package if using the default release bucket.
+    if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
+        echo "Downloading pre-built rpm package from release bucket..."
+        gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
+        sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
+    else
+        echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built debian package installation."
+    fi
 
     #install wget
     sudo yum -y install wget
@@ -287,6 +302,12 @@ then
 fi
 
 git checkout $(sed -n 2p ~/details.txt) |& tee -a ${LOG_FILE}
+if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
+    echo "Installing GCSFuse from source..."
+    GOOS=linux GOARCH=arm64 go run tools/build_gcsfuse/main.go . . \$(sed -n 1p ~/details.txt)
+    sudo cp bin/* /usr/bin/
+    sudo cp sbin/* /usr/sbin/
+fi
 
 #run tests with testbucket flag
 set +e
@@ -552,9 +573,10 @@ function log_based_on_exit_status() {
             echo "Test failures detected in $testcase bucket." &>> $logfile
         else
             touch $successfile
-            gcloud storage cp $successfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+            gcloud storage cp $successfile gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
         fi
-    gcloud storage cp $logfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp $logfile gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://{BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/
     done
 
 }
@@ -568,11 +590,10 @@ function run_e2e_tests_for_emulator_and_log() {
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else
         touch success-emulator.txt
-        gcloud storage cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+        gcloud storage cp success-emulator.txt gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
     fi
-    gcloud storage cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gcloud storage cp ~/logs-emulator.txt gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 }
-
 
 # Declare an associative array to store the exit status of different test runs.
 declare -A exit_status
