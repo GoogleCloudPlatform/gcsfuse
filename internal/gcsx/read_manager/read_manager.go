@@ -82,7 +82,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 
 	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB))
 
-	if bucket.BucketType().Zonal && config.Config.Read.EnableBufferedRead == false {
+	if bucket.BucketType().Zonal && config.Config.Read.EnableBufferedRead == false && false {
 		mrdReader := gcsx.NewMRDReader(
 			object,
 			config.MetricHandle,
