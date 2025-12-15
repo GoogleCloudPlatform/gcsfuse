@@ -399,10 +399,18 @@ func (fh *FileHandle) OpenMode() util.OpenMode {
 // the known object size. This allows reading from an object that is being
 // concurrently written to.
 func (fh *FileHandle) shouldSkipSizeChecks(req *gcsx.ReadRequest) bool {
-	isUnfinalized := fh.readManager.Object().IsUnfinalized()
-	isDirectIO := fh.OpenMode().IsDirect()
-	isPositiveOffset := req.Offset >= 0
-	extendsBeyondSize := req.Offset+int64(len(req.Buffer)) > int64(fh.readManager.Object().Size)
+	if !fh.readManager.Object().IsUnfinalized() {
+		return false
+	}
+	if !fh.OpenMode().IsDirect() {
+		return false
+	}
+	if req.Offset < 0 {
+		return false
+	}
+	if req.Offset+int64(len(req.Buffer)) <= int64(fh.readManager.Object().Size) {
+		return false
+	}
 
-	return isUnfinalized && isDirectIO && isPositiveOffset && extendsBeyondSize
+	return true
 }

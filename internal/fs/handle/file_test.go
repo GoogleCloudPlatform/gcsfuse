@@ -1059,12 +1059,12 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			expectedToSkip: true,
 		},
 		{
-			name:              "Nil read manager: should panic",
-			object:            unfinalizedObject,
-			openMode:          directIOReadMode,
-			offset:            100,
-			bufferSize:        10,
-			useNilReadManager: true,
+			name:           "Read starts before size and extends: should skip",
+			object:         unfinalizedObject,
+			openMode:       directIOReadMode,
+			offset:         101,
+			bufferSize:     10, // 101 + 10 > 100
+			expectedToSkip: true,
 		},
 	}
 
