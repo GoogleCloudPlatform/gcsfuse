@@ -34,8 +34,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.opentelemetry.io/otel"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -149,11 +147,11 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		// Pass the OpenTelemetry MeterProvider to the Go storage client,
 		// using the new WithMeterProvider client option.
 		// TODO - Gracefully handle gRPC metrics outside of GKE.
-		mp := otel.GetMeterProvider()
-		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
-			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
-			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
-		}
+		//mp := otel.GetMeterProvider()
+		//if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
+		//	// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
+		//	clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
+		//}
 	} else {
 		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
