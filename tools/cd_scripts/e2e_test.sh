@@ -200,7 +200,7 @@ if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
 fi
 
 echo "User: $USER" &>> ${LOG_FILE}
-echo "Current Working Directory: $(pwd)"  &>> ${LOG_FILE}
+echo "Current Working Directory: $(pwd)" &>> ${LOG_FILE}
 
 
 # Based on the os type in detail.txt, run the following commands for setup
@@ -219,11 +219,11 @@ then
     # download and install gcsfuse deb package
     # Only download and install the pre-built deb package if using the default release bucket.
     if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
-        echo "Downloading pre-built debian package from release bucket..."
-        gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
-        sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${LOG_FILE}
+        echo "Downloading pre-built debian package from release bucket..." &>> ${LOG_FILE}
+        gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb . &>> ${LOG_FILE}
+        sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${LOG_FILE} &>> ${LOG_FILE}
     else
-        echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built rpm package installation."
+        echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built rpm package installation." &>> ${LOG_FILE}
     fi
     # install wget
     sudo apt install -y wget
@@ -258,11 +258,11 @@ else
 
     # Only download and install the pre-built rpm package if using the default release bucket.
     if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
-        echo "Downloading pre-built rpm package from release bucket..."
-        gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
-        sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
+        echo "Downloading pre-built rpm package from release bucket..." &>> ${LOG_FILE}
+        gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm . &>> ${LOG_FILE}
+        sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm &>> ${LOG_FILE}
     else
-        echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built debian package installation."
+        echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built debian package installation." &>> ${LOG_FILE}
     fi
 
     #install wget
@@ -304,7 +304,8 @@ fi
 git checkout $(sed -n 2p ~/details.txt) |& tee -a ${LOG_FILE}
 if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
     echo "Installing GCSFuse from source..."
-    GOOS=linux GOARCH=arm64 go run tools/build_gcsfuse/main.go . . \$(sed -n 1p ~/details.txt)
+    VERSION_TAG=$(sed -n 1p ~/details.txt)
+    GOOS=linux GOARCH=arm64 go run tools/build_gcsfuse/main.go . . "${VERSION_TAG}"
     sudo cp bin/* /usr/bin/
     sudo cp sbin/* /usr/sbin/
 fi
