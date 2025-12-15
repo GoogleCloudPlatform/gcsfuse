@@ -207,7 +207,7 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 			p.resetBufferedReaderState()
 			return nil
 		}
-		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d and read pattern is not sequential.", p.object.Name, p.handleID, p.randomSeekCount, p.randomReadsThreshold)
+		logger.Tracef("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d and read pattern is not sequential.", p.object.Name, p.handleID, p.randomSeekCount, p.randomReadsThreshold)
 		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return gcsx.FallbackToAnotherReader
 	}
