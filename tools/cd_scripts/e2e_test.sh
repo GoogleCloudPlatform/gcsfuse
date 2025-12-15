@@ -176,7 +176,6 @@ sudo -u starterscriptuser bash -c '
 set -e
 # Print commands and their arguments as they are executed.
 set -x
-env CLOUDSDK_PYTHON=/usr/bin/python3.11
 export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
 mkdir -p "$KOKORO_ARTIFACTS_DIR"
 # Since we are now operating as the starterscriptuser, we need to set the environment variable for this user again.
@@ -241,7 +240,10 @@ then
     #install build-essentials
     sudo apt install -y build-essential
 else
-#  For rhel and centos
+    # For rhel and centos
+    # Set CLOUDSDK_PYTHON to python3.11 for gcloud commands to work.
+    env CLOUDSDK_PYTHON=/usr/bin/python3.11
+
     # uname can be aarch or x86_64
     uname=$(uname -m)
 
