@@ -586,7 +586,7 @@ function log_based_on_exit_status() {
             gcloud storage cp $successfile gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
         fi
     gcloud storage cp $logfile gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
-    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://{BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/
+    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://${BUCKET_NAME_TO_USE}/v$(sed -n 1p ~/details.txt)/
     done
 
 }
