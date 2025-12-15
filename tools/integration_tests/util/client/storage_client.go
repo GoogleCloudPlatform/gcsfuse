@@ -497,6 +497,14 @@ func AppendableWriter(ctx context.Context, client *storage.Client, object string
 	return wc, nil
 }
 
+func TakeoverWriter(ctx context.Context, client *storage.Client, object string, gen int64) (*storage.Writer, error) {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	obj := client.Bucket(bucket).Object(object)
+
+	tw, _, err := obj.Generation(gen).NewWriterFromAppendableObject(ctx, &storage.AppendableWriterOpts{})
+	return tw, err
+}
+
 // CreateGcsDir creates a GCS object with trailing slash "/" to simulate a directory.
 func CreateGcsDir(ctx context.Context, client *storage.Client, dirName, bucketName, objectName string) error {
 	// Combine objectName and dirName to form the full GCS object path

@@ -16,6 +16,7 @@ package unfinalized_object
 
 import (
 	"context"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -36,6 +37,13 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const (
+	initialSize          = operations.MiB
+	appendSize           = operations.MiB
+	readFlags            = syscall.O_RDONLY
+	readFlagsWithODirect = syscall.O_RDONLY | syscall.O_DIRECT
+)
+
 type unfinalizedObjectReads struct {
 	flags         []string
 	storageClient *storage.Client
@@ -51,6 +59,7 @@ func (t *unfinalizedObjectReads) SetupTest() {
 }
 
 func (s *unfinalizedObjectReads) TearDownSuite() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
@@ -60,6 +69,49 @@ func (s *unfinalizedObjectReads) SetupSuite() {
 		setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
 	}
 	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helper Methods
+////////////////////////////////////////////////////////////////////////
+
+// setupAndAppend creates an unfinalized object of size `initialSize` and then attempts an
+// initial reads via GCSFuse mount. Finally, it remotely appends to the unfinalized object
+// by taking over at the same generation and returns the already open filehandle along with
+// initialContent and appendContent to be further used by tests.
+func (t *unfinalizedObjectReads) setupAndAppend(filePath string, initialSize, appendSize, openFlags int) (fh *os.File, initialContent, appendContent string) {
+	initialContent = setup.GenerateRandomString(initialSize)
+	appendContent = setup.GenerateRandomString(appendSize)
+
+	// 1. Create an unfinalized object and open it.
+	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), initialContent)
+	fh = operations.OpenFileInMode(t.T(), filePath, openFlags)
+
+	// 2. Read initial content to cache the state.
+	buffer := make([]byte, initialSize)
+	n, err := fh.Read(buffer)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), initialSize, n)
+	assert.Equal(t.T(), initialContent, string(buffer))
+
+	// 3. Remotely append content to the object.
+	obj, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
+	require.NoError(t.T(), err)
+
+	writer, err := client.TakeoverWriter(t.ctx, t.storageClient, path.Join(testDirName, t.fileName), obj.Generation)
+	require.NoError(t.T(), err)
+	n, err = writer.Write([]byte(appendContent))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), appendSize, n)
+	err = writer.Close()
+	require.NoError(t.T(), err)
+
+	// Validate that the content was appended to the unfinalized object without changing the object generation.
+	finalObject, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), obj.Generation, finalObject.Generation)
+
+	return fh, initialContent, appendContent
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -81,6 +133,88 @@ func (t *unfinalizedObjectReads) TestUnfinalizedObjectsCanBeRead() {
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), writtenContent, string(readContent))
+}
+
+func (t *unfinalizedObjectReads) TestReadRemotelyModifiedUnfinalizedObject() {
+	if !setup.IsZonalBucketRun() {
+		t.T().Skip("This test is only for Zonal buckets.")
+	}
+
+	testCases := []struct {
+		name               string
+		openFlags          int
+		readOffset         int64
+		bytesToRead        int
+		expectedBytesRead  int
+		expectedErr        error
+		getExpectedContent func(initial, appended string) string
+	}{
+		{
+			name:              "WithODirect_Read_Beyond_Cached_Object_Size",
+			openFlags:         readFlagsWithODirect,
+			readOffset:        initialSize,
+			bytesToRead:       appendSize,
+			expectedBytesRead: appendSize,
+			expectedErr:       nil,
+			getExpectedContent: func(_, appended string) string {
+				return appended
+			},
+		},
+		{
+			name:              "WithODirect_Read_Partially_Within_Cached_Object_Size",
+			openFlags:         readFlagsWithODirect,
+			readOffset:        initialSize / 2,
+			bytesToRead:       appendSize,
+			expectedBytesRead: appendSize,
+			expectedErr:       nil,
+			getExpectedContent: func(initial, appended string) string {
+				offset := initialSize / 2
+				return initial[offset:] + appended[:offset]
+			},
+		},
+		{
+			name:              "WithODirect_Read_Beyond_Actual_Object_Size",
+			openFlags:         readFlagsWithODirect,
+			readOffset:        initialSize + appendSize,
+			bytesToRead:       appendSize,
+			expectedBytesRead: 0,
+			expectedErr:       io.EOF,
+		},
+		{
+			name:              "WithoutODirect_Read_Beyond_Cached_Size",
+			openFlags:         readFlags,
+			readOffset:        initialSize,
+			bytesToRead:       1,
+			expectedBytesRead: 0,
+			expectedErr:       io.EOF,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(T *testing.T) {
+			// We need to use a new file for each subtest to ensure isolation.
+			t.fileName = path.Base(T.Name()) + setup.GenerateRandomString(5)
+			filePath := path.Join(t.testDirPath, t.fileName)
+
+			fh, initialContent, appendContent := t.setupAndAppend(filePath, initialSize, appendSize, tc.openFlags)
+			defer operations.CloseFileShouldNotThrowError(T, fh)
+
+			readBuffer := make([]byte, tc.bytesToRead)
+			bytesRead, err := fh.ReadAt(readBuffer, tc.readOffset)
+
+			assert.Equal(T, tc.expectedBytesRead, bytesRead)
+			if tc.expectedErr != nil {
+				assert.Equal(T, tc.expectedErr, err)
+			} else {
+				require.NoError(T, err)
+			}
+
+			if tc.getExpectedContent != nil {
+				expectedContent := tc.getExpectedContent(initialContent, appendContent)
+				assert.Equal(T, expectedContent, string(readBuffer[:bytesRead]))
+			}
+		})
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
