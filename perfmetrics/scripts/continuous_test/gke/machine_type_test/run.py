@@ -866,15 +866,6 @@ async def main():
       ),
   )
   parser.add_argument(
-      "--performance_threshold_gbps",
-      type=float,
-      default=float(os.environ.get("PERFORMANCE_THRESHOLD_GBPS", 13.0)),
-      help=(
-          "Minimum throughput in GB/s for a successful iteration. Can also be"
-          " set with PERFORMANCE_THRESHOLD_GBPS env var."
-      ),
-  )
-  parser.add_argument(
       "--pod_timeout_seconds",
       type=int,
       default=int(os.environ.get("POD_TIMEOUT_SECONDS", 1800)),
