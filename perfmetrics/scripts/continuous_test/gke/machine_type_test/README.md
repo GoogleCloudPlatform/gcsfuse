@@ -41,7 +41,8 @@ gcloud storage buckets add-iam-policy-binding gs://<BUCKET_NAME> \
     --role=roles/storage.objectUser \
     --project=<BUCKET_PROJECT_ID>
 ```
-*Note: This has already been configured for the test environment (`gcs-fuse-test-ml`, `gargnitin_machine_type_test_hns_euw4`).
+*Note: This has already been configured for the test environment (`gcs-fuse-test-ml`, `gcsfuse_gke_machine_type_test_hns_euw4`).*
+
 
 
 ## Workflow
