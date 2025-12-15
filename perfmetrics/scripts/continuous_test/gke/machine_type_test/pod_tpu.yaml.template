@@ -35,8 +35,6 @@ spec:
   - name: load-test
     image: ubuntu:24.04
     imagePullPolicy: Always
-    securityContext:
-      privileged: true
     resources:
       limits:
         google.com/tpu: 4
