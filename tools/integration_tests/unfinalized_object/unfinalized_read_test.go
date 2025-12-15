@@ -173,6 +173,17 @@ func (t *unfinalizedObjectReads) TestReadRemotelyModifiedUnfinalizedObject() {
 			},
 		},
 		{
+			name:              "WithODirect_Requested_Data_Is_Partially_Present_On_GCS",
+			openFlags:         readFlagsWithODirect,
+			readOffset:        initialSize,
+			bytesToRead:       appendSize * 2,
+			expectedBytesRead: appendSize,
+			expectedErr:       io.EOF,
+			getExpectedContent: func(_, appended string) string {
+				return appended
+			},
+		},
+		{
 			name:              "WithODirect_Read_Beyond_Actual_Object_Size",
 			openFlags:         readFlagsWithODirect,
 			readOffset:        initialSize + appendSize,
