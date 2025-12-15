@@ -1241,6 +1241,40 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "Test file system async-read flag enabled.",
+			args: []string{"gcsfuse", "--async-read", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					AsyncRead:          true,
+				},
+			},
+		},
+		{
+			name: "Test file system async-read flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					AsyncRead:          false,
+				},
+			},
+		},
+		{
 			name: "cli_flag_overrides_config_file",
 			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "machine-type: config-file-type"), "--machine-type=cli-type", "abc", "pqr"},
 			expectedConfig: &cfg.Config{

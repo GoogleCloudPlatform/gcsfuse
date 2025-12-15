@@ -317,6 +317,13 @@ params:
     default: "4194304" # 4MiB
     hide-flag: true
 
+  - config-path: "file-system.async-read"
+    flag-name: "async-read"
+    type: "bool"
+    usage: "Enables asynchronous reads."
+    default: false
+    hide-flag: true
+
   - config-path: "file-system.congestion-threshold"
     flag-name: "congestion-threshold"
     type: "int"

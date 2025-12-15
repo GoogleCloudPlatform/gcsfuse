@@ -449,6 +449,8 @@ type FileCacheConfig struct {
 }
 
 type FileSystemConfig struct {
+	AsyncRead bool `yaml:"async-read"`
+
 	CongestionThreshold int64 `yaml:"congestion-threshold"`
 
 	DirMode Octal `yaml:"dir-mode"`
@@ -661,6 +663,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("anonymous-access", "", false, "This flag disables authentication.")
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
+
+	flagSet.BoolP("async-read", "", false, "Enables asynchronous reads.")
+
+	if err := flagSet.MarkHidden("async-read"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\".")
 
@@ -1228,6 +1236,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("app-name", flagSet.Lookup("app-name")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.async-read", flagSet.Lookup("async-read")); err != nil {
 		return err
 	}
 

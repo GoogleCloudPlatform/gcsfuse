@@ -2,7 +2,16 @@
 umount ~/gcs1 || true
 echo "Prince" > ~/logs.txt
 echo 256 | sudo tee /proc/sys/fs/fuse/max_pages_limit
-go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congestion-threshold=96 --log-severity=info --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
+
+sevirity="info"
+
+if [[ $1 == "BR" ]] ; then
+    echo "Running with buffered-read"
+    go install . && gcsfuse --max-read-ahead-kb 16384 --enable-buffered-read --read-global-max-blocks 1000 --log-severity=$sevirity --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
+else
+    echo "Running with simple reader"
+    go install . && gcsfuse --max-read-ahead-kb 16384 --async-read --max-background=96 --congestion-threshold=96 --log-severity=$sevirity --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
+fi
 
 # mkdir -p /home/princer_google_com/gcs1/2G
 
@@ -17,7 +26,8 @@ go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congesti
 #     --direct=0 \
 #     --group_reporting
 
-# 2577 MB/s, 2637 MB/s, 2652 MB/s - Seems too high - needs investigation.
+# Simple reader: 2577 MB/s, 2637 MB/s, 2652 MB/s - Seems too high - needs investigation.
+# Buffered reader: 1225 MB/s, 1356 MB/s, 1386 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/1G
 
@@ -32,7 +42,9 @@ go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congesti
 #     --direct=0 \
 #     --group_reporting
 
-# 2.4 GB/s 2477 MB/s, 2500 MB/s - Seems too high - needs investigation.
+# Simple reader: 2400 MB/s, 2477 MB/s, 2500 MB/s - Seems too high - needs investigation.
+# Buffered reader: 1318 MB/s, 1383 MB/s, 1319 MB/s
+
 
 # mkdir -p /home/princer_google_com/gcs1/100M
 
@@ -47,7 +59,8 @@ go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congesti
 #     --direct=0 \
 #     --group_reporting
 
-# 873 MB/s, 942 MB/s, 962 MB/s
+# Simple reader: 873 MB/s, 942 MB/s, 962 MB/s
+# Buffered reader: 909 MB/s, 901 MB/s, 921 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/64M
 
@@ -62,8 +75,8 @@ go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congesti
 #     --direct=0 \
 #     --group_reporting
 
-# 718 MB/s, 762 MB/s, 795 MB/s
-
+# Simple reader: 718 MB/s, 762 MB/s, 795 MB/s
+# Buffered reader: 791 MB/s, 798 MB/s, 809 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/5M
 
@@ -78,7 +91,8 @@ go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congesti
 #     --direct=0 \
 #     --group_reporting
 
-# 206 MB/s, 201 MB/s, 201 MB/s
+# Simple reader: 206 MB/s, 201 MB/s, 201 MB/s
+# Buffered reader: 162 MB/s, 162 MB/s, 162 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/1M
 
@@ -93,7 +107,20 @@ go install . && gcsfuse --max-read-ahead-kb 16384 --max-background=96 --congesti
 #     --direct=0 \
 #     --group_reporting
 
-# 44.1 MB/s, 45.0 MB/s, 44 MB/s
+# Simple reader: 44.1 MB/s, 45.0 MB/s, 44 MB/s
+# Buffered reader: 44.1 MB/s, 45.0 MB/s, 46.0 MB/s
+
+# mkdir -p /home/princer_google_com/gcs1/5G
+
+# fio --name=mmap_concurrent_read \
+#     --directory=/home/princer_google_com/gcs1/5G \
+#     --rw=read \
+#     --bs=1M \
+#     --size=5G \
+#     --numjobs=8 \
+#     --ioengine=mmap \
+#     --group_reporting \
+#     --fadvise_hint=1
 
 # dd if=/home/princer_google_com/gcs1/100GB of=/dev/null count=10000 bs=1M
 
