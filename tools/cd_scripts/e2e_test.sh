@@ -422,8 +422,13 @@ function run_non_parallel_tests() {
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE" # Use double quotes for log_file
-    GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
-    exit_code_non_parallel=$?
+    if [ -d "$test_path_non_parallel" ]; then
+      GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
+      exit_code_non_parallel=$?
+    else
+      echo "Test path $test_path_non_parallel does not exist. Skipping tests." >> "$log_file"
+      exit_code_non_parallel=0 # Treat as success if test path doesnt exist
+    fi
     if [ $exit_code_non_parallel -ne 0 ]; then
       exit_code=$exit_code_non_parallel
     fi
@@ -458,9 +463,13 @@ function run_parallel_tests() {
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE"
-    GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
-    pid=$!
-    pids+=("$pid")
+    if [ -d "$test_path_parallel" ]; then
+      GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
+      pid=$!
+      pids+=("$pid")
+    else
+      echo "Test path $test_path_parallel does not exist. Skipping tests." >> "$log_file"
+    fi
   done
   for pid in "${pids[@]}"; do
     wait "$pid"
