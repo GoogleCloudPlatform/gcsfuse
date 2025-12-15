@@ -107,7 +107,7 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 		serverCfg.NewConfig.FileCache = cfg.FileCacheConfig{
 			MaxSizeMb:                    100,
 			CacheFileForRangeRead:        true,
-			ExperimentalEnableBlockCache: params.enableSparseFileCache,
+			ExperimentalEnableChunkCache: params.enableSparseFileCache,
 			DownloadChunkSizeMb:          1, // 1MB chunks for testing
 		}
 	}
