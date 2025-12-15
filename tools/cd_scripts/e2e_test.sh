@@ -176,6 +176,7 @@ sudo -u starterscriptuser bash -c '
 set -e
 # Print commands and their arguments as they are executed.
 set -x
+env CLOUDSDK_PYTHON=/usr/bin/python3.11
 export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
 mkdir -p "$KOKORO_ARTIFACTS_DIR"
 # Since we are now operating as the starterscriptuser, we need to set the environment variable for this user again.
