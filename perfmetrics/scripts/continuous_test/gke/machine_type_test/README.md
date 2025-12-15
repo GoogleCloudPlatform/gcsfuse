@@ -2,10 +2,20 @@
 
 This script automates the process of running the Machine Type Test on a GKE cluster. It handles the entire workflow, including GKE cluster setup, GCSFuse CSI driver building, workload execution, result gathering, and resource cleanup.
 
+## Overview
+
+The `run.py` script automates the end-to-end testing process on Google Kubernetes Engine (GKE). It handles:
+1.  **Cluster Management**: Creating/configuring GKE clusters and node pools (including Workload Identity).
+2.  **Driver Build**: Building the GCSFuse CSI driver from source.
+3.  **Workload Deployment**: Deploying a Kubernetes Pod to run `go test` integration tests.
+4.  **Result Verification**: Checking test success/failure.
+5.  **Cleanup**: Removing cloud resources.
+
 ## Prerequisites
 
 Before running the script, ensure you have the following tools installed and configured. The script will check for these and attempt to install `kubectl` if it's missing.
 
+### Tools
 -   `gcloud`: The Google Cloud CLI, authenticated with a project. Ensure the following APIs are enabled in your project:
     -   Kubernetes Engine API (`container.googleapis.com`)
     -   Cloud Storage API (`storage.googleapis.com`)
@@ -13,6 +23,41 @@ Before running the script, ensure you have the following tools installed and con
 -   `git`: The version control system.
 -   `make`: The build automation tool.
 -   `python3` with the `asyncio` library (standard in Python 3.7+).
+
+### Workload Identity Setup (Critical)
+The test requires a Kubernetes Service Account (KSA) bound to a Google Service Account (GSA) with permissions to access the GCS bucket. This setup usually needs to be done once per cluster/project.
+
+**1. Create GSA:**
+```bash
+gcloud iam service-accounts create gcsfuse-machine-type-test-gsa \
+    --project=<PROJECT_ID> \
+    --display-name="GCSFuse Machine Type Test GSA"
+```
+
+**2. Grant Bucket Permissions:**
+```bash
+gcloud storage buckets add-iam-policy-binding gs://<BUCKET_NAME> \
+    --member="serviceAccount:gcsfuse-machine-type-test-gsa@<PROJECT_ID>.iam.gserviceaccount.com" \
+    --role=roles/storage.objectUser \
+    --project=<BUCKET_PROJECT_ID>
+```
+
+**3. Create & Bind KSA (After Cluster Creation):**
+You must connect to the cluster first (`gcloud container clusters get-credentials ...`).
+```bash
+kubectl create serviceaccount gcsfuse-ksa --namespace default
+
+gcloud iam service-accounts add-iam-policy-binding gcsfuse-machine-type-test-gsa@<PROJECT_ID>.iam.gserviceaccount.com \
+    --role roles/iam.workloadIdentityUser \
+    --member "serviceAccount:<PROJECT_ID>.svc.id.goog[default/gcsfuse-ksa]" \
+    --project=<PROJECT_ID>
+
+kubectl annotate serviceaccount gcsfuse-ksa \
+    --namespace default \
+    iam.gke.io/gcp-service-account=gcsfuse-machine-type-test-gsa@<PROJECT_ID>.iam.gserviceaccount.com \
+    --overwrite
+```
+*Note: The `run.py` script does NOT perform these IAM steps automatically. You must ensure the `gcsfuse-ksa` exists in the cluster before running the test.
 
 ## Workflow
 
@@ -33,47 +78,68 @@ The script is controlled via command-line arguments.
 
 ```
 usage: run.py [-h] --project_id PROJECT_ID --bucket_name BUCKET_NAME [--zone ZONE] [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] [--subnet_name SUBNET_NAME]
-                        [--machine_type MACHINE_TYPE] [--node_pool_name NODE_POOL_NAME] [--gcsfuse_branch GCSFUSE_BRANCH] [--no_cleanup]
-
-Run GKE Machine Type Test.
-
-options:
-  -h, --help            show this help message and exit
-  --project_id PROJECT_ID
-                        Google Cloud project ID.
-  --bucket_name BUCKET_NAME GCS bucket name for the workload. The bucket must exist before running the script.
-  --zone ZONE           GCP zone.
-  --cluster_name CLUSTER_NAME
-                        GKE cluster name.
-  --network_name NETWORK_NAME
-                        VPC network name.
-  --subnet_name SUBNET_NAME
-                        VPC subnet name.
-  --machine_type MACHINE_TYPE
-                        Machine type for the node pool.
-  --node_pool_name NODE_POOL_NAME
-                        Node pool name.
-  --gcsfuse_branch GCSFUSE_BRANCH
-                        GCSFuse branch or tag to build.
-  --no_cleanup          Don't clean up resources after the benchmark.
+                        [--machine_type MACHINE_TYPE] [--node_pool_name NODE_POOL_NAME] [--gcsfuse_branch GCSFUSE_BRANCH] [--reservation_name RESERVATION_NAME]
+                        [--no_cleanup] [--skip_csi_driver_build]
 ```
 
-## Example
+### Argument Reference
 
-To run the test with default settings, you only need to provide your Google Cloud project ID and the GCS bucket name for the workload:
+| Argument | Description | Default Value |
+| :--- | :--- | :--- |
+| `--project_id` | **(Required)** Google Cloud project ID. | `None` (Env: `PROJECT_ID`) |
+| `--bucket_name` | **(Required)** GCS bucket name for the workload. | `None` (Env: `BUCKET_NAME`) |
+| `--zone` | **(Required)** GCP zone. | `None` (Env: `ZONE`) |
+| `--cluster_name` | GKE cluster name. | `gke-machine-type-test-cluster` |
+| `--network_name` | VPC network name. | `gke-machine-type-test-network-<ZONE>` |
+| `--subnet_name` | VPC subnet name. | `gke-machine-type-test-subnet-<ZONE>` |
+| `--machine_type` | Machine type for the node pool. | `ct6e-standard-4t` (TPU v6) |
+| `--node_pool_name` | Node pool name. | `ct6e-pool` |
+| `--gcsfuse_branch` | GCSFuse branch or tag to build. | `master` |
+| `--reservation_name` | Specific reservation to use for the nodes. | `None` |
+| `--no_cleanup` | If set, resources will NOT be deleted after the test. | `False` |
+| `--skip_csi_driver_build` | If set, skips building the CSI driver image (assumes it exists). | `False` |
+| `--pod_timeout_seconds` | Timeout in seconds for the benchmark pod to complete. | `1800` (30 mins) |
 
-```bash
-python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
-  --project_id "your-gcp-project-id" \
-  --bucket_name "your-gcs-bucket-name"
-```
+## Examples
 
-To run on a specific GCSFuse branch and prevent cleanup after the run:
+To run the test with default settings (TPU v6), you only need to provide the required arguments:
 
 ```bash
 python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
   --project_id "your-gcp-project-id" \
   --bucket_name "your-gcs-bucket-name" \
-  --gcsfuse_branch "my-feature-branch" \
+  --zone "us-central1-a"
+```
+
+To run on a **Standard Machine Type** (`n2-standard-8`) with cleanup disabled:
+
+```bash
+python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
+  --project_id "your-gcp-project-id" \
+  --bucket_name "your-gcs-bucket-name" \
+  --zone "us-central1-a" \
+  --machine_type n2-standard-8 \
+  --node_pool_name n2-standard-8-pool \
   --no_cleanup
 ```
+
+To run on a **TPU Machine Type** (`ct6e-standard-4t`) using a reservation and a specific branch:
+
+```bash
+python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
+  --project_id "your-gcp-project-id" \
+  --bucket_name "your-gcs-bucket-name" \
+  --zone "europe-west4-a" \
+  --machine_type ct6e-standard-4t \
+  --node_pool_name tpu-v6-pool \
+  --reservation_name "your-reservation-name" \
+  --gcsfuse_branch "my-feature-branch" \
+  --no_cleanup \
+  --skip_csi_driver_build
+```
+
+## Troubleshooting
+
+*   **403 Forbidden**: Check Workload Identity setup. Ensure `gcsfuse-ksa` is annotated correctly and bound to a GSA with bucket access.
+*   **Insufficient CPU**: Ensure the machine type has at least 4 vCPUs (sidecar requests 2 vCPUs, and the load-test container needs some resources).
+*   **Init:ErrImagePull**: Check if the CSI driver image exists in GCR/Artifact Registry. If running locally, you might need to authenticate docker.
