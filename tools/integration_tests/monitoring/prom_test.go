@@ -92,7 +92,7 @@ func (testSuite *PromTestBase) mountGcsfuse(bucketName string, flags []string) e
 }
 
 func (testSuite *PromTestBase) SetupSuite() {
-	//setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
+	setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
 	_, err := setup.SetUpTestDir()
 	require.NoError(testSuite.T(), err, "error while building GCSFuse")
 }
