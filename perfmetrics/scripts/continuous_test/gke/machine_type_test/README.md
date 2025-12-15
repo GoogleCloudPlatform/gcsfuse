@@ -1,22 +1,32 @@
 # GKE Machine Type Test
 
-This script automates the process of running the Machine Type Test on a GKE cluster. It handles the entire workflow, including GKE cluster setup, GCSFuse CSI driver building, workload execution, result gathering, and resource cleanup.
+*This test was adapted from the
+[Orbax Benchmark](https://github.com/GoogleCloudPlatform/gcsfuse/tree/master/perfmetrics/scripts/continuous_test/gke/orbax_benchmark).*
+
+This script automates the process of running the Machine Type Test on a GKE
+cluster. It handles the entire workflow, including GKE cluster setup, GCSFuse
+CSI driver building, workload execution, result gathering, and resource cleanup.
 
 ## Overview
 
-The `run.py` script automates the end-to-end testing process on Google Kubernetes Engine (GKE). It handles:
-1.  **Cluster Management**: Creating/configuring GKE clusters and node pools (including Workload Identity).
-2.  **Driver Build**: Building the GCSFuse CSI driver from source.
-3.  **Workload Deployment**: Deploying a Kubernetes Pod to run `go test` integration tests.
-4.  **Result Verification**: Checking test success/failure.
-5.  **Cleanup**: Removing cloud resources.
+The `run.py` script automates the end-to-end testing process on Google
+Kubernetes Engine (GKE). It handles: 1. **Cluster Management**:
+Creating/configuring GKE clusters and node pools (including Workload Identity).
+2. **Driver Build**: Building the GCSFuse CSI driver from source. 3. **Workload
+Deployment**: Deploying a Kubernetes Pod to run `go test` integration tests. 4.
+**Result Verification**: Checking test success/failure. 5. **Cleanup**: Removing
+cloud resources.
 
 ## Prerequisites
 
-Before running the script, ensure you have the following tools installed and configured. The script will check for these and attempt to install `kubectl` if it's missing.
+Before running the script, ensure you have the following tools installed and
+configured. The script will check for these and attempt to install `kubectl` if
+it's missing.
 
 ### Tools
--   `gcloud`: The Google Cloud CLI, authenticated with a project. Ensure the following APIs are enabled in your project:
+
+-   `gcloud`: The Google Cloud CLI, authenticated with a project. Ensure the
+    following APIs are enabled in your project:
     -   Kubernetes Engine API (`container.googleapis.com`)
     -   Cloud Storage API (`storage.googleapis.com`)
 -   `kubectl`: The Kubernetes command-line tool.
@@ -25,11 +35,13 @@ Before running the script, ensure you have the following tools installed and con
 -   `python3` with the `asyncio` library (standard in Python 3.7+).
 
 ### Workload Identity Setup (Critical)
-The test uses GKE Workload Identity Federation. You must grant the Kubernetes Service Account (KSA) direct access to the GCS bucket.
-For this test, we use the `default` KSA in the `default` namespace.
 
-**1. Grant Bucket Permissions to the KSA Principal:**
-You need the **Project Number** (not ID) of the project hosting the GKE cluster.
+The test uses GKE Workload Identity Federation. You must grant the Kubernetes
+Service Account (KSA) direct access to the GCS bucket. For this test, we use the
+`default` KSA in the `default` namespace.
+
+**1. Grant Bucket Permissions to the KSA Principal:** You need the **Project
+Number** (not ID) of the project hosting the GKE cluster.
 
 ```bash
 # Get Project Number
@@ -41,22 +53,29 @@ gcloud storage buckets add-iam-policy-binding gs://<BUCKET_NAME> \
     --role=roles/storage.objectUser \
     --project=<BUCKET_PROJECT_ID>
 ```
-*Note: This has already been configured for the test environment (`gcs-fuse-test-ml`, `gcsfuse_gke_machine_type_test_hns_euw4`).*
 
-
+*Note: This has already been configured for the test environment
+(`gcs-fuse-test-ml`, `gcsfuse_gke_machine_type_test_hns_euw4`).*
 
 ## Workflow
 
 The script performs the following steps:
 
-1.  **Prerequisite Check**: Verifies that `gcloud`, `git`, `make`, and `kubectl` are installed.
-2.  **VPC Network and Subnet Setup**: Creates a VPC network and subnet if they don't already exist.
-3.  **GKE Cluster Setup**: Creates a new GKE cluster with a dedicated node pool if one doesn't already exist. If the node pool is unhealthy, it's recreated.
-4.  **Build GCSFuse CSI Driver**: Concurrently with cluster setup, it clones the specified GCSFuse repository branch and builds the GCSFuse CSI driver container image.
+1.  **Prerequisite Check**: Verifies that `gcloud`, `git`, `make`, and `kubectl`
+    are installed.
+2.  **VPC Network and Subnet Setup**: Creates a VPC network and subnet if they
+    don't already exist.
+3.  **GKE Cluster Setup**: Creates a new GKE cluster with a dedicated node pool
+    if one doesn't already exist. If the node pool is unhealthy, it's recreated.
+4.  **Build GCSFuse CSI Driver**: Concurrently with cluster setup, it clones the
+    specified GCSFuse repository branch and builds the GCSFuse CSI driver
+    container image.
 5.  **Run Test**: Deploys the test workload as a Kubernetes Pod.
 6.  **Gather Results**: Fetches the logs from the completed test pod.
 7.  **Evaluate Success**: Checks if the pod completed successfully.
-8.  **Cleanup**: Deletes the GKE cluster and other created resources like the VPC network, subnet, and associated firewall rules, unless the `--no_cleanup` flag is specified.
+8.  **Cleanup**: Deletes the GKE cluster and other created resources like the
+    VPC network, subnet, and associated firewall rules, unless the
+    `--no_cleanup` flag is specified.
 
 ## Usage
 
@@ -70,25 +89,26 @@ usage: run.py [-h] --project_id PROJECT_ID --bucket_name BUCKET_NAME --zone ZONE
 
 ### Argument Reference
 
-| Argument | Description | Default Value |
-| :--- | :--- | :--- |
-| `--project_id` | **(Required)** Google Cloud project ID. | `None` (Env: `PROJECT_ID`) |
-| `--bucket_name` | **(Required)** GCS bucket name for the workload. | `None` (Env: `BUCKET_NAME`) |
-| `--zone` | **(Required)** GCP zone. | `None` (Env: `ZONE`) |
-| `--cluster_name` | GKE cluster name. | `gke-machine-type-test-cluster` |
-| `--network_name` | VPC network name. | `gke-machine-type-test-network-<ZONE>` |
-| `--subnet_name` | VPC subnet name. | `gke-machine-type-test-subnet-<ZONE>` |
-| `--machine_type` | Machine type for the node pool. | `ct6e-standard-4t` (TPU v6) |
-| `--node_pool_name` | Node pool name. | `ct6e-pool` |
-| `--gcsfuse_branch` | GCSFuse branch or tag to build. | `master` |
-| `--reservation_name` | Specific reservation to use for the nodes. | `None` |
-| `--no_cleanup` | If set, resources will NOT be deleted after the test. | `False` |
-| `--skip_csi_driver_build` | If set, skips building the CSI driver image (assumes it exists). | `False` |
-| `--pod_timeout_seconds` | Timeout in seconds for the benchmark pod to complete. | `1800` (30 mins) |
+Argument                  | Description                                                      | Default Value
+:------------------------ | :--------------------------------------------------------------- | :------------
+`--project_id`            | **(Required)** Google Cloud project ID.                          | `None` (Env: `PROJECT_ID`)
+`--bucket_name`           | **(Required)** GCS bucket name for the workload.                 | `None` (Env: `BUCKET_NAME`)
+`--zone`                  | **(Required)** GCP zone.                                         | `None` (Env: `ZONE`)
+`--cluster_name`          | GKE cluster name.                                                | `gke-machine-type-test-cluster`
+`--network_name`          | VPC network name.                                                | `gke-machine-type-test-network-<ZONE>`
+`--subnet_name`           | VPC subnet name.                                                 | `gke-machine-type-test-subnet-<ZONE>`
+`--machine_type`          | Machine type for the node pool.                                  | `ct6e-standard-4t` (TPU v6)
+`--node_pool_name`        | Node pool name.                                                  | `ct6e-pool`
+`--gcsfuse_branch`        | GCSFuse branch or tag to build.                                  | `master`
+`--reservation_name`      | Specific reservation to use for the nodes.                       | `None`
+`--no_cleanup`            | If set, resources will NOT be deleted after the test.            | `False`
+`--skip_csi_driver_build` | If set, skips building the CSI driver image (assumes it exists). | `False`
+`--pod_timeout_seconds`   | Timeout in seconds for the benchmark pod to complete.            | `1800` (30 mins)
 
 ## Examples
 
-To run the test with default settings (TPU v6), you only need to provide the required arguments:
+To run the test with default settings (TPU v6), you only need to provide the
+required arguments:
 
 ```bash
 python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
@@ -109,7 +129,8 @@ python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
   --no_cleanup
 ```
 
-To run on a **TPU Machine Type** (`ct6e-standard-4t`) using a reservation and a specific branch:
+To run on a **TPU Machine Type** (`ct6e-standard-4t`) using a reservation and a
+specific branch:
 
 ```bash
 python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
@@ -126,6 +147,9 @@ python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
 
 ## Troubleshooting
 
-*   **403 Forbidden**: Check Workload Identity setup. Ensure `gcsfuse-ksa` is annotated correctly and bound to a GSA with bucket access.
-*   **Insufficient CPU**: Ensure the machine type has at least 4 vCPUs (sidecar requests 2 vCPUs, and the load-test container needs some resources).
-*   **Init:ErrImagePull**: Check if the CSI driver image exists in GCR/Artifact Registry. If running locally, you might need to authenticate docker.
+*   **403 Forbidden**: Check Workload Identity setup. Ensure `gcsfuse-ksa` is
+    annotated correctly and bound to a GSA with bucket access.
+*   **Insufficient CPU**: Ensure the machine type has at least 4 vCPUs (sidecar
+    requests 2 vCPUs, and the load-test container needs some resources).
+*   **Init:ErrImagePull**: Check if the CSI driver image exists in GCR/Artifact
+    Registry. If running locally, you might need to authenticate docker.
