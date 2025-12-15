@@ -183,6 +183,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 					return fmt.Errorf("MultiRangeDownloaderWrapper::ensureMultiRangeDownloader: Error in creating MRD Pool: %v", err)
 				}
 				mrdWrapper.Wrapped = mrdPool
+				logger.Infof("MultiRangeDownloaderWrapper::ensureMultiRangeDownloader: Created MRD Pool for object %q", mrdWrapper.object.Name)
 			} else {
 				var mrd gcs.MultiRangeDownloader
 				mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
@@ -194,6 +195,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 				if err == nil {
 					// Updating mrdWrapper.Wrapped only when MRD creation was successful.
 					mrdWrapper.Wrapped = mrd
+					logger.Infof("MultiRangeDownloaderWrapper::ensureMultiRangeDownloader: Created MRD for object %q", mrdWrapper.object.Name)
 				}
 			}
 		}

@@ -19,14 +19,17 @@ fi
 #     --directory=/home/princer_google_com/gcs1/2G \
 #     --rw=read \
 #     --bs=1M \
-#     --nrfiles=64 \
+#     --nrfiles=32 \
 #     --filesize=2G \
 #     --numjobs=1 \
+#     --openfiles=1 \
 #     --ioengine=libaio \
 #     --direct=0 \
+#     --iodepth=1 \
 #     --group_reporting
 
-# Simple reader: 2577 MB/s, 2637 MB/s, 2652 MB/s - Seems too high - needs investigation.
+# Simple reader: 2577 MB/s, 2637 MB/s, 2652 MB/s - Seems too high - needs investigation. (this was with default openfiles=nrfiles)
+# Simple reader (openfiles=1): 2238 MB/s, 2303 MB/s, 2298 MB/s
 # Buffered reader: 1225 MB/s, 1356 MB/s, 1386 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/1G
@@ -38,11 +41,13 @@ fi
 #     --nrfiles=64 \
 #     --filesize=1G \
 #     --numjobs=1 \
+#     --openfiles=1 \
 #     --ioengine=libaio \
 #     --direct=0 \
 #     --group_reporting
 
 # Simple reader: 2400 MB/s, 2477 MB/s, 2500 MB/s - Seems too high - needs investigation.
+# Simple reader (openfiles=1): 2064 MB/s, 2067 MB/s, 2143 MB/s
 # Buffered reader: 1318 MB/s, 1383 MB/s, 1319 MB/s
 
 
@@ -55,11 +60,13 @@ fi
 #     --nrfiles=100 \
 #     --filesize=100M \
 #     --numjobs=1 \
+#     --openfiles=1 \
 #     --ioengine=libaio \
 #     --direct=0 \
 #     --group_reporting
 
 # Simple reader: 873 MB/s, 942 MB/s, 962 MB/s
+# Simple reader (openfiles=1): 857 MB/s, 858 MB/s, 887 MB/s
 # Buffered reader: 909 MB/s, 901 MB/s, 921 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/64M
@@ -71,11 +78,13 @@ fi
 #     --nrfiles=200 \
 #     --filesize=64M \
 #     --numjobs=1 \
+#     --openfiles=1 \
 #     --ioengine=libaio \
 #     --direct=0 \
 #     --group_reporting
 
 # Simple reader: 718 MB/s, 762 MB/s, 795 MB/s
+# Simple reader (openfiles=1): 647 MB/s, 686 MB/s, 675 MB/s
 # Buffered reader: 791 MB/s, 798 MB/s, 809 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/5M
@@ -87,11 +96,13 @@ fi
 #     --nrfiles=1000 \
 #     --filesize=5M \
 #     --numjobs=1 \
+#     --openfiles=1 \
 #     --ioengine=libaio \
 #     --direct=0 \
 #     --group_reporting
 
 # Simple reader: 206 MB/s, 201 MB/s, 201 MB/s
+# Simple reader (openfiles=1, reset the pool-size to 1): 184 MB/s, 184 MB/s, 186 MB/s
 # Buffered reader: 162 MB/s, 162 MB/s, 162 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/1M
@@ -103,11 +114,13 @@ fi
 #     --nrfiles=1000 \
 #     --filesize=1M \
 #     --numjobs=1 \
+#     --openfiles=1 \
 #     --ioengine=libaio \
 #     --direct=0 \
 #     --group_reporting
 
 # Simple reader: 44.1 MB/s, 45.0 MB/s, 44 MB/s
+# Simple reader (openfiles=1, reset the pool-size to 1): 52 MB/s, 47 MB/s, 49 MB/s
 # Buffered reader: 44.1 MB/s, 45.0 MB/s, 46.0 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/5G
