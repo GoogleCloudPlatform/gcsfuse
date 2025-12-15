@@ -40,7 +40,8 @@ if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [[ ($ID == "rhel" || $ID == "rocky")]]; then
         sudo yum install -y python311
-        INSTALL_COMMAND="sudo export CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
+        export CLOUDSDK_PYTHON=/usr/bin/python3.11
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
 fi
 $INSTALL_COMMAND
