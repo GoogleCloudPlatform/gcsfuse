@@ -81,6 +81,7 @@ async def run_command_async(command_list, check=True, cwd=None):
 
   print(stdout_decoded)
   print(stderr_decoded, file=sys.stderr)
+  sys.stdout.flush()
   return stdout_decoded, stderr_decoded, process.returncode
 
 
