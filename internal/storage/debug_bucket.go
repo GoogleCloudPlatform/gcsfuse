@@ -383,6 +383,7 @@ func (b *debugBucket) NewMultiRangeDownloader(
 	if err != nil {
 		return
 	}
+
 	// Return a special reader that prints debug info.
 	mrd = &debugMultiRangeDownloader{
 		object:    req.Name,
