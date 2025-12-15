@@ -347,6 +347,15 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.experimental-o-direct"
+    flag-name: "experimental-o-direct"
+    type: "bool"
+    usage: >-
+      Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled,
+      all I/O operations are sent directly to the GCSFuse process.
+    default: false
+    hide-flag: true
+
   - config-path: "file-system.file-mode"
     flag-name: "file-mode"
     type: "octal"
@@ -399,16 +408,6 @@ params:
     default: "0"
     hide-flag: true
   
-  - config-path: "file-system.o-direct"
-    flag-name: "o-direct"
-    type: "bool"
-    usage: >-
-      Bypasses the kernel's page cache for file reads and writes. When enabled,
-      all I/O operations are sent directly to the GCSFuse daemon. 
-    default: false
-    hide-flag: true
-
-
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
     type: "bool"

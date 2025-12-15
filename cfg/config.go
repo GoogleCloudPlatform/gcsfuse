@@ -457,6 +457,8 @@ type FileSystemConfig struct {
 
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
+	ExperimentalODirect bool `yaml:"experimental-o-direct"`
+
 	FileMode Octal `yaml:"file-mode"`
 
 	FuseOptions []string `yaml:"fuse-options"`
@@ -468,8 +470,6 @@ type FileSystemConfig struct {
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
-
-	ODirect bool `yaml:"o-direct"`
 
 	PreconditionErrors bool `yaml:"precondition-errors"`
 
@@ -882,6 +882,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
+
+	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
@@ -1041,12 +1047,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
-
-	flagSet.BoolP("o-direct", "", false, "Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse daemon. ")
-
-	if err := flagSet.MarkHidden("o-direct"); err != nil {
-		return err
-	}
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
@@ -1387,6 +1387,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("monitoring.experimental-tracing-mode", flagSet.Lookup("experimental-tracing-mode")); err != nil {
 		return err
 	}
@@ -1564,10 +1568,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.fuse-options", flagSet.Lookup("o")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.o-direct", flagSet.Lookup("o-direct")); err != nil {
 		return err
 	}
 

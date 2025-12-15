@@ -2788,7 +2788,7 @@ func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	// Bypass the kernel's page cache for file reads and writes
-	if fs.newConfig.FileSystem.ODirect {
+	if fs.newConfig.FileSystem.ExperimentalODirect {
 		op.UseDirectIO = true
 	}
 
