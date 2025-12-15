@@ -56,6 +56,9 @@ type Inode interface {
 	// Clean up any local resources used by the inode, putting it into an
 	// indeterminate state where no method should be called except Unlock.
 	//
+	// Update the size of the inode.
+	UpdateSize(size uint64)
+
 	// This method may block. Errors are for logging purposes only.
 	Destroy() (err error)
 
@@ -91,7 +94,7 @@ type Generation struct {
 }
 
 // Compare returns -1, 0, or 1 according to whether src is less than, equal to,
-// or greater than existing.
+// or greater than existing. It returns 2 if only the size is greater.
 // Note: Ordering matters here, latest represents the object fetched from GCS
 // and current represents inode cached object's generation.
 func (latest Generation) Compare(current Generation) int {
@@ -118,7 +121,7 @@ func (latest Generation) Compare(current Generation) int {
 	// generation or metageneration, the following case applies exclusively to
 	// zonal buckets.
 	if latest.Size > current.Size {
-		return 1
+		return 2
 	}
 	// We ignore latest.Size < current.Size case as little staleness is expected
 	// on the GCS object's size.

@@ -155,6 +155,10 @@ func (d *baseDirInode) Attributes(
 	return
 }
 
+func (d *baseDirInode) UpdateSize(size uint64) {
+	// No-op for directories.
+}
+
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
 	var err error

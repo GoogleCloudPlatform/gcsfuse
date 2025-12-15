@@ -986,6 +986,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 			return
 		}
 
+		// The existing inode has the same generation but a different size.
+		// Update the size and return the existing inode.
+		if cmp == 2 {
+			existingInode.UpdateSize(oGen.Size)
+			in = existingInode
+			return
+		}
+
 		// The existing inode is newer than the backing object. The caller
 		// should call again with a newer backing object.
 		if cmp == -1 {
