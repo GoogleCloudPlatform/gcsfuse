@@ -55,7 +55,7 @@ spec:
       go version
 
       echo "Step 3: Cloning GCSFuse repo..."
-      git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
+      git clone -b $gcsfuse_branch https://github.com/GoogleCloudPlatform/gcsfuse.git
       cd gcsfuse
       echo "Repo content:"
       ls -F

@@ -31,9 +31,7 @@ import argparse
 import asyncio
 from datetime import datetime
 import os
-import re
 import shlex
-import socket
 from string import Template
 import subprocess
 import sys
@@ -556,6 +554,7 @@ async def execute_test_workload(
     staging_version,
     pod_timeout_seconds,
     machine_type,
+    gcsfuse_branch,
 ):
   """Executes the workload pod, gathers results, and cleans up workload resources.
 
@@ -572,6 +571,7 @@ async def execute_test_workload(
       staging_version: The version tag for the GCSFuse CSI driver image.
       pod_timeout_seconds: The timeout in seconds for the pod to complete.
       machine_type: The machine type of the node pool.
+      gcsfuse_branch: The gcsfuse branch to clone.
 
   Returns:
       True if the test passed, False otherwise.
@@ -597,6 +597,8 @@ async def execute_test_workload(
       project_id=project_id,
       bucket_name=bucket_name,
       staging_version=staging_version,
+      gcsfuse_branch=gcsfuse_branch,
+      machine_type=machine_type,
   )
   # Update the pod name in the manifest content dynamically
   manifest = manifest.replace("name: gcsfuse-test", f"name: {pod_name}")
@@ -626,7 +628,6 @@ async def execute_test_workload(
         f"Waiting for pod {pod_name} to complete (timeout:"
         f" {pod_timeout_seconds}s)..."
     )
-    last_log_time = datetime.now()
 
     while (datetime.now() - start_time).total_seconds() < pod_timeout_seconds:
       status, stderr, _ = await run_command_async(
@@ -895,6 +896,7 @@ async def main():
   await check_prerequisites()
 
   timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+  return_code = 0
   with tempfile.TemporaryDirectory() as temp_dir:
     try:
       if args.skip_csi_driver_build:
@@ -937,21 +939,14 @@ async def main():
           STAGING_VERSION,
           args.pod_timeout_seconds,
           args.machine_type,
+          args.gcsfuse_branch,
       )
 
       if success:
         print("Test passed successfully.")
       else:
         print("Test failed.", file=sys.stderr)
-        if not args.no_cleanup:
-          await cleanup(
-              args.project_id,
-              args.zone,
-              args.cluster_name,
-              args.network_name,
-              args.subnet_name,
-          )
-        sys.exit(-1)
+        return_code = 1
     finally:
       if not args.no_cleanup:
         await cleanup(
@@ -961,6 +956,8 @@ async def main():
             args.network_name,
             args.subnet_name,
         )
+  
+  sys.exit(return_code)
 
 
 if __name__ == "__main__":
