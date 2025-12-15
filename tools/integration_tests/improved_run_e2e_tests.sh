@@ -61,8 +61,8 @@ readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=90 
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
-# e2e buckets created are retained for upto 30 days before deletion.
-readonly BUCKET_RETENTION_PERIOD_DAYS=30
+# e2e buckets created are retained for upto 10 days before deletion.
+readonly BUCKET_RETENTION_PERIOD_DAYS=10
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
 readonly DELAY_BETWEEN_BUCKET_CREATION=6 
@@ -344,8 +344,11 @@ cleanup_expired_buckets() {
     log_info "Attempting to delete ${#bucket_uris[@]} expired buckets."
     local bucket_deletion_logs
     bucket_deletion_logs=$(mktemp "/tmp/${TMP_PREFIX}_bucket_deletion_log.XXXXXX")
-    gcloud storage rm -r "${bucket_uris[@]}" > "$bucket_deletion_logs" 2>&1
-    log_info "Bucket cleanup complete."
+    if ! gcloud storage rm -r "${bucket_uris[@]}" > "$bucket_deletion_logs" 2>&1; then 
+      log_error "Bucket cleanup failed. This would eventually succeed in next run."
+    else 
+      log_info "Bucket cleanup complete."
+    fi
 }
 
 # Get command of the PID and check if it contains the string. Kill if it does.
