@@ -230,8 +230,9 @@ func getOptimizedValue(
 	profileName string,
 	machineType string,
 	machineTypeToGroupMap map[string]string,
+	bucketType string,
 ) OptimizationResult {
-	// Precedence: Profile -> Machine -> Default
+	// Precedence: Profile -> Machine -> BucketType -> Default
 
 	// 1. If a profile with the given name is active and has optimization defined for it, then it takes precedence.
 	for _, p := range rules.Profiles {
@@ -257,7 +258,20 @@ func getOptimizedValue(
 		}
 	}
 
-	// 3. If no optimization is found, return the original value.
+	// 3. Only if no profile or machine-based optimization is found, check for bucket-type-based optimization.
+	if bucketType != "" {
+		for _, bto := range rules.BucketTypeOptimization {
+			if bto.BucketType == bucketType {
+				return OptimizationResult{
+					FinalValue:         bto.Value,
+					OptimizationReason: fmt.Sprintf("bucket-type %q", bucketType),
+					Optimized:          true,
+				}
+			}
+		}
+	}
+
+	// 4. If no optimization is found, return the original value.
 	return OptimizationResult{
 		FinalValue: currentValue,
 		Optimized:  false,
@@ -297,4 +311,95 @@ func CreateHierarchicalOptimizedFlags(flatMap map[string]OptimizationResult) (ma
 		currentLevel[lastKey] = value
 	}
 	return nestedMap, nil
+}
+
+// ApplyBucketTypeOptimizations applies bucket-type-based optimizations to the config.
+// This should be called after the bucket type is known (i.e., at mount time).
+// bucketType should be one of: "hierarchical", "zonal", "standard"
+func (c *Config) ApplyBucketTypeOptimizations(bucketType string, userSetFlags []string) map[string]OptimizationResult {
+	optimizedFlags := make(map[string]OptimizationResult)
+
+	// Skip if autoconfig is disabled or if profile is set (profile takes precedence)
+	if c.DisableAutoconfig || c.Profile != "" {
+		return optimizedFlags
+	}
+
+	// Helper function to check if a flag was set by the user
+	isFlagSetByUser := func(flagPath string) bool {
+		return slices.Contains(userSetFlags, flagPath)
+	}
+
+	// Apply optimizations for FUSE settings based on bucket type
+	flagsToOptimize := []struct {
+		flagPath   string
+		currentVal any
+		setterFunc func(any) error
+	}{
+		{
+			flagPath:   "file-system.max-background",
+			currentVal: c.FileSystem.MaxBackground,
+			setterFunc: func(val any) error {
+				if v, ok := val.(int64); ok {
+					c.FileSystem.MaxBackground = v
+					return nil
+				}
+				return fmt.Errorf("invalid type for max-background")
+			},
+		},
+		{
+			flagPath:   "file-system.congestion-threshold",
+			currentVal: c.FileSystem.CongestionThreshold,
+			setterFunc: func(val any) error {
+				if v, ok := val.(int64); ok {
+					c.FileSystem.CongestionThreshold = v
+					return nil
+				}
+				return fmt.Errorf("invalid type for congestion-threshold")
+			},
+		},
+		{
+			flagPath:   "file-system.async-read",
+			currentVal: c.FileSystem.AsyncRead,
+			setterFunc: func(val any) error {
+				if v, ok := val.(bool); ok {
+					c.FileSystem.AsyncRead = v
+					return nil
+				}
+				return fmt.Errorf("invalid type for async-read")
+			},
+		},
+	}
+
+	// Apply each optimization
+	for _, flagOpt := range flagsToOptimize {
+		// Skip if user explicitly set this flag
+		if isFlagSetByUser(flagOpt.flagPath) {
+			continue
+		}
+
+		// Get optimization rules for this flag
+		if rules, ok := AllFlagOptimizationRules[flagOpt.flagPath]; ok {
+			result := getOptimizedValue(&rules, flagOpt.currentVal, "", "", nil, bucketType)
+			if result.Optimized {
+				if err := flagOpt.setterFunc(result.FinalValue); err == nil {
+					optimizedFlags[flagOpt.flagPath] = result
+				}
+			}
+		}
+	}
+
+	return optimizedFlags
+}
+
+// GetBucketTypeString converts bucket type flags to a string representation
+// Priority: zonal > hierarchical > standard
+// This ensures zonal buckets get FUSE optimizations even if they are also HNS-enabled
+func GetBucketTypeString(hierarchical bool, zonal bool) string {
+	if zonal {
+		return "zonal"
+	}
+	if hierarchical {
+		return "hierarchical"
+	}
+	return "standard"
 }

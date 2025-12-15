@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -43,6 +44,32 @@ func mountWithStorageHandle(
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
 	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+
+	// Get bucket handle to determine bucket type for optimization
+	var bucketTypeStr string
+	if bucketName != "" && bucketName != canned.FakeBucketName {
+		bucketHandle, err := storageHandle.BucketHandle(ctx, bucketName, newConfig.GcsConnection.BillingProject, newConfig.Write.FinalizeFileForRapid)
+		if err != nil {
+			logger.Warnf("Failed to get bucket handle for type detection: %v. Continuing with default settings.", err)
+		} else {
+			bucketType := bucketHandle.BucketType()
+			bucketTypeStr = cfg.GetBucketTypeString(bucketType.Hierarchical, bucketType.Zonal)
+			logger.Infof("Detected bucket type: %s", bucketTypeStr)
+
+			// Apply bucket-type-based optimizations
+			// We need to track which flags were explicitly set by the user
+			// For now, we'll pass an empty list (all optimizations will apply)
+			// TODO: Track user-set flags properly in the future
+			bucketOptimizations := newConfig.ApplyBucketTypeOptimizations(bucketTypeStr, []string{})
+			if len(bucketOptimizations) > 0 {
+				logger.Infof("Applied %d bucket-type-based optimizations", len(bucketOptimizations))
+				for flag, result := range bucketOptimizations {
+					logger.Infof("  %s = %v (reason: %s)", flag, result.FinalValue, result.OptimizationReason)
+				}
+			}
+		}
+	}
+
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -155,6 +182,17 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	parsedOptions := make(map[string]string)
 	for _, o := range newConfig.FileSystem.FuseOptions {
 		mount.ParseOptions(parsedOptions, o)
+	}
+
+	// Apply FUSE-specific settings from config
+	if newConfig.FileSystem.MaxBackground > 0 {
+		parsedOptions["max_background"] = fmt.Sprintf("%d", newConfig.FileSystem.MaxBackground)
+	}
+	if newConfig.FileSystem.CongestionThreshold > 0 {
+		parsedOptions["congestion_threshold"] = fmt.Sprintf("%d", newConfig.FileSystem.CongestionThreshold)
+	}
+	if newConfig.FileSystem.AsyncRead {
+		parsedOptions["async_read"] = ""
 	}
 
 	mountCfg := &fuse.MountConfig{

@@ -50,6 +50,16 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 			{{- end }}
 		},
 		{{- end }}
+		{{- if .Optimizations.BucketTypeOptimization }}
+		BucketTypeOptimization: []shared.BucketTypeOptimization{
+			{{- range .Optimizations.BucketTypeOptimization }}
+			{
+				BucketType: "{{ .BucketType }}",
+				Value: {{$goType}}({{ formatValue .Value }}),
+			},
+			{{- end }}
+		},
+		{{- end }}
 	},
 	{{- end }}
 {{- end }}
@@ -83,7 +93,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 {{- if .Optimizations }}
 	if !isSet.IsSet("{{ .FlagName }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
-		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {

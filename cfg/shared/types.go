@@ -26,8 +26,15 @@ type MachineBasedOptimization struct {
 	Value any    `yaml:"value"`
 }
 
+// BucketTypeOptimization defines a bucket-type-based optimization.
+type BucketTypeOptimization struct {
+	BucketType string `yaml:"bucket-type"` // "hierarchical", "zonal", "standard"
+	Value      any    `yaml:"value"`
+}
+
 // OptimizationRules holds all defined optimizations for a single flag.
 type OptimizationRules struct {
 	MachineBasedOptimization []MachineBasedOptimization `yaml:"machine-based-optimization"`
+	BucketTypeOptimization   []BucketTypeOptimization   `yaml:"bucket-type-optimization"`
 	Profiles                 []ProfileOptimization      `yaml:"profiles"`
 }

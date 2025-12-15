@@ -25,7 +25,21 @@ import (
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
-var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.cache-file-for-range-read": {
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.async-read": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      bool(true),
+		},
+	},
+}, "file-system.congestion-threshold": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(96),
+		},
+	},
+}, "file-cache.cache-file-for-range-read": {
 	Profiles: []shared.ProfileOptimization{
 		{
 			Name:  "aiml-serving",
@@ -62,6 +76,13 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.c
 		{
 			Name:  "aiml-serving",
 			Value: int64(-1),
+		},
+	},
+}, "file-system.max-background": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(128),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
@@ -215,9 +236,33 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
+	if !isSet.IsSet("async-read") {
+		rules := AllFlagOptimizationRules["file-system.async-read"]
+		result := getOptimizedValue(&rules, c.FileSystem.AsyncRead, profileName, machineType, machineTypeToGroupMap, "")
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.FileSystem.AsyncRead != val {
+					c.FileSystem.AsyncRead = val
+					optimizedFlags["file-system.async-read"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("congestion-threshold") {
+		rules := AllFlagOptimizationRules["file-system.congestion-threshold"]
+		result := getOptimizedValue(&rules, c.FileSystem.CongestionThreshold, profileName, machineType, machineTypeToGroupMap, "")
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.CongestionThreshold != val {
+					c.FileSystem.CongestionThreshold = val
+					optimizedFlags["file-system.congestion-threshold"] = result
+				}
+			}
+		}
+	}
 	if !isSet.IsSet("file-cache-cache-file-for-range-read") {
 		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
-		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
@@ -229,7 +274,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 	if !isSet.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
-		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
@@ -241,7 +286,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 	if !isSet.IsSet("kernel-list-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
-		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
@@ -251,9 +296,21 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
+	if !isSet.IsSet("max-background") {
+		rules := AllFlagOptimizationRules["file-system.max-background"]
+		result := getOptimizedValue(&rules, c.FileSystem.MaxBackground, profileName, machineType, machineTypeToGroupMap, "")
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.MaxBackground != val {
+					c.FileSystem.MaxBackground = val
+					optimizedFlags["file-system.max-background"] = result
+				}
+			}
+		}
+	}
 	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
@@ -265,7 +322,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 	if !isSet.IsSet("metadata-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
@@ -277,7 +334,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 	if !isSet.IsSet("rename-dir-limit") {
 		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
-		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
@@ -289,7 +346,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 	if !isSet.IsSet("stat-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
@@ -301,7 +358,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 	if !isSet.IsSet("type-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
@@ -313,7 +370,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 	if !isSet.IsSet("write-global-max-blocks") {
 		rules := AllFlagOptimizationRules["write.global-max-blocks"]
-		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupMap, "")
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
@@ -449,6 +506,10 @@ type FileCacheConfig struct {
 }
 
 type FileSystemConfig struct {
+	AsyncRead bool `yaml:"async-read"`
+
+	CongestionThreshold int64 `yaml:"congestion-threshold"`
+
 	DirMode Octal `yaml:"dir-mode"`
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
@@ -468,6 +529,8 @@ type FileSystemConfig struct {
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
+
+	MaxBackground int64 `yaml:"max-background"`
 
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
 
@@ -658,6 +721,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
 
+	flagSet.BoolP("async-read", "", false, "Enables asynchronous read operations in FUSE. This can improve read performance by allowing the kernel to issue multiple read requests concurrently.")
+
+	if err := flagSet.MarkHidden("async-read"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\".")
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
@@ -705,6 +774,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("cloud-profiler-mutex", "", false, "Enables mutex cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
 
 	if err := flagSet.MarkHidden("cloud-profiler-mutex"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("congestion-threshold", "", 0, "Sets the congestion threshold for background requests. When the number of outstanding requests exceeds this threshold, the kernel may start blocking new requests. 0 means system default (typically 10).")
+
+	if err := flagSet.MarkHidden("congestion-threshold"); err != nil {
 		return err
 	}
 
@@ -1004,6 +1079,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("max-background", "", 0, "Sets the maximum number of outstanding background requests that the kernel will send to the FUSE daemon. Higher values can improve throughput for workloads with many concurrent operations. 0 means system default (typically 12).")
+
+	if err := flagSet.MarkHidden("max-background"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
@@ -1215,6 +1296,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.async-read", flagSet.Lookup("async-read")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-connection.billing-project", flagSet.Lookup("billing-project")); err != nil {
 		return err
 	}
@@ -1256,6 +1341,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cloud-profiler.mutex", flagSet.Lookup("cloud-profiler-mutex")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.congestion-threshold", flagSet.Lookup("congestion-threshold")); err != nil {
 		return err
 	}
 
@@ -1524,6 +1613,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("machine-type", flagSet.Lookup("machine-type")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.max-background", flagSet.Lookup("max-background")); err != nil {
 		return err
 	}
 
