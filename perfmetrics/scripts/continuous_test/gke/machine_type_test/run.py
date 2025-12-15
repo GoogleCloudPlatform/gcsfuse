@@ -23,7 +23,7 @@ It performs the following steps:
 3.  Builds a GCSFuse CSI driver image from a specified git branch.
 4.  Deploys a Kubernetes pod that runs the benchmark workload.
 5.  Parses the benchmark results (throughput) from the pod logs.
-6.  Determines if the benchmark passed based on a performance threshold.
+6.  Determines if the benchmark passed based on the pod exit status.
 7.  Cleans up all created cloud resources (GKE cluster, network, etc.).
 """
 
