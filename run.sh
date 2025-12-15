@@ -72,9 +72,10 @@ fi
 #     --group_reporting
 
 # Simple reader: 873 MB/s, 942 MB/s, 962 MB/s
-# Simple reader (openfiles=1): 857 MB/s, 858 MB/s, 887 MB/s
 # Buffered reader: 909 MB/s, 901 MB/s, 921 MB/s
+# Simple reader (openfiles=1): 857 MB/s, 858 MB/s, 887 MB/s
 # Default reader (openfiles = 1): 647 MB/s, 688 MB/s, 673 MB/s
+# Buffered reader (openfiles = 1): 763 MB/s, 753 MB/s, 780 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/64M
 
@@ -91,9 +92,10 @@ fi
 #     --group_reporting
 
 # Simple reader: 718 MB/s, 762 MB/s, 795 MB/s
-# Simple reader (openfiles=1): 647 MB/s, 686 MB/s, 675 MB/s
 # Buffered reader: 791 MB/s, 798 MB/s, 809 MB/s
+# Simple reader (openfiles=1): 647 MB/s, 686 MB/s, 675 MB/s
 # Default reader (openfiles = 1): 680 MB/s, 657 MB/s, 683 MB/s
+# Buffered reader (openfiles = 1): 623 MB/s, 647 MB/s, 631 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/5M
 
