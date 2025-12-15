@@ -333,22 +333,31 @@ create_bucket() {
 # Helper method to cleanup expired buckets.
 cleanup_expired_buckets() {
     log_info "Deleting buckets older than ${BUCKET_RETENTION_PERIOD_DAYS} days having prefix ${BUCKET_PREFIX}."
-    local -a bucket_uris
-    mapfile -t bucket_uris < <(gcloud storage buckets list --project=${PROJECT_ID} "gs://${BUCKET_PREFIX}*" \
+    local bucket_list_output
+    bucket_list_output=$(gcloud storage buckets list --project=${PROJECT_ID} "gs://${BUCKET_PREFIX}*" \
         --filter="creation_time < -P${BUCKET_RETENTION_PERIOD_DAYS}D" \
         --format="value(storage_url)")
-    if (( ${#bucket_uris[@]} == 0 )); then
+    if [[ $? -ne 0 ]]; then
+        log_error "Failed to list expired buckets. Cleanup of expired buckets is skipped."
+        return 1
+    fi
+
+    if [[ -z "$bucket_list_output" ]]; then
         log_info "No expired buckets found matching the criteria."
         return 0
     fi
+
+    local -a bucket_uris
+    mapfile -t bucket_uris <<< "$bucket_list_output"
+
     log_info "Attempting to delete ${#bucket_uris[@]} expired buckets."
     local bucket_deletion_logs
     bucket_deletion_logs=$(mktemp "/tmp/${TMP_PREFIX}_bucket_deletion_log.XXXXXX")
-    if ! gcloud storage rm -r "${bucket_uris[@]}" > "$bucket_deletion_logs" 2>&1; then 
-      log_error "Bucket cleanup failed. This would eventually succeed in next run."
-    else 
-      log_info "Bucket cleanup complete."
+    if ! gcloud -q storage rm -r "${bucket_uris[@]}" > "$bucket_deletion_logs" 2>&1; then
+        log_error "Failed to delete one or more expired buckets. See logs for details:"
+        cat "$bucket_deletion_logs"
     fi
+    log_info "Bucket cleanup complete."
 }
 
 # Get command of the PID and check if it contains the string. Kill if it does.
