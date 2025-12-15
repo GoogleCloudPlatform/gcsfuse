@@ -457,6 +457,8 @@ type FileSystemConfig struct {
 
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
+	ExperimentalEnableSymlinkCache bool `yaml:"experimental-enable-symlink-cache"`
+
 	FileMode Octal `yaml:"file-mode"`
 
 	FuseOptions []string `yaml:"fuse-options"`
@@ -861,6 +863,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Enables ReadDirPlus capability")
 
 	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-symlink-cache", "", false, "Allow kernel to cache symlink targets")
+
+	if err := flagSet.MarkHidden("experimental-enable-symlink-cache"); err != nil {
 		return err
 	}
 
@@ -1372,6 +1380,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-enable-readdirplus", flagSet.Lookup("experimental-enable-readdirplus")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-enable-symlink-cache", flagSet.Lookup("experimental-enable-symlink-cache")); err != nil {
 		return err
 	}
 
