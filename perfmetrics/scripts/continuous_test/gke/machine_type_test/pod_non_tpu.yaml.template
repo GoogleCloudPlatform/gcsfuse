@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gcsfuse-test
+  annotations:
+    gke-gcsfuse/volumes: "true"
+spec:
+  restartPolicy: Never
+  hostNetwork: true
+  containers:
+  - name: gke-gcsfuse-sidecar
+    image: gcr.io/$project_id/cloudbuild-gcsfuse-csi/gcs-fuse-csi-driver-sidecar-mounter:$staging_version
+    resources:
+      requests:
+        cpu: 2
+        memory: 8Gi
+      limits:
+        cpu: 4
+        memory: 16Gi
+  - name: load-test
+    image: ubuntu:24.04
+    imagePullPolicy: Always
+    securityContext:
+      privileged: true
+    command: ["/bin/bash", "-c"]
+    args:
+    - |
+      set -e
+      echo "Step 1: Container started. Updating apt and installing dependencies..."
+      apt-get update && apt-get install -y wget git build-essential ca-certificates
+      
+      echo "Step 2: Installing Go 1.24.10..."
+      wget -q https://go.dev/dl/go1.24.10.linux-amd64.tar.gz
+      rm -rf /usr/local/go && tar -C /usr/local -xzf go1.24.10.linux-amd64.tar.gz
+      export PATH=$PATH:/usr/local/go/bin
+      echo "Go version installed:"
+      go version
+
+      echo "Step 3: Cloning GCSFuse repo..."
+      git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
+      cd gcsfuse
+      echo "Repo content:"
+      ls -F
+
+      echo "Step 4: Starting machine type test (filtered)..."
+      # Running filtered tests as requested
+      go test -v ./tools/integration_tests/flag_optimizations/... --integrationTest --mountedDirectory=/data_mnt --testbucket=$bucket_name -run "TestImplicitDirsEnabled|TestRenameDirLimitSet"
+      
+      echo "Step 5: Test finished successfully."
+    volumeMounts:
+    - name: data-vol
+      mountPath: /data_mnt
+# serviceAccountName: default
+  serviceAccountName: gcsfuse-ksa
+  volumes:
+  - name: data-vol
+    csi:
+      driver: gcsfuse.csi.storage.gke.io
+      volumeAttributes:
+        bucketName: "$bucket_name"
+        mountOptions: "machine-type:a3-highgpu-8g"
