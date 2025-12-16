@@ -268,6 +268,52 @@ func setMaxReadAhead(mountPoint string, readAheadKb int) error {
 	return nil
 }
 
+// setCongestionThreshold sets the fuse settings `congestion-threshold` by writing over
+// `/sys/fs/fuse/connections/<minor>/congestion_threshold`.
+func setCongestionThreshold(mountPoint string, congestionThreshold int) error {
+	_, minor, err := getDeviceMajorMinor(mountPoint)
+	if err != nil {
+		return fmt.Errorf("getting device major/minor for mount point %s: %v", mountPoint, err)
+	}
+
+	sysPathCgTh := filepath.Join("/sys/fs/fuse/connections", fmt.Sprintf("%d", minor), "congestion_threshold")
+	cmd := exec.Command("sudo", "-n", "tee", sysPathCgTh)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", congestionThreshold))
+
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("setting the congestion threshold %d mount-path %s: %v, stderr: %s", congestionThreshold, mountPoint, err, stderr.String())
+		return err
+	}
+
+	return nil
+}
+
+// setMaxBackground sets the fuse settings `max-background` by writing over
+// `/sys/fs/fuse/connections/<minor>/max_background`.
+func setMaxBackground(mountPoint string, maxBackground int) error {
+	_, minor, err := getDeviceMajorMinor(mountPoint)
+	if err != nil {
+		return fmt.Errorf("getting device major/minor for mount point %s: %v", mountPoint, err)
+	}
+
+	sysPathMxBg := filepath.Join("/sys/fs/fuse/connections", fmt.Sprintf("%d", minor), "max_background")
+	cmd := exec.Command("sudo", "-n", "tee", sysPathMxBg)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", maxBackground))
+
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("setting the max-background %d on mount-path %s: %v, stderr: %s", maxBackground, mountPoint, err, stderr.String())
+		return err
+	}
+
+	return nil
+}
+
 func populateArgs(args []string) (
 	bucketName string,
 	mountPoint string,
@@ -561,9 +607,27 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		if newConfig.FileSystem.MaxReadAheadKb != 0 {
 			err = setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
 			if err != nil {
-				logger.Infof("Failed to set the max read ahead: %v", err)
+				logger.Warnf("Failed to set the max read ahead: %v", err)
 			} else {
 				logger.Infof("Max read-ahead set to %d KB successfully.", newConfig.FileSystem.MaxReadAheadKb)
+			}
+		}
+
+		if newConfig.FileSystem.CongestionThreshold != 0 {
+			err = setCongestionThreshold(mountPoint, int(newConfig.FileSystem.CongestionThreshold))
+			if err != nil {
+				logger.Warnf("Failed to set the congestion threshold: %v", err)
+			} else {
+				logger.Infof("Congestion threshold set to %d successfully.", newConfig.FileSystem.CongestionThreshold)
+			}
+		}
+
+		if newConfig.FileSystem.MaxBackground != 0 {
+			err = setMaxBackground(mountPoint, int(newConfig.FileSystem.MaxBackground))
+			if err != nil {
+				logger.Warnf("Failed to set the max-background: %v", err)
+			} else {
+				logger.Infof("Max-background set to %d successfully.", newConfig.FileSystem.MaxBackground)
 			}
 		}
 

@@ -317,6 +317,16 @@ params:
     default: "4194304" # 4MiB
     hide-flag: true
 
+  - config-path: "file-system.congestion-threshold"
+    flag-name: "congestion-threshold"
+    type: "int"
+    usage: >-
+      Sets the congestion threshold for background requests. When the number of
+      outstanding requests exceeds this threshold, the kernel may start blocking
+      new requests. 0 means system default (typically 75% of max-background; 9).
+    default: "0"
+    hide-flag: true
+
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
     type: "octal"
@@ -397,6 +407,17 @@ params:
       profiles:
         - name: "aiml-serving"
           value: -1
+
+  - config-path: "file-system.max-background"
+    flag-name: "max-background"
+    type: "int"
+    usage: >-
+      Sets the maximum number of outstanding background requests (e.g., request corresponding to 
+      kernel readahead, writeback cache etc.) that the kernel will send to the FUSE daemon. 0 means
+      system default 
+      (typically 12).
+    default: "0"
+    hide-flag: true
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
