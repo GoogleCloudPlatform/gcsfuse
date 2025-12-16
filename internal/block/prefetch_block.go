@@ -255,13 +255,11 @@ func (pmb *prefetchMemoryBlock) ReadFrom(r io.Reader) (n int64, err error) {
 			pmb.buffer = pmb.buffer[:len(pmb.buffer)+bytesRead]
 			n += int64(bytesRead)
 		}
-		if err == io.EOF {
-			// End of reader, we are done.
-			err = nil
-			return
-		}
 		if err != nil {
-			return
+			if err == io.EOF {
+				return n, nil // End of reader
+			}
+			return n, err
 		}
 	}
 }
