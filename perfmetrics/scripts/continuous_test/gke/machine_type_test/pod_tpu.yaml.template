@@ -25,13 +25,6 @@ spec:
   containers:
   - name: gke-gcsfuse-sidecar
     image: gcr.io/$project_id/cloudbuild-gcsfuse-csi/gcs-fuse-csi-driver-sidecar-mounter:$staging_version
-    resources:
-      requests:
-        cpu: 2
-        memory: 8Gi
-      limits:
-        cpu: 4
-        memory: 16Gi
   - name: load-test
     image: ubuntu:24.04
     imagePullPolicy: Always
