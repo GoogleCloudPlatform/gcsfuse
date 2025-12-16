@@ -41,6 +41,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/mgmt"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/profiler"
@@ -435,6 +436,18 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	}
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
+
+	//Log management information about memory, cpu, disk
+	//space on node and limit set by kubarnates POD
+	//if any e.g. cpu limit or mem limit.
+	svc := mgmt.NewGCSFuseMgmtService()
+	svc.Refresh()
+
+	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
+		logger.Info("GCSFuse enviornment", "data", svc.GetConfig())
+	} else {
+		logger.Infof("GCSFuse enviornment mount point: %s %s", mountPoint, svc.String())
+	}
 
 	// Log mount-config and the CLI flags in the log-file.
 	// If there is no log-file, then log these to stdout.
