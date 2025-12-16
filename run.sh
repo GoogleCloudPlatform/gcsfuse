@@ -10,12 +10,32 @@ if [[ $1 == "BR" ]] ; then
     go install . && gcsfuse --max-read-ahead-kb 16384 --enable-buffered-read --read-global-max-blocks 1000 --log-severity=$sevirity --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
 elif [[ $1 == "SR" ]] ; then
     echo "Running with simple reader"
-    go install . && gcsfuse --max-read-ahead-kb 16384 --async-read --max-background=96 --congestion-threshold=96 --log-severity=$sevirity --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
+    go install . && gcsfuse --max-read-ahead-kb 49152 --async-read --max-background=96 --congestion-threshold=96 --log-severity=$sevirity --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
 else
     # mrd pool is disabled, kernel settings are default and it goes with NewRangeReader calls.
     echo "Running with default reader"
     go install . && gcsfuse --max-read-ahead-kb 16384 --log-severity=$sevirity --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
 fi
+
+# mkdir -p /home/princer_google_com/gcs1/10G
+
+# fio --name=multi_file_64gb \
+#     --directory=/home/princer_google_com/gcs1/10G \
+#     --rw=read \
+#     --bs=1M \
+#     --nrfiles=4 \
+#     --filesize=10G \
+#     --numjobs=1 \
+#     --openfiles=1 \
+#     --ioengine=libaio \
+#     --direct=0 \
+#     --iodepth=1 \
+#     --group_reporting
+
+# Simple reader (openfiles=1 and with 48 MB read-ahead): 2223 MB/s, 2191 MB/s, 2059 MB/s
+# Simple reader (openfiles=1 and with 32 MB read-ahead): 2571 MB/s, 2711 MB/s, 2656 MB/s
+# Simple reader (openfiles=1 and with 16 MB read-ahead): 2387 MB/s, 2378 MB/s, 2349 MB/s
+
 
 # mkdir -p /home/princer_google_com/gcs1/2G
 
@@ -36,6 +56,7 @@ fi
 # Simple reader (openfiles=1): 2238 MB/s, 2303 MB/s, 2298 MB/s
 # Buffered reader: 1225 MB/s, 1356 MB/s, 1386 MB/s
 # Default reader (openfiles = 1): 770 MB/s, 756 MB/s, 766 MB/s
+# Simple reader (openfiles=1 and with 32 MB read-ahead): 2287 MB/s
 
 # mkdir -p /home/princer_google_com/gcs1/1G
 
