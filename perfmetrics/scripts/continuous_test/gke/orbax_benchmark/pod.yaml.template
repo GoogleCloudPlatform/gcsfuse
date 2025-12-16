@@ -64,3 +64,4 @@ spec:
       volumeAttributes:
         bucketName: "$bucket_name"
         mountOptions: "read_ahead_kb=1024,disable-autoconfig"
+        hostNetworkPodKSA: "true"
