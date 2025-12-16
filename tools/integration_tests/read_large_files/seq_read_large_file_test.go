@@ -16,9 +16,13 @@ package read_large_files
 
 import (
 	"bytes"
+	"os"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 func TestReadLargeFileSequentially(t *testing.T) {
@@ -26,7 +30,9 @@ func TestReadLargeFileSequentially(t *testing.T) {
 	fileInLocalDisk, fileInMntDir := operations.CreateFileAndCopyToMntDir(t, FiveHundredMB, DirForReadLargeFilesTests)
 
 	// Sequentially read the data from file.
-	content, err := operations.ReadFileSequentially(fileInMntDir, ChunkSize)
+	file, err := os.OpenFile(fileInMntDir, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	require.NoError(t, err)
+	content, err := operations.ReadFileSequentially(file, ChunkSize)
 	if err != nil {
 		t.Errorf("Error in reading file: %v", err)
 	}

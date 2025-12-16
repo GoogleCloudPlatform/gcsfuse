@@ -17,7 +17,9 @@ package unfinalized_object
 import (
 	"context"
 	"log"
+	"os"
 	"path"
+	"syscall"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -73,7 +75,9 @@ func (t *unfinalizedObjectReads) TestUnfinalizedObjectsCanBeRead() {
 	defer operations.CloseFileShouldNotThrowError(t.T(), fh)
 
 	// Read un-finalized object.
-	readContent, err := operations.ReadFileSequentially(path.Join(t.testDirPath, t.fileName), util.MiB)
+	file, err := os.OpenFile(path.Join(t.testDirPath, t.fileName), os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	require.NoError(t.T(), err)
+	readContent, err := operations.ReadFileSequentially(file, util.MiB)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), writtenContent, string(readContent))

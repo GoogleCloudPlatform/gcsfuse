@@ -84,7 +84,9 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 		go func(readerID int) {
 			defer wg.Done()
 			// Use operations.ReadFileSequentially to read the entire file
-			content, err := operations.ReadFileSequentially(testFilePath, chunkSize)
+			file, err := os.OpenFile(testFilePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+			require.NoError(s.T(), err)
+			content, err := operations.ReadFileSequentially(file, chunkSize)
 			require.NoError(s.T(), err, "Sequential reader %d: read failed.", readerID)
 			require.Equal(s.T(), fileSize, len(content), "Sequential reader %d: expected to read entire file", readerID)
 			obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), "large_test_file.bin"))
@@ -230,7 +232,9 @@ func (s *concurrentReadTest) Test_ConcurrentReadPlusWrite() {
 			require.Equal(s.T(), fileSize, n)
 			operations.CloseFileShouldNotThrowError(s.T(), f)
 
-			content, err := operations.ReadFileSequentially(filePath, chunkSize)
+			file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+			require.NoError(s.T(), err)
+			content, err := operations.ReadFileSequentially(file, chunkSize)
 			require.NoError(s.T(), err, "Sequential reader %d: read failed.", workerId)
 			require.Equal(s.T(), fileSize, len(content), "Sequential reader %d: expected to read entire file", workerId)
 			obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), fileName))

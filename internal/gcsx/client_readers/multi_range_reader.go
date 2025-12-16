@@ -81,7 +81,7 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequ
 		err          error
 	)
 
-	if req.Offset >= int64(mrd.object.Size) {
+	if req.Offset >= int64(mrd.object.Size) && !req.SkipSizeChecks {
 		err = io.EOF
 		return readResponse, err
 	}
