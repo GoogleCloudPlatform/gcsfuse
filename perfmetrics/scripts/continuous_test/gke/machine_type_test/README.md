@@ -106,7 +106,7 @@ Argument                  | Description                                         
 `--reservation_name`      | Specific reservation to use for the nodes.                       | `None`
 `--no_cleanup`            | If set, resources will NOT be deleted after the test.            | `False`
 `--skip_csi_driver_build` | If set, skips building the CSI driver image (assumes it exists). | `False`
-`--pod_timeout_seconds`   | Timeout in seconds for the benchmark pod to complete.            | `1800` (30 mins)
+`--pod_timeout_seconds`   | Timeout in seconds for the pod to complete.                      | `1800` (30 mins)
 
 ## Examples
 

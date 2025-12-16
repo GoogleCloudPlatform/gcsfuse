@@ -21,9 +21,9 @@ It performs the following steps:
 1.  Checks for prerequisite tools (gcloud, git, make, kubectl).
 2.  Sets up a GKE cluster with a specific node pool if it doesn't exist.
 3.  Builds a GCSFuse CSI driver image from a specified git branch.
-4.  Deploys a Kubernetes pod that runs the benchmark workload.
+4.  Deploys a Kubernetes pod that runs the test workload.
 5.  Streams logs from the Kubernetes pod.
-6.  Determines if the benchmark passed based on the pod exit status.
+6.  Determines if the test passed based on the pod exit status.
 7.  Cleans up all created cloud resources (GKE cluster, network, etc.).
 """
 
@@ -417,7 +417,7 @@ async def setup_gke_cluster(
   """Sets up the GKE cluster and required node pool.
 
   This function ensures a GKE cluster and a specific node pool are ready for
-  the benchmark. It will create the cluster, network, and node pool if they
+  the test. It will create the cluster, network, and node pool if they
   don't exist. If the node pool exists but is unhealthy, it will be recreated.
 
   Args:
@@ -567,7 +567,7 @@ async def execute_test_workload(
       project_id: The Google Cloud project ID.
       zone: The GCP zone of the cluster.
       cluster_name: The name of the GKE cluster.
-      bucket_name: The GCS bucket to use for the benchmark.
+      bucket_name: The GCS bucket to use for the test.
       timestamp: A unique timestamp string for manifest naming.
       staging_version: The version tag for the GCSFuse CSI driver image.
       pod_timeout_seconds: The timeout in seconds for the pod to complete.
@@ -791,7 +791,7 @@ async def cleanup(project_id, zone, cluster_name, network_name, subnet_name):
 
 # Main function
 async def main():
-  """Parses arguments, orchestrates the benchmark execution, and handles cleanup.
+  """Parses arguments, orchestrates the test execution, and handles cleanup.
 
   This is the main entry point of the script.
   """
@@ -875,7 +875,7 @@ async def main():
       type=int,
       default=int(os.environ.get("POD_TIMEOUT_SECONDS", 1800)),
       help=(
-          "Timeout in seconds for the benchmark pod to complete. Can also be"
+          "Timeout in seconds for the test pod to complete. Can also be"
           " set with POD_TIMEOUT_SECONDS env var."
       ),
   )
@@ -960,7 +960,7 @@ async def main():
             args.network_name,
             args.subnet_name,
         )
-  
+
   sys.exit(return_code)
 
 
