@@ -21,16 +21,14 @@ If you observe slow file operations, check `gcs/request_latency`:
 
 1.  **Filter by `method`:** Look at specific methods like `NewReader` (read) or `CreateObject` (write).
 2.  **Analyze `NewReader` Latency:**
-    *   If `NewReader` latency is high, it suggests a delay in establishing the connection or receiving the first byte.
+    *   The following image shows an example of how to filter for `NewReader` latency in the metrics explorer.
+        ![NewReader Latency](./new_reader_latency.png)
+
+    *   If `NewReader` latency is high, say higher than 300ms within the same region, it suggests a delay in establishing the connection or receiving the first byte.
     *   **Potential Causes:**
         *   High network latency between the client and GCS.
         *   DNS resolution issues.
         *   GCS server-side delays.
-
-### Client-side Latency & Tracing
-Sometimes, high latency isn't due to GCS itself but stems from client-side issues like DNS resolution or connection establishment.
-
-*   **Enable Tracing:**
-    To dive deeper into client-side latency, you can enable experimental tracing. This allows you to visualize the breakdown of a request, including DNS lookup, TLS handshake, and connection wait times.
-    
-    Refer to the [GCSFuse Tracing Guide](tracing.md) for instructions on how to enable tracing and interpret the results (e.g., `http.dns`, `http.tls`, `http.getconn` spans).
+    *   **Next Steps:**
+        *   To find the root cause of high `NewReader` latency, enable tracing as described in the [GCSFuse Tracing Guide](tracing.md)
+        *   Alternatively, you can reach out to GCP customer support for assistance.
