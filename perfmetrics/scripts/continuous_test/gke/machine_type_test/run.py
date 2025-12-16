@@ -542,7 +542,7 @@ async def build_gcsfuse_image(project_id, branch, temp_dir):
 def is_tpu_machine_type(machine_type):
   """Checks if the machine type is a TPU machine type."""
   # Heuristic: check for "ct" (Cloud TPU) or "tpu" in the name.
-  return "ct" in machine_type or "tpu" in machine_type
+  return machine_type.startswith("ct") or "tpu" in machine_type
 
 
 # Workload Execution and Result Gathering
