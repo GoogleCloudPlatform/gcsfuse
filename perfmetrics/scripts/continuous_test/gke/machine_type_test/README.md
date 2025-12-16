@@ -150,8 +150,8 @@ python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
 
 ## Troubleshooting
 
-*   **403 Forbidden**: Check Workload Identity setup. Ensure `gcsfuse-ksa` is
-    annotated correctly and bound to a GSA with bucket access.
+*   **403 Forbidden**: Check Workload Identity setup. Ensure `default` KSA
+    exists and has the read/write access to the bucket.
 *   **Insufficient CPU**: Ensure the machine type has at least 4 vCPUs (sidecar
     requests 2 vCPUs, and the load-test container needs some resources).
 *   **Init:ErrImagePull**: Check if the CSI driver image exists in GCR/Artifact
