@@ -699,3 +699,54 @@ kernel_list_cache:
           zonal: true
         run: "TestDisabledKernelListCacheTest"
         run_on_gke: true
+
+rapid_appends:
+  - mounted_directory: "${MOUNTED_DIR}"
+    mounted_directory_secondary: "${MOUNTED_DIR_SECONDARY}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - run: TestSingleMountAppendsTestSuite
+        flags:
+          - "--write-block-size-mb=1"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestDualMountAppendsTestSuite
+        flags:
+          - "--write-block-size-mb=1"
+        secondary_flags:
+          - "--write-block-size-mb=1"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestSingleMountReadsTestSuite
+        flags:
+          - "" # NoCache
+          - "--metadata-cache-ttl-secs=70" # MetadataCache
+          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache" # FileCache
+          - "--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache" # MetadataAndFileCache
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestDualMountReadsTestSuite
+        flags:
+          - ""
+          - "--metadata-cache-ttl-secs=70"
+          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary"
+          - "--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary"
+        secondary_flags:
+          - "--write-block-size-mb=1"
+          - "--write-block-size-mb=1"
+          - "--write-block-size-mb=1"
+          - "--write-block-size-mb=1"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true

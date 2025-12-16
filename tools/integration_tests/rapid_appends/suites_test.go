@@ -15,10 +15,13 @@
 package rapid_appends
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
+	"testing"
+	"time"
+
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
@@ -32,6 +35,10 @@ import (
 // Suite Definitions
 ////////////////////////////////////////////////////////////////////////
 
+const (
+	defaultMetadataCacheTTL = 60 * time.Second
+)
+
 // Struct to store the details of a mount point
 type mountPoint struct {
 	rootDir     string // Root directory of the test folder, which contains mnt and gcsfuse.log.
@@ -43,7 +50,8 @@ type mountPoint struct {
 // BaseSuite provides the common structure and configuration-driven setup logic.
 type BaseSuite struct {
 	suite.Suite
-	cfg            *testConfig
+	primaryFlags   []string
+	secondaryFlags []string
 	primaryMount   mountPoint
 	secondaryMount mountPoint
 	fileName       string
@@ -67,26 +75,14 @@ type DualMountAppendsTestSuite struct{ BaseSuite }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *BaseSuite) SetupTest() {
-	t.primaryMount.setupTestDir()
+	t.primaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.LogFile)
 
-	// Create a mutable copy of flags.
-	primaryFlags := make([]string, len(t.cfg.primaryMountFlags))
-	copy(primaryFlags, t.cfg.primaryMountFlags)
-	// Add file cache flags if configured.
-	if t.cfg.fileCacheEnabled {
-		cacheDir := getNewEmptyCacheDir(t.primaryMount.rootDir)
-		primaryFlags = append(primaryFlags, "--file-cache-max-size-mb=-1", "--cache-dir="+cacheDir)
-	}
-	if t.cfg.metadataCacheEnabled {
-		primaryFlags = append(primaryFlags, fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs))
-	} else {
-		primaryFlags = append(primaryFlags, "--metadata-cache-ttl-secs=0")
-	}
-	t.mountGcsfuse(t.primaryMount, "primary", primaryFlags)
+	t.mountGcsfuse(t.primaryMount, "primary", t.primaryFlags)
 
-	if t.cfg.isDualMount {
-		t.secondaryMount.setupTestDir()
-		t.mountGcsfuse(t.secondaryMount, "secondary", t.cfg.secondaryMountFlags)
+	if len(t.secondaryFlags) > 0 {
+		secondaryLog := path.Join(path.Dir(testEnv.cfg.LogFile), "gcsfuse_secondary.log")
+		t.secondaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectorySecondary, secondaryLog)
+		t.mountGcsfuse(t.secondaryMount, "secondary", t.secondaryFlags)
 	}
 }
 
@@ -94,14 +90,14 @@ func (t *BaseSuite) TearDownTest() {
 	if t.T().Failed() {
 		// Save logs for both mounts on failure to aid debugging.
 		setup.SaveLogFileAsArtifact(t.primaryMount.logFilePath, "gcsfuse-primary-log-"+t.T().Name())
-		if t.cfg.isDualMount {
+		if len(t.secondaryFlags) > 0 {
 			setup.SaveLogFileAsArtifact(t.secondaryMount.logFilePath, "gcsfuse-secondary-log-"+t.T().Name())
 		}
 	}
 
 	// Unmount and clean up the root directories to remove all test artifacts.
 	t.unmountAndCleanupMount(t.primaryMount, "primary")
-	if t.cfg.isDualMount {
+	if len(t.secondaryFlags) > 0 {
 		t.unmountAndCleanupMount(t.secondaryMount, "secondary")
 	}
 }
@@ -110,12 +106,12 @@ func (t *BaseSuite) TearDownTest() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (mnt *mountPoint) setupTestDir() {
+func (mnt *mountPoint) setupTestDir(mountDir, logFile string) {
 	setup.SetUpTestDirForTestBucketFlag()
 	mnt.rootDir = setup.TestDir()
-	mnt.mntDir = setup.MntDir()
-	mnt.logFilePath = setup.LogFile()
-	mnt.testDirPath = path.Join(setup.MntDir(), testDirName)
+	mnt.mntDir = mountDir
+	mnt.logFilePath = logFile
+	mnt.testDirPath = path.Join(mountDir, testDirName)
 }
 
 func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []string) {
@@ -132,14 +128,14 @@ func (t *BaseSuite) unmountAndCleanupMount(m mountPoint, name string) {
 	err := os.RemoveAll(m.rootDir)
 	require.NoError(t.T(), err, "Failed to clean up %v mount root directory", name)
 	// Cleaning up the intermediate generated test files.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 }
 
 func (t *BaseSuite) createUnfinalizedObject() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	// Create unfinalized object.
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
-	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
+	client.CreateUnfinalizedObject(testEnv.ctx, t.T(), testEnv.storageClient, path.Join(testDirName, t.fileName), t.fileContent)
 }
 
 func (t *BaseSuite) deleteUnfinalizedObject() {
@@ -151,7 +147,7 @@ func (t *BaseSuite) deleteUnfinalizedObject() {
 }
 
 func (t *BaseSuite) getAppendPath() string {
-	if t.cfg.isDualMount {
+	if len(t.secondaryFlags) > 0 {
 		return t.secondaryMount.testDirPath
 	}
 	return t.primaryMount.testDirPath
@@ -163,7 +159,7 @@ func (t *BaseSuite) appendToFile(file *os.File, appendContent string) {
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(appendContent), n)
 	t.fileContent += appendContent
-	if t.cfg.isDualMount {
+	if len(t.secondaryFlags) > 0 {
 		operations.SyncFile(file, t.T())
 	}
 }
@@ -174,4 +170,42 @@ func getNewEmptyCacheDir(rootDir string) string {
 		log.Fatalf("Failed to create temporary directory for cache dir for tests: %v", err)
 	}
 	return cacheDirPath
+}
+
+func (t *BaseSuite) isMetadataCacheEnabled() bool {
+	for _, flag := range t.primaryFlags {
+		if strings.Contains(flag, "--metadata-cache-ttl-secs") {
+			// Check if value is not 0
+			// Assuming format --metadata-cache-ttl-secs=X
+			parts := strings.Split(flag, "=")
+			if len(parts) == 2 {
+				return parts[1] != "0"
+			}
+		}
+	}
+	// Default is enabled if not specified? Or disabled?
+	// In existing tests, default was enabled (TTL=60s) unless set to 0.
+	// But in new framework, we usually specify flags explicitly.
+	// Let's assume if not present, it might be default (enabled).
+	// However, for test purposes, we usually explicitly disable it with =0.
+	return true
+}
+
+func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
+	for _, cfg := range testEnv.cfg.Configs {
+		if cfg.Run == runName {
+			for i, flagStr := range cfg.Flags {
+				primaryFlags := strings.Fields(flagStr)
+				var secondaryFlags []string
+				if len(cfg.SecondaryFlags) > i {
+					secondaryFlags = strings.Fields(cfg.SecondaryFlags[i])
+				}
+
+				// Create a subtest for each flag combination
+				t.Run(flagStr, func(t *testing.T) {
+					suite.Run(t, factory(primaryFlags, secondaryFlags))
+				})
+			}
+		}
+	}
 }

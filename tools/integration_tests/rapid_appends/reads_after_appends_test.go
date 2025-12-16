@@ -131,7 +131,7 @@ func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyF
 
 		// If metadata cache is enabled, gcsfuse reads up to the cached file size.
 		// The initial read (i=0) bypasses cache, seeing the latest file size.
-		if !t.cfg.metadataCacheEnabled || (i == 0) {
+		if !t.isMetadataCacheEnabled() || (i == 0) {
 			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 		} else {
 			// Read only up to the cached file size (before append).
@@ -159,69 +159,14 @@ func (t *DualMountReadsTestSuite) TestRandomRead() {
 // Test Runner
 ////////////////////////////////////////////////////////////////////////
 
-// readTestConfigs defines the matrix of configurations for the ReadsTestSuite.
-var readTestConfigs = []*testConfig{
-	// Single-Mount Scenarios
-	{
-		name:                 "SingleMount_NoCache",
-		isDualMount:          false,
-		metadataCacheEnabled: false,
-		fileCacheEnabled:     false,
-	},
-	{
-		name:                 "SingleMount_MetadataCache",
-		isDualMount:          false,
-		metadataCacheEnabled: true,
-		fileCacheEnabled:     false,
-	},
-	{
-		name:                 "SingleMount_FileCache",
-		isDualMount:          false,
-		metadataCacheEnabled: false,
-		fileCacheEnabled:     true,
-	},
-	{
-		name:                 "SingleMount_MetadataAndFileCache",
-		isDualMount:          false,
-		metadataCacheEnabled: true,
-		fileCacheEnabled:     true,
-	},
-	// Dual-Mount Scenarios
-	{
-		name:                 "DualMount_NoCache",
-		isDualMount:          true,
-		metadataCacheEnabled: false,
-		fileCacheEnabled:     false,
-	},
-	{
-		name:                 "DualMount_MetadataCache",
-		isDualMount:          true,
-		metadataCacheEnabled: true,
-		fileCacheEnabled:     false,
-	},
-	{
-		name:                 "DualMount_FileCache",
-		isDualMount:          true,
-		metadataCacheEnabled: false,
-		fileCacheEnabled:     true,
-	},
-	{
-		name:                 "DualMount_MetadataAndFileCache",
-		isDualMount:          true,
-		metadataCacheEnabled: true,
-		fileCacheEnabled:     true,
-	},
+func TestSingleMountReadsTestSuite(t *testing.T) {
+	RunTests(t, "TestSingleMountReadsTestSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &SingleMountReadsTestSuite{BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags}}
+	})
 }
 
-// TestReadsSuiteRunner executes all read-after-append tests against the readTestConfigs matrix.
-func TestReadsSuiteRunner(t *testing.T) {
-	for _, cfg := range readTestConfigs {
-		t.Run(cfg.name, func(t *testing.T) {
-			if cfg.isDualMount {
-				suite.Run(t, &DualMountReadsTestSuite{BaseSuite{cfg: cfg}})
-			} else {
-				suite.Run(t, &SingleMountReadsTestSuite{BaseSuite{cfg: cfg}})
-			}
-		})
-	}
+func TestDualMountReadsTestSuite(t *testing.T) {
+	RunTests(t, "TestDualMountReadsTestSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &DualMountReadsTestSuite{BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags}}
+	})
 }
