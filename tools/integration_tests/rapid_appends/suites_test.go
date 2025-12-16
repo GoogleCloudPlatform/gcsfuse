@@ -75,30 +75,49 @@ type DualMountAppendsTestSuite struct{ BaseSuite }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *BaseSuite) SetupTest() {
-	t.primaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.LogFile)
+	if testEnv.cfg.GKEMountedDirectory != "" {
+		// GKE Mode: Already mounted
+		t.primaryMount.mntDir = testEnv.cfg.GKEMountedDirectory
+		t.primaryMount.testDirPath = path.Join(t.primaryMount.mntDir, testDirName)
+		t.primaryMount.logFilePath = testEnv.cfg.LogFile // Might be empty, but that's fine for GKE
 
-	t.mountGcsfuse(t.primaryMount, "primary", t.primaryFlags)
+		if len(t.secondaryFlags) > 0 {
+			t.secondaryMount.mntDir = testEnv.cfg.GKEMountedDirectorySecondary
+			t.secondaryMount.testDirPath = path.Join(t.secondaryMount.mntDir, testDirName)
+		}
+	} else {
+		// GCE Mode: Mount it
+		t.primaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.LogFile)
+		t.mountGcsfuse(t.primaryMount, "primary", t.primaryFlags)
 
-	if len(t.secondaryFlags) > 0 {
-		secondaryLog := path.Join(path.Dir(testEnv.cfg.LogFile), "gcsfuse_secondary.log")
-		t.secondaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectorySecondary, secondaryLog)
-		t.mountGcsfuse(t.secondaryMount, "secondary", t.secondaryFlags)
+		if len(t.secondaryFlags) > 0 {
+			secondaryLog := path.Join(path.Dir(testEnv.cfg.LogFile), "gcsfuse_secondary.log")
+			t.secondaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectorySecondary, secondaryLog)
+			t.mountGcsfuse(t.secondaryMount, "secondary", t.secondaryFlags)
+		}
 	}
 }
 
 func (t *BaseSuite) TearDownTest() {
 	if t.T().Failed() {
 		// Save logs for both mounts on failure to aid debugging.
-		setup.SaveLogFileAsArtifact(t.primaryMount.logFilePath, "gcsfuse-primary-log-"+t.T().Name())
-		if len(t.secondaryFlags) > 0 {
+		if t.primaryMount.logFilePath != "" {
+			setup.SaveLogFileAsArtifact(t.primaryMount.logFilePath, "gcsfuse-primary-log-"+t.T().Name())
+		}
+		if len(t.secondaryFlags) > 0 && t.secondaryMount.logFilePath != "" {
 			setup.SaveLogFileAsArtifact(t.secondaryMount.logFilePath, "gcsfuse-secondary-log-"+t.T().Name())
 		}
 	}
 
-	// Unmount and clean up the root directories to remove all test artifacts.
-	t.unmountAndCleanupMount(t.primaryMount, "primary")
-	if len(t.secondaryFlags) > 0 {
-		t.unmountAndCleanupMount(t.secondaryMount, "secondary")
+	if testEnv.cfg.GKEMountedDirectory != "" {
+		// GKE Mode: Just cleanup files
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
+	} else {
+		// GCE Mode: Unmount and clean up
+		t.unmountAndCleanupMount(t.primaryMount, "primary")
+		if len(t.secondaryFlags) > 0 {
+			t.unmountAndCleanupMount(t.secondaryMount, "secondary")
+		}
 	}
 }
 
