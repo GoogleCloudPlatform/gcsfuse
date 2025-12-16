@@ -795,7 +795,10 @@ async def main():
 
   This is the main entry point of the script.
   """
-  parser = argparse.ArgumentParser(description="Run GKE Machine-type test.")
+  parser = argparse.ArgumentParser(
+      description="Run GKE Machine-type test.",
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+  )
   parser.add_argument(
       "--project_id",
       required=os.environ.get("PROJECT_ID") is None,
