@@ -926,10 +926,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
-	if err := flagSet.MarkHidden("file-cache-exclude-regex"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("file-cache-experimental-enable-chunk-cache", "", false, "Enable chunk cache mode for random I/O optimization that downloads only requested blocks.")
 
 	if err := flagSet.MarkHidden("file-cache-experimental-enable-chunk-cache"); err != nil {
@@ -943,10 +939,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringP("file-cache-include-regex", "", "", "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching.")
-
-	if err := flagSet.MarkHidden("file-cache-include-regex"); err != nil {
-		return err
-	}
 
 	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
