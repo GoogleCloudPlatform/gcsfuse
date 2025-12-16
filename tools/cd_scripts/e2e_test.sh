@@ -599,7 +599,7 @@ function log_based_on_exit_status() {
 function run_e2e_tests_for_emulator_and_log() {
   ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
   emulator_test_status=$?
-  if [[ $e2e_tests_emulator_status != 0 ]];
+  if [ $e2e_tests_emulator_status != 0 ];
     then
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else
