@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: gcsfuse-test
+  name: gcsfuse-gke-machine-type-test
   annotations:
     gke-gcsfuse/volumes: "true"
 spec:

@@ -591,7 +591,7 @@ async def execute_test_workload(
     pod_template = Template(f.read())
 
   # Use timestamp to make pod name unique to avoid conflict
-  pod_name = f"gcsfuse-test-{timestamp}"
+  pod_name = f"gcsfuse-gke-machine-type-test-{timestamp}"
   print(f"Pod name: {pod_name}")
 
   manifest = pod_template.safe_substitute(
@@ -602,7 +602,7 @@ async def execute_test_workload(
       machine_type=machine_type,
   )
   # Update the pod name in the manifest content dynamically
-  manifest = manifest.replace("name: gcsfuse-test", f"name: {pod_name}")
+  manifest = manifest.replace("name: gcsfuse-gke-machine-type-test", f"name: {pod_name}")
 
   manifest_filename = f"manifest-{timestamp}.yaml"
 
