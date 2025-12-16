@@ -59,7 +59,7 @@ const (
 	MountSlownessMessage           = "Mount slowness detected: mount time %v exceeded threshold %v"
 	DynamicMountFSName             = "gcsfuse"
 	WaitTimeOnSignalReceive        = 30 * time.Second
-	MountTimeThreshold             = 5 * time.Second
+	MountTimeThreshold             = 8 * time.Second
 )
 
 ////////////////////////////////////////////////////////////////////////
