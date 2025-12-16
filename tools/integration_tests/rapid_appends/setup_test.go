@@ -50,11 +50,44 @@ func TestMain(m *testing.M) {
 		cfg.RapidAppends[0].TestBucket = setup.TestBucket()
 		cfg.RapidAppends[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.RapidAppends[0].LogFile = setup.LogFile()
-		cfg.RapidAppends[0].Configs = make([]test_suite.ConfigItem, 1)
-		// Default config for manual run
-		cfg.RapidAppends[0].Configs[0].Flags = []string{"--implicit-dirs"}
-		cfg.RapidAppends[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.RapidAppends[0].Configs = make([]test_suite.ConfigItem, 4)
+
+		// 1. TestSingleMountAppendsTestSuite
+		cfg.RapidAppends[0].Configs[0].Flags = []string{"--write-block-size-mb=1"}
+		cfg.RapidAppends[0].Configs[0].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.RapidAppends[0].Configs[0].Run = "TestSingleMountAppendsTestSuite"
+
+		// 2. TestDualMountAppendsTestSuite
+		cfg.RapidAppends[0].Configs[1].Flags = []string{"--write-block-size-mb=1"}
+		cfg.RapidAppends[0].Configs[1].SecondaryFlags = []string{"--write-block-size-mb=1"}
+		cfg.RapidAppends[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.RapidAppends[0].Configs[1].Run = "TestDualMountAppendsTestSuite"
+
+		// 3. TestSingleMountReadsTestSuite
+		cfg.RapidAppends[0].Configs[2].Flags = []string{
+			"",                             // NoCache
+			"--metadata-cache-ttl-secs=70", // MetadataCache
+			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache",                              // FileCache
+			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache", // MetadataAndFileCache
+		}
+		cfg.RapidAppends[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.RapidAppends[0].Configs[2].Run = "TestSingleMountReadsTestSuite"
+
+		// 4. TestDualMountReadsTestSuite
+		cfg.RapidAppends[0].Configs[3].Flags = []string{
+			"",
+			"--metadata-cache-ttl-secs=70",
+			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary",
+			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary",
+		}
+		cfg.RapidAppends[0].Configs[3].SecondaryFlags = []string{
+			"--write-block-size-mb=1",
+			"--write-block-size-mb=1",
+			"--write-block-size-mb=1",
+			"--write-block-size-mb=1",
+		}
+		cfg.RapidAppends[0].Configs[3].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.RapidAppends[0].Configs[3].Run = "TestDualMountReadsTestSuite"
 	}
 
 	testEnv.ctx = context.Background()

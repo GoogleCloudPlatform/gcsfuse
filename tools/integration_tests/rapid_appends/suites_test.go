@@ -107,7 +107,6 @@ func (t *BaseSuite) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (mnt *mountPoint) setupTestDir(mountDir, logFile string) {
-	setup.SetUpTestDirForTestBucketFlag()
 	mnt.rootDir = setup.TestDir()
 	mnt.mntDir = mountDir
 	mnt.logFilePath = logFile
@@ -125,8 +124,6 @@ func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []strin
 
 func (t *BaseSuite) unmountAndCleanupMount(m mountPoint, name string) {
 	setup.UnmountGCSFuse(m.mntDir)
-	err := os.RemoveAll(m.rootDir)
-	require.NoError(t.T(), err, "Failed to clean up %v mount root directory", name)
 	// Cleaning up the intermediate generated test files.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 }
@@ -192,6 +189,13 @@ func (t *BaseSuite) isMetadataCacheEnabled() bool {
 }
 
 func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
+	type testRun struct {
+		name           string
+		primaryFlags   []string
+		secondaryFlags []string
+	}
+	var runs []testRun
+
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
 			for i, flagStr := range cfg.Flags {
@@ -200,12 +204,22 @@ func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondary
 				if len(cfg.SecondaryFlags) > i {
 					secondaryFlags = strings.Fields(cfg.SecondaryFlags[i])
 				}
-
-				// Create a subtest for each flag combination
-				t.Run(flagStr, func(t *testing.T) {
-					suite.Run(t, factory(primaryFlags, secondaryFlags))
+				runs = append(runs, testRun{
+					name:           flagStr,
+					primaryFlags:   primaryFlags,
+					secondaryFlags: secondaryFlags,
 				})
 			}
+		}
+	}
+
+	for _, r := range runs {
+		if len(runs) == 1 {
+			suite.Run(t, factory(r.primaryFlags, r.secondaryFlags))
+		} else {
+			t.Run(r.name, func(t *testing.T) {
+				suite.Run(t, factory(r.primaryFlags, r.secondaryFlags))
+			})
 		}
 	}
 }
