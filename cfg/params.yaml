@@ -464,6 +464,16 @@ params:
     default: -1
     usage: "UID owner of all inodes."
 
+  - config-path: "file-system.unused-mrd-cache-size"
+    flag-name: "unused-mrd-cache-size"
+    type: "int"
+    usage: >-
+      Sets the cache-size of unused (no open file) MRD instances. When this limit
+      is exceeded, the least recently unused MRD instances will be closed. Set to
+      0 to disable the cache, which will closed unused MRD instances immediately.
+    default: "0"
+    hide-flag: true
+
   - flag-name: "foreground"
     config-path: "foreground"
     type: "bool"

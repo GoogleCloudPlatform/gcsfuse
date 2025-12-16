@@ -191,7 +191,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	} else {
 		minObj := fh.inode.Source()
 		bucket := fh.inode.Bucket()
-		mrdWrapper := &fh.inode.MRDWrapper
+		mrdWrapper := fh.inode.MRDWrapper
 
 		// Acquire a RWLock on file handle as we will update readManager
 		fh.unlockHandleAndInode(true)
@@ -276,7 +276,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	} else {
 		minObj := fh.inode.Source()
 		bucket := fh.inode.Bucket()
-		mrdWrapper := &fh.inode.MRDWrapper
+		mrdWrapper := fh.inode.MRDWrapper
 
 		// Acquire a RWLock on file handle as we will update reader
 		fh.unlockHandleAndInode(true)

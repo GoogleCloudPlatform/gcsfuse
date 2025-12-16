@@ -482,6 +482,8 @@ type FileSystemConfig struct {
 	TempDir ResolvedPath `yaml:"temp-dir"`
 
 	Uid int64 `yaml:"uid"`
+
+	UnusedMrdCacheSize int64 `yaml:"unused-mrd-cache-size"`
 }
 
 type GcsAuthConfig struct {
@@ -1178,6 +1180,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
+	flagSet.IntP("unused-mrd-cache-size", "", 0, "Sets the cache-size of unused (no open file) MRD instances. When this limit is exceeded, the least recently unused MRD instances will be closed. Set to 0 to disable the cache, which will closed unused MRD instances immediately.")
+
+	if err := flagSet.MarkHidden("unused-mrd-cache-size"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("visualize-workload-insight", "", false, "A flag to enable workload visualization. When enabled, workload insights will include visualizations to help understand access patterns. Insights will be written to the file specified by --workload-insight-output-file.")
 
 	if err := flagSet.MarkHidden("visualize-workload-insight"); err != nil {
@@ -1700,6 +1708,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.unused-mrd-cache-size", flagSet.Lookup("unused-mrd-cache-size")); err != nil {
 		return err
 	}
 

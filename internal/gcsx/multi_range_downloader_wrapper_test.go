@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
@@ -40,7 +41,7 @@ type mrdWrapperTest struct {
 	object     *gcs.MinObject
 	objectData []byte
 	mockBucket *storage.TestifyMockBucket
-	mrdWrapper MultiRangeDownloaderWrapper
+	mrdWrapper *MultiRangeDownloaderWrapper
 	mrdTimeout time.Duration
 }
 
@@ -59,7 +60,7 @@ func (t *mrdWrapperTest) SetupTest() {
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.mrdTimeout = time.Millisecond
-	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, &cfg.Config{})
+	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, &cfg.Config{}, nil)
 	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
 	t.mrdWrapper.refCount = 0
@@ -258,7 +259,7 @@ func (t *mrdWrapperTest) Test_NewMultiRangeDownloaderWrapper() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			_, err := NewMultiRangeDownloaderWrapper(tc.bucket, tc.obj, &cfg.Config{})
+			_, err := NewMultiRangeDownloaderWrapper(tc.bucket, tc.obj, &cfg.Config{}, nil)
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 			} else {
@@ -401,4 +402,313 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_ForceRecreateMRD() {
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
 	assert.NotSame(t.T(), initialMRD, t.mrdWrapper.Wrapped, "A new MRD instance should have been created")
 	t.mockBucket.AssertExpectations(t.T())
+}
+
+// mrdWrapperCacheTest inherits from mrdWrapperTest and adds cache functionality
+type mrdWrapperCacheTest struct {
+	mrdWrapperTest
+	cache *lru.Cache
+}
+
+func TestMRDWrapperCacheTestSuite(t *testing.T) {
+	suite.Run(t, new(mrdWrapperCacheTest))
+}
+
+func (t *mrdWrapperCacheTest) SetupTest() {
+	// Call parent setup
+	t.mrdWrapperTest.SetupTest()
+
+	// Create cache with max size 3
+	t.cache = lru.NewCache(3)
+
+	// Recreate wrapper with cache enabled
+	var err error
+	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(
+		t.mockBucket,
+		t.object,
+		&clock.FakeClock{WaitTime: t.mrdTimeout},
+		&cfg.Config{},
+		t.cache,
+	)
+	assert.Nil(t.T(), err, "Error in creating MRDWrapper with cache")
+	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
+	t.mrdWrapper.refCount = 0
+}
+
+func (t *mrdWrapperCacheTest) Test_Cache_AddAndRemove() {
+	// Arrange
+	key := wrapperKey(t.mrdWrapper)
+
+	// Act: Open, close, and reopen file
+	t.mrdWrapper.IncrementRefCount()
+	err := t.mrdWrapper.DecrementRefCount()
+	t.mrdWrapper.IncrementRefCount()
+
+	// Assert: MRD reused and removed from cache on reopen
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1, t.mrdWrapper.refCount)
+	assert.Nil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Wrapper should be removed from cache")
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped, "MRD should still exist (reused)")
+}
+
+// Override parent test - with cache enabled, MRD stays pooled instead of being closed
+func (t *mrdWrapperCacheTest) Test_IncrementRefCount_CancelCleanup() {
+	// Arrange
+	key := wrapperKey(t.mrdWrapper)
+
+	// Act: Open, close, and reopen file
+	t.mrdWrapper.IncrementRefCount()
+	err := t.mrdWrapper.DecrementRefCount()
+	t.mrdWrapper.IncrementRefCount()
+
+	// Assert: MRD pooled on close, reused on reopen, and removed from cache
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), 1, t.mrdWrapper.refCount)
+	assert.Nil(t.T(), t.mrdWrapper.cancelCleanup)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped, "MRD should be pooled and reused")
+	assert.Nil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Wrapper should be removed from cache after reopen")
+}
+
+// Override parent test - with cache enabled, MRD stays pooled
+func (t *mrdWrapperCacheTest) Test_DecrementRefCount_ParallelUpdates() {
+	// Arrange
+	const finalRefCount int = 0
+	maxRefCount := 10
+	wg := sync.WaitGroup{}
+	key := wrapperKey(t.mrdWrapper)
+
+	// Act: Increment refcount in parallel
+	for range maxRefCount {
+		wg.Add(1)
+		go func() {
+			t.mrdWrapper.IncrementRefCount()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	// Act: Decrement refcount in parallel
+	for range maxRefCount {
+		wg.Add(1)
+		go func() {
+			err := t.mrdWrapper.DecrementRefCount()
+			assert.Nil(t.T(), err)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	// Assert: Final state is refCount=0, MRD pooled in cache
+	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.GetRefCount())
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped, "MRD should be pooled in cache")
+	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Wrapper should be in cache")
+}
+
+func (t *mrdWrapperCacheTest) Test_Cache_EvictionOnOverflow() {
+	// Arrange: Create 4 wrappers (cache max is 3)
+	wrappers := make([]*MultiRangeDownloaderWrapper, 4)
+	for i := range 4 {
+		obj := &gcs.MinObject{
+			Name:       fmt.Sprintf("file%d", i),
+			Size:       100,
+			Generation: int64(1000 + i),
+		}
+		wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+			t.mockBucket,
+			obj,
+			&clock.FakeClock{WaitTime: t.mrdTimeout},
+			&cfg.Config{},
+			t.cache,
+		)
+		assert.NoError(t.T(), err)
+		wrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(obj, t.objectData, time.Microsecond)
+		wrappers[i] = wrapper
+	}
+
+	// Act: Open and close all 4 wrappers (triggers eviction on 4th)
+	for i := range 4 {
+		wrappers[i].IncrementRefCount()
+		err := wrappers[i].DecrementRefCount()
+		assert.NoError(t.T(), err)
+	}
+
+	// Assert: First wrapper evicted (LRU), last 3 remain in cache
+	assert.Nil(t.T(), wrappers[0].Wrapped, "First wrapper's MRD should be closed (evicted)")
+
+	for i := range wrappers[1:] {
+		key := wrapperKey(wrappers[i+1])
+		assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Wrapper %d should be in cache", i+1)
+		assert.NotNil(t.T(), wrappers[i+1].Wrapped, "Wrapper %d MRD should exist (pooled)", i+1)
+	}
+}
+
+func (t *mrdWrapperCacheTest) Test_Cache_NoEvictionIfReopened() {
+	// Arrange: Create 3 wrappers and fill cache
+	wrappers := make([]*MultiRangeDownloaderWrapper, 3)
+	for i := range 3 {
+		obj := &gcs.MinObject{
+			Name:       fmt.Sprintf("file%d", i),
+			Size:       100,
+			Generation: int64(1000 + i),
+		}
+		wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+			t.mockBucket,
+			obj,
+			&clock.FakeClock{WaitTime: t.mrdTimeout},
+			&cfg.Config{},
+			t.cache,
+		)
+		assert.NoError(t.T(), err)
+		wrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(obj, t.objectData, time.Microsecond)
+		wrappers[i] = wrapper
+		wrappers[i].IncrementRefCount()
+		err = wrappers[i].DecrementRefCount()
+		assert.NoError(t.T(), err)
+	}
+
+	// Act: Reopen wrapper 0 and add 4th wrapper (triggers eviction)
+	wrappers[0].IncrementRefCount()
+	obj3 := &gcs.MinObject{
+		Name:       "file3",
+		Size:       100,
+		Generation: 1003,
+	}
+	wrapper3, err := NewMultiRangeDownloaderWrapperWithClock(
+		t.mockBucket,
+		obj3,
+		&clock.FakeClock{WaitTime: t.mrdTimeout},
+		&cfg.Config{},
+		t.cache,
+	)
+	assert.NoError(t.T(), err)
+	wrapper3.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(obj3, t.objectData, time.Microsecond)
+	wrapper3.IncrementRefCount()
+	err = wrapper3.DecrementRefCount()
+	assert.NoError(t.T(), err)
+
+	// Assert: Wrapper 0 NOT evicted (protected by double-check: refCount > 0)
+	assert.NotNil(t.T(), wrappers[0].Wrapped, "Wrapper 0 MRD should exist (is active)")
+	assert.Equal(t.T(), 1, wrappers[0].refCount, "Wrapper 0 should have refCount=1")
+}
+
+func (t *mrdWrapperCacheTest) Test_Cache_ConcurrentAddRemove() {
+	// Arrange
+	const numGoroutines = 10
+	const numIterations = 100
+	wg := sync.WaitGroup{}
+
+	// Act: Concurrent open/close cycles from multiple goroutines
+	for range numGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range numIterations {
+				t.mrdWrapper.IncrementRefCount()
+				err := t.mrdWrapper.DecrementRefCount()
+				assert.NoError(t.T(), err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	// Assert: Final state is refCount=0 (no deadlocks or panics)
+	assert.Equal(t.T(), 0, t.mrdWrapper.refCount, "RefCount should be 0 after all operations")
+}
+
+func (t *mrdWrapperCacheTest) Test_Cache_Disabled() {
+	// Arrange: Create wrapper with nil cache (disabled)
+	wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+		t.mockBucket,
+		t.object,
+		&clock.FakeClock{WaitTime: t.mrdTimeout},
+		&cfg.Config{},
+		nil, // Cache disabled
+	)
+	assert.NoError(t.T(), err)
+	wrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
+
+	// Act: Open and close file
+	wrapper.IncrementRefCount()
+	err = wrapper.DecrementRefCount()
+	assert.NoError(t.T(), err)
+
+	// Assert: MRD closed immediately (not pooled)
+	assert.Nil(t.T(), wrapper.Wrapped, "MRD should be closed when cache disabled")
+}
+
+func (t *mrdWrapperCacheTest) Test_Cache_EvictionRaceWithRepool() {
+	// Arrange: Add wrapper to cache then fill with 3 more to trigger eviction
+	t.mrdWrapper.IncrementRefCount()
+	err := t.mrdWrapper.DecrementRefCount()
+	assert.NoError(t.T(), err)
+	for i := range 3 {
+		obj := &gcs.MinObject{
+			Name:       fmt.Sprintf("file%d", i),
+			Size:       100,
+			Generation: int64(1000 + i),
+		}
+		wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+			t.mockBucket,
+			obj,
+			&clock.FakeClock{WaitTime: t.mrdTimeout},
+			&cfg.Config{},
+			t.cache,
+		)
+		assert.NoError(t.T(), err)
+		wrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(obj, t.objectData, time.Microsecond)
+		wrapper.IncrementRefCount()
+		err = wrapper.DecrementRefCount()
+		assert.NoError(t.T(), err)
+	}
+
+	// Act: Access evicted wrapper (should recreate MRD)
+	buf := make([]byte, 10)
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(
+		fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond),
+		nil,
+	).Once()
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), buf, 0, 10, metrics.NewNoopMetrics(), false)
+
+	// Assert: MRD recreated successfully after eviction
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 10, bytesRead)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped, "MRD should be recreated after eviction")
+}
+
+func (t *mrdWrapperCacheTest) Test_Cache_MultipleEvictionsInOneBatch() {
+	// Arrange: Create small cache (size 2) and 5 wrappers
+	smallCache := lru.NewCache(2)
+	wrappers := make([]*MultiRangeDownloaderWrapper, 5)
+	for i := range 5 {
+		obj := &gcs.MinObject{
+			Name:       fmt.Sprintf("file%d", i),
+			Size:       100,
+			Generation: int64(1000 + i),
+		}
+		wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+			t.mockBucket,
+			obj,
+			&clock.FakeClock{WaitTime: t.mrdTimeout},
+			&cfg.Config{},
+			smallCache,
+		)
+		assert.NoError(t.T(), err)
+		wrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(obj, t.objectData, time.Microsecond)
+		wrappers[i] = wrapper
+	}
+
+	// Act: Add all 5 wrappers (triggers batch eviction of 3)
+	for i := range 5 {
+		wrappers[i].IncrementRefCount()
+		err := wrappers[i].DecrementRefCount()
+		assert.NoError(t.T(), err)
+	}
+
+	// Assert: First 3 evicted, last 2 remain in cache
+	for i := range wrappers[:3] {
+		assert.Nil(t.T(), wrappers[i].Wrapped, "Wrapper %d should be evicted", i)
+	}
+	for i := range wrappers[3:] {
+		assert.NotNil(t.T(), wrappers[i+3].Wrapped, "Wrapper %d should be in cache", i+3)
+	}
 }

@@ -112,7 +112,8 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 		&t.clock,
 		isLocal,
 		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64))
+		semaphore.NewWeighted(math.MaxInt64),
+		nil)
 
 	// Create empty file for local inode created above.
 	err := t.in.CreateEmptyTempFile(t.ctx)
