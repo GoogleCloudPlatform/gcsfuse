@@ -192,18 +192,12 @@ func (t *BaseSuite) isMetadataCacheEnabled() bool {
 	for _, flag := range t.primaryFlags {
 		if strings.Contains(flag, "--metadata-cache-ttl-secs") {
 			// Check if value is not 0
-			// Assuming format --metadata-cache-ttl-secs=X
 			parts := strings.Split(flag, "=")
 			if len(parts) == 2 {
 				return parts[1] != "0"
 			}
 		}
 	}
-	// Default is enabled if not specified? Or disabled?
-	// In existing tests, default was enabled (TTL=60s) unless set to 0.
-	// But in new framework, we usually specify flags explicitly.
-	// Let's assume if not present, it might be default (enabled).
-	// However, for test purposes, we usually explicitly disable it with =0.
 	return true
 }
 
