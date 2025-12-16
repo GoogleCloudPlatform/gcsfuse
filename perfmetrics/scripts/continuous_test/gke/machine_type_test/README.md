@@ -71,9 +71,8 @@ The script performs the following steps:
     specified GCSFuse repository branch and builds the GCSFuse CSI driver
     container image.
 5.  **Run Test**: Deploys the test workload as a Kubernetes Pod.
-    *   It automatically selects the appropriate pod template
-        (`pod_tpu.yaml.template` or `pod_non_tpu.yaml.template`) and node-pool
-        based on the machine type.
+    *   It automatically selects the appropriate node-pool based on the machine
+        type.
 6.  **Gather Results**: Fetches the logs from the completed test pod.
 7.  **Evaluate Success**: Checks if the pod completed successfully.
 8.  **Cleanup**: Deletes the GKE cluster and other created resources like the
@@ -118,18 +117,6 @@ python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
   --project_id "your-gcp-project-id" \
   --bucket_name "your-gcs-bucket-name" \
   --zone "us-central1-a"
-```
-
-To run on a **Standard Machine Type** (`n2-standard-8`) with cleanup disabled:
-
-```bash
-python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
-  --project_id "your-gcp-project-id" \
-  --bucket_name "your-gcs-bucket-name" \
-  --zone "us-central1-a" \
-  --machine_type n2-standard-8 \
-  --node_pool_name n2-standard-8-pool \
-  --no_cleanup
 ```
 
 To run on a **TPU Machine Type** (`ct6e-standard-4t`) using a reservation and a
