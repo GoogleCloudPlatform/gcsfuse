@@ -61,8 +61,8 @@ gcloud storage buckets add-iam-policy-binding gs://<BUCKET_NAME> \
 
 The script performs the following steps:
 
-1.  **Prerequisite Check**: Verifies that `gcloud`, `git`, `make`, and `kubectl`
-    are installed.
+1.  **Prerequisite Check**: Verifies that `gcloud`, `git`, `make`, `kubectl`,
+    and `gke-gcloud-auth-plugin` are installed.
 2.  **VPC Network and Subnet Setup**: Creates a VPC network and subnet if they
     don't already exist.
 3.  **GKE Cluster Setup**: Creates a new GKE cluster with a dedicated node pool
@@ -71,6 +71,9 @@ The script performs the following steps:
     specified GCSFuse repository branch and builds the GCSFuse CSI driver
     container image.
 5.  **Run Test**: Deploys the test workload as a Kubernetes Pod.
+    *   It automatically selects the appropriate pod template
+        (`pod_tpu.yaml.template` or `pod_non_tpu.yaml.template`) and node-pool
+        based on the machine type.
 6.  **Gather Results**: Fetches the logs from the completed test pod.
 7.  **Evaluate Success**: Checks if the pod completed successfully.
 8.  **Cleanup**: Deletes the GKE cluster and other created resources like the
