@@ -313,8 +313,7 @@ fi
 git checkout ${COMMIT_HASH} |& tee -a ${LOG_FILE}
 if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
     echo "Installing GCSFuse from source..."
-    VERSION_TAG=$(sed -n 1p ~/details.txt)
-    GOOS=linux GOARCH=${architecture} go run tools/build_gcsfuse/main.go . . "${VERSION_TAG}"
+    GOOS=linux GOARCH=${architecture} go run tools/build_gcsfuse/main.go . . "${VERSION}"
     sudo cp bin/* /usr/bin/
     sudo cp sbin/* /usr/sbin/
 fi
@@ -597,7 +596,7 @@ function log_based_on_exit_status() {
     gcloud storage cp $logfile gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
     done
 
-    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://${BUCKET_NAME_TO_USE}/v$({VERSION}/
+    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://${BUCKET_NAME_TO_USE}/v${VERSION}/
 }
 
 # Function to run emulator-based E2E tests and log results.
@@ -609,7 +608,7 @@ function run_e2e_tests_for_emulator_and_log() {
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else
         touch success-emulator.txt
-        gcloud storage cp success-emulator.txt gs://${BUCKET_NAME_TO_USE}/v{VERSION})/${VM_INSTANCE_NAME}/
+        gcloud storage cp success-emulator.txt gs://${BUCKET_NAME_TO_USE}/v{VERSION}/${VM_INSTANCE_NAME}/
     fi
     gcloud storage cp ~/logs-emulator.txt gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
 }
