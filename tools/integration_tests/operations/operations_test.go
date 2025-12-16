@@ -115,13 +115,12 @@ func RunTestOnTPCEndPoint(cfg test_suite.Config, m *testing.M) int {
 	cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
 	cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
 	cfg.Operations[0].Configs[0].Flags = []string{
-		"--enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-		"--experimental-enable-json-read=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-		"--create-empty-file=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-		"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-		"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+		"--enable-atomic-rename-object=true",
+		"--experimental-enable-json-read=true",
+		"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+		"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
 	}
-	cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+	cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	var flags [][]string
 
 	// Iterate over the original flags and split each string by spaces
@@ -140,6 +139,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 
+	// TODO: b/469970353 : Update tpc_build.sh to run using test_config.yaml file.
 	if setup.TestOnTPCEndPoint() {
 		log.Println("Running TPC tests without config file.")
 		successCodeTPC := RunTestOnTPCEndPoint(cfg, m)
@@ -147,23 +147,6 @@ func TestMain(m *testing.M) {
 	}
 
 	var successCode int
-	if len(cfg.Operations) != 0 {
-		// var tpcCfg test_suite.Config
-		// setup.SetTestBucket(cfg.Operations[0].TestBucket)
-		var remainingConfigs []test_suite.ConfigItem
-
-		for _, config := range cfg.Operations[0].Configs {
-			// Check if the Tpc field is true.
-			if config.Tpc {
-				log.Println("Running TPC test")
-				// successCode = RunTestOnTPCEndPoint(tpcCfg, m)
-			} else {
-				// If the Tpc field is false, add it to the remainingConfigs slice.
-				remainingConfigs = append(remainingConfigs, config)
-			}
-		}
-		cfg.Operations[0].Configs = remainingConfigs
-	}
 
 	if len(cfg.Operations) == 0 {
 		log.Println("No configuration found for operations tests in config. Using flags instead.")
@@ -173,20 +156,17 @@ func TestMain(m *testing.M) {
 		cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.Operations[0].Configs[0].Flags = []string{
-			"--enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--experimental-enable-json-read=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--create-empty-file=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--enable-atomic-rename-object=true",
+			"--experimental-enable-json-read=true",
+			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
 		}
-		cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": true}
+		cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.Operations[0].Configs[1].Flags = []string{
-			"--experimental-enable-json-read=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--create-empty-file=true --enable-atomic-rename-object=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
-			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true --file-cache-max-size-mb=2 --cache-dir=/gcsfuse-tmp/cache-dir-operations-hns",
+			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
 		}
 		cfg.Operations[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 	}
