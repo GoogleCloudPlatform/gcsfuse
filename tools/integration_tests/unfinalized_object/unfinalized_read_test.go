@@ -98,7 +98,7 @@ func (t *unfinalizedObjectReads) setupAndAppend(filePath string, initialSize, ap
 	obj, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
 	require.NoError(t.T(), err)
 
-	writer, err := client.TakeoverWriter(t.ctx, t.storageClient, path.Join(testDirName, t.fileName), obj.Generation)
+	writer, err := client.AppendableWriter(t.ctx, t.storageClient, path.Join(testDirName, t.fileName), obj.Generation)
 	require.NoError(t.T(), err)
 	n, err = writer.Write([]byte(appendContent))
 	require.NoError(t.T(), err)
@@ -136,10 +136,6 @@ func (t *unfinalizedObjectReads) TestUnfinalizedObjectsCanBeRead() {
 }
 
 func (t *unfinalizedObjectReads) TestReadRemotelyModifiedUnfinalizedObject() {
-	if !setup.IsZonalBucketRun() {
-		t.T().Skip("This test is only for Zonal buckets.")
-	}
-
 	testCases := []struct {
 		name               string
 		openFlags          int
