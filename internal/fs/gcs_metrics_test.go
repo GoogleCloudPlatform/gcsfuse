@@ -117,6 +117,16 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 	return bucket, server, mh, reader
 }
 
+// TestGCSMetrics_RequestCount_StatObject validates the "gcs/request_count" metric for StatObject calls.
+//
+// Expected Behavior:
+//   - LookUpInode typically fails to find the inode in the memory cache initially.
+//   - It then queries GCS to check if the object exists.
+//   - The current implementation invokes StatObject multiple times (3 times) during LookUp:
+//     1. Check if the object itself exists.
+//     2. Check if it might be an implicit directory (e.g. "test.txt/").
+//     3. Potentially another check depending on the specific flow (e.g. trailing slash handling).
+//   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 3.
 func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 	ctx := context.Background()
 	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
@@ -134,13 +144,17 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	waitForMetricsProcessing()
 
-	// LookUpInode typically triggers StatObject on the object name.
-	// It triggers multiple stats (e.g. checking for implicit directories).
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
 		3)
 }
 
+// TestGCSMetrics_RequestCount_CreateObject validates the "gcs/request_count" metric for CreateObject calls.
+//
+// Expected Behavior:
+//   - CreateFile alone creates a file handle and potentially a temporary object in the GCS bucket.
+//   - The actual upload (CreateObject GCS call) happens when the file is synced or closed.
+//   - We verify that "gcs/request_count" with "gcs_method=CreateObject" is incremented by 1 after the SyncFile operation.
 func TestGCSMetrics_RequestCount_CreateObject(t *testing.T) {
 	ctx := context.Background()
 	_, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
@@ -172,6 +186,12 @@ func TestGCSMetrics_RequestCount_CreateObject(t *testing.T) {
 		1)
 }
 
+// TestGCSMetrics_RequestLatencies validates the "gcs/request_latencies" histogram metric.
+//
+// Expected Behavior:
+//   - Similar to TestGCSMetrics_RequestCount_StatObject, this operation triggers 3 StatObject calls.
+//   - We verify that the "gcs/request_latencies" histogram with "gcs_method=StatObject" has recorded 3 events.
+//   - This test ensures that latency tracking is active for GCS requests.
 func TestGCSMetrics_RequestLatencies(t *testing.T) {
 	ctx := context.Background()
 	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
@@ -194,6 +214,13 @@ func TestGCSMetrics_RequestLatencies(t *testing.T) {
 		3)
 }
 
+// TestGCSMetrics_DownloadBytesCount_Explicit validates the "gcs/download_bytes_count" metric.
+//
+// Expected Behavior:
+//   - With buffered reading enabled, the file content is downloaded from GCS.
+//   - The length of the downloaded content (len("1234567890") = 10 bytes) should be recorded.
+//   - We verify that "gcs/download_bytes_count" with "read_type=Buffered" equals the file size.
+//   - This confirms that payload bytes from GCS response bodies are correctly counted.
 func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 	// Explicitly test gcs/download_bytes_count using monitored bucket.
 	ctx := context.Background()
@@ -231,5 +258,75 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
 		attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))),
+		int64(len(content)))
+}
+
+// TestGCSMetrics_With_FileCache validates GCS metrics behavior when file cache is enabled.
+//
+// Expected Behavior:
+//   - First Read (Cache Miss):
+//     - The file content is not in cache, so it must be downloaded from GCS.
+//     - File cache always uses "Sequential" read type for downloading.
+//     - "gcs/download_bytes_count" with "read_type=Sequential" should equal the file size.
+//   - Second Read (Cache Hit):
+//     - The file content is served from the local file cache.
+//     - No further GCS downloads should occur.
+//     - The "gcs/download_bytes_count" metric should remain unchanged.
+func TestGCSMetrics_With_FileCache(t *testing.T) {
+	// TestGCSMetrics_WithFileCache verifies metrics when reading a file with file cache enabled.
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableFileCache = true
+	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, params)
+	server = wrappers.WithMonitoring(server, mh)
+
+	fileName := "file_cache_miss.txt"
+	content := "file_cache_content"
+	createWithContents(ctx, t, bucket, fileName, content)
+
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err)
+
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, len(content)),
+	}
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err)
+
+	waitForMetricsProcessing()
+
+	// Expect download bytes from GCS
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
+		attribute.NewSet(attribute.String("read_type", "Sequential")), // File cache uses sequential read
+		int64(len(content)))
+
+	// Second Read - Should hit cache
+	readOp2 := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, len(content)),
+	}
+	err = server.ReadFile(ctx, readOp2)
+	require.NoError(t, err)
+
+	waitForMetricsProcessing()
+
+	// Count should still be the same (no new GCS downloads)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
+		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		int64(len(content)))
 }
