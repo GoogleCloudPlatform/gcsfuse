@@ -274,7 +274,7 @@ func TestSequentialReadFile_FileCacheMetrics(t *testing.T) {
 	)
 }
 
-func TestSequentialReadFile_FileCacheMetrics_DisabledRangeRead(t *testing.T) {
+func TestSequentialReadFile_FileCacheMetrics_DisabledFileCacheForRangeRead(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableFileCache = true
@@ -436,7 +436,7 @@ func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 	)
 }
 
-func TestRandomReadFile_FileCacheMetrics_DisabledRangeRead(t *testing.T) {
+func TestRandomReadFile_FileCacheMetrics_DisabledFileCacheOnRangedRead(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableFileCache = true
