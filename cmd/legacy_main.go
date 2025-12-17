@@ -268,7 +268,6 @@ func setMaxReadAhead(mountPoint string, readAheadKb int) {
 		return
 	}
 	logger.Infof("Max read-ahead set to %d KB on mount-path %s successfully.", readAheadKb, mountPoint)
-	return
 }
 
 // setCongestionThreshold sets the fuse settings `congestion-threshold` by writing over
@@ -293,7 +292,6 @@ func setCongestionThreshold(mountPoint string, congestionThreshold int) {
 		return
 	}
 	logger.Infof("Congestion threshold set to %d on mount-path %s successfully.", congestionThreshold, mountPoint)
-	return
 }
 
 // setMaxBackground sets the fuse settings `max-background` by writing over
@@ -318,7 +316,6 @@ func setMaxBackground(mountPoint string, maxBackground int) {
 		return
 	}
 	logger.Infof("Max-background set to %d on mount-path %s successfully.", maxBackground, mountPoint)
-	return
 }
 
 func populateArgs(args []string) (
