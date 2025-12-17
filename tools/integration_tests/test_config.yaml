@@ -725,9 +725,9 @@ rapid_appends:
         run_on_gke: true
       - run: TestSingleMountReadsTestSuite
         flags:
-          - "" # NoCache
+          - "--metadata-cache-ttl-secs=0" # NoCache
           - "--metadata-cache-ttl-secs=70" # MetadataCache
-          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache" # FileCache
+          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0" # FileCache
           - "--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache" # MetadataAndFileCache
         compatible:
           flat: false
@@ -736,9 +736,9 @@ rapid_appends:
         run_on_gke: true
       - run: TestDualMountReadsTestSuite
         flags:
-          - ""
+          - "--metadata-cache-ttl-secs=0"
           - "--metadata-cache-ttl-secs=70"
-          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary"
+          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0"
           - "--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary"
         secondary_flags:
           - "--write-block-size-mb=1"

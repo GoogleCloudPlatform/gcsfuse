@@ -79,9 +79,9 @@ func TestMain(m *testing.M) {
 
 		// 3. TestSingleMountReadsTestSuite
 		cfg.RapidAppends[0].Configs[2].Flags = []string{
-			"",                             // NoCache
+			"--metadata-cache-ttl-secs=0",  // NoCache
 			"--metadata-cache-ttl-secs=70", // MetadataCache
-			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache",                              // FileCache
+			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0",  // FileCache
 			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache", // MetadataAndFileCache
 		}
 		cfg.RapidAppends[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
@@ -89,9 +89,9 @@ func TestMain(m *testing.M) {
 
 		// 4. TestDualMountReadsTestSuite
 		cfg.RapidAppends[0].Configs[3].Flags = []string{
-			"",
+			"--metadata-cache-ttl-secs=0",
 			"--metadata-cache-ttl-secs=70",
-			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary",
+			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0",
 			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary",
 		}
 		cfg.RapidAppends[0].Configs[3].SecondaryFlags = []string{
