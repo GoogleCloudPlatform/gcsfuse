@@ -341,9 +341,11 @@ func (b *fastStatBucket) StatObject(
 			err = &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for %v", req.Name),
 			}
+			b.addNegativeEntry(req.Name)
 
 			return
 		}
+		b.insertMinObject(entry)
 
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
 		m = entry
@@ -460,9 +462,10 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Fol
 			err := &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for folder %v", prefix),
 			}
-
+			b.addNegativeEntryForFolder(prefix)
 			return nil, err
 		}
+		b.insertFolder(entry)
 
 		return entry, nil
 	}
