@@ -10,22 +10,10 @@ spec:
   nodeSelector:
     cloud.google.com/gke-tpu-topology: 2x2
     cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
-  initContainers:
-    - name: prep-caches
-      securityContext:
-        privileged: true
-      image: ubuntu:24.04
-      command: ["bash", "-c"]
-      args:
-      - |
-        echo always > /sys/kernel/mm/transparent_hugepage/enabled
-      volumeMounts:
-      - name: sys-mm
-        mountPath: /sys/kernel/mm
   containers:
   - name: gke-gcsfuse-sidecar
     image: gcr.io/$project_id/cloudbuild-gcsfuse-csi/gcs-fuse-csi-driver-sidecar-mounter:$staging_version
-  - name: load-test
+  - name: machine-type-test
     image: ubuntu:24.04
     imagePullPolicy: Always
     resources:
@@ -61,13 +49,10 @@ spec:
       mountPath: /data_mnt
   serviceAccountName: default
   volumes:
-  - name: sys-mm
-    hostPath:
-      path: /sys/kernel/mm
-      type: Directory
   - name: data-vol
     csi:
       driver: gcsfuse.csi.storage.gke.io
       volumeAttributes:
         bucketName: "$bucket_name"
         mountOptions: ""
+        hostNetworkPodKSA: "true"

@@ -1,8 +1,5 @@
 # GKE Machine Type Test
 
-*This test was adapted from the
-[Orbax Benchmark](https://github.com/GoogleCloudPlatform/gcsfuse/tree/master/perfmetrics/scripts/continuous_test/gke/orbax_benchmark).*
-
 This script automates the process of running the Machine Type Test on a GKE
 cluster. It handles the entire workflow, including GKE cluster setup, GCSFuse
 CSI driver building, workload execution, result gathering, and resource cleanup.
@@ -55,7 +52,7 @@ gcloud storage buckets add-iam-policy-binding gs://<BUCKET_NAME> \
 ```
 
 *Note: This has already been configured for the test environment
-(`gcs-fuse-test-ml`, `gcsfuse_gke_machine_type_test_hns_euw4`).*
+(project: `gcs-fuse-test-ml`, bucket: `gcsfuse_gke_machine_type_test_hns_euw4`).*
 
 ## Workflow
 

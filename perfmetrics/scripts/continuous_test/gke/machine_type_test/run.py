@@ -649,7 +649,7 @@ async def execute_test_workload(
       # We use a small overlap or just fixed duration since sleep
       # Using --since=15s for a 10s sleep loop to capture everything
       log_chunk, _, _ = await run_command_async(
-          ["kubectl", "logs", pod_name, "-c", "load-test", "--since=15s"],
+          ["kubectl", "logs", pod_name, "-c", "machine-type-test", "--since=15s"],
           check=False,
       )
       if log_chunk:
