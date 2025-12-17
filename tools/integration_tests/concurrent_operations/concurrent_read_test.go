@@ -38,6 +38,7 @@ const (
 )
 
 var testDirPathForRead string
+var cacheDirPath string
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -54,6 +55,7 @@ func (s *concurrentReadTest) SetupTest() {
 
 func (s *concurrentReadTest) TearDownTest() {
 	setup.UnmountGCSFuse(setup.MntDir())
+	setup.CleanUpDir(cacheDirPath)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -207,7 +209,9 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	}
 }
 
-func (s *concurrentReadTest) Test_ConcurrentReadPlusWrite() {
+// Test_MultiThreadedWritePlusRead tests multiple threads doing write followed by read concurrently on different files.
+// It creates 10 goroutines, each writing a 32 MiB file and then reading it sequentially.
+func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 	const (
 		fileSize      = 32 * operations.OneMiB  // 32 MiB file
 		numGoRoutines = 10                      // Number of concurrent readers
@@ -273,9 +277,16 @@ func TestConcurrentRead(t *testing.T) {
 		return
 	}
 
+	var err error
+	cacheDirPath, err = os.MkdirTemp("", fmt.Sprintf("gcsfuse-file-cache-concurrent-read-%s", setup.GenerateRandomString(5)))
+	require.NoError(t, err)
+	defer operations.RemoveDir(cacheDirPath)
+
+	cacheDirFlag := fmt.Sprintf("--cache-dir=%s", cacheDirPath)
 	// Define flag sets specific for concurrent read tests
 	flagsSet := [][]string{
-		{},                         // For default read path.
+		{}, // For default read path.
+		{"--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=true", cacheDirFlag}, // For file cache path
 		{"--enable-buffered-read"}, // For Buffered read enabled.
 	}
 
