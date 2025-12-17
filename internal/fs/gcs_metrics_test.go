@@ -264,14 +264,15 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 // TestGCSMetrics_With_FileCache validates GCS metrics behavior when file cache is enabled.
 //
 // Expected Behavior:
-//   - First Read (Cache Miss):
-//     - The file content is not in cache, so it must be downloaded from GCS.
-//     - File cache always uses "Sequential" read type for downloading.
-//     - "gcs/download_bytes_count" with "read_type=Sequential" should equal the file size.
-//   - Second Read (Cache Hit):
-//     - The file content is served from the local file cache.
-//     - No further GCS downloads should occur.
-//     - The "gcs/download_bytes_count" metric should remain unchanged.
+// 1. First Read (Cache Miss):
+//   - The file content is not in cache, so it must be downloaded from GCS.
+//   - File cache always uses "Sequential" read type for downloading.
+//   - "gcs/download_bytes_count" with "read_type=Sequential" should equal the file size.
+//
+// 2. Second Read (Cache Hit):
+//   - The file content is served from the local file cache.
+//   - No further GCS downloads should occur.
+//   - The "gcs/download_bytes_count" metric should remain unchanged.
 func TestGCSMetrics_With_FileCache(t *testing.T) {
 	// TestGCSMetrics_WithFileCache verifies metrics when reading a file with file cache enabled.
 	ctx := context.Background()
