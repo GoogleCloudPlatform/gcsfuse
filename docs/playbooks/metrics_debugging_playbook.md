@@ -30,5 +30,5 @@ If you observe slow file operations, check `gcs/request_latency`:
         *   DNS resolution issues.
         *   GCS server-side delays.
     *   **Next Steps:**
-        *   To find the root cause of high `NewReader` latency, enable tracing as described in the [GCSFuse Tracing Guide](tracing.md)
+        *   To find the root cause of high `NewReader` latency, enable tracing as described in the [GCSFuse Tracing Guide](../tracing.md)
         *   Alternatively, you can reach out to GCP customer support for assistance.
