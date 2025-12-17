@@ -386,6 +386,8 @@ func (b *fastStatBucket) StatObject(
 			return
 		}
 
+		// update the stat cache with new expiry.
+		b.insertMinObject(entry)
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
 		m = entry
 		return
@@ -413,11 +415,13 @@ func (b *fastStatBucket) ListObjects(
 			// Negative entries result in NotFoundError.
 			// logger.Infof("entry: ", entry)
 			if entry.(*gcs.MinObject) == nil {
+				b.addNegativeEntry(req.Prefix)
 				return nil, &gcs.NotFoundError{
 					Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
 				}
 			}
 			if minObject, ok := entry.(*gcs.MinObject); ok {
+				b.insertMinObject(entry.(*gcs.MinObject))
 				if minObject.Generation == 0 { // Assumed to be a directory-like object from a collapsed run.
 					return &gcs.Listing{CollapsedRuns: []string{minObject.Name}}, nil
 				}
@@ -533,10 +537,11 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 			err := &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for folder %v", req.Name),
 			}
+			b.addNegativeEntryForFolder(req.Name)
 
 			return nil, err
 		}
-
+		b.insertFolder(entry)
 		return entry, nil
 	}
 
