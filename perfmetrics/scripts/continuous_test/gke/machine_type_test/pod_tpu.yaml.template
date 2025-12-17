@@ -51,8 +51,8 @@ spec:
       echo "Repo content:"
       ls -F
 
-      echo "Step 4: Starting machine type test (filtered)..."
-      # Running filtered tests as requested
+      echo "Step 4: Running tests ..."
+      # Running filtered tests which are supposed to pass only for high-performance machine-type.
       go test -v ./tools/integration_tests/flag_optimizations/... --integrationTest --mountedDirectory=/data_mnt --testbucket=$bucket_name -run "TestImplicitDirsEnabled|TestRenameDirLimitSet"
       
       echo "Step 5: Test finished successfully."
