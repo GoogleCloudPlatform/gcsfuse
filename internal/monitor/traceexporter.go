@@ -17,12 +17,15 @@ package monitor
 import (
 	"context"
 
+	"fmt"
+
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -30,6 +33,9 @@ import (
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
 func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.ShutdownFn {
 	tp, shutdown, err := newTraceProvider(ctx, c, mountID)
+
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
 	if err != nil {
 		logger.Errorf("error occurred while setting up tracing: %v", err)
 		return nil
@@ -80,7 +86,47 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config, mountID string
 		return nil, nil, err
 	}
 
-	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Monitoring.ExperimentalTracingSamplingRatio)))
+	globalDebugger := NewOrphanDebugger()
 
-	return tp, tp.Shutdown, nil
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(globalDebugger),
+		sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter)),
+		sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Monitoring.ExperimentalTracingSamplingRatio)))
+
+	var cleanupFunc common.ShutdownFn
+
+	cleanupFunc = func(ctx context.Context) error {
+
+		fmt.Println("Starting graceful OpenTelemetry shutdown...")
+
+		// Step 1: Force Flush
+		// This processes all spans that *did* call span.End() and updates the debugger's map.
+		if err := tp.ForceFlush(ctx); err != nil {
+			fmt.Printf("Error flushing spans before audit: %v\n", err)
+			return err
+		}
+
+		// Step 2: Run the Orphan Audit (FindOrphans)
+		if globalDebugger != nil {
+			const orphanReportFile = "final_orphan_spans_report.json"
+			if err := globalDebugger.FindOrphans(orphanReportFile); err != nil {
+				// Log the error but continue to the final shutdown
+				fmt.Printf("Error generating orphan report: %v\n", err)
+				return err
+			}
+		}
+
+		// Step 3: Call the TracerProvider's Shutdown
+		// This closes connections and stops background workers.
+		if err := tp.Shutdown(ctx); err != nil {
+			fmt.Printf("Error shutting down TracerProvider: %v\n", err)
+			return err
+		}
+
+		fmt.Println("OpenTelemetry shutdown complete.")
+
+		return nil
+	}
+
+	return tp, cleanupFunc, nil
 }
