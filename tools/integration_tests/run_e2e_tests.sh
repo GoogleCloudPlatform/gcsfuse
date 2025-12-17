@@ -107,6 +107,7 @@ TEST_DIR_PARALLEL=(
   "stale_handle_streaming_writes"
   "negative_stat_cache"
   "streaming_writes"
+  "rename_symlink"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -142,6 +143,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "stale_handle"
   # "streaming_writes"
   "write_large_files"
+  "rename_symlink"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
@@ -174,8 +176,8 @@ function upgrade_gcloud_version() {
 function install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
-  echo "Installing go-lang 1.24.0..."
-  wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz -q
+  echo "Installing go-lang 1.24.11..."
+  wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-${architecture}.tar.gz -q
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3

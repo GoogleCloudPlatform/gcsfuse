@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs"},
+		{"--implicit-dirs", "--metadata-cache-negative-ttl-secs=0"},
 	}
 
 	successCode := static_mounting.RunTests(flagsSet, m)
