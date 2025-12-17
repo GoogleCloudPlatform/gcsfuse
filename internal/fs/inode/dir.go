@@ -233,6 +233,8 @@ type dirInode struct {
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
+
+	metadataCacheTtlSecs int64
 }
 
 var _ DirInode = &dirInode{}
@@ -268,6 +270,7 @@ func NewDirInode(
 	cacheClock timeutil.Clock,
 	isHNSEnabled bool,
 	isUnsupportedPathSupportEnabled bool,
+	metadataCacheTtlSec int64,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -287,6 +290,7 @@ func NewDirInode(
 		isHNSEnabled:                    isHNSEnabled,
 		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
 		unlinked:                        false,
+		metadataCacheTtlSecs:            metadataCacheTtlSec,
 	}
 
 	typed.lc.Init(id)
@@ -575,37 +579,39 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return
 	}
 
-	fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
-	// Suppress "not found" errors.
-	var gcsErr *gcs.NotFoundCacheError
-	if err != nil && !errors.As(err, &gcsErr) {
-		return nil, fmt.Errorf("lookUpFile: %w", err)
-	}
-
-	// logger.Infof("fileResult err: ", err)
-	if d.isBucketHierarchical() {
-		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
-	} else {
-		if d.implicitDirs {
-			dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
-		} else {
-			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
-		}
-	}
-	if err != nil && !errors.As(err, &gcsErr) {
-		return nil, fmt.Errorf("lookUpdir: %w", err)
-	}
-
-	// logger.Infof("dirResult err: ", err)
 	var result *Core
-	if dirResult != nil {
-		result = dirResult
-	} else if fileResult != nil {
-		result = fileResult
-	}
+	if d.metadataCacheTtlSecs != 0 {
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
+		// Suppress "not found" errors.
+		var gcsErr *gcs.NotFoundCacheError
+		if err != nil && !errors.As(err, &gcsErr) {
+			return nil, fmt.Errorf("lookUpFile: %w", err)
+		}
 
-	if result != nil {
-		return result, nil
+		// logger.Infof("fileResult err: ", err)
+		if d.isBucketHierarchical() {
+			dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+		} else {
+			if d.implicitDirs {
+				dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+			} else {
+				dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+			}
+		}
+		if err != nil && !errors.As(err, &gcsErr) {
+			return nil, fmt.Errorf("lookUpdir: %w", err)
+		}
+
+		// logger.Infof("dirResult err: ", err)
+		if dirResult != nil {
+			result = dirResult
+		} else if fileResult != nil {
+			result = fileResult
+		}
+
+		if result != nil {
+			return result, nil
+		}
 	}
 
 	// Always create a fresh errgroup for each phase (cache-check or force-fetch)

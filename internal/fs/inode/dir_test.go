@@ -122,6 +122,7 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		&t.clock,
 		false,
 		true,
+		60,
 	)
 
 	d := t.in.(*dirInode)
@@ -147,6 +148,7 @@ func (t *DirTest) createDirInode(dirInodeName string) DirInode {
 		&t.clock,
 		false,
 		true,
+		60,
 	)
 }
 

@@ -25,7 +25,6 @@ import (
 	"os"
 	"sync"
 	"testing"
-
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -98,6 +97,7 @@ func createDirInode(
 		clock,
 		false,
 		true,
+		60,
 	)
 }
 
