@@ -124,14 +124,11 @@ func newGCPCloudTraceDebugExporter(ctx context.Context, c *cfg.Config, mountID s
 
 		logger.Info("Starting graceful OpenTelemetry shutdown...")
 
-		// Step 1: Force Flush
-		// This processes all spans that *did* call span.End() and updates the debugger's map.
 		if err := tp.ForceFlush(ctx); err != nil {
 			logger.Errorf("Error flushing spans before audit: %v\n", err)
 			return err
 		}
 
-		// Step 2: Run the Orphan Audit (FindOrphans)
 		if globalDebugger != nil {
 			const orphanReportFile = "final_orphan_spans_report.json"
 			if err := globalDebugger.FindOrphans(orphanReportFile); err != nil {
@@ -141,8 +138,6 @@ func newGCPCloudTraceDebugExporter(ctx context.Context, c *cfg.Config, mountID s
 			}
 		}
 
-		// Step 3: Call the TracerProvider's Shutdown
-		// This closes connections and stops background workers.
 		if err := tp.Shutdown(ctx); err != nil {
 			fmt.Printf("Error shutting down TracerProvider: %v\n", err)
 			return err
