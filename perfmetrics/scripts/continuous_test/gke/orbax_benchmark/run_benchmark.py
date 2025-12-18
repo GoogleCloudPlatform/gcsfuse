@@ -38,7 +38,7 @@ from string import Template
 
 # Add the parent directory to sys.path to allow imports from common
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.abspath(os.path.join(SCRIPT_DIR, '..')))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
 from common import utils
 
 # The prefix prow-gob-internal-boskos- is needed to allow passing machine-type from gke csi driver to gcsfuse,
@@ -255,7 +255,6 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
         if os.path.exists(manifest_filename):
             os.remove(manifest_filename)
 
-# Cleanup logic is shared in utils.cleanup, but Orbax calls it with specific args in main
 
 # Main function
 async def main():
@@ -321,4 +320,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
