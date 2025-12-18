@@ -99,7 +99,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadFull() {
 			t.multiRangeReader.isMRDInUse.Store(false)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
+			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{}, false)
 			require.NoError(t.T(), err, "Error in creating MRDWrapper")
 			t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond)).Times(1)
@@ -143,7 +143,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadChunk() {
 	for _, tc := range testCases {
 		t.object.Size = uint64(tc.dataSize)
 		testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-		fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
+		fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{}, false)
 		require.NoError(t.T(), err, "Error in creating MRDWrapper")
 		t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
 		t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond)).Times(1)
@@ -184,7 +184,7 @@ func (t *multiRangeReaderTest) Test_ReadAt_MRDRead() {
 			t.multiRangeReader.isMRDInUse.Store(false)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
+			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{}, false)
 			require.NoError(t.T(), err, "Error in creating MRDWrapper")
 			t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond)).Times(1)

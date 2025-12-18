@@ -1172,6 +1172,108 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "Test file system max-background flag enabled.",
+			args: []string{"gcsfuse", "--max-background=512", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					MaxBackground:      512,
+				},
+			},
+		},
+		{
+			name: "Test file system max-background flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					MaxBackground:      0,
+				},
+			},
+		},
+		{
+			name: "Test file system congestion-threshold flag enabled.",
+			args: []string{"gcsfuse", "--congestion-threshold=256", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ODirect:             false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					CongestionThreshold: 256,
+				},
+			},
+		},
+		{
+			name: "Test file system congestion-threshold flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ODirect:             false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					CongestionThreshold: 0,
+				},
+			},
+		},
+		{
+			name: "Test file system async-read flag enabled.",
+			args: []string{"gcsfuse", "--async-read", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					AsyncRead:          true,
+				},
+			},
+		},
+		{
+			name: "Test file system async-read flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					AsyncRead:          false,
+				},
+			},
+		},
+		{
 			name: "cli_flag_overrides_config_file",
 			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "machine-type: config-file-type"), "--machine-type=cli-type", "abc", "pqr"},
 			expectedConfig: &cfg.Config{

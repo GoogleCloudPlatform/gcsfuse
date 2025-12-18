@@ -34,21 +34,22 @@ import (
 // it's refcount reaches 0.
 const multiRangeDownloaderTimeout = 60 * time.Second
 
-func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config) (MultiRangeDownloaderWrapper, error) {
-	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{}, config)
+func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config, useMRDPool bool) (MultiRangeDownloaderWrapper, error) {
+	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{}, config, useMRDPool)
 }
 
-func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock, config *cfg.Config) (MultiRangeDownloaderWrapper, error) {
+func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock, config *cfg.Config, useMRDPool bool) (MultiRangeDownloaderWrapper, error) {
 	if object == nil {
 		return MultiRangeDownloaderWrapper{}, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
 	}
 	// In case of a local inode, MRDWrapper would be created with an empty minObject (i.e. with a minObject without any information)
 	// and when the object is actually created, MRDWrapper would be updated using SetMinObject method.
 	return MultiRangeDownloaderWrapper{
-		clock:  clock,
-		bucket: bucket,
-		object: object,
-		config: config,
+		clock:      clock,
+		bucket:     bucket,
+		object:     object,
+		config:     config,
+		useMRDPool: useMRDPool,
 	}, nil
 }
 
@@ -79,6 +80,8 @@ type MultiRangeDownloaderWrapper struct {
 	// MRD Read handle. Would be updated when MRD is being closed so that it can be used
 	// next time during MRD recreation.
 	handle []byte
+	// Flag to enable/disable MRD pool usage
+	useMRDPool bool
 }
 
 // SetMinObject sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
@@ -160,7 +163,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 		}()
 		// Checking if the mrdWrapper state is same after taking the lock.
 		if forceRecreateMRD || mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
-			var mrd gcs.MultiRangeDownloader
 			var handle []byte
 			if !forceRecreateMRD {
 				// Get read handle from MRD if it exists otherwise use the cached read handle
@@ -170,15 +172,31 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 					handle = mrdWrapper.handle
 				}
 			}
-			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-				Name:           mrdWrapper.object.Name,
-				Generation:     mrdWrapper.object.Generation,
-				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
-				ReadHandle:     handle,
-			})
-			if err == nil {
-				// Updating mrdWrapper.Wrapped only when MRD creation was successful.
-				mrdWrapper.Wrapped = mrd
+			if mrdWrapper.useMRDPool {
+				mrdPool, err := NewMRDPool(&MRDPoolConfig{
+					bucket:   mrdWrapper.bucket,
+					object:   mrdWrapper.object,
+					PoolSize: 4,
+					Handle:   handle,
+				})
+				if err != nil {
+					return fmt.Errorf("MultiRangeDownloaderWrapper::ensureMultiRangeDownloader: Error in creating MRD Pool: %v", err)
+				}
+				mrdWrapper.Wrapped = mrdPool
+				logger.Infof("MultiRangeDownloaderWrapper::ensureMultiRangeDownloader: Created MRD Pool for object %q", mrdWrapper.object.Name)
+			} else {
+				var mrd gcs.MultiRangeDownloader
+				mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+					Name:           mrdWrapper.object.Name,
+					Generation:     mrdWrapper.object.Generation,
+					ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
+					ReadHandle:     handle,
+				})
+				if err == nil {
+					// Updating mrdWrapper.Wrapped only when MRD creation was successful.
+					mrdWrapper.Wrapped = mrd
+					logger.Infof("MultiRangeDownloaderWrapper::ensureMultiRangeDownloader: Created MRD for object %q", mrdWrapper.object.Name)
+				}
 			}
 		}
 	}

@@ -449,6 +449,10 @@ type FileCacheConfig struct {
 }
 
 type FileSystemConfig struct {
+	AsyncRead bool `yaml:"async-read"`
+
+	CongestionThreshold int64 `yaml:"congestion-threshold"`
+
 	DirMode Octal `yaml:"dir-mode"`
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
@@ -468,6 +472,8 @@ type FileSystemConfig struct {
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
+
+	MaxBackground int64 `yaml:"max-background"`
 
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
 
@@ -658,6 +664,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
 
+	flagSet.BoolP("async-read", "", false, "Enables asynchronous reads.")
+
+	if err := flagSet.MarkHidden("async-read"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\".")
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
@@ -705,6 +717,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("cloud-profiler-mutex", "", false, "Enables mutex cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
 
 	if err := flagSet.MarkHidden("cloud-profiler-mutex"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("congestion-threshold", "", 0, "Sets the number of outstanding requests at which the kernel starts throttling its aggressive I/O optimizations, such as read-ahead and write-back, for the mount.")
+
+	if err := flagSet.MarkHidden("congestion-threshold"); err != nil {
 		return err
 	}
 
@@ -996,6 +1014,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("max-background", "", 0, "Sets the maximum number of outstanding, asynchronous requests the kernel can send to the user-space FUSE daemon for the mount.")
+
+	if err := flagSet.MarkHidden("max-background"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
@@ -1207,6 +1231,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.async-read", flagSet.Lookup("async-read")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-connection.billing-project", flagSet.Lookup("billing-project")); err != nil {
 		return err
 	}
@@ -1248,6 +1276,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cloud-profiler.mutex", flagSet.Lookup("cloud-profiler-mutex")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.congestion-threshold", flagSet.Lookup("congestion-threshold")); err != nil {
 		return err
 	}
 
@@ -1516,6 +1548,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("machine-type", flagSet.Lookup("machine-type")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.max-background", flagSet.Lookup("max-background")); err != nil {
 		return err
 	}
 
