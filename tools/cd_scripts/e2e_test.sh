@@ -354,7 +354,8 @@ TEST_DIR_PARALLEL=(
 # These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
-  "managed_folders"
+  # TODO(b/469933367): Enable after fixing permission error due to race condition.
+  # "managed_folders"
   "readonly_creds"
   "list_large_dir"
 )
@@ -393,7 +394,8 @@ TEST_DIR_PARALLEL_ZONAL=(
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL_ZONAL=(
-  "managed_folders"
+  # TODO(b/469933367): Enable after fixing permission error due to race condition.
+  # "managed_folders"
   "readonly"
   "readonly_creds"
   "list_large_dir"
