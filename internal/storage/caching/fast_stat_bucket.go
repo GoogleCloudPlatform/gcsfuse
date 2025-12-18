@@ -367,7 +367,6 @@ func (b *fastStatBucket) StatObject(
 	// logger.Debugf("StatObject")
 	// If fetching from gcs is enabled, directly make a call to GCS.
 	if req.ForceFetchFromGcs {
-		logger.Debugf("In force fetch GCS")
 		m, e, err = b.StatObjectFromGcs(ctx, req)
 		if !req.ReturnExtendedObjectAttributes {
 			e = nil
@@ -379,7 +378,6 @@ func (b *fastStatBucket) StatObject(
 	if hit, entry := b.lookUp(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
-			b.addNegativeEntry(req.Name)
 			err = &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for %v", req.Name),
 			}
@@ -387,8 +385,6 @@ func (b *fastStatBucket) StatObject(
 			return
 		}
 
-		// update the stat cache with new expiry.
-		b.insertMinObject(entry)
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
 		m = entry
 		return
@@ -416,13 +412,11 @@ func (b *fastStatBucket) ListObjects(
 			// Negative entries result in NotFoundError.
 			// logger.Infof("entry: ", entry)
 			if entry.(*gcs.MinObject) == nil {
-				b.addNegativeEntry(req.Prefix)
 				return nil, &gcs.NotFoundError{
 					Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
 				}
 			}
 			if minObject, ok := entry.(*gcs.MinObject); ok {
-				b.insertMinObject(entry.(*gcs.MinObject))
 				if minObject.Generation == 0 { // Assumed to be a directory-like object from a collapsed run.
 					return &gcs.Listing{CollapsedRuns: []string{minObject.Name}}, nil
 				}
@@ -538,11 +532,9 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 			err := &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for folder %v", req.Name),
 			}
-			b.addNegativeEntryForFolder(req.Name)
 
 			return nil, err
 		}
-		b.insertFolder(entry)
 		return entry, nil
 	}
 

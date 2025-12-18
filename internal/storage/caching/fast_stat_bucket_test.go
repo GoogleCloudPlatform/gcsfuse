@@ -575,9 +575,6 @@ func (t *StatObjectTest) CallsCache() {
 	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
 		WillOnce(Return(true, minObject))
 
-	// Insert
-	ExpectCall(t.cache, "Insert")(minObject, timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
-
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
@@ -596,7 +593,6 @@ func (t *StatObjectTest) CacheHit_Positive() {
 
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
 		WillOnce(Return(true, minObj))
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
 
 	// Call
 	req := &gcs.StatObjectRequest{
@@ -616,9 +612,6 @@ func (t *StatObjectTest) CacheHit_Negative() {
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
 		WillOnce(Return(true, nil))
-	ExpectCall(t.cache, "AddNegativeEntry")(
-		name,
-		timeutil.TimeEq(t.clock.Now().Add(negativeCacheTTL)))
 
 	// Call
 	req := &gcs.StatObjectRequest{
@@ -1060,8 +1053,6 @@ func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
 	}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, folder))
-	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
-		WillOnce(Return())
 
 	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
@@ -1074,7 +1065,6 @@ func (t *StatObjectTest) TestShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, nil))
-	ExpectCall(t.cache, "AddNegativeEntryForFolder")(Any(), Any())
 
 	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 

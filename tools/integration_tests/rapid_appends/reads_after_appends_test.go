@@ -137,7 +137,7 @@ func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyF
 			// Wait for metadata cache to expire to fetch the latest size for the next read.
 			// Metadata update for appends in current iteration itself takes a minute, so the
 			// cached size will expire in ttl-60 secs from now, so wait accordingly.
-			time.Sleep(time.Duration(metadataCacheTTLSecs * time.Second))
+			time.Sleep(time.Duration(metadataCacheTTLSecs*time.Second) + operations.WaitDurationAfterFlushZB)
 			// Expect read up to the latest file size which is the size after the append.
 			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 		}
