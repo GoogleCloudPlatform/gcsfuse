@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,10 +17,8 @@ package monitor
 import (
 	"context"
 	"encoding/json"
-	"os" // Required to get file and line number
+	"os"
 	"runtime"
-
-	// Required for path shortening
 	"sync"
 	"time"
 
@@ -29,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
-// SpanInfo holds minimal data for tracking an active span and its source.
 type SpanInfo struct {
 	SpanID     string `json:"spanID"`
 	Name       string `json:"name"`
@@ -40,22 +37,17 @@ type SpanInfo struct {
 	StartTime time.Time
 }
 
-// OrphanDebugger implements the trace.SpanProcessor interface to detect un-ended spans.
 type OrphanDebugger struct {
-	// We use a concurrent-safe map because OnStart and OnEnd can be called from different goroutines.
-	activeSpans sync.Map // map[trace.SpanID]SpanInfo
+	activeSpans sync.Map
 }
 
-// NewOrphanDebugger creates a new instance of the custom processor.
 func NewOrphanDebugger() *OrphanDebugger {
 	return &OrphanDebugger{}
 }
 
-// OnStart is called synchronously when a new span is started.
 func (p *OrphanDebugger) OnStart(_ context.Context, s trace.ReadWriteSpan) {
 	sCtx := s.SpanContext()
 
-	// Capture the SpanID as a string immediately for easy searching later
 	sid := sCtx.SpanID().String()
 
 	buf := make([]byte, 4096)
@@ -73,15 +65,12 @@ func (p *OrphanDebugger) OnStart(_ context.Context, s trace.ReadWriteSpan) {
 	p.activeSpans.Store(sCtx.SpanID(), info)
 }
 
-// OnEnd is called when a span is ended.
 func (p *OrphanDebugger) OnEnd(s trace.ReadOnlySpan) {
 	spanID := s.SpanContext().SpanID()
 
-	// Remove the span from the map of active spans, confirming it was closed.
 	p.activeSpans.Delete(spanID)
 }
 
-// FindOrphans iterates through all currently active spans and prints them.
 func (p *OrphanDebugger) FindOrphans(filename string) error {
 	orphans := []SpanInfo{}
 	p.activeSpans.Range(func(key, value interface{}) bool {
@@ -115,6 +104,5 @@ func (p *OrphanDebugger) FindOrphans(filename string) error {
 	return nil
 }
 
-// Required interface methods (do nothing here)
 func (*OrphanDebugger) Shutdown(context.Context) error   { return nil }
 func (*OrphanDebugger) ForceFlush(context.Context) error { return nil }
