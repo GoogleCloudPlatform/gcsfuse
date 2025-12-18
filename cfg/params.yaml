@@ -315,6 +315,16 @@ params:
     default: "4194304" # 4MiB
     hide-flag: true
 
+  - config-path: "file-system.async-read"
+    flag-name: "async-read"
+    type: "bool"
+    usage: >-
+      When set to true, kernel read-ahead requests will be issued in parallel
+      to GCSFuse. This happens when a file is being read sequentially and read-ahead
+      is set to higher value.
+    default: "false"
+    hide-flag: true
+
   - config-path: "file-system.congestion-threshold"
     flag-name: "congestion-threshold"
     type: "int"
