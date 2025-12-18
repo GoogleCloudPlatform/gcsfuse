@@ -38,6 +38,7 @@ const (
 )
 
 var testDirPathForRead string
+var cacheDirPath string
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -54,6 +55,7 @@ func (s *concurrentReadTest) SetupTest() {
 
 func (s *concurrentReadTest) TearDownTest() {
 	setup.UnmountGCSFuse(setup.MntDir())
+	setup.CleanUpDir(cacheDirPath)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -84,7 +86,9 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 		go func(readerID int) {
 			defer wg.Done()
 			// Use operations.ReadFileSequentially to read the entire file
-			content, err := operations.ReadFileSequentially(testFilePath, chunkSize)
+			file, err := os.OpenFile(testFilePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+			require.NoError(s.T(), err)
+			content, err := operations.ReadFileSequentially(file, chunkSize)
 			require.NoError(s.T(), err, "Sequential reader %d: read failed.", readerID)
 			require.Equal(s.T(), fileSize, len(content), "Sequential reader %d: expected to read entire file", readerID)
 			obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), "large_test_file.bin"))
@@ -205,7 +209,9 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	}
 }
 
-func (s *concurrentReadTest) Test_ConcurrentReadPlusWrite() {
+// Test_MultiThreadedWritePlusRead tests multiple threads doing write followed by read concurrently on different files.
+// It creates 10 goroutines, each writing a 32 MiB file and then reading it sequentially.
+func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 	const (
 		fileSize      = 32 * operations.OneMiB  // 32 MiB file
 		numGoRoutines = 10                      // Number of concurrent readers
@@ -230,7 +236,9 @@ func (s *concurrentReadTest) Test_ConcurrentReadPlusWrite() {
 			require.Equal(s.T(), fileSize, n)
 			operations.CloseFileShouldNotThrowError(s.T(), f)
 
-			content, err := operations.ReadFileSequentially(filePath, chunkSize)
+			file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+			require.NoError(s.T(), err)
+			content, err := operations.ReadFileSequentially(file, chunkSize)
 			require.NoError(s.T(), err, "Sequential reader %d: read failed.", workerId)
 			require.Equal(s.T(), fileSize, len(content), "Sequential reader %d: expected to read entire file", workerId)
 			obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), fileName))
@@ -269,9 +277,16 @@ func TestConcurrentRead(t *testing.T) {
 		return
 	}
 
+	var err error
+	cacheDirPath, err = os.MkdirTemp("", fmt.Sprintf("gcsfuse-file-cache-concurrent-read-%s", setup.GenerateRandomString(5)))
+	require.NoError(t, err)
+	defer operations.RemoveDir(cacheDirPath)
+
+	cacheDirFlag := fmt.Sprintf("--cache-dir=%s", cacheDirPath)
 	// Define flag sets specific for concurrent read tests
 	flagsSet := [][]string{
-		{},                         // For default read path.
+		{}, // For default read path.
+		{"--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=true", cacheDirFlag}, // For file cache path
 		{"--enable-buffered-read"}, // For Buffered read enabled.
 	}
 

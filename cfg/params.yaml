@@ -269,12 +269,11 @@ params:
     type: "string"
     usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
     default: ""
-    hide-flag: true
 
-  - config-path: "file-cache.experimental-enable-block-cache"
-    flag-name: "file-cache-experimental-enable-block-cache"
+  - config-path: "file-cache.experimental-enable-chunk-cache"
+    flag-name: "file-cache-experimental-enable-chunk-cache"
     type: "bool"
-    usage: "Enable block cache mode for random I/O optimization that downloads only requested blocks."
+    usage: "Enable chunk cache mode for random I/O optimization that downloads only requested blocks."
     default: false
     hide-flag: true
 
@@ -290,7 +289,6 @@ params:
     type: "string"
     usage: "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching."
     default: ""
-    hide-flag: true
  
   - config-path: "file-cache.max-parallel-downloads"
     flag-name: "file-cache-max-parallel-downloads"
@@ -315,6 +313,16 @@ params:
     type: "int"
     usage: "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache."
     default: "4194304" # 4MiB
+    hide-flag: true
+
+  - config-path: "file-system.congestion-threshold"
+    flag-name: "congestion-threshold"
+    type: "int"
+    usage: >-
+      Sets the congestion threshold for background requests. When the number of
+      outstanding requests exceeds this threshold, the kernel may start blocking
+      new requests. 0 means system default (typically 75% of max-background; 9).
+    default: "0"
     hide-flag: true
 
   - config-path: "file-system.dir-mode"
@@ -344,6 +352,15 @@ params:
     flag-name: "experimental-enable-readdirplus"
     type: "bool"
     usage: "Enables ReadDirPlus capability"
+    default: false
+    hide-flag: true
+
+  - config-path: "file-system.experimental-o-direct"
+    flag-name: "experimental-o-direct"
+    type: "bool"
+    usage: >-
+      Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled,
+      all I/O operations are sent directly to the GCSFuse process.
     default: false
     hide-flag: true
 
@@ -389,6 +406,17 @@ params:
         - name: "aiml-serving"
           value: -1
 
+  - config-path: "file-system.max-background"
+    flag-name: "max-background"
+    type: "int"
+    usage: >-
+      Sets the maximum number of outstanding background requests (e.g., request corresponding to 
+      kernel readahead, writeback cache etc.) that the kernel will send to the FUSE daemon. 0 means
+      system default 
+      (typically 12).
+    default: "0"
+    hide-flag: true
+
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
     type: "int"
@@ -399,16 +427,6 @@ params:
     default: "0"
     hide-flag: true
   
-  - config-path: "file-system.o-direct"
-    flag-name: "o-direct"
-    type: "bool"
-    usage: >-
-      Bypasses the kernel's page cache for file reads and writes. When enabled,
-      all I/O operations are sent directly to the GCSFuse daemon. 
-    default: false
-    hide-flag: true
-
-
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
     type: "bool"

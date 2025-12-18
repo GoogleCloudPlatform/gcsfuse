@@ -44,13 +44,16 @@ type serverConfigParams struct {
 	enableNewReader       bool
 	enableFileCache       bool
 	enableSparseFileCache bool
+	// enableFileCacheForRangeRead controls if the file cache is used for random reads.
+	enableFileCacheForRangeRead bool
 }
 
 func defaultServerConfigParams() *serverConfigParams {
 	return &serverConfigParams{
-		enableBufferedRead: false,
-		enableNewReader:    true,
-		enableFileCache:    false,
+		enableBufferedRead:          false,
+		enableNewReader:             true,
+		enableFileCache:             false,
+		enableFileCacheForRangeRead: true,
 	}
 }
 
@@ -98,8 +101,8 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 		serverCfg.NewConfig.CacheDir = cfg.ResolvedPath(cacheDir)
 		serverCfg.NewConfig.FileCache = cfg.FileCacheConfig{
 			MaxSizeMb:                    100,
-			CacheFileForRangeRead:        true,
-			ExperimentalEnableBlockCache: params.enableSparseFileCache,
+			CacheFileForRangeRead:        params.enableFileCacheForRangeRead,
+			ExperimentalEnableChunkCache: params.enableSparseFileCache,
 			DownloadChunkSizeMb:          1, // 1MB chunks for testing
 		}
 	}
@@ -271,6 +274,80 @@ func TestSequentialReadFile_FileCacheMetrics(t *testing.T) {
 	)
 }
 
+func TestSequentialReadFile_FileCacheMetrics_DisabledFileCacheForRangeRead(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableFileCache = true
+	params.enableFileCacheForRangeRead = false
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	fileSize := 100
+	content := string(make([]byte, fileSize))
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, fileSize/2),
+	}
+
+	// First read should be a cache miss.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	// first read is a miss.
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_count",
+		attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))),
+		int64(1),
+	)
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_bytes_count",
+		attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))),
+		int64(fileSize/2),
+	)
+	metrics.VerifyHistogramMetric(
+		t, ctx, reader, "file_cache/read_latencies",
+		attribute.NewSet(attribute.Bool("cache_hit", false)),
+		uint64(1),
+	)
+
+	// Subsequent read should be a cache hit as sequential reads are always cached.
+	readOp.Offset = int64(fileSize / 2)
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_count",
+		attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))),
+		int64(1),
+	)
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_bytes_count",
+		attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))),
+		int64(fileSize),
+	)
+	metrics.VerifyHistogramMetric(
+		t, ctx, reader, "file_cache/read_latencies",
+		attribute.NewSet(attribute.Bool("cache_hit", true)),
+		uint64(1),
+	)
+}
+
 func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
@@ -336,7 +413,6 @@ func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 		uint64(1),
 	)
 
-	// TODO(b/463220507): Add metrics for File cache miss with disabled range read.
 	// Read at a different offset should be a cache hit since file is downloaded in FileCache.
 	readOp.Offset = 8
 	err = server.ReadFile(ctx, readOp)
@@ -356,6 +432,67 @@ func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 	metrics.VerifyHistogramMetric(
 		t, ctx, reader, "file_cache/read_latencies",
 		attribute.NewSet(attribute.Bool("cache_hit", true)),
+		uint64(2),
+	)
+}
+
+func TestRandomReadFile_FileCacheMetrics_DisabledFileCacheOnRangedRead(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableFileCache = true
+	params.enableFileCacheForRangeRead = false
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 3,
+		Dst:    make([]byte, 2),
+	}
+
+	// This read should be a cache miss as cacheFileForRangeRead is false and it is a random read.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_count",
+		attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(metrics.ReadTypeRandomAttr))),
+		int64(1),
+	)
+	metrics.VerifyHistogramMetric(
+		t, ctx, reader, "file_cache/read_latencies",
+		attribute.NewSet(attribute.Bool("cache_hit", false)),
+		uint64(1),
+	)
+
+	// Subsequent read should also be a cache miss as range read is disabled.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_count",
+		attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(metrics.ReadTypeRandomAttr))),
+		int64(2),
+	)
+	metrics.VerifyHistogramMetric(
+		t, ctx, reader, "file_cache/read_latencies",
+		attribute.NewSet(attribute.Bool("cache_hit", false)),
 		uint64(2),
 	)
 }

@@ -56,8 +56,10 @@ import (
 const (
 	SuccessfulMountMessage         = "File system has been successfully mounted."
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
+	MountSlownessMessage           = "Mount slowness detected: mount time %v exceeded threshold %v"
 	DynamicMountFSName             = "gcsfuse"
 	WaitTimeOnSignalReceive        = 30 * time.Second
+	MountTimeThreshold             = 8 * time.Second
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -248,10 +250,12 @@ func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err err
 
 // setMaxReadAhead sets the kernel-read-ahead for the filesystem mounted at
 // the given mountPoint to readAheadKb.
-func setMaxReadAhead(mountPoint string, readAheadKb int) error {
+// Adds warning log if it fails and success logs otherwise.
+func setMaxReadAhead(mountPoint string, readAheadKb int) {
 	major, minor, err := getDeviceMajorMinor(mountPoint)
 	if err != nil {
-		return fmt.Errorf("getting device major/minor for mount point %s: %v", mountPoint, err)
+		logger.Warnf("setMaxReadAhead: getting device major/minor for mount point %s: %v", mountPoint, err)
+		return
 	}
 
 	sysPath := filepath.Join("/sys/class/bdi", fmt.Sprintf("%d:%d", major, minor), "read_ahead_kb")
@@ -262,10 +266,58 @@ func setMaxReadAhead(mountPoint string, readAheadKb int) error {
 	cmd.Stderr = &stderr
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("setting the read ahead on mount-path %s: %v, stderr: %s", mountPoint, err, stderr.String())
-		return err
+		logger.Warnf("Setting max read ahead %d KB on mount-path %s: %v, stderr: %s", readAheadKb, mountPoint, err, stderr.String())
+		return
 	}
-	return nil
+	logger.Infof("Max read-ahead set to %d KB on mount-path %s successfully.", readAheadKb, mountPoint)
+}
+
+// setCongestionThreshold sets the fuse settings `congestion-threshold` by writing over
+// `/sys/fs/fuse/connections/<minor>/congestion_threshold`.
+// Adds a warning log if it fails and success logs otherwise.
+func setCongestionThreshold(mountPoint string, congestionThreshold int) {
+	_, minor, err := getDeviceMajorMinor(mountPoint)
+	if err != nil {
+		logger.Warnf("setCongestionThreshold: getting device major/minor for mount point %s: %v", mountPoint, err)
+		return
+	}
+
+	sysPathCgTh := filepath.Join("/sys/fs/fuse/connections", fmt.Sprintf("%d", minor), "congestion_threshold")
+	cmd := exec.Command("sudo", "-n", "tee", sysPathCgTh)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", congestionThreshold))
+
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		logger.Warnf("Setting congestion threshold %d mount-path %s: %v, stderr: %s", congestionThreshold, mountPoint, err, stderr.String())
+		return
+	}
+	logger.Infof("Congestion threshold set to %d on mount-path %s successfully.", congestionThreshold, mountPoint)
+}
+
+// setMaxBackground sets the fuse settings `max-background` by writing over
+// `/sys/fs/fuse/connections/<minor>/max_background`.
+// Adds a warning log if it fails and success logs otherwise.
+func setMaxBackground(mountPoint string, maxBackground int) {
+	_, minor, err := getDeviceMajorMinor(mountPoint)
+	if err != nil {
+		logger.Warnf("setMaxBackground: getting device major/minor for mount point %s: %v", mountPoint, err)
+		return
+	}
+
+	sysPathMxBg := filepath.Join("/sys/fs/fuse/connections", fmt.Sprintf("%d", minor), "max_background")
+	cmd := exec.Command("sudo", "-n", "tee", sysPathMxBg)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", maxBackground))
+
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		logger.Warnf("Setting max-background %d on mount-path %s: %v, stderr: %s", maxBackground, mountPoint, err, stderr.String())
+		return
+	}
+	logger.Infof("Max-background set to %d on mount-path %s successfully.", maxBackground, mountPoint)
 }
 
 func populateArgs(args []string) (
@@ -482,9 +534,14 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 		}
 		// Run.
+		startTime := time.Now()
 		err = daemonize.Run(path, args, env, os.Stdout, stderrFile)
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
+		}
+		mountDuration := time.Since(startTime)
+		if mountDuration > MountTimeThreshold {
+			logger.Warnf(MountSlownessMessage, mountDuration, MountTimeThreshold)
 		}
 		logger.Infof(SuccessfulMountMessage)
 		return err
@@ -511,6 +568,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
+		startTime := time.Now()
 		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
 
 		// This utility is to absorb the error
@@ -523,6 +581,10 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 
 		markSuccessfulMount := func() {
+			mountDuration := time.Since(startTime)
+			if mountDuration > MountTimeThreshold {
+				logger.Warnf(MountSlownessMessage, mountDuration, MountTimeThreshold)
+			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
 			callDaemonizeSignalOutcome(nil)
@@ -559,14 +621,16 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		markSuccessfulMount()
 
 		if newConfig.FileSystem.MaxReadAheadKb != 0 {
-			err = setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
-			if err != nil {
-				logger.Infof("Failed to set the max read ahead: %v", err)
-			} else {
-				logger.Infof("Max read-ahead set to %d KB successfully.", newConfig.FileSystem.MaxReadAheadKb)
-			}
+			setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
 		}
 
+		if newConfig.FileSystem.CongestionThreshold != 0 {
+			setCongestionThreshold(mountPoint, int(newConfig.FileSystem.CongestionThreshold))
+		}
+
+		if newConfig.FileSystem.MaxBackground != 0 {
+			setMaxBackground(mountPoint, int(newConfig.FileSystem.MaxBackground))
+		}
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).

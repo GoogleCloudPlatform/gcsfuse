@@ -433,7 +433,7 @@ type FileCacheConfig struct {
 
 	ExcludeRegex string `yaml:"exclude-regex"`
 
-	ExperimentalEnableBlockCache bool `yaml:"experimental-enable-block-cache"`
+	ExperimentalEnableChunkCache bool `yaml:"experimental-enable-chunk-cache"`
 
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
 
@@ -449,6 +449,8 @@ type FileCacheConfig struct {
 }
 
 type FileSystemConfig struct {
+	CongestionThreshold int64 `yaml:"congestion-threshold"`
+
 	DirMode Octal `yaml:"dir-mode"`
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
@@ -456,6 +458,8 @@ type FileSystemConfig struct {
 	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
 
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
+
+	ExperimentalODirect bool `yaml:"experimental-o-direct"`
 
 	FileMode Octal `yaml:"file-mode"`
 
@@ -467,9 +471,9 @@ type FileSystemConfig struct {
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
-	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
+	MaxBackground int64 `yaml:"max-background"`
 
-	ODirect bool `yaml:"o-direct"`
+	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
 
 	PreconditionErrors bool `yaml:"precondition-errors"`
 
@@ -708,6 +712,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("congestion-threshold", "", 0, "Sets the congestion threshold for background requests. When the number of outstanding requests exceeds this threshold, the kernel may start blocking new requests. 0 means system default (typically 75% of max-background; 9).")
+
+	if err := flagSet.MarkHidden("congestion-threshold"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
 
 	if err := flagSet.MarkHidden("create-empty-file"); err != nil {
@@ -882,6 +892,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
+
+	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
@@ -920,13 +936,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
-	if err := flagSet.MarkHidden("file-cache-exclude-regex"); err != nil {
-		return err
-	}
+	flagSet.BoolP("file-cache-experimental-enable-chunk-cache", "", false, "Enable chunk cache mode for random I/O optimization that downloads only requested blocks.")
 
-	flagSet.BoolP("file-cache-experimental-enable-block-cache", "", false, "Enable block cache mode for random I/O optimization that downloads only requested blocks.")
-
-	if err := flagSet.MarkHidden("file-cache-experimental-enable-block-cache"); err != nil {
+	if err := flagSet.MarkHidden("file-cache-experimental-enable-chunk-cache"); err != nil {
 		return err
 	}
 
@@ -937,10 +949,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringP("file-cache-include-regex", "", "", "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching.")
-
-	if err := flagSet.MarkHidden("file-cache-include-regex"); err != nil {
-		return err
-	}
 
 	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
@@ -998,6 +1006,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("max-background", "", 0, "Sets the maximum number of outstanding background requests (e.g., request corresponding to  kernel readahead, writeback cache etc.) that the kernel will send to the FUSE daemon. 0 means system default  (typically 12).")
+
+	if err := flagSet.MarkHidden("max-background"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
@@ -1041,12 +1055,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
-
-	flagSet.BoolP("o-direct", "", false, "Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse daemon. ")
-
-	if err := flagSet.MarkHidden("o-direct"); err != nil {
-		return err
-	}
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
@@ -1259,6 +1267,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.congestion-threshold", flagSet.Lookup("congestion-threshold")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("write.create-empty-file", flagSet.Lookup("create-empty-file")); err != nil {
 		return err
 	}
@@ -1387,6 +1399,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("monitoring.experimental-tracing-mode", flagSet.Lookup("experimental-tracing-mode")); err != nil {
 		return err
 	}
@@ -1423,7 +1439,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-cache.experimental-enable-block-cache", flagSet.Lookup("file-cache-experimental-enable-block-cache")); err != nil {
+	if err := v.BindPFlag("file-cache.experimental-enable-chunk-cache", flagSet.Lookup("file-cache-experimental-enable-chunk-cache")); err != nil {
 		return err
 	}
 
@@ -1523,6 +1539,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.max-background", flagSet.Lookup("max-background")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-connection.max-conns-per-host", flagSet.Lookup("max-conns-per-host")); err != nil {
 		return err
 	}
@@ -1564,10 +1584,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.fuse-options", flagSet.Lookup("o")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.o-direct", flagSet.Lookup("o-direct")); err != nil {
 		return err
 	}
 

@@ -986,6 +986,113 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	assert.Equal(t.T(), expectedData, util.ConvertReadResponseToBytes(resp.Data, resp.Size))
 }
 
+func (t *fileTest) Test_ShouldSkipSizeChecks() {
+	const objectSize = 100
+	unfinalizedObject := &gcs.MinObject{Name: "unfinalized", Size: objectSize}
+	finalizedObject := &gcs.MinObject{Name: "finalized", Size: objectSize, Finalized: time.Now()}
+	directIOReadMode := util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
+	readOnlyMode := util.NewOpenMode(util.ReadOnly, 0)
+
+	testCases := []struct {
+		name              string
+		object            *gcs.MinObject
+		openMode          util.OpenMode
+		offset            int64
+		bufferSize        int
+		expectedToSkip    bool
+		useNilReadManager bool
+	}{
+		{
+			name:           "All conditions met: unfinalized, direct I/O, positive offset, extends beyond size",
+			object:         unfinalizedObject,
+			openMode:       directIOReadMode,
+			offset:         50,
+			bufferSize:     60, // 50 + 60 > 100
+			expectedToSkip: true,
+		},
+		{
+			name:           "Finalized object: should not skip",
+			object:         finalizedObject,
+			openMode:       directIOReadMode,
+			offset:         50,
+			bufferSize:     60,
+			expectedToSkip: false,
+		},
+		{
+			name:           "Not direct I/O: should not skip",
+			object:         unfinalizedObject,
+			openMode:       readOnlyMode,
+			offset:         50,
+			bufferSize:     60,
+			expectedToSkip: false,
+		},
+		{
+			name:           "Negative offset: should not skip",
+			object:         unfinalizedObject,
+			openMode:       directIOReadMode,
+			offset:         -10,
+			bufferSize:     20,
+			expectedToSkip: false,
+		},
+		{
+			name:           "Read within size: should not skip",
+			object:         unfinalizedObject,
+			openMode:       directIOReadMode,
+			offset:         50,
+			bufferSize:     50, // 50 + 50 <= 100
+			expectedToSkip: false,
+		},
+		{
+			name:           "Read exactly at size boundary: should not skip",
+			object:         unfinalizedObject,
+			openMode:       directIOReadMode,
+			offset:         100,
+			bufferSize:     0,
+			expectedToSkip: false,
+		},
+		{
+			name:           "Read starts at size and extends: should skip",
+			object:         unfinalizedObject,
+			openMode:       directIOReadMode,
+			offset:         100,
+			bufferSize:     10, // 100 + 10 > 100
+			expectedToSkip: true,
+		},
+		{
+			name:           "Read starts before size and extends: should skip",
+			object:         unfinalizedObject,
+			openMode:       directIOReadMode,
+			offset:         101,
+			bufferSize:     10, // 101 + 10 > 100
+			expectedToSkip: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			parent := createDirInode(&t.bucket, &t.clock)
+			config := &cfg.Config{}
+			in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, tc.object.Name, nil, false)
+			fh := NewFileHandle(in, nil, false, nil, tc.openMode, config, nil, nil, 0)
+
+			if tc.useNilReadManager {
+				fh.readManager = nil
+				req := &gcsx.ReadRequest{Offset: tc.offset, Buffer: make([]byte, tc.bufferSize)}
+				assert.Panics(t.T(), func() { fh.shouldSkipSizeChecks(req) })
+				return
+			}
+
+			rmConfig := &read_manager.ReadManagerConfig{Config: config}
+			fh.readManager = read_manager.NewReadManager(tc.object, &t.bucket, rmConfig)
+
+			req := &gcsx.ReadRequest{Offset: tc.offset, Buffer: make([]byte, tc.bufferSize)}
+
+			skip := fh.shouldSkipSizeChecks(req)
+
+			assert.Equal(t.T(), tc.expectedToSkip, skip)
+		})
+	}
+}
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
 	const (
 		fileSize      = 9 * 1024 * 1024 // 9 MiB

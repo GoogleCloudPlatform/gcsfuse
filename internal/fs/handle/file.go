@@ -225,6 +225,10 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 		fh.mu.RLock()
 	}
 
+	// For unfinalized objects, we may need to read past the known size.
+	// Update the request to skip size checks if required.
+	req.SkipSizeChecks = fh.shouldSkipSizeChecks(req)
+
 	// Use the readManager to read data.
 	var readResponse gcsx.ReadResponse
 	readResponse, err := fh.readManager.ReadAt(ctx, req)
@@ -388,4 +392,25 @@ func (fh *FileHandle) isValidReader() bool {
 
 func (fh *FileHandle) OpenMode() util.OpenMode {
 	return fh.openMode
+}
+
+// shouldSkipSizeChecks determines if the read request should skip object size checks.
+// This is true for direct I/O reads on unfinalized objects that extend beyond
+// the known object size. This allows reading from an object that is being
+// concurrently written to.
+func (fh *FileHandle) shouldSkipSizeChecks(req *gcsx.ReadRequest) bool {
+	if !fh.readManager.Object().IsUnfinalized() {
+		return false
+	}
+	if !fh.OpenMode().IsDirect() {
+		return false
+	}
+	if req.Offset < 0 {
+		return false
+	}
+	if req.Offset+int64(len(req.Buffer)) <= int64(fh.readManager.Object().Size) {
+		return false
+	}
+
+	return true
 }

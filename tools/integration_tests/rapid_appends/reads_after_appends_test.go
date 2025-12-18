@@ -16,6 +16,7 @@ package rapid_appends
 
 import (
 	"math/rand/v2"
+	"os"
 	"path"
 	"syscall"
 	"testing"
@@ -35,7 +36,9 @@ import (
 type readAndVerifyFunc func(t *testing.T, filePath string, expectedContent []byte)
 
 func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
-	readContent, err := operations.ReadFileSequentially(filePath, 1024*1024)
+	file, err := os.OpenFile(filePath, os.O_RDONLY, setup.FilePermission_0600)
+	require.NoError(t, err)
+	readContent, err := operations.ReadFileSequentially(file, 1024*1024)
 
 	// For sequential reads, we expect the content to be exactly as expected.
 	require.NoErrorf(t, err, "failed to read file %q sequentially: %v", filePath, err)
@@ -43,9 +46,9 @@ func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []
 }
 
 func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
-	file, err := operations.OpenFileAsReadonly(filePath)
+	file, err := os.OpenFile(filePath, os.O_RDONLY, setup.FilePermission_0600)
 	require.NoErrorf(t, err, "failed to open file %q: %v", filePath, err)
-	defer operations.CloseFileShouldNotThrowError(t, file)
+	defer operations.CloseFileShouldNotThrowError(t, file) // This line is already correct.
 	if len(expectedContent) == 0 {
 		t.SkipNow()
 	}

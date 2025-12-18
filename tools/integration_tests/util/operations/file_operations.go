@@ -198,13 +198,12 @@ func RemoveFile(filePath string) {
 	}
 }
 
-func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err error) {
+func ReadFileSequentially(file *os.File, chunkSize int64) (content []byte, err error) {
 	chunk := make([]byte, chunkSize)
 	var offset int64 = 0
 
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		return nil, fmt.Errorf("error in opening file %q: %w", filePath, err)
+		return nil, fmt.Errorf("error in opening file %q: %w", file.Name(), err)
 	}
 	defer CloseFile(file)
 

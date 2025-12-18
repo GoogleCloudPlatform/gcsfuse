@@ -274,7 +274,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableBlockCache)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache)
 	return
 }
 
@@ -2787,8 +2787,13 @@ func (fs *fileSystem) ReleaseDirHandle(
 func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
-	// Bypass the kernel's page cache for file reads and writes
-	if fs.newConfig.FileSystem.ODirect {
+	// For file handles opened in O_DIRECT mode, we must set UseDirectIO.
+	// This tells the kernel to bypass its page cache (for file reads and
+	// writes) and **size checks**, forwarding read requests directly to
+	// GCSFuse. This is critical for tailing reads on remotely updated files.
+	// This should be enabled for all file handles being opened, if direct
+	// IO is configured at file system level.
+	if fs.newConfig.FileSystem.ExperimentalODirect || op.OpenFlags.IsDirect() {
 		op.UseDirectIO = true
 	}
 

@@ -76,7 +76,7 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 // Detects whether the read was short or not and returns whether it should be retried or not.
 // Reads would only be retried in case of zonal buckets and when the read data was less than requested (& object size)
 // and there was no error apart from EOF or short reads.
-func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, objectSize uint64, bucketType gcs.BucketType) bool {
+func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, objectSize uint64, bucketType gcs.BucketType, skipSizeChecks bool) bool {
 	if !bucketType.Zonal {
 		return false
 	}
@@ -85,7 +85,7 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 		return false
 	}
 
-	if offset+int64(bytesRead) >= int64(objectSize) {
+	if offset+int64(bytesRead) >= int64(objectSize) && !skipSizeChecks {
 		return false
 	}
 
@@ -98,7 +98,7 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 
 func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {
 
-	if readRequest.Offset >= int64(gr.object.Size) {
+	if readRequest.Offset >= int64(gr.object.Size) && !readRequest.SkipSizeChecks {
 		return readResponse, io.EOF
 	} else if readRequest.Offset < 0 {
 		err := fmt.Errorf(
@@ -114,13 +114,14 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) 
 		EndOffset:         readRequest.Offset + int64(len(readRequest.Buffer)),
 		ReadInfo:          &readRequest.ReadInfo,
 		ForceCreateReader: false,
+		SkipSizeChecks:    readRequest.SkipSizeChecks,
 	}
 
 	bytesRead, err := gr.read(ctx, gcsReaderRequest)
 	readResponse.Size = bytesRead
 
 	// Retry reading in case of short read.
-	if shouldRetryForShortRead(err, bytesRead, readRequest.Buffer, readRequest.Offset, gr.object.Size, gr.bucket.BucketType()) {
+	if shouldRetryForShortRead(err, bytesRead, readRequest.Buffer, readRequest.Offset, gr.object.Size, gr.bucket.BucketType(), readRequest.SkipSizeChecks) {
 		gcsReaderRequest.Offset += int64(bytesRead)
 		gcsReaderRequest.Buffer = readRequest.Buffer[bytesRead:]
 		gcsReaderRequest.ForceCreateReader = true
@@ -138,7 +139,9 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 	reqReaderType := gr.readerType(readReq.ReadType, gr.bucket.BucketType())
 	var readResp gcsx.ReadResponse
 
-	if reqReaderType == RangeReaderType {
+	// In case readReq.SkipSizeChecks is true, it means requests can be beyond cached object size and hence
+	// it qualifies for scenario where only MRD must be used (RangeReader is not suitable here).
+	if reqReaderType == RangeReaderType && !readReq.SkipSizeChecks {
 		gr.mu.Lock()
 
 		// In case of multiple threads reading parallely, it is possible that many of them might be waiting

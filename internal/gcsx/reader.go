@@ -37,6 +37,12 @@ type ReadRequest struct {
 	// correctly.
 	Offset int64
 
+	// SkipSizeChecks, when true, instructs the reader to bypass validation of the
+	// read request against the object's cached size. This is necessary for
+	// use cases like tailing a file, where reads might target offsets beyond
+	// the current object size if remote appends is in progress.
+	SkipSizeChecks bool
+
 	// ReadInfo contains metadata about the read pattern.
 	ReadInfo
 }
@@ -54,6 +60,9 @@ type GCSReaderRequest struct {
 
 	// This parameter specifies whether the reader needs to be discarded for a new reader.
 	ForceCreateReader bool
+
+	// This parameter specifies whether size checks against cached object size must be skipped.
+	SkipSizeChecks bool
 
 	// ReadInfo contains metadata about the read pattern.
 	*ReadInfo

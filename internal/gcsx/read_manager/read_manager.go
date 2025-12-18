@@ -104,7 +104,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(opts)
 		if err != nil {
-			logger.Warnf("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
+			logger.Tracef("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
 		} else {
 			readers = append(readers, bufferedReader)
 		}
@@ -146,7 +146,7 @@ func (rr *ReadManager) CheckInvariants() {
 // If a reader returns a FallbackToAnotherReader error, it tries the next reader.
 func (rr *ReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	var readResponse gcsx.ReadResponse
-	if req.Offset >= int64(rr.object.Size) {
+	if req.Offset >= int64(rr.object.Size) && !req.SkipSizeChecks {
 		return readResponse, io.EOF
 	}
 
