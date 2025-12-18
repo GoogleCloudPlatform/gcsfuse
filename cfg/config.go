@@ -598,6 +598,8 @@ type MonitoringConfig struct {
 	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
+
+	ExperimentalTracingDebugOutputFile string `yaml:"experimental-tracing-debug-output-file"`
 }
 
 type ReadConfig struct {

@@ -17,7 +17,6 @@ package monitor
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os" // Required to get file and line number
 	"runtime"
 
@@ -26,6 +25,8 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/sdk/trace"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 // SpanInfo holds minimal data for tracking an active span and its source.
@@ -90,14 +91,14 @@ func (p *OrphanDebugger) FindOrphans(filename string) error {
 	})
 
 	if len(orphans) == 0 {
-		fmt.Println("✅ SHUTDOWN AUDIT: No orphaned spans detected.")
-		// Optionally delete old report file here if one exists
+		logger.Info("✅ SHUTDOWN AUDIT: No orphaned spans detected.\n")
 		return nil
 	}
 
 	file, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("failed to create orphan report file %s: %w", filename, err)
+		logger.Errorf("Failed to create orphan report file %s: %w\n", filename, err)
+		return nil
 	}
 	defer file.Close()
 
@@ -105,11 +106,12 @@ func (p *OrphanDebugger) FindOrphans(filename string) error {
 	encoder.SetIndent("", "  ")
 
 	if err := encoder.Encode(orphans); err != nil {
-		return fmt.Errorf("failed to encode orphan data to JSON: %w", err)
+		logger.Errorf("Failed to encode orphan data to JSON: %w\n", err)
+		return nil
 	}
 
-	fmt.Printf("\n❌ SHUTDOWN AUDIT FAILED: %d orphaned spans found.\n", len(orphans))
-	fmt.Printf("   Details written to: %s\n", filename)
+	logger.Errorf("❌ SHUTDOWN AUDIT FAILED: %d orphaned spans found.\n", len(orphans))
+	logger.Infof("Details written to: %s\n", filename)
 	return nil
 }
 

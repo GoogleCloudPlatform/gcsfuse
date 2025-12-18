@@ -54,10 +54,13 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 		return newStdoutTraceProvider()
 	case "gcptrace":
 		return newGCPCloudTraceExporter(ctx, c, mountID)
+	case "gcptrace-debug":
+		return newGCPCloudTraceDebugExporter(ctx, c, mountID)
 	default:
 		return nil, nil, nil
 	}
 }
+
 func newStdoutTraceProvider() (trace.TracerProvider, common.ShutdownFn, error) {
 	exporter, err := stdouttrace.New(
 		stdouttrace.WithPrettyPrint())
@@ -86,6 +89,28 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config, mountID string
 		return nil, nil, err
 	}
 
+	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Monitoring.ExperimentalTracingSamplingRatio)))
+
+	return tp, tp.Shutdown, nil
+}
+
+func newGCPCloudTraceDebugExporter(ctx context.Context, c *cfg.Config, mountID string) (*sdktrace.TracerProvider, common.ShutdownFn, error) {
+	var traceOptions []cloudtrace.Option
+
+	if c.Monitoring.ExperimentalTracingProjectId != "" {
+		traceOptions = append(traceOptions, cloudtrace.WithProjectID(c.Monitoring.ExperimentalTracingProjectId))
+	}
+
+	exporter, err := cloudtrace.New(traceOptions...)
+
+	if err != nil {
+		return nil, nil, err
+	}
+	res, err := getResource(ctx, mountID)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	globalDebugger := NewOrphanDebugger()
 
 	tp := sdktrace.NewTracerProvider(
@@ -97,12 +122,12 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config, mountID string
 
 	cleanupFunc = func(ctx context.Context) error {
 
-		fmt.Println("Starting graceful OpenTelemetry shutdown...")
+		logger.Info("Starting graceful OpenTelemetry shutdown...")
 
 		// Step 1: Force Flush
 		// This processes all spans that *did* call span.End() and updates the debugger's map.
 		if err := tp.ForceFlush(ctx); err != nil {
-			fmt.Printf("Error flushing spans before audit: %v\n", err)
+			logger.Errorf("Error flushing spans before audit: %v\n", err)
 			return err
 		}
 
@@ -111,7 +136,7 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config, mountID string
 			const orphanReportFile = "final_orphan_spans_report.json"
 			if err := globalDebugger.FindOrphans(orphanReportFile); err != nil {
 				// Log the error but continue to the final shutdown
-				fmt.Printf("Error generating orphan report: %v\n", err)
+				logger.Errorf("Error generating orphan report: %v\n", err)
 				return err
 			}
 		}
