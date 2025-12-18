@@ -1688,13 +1688,14 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--experimental-dir-metadata-prefetch=true", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         2000,
 					DeprecatedStatCacheTtl:              2 * time.Minute,
 					DeprecatedTypeCacheTtl:              80 * time.Second,
 					EnableNonexistentTypeCache:          true,
+					ExperimentalDirMetadataPrefetch:     true,
 					ExperimentalMetadataPrefetchOnMount: "async",
 					StatCacheMaxSizeMb:                  15,
 					TtlSecs:                             25,
@@ -1713,6 +1714,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
+					ExperimentalDirMetadataPrefetch:     false,
 					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
@@ -1730,6 +1732,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
+					ExperimentalDirMetadataPrefetch:     false,
 					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
@@ -1747,6 +1750,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
+					ExperimentalDirMetadataPrefetch:     false,
 					StatCacheMaxSizeMb:                  1024,
 					TtlSecs:                             9223372036,
 					NegativeTtlSecs:                     0,
@@ -1756,13 +1760,14 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 		},
 		{
 			name: "high_performance_default_config_values_obey_customer_flags",
-			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--experimental-dir-metadata-prefetch", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         2000,
 					DeprecatedStatCacheTtl:              2 * time.Minute,
 					DeprecatedTypeCacheTtl:              80 * time.Second,
 					EnableNonexistentTypeCache:          true,
+					ExperimentalDirMetadataPrefetch:     true,
 					ExperimentalMetadataPrefetchOnMount: "async",
 					StatCacheMaxSizeMb:                  15,
 					TtlSecs:                             25,
@@ -1781,6 +1786,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              4 * time.Minute,
 					EnableNonexistentTypeCache:          true,
 					ExperimentalMetadataPrefetchOnMount: "async",
+					ExperimentalDirMetadataPrefetch:     false,
 					StatCacheMaxSizeMb:                  4,
 					TtlSecs:                             120,
 					NegativeTtlSecs:                     20,
