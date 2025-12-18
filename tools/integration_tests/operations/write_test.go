@@ -69,6 +69,10 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 	const sizeBeforeOperation = int64(len(tempFileContent))
 	const sizeAfterOperation = sizeBeforeOperation + int64(len(appendContent))
 	storageClass := "STANDARD"
+	if attr1 == nil || attr2 == nil {
+		t.Fatalf("attr1 or attr2 is nil. attr1: %v, attr2: %v", attr1, attr2)
+	}
+
 	if setup.IsZonalBucketRun() {
 		storageClass = "RAPID"
 	}
