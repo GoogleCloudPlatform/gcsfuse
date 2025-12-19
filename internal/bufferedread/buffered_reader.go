@@ -303,7 +303,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	defer func() {
 		dur := time.Since(start)
 		p.metricHandle.BufferedReadReadLatency(ctx, dur)
-		p.metricHandle.GcsReadBytesCount(int64(bytesRead), metrics.ReaderBufferedAttr)
+		p.metricHandle.GcsReadBytesCount(int64(bytesRead))
 		if err == nil || errors.Is(err, io.EOF) {
 			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
 		}

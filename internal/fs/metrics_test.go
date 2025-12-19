@@ -199,7 +199,7 @@ func TestReadFile_BufferedReadMetrics(t *testing.T) {
 
 	require.NoError(t, err, "ReadFile")
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))), int64(len(content)))
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(attribute.String("reader", string(metrics.ReaderBufferedAttr))), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
 	metrics.VerifyHistogramMetric(t, ctx, reader, "buffered_read/read_latency", attribute.NewSet(), uint64(1))
 }
 
