@@ -489,7 +489,7 @@ func CleanUpDir(directoryPath string) {
 // cleaning up any content present. It takes a testDirName which can include
 // slashes to create nested directories (e.g., "a/b/c").
 func SetupTestDirectory(testDirName string) string {
-	testDirPath := path.Join(MntDir(), testDirName)
+	testDirPath := path.Join(MntDir(), testDirName+GenerateRandomString(4))
 	err := os.MkdirAll(testDirPath, DirPermission_0755)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
@@ -501,7 +501,7 @@ func SetupTestDirectory(testDirName string) string {
 // SetupTestDirectoryRecursive recursively creates a testDirectory in the mounted directory and cleans up
 // any content present in it.
 func SetupTestDirectoryRecursive(testDirName string) string {
-	testDirPath := path.Join(MntDir(), testDirName)
+	testDirPath := path.Join(MntDir(), testDirName+GenerateRandomString(4))
 	err := os.MkdirAll(testDirPath, DirPermission_0755)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
