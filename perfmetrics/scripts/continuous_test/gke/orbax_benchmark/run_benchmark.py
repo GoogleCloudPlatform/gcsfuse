@@ -29,55 +29,23 @@ It performs the following steps:
 import argparse
 import asyncio
 import os
-import shlex
+import re
 import subprocess
 import sys
 import tempfile
-import re
 from datetime import datetime
 from string import Template
 
+# Add the parent directory to sys.path to allow imports from common
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+from common import utils
+
 # The prefix prow-gob-internal-boskos- is needed to allow passing machine-type from gke csi driver to gcsfuse,
 # bypassing the check at
 # https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/15afd00dcc2cfe0f9753ddc53c81631ff037c3f2/pkg/csi_driver/utils.go#L532.
 STAGING_VERSION = "prow-gob-internal-boskos-orbax-benchmark"
 DEFAULT_MTU = 8896
-
-# Helper functions for running commands
-async def run_command_async(command_list, check=True, cwd=None):
-    """Runs a command asynchronously, preventing command injection.
-
-    Args:
-        command_list: A list of strings representing the command and its arguments.
-        check: If True, raises CalledProcessError if the command returns a non-zero
-          exit code.
-        cwd: The working directory to run the command in.
-
-    Returns:
-        A tuple containing (stdout, stderr, returncode).
-
-    Raises:
-        subprocess.CalledProcessError: If the command fails and check is True.
-    """
-    command_str = " ".join(map(shlex.quote, command_list))
-    print(f"Executing command: {command_str}")
-    process = await asyncio.create_subprocess_exec(
-        *command_list,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=cwd)
-    stdout, stderr = await process.communicate()
-    stdout_decoded = stdout.decode().strip()
-    stderr_decoded = stderr.decode().strip()
-
-    if check and process.returncode != 0:
-        raise subprocess.CalledProcessError(
-            process.returncode, command_str, stdout_decoded, stderr_decoded)
-
-    print(stdout_decoded)
-    print(stderr_decoded, file=sys.stderr)
-    return stdout_decoded, stderr_decoded, process.returncode
 
 # Prerequisite Checks
 async def check_prerequisites():
@@ -87,7 +55,7 @@ async def check_prerequisites():
     missing, it attempts to install it using 'gcloud components install'.
     Exits the script if any other required tool is not found.
     """
-    await run_command_async(["sudo", "apt", "install", "-y", "apt-transport-https", "ca-certificates", "gnupg", "curl"])
+    await utils.run_command_async(["sudo", "apt", "install", "-y", "apt-transport-https", "ca-certificates", "gnupg", "curl"])
 
     # Pipe curl output to gpg
     curl_process = await asyncio.create_subprocess_exec(
@@ -111,7 +79,7 @@ async def check_prerequisites():
     )
     await tee_process.communicate(input=await echo_process.stdout.read())
 
-    await run_command_async(["sudo", "apt", "update", "-y"])
+    await utils.run_command_async(["sudo", "apt", "update", "-y"])
     print("Checking for required tools...")
     tools = {
         "gcloud": ["gcloud", "--version"],
@@ -123,36 +91,36 @@ async def check_prerequisites():
 
     for tool, version_cmd in tools.items():
         try:
-            await run_command_async(version_cmd)
+            await utils.run_command_async(version_cmd)
         except (FileNotFoundError, subprocess.CalledProcessError):
             if tool == "gcloud":
                 print("gcloud not found. Attempting to install...")
                 try:
-                    await run_command_async(["sudo", "apt", "install", "-y", "google-cloud-sdk"])
+                    await utils.run_command_async(["sudo", "apt", "install", "-y", "google-cloud-sdk"])
                     # Re-check after installation
-                    await run_command_async(version_cmd)
+                    await utils.run_command_async(version_cmd)
                 except (FileNotFoundError, subprocess.CalledProcessError) as install_e:
                     print(f"Error: Failed to install gcloud: {install_e}", file=sys.stderr)
                     sys.exit(1)
             if tool == "make":
                 print("make not found. Attempting to install...")
                 try:
-                    await run_command_async(["sudo", "apt", "install", "-y", "make"])
-                    await run_command_async(version_cmd)
+                    await utils.run_command_async(["sudo", "apt", "install", "-y", "make"])
+                    await utils.run_command_async(version_cmd)
                 except (FileNotFoundError, subprocess.CalledProcessError) as install_e:
                     print(f"Error: Failed to install make: {install_e}", file=sys.stderr)
                     sys.exit(1)
             if tool == "kubectl":
                 print("kubectl not found. Attempting to install...")
                 try:
-                    await run_command_async(["sudo", "snap", "install", "kubectl", "--classic"])                    
+                    await utils.run_command_async(["sudo", "snap", "install", "kubectl", "--classic"])
                 except (FileNotFoundError, subprocess.CalledProcessError) as e:
                     print(f"Error: Failed to install kubectl: {e}", file=sys.stderr)
                     sys.exit(1)
             elif tool == "gke-gcloud-auth-plugin":
                 print("gke-gcloud-auth-plugin not found. Attempting to install...")
                 try:
-                    await run_command_async(["sudo", "apt", "install", "-y", "google-cloud-sdk-gke-gcloud-auth-plugin"])
+                    await utils.run_command_async(["sudo", "apt", "install", "-y", "google-cloud-sdk-gke-gcloud-auth-plugin"])
                 except (FileNotFoundError, subprocess.CalledProcessError) as e:
                     print(f"Error: Failed to install gke-gcloud-auth-plugin: {e}", file=sys.stderr)
                     sys.exit(1)
@@ -160,95 +128,6 @@ async def check_prerequisites():
                 print(f"Error: Required tool '{tool}' is not installed. Please install it before running.", file=sys.stderr)
                 sys.exit(1)
     print("All required tools are installed.")
-
-# GKE Cluster and Node Pool Management
-async def get_cluster_async(project_id, zone, cluster_name):
-    """Checks if a GKE cluster exists.
-
-    Args:
-        project_id: The Google Cloud project ID.
-        zone: The GCP zone where the cluster is located.
-        cluster_name: The name of the GKE cluster.
-
-    Returns:
-        True if the cluster exists, False otherwise.
-    """
-    cmd = ["gcloud", "container", "clusters", "describe", cluster_name, f"--project={project_id}", f"--zone={zone}", "--format=value(name)"]
-    _, _, returncode = await run_command_async(cmd, check=False)
-    return returncode == 0
-
-async def get_node_pool_async(project_id, zone, cluster_name, node_pool_name):
-    """Checks if a node pool exists in a GKE cluster.
-
-    Args:
-        project_id: The Google Cloud project ID.
-        zone: The GCP zone where the cluster is located.
-        cluster_name: The name of the GKE cluster.
-        node_pool_name: The name of the node pool.
-
-    Returns:
-        True if the node pool exists, False otherwise.
-    """
-    cmd = ["gcloud", "container", "node-pools", "describe", node_pool_name, f"--project={project_id}", f"--zone={zone}", f"--cluster={cluster_name}", "--format=value(name)"]
-    _, _, returncode = await run_command_async(cmd, check=False)
-    return returncode == 0
-
-async def is_node_pool_healthy_async(project_id, zone, cluster_name, node_pool_name):
-    """Checks if a node pool's status is RUNNING.
-
-    Args:
-        project_id: The Google Cloud project ID.
-        zone: The GCP zone where the cluster is located.
-        cluster_name: The name of the GKE cluster.
-        node_pool_name: The name of the node pool.
-
-    Returns:
-        True if the node pool status is 'RUNNING', False otherwise.
-    """
-    cmd = ["gcloud", "container", "node-pools", "describe", node_pool_name, f"--project={project_id}", f"--zone={zone}", f"--cluster={cluster_name}", "--format=value(status)"]
-    status, _, returncode = await run_command_async(cmd, check=False)
-    return returncode == 0 and status == "RUNNING"
-
-async def create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name=None):
-    """Creates a new node pool.
-
-    Args:
-        project_id: The Google Cloud project ID.
-        zone: The GCP zone for the node pool.
-        cluster_name: The name of the GKE cluster.
-        node_pool_name: The name for the new node pool.
-        machine_type: The machine type for the nodes in the pool.
-        reservation_name: The specific reservation to use for the nodes.
-    """
-    cmd = ["gcloud", "container", "node-pools", "create", node_pool_name, f"--project={project_id}", f"--cluster={cluster_name}", f"--zone={zone}", f"--machine-type={machine_type}", "--num-nodes=1"]
-    if reservation_name:
-        cmd.extend([f"--reservation-affinity=specific", f"--reservation={reservation_name}"])
-    await run_command_async(cmd)
-
-async def delete_node_pool_async(project_id, zone, cluster_name, node_pool_name):
-    """Deletes an existing node pool.
-
-    Args:
-        project_id: The Google Cloud project ID.
-        zone: The GCP zone where the node pool is located.
-        cluster_name: The name of the GKE cluster.
-        node_pool_name: The name of the node pool to delete.
-    """
-    cmd = ["gcloud", "container", "node-pools", "delete", node_pool_name, f"--project={project_id}", f"--cluster={cluster_name}", f"--zone={zone}", "--quiet"]
-    await run_command_async(cmd, check=False)
-
-async def create_network(project_id, network_name, subnet_name, region, mtu):
-    """Creates a new network and subnet if they don't exist.
-
-    Args:
-        project_id: The Google Cloud project ID.
-        network_name: The name for the new VPC network.
-        subnet_name: The name for the new subnet.
-        region: The GCP region for the subnet.
-        mtu: The Maximum Transmission Unit (MTU) for the network.
-    """
-    await run_command_async(["gcloud", "compute", "networks", "create", network_name, f"--project={project_id}", "--subnet-mode=custom", f"--mtu={mtu}"], check=False)
-    await run_command_async(["gcloud", "compute", "networks", "subnets", "create", subnet_name, f"--project={project_id}", f"--network={network_name}", "--range=10.0.0.0/24", f"--region={region}"], check=False)
 
 async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet_name, region, machine_type, node_pool_name, reservation_name=None):
     """Sets up the GKE cluster and required node pool.
@@ -268,21 +147,21 @@ async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet
         node_pool_name: The name of the node pool.
         reservation_name: The specific reservation to use for the nodes.
     """
-    if await get_cluster_async(project_id, zone, cluster_name):
-        if await get_node_pool_async(project_id, zone, cluster_name, node_pool_name):
-            if not await is_node_pool_healthy_async(project_id, zone, cluster_name, node_pool_name):
-                await delete_node_pool_async(project_id, zone, cluster_name, node_pool_name)
-                await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
+    if await utils.get_cluster_async(project_id, zone, cluster_name):
+        if await utils.get_node_pool_async(project_id, zone, cluster_name, node_pool_name):
+            if not await utils.is_node_pool_healthy_async(project_id, zone, cluster_name, node_pool_name):
+                await utils.delete_node_pool_async(project_id, zone, cluster_name, node_pool_name)
+                await utils.create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
         else:
-            await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
+            await utils.create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
     else:
-        await create_network(project_id, network_name, subnet_name, region, DEFAULT_MTU)
+        await utils.create_network(project_id, network_name, subnet_name, region, DEFAULT_MTU)
         cmd = ["gcloud", "container", "clusters", "create", cluster_name, "--release-channel=rapid", f"--project={project_id}", f"--zone={zone}", f"--network={network_name}", f"--subnetwork={subnet_name}", f"--workload-pool={project_id}.svc.id.goog", "--addons=GcsFuseCsiDriver", "--num-nodes=1"]
-        await run_command_async(cmd)
-        await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
+        await utils.run_command_async(cmd)
+        await utils.create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
 
     # Get credentials for the cluster to allow kubectl to connect.
-    await run_command_async(["gcloud", "container", "clusters", "get-credentials", cluster_name, f"--project={project_id}", f"--zone={zone}"])
+    await utils.run_command_async(["gcloud", "container", "clusters", "get-credentials", cluster_name, f"--project={project_id}", f"--zone={zone}"])
     print("GKE cluster setup complete.")
 
 # GCSFuse Build and Deploy
@@ -294,9 +173,9 @@ async def build_gcsfuse_image(project_id, branch, temp_dir):
         temp_dir: A temporary directory to clone the repository into.
     """
     gcsfuse_dir = os.path.join(temp_dir, "gcsfuse")
-    await run_command_async(["git", "clone", "--depth=1", "-b", branch, "https://github.com/GoogleCloudPlatform/gcsfuse.git", gcsfuse_dir])
+    await utils.run_command_async(["git", "clone", "--depth=1", "-b", branch, "https://github.com/GoogleCloudPlatform/gcsfuse.git", gcsfuse_dir])
     build_cmd = ["make", "build-csi", f"PROJECT={project_id}", f"STAGINGVERSION={STAGING_VERSION}"]
-    await run_command_async(build_cmd, cwd=gcsfuse_dir)
+    await utils.run_command_async(build_cmd, cwd=gcsfuse_dir)
 
 def parse_all_gbytes_per_sec(logs):
     """Parses logs to find and extract all gbytes_per_sec values.
@@ -339,7 +218,7 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
     Returns:
         A list of throughput values (float) parsed from the pod logs.
     """
-    await run_command_async(["kubectl", "create", "configmap", "orbax-benchmark", f"--from-file={os.path.join(SCRIPT_DIR, 'test_load.py')}"])
+    await utils.run_command_async(["kubectl", "create", "configmap", "orbax-benchmark", f"--from-file={os.path.join(SCRIPT_DIR, 'test_load.py')}"])
 
     template_path = os.path.join(SCRIPT_DIR, "pod.yaml.template")
     with open(template_path, "r") as f:
@@ -352,12 +231,12 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
     try:
         with open(manifest_filename, "w") as f:
             f.write(manifest)
-        await run_command_async(["kubectl", "apply", "-f", manifest_filename])
+        await utils.run_command_async(["kubectl", "apply", "-f", manifest_filename])
 
         start_time = datetime.now()
         pod_finished = False
         while (datetime.now() - start_time).total_seconds() < pod_timeout_seconds:
-            status, stderr, _ = await run_command_async(["kubectl", "get", "pod", pod_name, "-o", "jsonpath='{.status.phase}'"], check=False)
+            status, stderr, _ = await utils.run_command_async(["kubectl", "get", "pod", pod_name, "-o", "jsonpath='{.status.phase}'"], check=False)
             if "Succeeded" in status or "Failed" in status:
                 pod_finished = True
                 break
@@ -366,53 +245,16 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
         if not pod_finished:
             raise TimeoutError(f"Pod did not complete within {pod_timeout_seconds / 60} minutes.")
 
-        logs, _, _ = await run_command_async(["kubectl", "logs", pod_name], check=False)
+        logs, _, _ = await utils.run_command_async(["kubectl", "logs", pod_name], check=False)
         if logs:
             return parse_all_gbytes_per_sec(logs)
         return []
     finally:
-        await run_command_async(["kubectl", "delete", "configmap", "orbax-benchmark"])
-        await run_command_async(["kubectl", "delete", "-f", manifest_filename], check=False)
+        await utils.run_command_async(["kubectl", "delete", "configmap", "orbax-benchmark"])
+        await utils.run_command_async(["kubectl", "delete", "-f", manifest_filename], check=False)
         if os.path.exists(manifest_filename):
             os.remove(manifest_filename)
 
-# Cleanup
-async def cleanup(project_id, zone, cluster_name, network_name, subnet_name):
-    """Cleans up the created GKE, network, and firewall resources.
-
-    Args:
-        project_id: The Google Cloud project ID.
-        zone: The GCP zone where the resources are located.
-        cluster_name: The name of the GKE cluster to delete.
-        network_name: The name of the VPC network to delete.
-        subnet_name: The name of the subnet to delete.
-    """
-    print("Cleaning up GKE and network resources...")
-    # First, delete the cluster, which is the primary user of the firewall rules.
-    await run_command_async(["gcloud", "container", "clusters", "delete", cluster_name, f"--project={project_id}", f"--zone={zone}", "--quiet"], check=False)
-
-    # Find and delete firewall rules associated with the network.
-    print(f"Finding and deleting firewall rules for network '{network_name}'...")
-    list_fw_cmd = ["gcloud", "compute", "firewall-rules", "list", f"--project={project_id}", f"--filter=network~/{network_name}$", "--format=value(name)"]
-    fw_rules_str, _, returncode = await run_command_async(list_fw_cmd, check=False)
-    if returncode == 0 and fw_rules_str:
-        fw_rules = fw_rules_str.splitlines()
-        delete_tasks = []
-        for rule in fw_rules:
-            print(f"Deleting firewall rule: {rule}")
-            delete_fw_cmd = ["gcloud", "compute", "firewall-rules", "delete", rule, f"--project={project_id}", "--quiet"]
-            delete_tasks.append(run_command_async(delete_fw_cmd, check=False))
-        if delete_tasks:
-            await asyncio.gather(*delete_tasks)
-
-    # Now, delete the subnetwork and network.
-    print(f"Deleting subnetwork '{subnet_name}'...")
-    await run_command_async(["gcloud", "compute", "networks", "subnets", "delete", subnet_name, f"--project={project_id}", f"--region={zone.rsplit('-', 1)[0]}", "--quiet"], check=False)
-
-    print(f"Deleting network '{network_name}'...")
-    await run_command_async(["gcloud", "compute", "networks", "delete", network_name, f"--project={project_id}", "--quiet"], check=False)
-
-    print("Cleanup complete.")
 
 # Main function
 async def main():
@@ -461,20 +303,22 @@ async def main():
             if not throughputs:
                 print("No throughput data was collected.", file=sys.stderr)
                 if not args.no_cleanup:
-                    await cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
+                    await utils.cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
                 sys.exit(-1)
 
             successful_iterations = sum(1 for t in throughputs if t >= args.performance_threshold_gbps)
             if successful_iterations < (len(throughputs) * 5)/8: # At least 5/8th of the iterations must meet the threshold.
                 print(f"Benchmark failed: Only {successful_iterations}/{len(throughputs)} iterations were >= {args.performance_threshold_gbps} gbytes/sec.", file=sys.stderr)
                 if not args.no_cleanup:
-                    await cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
+                    await utils.cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
                 sys.exit(-1)
 
             print(f"Benchmark successful: {successful_iterations}/{len(throughputs)} iterations met the performance threshold ({args.performance_threshold_gbps} GB/s).")
         finally:
             if not args.no_cleanup:
-                await cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
+                await utils.cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
