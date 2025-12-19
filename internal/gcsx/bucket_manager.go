@@ -260,6 +260,7 @@ func (bm *bucketManager) SetUpBucket(
 	// is some problem.
 	{
 		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
+		time.Sleep(3 * time.Minute) // Good enough to make kubelet error out..
 		if err != nil {
 			return
 		}
