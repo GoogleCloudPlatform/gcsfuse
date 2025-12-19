@@ -860,6 +860,10 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("experimental-dir-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
+	if err := flagSet.MarkHidden("experimental-dir-metadata-prefetch"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
 	if err := flagSet.MarkHidden("experimental-enable-dentry-cache"); err != nil {
