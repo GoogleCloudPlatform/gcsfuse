@@ -177,6 +177,13 @@ sudo -u starterscriptuser bash -c '
 # Exit immediately if a command exits with a non-zero status.
 set -e
 # Print commands and their arguments as they are executed.
+
+function cleanup() {
+    echo "Performing cleanup..."
+    #Log results based on the collected exit statuses.
+    log_based_on_exit_status exit_status
+}
+trap cleanup EXIT
 set -x
 # GCSFuse test suite uses this environment variable to save failure logs at the specified location.
 export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
@@ -670,7 +677,4 @@ else
     fi
 
 fi
-#Log results based on the collected exit statuses.
-log_based_on_exit_status exit_status
-
 '
