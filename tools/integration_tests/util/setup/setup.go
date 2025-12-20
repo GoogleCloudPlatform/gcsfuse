@@ -39,6 +39,7 @@ import (
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
@@ -561,7 +562,7 @@ const ZonalBucket = "zonal"
 func BucketType(ctx context.Context, testBucket string) (bucketType string, err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	storageClient, err := storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+	storageClient, err := storage.NewGRPCClient(ctx, option.WithEndpoint("dns:///storage.googleapis.com:443"), experimental.WithGRPCBidiReads())
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}

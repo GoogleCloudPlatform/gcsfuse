@@ -176,6 +176,9 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
+	endpoint := "dns:///storage.googleapis.com:443"
+    clientOpts = append(clientOpts, option.WithEndpoint(endpoint))
+
 	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
 		err = fmt.Errorf("NewGRPCClient: %w", err)
