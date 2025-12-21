@@ -204,9 +204,9 @@ func (t *multiRangeReaderTest) Test_ReadAt_MRDRead() {
 func (t *multiRangeReaderTest) Test_ReadAt_SkipSizeChecks() {
 	t.object.Size = 50
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{}, nil)
 	require.NoError(t.T(), err, "Error in creating MRDWrapper")
-	t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
+	t.multiRangeReader.mrdWrapper = fakeMRDWrapper
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond)).Once()
 	buf := make([]byte, 20)
 	offset := int64(40)
