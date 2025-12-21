@@ -213,7 +213,9 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 	t.Helper()
 
 	testDirSuffix := setup.GenerateRandomString(4)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), t.Name()+testDirSuffix)
+    testDir :=  t.Name()+testDirSuffix
+	testDirPathOnBucket := path.Join(setup.TestBucket(), testDir)
+	testDirPath := path.Join(setup.MntDir(), testDir)
 	testDirPath := path.Join(setup.MntDir(), t.Name()+testDirSuffix)
 
 	err := os.MkdirAll(testDirPath, 0755)
