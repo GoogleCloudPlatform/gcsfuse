@@ -35,6 +35,7 @@ type env struct {
 	storageClient *storage.Client
 	ctx           context.Context
 	testDirPath   string
+	dirName       string
 	cfg           test_suite.TestConfig
 }
 
@@ -81,6 +82,7 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flagsSet := setup.BuildFlagSets(testEnv.cfg, bucketType, "")
+	testEnv.dirName = testDirName
 	setup.SetUpTestDirForTestBucket(&testEnv.cfg)
 
 	successCode := static_mounting.RunTestsWithConfigFile(&testEnv.cfg, flagsSet, m)

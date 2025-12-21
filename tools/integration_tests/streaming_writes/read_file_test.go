@@ -33,7 +33,7 @@ func (t *StreamingWritesSuite) TestReadFileAfterSync() {
 	t.validateReadCall(t.f1, t.data)
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, t.data, t.T())
 }
 
 func (t *StreamingWritesSuite) TestReadBeforeFileIsFlushed() {
@@ -44,7 +44,7 @@ func (t *StreamingWritesSuite) TestReadBeforeFileIsFlushed() {
 	t.validateReadCall(t.f1, t.data)
 
 	// Validate if correct content is uploaded to GCS after read error.
-	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, t.data, t.T())
 }
 
 func (t *StreamingWritesSuite) TestReadBeforeSyncThenWriteAgainAndRead() {
@@ -56,13 +56,13 @@ func (t *StreamingWritesSuite) TestReadBeforeSyncThenWriteAgainAndRead() {
 	operations.WriteAt(t.data, int64(len(t.data)), t.f1, t.T())
 	t.validateReadCall(t.f1, t.data+t.data)
 	// Validate if correct content is uploaded to GCS after read.
-	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, t.data+t.data, t.T())
+	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, t.data+t.data, t.T())
 }
 
 func (t *StreamingWritesSuite) TestReadAfterFlush() {
 	// Write data to file and flush.
 	operations.WriteAt(t.data, 0, t.f1, t.T())
-	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, t.data, t.T())
 
 	// Perform read and validate the contents.
 	var err error

@@ -38,10 +38,11 @@ func (t *streamingWritesEmptyGCSFileTestSuite) SetupSubTest() {
 }
 
 func (t *streamingWritesEmptyGCSFileTestSuite) createEmptyGCSFile() {
+	t.dirName = path.Base(testEnv.testDirPath)
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	// Create an empty file on GCS.
-	CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, "", t.T())
-	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, "", t.T())
+	CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, t.dirName, t.fileName, "", t.T())
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, t.dirName, t.fileName, "", t.T())
 	t.filePath = path.Join(testEnv.testDirPath, t.fileName)
 	t.f1 = operations.OpenFileWithODirect(t.T(), t.filePath)
 }
