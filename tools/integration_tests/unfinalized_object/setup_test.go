@@ -75,6 +75,11 @@ func TestMain(m *testing.M) {
 	testEnv.cfg = &cfg.UnfinalizedObject[0]
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 
+	if !setup.IsZonalBucketRun() {
+		log.Printf("This test is only for Zonal buckets.")
+		os.Exit(0)
+	}
+
 	// 2. Create storage client before running tests.
 	var err error
 	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)

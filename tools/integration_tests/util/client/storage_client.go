@@ -481,7 +481,7 @@ func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string
 	return nil
 }
 
-func AppendableWriter(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions) (*storage.Writer, error) {
+func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions) (*storage.Writer, error) {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
 	o := client.Bucket(bucket).Object(object)
@@ -495,6 +495,14 @@ func AppendableWriter(ctx context.Context, client *storage.Client, object string
 		return nil, fmt.Errorf("failed to open writer for object %q: %w", o.ObjectName(), err)
 	}
 	return wc, nil
+}
+
+func AppendableWriter(ctx context.Context, client *storage.Client, object string, gen int64) (*storage.Writer, error) {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	obj := client.Bucket(bucket).Object(object)
+
+	tw, _, err := obj.Generation(gen).NewWriterFromAppendableObject(ctx, &storage.AppendableWriterOpts{})
+	return tw, err
 }
 
 // CreateGcsDir creates a GCS object with trailing slash "/" to simulate a directory.

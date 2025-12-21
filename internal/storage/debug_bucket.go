@@ -381,7 +381,6 @@ func (b *debugBucket) NewMultiRangeDownloader(
 	// Call through.
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
 	if err != nil {
-		b.finishRequest(id, desc, start, &err)
 		return
 	}
 
