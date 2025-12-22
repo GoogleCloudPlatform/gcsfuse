@@ -129,7 +129,7 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 //   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 3.
 func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
+	bucket, server, _, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
 	fileName := "test.txt"
 	createWithContents(ctx, t, bucket, fileName, "test")
 
@@ -258,6 +258,14 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
 		attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))),
 		int64(len(content)))
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
+		attribute.NewSet(attribute.String("io_method", "opened")),
+		1)
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
+		attribute.NewSet(attribute.String("io_method", "closed")),
+		1)
 }
 
 // TestGCSMetrics_With_FileCache validates GCS metrics behavior when file cache is enabled.
@@ -313,6 +321,21 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 		attribute.NewSet(attribute.String("read_type", "Sequential")), // File cache uses sequential read
 		int64(len(content)))
 
+	// gcs/read_count - Sequential
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count",
+		attribute.NewSet(attribute.String("read_type", "Sequential")),
+		1)
+
+	// gcs/reader_count - opened
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
+		attribute.NewSet(attribute.String("io_method", "opened")),
+		1)
+	
+	// gcs/reader_count - closed
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
+		attribute.NewSet(attribute.String("io_method", "closed")),
+		1)
+
 	// Second Read - Should hit cache
 	readOp2 := &fuseops.ReadFileOp{
 		Inode:  lookupOp.Entry.Child,
@@ -329,4 +352,16 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		int64(len(content)))
+	
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count",
+		attribute.NewSet(attribute.String("read_type", "Sequential")),
+		1)
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
+		attribute.NewSet(attribute.String("io_method", "opened")),
+		1)
+		
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
+		attribute.NewSet(attribute.String("io_method", "closed")),
+		1)
 }
