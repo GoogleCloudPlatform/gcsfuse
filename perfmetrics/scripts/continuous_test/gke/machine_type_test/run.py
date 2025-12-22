@@ -189,6 +189,14 @@ async def execute_test_workload(
   manifest_filename = f"manifest-{timestamp}.yaml"
 
   try:
+    await utils.run_command_async([
+        "kubectl",
+        "create",
+        "configmap",
+        "machine-type-test-scripts",
+        f"--from-file={os.path.join(SCRIPT_DIR, 'run_test.sh')}",
+    ])
+
     with open(manifest_filename, "w") as f:
       f.write(manifest)
 
@@ -291,6 +299,10 @@ async def execute_test_workload(
     return success
   finally:
     print("Cleaning up pod resources...")
+    await utils.run_command_async(
+        ["kubectl", "delete", "configmap", "machine-type-test-scripts"],
+        check=False,
+    )
     await utils.run_command_async(
         ["kubectl", "delete", "-f", manifest_filename], check=False
     )
