@@ -330,7 +330,7 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "opened")),
 		1)
-	
+
 	// gcs/reader_count - closed
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
@@ -352,7 +352,7 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		int64(len(content)))
-	
+
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		1)
@@ -360,7 +360,7 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "opened")),
 		1)
-		
+
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
