@@ -49,7 +49,7 @@ func (bm *fakeBucketManagerWithMetrics) SetUpBucket(
 	bucket, ok := bm.buckets[name]
 	if !ok {
 		err = fmt.Errorf("Bucket %q does not exist", name)
-		return
+		return sb, err
 	}
 
 	// Wrap bucket with monitor.NewMonitoringBucket to enable GCS metrics.
@@ -57,7 +57,7 @@ func (bm *fakeBucketManagerWithMetrics) SetUpBucket(
 		0, 10, ".gcsfuse_tmp/",
 		gcsx.NewContentTypeBucket(monitor.NewMonitoringBucket(bucket, mh)),
 	)
-	return
+	return sb, err
 }
 
 func (bm *fakeBucketManagerWithMetrics) ShutDown() {}
@@ -123,14 +123,13 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 //   - LookUpInode typically fails to find the inode in the memory cache initially.
 //   - It then queries GCS to check if the object exists.
 //   - The current implementation invokes StatObject multiple times (3 times) during LookUp:
-//     1. Check if the object itself exists.
-//     2. Check if it might be an implicit directory (e.g. "test.txt/").
-//     3. Potentially another check depending on the specific flow (e.g. trailing slash handling).
+//     1. Lookup File: Check if the object itself exists.
+//     2. Lookup Directory: Check if the object is a directory (to rule out an explicit directory).
+//     3. Clobber Check: Fetch fresh attributes for the object to ensure the inode is valid and not clobbered.
 //   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 3.
 func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 	ctx := context.Background()
 	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
-	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test.txt"
 	createWithContents(ctx, t, bucket, fileName, "test")
 
@@ -273,7 +272,7 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 //   - The file content is served from the local file cache.
 //   - No further GCS downloads should occur.
 //   - The "gcs/download_bytes_count" metric should remain unchanged.
-func TestGCSMetrics_With_FileCache(t *testing.T) {
+func TestGCSMetrics_WithFileCache(t *testing.T) {
 	// TestGCSMetrics_WithFileCache verifies metrics when reading a file with file cache enabled.
 	ctx := context.Background()
 	params := defaultServerConfigParams()
