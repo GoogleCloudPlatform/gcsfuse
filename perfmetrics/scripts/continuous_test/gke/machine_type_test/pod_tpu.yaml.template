@@ -6,7 +6,6 @@ metadata:
     gke-gcsfuse/volumes: "true"
 spec:
   restartPolicy: Never
-  hostNetwork: true
   nodeSelector:
     cloud.google.com/gke-tpu-topology: 2x2
     cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
@@ -55,4 +54,3 @@ spec:
       volumeAttributes:
         bucketName: "$bucket_name"
         mountOptions: ""
-        hostNetworkPodKSA: "true"

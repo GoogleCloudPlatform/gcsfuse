@@ -49,6 +49,73 @@ STAGING_VERSION = "prow-gob-internal-boskos-machine-type-test"
 DEFAULT_MTU = 8896
 
 
+async def set_up_bucket_permissions(
+    project_id, zone, cluster_name, bucket_name
+):
+  # Authenticate kubectl
+  await utils.run_command_async([
+      "gcloud",
+      "container",
+      "clusters",
+      "get-credentials",
+      cluster_name,
+      f"--project={project_id}",
+      f"--zone={zone}",
+  ])
+
+  # Fetch current-context
+  await utils.run_command_async([
+      "kubectl",
+      "config",
+      "current-context",
+  ])
+
+  # Ensure default KSA exists
+  await utils.run_command_async(
+      ["kubectl", "create", "serviceaccount", "default", "--namespace=default"],
+      check=False,
+  )
+
+  # Set current-context
+  await utils.run_command_async([
+      "kubectl",
+      "config",
+      "set-context",
+      "--current",
+      "--namespace=default",
+  ])
+
+  # Get Project Number
+  project_number, _, _ = await utils.run_command_async(
+      [
+          "gcloud",
+          "projects",
+          "describe",
+          project_id,
+          "--format=value(projectNumber)",
+      ],
+      check=True,
+  )
+
+  # Grant Storage objectUser role to the 'default' KSA principal
+  principal = f"principal://iam.googleapis.com/projects/{project_number}/locations/global/workloadIdentityPools/{project_id}.svc.id.goog/subject/ns/default/sa/default"
+  print(
+      f"Granting roles/storage.objectUser to {principal} on bucket"
+      f" {bucket_name}..."
+  )
+
+  await utils.run_command_async([
+      "gcloud",
+      "storage",
+      "buckets",
+      "add-iam-policy-binding",
+      f"gs://{bucket_name}",
+      f"--member={principal}",
+      "--role=roles/storage.objectUser",
+      f"--project={project_id}",
+  ])
+
+
 def is_tpu_machine_type(machine_type):
   """Checks if the machine type is a TPU machine type."""
   # Heuristic: check for "ct" (Cloud TPU) or "tpu" in the name.
@@ -379,6 +446,10 @@ async def main():
             )
         )
         await asyncio.gather(setup_task, build_task)
+
+      await set_up_bucket_permissions(
+          args.project_id, args.zone, args.cluster_name, args.bucket_name
+      )
 
       success = await execute_test_workload(
           args.project_id,
