@@ -18,34 +18,17 @@ spec:
     resources:
       limits:
         google.com/tpu: 4
-    command: ["/bin/bash", "-c"]
-    args:
-    - |
-      set -e
-      echo "Step 1: Container started. Updating apt and installing dependencies..."
-      apt-get update && apt-get install -y wget git build-essential ca-certificates
-
-      echo "Step 2: Installing Go 1.24.10 ..."
-      wget -q https://go.dev/dl/go1.24.10.linux-amd64.tar.gz
-      rm -rf /usr/local/go && tar -C /usr/local -xzf go1.24.10.linux-amd64.tar.gz
-      export PATH=$PATH:/usr/local/go/bin
-      echo "Go version installed:"
-      go version
-
-      echo "Step 3: Cloning GCSFuse repo..."
-      git clone -b $gcsfuse_branch https://github.com/GoogleCloudPlatform/gcsfuse.git
-      cd gcsfuse
-      echo "Repo content:"
-      ls -F
-
-      echo "Step 4: Running tests ..."
-      # Running filtered tests which are supposed to pass only for high-performance machine-type.
-      go test -v ./tools/integration_tests/flag_optimizations/... --integrationTest --mountedDirectory=/data_mnt --testbucket=$bucket_name -run "TestImplicitDirsEnabled|TestRenameDirLimitSet"
-
-      echo "Step 5: Test finished successfully."
+    env:
+    - name: GCSFUSE_BRANCH
+      value: "$gcsfuse_branch"
+    - name: BUCKET_NAME
+      value: "$bucket_name"
+    command: ["/bin/bash", "/scripts/run_test.sh"]
     volumeMounts:
     - name: data-vol
       mountPath: /data_mnt
+    - name: scripts-vol
+      mountPath: /scripts
   serviceAccountName: default
   volumes:
   - name: data-vol
@@ -54,3 +37,7 @@ spec:
       volumeAttributes:
         bucketName: "$bucket_name"
         mountOptions: ""
+  - name: scripts-vol
+    configMap:
+      name: machine-type-test-scripts
+
