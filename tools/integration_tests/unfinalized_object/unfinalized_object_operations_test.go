@@ -157,10 +157,6 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreated
 }
 
 func (t *unfinalizedObjectOperations) TestInodeIDPreservedOnRemoteAppend() {
-	if !setup.IsZonalBucketRun() {
-		t.T().Skip("This test is only for Zonal buckets.")
-	}
-
 	// Setup and stat the file.
 	filePath, initialInodeID := t.setupUnfinalizedObjectAndGetInitialInode(initialSize)
 	appendContent := setup.GenerateRandomString(appendSize)
@@ -170,7 +166,7 @@ func (t *unfinalizedObjectOperations) TestInodeIDPreservedOnRemoteAppend() {
 	obj, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
 	require.NoError(t.T(), err)
 
-	writer, err := client.TakeoverWriter(t.ctx, t.storageClient, path.Join(testDirName, t.fileName), obj.Generation)
+	writer, err := client.AppendableWriter(t.ctx, t.storageClient, path.Join(testDirName, t.fileName), obj.Generation)
 	require.NoError(t.T(), err)
 	_, err = writer.Write([]byte(appendContent))
 	require.NoError(t.T(), err)
@@ -192,10 +188,6 @@ func (t *unfinalizedObjectOperations) TestInodeIDPreservedOnRemoteAppend() {
 }
 
 func (t *unfinalizedObjectOperations) TestInodeIDChangedOnRemoteOverwrite() {
-	if !setup.IsZonalBucketRun() {
-		t.T().Skip("This test is only for Zonal buckets.")
-	}
-
 	// Setup and stat the file.
 	filePath, initialInodeID := t.setupUnfinalizedObjectAndGetInitialInode(initialSize)
 	newContent := setup.GenerateRandomString(initialSize)
