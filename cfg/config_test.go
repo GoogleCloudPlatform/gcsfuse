@@ -40,11 +40,11 @@ func TestApplyOptimizations(t *testing.T) {
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"file-cache-cache-file-for-range-read": true,
-						"machine-type":                         true,
+						"machine-type":       true,
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   !(false),
+				expectedValue: !(false),
 			},
 			{
 				name:   "no_optimization",
@@ -112,14 +112,14 @@ func TestApplyOptimizations(t *testing.T) {
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"implicit-dirs": true,
-						"machine-type":  true,
+						"machine-type":       true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   !(false),
+				expectedValue: !(false),
 			},
 			{
 				name:   "no_optimization",
@@ -171,7 +171,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   true,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				isSet: &mockIsValueSet{
@@ -223,11 +223,11 @@ func TestApplyOptimizations(t *testing.T) {
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"kernel-list-cache-ttl-secs": true,
-						"machine-type":               true,
+						"machine-type":       true,
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -288,14 +288,14 @@ func TestApplyOptimizations(t *testing.T) {
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"metadata-cache-negative-ttl-secs": true,
-						"machine-type":                     true,
+						"machine-type":       true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -347,7 +347,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   0,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				isSet: &mockIsValueSet{
@@ -399,14 +399,14 @@ func TestApplyOptimizations(t *testing.T) {
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"metadata-cache-ttl-secs": true,
-						"machine-type":            true,
+						"machine-type":       true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -458,7 +458,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   -1,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				isSet: &mockIsValueSet{
@@ -510,14 +510,14 @@ func TestApplyOptimizations(t *testing.T) {
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"rename-dir-limit": true,
-						"machine-type":     true,
+						"machine-type":       true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -555,7 +555,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   200000,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				isSet: &mockIsValueSet{
@@ -564,7 +564,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   200000,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_when_aiml-training_is_unrelated",
 				config: Config{Profile: "aiml-training"},
 				isSet: &mockIsValueSet{
@@ -616,14 +616,14 @@ func TestApplyOptimizations(t *testing.T) {
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"stat-cache-max-size-mb": true,
-						"machine-type":           true,
+						"machine-type":       true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -675,7 +675,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   -1,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				isSet: &mockIsValueSet{
@@ -727,14 +727,14 @@ func TestApplyOptimizations(t *testing.T) {
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"type-cache-max-size-mb": true,
-						"machine-type":           true,
+						"machine-type":       true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -786,7 +786,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   -1,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				isSet: &mockIsValueSet{
@@ -831,19 +831,20 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
 						"write-global-max-blocks": true,
-						"machine-type":            true,
+						"machine-type":       true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -864,7 +865,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   1600,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				isSet: &mockIsValueSet{
@@ -873,7 +874,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				expectOptimized: true,
 				expectedValue:   1600,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_when_aiml-training_is_unrelated",
 				config: Config{Profile: "aiml-training"},
 				isSet: &mockIsValueSet{

@@ -853,6 +853,15 @@ params:
         - name: "aiml-checkpointing"
           value: -1
 
+  - config-path: "metadata-cache.stat-cache-max-size-percent"
+    flag-name: "stat-cache-max-size-percent"
+    type: "int"
+    usage: >-
+      The maximum size of stat-cache as a percentage of total system memory.
+      This flag works in addition to stat-cache-max-size-mb. If set, it overwrites
+      stat-cache-max-size-mb with the calculated value.
+    default: "0"
+
   - config-path: "metadata-cache.ttl-secs"
     flag-name: "metadata-cache-ttl-secs"
     type: "int"
@@ -889,6 +898,15 @@ params:
           value: -1
         - name: "aiml-checkpointing"
           value: -1
+
+  - config-path: "metadata-cache.type-cache-max-size-percent"
+    flag-name: "type-cache-max-size-percent"
+    type: "int"
+    usage: >-
+      The maximum size of type-cache as a percentage of total system memory.
+      This flag works in addition to type-cache-max-size-mb. If set, it overwrites
+      type-cache-max-size-mb with the calculated value.
+    default: "0"
 
   - config-path: "metrics.buffer-size"
     flag-name: "metrics-buffer-size"
