@@ -42,12 +42,13 @@ sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm 
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [[ ($ID == "rhel" || $ID == "rocky") && $VERSION_ID == 8* ]]; then
+    if [[ ($ID == "rhel" || $ID == "rocky") ]]; then
         sudo yum install -y python311
+        export CLOUDSDK_PYTHON=/usr/bin/python3.11
         INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
 fi
-$INSTALL_COMMAND 
+$INSTALL_COMMAND
 
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
@@ -59,14 +60,22 @@ echo "Got ZONE=\"${ZONE}\" from metadata server."
 # The format for the above extracted zone is projects/{project-id}/zones/{zone}, thus, from this
 # need extracted zone name.
 ZONE_NAME=$(basename "$ZONE")
-# This parameter is passed as the GCE VM metadata at the time of creation.(Logic is handled in louhi stage script)
+
+CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
 RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
+
+# If CUSTOM_BUCKET is empty, use the release-packages bucket as default. When a custom bucket is provided, this script
+# will use the provided bucket to fetch details.txt file for the runa nd will upload the results to that bucket,
+# specially useful for testing.
+BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
+echo "BUCKET_NAME_TO_USE set to: \"${BUCKET_NAME_TO_USE}\""
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
 
 #details.txt file contains the release version and commit hash of the current release.
-gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
+# Using dynamic bucket.
+gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
@@ -150,29 +159,46 @@ grant_sudo  "$USERNAME"
 touch logs.txt
 chmod 666 logs.txt
 LOG_FILE=$(pwd)/logs.txt
+echo "User: $USER" &>> ${LOG_FILE}
+echo "Current Working Directory: $(pwd)" &>> ${LOG_FILE}
+
+# Root-level parsing for installation
+VERSION=$(sed -n 1p details.txt)
+COMMIT_HASH=$(sed -n 2p details.txt)
+VM_INSTANCE_NAME=$(sed -n 3p details.txt)
 
 if grep -q ubuntu details.txt || grep -q debian details.txt; then
     architecture=$(dpkg --print-architecture)
     sudo apt update
     sudo apt install -y fuse wget git build-essential
     
-    # Download and install specific GCSFuse version
-    # Quoted to prevent word splitting on version numbers or paths
-    gcloud storage cp "gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb" .
-    sudo dpkg -i "gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb" |& tee -a "${LOG_FILE}"
+    # Only download and install the pre-built deb package if using the default release bucket.
+    if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
+        echo "Downloading pre-built debian package from release bucket..." &>> ${LOG_FILE}
+        gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v${VERSION}/gcsfuse_${VERSION}_${architecture}.deb . &>> ${LOG_FILE}
+        sudo dpkg -i gcsfuse_${VERSION}_${architecture}.deb |& tee -a ${LOG_FILE}
+    else
+        echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built debian package installation." &>> ${LOG_FILE}
+    fi
 else
     # RHEL/CentOS
+    # Set CLOUDSDK_PYTHON to python3.11 for gcloud commands to work.
+    export CLOUDSDK_PYTHON=/usr/bin/python3.11
     uname=$(uname -m)
     if [[ $uname == "x86_64" ]]; then architecture="amd64"; elif [[ $uname == "aarch64" ]]; then architecture="arm64"; fi
 
     sudo yum makecache
     sudo yum -y update
-    sudo yum -y install fuse wget git gcc gcc-c++ make
+    sudo yum -y install fuse architecture git gcc gcc-c++ make
     
-    # Download and install specific GCSFuse version
-    # Quoted to prevent word splitting on version numbers or paths
-    gcloud storage cp "gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm" .
-    sudo yum -y localinstall "gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm" |& tee -a "${LOG_FILE}"
+  # Only download and install the pre-built rpm package if using the default release bucket.
+    if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
+        echo "Downloading pre-built rpm package from release bucket..." &>> ${LOG_FILE}
+        gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v${VERSION}/gcsfuse-${VERSION}-1.${uname}.rpm . &>> ${LOG_FILE}
+        sudo yum -y localinstall gcsfuse-${VERSION}-1.${uname}.rpm &>> ${LOG_FILE}
+    else
+        echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built rpm package installation." &>> ${LOG_FILE}
+    fi
 fi
 
 # Install Go (Required for the test runner script)
@@ -197,23 +223,38 @@ chown "$USERNAME:$USERNAME" "$HOMEDIR/details.txt"
 # single quotes to inject the parent shell variables safely: '"$VAR"'
 sudo -u starterscriptuser bash -c '
 set -e
+# Print commands and their arguments as they are executed.
 set -x
+
+# GCSFuse test suite uses this environment variable to save failure logs at the specified location.
+export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
+mkdir -p "$KOKORO_ARTIFACTS_DIR"
 
 export PATH=/usr/local/google-cloud-sdk/bin:/usr/local/go/bin:$PATH
 export HOME=/home/'"$USERNAME"'
 
-# Import environment variables
-ZONE_NAME='"$ZONE_NAME"'
-LOG_FILE='"$LOG_FILE"'
-RUN_ON_ZB_ONLY='"$RUN_ON_ZB_ONLY"'
-RUN_READ_CACHE_TESTS_ONLY='"$RUN_READ_CACHE_TESTS_ONLY"'
+ # Exporting variables to the sub-shell
+export ZONE_NAME='"$ZONE_NAME"'
+export LOG_FILE='"$LOG_FILE"'
+export RUN_ON_ZB_ONLY='"$RUN_ON_ZB_ONLY"'
+export RUN_READ_CACHE_TESTS_ONLY='"$RUN_READ_CACHE_TESTS_ONLY"'
+export BUCKET_NAME_TO_USE='"$BUCKET_NAME_TO_USE"'
+export COMMIT_HASH='"$COMMIT_HASH"'
+export VERSION='"$VERSION"'
+export architecture='"$architecture"'
 
 cd $HOME
 
 # Checkout Repo
 git clone https://github.com/googlecloudplatform/gcsfuse
 cd gcsfuse
-git checkout $(sed -n 2p ~/details.txt)
+git checkout ${COMMIT_HASH} |& tee -a ${LOG_FILE}
+if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
+    echo "Installing GCSFuse from source..."
+    GOOS=linux GOARCH=${architecture} go run tools/build_gcsfuse/main.go . . "${VERSION}"
+    sudo cp bin/* /usr/bin/
+    sudo cp sbin/* /usr/sbin/
+fi
 
 # ------------------------------------------------------------------
 # CONFIGURATION FOR NEW SCRIPT
@@ -254,7 +295,7 @@ TIMESTAMP=$(date +%d-%m-%H-%M)
 LOG_FILENAME="e2e_run_logs_${TIMESTAMP}.txt"
 
 $TEST_SCRIPT $ARGS 2>&1 | tee -a "$LOG_FILE"
-EXIT_CODE=$?
+EXIT_CODE=${PIPESTATUS[0]}
 set -e
 
 echo "E2E Script finished with Exit Code: $EXIT_CODE"
@@ -262,12 +303,10 @@ echo "E2E Script finished with Exit Code: $EXIT_CODE"
 # ------------------------------------------------------------------
 # LOG UPLOAD (Preserving Legacy Pipeline Behavior)
 # ------------------------------------------------------------------
-RELEASE_VERSION=$(sed -n 1p ~/details.txt)
-COMMIT_HASH=$(sed -n 3p ~/details.txt)
-GCS_DEST="gs://gcsfuse-release-packages/v${RELEASE_VERSION}/${COMMIT_HASH}/"
+GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${COMMIT_HASH}/${VM_INSTANCE_NAME}/"
 
 # Upload the consolidated log with fixed name for pipeline compatibility
-gcloud storage cp "$LOG_FILE" "${GCS_DEST}combined_e2e_logs_${TIMESTAMP}.txt"
+gcloud storage cp "$LOG_FILE" "${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
 
 # If success, create and upload success markers matching old script behavior
 if [ $EXIT_CODE -eq 0 ]; then
