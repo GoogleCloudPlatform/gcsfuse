@@ -85,7 +85,7 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 				BlockSizeMb:        1,
 				MaxBlocksPerHandle: 10,
 			},
-			EnableNewReader: params.enableNewReader,
+			EnableNewReader: true, // Not much use testing the case where it's false
 		},
 		MetricHandle: mh,
 		CacheClock:   &timeutil.SimulatedClock{},
