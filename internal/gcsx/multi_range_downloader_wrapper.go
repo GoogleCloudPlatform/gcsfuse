@@ -80,7 +80,8 @@ type MultiRangeDownloaderWrapper struct {
 	// MRD Read handle. Would be updated when MRD is being closed so that it can be used
 	// next time during MRD recreation.
 	handle []byte
-	// MRD cache for LRU-based eviction management (nil if disabled).
+
+	// MRD cache for LRU-based eviction of unused MRD instances.
 	mrdCache *lru.Cache
 }
 
@@ -93,8 +94,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObjec
 	return nil
 }
 
-// wrapperKey generates a unique string key for a wrapper.
-// Uses the pointer address as the key for uniqueness.
+// wrapperKey generates a unique key for the given MultiRangeDownloaderWrapper.
+// Uses the pointer address as the unique identifier, would be safe as long as
+// wrapper is uniquely associated with the lifecycle of the FileInode instance.
 func wrapperKey(wrapper *MultiRangeDownloaderWrapper) string {
 	return fmt.Sprintf("%p", wrapper)
 }
@@ -136,7 +138,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
 }
 
 // DecrementRefCount decrements the refcount. When refCount reaches 0, the wrapper
-// with its MRD is added to the pool for potential reuse (MRD is NOT closed immediately).
+// with added to the cache for potential reuse. In case, cache is not enabled, MRD
+// is closed immediately.
 // Returns error on invalid usage.
 // This method should be called exactly once per user of this wrapper
 // when MultiRangeDownloader is no longer needed & can be cleaned up.
@@ -150,6 +153,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	}
 
 	mrdWrapper.refCount--
+	// Do nothing if MRD is in use.
 	if mrdWrapper.refCount > 0 {
 		mrdWrapper.mu.Unlock()
 		return
@@ -170,9 +174,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 		return
 	}
 	logger.Tracef("MRDWrapper (%s) added wrapper to cache", mrdWrapper.object.Name)
-	mrdWrapper.mu.Unlock()
 
-	// Evict outside all locks to avoid deadlock
+	// Evict outside all locks to avoid deadlock.
+	mrdWrapper.mu.Unlock()
 	for _, wrapper := range evictedValues {
 		mrdWrapper, ok := wrapper.(*MultiRangeDownloaderWrapper)
 		if !ok {
@@ -190,12 +194,12 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) CloseMRDForEviction() {
 	mrdWrapper.mu.Lock()
 	defer mrdWrapper.mu.Unlock()
 
-	// Check if wrapper was reopened (refCount>0) - must skip eviction
+	// Check if wrapper was reopened (refCount>0) - must skip eviction.
 	if mrdWrapper.refCount > 0 {
 		return
 	}
 
-	// Check if wrapper was re-added to cache (refCount went 0→1→0 while we waited)
+	// Check if wrapper was re-added to cache (refCount went 0→1→0 in between eviction and closure.)
 	// Lock order: wrapper.mu -> cache.mu (consistent with Increment/DecrementRefCount)
 	if mrdWrapper.mrdCache != nil && mrdWrapper.mrdCache.LookUpWithoutChangingOrder(wrapperKey(mrdWrapper)) != nil {
 		return
@@ -324,7 +328,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	return
 }
 
-// CloseLocked closes the MultiRangeDownloader, returns true if closes.
+// closeLocked closes the MultiRangeDownloader, returns true if closes.
 // LOCK_REQUIRED(mrdWrapper.mu.Lock)
 func (mrdWrapper *MultiRangeDownloaderWrapper) closeLocked() bool {
 	if mrdWrapper.Wrapped == nil {

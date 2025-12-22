@@ -216,8 +216,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	if serverCfg.NewConfig.FileSystem.UnusedMrdCacheSize > 0 {
 		fs.mrdCache = lru.NewCache(uint64(serverCfg.NewConfig.FileSystem.UnusedMrdCacheSize))
 		logger.Infof("MRD cache (LRU-based) enabled with maxSize=%d (pools closed-file MRDs)", serverCfg.NewConfig.FileSystem.UnusedMrdCacheSize)
-	} else {
-		logger.Info("MRD cache disabled")
 	}
 
 	if serverCfg.Notifier != nil {
@@ -543,7 +541,7 @@ type fileSystem struct {
 	// This helps control the overall memory usage for buffered reads.
 	globalMaxReadBlocksSem *semaphore.Weighted
 
-	// mrdCache manages LRU eviction of MultiRangeDownloader instances across all inodes.
+	// mrdCache manages the cache of unused MultiRangeDownloaders.
 	mrdCache *lru.Cache
 }
 
