@@ -134,6 +134,11 @@ type ServerConfig struct {
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
 
+	// IsUserSet tracks which flags were explicitly set by the user (vs defaults)
+	// This is used for bucket-type-based optimizations once bucket-type is known
+	// during the RootDirInode creation.
+	IsUserSet cfg.IsValueSet
+
 	MetricHandle metrics.MetricHandle
 
 	// Notifier allows the file system to send invalidation messages to the FUSE
@@ -241,6 +246,17 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
+
+		// Apply bucket-type-specific optimizations now that we know the bucket type
+		if serverCfg.IsUserSet != nil {
+			bucketType := syncerBucket.BucketType()
+			bucketTypeStr := cfg.GetBucketTypeString(bucketType.Hierarchical, bucketType.Zonal)
+			if bucketTypeStr != "standard" {
+				logger.Infof("Applying bucket-type optimizations for %s bucket", bucketTypeStr)
+				_ = serverCfg.NewConfig.ApplyOptimizations(serverCfg.IsUserSet, bucketTypeStr)
+			}
+		}
+
 		root = makeRootForBucket(fs, syncerBucket)
 	}
 	root.Lock()

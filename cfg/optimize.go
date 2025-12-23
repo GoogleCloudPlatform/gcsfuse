@@ -49,7 +49,9 @@ type OptimizationResult struct {
 	Optimized bool `yaml:"-" json:"-"` // Field hidden from YAML and JSON to avoid it in logs.
 }
 
-type isValueSet interface {
+// IsValueSet interface allows checking if a flag was explicitly set by the user.
+// This is used to determine whether to apply optimization rules or respect user choices.
+type IsValueSet interface {
 	IsSet(string) bool
 	GetString(string) string
 	GetBool(string) bool
@@ -103,7 +105,7 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 }
 
 // getMachineType fetches the machine type from the metadata server if not set in isSet, cfg.
-func getMachineType(isSet isValueSet, cfg *Config) (string, error) {
+func getMachineType(isSet IsValueSet, cfg *Config) (string, error) {
 	// Precedence: 1. CLI flag, 2. Config file, 3. Metadata server.
 	// 1. Check if the machine-type flag is set in CLI flag.
 	if isSet.IsSet(machineTypeFlg) {
@@ -164,9 +166,11 @@ func getOptimizedValue(
 	currentValue any,
 	profileName string,
 	machineType string,
+	bucketType string,
 	machineTypeToGroupMap map[string]string,
 ) OptimizationResult {
-	// Precedence: Profile -> Machine -> Default
+	// Precedence: Profile -> (Machine / Bucket) -> Default
+	// Assuming Machine and Bucket optimizations are mutually exclusive.
 
 	// 1. If a profile with the given name is active and has optimization defined for it, then it takes precedence.
 	for _, p := range rules.Profiles {
@@ -192,7 +196,20 @@ func getOptimizedValue(
 		}
 	}
 
-	// 3. If no optimization is found, return the original value.
+	// 3. Only if no profile or machine optimization is set, check for bucket-type optimization.
+	if bucketType != "" {
+		for _, bbo := range rules.BucketBasedOptimization {
+			if bbo.BucketType == bucketType {
+				return OptimizationResult{
+					FinalValue:         bbo.Value,
+					OptimizationReason: fmt.Sprintf("bucket-type %q", bucketType),
+					Optimized:          true,
+				}
+			}
+		}
+	}
+
+	// 4. If no optimization is found, return the original value.
 	return OptimizationResult{
 		FinalValue: currentValue,
 		Optimized:  false,

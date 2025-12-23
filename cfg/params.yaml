@@ -345,6 +345,17 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.enable-kernel-reader"
+    flag-name: "enable-kernel-reader"
+    type: "bool"
+    usage: "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache."
+    default: false
+    hide-flag: true
+    optimizations:
+      bucket-based-optimization:
+        - bucket-type: "zonal"
+          value: true
+
   - config-path: "file-system.experimental-enable-dentry-cache"
     flag-name: "experimental-enable-dentry-cache"
     type: "bool"

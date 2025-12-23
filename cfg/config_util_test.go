@@ -222,3 +222,47 @@ func TestIsGKEEnvironment(t *testing.T) {
 		})
 	}
 }
+
+func TestGetBucketTypeString(t *testing.T) {
+	tests := []struct {
+		name         string
+		hierarchical bool
+		zonal        bool
+		expected     string
+	}{
+		{
+			name:         "Zonal bucket",
+			hierarchical: false,
+			zonal:        true,
+			expected:     "zonal",
+		},
+		{
+			name:         "Zonal and Hierarchical (zonal takes priority)",
+			hierarchical: true,
+			zonal:        true,
+			expected:     "zonal",
+		},
+		{
+			name:         "Hierarchical bucket",
+			hierarchical: true,
+			zonal:        false,
+			expected:     "hierarchical",
+		},
+		{
+			name:         "Standard bucket",
+			hierarchical: false,
+			zonal:        false,
+			expected:     "standard",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetBucketTypeString(tt.hierarchical, tt.zonal)
+			if result != tt.expected {
+				t.Errorf("GetBucketTypeString(%v, %v) = %s; want %s",
+					tt.hierarchical, tt.zonal, result, tt.expected)
+			}
+		})
+	}
+}
