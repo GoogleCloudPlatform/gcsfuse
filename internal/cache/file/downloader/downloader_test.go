@@ -17,7 +17,6 @@ package downloader
 import (
 	"context"
 	"os"
-	"path"
 	"sync"
 	"testing"
 	"time"
@@ -32,12 +31,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/mock"
 )
-
-var cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 
 func TestDownloader(t *testing.T) { RunTests(t) }
 
@@ -50,16 +46,20 @@ type downloaderTest struct {
 	fakeStorage            storage.FakeStorage
 	fileSpec               data.FileSpec
 	jm                     *JobManager
+	cacheDir               string
 }
 
 func init() { RegisterTestSuite(&downloaderTest{}) }
 
 func (dt *downloaderTest) setupHelper() {
 	locker.EnableInvariantsCheck()
-	operations.RemoveDir(cacheDir)
+	// Create unique temp directory per test
+	// Since ogletest doesn't easily provide testing.T, create temp dir manually
+	var err error
+	dt.cacheDir, err = os.MkdirTemp("", "gcsfuse-test-*")
+	ExpectEq(nil, err)
 
 	// Create bucket in fake storage.
-	var err error
 	mockClient := new(storage.MockStorageControlClient)
 	dt.fakeStorage = storage.NewFakeStorageWithMockClient(mockClient, cfg.HTTP2)
 	storageHandle := dt.fakeStorage.CreateStorageHandle()
@@ -70,30 +70,47 @@ func (dt *downloaderTest) setupHelper() {
 	ExpectEq(nil, err)
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})
-	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, dt.defaultFileCacheConfig, metrics.NewNoopMetrics())
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, dt.cacheDir, DefaultSequentialReadSizeMb, dt.defaultFileCacheConfig, metrics.NewNoopMetrics())
 }
 
-func (dt *downloaderTest) SetUp(*TestInfo) {
+func (dt *downloaderTest) SetUp(ti *TestInfo) {
+	// Ogletest doesn't provide testing.T in a way we can easily extract,
+	// so we'll handle temp directory creation in setupHelper
 	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{EnableCrc: true, ExperimentalParallelDownloadsDefaultOn: true}
 	dt.setupHelper()
 }
 
 func (dt *downloaderTest) TearDown() {
 	dt.fakeStorage.ShutDown()
-	operations.RemoveDir(cacheDir)
+	// Clean up temp dir if it was created manually
+	if dt.cacheDir != "" {
+		os.RemoveAll(dt.cacheDir)
+	}
 }
 
 func (dt *downloaderTest) waitForCrcCheckToBeCompleted() {
 	// Last notification is sent after the entire file is downloaded and before the CRC check is done.
 	// Hence, explicitly waiting till the CRC check is done.
+	timeout := time.After(5 * time.Second)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	
 	for {
-		dt.job.mu.Lock()
-		if dt.job.status.Name == Completed || dt.job.status.Name == Failed || dt.job.status.Name == Invalid {
+		select {
+		case <-timeout:
+			dt.job.mu.Lock()
+			status := dt.job.status
 			dt.job.mu.Unlock()
-			break
+			AssertTrue(false, "Timeout waiting for CRC check to complete. Current status: %v", status.Name)
+			return
+		case <-ticker.C:
+			dt.job.mu.Lock()
+			if dt.job.status.Name == Completed || dt.job.status.Name == Failed || dt.job.status.Name == Invalid {
+				dt.job.mu.Unlock()
+				return
+			}
+			dt.job.mu.Unlock()
 		}
-		dt.job.mu.Unlock()
-		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -197,12 +214,15 @@ func (dt *downloaderTest) Test_GetJob_Concurrent() {
 	objectPath := util.GetObjectPath(dt.bucket.Name(), dt.object.Name)
 	dt.jm.jobs[objectPath] = dt.job
 	dt.jm.mu.Unlock()
-	jobs := [5]*Job{}
+	jobs := make([]*Job, 5)
+	var jobsMu sync.Mutex
 	wg := sync.WaitGroup{}
 	getFunc := func(i int) {
 		defer wg.Done()
 		job := dt.jm.GetJob(dt.object.Name, dt.bucket.Name())
+		jobsMu.Lock()
 		jobs[i] = job
+		jobsMu.Unlock()
 	}
 
 	// make concurrent requests
