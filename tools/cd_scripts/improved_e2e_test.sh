@@ -1,0 +1,383 @@
+#! /bin/bash
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Print commands and their arguments as they are executed.
+set -x
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
+# Defaults
+LOCAL_RUN=false
+LOG_FILE=$(pwd)/logs.txt
+TEST_USER="starterscriptuser"
+HOME_DIR="/home/${TEST_USER}"
+ARTIFACTS_DIR="${HOME_DIR}/failure_logs"
+DETAILS_FILE="$(pwd)/details.txt"
+REPO_ROOT=$(pwd) # Capture current directory before sudo might change context
+
+# Parse Arguments
+for arg in "$@"; do
+    case $arg in
+        --local-run)
+            LOCAL_RUN=true
+            TEST_USER="$USER"
+            HOME_DIR="$HOME"
+            ARTIFACTS_DIR="$(pwd)/failure_logs"
+            DETAILS_FILE="$(pwd)/details.txt"
+            echo "Running in LOCAL MODE. No new users will be created, and logs will not be uploaded."
+            ;;
+    esac
+done
+
+# Initialize Log File
+touch "$LOG_FILE"
+chmod 666 "$LOG_FILE"
+echo "User: $USER" &>> "${LOG_FILE}"
+echo "Current Working Directory: $(pwd)" &>> "${LOG_FILE}"
+echo "Repository Root: ${REPO_ROOT}" &>> "${LOG_FILE}"
+
+# ==============================================================================
+# 1. HELPER FUNCTIONS
+# ==============================================================================
+
+cleanup() {
+    echo "Cleaning up temporary files..."
+    # Clean up installation artifacts to prevent clutter
+    rm -f gcloud.tar.gz go_tar.tar.gz
+    rm -rf google-cloud-sdk
+    
+    # Clean up temp script files
+    rm -f /tmp/test_exit_code.txt /tmp/test_log_filename.txt /tmp/run_tests_logic.sh
+
+    echo "Cleanup complete."
+}
+trap cleanup EXIT
+
+install_system_deps() {
+    echo "Installing system dependencies..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y wget fuse git build-essential
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y wget fuse git gcc gcc-c++ make
+        # For RHEL 8 / Rocky 8 specific python setup
+        if [ -f /etc/os-release ]; then
+             # shellcheck source=/dev/null
+            . /etc/os-release
+            if [[ ($ID == "rhel" || $ID == "rocky") ]]; then
+                sudo yum install -y python311
+                export CLOUDSDK_PYTHON=/usr/bin/python3.11
+            fi
+        fi
+    else
+        echo "Unsupported package manager."
+        exit 1
+    fi
+
+    # Ensure standard paths are included before checking
+    export PATH=$PATH:/usr/local/google-cloud-sdk/bin
+
+    # Optimization: For local run, if gcloud exists, DO NOT reinstall/upgrade.
+    if [ "$LOCAL_RUN" = true ] && command -v gcloud &> /dev/null; then
+        echo "Local run detected and gcloud is present. Skipping gcloud upgrade."
+        return 0
+    fi
+
+    # Upgrade gcloud
+    echo "Upgrading gcloud..."
+    wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+    sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
+    # Run install script
+    if [[ -n "$CLOUDSDK_PYTHON" ]]; then
+        sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" /usr/local/google-cloud-sdk/install.sh --quiet
+    else
+        sudo /usr/local/google-cloud-sdk/install.sh --quiet
+    fi
+    
+    gcloud version && rm gcloud.tar.gz
+}
+
+fetch_metadata() {
+    if [ "$LOCAL_RUN" = true ]; then
+        echo "Local run detected. Setting dummy metadata."
+        ZONE="projects/12345/zones/us-west1-b"
+        ZONE_NAME="us-west1-b"
+        BUCKET_NAME_TO_USE="gcsfuse-release-packages"
+        RUN_ON_ZB_ONLY="false"
+        
+        # Create dummy details.txt if missing
+        if [ ! -f "$DETAILS_FILE" ]; then
+            echo "0.0.0" > "$DETAILS_FILE"
+            echo "local-branch" >> "$DETAILS_FILE"
+            echo "local-hash" >> "$DETAILS_FILE"
+        fi
+    else
+        # Real Metadata Fetching
+        ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
+        ZONE_NAME=$(basename "$ZONE")
+        CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
+        RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
+        BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
+        
+        # Fetch details.txt from bucket
+        gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt" .
+        # Append instance name
+        curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
+    fi
+
+    echo "ZONE_NAME: $ZONE_NAME"
+    echo "BUCKET_NAME_TO_USE: $BUCKET_NAME_TO_USE"
+    
+    # Extract version info
+    VERSION=$(sed -n 1p "$DETAILS_FILE")
+    COMMIT_HASH=$(sed -n 2p "$DETAILS_FILE")
+    VM_INSTANCE_NAME=$(sed -n 3p "$DETAILS_FILE")
+}
+
+setup_test_user() {
+    if [ "$LOCAL_RUN" = true ]; then
+        echo "Skipping user creation for local run."
+        return 0
+    fi
+
+    local user=$1
+    local home=$2
+    local details=$3
+
+    if id "${user}" &>/dev/null; then
+        echo "User ${user} already exists."
+    else
+        echo "Creating user ${user}..."
+        if grep -qi -E 'ubuntu|debian' "$details"; then
+            sudo adduser --disabled-password --home "${home}" --gecos "" "${user}"
+        else
+            sudo adduser --home-dir "${home}" "${user}" && sudo passwd -d "${user}"
+        fi
+    fi
+
+    # Grant Sudo
+    sudo mkdir -p /etc/sudoers.d/
+    local sudoers_file="/etc/sudoers.d/${user}"
+    if ! sudo test -f "${sudoers_file}"; then
+        echo "${user} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${sudoers_file}" > /dev/null
+        sudo chmod 440 "${sudoers_file}"
+    fi
+}
+
+install_go() {
+    # Ensure standard paths are included before checking
+    export PATH=$PATH:/usr/local/go/bin
+
+    # Optimization: For local run, check if go exists first
+    if [ "$LOCAL_RUN" = true ] && command -v go &> /dev/null; then
+         echo "Local run detected and Go is present. Skipping Go installation."
+         return 0
+    fi
+
+    local arch=$1
+    echo "Installing Go..."
+    wget -O go_tar.tar.gz "https://go.dev/dl/go1.24.10.linux-${arch}.tar.gz"
+    sudo tar -C /usr/local -xzf go_tar.tar.gz
+    # Path is already exported above, but needed for subsequent commands in this function
+    go version |& tee -a "${LOG_FILE}"
+    rm -f go_tar.tar.gz
+}
+
+install_gcsfuse_package() {
+    if grep -q ubuntu "$DETAILS_FILE" || grep -q debian "$DETAILS_FILE"; then
+        architecture=$(dpkg --print-architecture)
+    else
+        uname=$(uname -m)
+        if [[ $uname == "x86_64" ]]; then architecture="amd64"; elif [[ $uname == "aarch64" ]]; then architecture="arm64"; fi
+    fi
+
+    # Optimization: Only install Go if we need to build GCSFuse (Local Run or Custom Bucket)
+    # The inner script installs Go for the tests, so we don't need it here for standard runs.
+    NEEDS_BUILD=false
+    if [ "$LOCAL_RUN" = true ]; then
+        NEEDS_BUILD=true
+    elif [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
+        NEEDS_BUILD=true
+    fi
+
+    if [ "$NEEDS_BUILD" = true ]; then
+        install_go "$architecture"
+    fi
+
+    # In Local Run, we skip downloading the package and build from source later
+    if [ "$LOCAL_RUN" = true ]; then
+        echo "Local run: Skipping package download. GCSFuse will be built from source."
+        return 0
+    fi
+
+    # CI/CD Logic: Download and install package if using default bucket
+    if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
+        echo "Downloading pre-built package..." &>> "${LOG_FILE}"
+        if grep -q -E 'ubuntu|debian' "$DETAILS_FILE"; then
+            gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/v${VERSION}/gcsfuse_${VERSION}_${architecture}.deb" . &>> "${LOG_FILE}"
+            sudo dpkg -i "gcsfuse_${VERSION}_${architecture}.deb" |& tee -a "${LOG_FILE}"
+        else
+            gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/v${VERSION}/gcsfuse-${VERSION}-1.${uname}.rpm" . &>> "${LOG_FILE}"
+            sudo yum -y localinstall "gcsfuse-${VERSION}-1.${uname}.rpm" &>> "${LOG_FILE}"
+        fi
+    else
+        echo "Custom bucket detected; skipping pre-built package installation." &>> "${LOG_FILE}"
+    fi
+}
+
+run_tests() {
+    # Prepare the test script content dynamically
+    local script_runner_path="/tmp/run_tests_logic.sh"
+    
+    cat << EOF > "$script_runner_path"
+#!/bin/bash
+set -e
+set -x
+
+export PATH=/usr/local/google-cloud-sdk/bin:/usr/local/go/bin:\$PATH
+export HOME="${HOME_DIR}"
+export KOKORO_ARTIFACTS_DIR="${ARTIFACTS_DIR}"
+export ZONE_NAME="${ZONE_NAME}"
+export RUN_ON_ZB_ONLY="${RUN_ON_ZB_ONLY}"
+
+mkdir -p "\$KOKORO_ARTIFACTS_DIR"
+
+# Repository Setup
+if [ "${LOCAL_RUN}" = "true" ]; then
+    # Fix for sudo changing HOME to /root:
+    # Explicitly change to the directory where the user called the script
+    echo "Local Run: Using existing repository at ${REPO_ROOT}"
+    cd "${REPO_ROOT}"
+    
+    echo "Cleaning up any previous GCSFuse mounts, processes, and artifacts..."
+    # Kill any remaining gcsfuse processes
+    sudo pkill -f gcsfuse || true
+    
+    # CRITICAL: Clean up bin directories to prevent "mkdir: file exists" error from build tool
+    rm -rf bin sbin
+
+    echo "Building GCSFuse from source..."
+    go run tools/build_gcsfuse/main.go . . "${VERSION}"
+    sudo cp bin/* /usr/bin/
+    sudo cp sbin/* /usr/sbin/
+else
+    # CI Mode: Clone the repo
+    cd "\$HOME"
+    git clone https://github.com/googlecloudplatform/gcsfuse
+    cd gcsfuse
+    git checkout "${COMMIT_HASH}"
+    
+    # If custom bucket (or specific testing scenario), build from source
+    if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
+        echo "Installing GCSFuse from source (Custom Bucket)..."
+        go run tools/build_gcsfuse/main.go . . "${VERSION}"
+        sudo cp bin/* /usr/bin/
+        sudo cp sbin/* /usr/sbin/
+    fi
+fi
+
+# Determine Region
+REGION=\${ZONE_NAME%-*}
+
+# Execute Test Wrapper
+TEST_SCRIPT="./tools/integration_tests/improved_run_e2e_tests.sh"
+chmod +x \$TEST_SCRIPT
+
+ARGS="--bucket-location \$REGION --test-installed-package --no-build-binary-in-script"
+
+if [[ "\$RUN_ON_ZB_ONLY" == "true" ]]; then
+    ARGS="\$ARGS --zonal"
+fi
+
+echo "----------------------------------------------------------------"
+echo "EXECUTING TEST SCRIPT: \$TEST_SCRIPT \$ARGS"
+echo "----------------------------------------------------------------"
+
+# Capture exit code
+set +e
+TIMESTAMP=\$(date +%d-%m-%H-%M)
+LOG_FILENAME="e2e_run_logs_\${TIMESTAMP}.txt"
+
+# Run tests and capture output
+\$TEST_SCRIPT \$ARGS 2>&1 | tee -a "${LOG_FILE}"
+EXIT_CODE=\${PIPESTATUS[0]}
+set -e
+
+# Export for the parent script to see (via file, since we are in subshell/sudo)
+echo \$EXIT_CODE > /tmp/test_exit_code.txt
+echo \$LOG_FILENAME > /tmp/test_log_filename.txt
+EOF
+
+    chmod +x "$script_runner_path"
+
+    # Execute the runner
+    if [ "$LOCAL_RUN" = true ]; then
+        # Run directly as current user (preserving env)
+        /bin/bash "$script_runner_path"
+    else
+        # Ensure user owns details file before running
+        cp "$DETAILS_FILE" "${HOME_DIR}/"
+        chown "${TEST_USER}:${TEST_USER}" "${HOME_DIR}/details.txt"
+        
+        # Run as test user
+        sudo -u "$TEST_USER" /bin/bash "$script_runner_path"
+    fi
+}
+
+upload_logs() {
+    if [ "$LOCAL_RUN" = true ]; then
+        EXIT_CODE=$(cat /tmp/test_exit_code.txt)
+        echo "Local run: Skipping GCS upload."
+        if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "Tests failed. Failure logs are located in: ${ARTIFACTS_DIR}"
+        else
+            echo "Tests passed. Cleaning up failure logs directory."
+            rm -rf "${ARTIFACTS_DIR}"
+        fi
+        exit "$EXIT_CODE"
+    else
+        # Retrieve values from the test run
+        EXIT_CODE=$(cat /tmp/test_exit_code.txt)
+        LOG_FILENAME=$(cat /tmp/test_log_filename.txt)
+        GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${COMMIT_HASH}/${VM_INSTANCE_NAME}/"
+        TIMESTAMP=$(date +%d-%m-%H-%M)
+
+        echo "Uploading logs to $GCS_DEST..."
+        gcloud storage cp "$LOG_FILE" "${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
+        echo "Logfile for this run: ${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
+        if [ "$EXIT_CODE" -eq 0 ]; then
+            touch ~/success.txt
+            if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+                touch ~/success-zonal.txt
+                gcloud storage cp ~/success-zonal.txt "${GCS_DEST}"
+            else
+                gcloud storage cp ~/success.txt "${GCS_DEST}"
+            fi
+        else
+            echo "Tests failed. Check logs."
+        fi
+        exit "$EXIT_CODE"
+    fi
+}
+
+# ==============================================================================
+# 2. MAIN EXECUTION FLOW
+# ==============================================================================
+
+install_system_deps
+fetch_metadata
+setup_test_user "$TEST_USER" "$HOME_DIR" "$DETAILS_FILE"
+install_gcsfuse_package
+run_tests
+upload_logs
