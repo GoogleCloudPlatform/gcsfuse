@@ -94,7 +94,7 @@ func (dt *downloaderTest) waitForCrcCheckToBeCompleted() {
 	timeout := time.After(5 * time.Second)
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-timeout:
