@@ -62,15 +62,15 @@ func IsGKEEnvironment(mountPoint string) bool {
 	return strings.HasPrefix(mountPoint, "/dev/fd/")
 }
 
-// GetBucketTypeString converts BucketType boolean flags to a descriptive string.
-// The priority order is: Zonal > Hierarchical > Standard.
+// GetBucketType converts BucketType boolean flags to a BucketType enum.
+// The priority order is: Zonal > Hierarchical > Flat.
 // This is used to determine bucket-specific optimizations for kernel configs.
-func GetBucketTypeString(hierarchical bool, zonal bool) string {
+func GetBucketType(hierarchical, zonal bool) BucketType {
 	if zonal {
-		return "zonal"
+		return BucketTypeZonal
 	}
 	if hierarchical {
-		return "hierarchical"
+		return BucketTypeHierarchical
 	}
-	return "standard"
+	return BucketTypeFlat
 }

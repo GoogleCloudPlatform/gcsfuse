@@ -161,7 +161,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 
 			isUserSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
 			mountInfo.isUserSet = isUserSet
-			optimizedFlags := mountInfo.config.ApplyOptimizations(isUserSet)
+			optimizedFlags := mountInfo.config.ApplyOptimizations(isUserSet, nil)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			for k := range optimizedFlags {
 				optimizedFlagNames = append(optimizedFlagNames, k)

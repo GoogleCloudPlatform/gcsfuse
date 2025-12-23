@@ -250,11 +250,14 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// Apply bucket-type-specific optimizations now that we know the bucket type
 		if serverCfg.IsUserSet != nil {
 			bucketType := syncerBucket.BucketType()
-			bucketTypeStr := cfg.GetBucketTypeString(bucketType.Hierarchical, bucketType.Zonal)
-			if bucketTypeStr != "standard" {
-				logger.Infof("Applying bucket-type optimizations for %s bucket", bucketTypeStr)
-				_ = serverCfg.NewConfig.ApplyOptimizations(serverCfg.IsUserSet, bucketTypeStr)
-			}
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal)
+			logger.Tracef("Applying bucket-type optimizations for %s bucket", bucketTypeEnum)
+			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.IsUserSet, &cfg.OptimizationInput{
+				BucketType: bucketTypeEnum,
+			})
+			logger.Tracef("Bucket based optimized flags: %+v", optimizedFlags)
+		} else {
+			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
 		}
 
 		root = makeRootForBucket(fs, syncerBucket)

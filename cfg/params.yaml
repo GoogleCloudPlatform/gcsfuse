@@ -352,7 +352,7 @@ params:
     default: false
     hide-flag: true
     optimizations:
-      bucket-based-optimization:
+      bucket-type-optimization:
         - bucket-type: "zonal"
           value: true
 
