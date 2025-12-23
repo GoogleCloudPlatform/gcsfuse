@@ -23,6 +23,62 @@ import (
 )
 
 func TestApplyOptimizations(t *testing.T) {
+	// Tests for file-system.enable-kernel-reader
+	t.Run("file-system.enable-kernel-reader", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			isSet           *mockIsValueSet
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{
+						"enable-kernel-reader": true,
+						"machine-type":         true,
+					},
+				},
+				expectOptimized: false,
+				expectedValue:   !(false),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				},
+				expectOptimized: false,
+				expectedValue:   false,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.EnableKernelReader = tc.expectedValue.(bool)
+				} else {
+					c.FileSystem.EnableKernelReader = false
+				}
+
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.enable-kernel-reader")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.enable-kernel-reader")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.EnableKernelReader)
+			})
+		}
+	})
 	// Tests for file-cache.cache-file-for-range-read
 	t.Run("file-cache.cache-file-for-range-read", func(t *testing.T) {
 		testCases := []struct {
