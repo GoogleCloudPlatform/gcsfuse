@@ -1521,18 +1521,18 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 
 func TestArgsParsing_DisableListAccessCheckFlag(t *testing.T) {
 	tests := []struct {
-		name                             string
-		args                             []string
+		name                           string
+		args                           []string
 		expectedDisableListAccessCheck bool
 	}{
 		{
-			name:                             "default",
-			args:                             []string{"gcsfuse", "abc", "pqr"},
+			name:                           "default",
+			args:                           []string{"gcsfuse", "abc", "pqr"},
 			expectedDisableListAccessCheck: true,
 		},
 		{
-			name:                             "normal",
-			args:                             []string{"gcsfuse", "--disable-list-access-check=false", "abc", "pqr"},
+			name:                           "normal",
+			args:                           []string{"gcsfuse", "--disable-list-access-check=false", "abc", "pqr"},
 			expectedDisableListAccessCheck: false,
 		},
 	}
