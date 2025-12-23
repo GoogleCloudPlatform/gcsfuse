@@ -47,11 +47,20 @@ type multiRangeReaderTest struct {
 	multiRangeReader *MultiRangeReader
 }
 
-func (t *multiRangeReaderTest) readAt(dst []byte, offset int64, skipSizeChecks bool) (gcsx.ReadResponse, error) {
+func (t *multiRangeReaderTest) read(dst []byte, offset int64, skipSizeChecks bool) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
 		Offset:         offset,
 		Buffer:         dst,
 		EndOffset:      offset + int64(len(dst)),
+		SkipSizeChecks: skipSizeChecks,
+	}
+	return t.multiRangeReader.Read(t.ctx, req)
+}
+
+func (t *multiRangeReaderTest) readAt(dst []byte, offset int64, skipSizeChecks bool) (gcsx.ReadResponse, error) {
+	req := &gcsx.ReadRequest{
+		Offset:         offset,
+		Buffer:         dst,
 		SkipSizeChecks: skipSizeChecks,
 	}
 	return t.multiRangeReader.ReadAt(t.ctx, req)
@@ -226,6 +235,79 @@ func (t *multiRangeReaderTest) Test_ReadAt_InvalidOffset() {
 	t.object.Size = 50
 
 	_, err := t.readAt(make([]byte, t.object.Size), 65, false)
+
+	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
+}
+
+// Replicated ReadAt tests for Read() also. We can remove Read() tests after Rapid GA.
+func (t *multiRangeReaderTest) Test_Read_MRDRead() {
+	testCases := []struct {
+		name        string
+		dataSize    int
+		offset      int
+		bytesToRead int
+	}{
+		{
+			name:        "ReadChunk",
+			dataSize:    100,
+			offset:      37,
+			bytesToRead: 43,
+		},
+		{
+			name:        "ReadZeroByte",
+			dataSize:    100,
+			offset:      37,
+			bytesToRead: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.multiRangeReader.isMRDInUse.Store(false)
+			t.object.Size = uint64(tc.dataSize)
+			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
+			require.NoError(t.T(), err, "Error in creating MRDWrapper")
+			t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
+			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond)).Times(1)
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Times(1)
+			buf := make([]byte, tc.bytesToRead)
+
+			readResponse, err := t.read(buf, int64(tc.offset), false)
+
+			t.mockBucket.AssertNotCalled(t.T(), "NewReaderWithReadHandle", mock.Anything)
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), tc.bytesToRead, readResponse.Size)
+			assert.Equal(t.T(), testContent[tc.offset:tc.offset+tc.bytesToRead], buf[:readResponse.Size])
+		})
+	}
+}
+
+func (t *multiRangeReaderTest) Test_Read_SkipSizeChecks() {
+	t.object.Size = 50
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
+	require.NoError(t.T(), err, "Error in creating MRDWrapper")
+	t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond)).Once()
+	buf := make([]byte, 20)
+	offset := int64(40)
+
+	// Read that starts within the object but extends beyond its size, with SkipSizeChecks=true.
+	// This should not return io.EOF from MultiRangeReader.
+	readResponse, err := t.read(buf, offset, true)
+
+	assert.NoError(t.T(), err)
+	// The fake downloader will only return the remaining bytes from the object.
+	expectedBytesRead := int(t.object.Size) - int(offset)
+	assert.Equal(t.T(), expectedBytesRead, readResponse.Size)
+	assert.Equal(t.T(), testContent[offset:t.object.Size], buf[:readResponse.Size])
+}
+
+func (t *multiRangeReaderTest) Test_Read_InvalidOffset() {
+	t.object.Size = 50
+
+	_, err := t.read(make([]byte, t.object.Size), 65, false)
 
 	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
 }

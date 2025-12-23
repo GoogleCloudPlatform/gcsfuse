@@ -101,7 +101,7 @@ func (t *rangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, e
 	}
 	t.rangeReader.checkInvariants()
 	defer t.rangeReader.checkInvariants()
-	return t.rangeReader.ReadAt(t.ctx, req)
+	return t.rangeReader.Read(t.ctx, req)
 }
 
 func (t *rangeReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {
@@ -443,7 +443,7 @@ func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
 	readReturned := make(chan struct{})
 
 	go func() {
-		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+		_, _ = t.rangeReader.Read(ctx, &gcsx.GCSReaderRequest{
 			Buffer:    make([]byte, 2),
 			Offset:    0,
 			EndOffset: 2,
@@ -493,7 +493,7 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	buf := make([]byte, bufSize)
 
 	// Successfully read two bytes using a context whose cancellation we control.
-	readResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+	readResponse, err := t.rangeReader.Read(ctx, &gcsx.GCSReaderRequest{
 		Buffer:    buf,
 		Offset:    0,
 		ReadInfo:  &gcsx.ReadInfo{},
@@ -662,7 +662,7 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 		EndOffset: offset + size,
 		ReadInfo:  &gcsx.ReadInfo{},
 	}
-	resp1, err := t.rangeReader.ReadAt(t.ctx, req1)
+	resp1, err := t.rangeReader.Read(t.ctx, req1)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(readSize), resp1.Size)
@@ -684,7 +684,7 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 		ForceCreateReader: true,
 		ReadInfo:          &gcsx.ReadInfo{},
 	}
-	resp2, err := t.rangeReader.ReadAt(t.ctx, req2)
+	resp2, err := t.rangeReader.Read(t.ctx, req2)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(readsize2), resp2.Size)

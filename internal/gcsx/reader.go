@@ -113,5 +113,5 @@ type GCSReader interface {
 	// ReadAt reads data into the `Buffer` field of the provided `GCSReaderRequest`,
 	// starting from the specified offset and ending at the specified end offset.
 	// It returns a `ReadResponse` indicating the number of bytes successfully read and any error encountered.
-	ReadAt(ctx context.Context, req *GCSReaderRequest) (ReadResponse, error)
+	Read(ctx context.Context, req *GCSReaderRequest) (ReadResponse, error)
 }
