@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -56,21 +55,6 @@ func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinO
 type readResult struct {
 	bytesRead int
 	err       error
-}
-
-type mrdEntry struct {
-	mrd gcs.MultiRangeDownloader
-	mu  sync.RWMutex
-	wg  sync.WaitGroup
-}
-
-type mrdPool struct {
-	entries        []*mrdEntry
-	size           int
-	current        uint64
-	ctx            context.Context
-	cancelCreation context.CancelFunc
-	creationWg     sync.WaitGroup
 }
 
 type MultiRangeDownloaderWrapper struct {
@@ -147,24 +131,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 
 	mrdWrapper.refCount--
 	if mrdWrapper.refCount == 0 && mrdWrapper.mrdPool != nil {
-		// Cancel any ongoing background creation of MRDs.
-		if mrdWrapper.mrdPool.cancelCreation != nil {
-			mrdWrapper.mrdPool.cancelCreation()
-		}
-		mrdWrapper.mrdPool.creationWg.Wait()
-
-		for _, entry := range mrdWrapper.mrdPool.entries {
-			entry.mu.Lock()
-			if entry.mrd != nil {
-				// Wait for all pending requests to complete.
-				entry.wg.Wait()
-				if mrdWrapper.handle == nil {
-					mrdWrapper.handle = entry.mrd.GetHandle()
-				}
-				entry.mrd.Close()
-				entry.mrd = nil
-			}
-			entry.mu.Unlock()
+		handle := mrdWrapper.mrdPool.close()
+		if handle != nil {
+			mrdWrapper.handle = handle
 		}
 		mrdWrapper.mrdPool = nil
 	}
@@ -180,7 +149,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 
 	// Create the MRD if it does not exist.
 	if mrdWrapper.mrdPool == nil {
-		// The calling function holds a read lock. To create a new downloader, we need to
+		// The calling function holds a read lock. To create a new pool, we need to
 		// upgrade to a write lock. This is done by releasing the read lock, acquiring
 		// the write lock, and then using a deferred function to downgrade back to a
 		// read lock before this function returns.
@@ -199,83 +168,14 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 			// 	poolSize = mrdWrapper.config.Read.MultiRangeDownloaderPoolSize
 			// }
 
-			pool := &mrdPool{
-				entries: make([]*mrdEntry, poolSize),
-				size:    poolSize,
-			}
-			for i := range pool.entries {
-				pool.entries[i] = &mrdEntry{}
-			}
-
-			// Create the first MRD synchronously.
-			mrd, err := mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-				Name:           mrdWrapper.object.Name,
-				Generation:     mrdWrapper.object.Generation,
-				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
-				ReadHandle:     mrdWrapper.handle,
-			})
+			pool, err := newMRDPool(mrdWrapper.bucket, mrdWrapper.object, mrdWrapper.handle, poolSize)
 			if err != nil {
 				return err
-			}
-			pool.entries[0].mrd = mrd
-
-			// Create the rest of the MRDs asynchronously.
-			if poolSize > 1 {
-				handle := mrd.GetHandle()
-				pool.ctx, pool.cancelCreation = context.WithCancel(context.Background())
-				pool.creationWg.Add(1)
-				go func() {
-					defer pool.creationWg.Done()
-					mrdWrapper.createRemainingMRDs(pool, handle)
-				}()
 			}
 			mrdWrapper.mrdPool = pool
 		}
 	}
 	return
-}
-
-func (mrdWrapper *MultiRangeDownloaderWrapper) createRemainingMRDs(pool *mrdPool, handle []byte) {
-	for i := 1; i < pool.size; i++ {
-		if pool.ctx.Err() != nil {
-			return
-		}
-		mrd, err := mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-			Name:           mrdWrapper.object.Name,
-			Generation:     mrdWrapper.object.Generation,
-			ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
-			ReadHandle:     handle,
-		})
-		if err == nil {
-			pool.entries[i].mu.Lock()
-			pool.entries[i].mrd = mrd
-			pool.entries[i].mu.Unlock()
-		}
-	}
-}
-
-func (mrdWrapper *MultiRangeDownloaderWrapper) recreateMRD(entry *mrdEntry) {
-	entry.mu.Lock()
-	defer entry.mu.Unlock()
-
-	var handle []byte
-	if entry.mrd != nil {
-		handle = entry.mrd.GetHandle()
-		entry.mrd.Close()
-	} else {
-		handle = mrdWrapper.handle
-	}
-
-	mrd, err := mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-		Name:           mrdWrapper.object.Name,
-		Generation:     mrdWrapper.object.Generation,
-		ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
-		ReadHandle:     handle,
-	})
-
-	if err == nil {
-		entry.mrd = mrd
-	}
 }
 
 // Reads the data using MultiRangeDownloader.
@@ -300,14 +200,13 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	}
 
 	// Get the next MRD from the pool.
-	idx := atomic.AddUint64(&mrdWrapper.mrdPool.current, 1) % uint64(mrdWrapper.mrdPool.size)
-	entry := mrdWrapper.mrdPool.entries[idx]
+	entry := mrdWrapper.mrdPool.next()
 
 	entry.mu.RLock()
 	// If the MRD is nil or unusable, recreate it.
 	if entry.mrd == nil || entry.mrd.Error() != nil || forceCreateMRD {
 		entry.mu.RUnlock()
-		mrdWrapper.recreateMRD(entry)
+		mrdWrapper.mrdPool.recreateMRD(entry, mrdWrapper.handle)
 		entry.mu.RLock()
 	}
 
@@ -362,10 +261,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	}
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: %w", err)
-		// In case of short read or error, recreate the MRD instance.
-		if bytesRead < int(endOffset-startOffset) {
-			mrdWrapper.recreateMRD(entry)
-		}
+		// // In case of short read or error, recreate the MRD instance.
+		// if bytesRead < int(endOffset-startOffset) {
+		// 	mrdWrapper.mrdPool.recreateMRD(entry, mrdWrapper.handle)
+		// }
 		logger.Error(err.Error())
 	}
 	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
