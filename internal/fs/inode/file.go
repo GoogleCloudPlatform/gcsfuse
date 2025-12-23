@@ -535,11 +535,33 @@ func (f *FileInode) Attributes(
 		// If the object has been clobbered, we reflect that as the inode being
 		// unlinked.
 		var clobbered bool
-		_, clobbered, err = f.clobbered(ctx, false, false)
+		var o *gcs.Object
+		o, clobbered, err = f.clobbered(ctx, false, false)
 		if err != nil {
 			err = fmt.Errorf("clobbered: %w", err)
 			return
 		}
+
+		if clobbered {
+			// If the object is clobbered, we check if it is a size update (remote appends scenario).
+			// If the generation and metageneration match, it means the object is not clobbered
+			// but the size has changed. In this case, we update the inode attributes.
+			if o != nil && o.Generation == f.src.Generation && o.MetaGeneration == f.src.MetaGeneration {
+				clobbered = false
+				minObjPtr := storageutil.ConvertObjToMinObject(o)
+				if minObjPtr != nil {
+					f.src = *minObjPtr
+					f.updateMRDWrapper()
+
+					f.attrs.Size = f.src.Size
+					f.attrs.Mtime = f.src.Updated
+
+					attrs.Size = f.src.Size
+					attrs.Mtime = f.src.Updated
+				}
+			}
+		}
+
 		if clobbered {
 			attrs.Nlink = 0
 			return
