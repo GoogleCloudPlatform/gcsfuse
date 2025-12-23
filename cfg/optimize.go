@@ -231,11 +231,11 @@ func getOptimizedValue(
 	currentValue any,
 	profileName string,
 	machineType string,
-	bucketType string,
+	input OptimizationInput,
 	machineTypeToGroupMap map[string]string,
 ) OptimizationResult {
 	// Precedence: Profile -> (Machine / Bucket) -> Default
-	// Assuming Machine and Bucket optimizations are mutually exclusive.
+	// Assuming Machine and Bucket optimizations are applied on mutually exclusive flags.
 
 	// 1. If a profile with the given name is active and has optimization defined for it, then it takes precedence.
 	for _, p := range rules.Profiles {
@@ -261,13 +261,13 @@ func getOptimizedValue(
 		}
 	}
 
-	// 3. Only if no profile or machine optimization is set, check for bucket-type optimization.
-	if bucketType != "" {
+	// 3. Only if no profile is set, check for bucket-type optimization.
+	if input.BucketType != BucketTypeUnknown {
 		for _, bbo := range rules.BucketBasedOptimization {
-			if bbo.BucketType == bucketType {
+			if BucketType(bbo.BucketType) == input.BucketType {
 				return OptimizationResult{
 					FinalValue:         bbo.Value,
-					OptimizationReason: fmt.Sprintf("bucket-type %q", bucketType),
+					OptimizationReason: fmt.Sprintf("bucket-type %q", input.BucketType),
 					Optimized:          true,
 				}
 			}

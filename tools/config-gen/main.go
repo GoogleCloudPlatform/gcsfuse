@@ -27,6 +27,8 @@ import (
 	"text/template" // NOLINT
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -75,6 +77,7 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 	// Define the custom function map.
 	funcMap := template.FuncMap{
 		"formatValue": formatValue,
+		"title":       cases.Title(language.English).String,
 	}
 
 	file := path.Base(templateFile)
