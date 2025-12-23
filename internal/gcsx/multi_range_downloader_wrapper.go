@@ -163,12 +163,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 
 		// Checking if the mrdWrapper state is same after taking the lock.
 		if mrdWrapper.mrdPool == nil {
-			poolSize := 4
-			// if mrdWrapper.config.Read.MultiRangeDownloaderPoolSize > 0 {
-			// 	poolSize = mrdWrapper.config.Read.MultiRangeDownloaderPoolSize
-			// }
-
-			pool, err := newMRDPool(mrdWrapper.bucket, mrdWrapper.object, mrdWrapper.handle, poolSize)
+			pool, err := newMRDPool(mrdWrapper.bucket, mrdWrapper.object, mrdWrapper.handle, int(mrdWrapper.config.MRD.MRDPoolSize))
 			if err != nil {
 				return err
 			}

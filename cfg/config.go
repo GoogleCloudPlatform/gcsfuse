@@ -397,6 +397,8 @@ type Config struct {
 
 	Read ReadConfig `yaml:"read"`
 
+	MRD MRDConfig `yaml:"mrd"`
+
 	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight"`
 
 	Write WriteConfig `yaml:"write"`
@@ -618,6 +620,10 @@ type ReadConfig struct {
 	RandomSeekThreshold int64 `yaml:"random-seek-threshold"`
 
 	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
+}
+
+type MRDConfig struct {
+	MRDPoolSize int64 `yaml:"pool-size"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -1075,6 +1081,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
+
+	flagSet.IntP("mrd-pool-size", "", 4, "Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.")
+
+	if err := flagSet.MarkHidden("mrd-pool-size"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than 0. This is used to read data in chunks from GCS.")
 
@@ -1612,6 +1624,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("mrd.pool-size", flagSet.Lookup("mrd-pool-size")); err != nil {
 		return err
 	}
 
