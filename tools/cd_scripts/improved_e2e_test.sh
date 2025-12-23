@@ -63,7 +63,6 @@ ZONE_NAME=$(basename "$ZONE")
 
 CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
-RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
 
 # If CUSTOM_BUCKET is empty, use the release-packages bucket as default. When a custom bucket is provided, this script
 # will use the provided bucket to fetch details.txt file for the runa nd will upload the results to that bucket,
@@ -71,7 +70,6 @@ RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone
 BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
 echo "BUCKET_NAME_TO_USE set to: \"${BUCKET_NAME_TO_USE}\""
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
-echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
 
 #details.txt file contains the release version and commit hash of the current release.
 # Using dynamic bucket.
@@ -237,7 +235,6 @@ export HOME=/home/'"$USERNAME"'
 export ZONE_NAME='"$ZONE_NAME"'
 export LOG_FILE='"$LOG_FILE"'
 export RUN_ON_ZB_ONLY='"$RUN_ON_ZB_ONLY"'
-export RUN_READ_CACHE_TESTS_ONLY='"$RUN_READ_CACHE_TESTS_ONLY"'
 export BUCKET_NAME_TO_USE='"$BUCKET_NAME_TO_USE"'
 export COMMIT_HASH='"$COMMIT_HASH"'
 export VERSION='"$VERSION"'
@@ -276,10 +273,6 @@ ARGS="--bucket-location $REGION --test-installed-package --no-build-binary-in-sc
 
 if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
     ARGS="$ARGS --zonal"
-fi
-
-if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
-    echo "Notice: RUN_READ_CACHE_TESTS_ONLY is set. The new script will run the standard suite for the selected bucket type."
 fi
 
 echo "----------------------------------------------------------------"

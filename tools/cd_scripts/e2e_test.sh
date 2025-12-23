@@ -1,5 +1,5 @@
 #! /bin/bash
-# Copyright 2025 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,10 +17,6 @@
 set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
-
-# ==============================================================================
-# 1. SYSTEM PREPARATION (Root Level)
-# ==============================================================================
 
 # Install wget
 if command -v apt-get &> /dev/null; then
@@ -64,6 +60,7 @@ ZONE_NAME=$(basename "$ZONE")
 CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
 RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
+RUN_LIGHT_TEST=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-light-test)')
 
 # If CUSTOM_BUCKET is empty, use the release-packages bucket as default. When a custom bucket is provided, this script
 # will use the provided bucket to fetch details.txt file for the runa nd will upload the results to that bucket,
@@ -72,6 +69,24 @@ BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
 echo "BUCKET_NAME_TO_USE set to: \"${BUCKET_NAME_TO_USE}\""
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
+echo "RUN_LIGHT_TEST flag set to : \"${RUN_LIGHT_TEST}\""
+
+# Logging the tests being run on the active GCE VM
+if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+	echo "Running integration tests for Zonal bucket only..."
+else
+	echo "Running integration tests for non-zonal buckets only..."
+fi
+
+# Logging the tests being run on the active GCE VM
+if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
+	echo "Running read cache test only..."
+fi
+
+# Logging the tests being run on the active GCE VM
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+	echo "Running light tests only..."
+fi
 
 #details.txt file contains the release version and commit hash of the current release.
 # Using dynamic bucket.
@@ -90,10 +105,10 @@ create_user() {
   fi
 
   echo "Creating user ${USERNAME}..."
-  if grep -qi -E 'ubuntu|debian' "$DETAILS"; then
+  if grep -qi -E 'ubuntu|debian' $DETAILS; then
     # For Ubuntu and Debian
     sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
-  elif grep -qi -E 'rhel|centos|rocky' "$DETAILS"; then
+  elif grep -qi -E 'rhel|centos|rocky' $DETAILS; then
     # For RHEL, CentOS, Rocky Linux
     sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}" && sudo passwd -d "${USERNAME}"
   else
@@ -102,7 +117,7 @@ create_user() {
   fi
   local exit_code=$?
 
-  if [ ${exit_code} -eq 0 ]; then
+  if [[ ${exit_code} -eq 0 ]]; then
     echo "User ${USERNAME} created successfully."
   else
     echo "Failed to create user ${USERNAME}." >&2
@@ -113,14 +128,15 @@ create_user() {
 # Function to grant sudo access by creating a file in /etc/sudoers.d/
 grant_sudo() {
   local USERNAME=$1
+  local HOMEDIR=$2
   if ! id "${USERNAME}" &>/dev/null; then
     echo "User ${USERNAME} does not exist. Cannot grant sudo."
     return 1
   fi
-  
+
   sudo mkdir -p /etc/sudoers.d/
   SUDOERS_FILE="/etc/sudoers.d/${USERNAME}"
-  
+
   if sudo test -f "${SUDOERS_FILE}"; then
     echo "Sudoers file ${SUDOERS_FILE} already exists."
   else
@@ -142,36 +158,78 @@ grant_sudo() {
   fi
   return 0
 }
-
+################################################################################
+# Main script execution flow starts here.
+# The script will first attempt to create the user specified by $USERNAME.
+# If the user creation is successful, it will then proceed to grant sudo
+# privileges to the newly created user.
+################################################################################
 USERNAME=starterscriptuser
 HOMEDIR="/home/${USERNAME}"
 DETAILS_FILE=$(pwd)/details.txt
 
 create_user "$USERNAME" "$HOMEDIR" "$DETAILS_FILE"
-grant_sudo  "$USERNAME"
+grant_sudo  "$USERNAME" "$HOMEDIR"
 
-# ==============================================================================
-# 2. PACKAGE INSTALLATION (Root Level)
-# We must install the package being tested (the .deb or .rpm) before switching users.
-# ==============================================================================
 
-# Logs for installation
+# Run the following as starterscriptuser
+sudo -u starterscriptuser bash -c '
+# Exit immediately if a command exits with a non-zero status.
+set -e
+# Print commands and their arguments as they are executed.
+
+function cleanup() {
+    echo "Performing cleanup..."
+    #Log results based on the collected exit statuses.
+    log_based_on_exit_status exit_status
+}
+trap cleanup EXIT
+set -x
+# GCSFuse test suite uses this environment variable to save failure logs at the specified location.
+export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
+mkdir -p "$KOKORO_ARTIFACTS_DIR"
+# Since we are now operating as the starterscriptuser, we need to set the environment variable for this user again.
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
+
+# Exporting variables to the sub-shell
+export RUN_ON_ZB_ONLY='$RUN_ON_ZB_ONLY'
+export RUN_READ_CACHE_TESTS_ONLY='$RUN_READ_CACHE_TESTS_ONLY'
+export RUN_LIGHT_TEST='$RUN_LIGHT_TEST'
+export BUCKET_NAME_TO_USE='$BUCKET_NAME_TO_USE'
+
+#Copy details.txt to starterscriptuser home directory and create logs.txt
+cd ~/
+cp /details.txt .
 touch logs.txt
-chmod 666 logs.txt
-LOG_FILE=$(pwd)/logs.txt
+touch logs-hns.txt
+touch logs-zonal.txt
+LOG_FILE='~/logs.txt'
+
+if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+  LOG_FILE='~/logs-zonal.txt'
+fi
+
 echo "User: $USER" &>> ${LOG_FILE}
 echo "Current Working Directory: $(pwd)" &>> ${LOG_FILE}
 
-# Root-level parsing for installation
-VERSION=$(sed -n 1p details.txt)
-COMMIT_HASH=$(sed -n 2p details.txt)
-VM_INSTANCE_NAME=$(sed -n 3p details.txt)
+VERSION=$(sed -n 1p ~/details.txt)
+COMMIT_HASH=$(sed -n 2p ~/details.txt)
+VM_INSTANCE_NAME=$(sed -n 3p ~/details.txt)
 
-if grep -q ubuntu details.txt || grep -q debian details.txt; then
+# Based on the os type in detail.txt, run the following commands for setup
+
+if grep -q ubuntu details.txt || grep -q debian details.txt;
+then
+#  For Debian and Ubuntu os
+    # architecture can be amd64 or arm64
     architecture=$(dpkg --print-architecture)
+
     sudo apt update
-    sudo apt install -y fuse wget git build-essential
-    
+
+    #Install fuse
+    sudo apt install -y fuse
+
+    # download and install gcsfuse deb package
     # Only download and install the pre-built deb package if using the default release bucket.
     if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
         echo "Downloading pre-built debian package from release bucket..." &>> ${LOG_FILE}
@@ -180,18 +238,41 @@ if grep -q ubuntu details.txt || grep -q debian details.txt; then
     else
         echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built debian package installation." &>> ${LOG_FILE}
     fi
+    # install wget
+    sudo apt install -y wget
+
+    #install git
+    sudo apt install -y git
+
+   # install python3-setuptools tools.
+   sudo apt-get install -y gcc python3-dev python3-setuptools
+   # Downloading composite object requires integrity checking with CRC32c in gsutil.
+   # it requires to install crcmod.
+   sudo apt install -y python3-crcmod
+
+    #install build-essentials
+    sudo apt install -y build-essential
 else
-    # RHEL/CentOS
+    # For rhel and centos
     # Set CLOUDSDK_PYTHON to python3.11 for gcloud commands to work.
     export CLOUDSDK_PYTHON=/usr/bin/python3.11
+
+    # uname can be aarch or x86_64
     uname=$(uname -m)
-    if [[ $uname == "x86_64" ]]; then architecture="amd64"; elif [[ $uname == "aarch64" ]]; then architecture="arm64"; fi
+
+    if [[ $uname == "x86_64" ]]; then
+      architecture="amd64"
+    elif [[ $uname == "aarch64" ]]; then
+      architecture="arm64"
+    fi
 
     sudo yum makecache
     sudo yum -y update
-    sudo yum -y install fuse architecture git gcc gcc-c++ make
-    
-  # Only download and install the pre-built rpm package if using the default release bucket.
+
+    #Install fuse
+    sudo yum -y install fuse
+
+    # Only download and install the pre-built rpm package if using the default release bucket.
     if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
         echo "Downloading pre-built rpm package from release bucket..." &>> ${LOG_FILE}
         gcloud storage cp gs://${BUCKET_NAME_TO_USE}/v${VERSION}/gcsfuse-${VERSION}-1.${uname}.rpm . &>> ${LOG_FILE}
@@ -199,55 +280,43 @@ else
     else
         echo "Custom bucket detected (${BUCKET_NAME_TO_USE}); skipping pre-built rpm package installation." &>> ${LOG_FILE}
     fi
+
+    #install wget
+    sudo yum -y install wget
+
+    #install git
+    sudo yum -y install git
+
+    #install Development tools
+    sudo yum -y install gcc gcc-c++ make
 fi
 
-# Install Go (Required for the test runner script)
-wget -O go_tar.tar.gz "https://go.dev/dl/go1.24.10.linux-${architecture}.tar.gz"
+# install go
+wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
+#Write gcsfuse and go version to log file
+gcsfuse --version |& tee -a ${LOG_FILE}
+go version |& tee -a ${LOG_FILE}
 
-# Log versions
-gcsfuse --version |& tee -a "${LOG_FILE}"
-go version |& tee -a "${LOG_FILE}"
-
-# ==============================================================================
-# 3. TEST EXECUTION (Delegation to starterscriptuser)
-# ==============================================================================
-
-# Ensure starterscriptuser can read details.txt
-cp details.txt "$HOMEDIR/"
-chown "$USERNAME:$USERNAME" "$HOMEDIR/details.txt"
-
-# Run the following as starterscriptuser
-# Note: Variables in single quotes are passed literally, so we break out of 
-# single quotes to inject the parent shell variables safely: '"$VAR"'
-sudo -u starterscriptuser bash -c '
-set -e
-# Print commands and their arguments as they are executed.
-set -x
-
-# GCSFuse test suite uses this environment variable to save failure logs at the specified location.
-export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
-mkdir -p "$KOKORO_ARTIFACTS_DIR"
-
-export PATH=/usr/local/google-cloud-sdk/bin:/usr/local/go/bin:$PATH
-export HOME=/home/'"$USERNAME"'
-
- # Exporting variables to the sub-shell
-export ZONE_NAME='"$ZONE_NAME"'
-export LOG_FILE='"$LOG_FILE"'
-export RUN_ON_ZB_ONLY='"$RUN_ON_ZB_ONLY"'
-export RUN_READ_CACHE_TESTS_ONLY='"$RUN_READ_CACHE_TESTS_ONLY"'
-export BUCKET_NAME_TO_USE='"$BUCKET_NAME_TO_USE"'
-export COMMIT_HASH='"$COMMIT_HASH"'
-export VERSION='"$VERSION"'
-export architecture='"$architecture"'
-
-cd $HOME
-
-# Checkout Repo
-git clone https://github.com/googlecloudplatform/gcsfuse
+# Clone and checkout gcsfuse repo
+export PATH=${PATH}:/usr/local/go/bin
+git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ${LOG_FILE}
 cd gcsfuse
+bash ./perfmetrics/scripts/install_latest_gcloud.sh
+
+# Installation of crcmod is working through pip only on rhel and centos.
+# For debian and ubuntu, we are installing through sudo apt.
+if grep -q rhel details.txt || grep -q centos details.txt;
+then
+    # install python3-setuptools tools and python3-pip
+    sudo yum -y install gcc python3-devel python3-setuptools redhat-rpm-config
+    sudo yum -y install python3-pip
+    # Downloading composite object requires integrity checking with CRC32c in gsutil.
+    # it requires to install crcmod.
+    pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
+fi
+
 git checkout ${COMMIT_HASH} |& tee -a ${LOG_FILE}
 if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
     echo "Installing GCSFuse from source..."
@@ -256,73 +325,356 @@ if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
     sudo cp sbin/* /usr/sbin/
 fi
 
-# ------------------------------------------------------------------
-# CONFIGURATION FOR NEW SCRIPT
-# ------------------------------------------------------------------
-
-# 1. Determine Region from Zone (e.g., us-west1-b -> us-west1)
-# New script takes --bucket-location, usually the region.
-REGION=${ZONE_NAME%-*}
-
-# 2. Build the Command
-# We rely on "tools/integration_tests/run_e2e_tests.sh" which is the new script.
-# We pass --test-installed-package because we installed the deb/rpm above.
-# We pass --no-build-binary-in-script because we want to test that installed package.
-
-TEST_SCRIPT="./tools/integration_tests/improved_run_e2e_tests.sh"
-chmod +x $TEST_SCRIPT
-
-ARGS="--bucket-location $REGION --test-installed-package --no-build-binary-in-script"
-
-if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
-    ARGS="$ARGS --zonal"
-fi
-
-if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
-    echo "Notice: RUN_READ_CACHE_TESTS_ONLY is set. The new script will run the standard suite for the selected bucket type."
-fi
-
-echo "----------------------------------------------------------------"
-echo "DELEGATING TO NEW E2E SCRIPT"
-echo "Command: $TEST_SCRIPT $ARGS"
-echo "----------------------------------------------------------------"
-
-# Capture exit code, but do not exit immediately on failure to allow log upload
+#run tests with testbucket flag
 set +e
+# Test directory arrays
+TEST_DIR_PARALLEL=(
+  "monitoring"
+  "local_file"
+  "log_rotation"
+  "mounting"
+  "gzip"
+  "write_large_files"
+  "rename_dir_limit"
+  "read_large_files"
+  "explicit_dir"
+  "implicit_dir"
+  "interrupt"
+  "operations"
+  "kernel_list_cache"
+  "concurrent_operations"
+  "mount_timeout"
+  "stale_handle"
+  "negative_stat_cache"
+  "streaming_writes"
+  "release_version"
+  # Reenable when b/461334834 is done.
+  # "readdirplus"
+  # "dentry_cache"
+  "buffered_read"
+  # Disabled because of b/451462914.
+  #"requester_pays_bucket"
+  "flag_optimizations"
+  "unsupported_path"
+)
 
-# Generate timestamped log filename
-TIMESTAMP=$(date +%d-%m-%H-%M)
-LOG_FILENAME="e2e_run_logs_${TIMESTAMP}.txt"
+# These tests never become parallel as they are changing bucket permissions.
+TEST_DIR_NON_PARALLEL=(
+  "readonly"
+  "managed_folders"
+  "readonly_creds"
+  "list_large_dir"
+)
 
-$TEST_SCRIPT $ARGS 2>&1 | tee -a "$LOG_FILE"
-EXIT_CODE=${PIPESTATUS[0]}
-set -e
+# For Zonal buckets : Test directory arrays
+TEST_DIR_PARALLEL_ZONAL=(
+  buffered_read
+  concurrent_operations
+  # Reenable when b/461334834 is done.
+  # dentry_cache
+  explicit_dir
+  flag_optimizations
+  gzip
+  implicit_dir
+  interrupt
+  kernel_list_cache
+  local_file
+  log_rotation
+  monitoring
+  mount_timeout
+  mounting
+  negative_stat_cache
+  operations
+  rapid_appends
+  read_large_files
+  # Reenable when b/461334834 is done.
+  # readdirplus
+  release_version
+  rename_dir_limit
+  stale_handle
+  streaming_writes
+  unfinalized_object
+  write_large_files
+  "unsupported_path"
+)
 
-echo "E2E Script finished with Exit Code: $EXIT_CODE"
+# For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
+TEST_DIR_NON_PARALLEL_ZONAL=(
+  "managed_folders"
+  "readonly"
+  "readonly_creds"
+  "list_large_dir"
+)
 
-# ------------------------------------------------------------------
-# LOG UPLOAD (Preserving Legacy Pipeline Behavior)
-# ------------------------------------------------------------------
-GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${COMMIT_HASH}/${VM_INSTANCE_NAME}/"
+# Create a temporary file to store the log file name.
+TEST_LOGS_FILE=$(mktemp)
 
-# Upload the consolidated log with fixed name for pipeline compatibility
-gcloud storage cp "$LOG_FILE" "${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
+INTEGRATION_TEST_TIMEOUT=240m
 
-# If success, create and upload success markers matching old script behavior
-if [ $EXIT_CODE -eq 0 ]; then
-    touch ~/success.txt
-    if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
-        # Legacy script expected success-zonal.txt for zonal runs
-        touch ~/success-zonal.txt
-        gcloud storage cp ~/success-zonal.txt "${GCS_DEST}"
+# This method runs test packages in sequence.Necessary when the tests involves
+# permissions modification etc.
+# Arguments:
+#   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
+#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
+#   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
+function run_non_parallel_tests() {
+  if [[ "$#" -ne 3 ]]; then
+    echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
+    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
+    exit 1
+  fi
+  local exit_code=0 # Initialize to 0 for success
+  local BUCKET_NAME=$1
+  local zonal=$2
+  if [[ -z $3 ]]; then
+    return 1 # The name of the test array cannot be empty.
+  fi
+  local -n test_array=$3 # Create a nameref to this array.
+
+  for test_dir_np in "${test_array[@]}"
+  do
+    test_path_non_parallel="./tools/integration_tests/$test_dir_np"
+    # To make it clear whether tests are running on a flat or HNS or zonal bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
+    local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
+    echo "$log_file" >> "$TEST_LOGS_FILE" # Use double quotes for log_file
+    if [[ -d "$test_path_non_parallel" ]]; then
+      GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
+      exit_code_non_parallel=$?
     else
-        # Legacy script expected success.txt for standard runs
-        gcloud storage cp ~/success.txt "${GCS_DEST}"
+      echo "Test path $test_path_non_parallel does not exist. Skipping tests." >> "$log_file"
+      exit_code_non_parallel=0 # Treat as success if test path doesnt exist
     fi
-else
-    echo "Tests failed. Check ${LOG_FILENAME} in VM or combined_e2e_logs.txt in GCS bucket."
-fi
+    if [[ $exit_code_non_parallel -ne 0 ]]; then
+      exit_code=$exit_code_non_parallel
+    fi
+  done
+  return $exit_code
+}
 
-# Exit with the actual test code so the VM/Job fails appropriately
-exit $EXIT_CODE
+#This method runs test packages in parallel.
+# Arguments:
+#   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
+#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
+#   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
+function run_parallel_tests() {
+  if [[ "$#" -ne 3 ]]; then
+    echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
+    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
+    exit 1
+  fi
+  local exit_code=0
+  local BUCKET_NAME=$1
+  local zonal=$2
+  if [[ -z $3 ]]; then
+    return 1 # The name of the test array cannot be empty.
+  fi
+  local -n test_array=$3 # Create a nameref to this array.
+  local pids=()
+
+  for test_dir_p in "${test_array[@]}"
+  do
+    test_path_parallel="./tools/integration_tests/$test_dir_p"
+    # To make it clear whether tests are running on a flat or HNS or zonal bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
+    local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
+    echo "$log_file" >> "$TEST_LOGS_FILE"
+    if [[ -d "$test_path_parallel" ]]; then
+      GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
+      pid=$!
+      pids+=("$pid")
+    else
+      echo "Test path $test_path_parallel does not exist. Skipping tests." >> "$log_file"
+    fi
+  done
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+    exit_code_parallel=$?
+    if [[ $exit_code_parallel -ne 0 ]]; then
+      exit_code=$exit_code_parallel
+    fi
+  done
+  return $exit_code
+}
+
+#Common method to invoke e2e tests on different types of buckets: flat, HNS or Zonal
+# Arguments:
+#   $1: BUCKET-TYPE (flat/hns/zonal)
+#   $2: TEST_DIR_PARALLEL (list of test packages that can be run in parallel)
+#   $3: TEST_DIR_NON_PARALLEL (list of test packages that should be run in sequence)
+#   $4: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
+function run_e2e_tests() {
+  if [[ "$#" -ne 4 ]]; then
+    echo "Incorrect number of arguments passed, Expecting <TESTCASE>
+    <NAME_OF_PARALLEL_TEST_DIR_ARRAY> <NAME_OF_PARALLEL_TEST_DIR_ARRAY>
+    <IS_ZONAL_BUCKET_FLAG>"
+    exit 1
+  fi
+  local testcase=$1
+  local -n test_dir_parallel=$2
+  local -n test_dir_non_parallel=$3
+  local is_zonal=$4
+  local overall_exit_code=0
+
+  prefix=${VM_INSTANCE_NAME}
+  if [[ "$testcase" != "flat" ]]; then
+    prefix=${VM_INSTANCE_NAME}-$testcase
+  fi
+
+  local bkt_non_parallel=$prefix
+  echo "Bucket name to run non-parallel tests sequentially: $bkt_non_parallel"
+
+  local bkt_parallel=$prefix-parallel
+  echo "Bucket name to run parallel tests: $bkt_parallel"
+
+  echo "Running parallel tests..."
+  run_parallel_tests  "$bkt_parallel" "$is_zonal" test_dir_parallel & # Pass the name of the array
+  parallel_tests_pid=$!
+
+  echo "Running non parallel tests ..."
+  run_non_parallel_tests  "$bkt_non_parallel" "$is_zonal" test_dir_non_parallel & # Pass the name of the array
+  non_parallel_tests_pid=$!
+
+  wait "$parallel_tests_pid"
+  local parallel_tests_exit_code=$?
+  wait "$non_parallel_tests_pid"
+  local non_parallel_tests_exit_code=$?
+
+  if [[ "$non_parallel_tests_exit_code" -ne 0 ]]; then
+    overall_exit_code=$non_parallel_tests_exit_code
+  fi
+
+  if [[ "$parallel_tests_exit_code" -ne 0 ]]; then
+    overall_exit_code=$parallel_tests_exit_code
+  fi
+  return $overall_exit_code
+}
+
+function gather_test_logs() {
+  readarray -t test_logs_array < "$TEST_LOGS_FILE"
+  rm "$TEST_LOGS_FILE"
+  for test_log_file in "${test_logs_array[@]}"
+  do
+    log_file=${test_log_file}
+    if [[ -f "$log_file" ]]; then
+      if [[ "$test_log_file" == *"hns"* ]]; then
+        output_file="$HOME/logs-hns.txt"
+      elif [[ "$test_log_file" == *"zonal"* ]]; then
+        output_file="$HOME/logs-zonal.txt"
+      else
+        output_file="$HOME/logs.txt"
+      fi
+
+      echo "=== Log for ${test_log_file} ===" >> "$output_file"
+      cat "$log_file" >> "$output_file"
+      echo "=========================================" >> "$output_file"
+    fi
+  done
+}
+
+# Function to log test results and upload them to GCS based on exit status.
+# Arguments: $1 = name of the associative array containing testcase exit statuses.
+function log_based_on_exit_status() {
+  if [[ "$#" -ne 1 ]]; then
+    echo "Incorrect number of arguments passed, Expecting <EXIT_STATUS_ARRAY_NAME>"
+    exit 1
+  fi
+  gather_test_logs
+  local -n exit_status_array=$1
+
+  for testcase in "${!exit_status_array[@]}"
+    do
+        local logfile=""
+        local successfile=""
+        if [[ "$testcase" == "flat" ]]; then
+          logfile="$HOME/logs.txt"
+          successfile="$HOME/success.txt"
+        else
+          logfile="$HOME/logs-$testcase.txt"
+          successfile="$HOME/success-$testcase.txt"
+        fi
+        if [[ "${exit_status_array["$testcase"]}" != 0 ]];
+        then
+            echo "Test failures detected in $testcase bucket." &>> $logfile
+        else
+            touch $successfile
+            gcloud storage cp $successfile gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
+        fi
+    gcloud storage cp $logfile gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
+    done
+
+    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
+}
+
+# Function to run emulator-based E2E tests and log results.
+function run_e2e_tests_for_emulator_and_log() {
+  ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
+  emulator_test_status=$?
+  if [ $e2e_tests_emulator_status != 0 ];
+    then
+        echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
+    else
+        touch success-emulator.txt
+        gcloud storage cp success-emulator.txt gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
+    fi
+    gcloud storage cp ~/logs-emulator.txt gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
+}
+
+# Declare an associative array to store the exit status of different test runs.
+declare -A exit_status
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+    light_test_dir_non_parallel=("monitoring")
+    light_test_dir_parallel=()
+
+    run_e2e_tests "flat"  light_test_dir_parallel light_test_dir_non_parallel false
+    exit_status["flat"]=$?
+
+    run_e2e_tests "hns"  light_test_dir_parallel light_test_dir_non_parallel false
+    exit_status["hns"]=$?
+
+    run_e2e_tests "zonal"  light_test_dir_parallel light_test_dir_non_parallel true
+    exit_status["zonal"]=$?
+
+    # Run emulator tests and log their results.
+    run_e2e_tests_for_emulator_and_log
+elif [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
+    read_cache_test_dir_parallel=() # Empty for read cache tests only
+    read_cache_test_dir_non_parallel=("read_cache")
+
+    # Run E2E tests for flat, HNS, and zonal buckets with only read cache tests.
+    # Running sequentially due to known limitations of simultaneous execution.
+    run_e2e_tests "flat" read_cache_test_dir_parallel read_cache_test_dir_non_parallel false
+    exit_status["flat"]=$?
+
+    run_e2e_tests "hns" read_cache_test_dir_parallel read_cache_test_dir_non_parallel false
+    exit_status["hns"]=$?
+
+    run_e2e_tests "zonal" read_cache_test_dir_parallel read_cache_test_dir_non_parallel true
+    exit_status["zonal"]=$?
+else
+    # If not running *only* read cache tests, proceed with full test suites.
+    if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+        # If only zonal bucket tests are to be run.
+        run_e2e_tests "zonal" TEST_DIR_PARALLEL_ZONAL TEST_DIR_NON_PARALLEL_ZONAL true
+        exit_status["zonal"]=$?
+    else
+        # Run flat and HNS tests concurrently in the background.
+        run_e2e_tests "flat" TEST_DIR_PARALLEL TEST_DIR_NON_PARALLEL false &
+        flat_test_pid=$!
+
+        run_e2e_tests "hns" TEST_DIR_PARALLEL TEST_DIR_NON_PARALLEL false &
+        hns_test_pid=$!
+
+        # Wait for PIDs and populate exit_status associative array
+        wait $flat_test_pid
+        exit_status["flat"]=$?
+
+        wait $hns_test_pid
+        exit_status["hns"]=$?
+
+        # Run emulator tests and log their results.
+        run_e2e_tests_for_emulator_and_log
+    fi
+
+fi
 '
