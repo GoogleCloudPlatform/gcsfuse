@@ -565,6 +565,8 @@ type MetadataCacheConfig struct {
 
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
 
+	ExperimentalDirMetadataPrefetch bool `yaml:"experimental-dir-metadata-prefetch"`
+
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
 
 	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
@@ -853,6 +855,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-unsupported-path-support", "", true, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
 	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-dir-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+
+	if err := flagSet.MarkHidden("experimental-dir-metadata-prefetch"); err != nil {
 		return err
 	}
 
@@ -1372,6 +1380,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.experimental-dir-metadata-prefetch", flagSet.Lookup("experimental-dir-metadata-prefetch")); err != nil {
 		return err
 	}
 

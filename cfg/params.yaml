@@ -801,6 +801,16 @@ params:
       mount, since we are not refreshing the cache, it will still return nil.
     default: false
 
+  - config-path: "metadata-cache.experimental-dir-metadata-prefetch"
+    flag-name: "experimental-dir-metadata-prefetch"
+    type: "bool"
+    usage: >-
+      Enables background prefetching of object metadata when a directory is first opened. 
+      This reduces latency for subsequent file lookups by pre-filling the metadata cache.
+    default: false
+    deprecated: false
+    hide-flag: true
+
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
     flag-name: "experimental-metadata-prefetch-on-mount"
     type: "string"
