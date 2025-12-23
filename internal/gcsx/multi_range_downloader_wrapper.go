@@ -176,6 +176,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		mrdWrapper.mu.RUnlock()
 		return
 	}
+	mrdWrapper.mu.RUnlock()
 
 	// We will only read what is requested by the client. Hence, capping end to the requested value.
 	if endOffset > startOffset+int64(len(buf)) {
@@ -191,7 +192,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		entry.mu.RUnlock()
 		err = mrdWrapper.mrdPool.RecreateMRD(entry, mrdWrapper.handle)
 		if err != nil {
-			return 0, fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in recreating MultiRangeDownloader:  %v", err)
+			return 0, fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in recreating MultiRangeDownloader:  %w", err)
 		}
 		entry.mu.RLock()
 	}
@@ -210,7 +211,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 
 	start := time.Now()
 	if entry.mrd == nil {
-		mrdWrapper.mu.RUnlock()
 		entry.mu.RUnlock()
 		return 0, fmt.Errorf("MultiRangeDownloaderWrapper::Read: Failed to create MultiRangeDownloader")
 	}
@@ -227,7 +227,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		}
 	})
 	entry.mu.RUnlock()
-	mrdWrapper.mu.RUnlock()
 
 	if !mrdWrapper.config.FileSystem.IgnoreInterrupts {
 		select {
