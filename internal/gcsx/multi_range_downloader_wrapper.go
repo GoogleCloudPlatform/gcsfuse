@@ -45,10 +45,9 @@ func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinO
 	// In case of a local inode, MRDWrapper would be created with an empty minObject (i.e. with a minObject without any information)
 	// and when the object is actually created, MRDWrapper would be updated using SetMinObject method.
 	return MultiRangeDownloaderWrapper{
-		clock:  clock,
-		bucket: bucket,
-		object: object,
-		config: config,
+		clock:         clock,
+		mrdPoolConfig: &MRDPoolConfig{PoolSize: int(config.MRD.MRDPoolSize), bucket: bucket, object: object},
+		config:        config,
 	}, nil
 }
 
@@ -59,13 +58,9 @@ type readResult struct {
 
 type MultiRangeDownloaderWrapper struct {
 	// Holds the pool of MRDs.
-	mrdPool *mrdPool
-
-	// Bucket and object details for MultiRangeDownloader.
-	// Object should not be nil.
-	object *gcs.MinObject
-	bucket gcs.Bucket
-
+	mrdPool *MRDPool
+	// Holds the MRD Pool config (pool size, bucket & object details).
+	mrdPoolConfig *MRDPoolConfig
 	// Refcount is used to determine when to close the MultiRangeDownloader.
 	refCount int
 	// Mutex is used to synchronize access over refCount.
@@ -86,13 +81,13 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObjec
 	if minObj == nil {
 		return fmt.Errorf("MultiRangeDownloaderWrapper::SetMinObject: Missing MinObject")
 	}
-	mrdWrapper.object = minObj
+	mrdWrapper.mrdPoolConfig.object = minObj
 	return nil
 }
 
 // GetMinObject returns the minObject stored in MultiRangeDownloaderWrapper. Used only for unit testing.
 func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject {
-	return mrdWrapper.object
+	return mrdWrapper.mrdPoolConfig.object
 }
 
 // GetRefCount returns current refcount.
@@ -130,20 +125,13 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	}
 
 	mrdWrapper.refCount--
-	if mrdWrapper.refCount == 0 && mrdWrapper.mrdPool != nil {
-		handle := mrdWrapper.mrdPool.close()
-		if handle != nil {
-			mrdWrapper.handle = handle
-		}
-		mrdWrapper.mrdPool = nil
-	}
 	return
 }
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
 // LOCK_REQUIRED(mrdWrapper.mu.RLock)
 func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceRecreateMRD bool) (err error) {
-	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
+	if mrdWrapper.mrdPoolConfig.object == nil || mrdWrapper.mrdPoolConfig.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
 
@@ -163,7 +151,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 
 		// Checking if the mrdWrapper state is same after taking the lock.
 		if mrdWrapper.mrdPool == nil {
-			pool, err := newMRDPool(mrdWrapper.bucket, mrdWrapper.object, mrdWrapper.handle, int(mrdWrapper.config.MRD.MRDPoolSize))
+			pool, err := NewMRDPool(mrdWrapper.mrdPoolConfig, mrdWrapper.handle)
 			if err != nil {
 				return err
 			}
@@ -195,13 +183,16 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	}
 
 	// Get the next MRD from the pool.
-	entry := mrdWrapper.mrdPool.next()
+	entry := mrdWrapper.mrdPool.Next()
 
 	entry.mu.RLock()
 	// If the MRD is nil or unusable, recreate it.
 	if entry.mrd == nil || entry.mrd.Error() != nil || forceCreateMRD {
 		entry.mu.RUnlock()
-		mrdWrapper.mrdPool.recreateMRD(entry, mrdWrapper.handle)
+		err = mrdWrapper.mrdPool.RecreateMRD(entry, mrdWrapper.handle)
+		if err != nil {
+			return 0, fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in recreating MultiRangeDownloader:  %v", err)
+		}
 		entry.mu.RLock()
 	}
 
@@ -223,7 +214,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		entry.mu.RUnlock()
 		return 0, fmt.Errorf("MultiRangeDownloaderWrapper::Read: Failed to create MultiRangeDownloader")
 	}
-	entry.wg.Add(1)
 	entry.mrd.Add(buffer, startOffset, endOffset-startOffset, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		defer func() {
 			mu.Lock()
@@ -232,8 +222,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 			}
 			mu.Unlock()
 		}()
-		defer entry.wg.Done()
-
 		if e != nil && e != io.EOF {
 			e = fmt.Errorf("error in Add call: %w", e)
 		}

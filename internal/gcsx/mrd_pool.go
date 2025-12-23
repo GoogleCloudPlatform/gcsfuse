@@ -16,59 +16,73 @@ package gcsx
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-type mrdEntry struct {
+// MRDEntry holds a single MultiRangeDownloader instance and a mutex to protect access to it.
+type MRDEntry struct {
 	mrd gcs.MultiRangeDownloader
 	mu  sync.RWMutex
-	wg  sync.WaitGroup
 }
 
-type mrdPool struct {
-	entries        []*mrdEntry
-	size           int
-	current        uint64
-	ctx            context.Context
-	cancelCreation context.CancelFunc
-	creationWg     sync.WaitGroup
-	bucket         gcs.Bucket
-	object         *gcs.MinObject
+// MRDPoolConfig contains configuration for the MRD pool.
+type MRDPoolConfig struct {
+	// PoolSize is the number of MultiRangeDownloader instances in the pool
+	PoolSize int
+
+	object *gcs.MinObject
+	bucket gcs.Bucket
+	Handle []byte
 }
 
-func newMRDPool(bucket gcs.Bucket, object *gcs.MinObject, handle []byte, size int) (*mrdPool, error) {
-	if size <= 0 {
-		size = 1
+// MRDPool manages a pool of MultiRangeDownloader instances to allow concurrent downloads.
+type MRDPool struct {
+	poolConfig  *MRDPoolConfig
+	entries     []MRDEntry
+	current     atomic.Uint64
+	currentSize atomic.Uint64
+	ctx         context.Context
+	// cancelFunc is used to cancel the background creation of MRDs.
+	cancelFunc context.CancelFunc
+	// creationWg is used to wait for the background creation of MRDs to finish.
+	creationWg sync.WaitGroup
+}
+
+// NewMRDPool initializes a new MRDPool.
+// It creates the first MRD synchronously to ensure immediate availability and starts a background goroutine to create the remaining MRDs.
+func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
+	// Limiting the pool size to 1 for files smaller than 500 MiB
+	if config.object.Size < 500*MiB {
+		config.PoolSize = 1
 	}
-	p := &mrdPool{
-		entries: make([]*mrdEntry, size),
-		size:    size,
-		bucket:  bucket,
-		object:  object,
+
+	p := &MRDPool{
+		poolConfig: config,
 	}
-	for i := range p.entries {
-		p.entries[i] = &mrdEntry{}
-	}
+	p.entries = make([]MRDEntry, config.PoolSize)
+	p.ctx, p.cancelFunc = context.WithCancel(context.Background())
 
 	// Create the first MRD synchronously.
-	mrd, err := bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-		Name:           object.Name,
-		Generation:     object.Generation,
-		ReadCompressed: object.HasContentEncodingGzip(),
+	mrd, err := config.bucket.NewMultiRangeDownloader(p.ctx, &gcs.MultiRangeDownloaderRequest{
+		Name:           config.object.Name,
+		Generation:     config.object.Generation,
+		ReadCompressed: config.object.HasContentEncodingGzip(),
 		ReadHandle:     handle,
 	})
 	if err != nil {
 		return nil, err
 	}
 	p.entries[0].mrd = mrd
+	p.currentSize.Store(1)
 
 	// Create the rest of the MRDs asynchronously.
-	if size > 1 {
+	if config.PoolSize > 1 {
 		handle := mrd.GetHandle()
-		p.ctx, p.cancelCreation = context.WithCancel(context.Background())
 		p.creationWg.Add(1)
 		go func() {
 			defer p.creationWg.Done()
@@ -79,64 +93,83 @@ func newMRDPool(bucket gcs.Bucket, object *gcs.MinObject, handle []byte, size in
 	return p, nil
 }
 
-func (p *mrdPool) createRemainingMRDs(handle []byte) {
-	for i := 1; i < p.size; i++ {
+// createRemainingMRDs creates the remaining MultiRangeDownloader instances in the background.
+// It populates the pool entries and increments the currentSize counter.
+func (p *MRDPool) createRemainingMRDs(handle []byte) {
+	for i := 1; i < p.poolConfig.PoolSize; i++ {
 		if p.ctx.Err() != nil {
 			return
 		}
-		mrd, err := p.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-			Name:           p.object.Name,
-			Generation:     p.object.Generation,
-			ReadCompressed: p.object.HasContentEncodingGzip(),
+		mrd, err := p.poolConfig.bucket.NewMultiRangeDownloader(p.ctx, &gcs.MultiRangeDownloaderRequest{
+			Name:           p.poolConfig.object.Name,
+			Generation:     p.poolConfig.object.Generation,
+			ReadCompressed: p.poolConfig.object.HasContentEncodingGzip(),
 			ReadHandle:     handle,
 		})
 		if err == nil {
 			p.entries[i].mu.Lock()
 			p.entries[i].mrd = mrd
 			p.entries[i].mu.Unlock()
+		} else {
+			logger.Warnf("Error in creating MRD. Would be retried once before using the MRD")
 		}
+		p.currentSize.Add(1)
 	}
 }
 
-func (p *mrdPool) next() *mrdEntry {
-	idx := atomic.AddUint64(&p.current, 1) % uint64(p.size)
-	return p.entries[idx]
+// Next returns the next available MRDEntry from the pool using a round-robin strategy based on the number of currently initialized MRDs.
+func (p *MRDPool) Next() *MRDEntry {
+	limit := p.currentSize.Load()
+	idx := p.current.Add(1) % limit
+	return &p.entries[idx]
 }
 
-func (p *mrdPool) recreateMRD(entry *mrdEntry, fallbackHandle []byte) {
+// RecreateMRD attempts to recreate a specific MRDEntry's MultiRangeDownloader.
+// It uses a handle from an existing MRD or a fallback handle.
+func (p *MRDPool) RecreateMRD(entry *MRDEntry, fallbackHandle []byte) error {
 	entry.mu.Lock()
 	defer entry.mu.Unlock()
 
 	var handle []byte
-	if entry.mrd != nil {
-		handle = entry.mrd.GetHandle()
-		entry.mrd.Close()
-	} else {
+	for i := 0; i < p.poolConfig.PoolSize; i++ {
+		if entry.mrd != nil {
+			handle = entry.mrd.GetHandle()
+			break
+		}
+	}
+	if handle == nil {
 		handle = fallbackHandle
 	}
 
-	mrd, err := p.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-		Name:           p.object.Name,
-		Generation:     p.object.Generation,
-		ReadCompressed: p.object.HasContentEncodingGzip(),
+	mrd, err := p.poolConfig.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+		Name:           p.poolConfig.object.Name,
+		Generation:     p.poolConfig.object.Generation,
+		ReadCompressed: p.poolConfig.object.HasContentEncodingGzip(),
 		ReadHandle:     handle,
 	})
 
 	if err == nil {
 		entry.mrd = mrd
+	} else {
+		return fmt.Errorf("Error in recreating MRD: %w", err)
 	}
+	return nil
 }
 
-func (p *mrdPool) close() (handle []byte) {
-	if p.cancelCreation != nil {
-		p.cancelCreation()
+// Close shuts down the MRDPool.
+// It cancels any ongoing background creation, waits for pending creations to finish, waits for active downloads on existing MRDs to complete, and then closes all MRDs.
+// It returns a handle from one of the closed MRDs for potential future use.
+func (p *MRDPool) Close() (handle []byte) {
+	if p.cancelFunc != nil {
+		p.cancelFunc()
 	}
 	p.creationWg.Wait()
 
-	for _, entry := range p.entries {
+	for i := range p.entries {
+		entry := &p.entries[i]
 		entry.mu.Lock()
 		if entry.mrd != nil {
-			entry.wg.Wait()
+			entry.mrd.Wait()
 			if handle == nil {
 				handle = entry.mrd.GetHandle()
 			}
