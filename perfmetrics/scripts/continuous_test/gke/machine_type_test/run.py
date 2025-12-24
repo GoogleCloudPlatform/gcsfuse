@@ -46,7 +46,6 @@ from common import utils
 # bypassing the check at
 # https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/15afd00dcc2cfe0f9753ddc53c81631ff037c3f2/pkg/csi_driver/utils.go#L532.
 STAGING_VERSION = "prow-gob-internal-boskos-machine-type-test"
-DEFAULT_MTU = 8896
 
 
 async def set_up_bucket_permissions(
@@ -434,7 +433,6 @@ async def main():
             args.zone.rsplit("-", 1)[0],
             args.machine_type,
             args.node_pool_name,
-            DEFAULT_MTU,
             args.reservation_name,
         )
       else:
@@ -448,7 +446,6 @@ async def main():
                 args.zone.rsplit("-", 1)[0],
                 args.machine_type,
                 args.node_pool_name,
-                DEFAULT_MTU,
                 args.reservation_name,
             )
         )
