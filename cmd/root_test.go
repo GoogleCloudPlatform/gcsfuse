@@ -1644,11 +1644,11 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		},
 		{
 			name: "enable_grpc_metrics_non_default",
-			args: []string{"gcsfuse", "--enable-grpc-metrics=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--experimental-enable-grpc-metrics=false", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				Workers:           3,
-				BufferSize:        256,
-				EnableGrpcMetrics: false,
+				Workers:                       3,
+				BufferSize:                    256,
+				ExperimentalEnableGrpcMetrics: false,
 			},
 		},
 	}
