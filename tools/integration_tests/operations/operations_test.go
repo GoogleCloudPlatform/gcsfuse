@@ -152,22 +152,14 @@ func TestMain(m *testing.M) {
 		cfg.Operations = make([]test_suite.TestConfig, 1)
 		cfg.Operations[0].TestBucket = setup.TestBucket()
 		cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 3)
+		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.Operations[0].Configs[0].Flags = []string{
 			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
 			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
-		}
-		cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.Operations[0].Configs[1].Flags = []string{
-			"--enable-atomic-rename-object=true",
-			"--experimental-enable-json-read=true",
+			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
 			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
 		}
-		cfg.Operations[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.Operations[0].Configs[2].Flags = []string{
-			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
-		}
-		cfg.Operations[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
+		cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
 	ctx = context.Background()
@@ -195,7 +187,7 @@ func TestMain(m *testing.M) {
 	flags := setup.BuildFlagSets(cfg.Operations[0], bucketType, "")
 	setup.SetUpTestDirForTestBucket(&cfg.Operations[0])
 
-	successCode :=static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 
 	if successCode == 0 {
 		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, onlyDirMounted, m)
