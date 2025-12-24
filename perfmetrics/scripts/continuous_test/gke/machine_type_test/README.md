@@ -7,12 +7,12 @@ CSI driver building, workload execution, result gathering, and resource cleanup.
 ## Overview
 
 The `run.py` script automates the end-to-end testing process on Google
-Kubernetes Engine (GKE). It handles: 1. **Cluster Management**:
-Creating/configuring GKE clusters and node pools (including Workload Identity).
-2. **Driver Build**: Building the GCSFuse CSI driver from source. 3. **Workload
-Deployment**: Deploying a Kubernetes Pod to run `go test` integration tests. 4.
-**Result Verification**: Checking test success/failure. 5. **Cleanup**: Removing
-cloud resources.
+Kubernetes Engine (GKE). It handles:
+1. **Cluster Management**: Creating/configuring GKE clusters and node pools (including Workload Identity).
+2. **Driver Build**: Building the GCSFuse CSI driver from source.
+3. **Workload Deployment**: Deploying a Kubernetes Pod to run `go test` integration tests.
+4. **Result Verification**: Checking test success/failure.
+5. **Cleanup**: Removing cloud resources.
 
 ## Prerequisites
 
@@ -81,9 +81,11 @@ The script performs the following steps:
 The script is controlled via command-line arguments.
 
 ```
-usage: run.py [-h] --project_id PROJECT_ID --bucket_name BUCKET_NAME --zone ZONE [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] [--subnet_name SUBNET_NAME]
-                        [--machine_type MACHINE_TYPE] [--node_pool_name NODE_POOL_NAME] [--gcsfuse_branch GCSFUSE_BRANCH] [--reservation_name RESERVATION_NAME]
-                        [--no_cleanup] [--skip_csi_driver_build] [--pod_timeout_seconds POD_TIMEOUT_SECONDS]
+usage: run.py [-h] --project_id PROJECT_ID --bucket_name BUCKET_NAME --zone ZONE \
+                   [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] [--subnet_name SUBNET_NAME] \
+                   [--machine_type MACHINE_TYPE] [--node_pool_name NODE_POOL_NAME] \
+                   [--gcsfuse_branch GCSFUSE_BRANCH] [--reservation_name RESERVATION_NAME] \
+                   [--no_cleanup] [--skip_csi_driver_build] [--pod_timeout_seconds POD_TIMEOUT_SECONDS]
 ```
 
 ### Argument Reference
@@ -96,9 +98,9 @@ Argument                  | Description                                         
 `--cluster_name`          | GKE cluster name.                                                | `gke-machine-type-test-cluster`
 `--network_name`          | VPC network name.                                                | `gke-machine-type-test-network-<ZONE>`
 `--subnet_name`           | VPC subnet name.                                                 | `gke-machine-type-test-subnet-<ZONE>`
-`--machine_type`          | Machine type for the node pool.                                  | `ct6e-standard-4t` (TPU v6)
+`--machine_type`          | Machine type for the node pool.                                  | `ct6e-standard-4t` (TPU v6e)
 `--node_pool_name`        | Node pool name.                                                  | `ct6e-pool`
-`--gcsfuse_branch`        | GCSFuse branch or tag to build.                                  | `master`
+`--gcsfuse_branch`        | GCSFuse branch to build.                                         | `master`
 `--reservation_name`      | Specific reservation to use for the nodes.                       | `None`
 `--no_cleanup`            | If set, resources will NOT be deleted after the test.            | `False`
 `--skip_csi_driver_build` | If set, skips building the CSI driver image (assumes it exists). | `False`
@@ -106,7 +108,7 @@ Argument                  | Description                                         
 
 ## Examples
 
-To run the test with default settings (TPU v6), you only need to provide the
+To run the test with default settings (TPU v6e), you only need to provide the
 required arguments:
 
 ```bash
@@ -136,7 +138,5 @@ python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py \
 
 *   **403 Forbidden**: Check Workload Identity setup. Ensure `default` KSA
     exists and has the read/write access to the bucket.
-*   **Insufficient CPU**: Ensure the machine type has at least 4 vCPUs (sidecar
-    requests 2 vCPUs, and the load-test container needs some resources).
 *   **Init:ErrImagePull**: Check if the CSI driver image exists in GCR/Artifact
     Registry. If running locally, you might need to authenticate docker.
