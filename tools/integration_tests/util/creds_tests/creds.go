@@ -44,11 +44,9 @@ const CredentialsSecretName = "gcsfuse-integration-tests"
 
 var WhitelistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
 
-func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath string) {
-	log.Println("Running credentials tests...")
-
+func projectID(ctx context.Context) string {
 	// Fetching project-id to get service account id.
-	id, err := metadata.ProjectID()
+	id, err := metadata.ProjectIDWithContext(ctx)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in fetching project id: %v", err))
 	}
@@ -61,6 +59,13 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 	if !slices.Contains(WhitelistedGcpProjects, id) {
 		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(WhitelistedGcpProjects, ", "))
 	}
+	return id
+}
+
+func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath string) {
+	log.Println("Running credentials tests...")
+
+	id := projectID(ctx)
 
 	// Service account id format is name@project-id.iam.gserviceaccount.com
 	serviceAccount = NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
@@ -96,6 +101,10 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 }
 
 func ApplyPermissionToServiceAccount(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
+	ApplyRoleToServiceAccountOnBucket(ctx, storageClient, serviceAccount, fmt.Sprintf("roles/storage.%s", permission), bucket)
+}
+
+func ApplyRoleToServiceAccountOnBucket(ctx context.Context, storageClient *storage.Client, serviceAccount, role, bucket string) {
 	// Provide permission to service account for testing.
 	bucketHandle := storageClient.Bucket(bucket)
 	policy, err := bucketHandle.IAM().Policy(ctx)
@@ -103,15 +112,20 @@ func ApplyPermissionToServiceAccount(ctx context.Context, storageClient *storage
 		setup.LogAndExit(fmt.Sprintf("Error fetching: Bucket(%q).IAM().Policy: %v", bucket, err))
 	}
 	identity := fmt.Sprintf("serviceAccount:%s", serviceAccount)
-	role := iam.RoleName(fmt.Sprintf("roles/storage.%s", permission))
+	iamRole := iam.RoleName(role)
 
-	policy.Add(identity, role)
+	policy.Add(identity, iamRole)
 	if err := bucketHandle.IAM().SetPolicy(ctx, policy); err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: Bucket(%q).IAM().SetPolicy: %v", bucket, err))
 	}
 	// Waiting for 2 minutes as it usually takes within 2 minutes for policy
 	// changes to propagate: https://cloud.google.com/iam/docs/access-change-propagation
 	time.Sleep(120 * time.Second)
+}
+
+func ApplyCustomRoleToServiceAccountOnBucket(ctx context.Context, storageClient *storage.Client, serviceAccount, role, bucket string) {
+	projectID := projectID(ctx)
+	ApplyRoleToServiceAccountOnBucket(ctx, storageClient, serviceAccount, fmt.Sprintf("projects/%s/roles/%s", projectID, role), bucket)
 }
 
 func RevokePermission(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
