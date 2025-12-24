@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
@@ -88,11 +89,15 @@ func (d *dummyIOBucket) NewReaderWithReadHandle(
 }
 
 // NewMultiRangeDownloader creates a multi-range downloader for object contents.
-// TODO: Add custom logic for Read path if needed
 func (d *dummyIOBucket) NewMultiRangeDownloader(
 	ctx context.Context,
 	req *gcs.MultiRangeDownloaderRequest) (gcs.MultiRangeDownloader, error) {
-	return d.wrapped.NewMultiRangeDownloader(ctx, req)
+	// TODO: fix precision issue in perByteLatency because of upper bound.
+	perByteLatency := time.Duration(0)
+	if d.perMBLatency > 0 {
+		perByteLatency = time.Duration(d.perMBLatency.Nanoseconds()+MB-1) / MB
+	}
+	return &dummyMultiRangeDownloader{perByteLatency: perByteLatency}, nil
 }
 
 // CreateObject creates or overwrites an object.
@@ -291,4 +296,68 @@ func (dr *dummyReader) Close() error {
 // ReadHandle returns the read handle. For dummy reader, this returns a nil handle.
 func (dr *dummyReader) ReadHandle() storagev2.ReadHandle {
 	return dr.readHandle
+}
+
+////////////////////////////////////////////////////////////////////////
+// dummyMultiRangeDownloader
+////////////////////////////////////////////////////////////////////////
+
+type dummyMultiRangeDownloader struct {
+	perByteLatency time.Duration
+	wg             sync.WaitGroup
+}
+
+func (d *dummyMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+	d.wg.Add(1)
+	go func() {
+		defer d.wg.Done()
+
+		// Simulate latency
+		if d.perByteLatency > 0 {
+			time.Sleep(time.Duration(length) * d.perByteLatency)
+		}
+
+		// Write zeros
+		chunkSize := 1024 * 1024 // 1MB chunk
+		zeros := make([]byte, chunkSize)
+
+		var bytesWritten int64
+		var err error
+		remaining := length
+		for remaining > 0 {
+			toWrite := int64(chunkSize)
+			if remaining < toWrite {
+				toWrite = remaining
+			}
+
+			n, wErr := output.Write(zeros[:int(toWrite)])
+			bytesWritten += int64(n)
+			if wErr != nil {
+				err = wErr
+				break
+			}
+			remaining -= int64(n)
+		}
+
+		if callback != nil {
+			callback(offset, bytesWritten, err)
+		}
+	}()
+}
+
+func (d *dummyMultiRangeDownloader) Close() error {
+	d.Wait()
+	return nil
+}
+
+func (d *dummyMultiRangeDownloader) Wait() {
+	d.wg.Wait()
+}
+
+func (d *dummyMultiRangeDownloader) Error() error {
+	return nil
+}
+
+func (d *dummyMultiRangeDownloader) GetHandle() []byte {
+	return []byte("dummy-handle")
 }
