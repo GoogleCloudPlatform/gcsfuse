@@ -982,14 +982,12 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// Have we found the correct inode?
 		cmp := oGen.Compare(existingInode.SourceGeneration())
 		if cmp == 0 {
-			in = existingInode
-			return
-		}
-
-		// The existing inode has the same generation but a different size.
-		// Update the size and return the existing inode.
-		if cmp == 2 {
-			existingInode.UpdateSize(oGen.Size)
+			if oGen.Size > existingInode.SourceGeneration().Size {
+				// The existing inode has the same generation but a greater size.
+				// This is a valid scenario for unfinalized objects in Rapid.
+				// Update the size and return the existing inode.
+				existingInode.UpdateSize(oGen.Size)
+			}
 			in = existingInode
 			return
 		}
