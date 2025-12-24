@@ -100,11 +100,7 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 	return
 }
 
-func ApplyPermissionToServiceAccount(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
-	ApplyRoleToServiceAccountOnBucket(ctx, storageClient, serviceAccount, fmt.Sprintf("roles/storage.%s", permission), bucket)
-}
-
-func ApplyRoleToServiceAccountOnBucket(ctx context.Context, storageClient *storage.Client, serviceAccount, role, bucket string) {
+func ApplyRoleToServiceAccountOnBucket(ctx context.Context, storageClient *storage.Client, serviceAccount, roleName, bucket string) {
 	// Provide permission to service account for testing.
 	bucketHandle := storageClient.Bucket(bucket)
 	policy, err := bucketHandle.IAM().Policy(ctx)
@@ -112,9 +108,9 @@ func ApplyRoleToServiceAccountOnBucket(ctx context.Context, storageClient *stora
 		setup.LogAndExit(fmt.Sprintf("Error fetching: Bucket(%q).IAM().Policy: %v", bucket, err))
 	}
 	identity := fmt.Sprintf("serviceAccount:%s", serviceAccount)
-	iamRole := iam.RoleName(role)
+	role := iam.RoleName(roleName)
 
-	policy.Add(identity, iamRole)
+	policy.Add(identity, role)
 	if err := bucketHandle.IAM().SetPolicy(ctx, policy); err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: Bucket(%q).IAM().SetPolicy: %v", bucket, err))
 	}
@@ -123,12 +119,16 @@ func ApplyRoleToServiceAccountOnBucket(ctx context.Context, storageClient *stora
 	time.Sleep(120 * time.Second)
 }
 
-func ApplyCustomRoleToServiceAccountOnBucket(ctx context.Context, storageClient *storage.Client, serviceAccount, role, bucket string) {
-	projectID := projectID(ctx)
-	ApplyRoleToServiceAccountOnBucket(ctx, storageClient, serviceAccount, fmt.Sprintf("projects/%s/roles/%s", projectID, role), bucket)
+func ApplyPermissionToServiceAccount(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
+	ApplyRoleToServiceAccountOnBucket(ctx, storageClient, serviceAccount, fmt.Sprintf("roles/storage.%s", permission), bucket)
 }
 
-func RevokePermission(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
+func ApplyCustomRoleToServiceAccountOnBucket(ctx context.Context, storageClient *storage.Client, serviceAccount, customRoleName, bucket string) {
+	projectID := projectID(ctx)
+	ApplyRoleToServiceAccountOnBucket(ctx, storageClient, serviceAccount, fmt.Sprintf("projects/%s/roles/%s", projectID, customRoleName), bucket)
+}
+
+func RevokeRoleFromServiceAccountOnBucket(ctx context.Context, storageClient *storage.Client, serviceAccount, roleName, bucket string) {
 	// Revoke the permission to service account after testing.
 	bucketHandle := storageClient.Bucket(bucket)
 	policy, err := bucketHandle.IAM().Policy(ctx)
@@ -136,12 +136,21 @@ func RevokePermission(ctx context.Context, storageClient *storage.Client, servic
 		setup.LogAndExit(fmt.Sprintf("Error fetching: Bucket(%q).IAM().Policy: %v", bucket, err))
 	}
 	identity := fmt.Sprintf("serviceAccount:%s", serviceAccount)
-	role := iam.RoleName(fmt.Sprintf("roles/storage.%s", permission))
+	role := iam.RoleName(roleName)
 
 	policy.Remove(identity, role)
 	if err := bucketHandle.IAM().SetPolicy(ctx, policy); err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: Bucket(%q).IAM().SetPolicy: %v", bucket, err))
 	}
+}
+
+func RevokePermission(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
+	RevokeRoleFromServiceAccountOnBucket(ctx, storageClient, serviceAccount, fmt.Sprintf("roles/storage.%s", permission), bucket)
+}
+
+func RevokeCustomRoleFromServiceAccountOnBucket(ctx context.Context, storageClient *storage.Client, serviceAccount, customRoleName, bucket string) {
+	projectID := projectID(ctx)
+	RevokeRoleFromServiceAccountOnBucket(ctx, storageClient, serviceAccount, fmt.Sprintf("projects/%s/roles/%s", projectID, customRoleName), bucket)
 }
 
 func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
