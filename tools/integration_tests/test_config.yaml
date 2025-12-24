@@ -68,11 +68,17 @@ operations:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
+        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+        - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: true
+      - flags:
         - "--enable-atomic-rename-object=true"
         - "--experimental-enable-json-read=true"
         - "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true"
-        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
-        - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
         compatible:
           flat: true
           hns: false
@@ -80,8 +86,6 @@ operations:
         run_on_gke: true
       - flags:
         - "--experimental-enable-json-read=true --enable-atomic-rename-object=true"
-        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
-        - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
         compatible:
           flat: false
           hns: true
