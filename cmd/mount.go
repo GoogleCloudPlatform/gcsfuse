@@ -100,6 +100,7 @@ be interacting with the file system.`)
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		EnableRapidAppends:                 newConfig.Write.EnableRapidAppends,
+		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 

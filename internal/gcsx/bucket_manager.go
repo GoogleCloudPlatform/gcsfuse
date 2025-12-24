@@ -68,6 +68,9 @@ type BucketConfig struct {
 	ChunkTransferTimeoutSecs int64
 	TmpObjectPrefix          string
 	EnableRapidAppends       bool
+
+	// Disable Initial ListObject API check during the mount operation.
+	DisableListAccessCheck bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -240,10 +243,11 @@ func (bm *bucketManager) SetUpBucket(
 	// Fetch bucket type from storage layout api and set bucket type.
 	b.BucketType()
 
-	// Check whether this bucket works, giving the user a warning early if there
-	// is some problem.
-	{
-		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
+	// TODO(b/471129209): Cleanup this code after confirming the GetStorageLayout is sufficient for bucket access checks.
+	if !bm.config.DisableListAccessCheck {
+		// Check whether this bucket works, giving the user a warning early if there
+		// is some problem.
+		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1, IncludeFoldersAsPrefixes: true, Delimiter: "/"})
 		if err != nil {
 			return
 		}

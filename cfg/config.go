@@ -32,6 +32,7 @@ type Config struct {
 
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
+	DisableListAccessCheck bool `yaml:"disable-list-access-check"`
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
@@ -366,6 +367,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("disable-autoconfig", "", false, "Disable optimizing configuration automatically for a machine")
 
 	if err := flagSet.MarkHidden("disable-autoconfig"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("disable-list-access-check", "", true, "Disables the list object based access check during mount operation")
+
+	if err := flagSet.MarkHidden("disable-list-access-check"); err != nil {
 		return err
 	}
 
@@ -813,6 +820,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("disable-autoconfig", flagSet.Lookup("disable-autoconfig")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("disable-list-access-check", flagSet.Lookup("disable-list-access-check")); err != nil {
 		return err
 	}
 

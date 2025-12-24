@@ -689,6 +689,40 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 	}
 }
 
+func TestValidateConfigFile_DisableListAccessCheckSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			// Test default values.
+			name:       "empty_config_file",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				DisableListAccessCheck: true,
+			},
+		},
+		{
+			name:       "valid_config_file",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				DisableListAccessCheck: false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.DisableListAccessCheck, gotConfig.DisableListAccessCheck)
+			}
+		})
+	}
+}
+
 func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name           string
