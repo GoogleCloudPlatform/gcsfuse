@@ -20,6 +20,9 @@ import shlex
 import subprocess
 import sys
 
+# The Maximum Transmission Unit (MTU) for the network.
+DEFAULT_MTU = 8896
+
 
 async def run_command_async(command_list, check=True, cwd=None):
   """Runs a command asynchronously, preventing command injection.
@@ -192,7 +195,6 @@ async def setup_gke_cluster(
     region,
     machine_type,
     node_pool_name,
-    default_mtu,
     reservation_name=None,
 ):
   """Sets up the GKE cluster and required node pool.
@@ -210,7 +212,6 @@ async def setup_gke_cluster(
       region: The GCP region for the network.
       machine_type: The machine type for the node pool.
       node_pool_name: The name of the node pool.
-      default_mtu: The MTU for the network.
       reservation_name: The specific reservation to use for the nodes.
   """
   print(f"Setting up GKE cluster '{cluster_name}' in zone '{zone}'...")
@@ -247,9 +248,7 @@ async def setup_gke_cluster(
       )
   else:
     print(f"Creating network '{network_name}' and subnet '{subnet_name}'...")
-    await create_network(
-        project_id, network_name, subnet_name, region, default_mtu
-    )
+    await create_network(project_id, network_name, subnet_name, region)
     print(f"Creating cluster '{cluster_name}'...")
     cmd = [
         "gcloud",
@@ -435,7 +434,7 @@ async def delete_node_pool_async(
   await run_command_async(cmd, check=False)
 
 
-async def create_network(project_id, network_name, subnet_name, region, mtu):
+async def create_network(project_id, network_name, subnet_name, region):
   """Creates a new network and subnet if they don't exist.
 
   Args:
@@ -443,7 +442,6 @@ async def create_network(project_id, network_name, subnet_name, region, mtu):
       network_name: The name for the new VPC network.
       subnet_name: The name for the new subnet.
       region: The GCP region for the subnet.
-      mtu: The Maximum Transmission Unit (MTU) for the network.
   """
   await run_command_async(
       [
@@ -454,7 +452,7 @@ async def create_network(project_id, network_name, subnet_name, region, mtu):
           network_name,
           f"--project={project_id}",
           "--subnet-mode=custom",
-          f"--mtu={mtu}",
+          f"--mtu={DEFAULT_MTU}",
       ],
       check=False,
   )

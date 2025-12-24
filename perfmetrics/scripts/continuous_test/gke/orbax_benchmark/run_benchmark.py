@@ -45,7 +45,6 @@ from common import utils
 # bypassing the check at
 # https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/15afd00dcc2cfe0f9753ddc53c81631ff037c3f2/pkg/csi_driver/utils.go#L532.
 STAGING_VERSION = "prow-gob-internal-boskos-orbax-benchmark"
-DEFAULT_MTU = 8896
 
 
 def parse_all_gbytes_per_sec(logs):
@@ -163,9 +162,9 @@ async def main():
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             if args.skip_csi_driver_build:
-                await utils.setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, DEFAULT_MTU, args.reservation_name)
+                await utils.setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, args.reservation_name)
             else:
-                setup_task = asyncio.create_task(utils.setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, DEFAULT_MTU, args.reservation_name))
+                setup_task = asyncio.create_task(utils.setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, args.reservation_name))
                 build_task = asyncio.create_task(utils.build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir, STAGING_VERSION))
                 await asyncio.gather(setup_task, build_task)
 
