@@ -159,6 +159,13 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "disable-list-access-check"
+    flag-name: "disable-list-access-check"
+    type: "bool"
+    usage: "Disables the list object based access check during mount operation"
+    default: true
+    hide-flag: true
+
   - config-path: "dummy-io.enable"
     flag-name: "enable-dummy-io"
     type: "bool"

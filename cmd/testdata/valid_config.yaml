@@ -68,6 +68,7 @@ list:
   enable-empty-managed-folders: true
 enable-hns: false
 enable-atomic-rename-object: false
+disable-list-access-check: false
 metadata-cache:
   deprecated-stat-cache-capacity: 200
   deprecated-stat-cache-ttl: 30s

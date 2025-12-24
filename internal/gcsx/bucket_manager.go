@@ -71,6 +71,9 @@ type BucketConfig struct {
 	// Used in Zonal buckets to determine if objects should be finalized or not.
 	FinalizeFileForRapid bool
 
+	// Disable Initial ListObject API check during the mount operation.
+	DisableListAccessCheck bool
+
 	// Enable dummy I/O mode for testing purposes, simulated read without
 	// any data read from GCS.
 	// All the metadata operations like object listing and stats are real.
@@ -256,10 +259,11 @@ func (bm *bucketManager) SetUpBucket(
 	// Fetch bucket type from storage layout api and set bucket type.
 	b.BucketType()
 
-	// Check whether this bucket works, giving the user a warning early if there
-	// is some problem.
-	{
-		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
+	// TODO(b/471129209): Cleanup this code after confirming the GetStorageLayout is sufficient for bucket access checks.
+	if !bm.config.DisableListAccessCheck {
+		// Check whether this bucket works, giving the user a warning early if there
+		// is some problem.
+		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1, IncludeFoldersAsPrefixes: true, Delimiter: "/"})
 		if err != nil {
 			return
 		}
