@@ -417,13 +417,19 @@ func TestDummyReader_ReadWithLatency(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func TestDummyIOBucket_NewMultiRangeDownloader(t *testing.T) {
-	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, DummyIOBucketParams{})
+	latency := 5 * time.Millisecond
+	params := DummyIOBucketParams{
+		PerMBLatency: latency,
+	}
+	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, params)
 
 	mrd, err := dummyBucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{})
+	dmrd, ok := mrd.(*dummyMultiRangeDownloader)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, mrd)
-	assert.IsType(t, &dummyMultiRangeDownloader{}, mrd)
+	assert.True(t, ok)
+	assert.Equal(t, latency, dmrd.perMBLatency)
 }
 
 func TestDummyMultiRangeDownloader_Add_Single(t *testing.T) {
