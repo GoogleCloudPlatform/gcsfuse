@@ -58,7 +58,7 @@ func (testSuite *PromGrpcMetricsTest) mount(bucketName string) error {
 	testSuite.T().Cleanup(func() { _ = os.RemoveAll(cacheDir) })
 
 	// Specify client protocol to "grpc" for gRPC metrics to be emitted and captured.
-	flags := []string{"--client-protocol=grpc", "--enable-grpc-metrics=true", fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
+	flags := []string{"--client-protocol=grpc", "--experimental-enable-grpc-metrics=true", fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
 	return testSuite.mountGcsfuse(bucketName, flags)
 }
 

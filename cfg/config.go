@@ -585,7 +585,7 @@ type MetricsConfig struct {
 
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
-	EnableGrpcMetrics bool `yaml:"enable-grpc-metrics"`
+	ExperimentalEnableGrpcMetrics bool `yaml:"experimental-enable-grpc-metrics"`
 
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
@@ -828,8 +828,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-grpc-metrics", "", false, "Enables support for gRPC metrics")
-
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
@@ -875,6 +873,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
 	if err := flagSet.MarkHidden("experimental-enable-dentry-cache"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-grpc-metrics", "", false, "Enables support for gRPC metrics")
+
+	if err := flagSet.MarkHidden("experimental-enable-grpc-metrics"); err != nil {
 		return err
 	}
 
@@ -1359,10 +1363,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("metrics.enable-grpc-metrics", flagSet.Lookup("enable-grpc-metrics")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
 		return err
 	}
@@ -1400,6 +1400,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-enable-dentry-cache", flagSet.Lookup("experimental-enable-dentry-cache")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.experimental-enable-grpc-metrics", flagSet.Lookup("experimental-enable-grpc-metrics")); err != nil {
 		return err
 	}
 

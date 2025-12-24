@@ -920,11 +920,12 @@ params:
     usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
     default: 0
 
-  - config-path: "metrics.enable-grpc-metrics"
-    flag-name: "enable-grpc-metrics"
+  - config-path: "metrics.experimental-enable-grpc-metrics"
+    flag-name: "experimental-enable-grpc-metrics"
     type: "bool"
     usage: "Enables support for gRPC metrics"
     default: false
+    hide-flag: true
 
   - config-path: "metrics.prometheus-port"
     flag-name: "prometheus-port"
