@@ -92,12 +92,7 @@ func (d *dummyIOBucket) NewReaderWithReadHandle(
 func (d *dummyIOBucket) NewMultiRangeDownloader(
 	ctx context.Context,
 	req *gcs.MultiRangeDownloaderRequest) (gcs.MultiRangeDownloader, error) {
-	// TODO: fix precision issue in perByteLatency because of upper bound.
-	perByteLatency := time.Duration(0)
-	if d.perMBLatency > 0 {
-		perByteLatency = time.Duration(d.perMBLatency.Nanoseconds()+MB-1) / MB
-	}
-	return &dummyMultiRangeDownloader{perByteLatency: perByteLatency}, nil
+	return &dummyMultiRangeDownloader{perMBLatency: d.perMBLatency}, nil
 }
 
 // CreateObject creates or overwrites an object.
@@ -303,8 +298,8 @@ func (dr *dummyReader) ReadHandle() storagev2.ReadHandle {
 ////////////////////////////////////////////////////////////////////////
 
 type dummyMultiRangeDownloader struct {
-	perByteLatency time.Duration
-	wg             sync.WaitGroup
+	perMBLatency time.Duration
+	wg           sync.WaitGroup
 }
 
 func (d *dummyMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
@@ -313,8 +308,8 @@ func (d *dummyMultiRangeDownloader) Add(output io.Writer, offset, length int64, 
 		defer d.wg.Done()
 
 		// Simulate latency
-		if d.perByteLatency > 0 {
-			time.Sleep(time.Duration(length) * d.perByteLatency)
+		if d.perMBLatency > 0 {
+			time.Sleep(time.Duration(float64(length) * float64(d.perMBLatency.Nanoseconds()) / float64(MB)))
 		}
 
 		// Write zeros
