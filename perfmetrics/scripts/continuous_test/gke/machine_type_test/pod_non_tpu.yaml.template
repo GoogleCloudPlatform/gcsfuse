@@ -31,7 +31,7 @@ spec:
       volumeAttributes:
         bucketName: "$bucket_name"
   # Pass high-performance machine-type to make the tests pass.
-        mountOptions: "machine-type:a3-highgpu-8g"
+  #      mountOptions: "machine-type:a3-highgpu-8g"
   - name: scripts-vol
     configMap:
       name: machine-type-test-scripts
