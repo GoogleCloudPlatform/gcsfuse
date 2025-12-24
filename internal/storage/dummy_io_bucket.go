@@ -234,20 +234,19 @@ func (d *dummyIOBucket) GCSName(object *gcs.MinObject) string {
 // Reading beyond the specified length returns io.EOF.
 // Also, it always returns a non-nil read handle.
 type dummyReader struct {
-	totalLen       uint64 // Total length of data to serve
-	bytesRead      uint64 // Number of bytes already read
-	readHandle     storagev2.ReadHandle
-	perByteLatency time.Duration
+	totalLen     uint64 // Total length of data to serve
+	bytesRead    uint64 // Number of bytes already read
+	readHandle   storagev2.ReadHandle
+	perMBLatency time.Duration
 }
 
 // newDummyReader creates a new dummyReader with the specified total length.
 func newDummyReader(totalLen uint64, perMBLatency time.Duration) *dummyReader {
 	return &dummyReader{
-		totalLen:   totalLen,
-		bytesRead:  0,
-		readHandle: []byte{}, // Always return a non-nil read handle
-		// TODO: fix precision issue in perByteLatency because of upper bound.
-		perByteLatency: time.Duration(perMBLatency.Nanoseconds()+MB-1) / MB,
+		totalLen:     totalLen,
+		bytesRead:    0,
+		readHandle:   []byte{}, // Always return a non-nil read handle
+		perMBLatency: perMBLatency,
 	}
 }
 
@@ -269,8 +268,8 @@ func (dr *dummyReader) Read(p []byte) (n int, err error) {
 	}
 
 	// Simulate per-MB latency if specified
-	if dr.perByteLatency > 0 {
-		time.Sleep(time.Duration(toRead) * dr.perByteLatency)
+	if dr.perMBLatency > 0 {
+		time.Sleep(time.Duration(float64(toRead) * float64(dr.perMBLatency.Nanoseconds()) / float64(MB)))
 	}
 
 	dr.bytesRead += toRead
