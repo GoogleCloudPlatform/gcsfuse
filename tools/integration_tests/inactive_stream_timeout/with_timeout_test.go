@@ -42,13 +42,6 @@ func (s *timeoutEnabledSuite) SetupSuite() {
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *timeoutEnabledSuite) SetupTest() {
-	gcsDir := path.Join(kTestDirName, s.T().Name())
-	testEnv.testDirPath = path.Join(mountDir, gcsDir)
-	SetupNestedTestDir(testEnv.testDirPath, 0755, s.T())
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, gcsDir, kTestFileName, kFileSize, s.T())
-}
-
 func (s *timeoutEnabledSuite) TearDownSuite() {
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
@@ -63,7 +56,10 @@ func (s *timeoutEnabledSuite) TearDownTest() {
 
 func (s *timeoutEnabledSuite) TestReaderCloses() {
 	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
-	mountFilePath := path.Join(testEnv.testDirPath, kTestFileName)
+	testDir := path.Join(mountDir, kTestDirName)
+	fileName := "foo" + setup.GenerateRandomString(5)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, kTestDirName, fileName, kFileSize, s.T())
+	mountFilePath := path.Join(testDir, fileName)
 
 	// 1. Open file.
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
@@ -81,7 +77,7 @@ func (s *timeoutEnabledSuite) TestReaderCloses() {
 	endTimeWait := time.Now()
 
 	// 4. "Closing reader" log should be present.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, s.T().Name(), kTestFileName), true, endTimeRead, endTimeWait)
+	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, fileName), true, endTimeRead, endTimeWait)
 
 	// 5. Further reads should work as it is, yeah it will create a new reader.
 	_, err = fileHandle.ReadAt(buff, 8)
@@ -90,7 +86,10 @@ func (s *timeoutEnabledSuite) TestReaderCloses() {
 
 func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
-	mountFilePath := path.Join(testEnv.testDirPath, kTestFileName)
+	testDir := path.Join(mountDir, kTestDirName)
+	fileName := "foo" + setup.GenerateRandomString(5)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, kTestDirName, fileName, kFileSize, s.T())
+	mountFilePath := path.Join(testDir, fileName)
 
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
 	require.NoError(s.T(), err)
@@ -112,7 +111,7 @@ func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 
 	// 4. Check log: "Closing reader for object..." should NOT be present for this object
 	// between the first read's end and the second read's start.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, s.T().Name(), kTestFileName), false, endTimeRead1, startTimeRead2)
+	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, fileName), false, endTimeRead1, startTimeRead2)
 }
 
 ////////////////////////////////////////////////////////////////////////

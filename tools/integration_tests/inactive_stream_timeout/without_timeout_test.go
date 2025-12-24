@@ -42,13 +42,6 @@ func (s *timeoutDisabledSuite) SetupSuite() {
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *timeoutDisabledSuite) SetupTest() {
-	gcsDir := path.Join(kTestDirName, s.T().Name())
-	testEnv.testDirPath = path.Join(mountDir, gcsDir)
-	SetupNestedTestDir(testEnv.testDirPath, 0755, s.T())
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, gcsDir, kTestFileName, kFileSize, s.T())
-}
-
 func (s *timeoutDisabledSuite) TearDownSuite() {
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
@@ -63,7 +56,10 @@ func (s *timeoutDisabledSuite) TearDownTest() {
 
 func (s *timeoutDisabledSuite) TestNoReaderCloser() {
 	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
-	mountFilePath := path.Join(testEnv.testDirPath, kTestFileName)
+	testDir := path.Join(mountDir, kTestDirName)
+	fileName := "foo" + setup.GenerateRandomString(5)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, kTestDirName, fileName, kFileSize, s.T())
+	mountFilePath := path.Join(testDir, fileName)
 
 	// 1. Open file.
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
@@ -81,7 +77,7 @@ func (s *timeoutDisabledSuite) TestNoReaderCloser() {
 	endTimeWait := time.Now()
 
 	// 4. Shouldn't be any `Close reader logs...`.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, s.T().Name(), kTestFileName), false, endTimeRead, endTimeWait)
+	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, fileName), false, endTimeRead, endTimeWait)
 }
 
 ////////////////////////////////////////////////////////////////////////

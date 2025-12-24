@@ -41,8 +41,7 @@ const (
 	kOnlyDirMounted                      = "onlyDirInactiveReadTimeout"
 	kFileSize                            = 10 * 1024 * 1024 // 10 MiB
 	kChunkSizeToRead                     = 128 * 1024       // 128 KiB
-	kTestFileName                        = "foo"
-	kDefaultInactiveReadTimeoutInSeconds = 1 // A short timeout for testing
+	kDefaultInactiveReadTimeoutInSeconds = 1                // A short timeout for testing
 	GKETempDir                           = "/gcsfuse-tmp"
 	OldGKElogFilePath                    = "/tmp/inactive_stream_timeout_logs/log.json"
 )
@@ -64,14 +63,9 @@ var (
 	rootDir string
 )
 
-func SetupNestedTestDir(path string, permission os.FileMode, t *testing.T) {
-	err := os.MkdirAll(path, permission)
-	require.NoError(t, err)
-}
-
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
-	// In case of GKE, the test directory is not created by the test.
+	// In case of GKE, the mount directory is not created by the test.
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		setup.SetMntDir(testEnv.cfg.GKEMountedDirectory)
 	}
@@ -196,8 +190,7 @@ func TestMain(m *testing.M) {
 		mountDir = rootDir
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), "TestTimeoutEnabledSuite"))
-		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), "TestTimeoutDisabledSuite"))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted()))
 	}
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), kTestDirName))
