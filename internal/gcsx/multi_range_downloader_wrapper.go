@@ -153,20 +153,13 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	}
 
 	mrdWrapper.refCount--
-	// Do nothing if MRD is in use.
-	if mrdWrapper.refCount > 0 {
+	// Do nothing if MRD is in use or cache is not enabled.
+	if mrdWrapper.refCount > 0 || mrdWrapper.mrdCache == nil {
 		mrdWrapper.mu.Unlock()
 		return
 	}
 
-	// No cache: close MRD immediately
-	if mrdWrapper.mrdCache == nil {
-		mrdWrapper.closeLocked()
-		mrdWrapper.mu.Unlock()
-		return
-	}
-
-	// Cache: add the wrapper to cache and evict overflow wrappers.
+	// Cache with refCount 0: add the wrapper to cache and evict overflow wrappers.
 	evictedValues, err := mrdWrapper.mrdCache.Insert(wrapperKey(mrdWrapper), mrdWrapper)
 	if err != nil {
 		logger.Errorf("failed to insert wrapper (%s) into cache: %v", mrdWrapper.object.Name, err)

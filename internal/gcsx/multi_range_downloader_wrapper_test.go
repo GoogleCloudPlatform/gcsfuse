@@ -87,7 +87,7 @@ func (t *mrdWrapperTest) Test_IncrementRefCount_CancelCleanup() {
 	err := t.mrdWrapper.DecrementRefCount()
 
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
 
 	t.mrdWrapper.IncrementRefCount()
 
@@ -120,10 +120,7 @@ func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
 	wg.Wait()
 
 	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.GetRefCount())
-	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
-	// Waiting for the cleanup to be done.
-	time.Sleep(t.mrdTimeout + time.Millisecond)
-	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
 }
 
 func (t *mrdWrapperTest) Test_DecrementRefCount_InvalidUse() {
@@ -438,6 +435,7 @@ func (t *mrdWrapperCacheTest) Test_Cache_AddAndRemove() {
 	// Act: Open, close, and reopen file
 	t.mrdWrapper.IncrementRefCount()
 	err := t.mrdWrapper.DecrementRefCount()
+	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Wrapper should be in cache.")
 	t.mrdWrapper.IncrementRefCount()
 
 	// Assert: MRD reused and removed from cache on reopen
@@ -448,6 +446,7 @@ func (t *mrdWrapperCacheTest) Test_Cache_AddAndRemove() {
 }
 
 // Override parent test - with cache enabled, MRD stays pooled instead of being closed
+// TODO (b/471341773): remove the test with CancelCleanup and clock logic.
 func (t *mrdWrapperCacheTest) Test_IncrementRefCount_CancelCleanup() {
 	// Arrange
 	key := wrapperKey(t.mrdWrapper)
@@ -561,7 +560,7 @@ func (t *mrdWrapperCacheTest) Test_Cache_DeletedIfReopened() {
 		assert.NoError(t.T(), err)
 	}
 
-	// Act: Reopen wrapper 0 and add 4th wrapper (triggers eviction)
+	// Act: Reopen wrapper 0 -> should remove it from cache
 	wrappers[0].IncrementRefCount()
 
 	// Assert: wrapper 0 will be deleted from cache.
@@ -590,6 +589,7 @@ func (t *mrdWrapperCacheTest) Test_Cache_ConcurrentAddRemove() {
 
 	// Assert: Final state is refCount=0 (no deadlocks or panics)
 	assert.Equal(t.T(), 0, t.mrdWrapper.refCount, "RefCount should be 0 after all operations")
+	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(wrapperKey(t.mrdWrapper)), "Wrapper should be in cache")
 }
 
 func (t *mrdWrapperCacheTest) Test_Cache_Disabled() {
@@ -609,8 +609,8 @@ func (t *mrdWrapperCacheTest) Test_Cache_Disabled() {
 	err = wrapper.DecrementRefCount()
 	assert.NoError(t.T(), err)
 
-	// Assert: MRD closed immediately (not pooled)
-	assert.Nil(t.T(), wrapper.Wrapped, "MRD should be closed when cache disabled")
+	// Assert: MRD will be open forever since cache is disabled.
+	assert.NotNil(t.T(), wrapper.Wrapped, "MRD should be open when cache disabled")
 }
 
 func (t *mrdWrapperCacheTest) Test_Cache_EvictionRaceWithRepool() {

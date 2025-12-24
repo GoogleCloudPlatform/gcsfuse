@@ -1180,7 +1180,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
-	flagSet.IntP("unused-mrd-cache-size", "", 0, "Sets the cache-size of unused (no open file) MRD instances. When this limit is exceeded, the least recently unused MRD instances will be closed. Set to 0 to disable the cache, which will closed unused MRD instances immediately.")
+	flagSet.IntP("unused-mrd-cache-size", "", 0, "Sets the cache-size of unused (no open file) MRD instances. When this limit is exceeded, the least recently unused MRD instances will be closed. Set to 0 to disable the cache, which will keep the unused MRD instances open forever.")
 
 	if err := flagSet.MarkHidden("unused-mrd-cache-size"); err != nil {
 		return err
