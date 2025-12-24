@@ -82,11 +82,11 @@ func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 
 	// Create the rest of the MRDs asynchronously.
 	if config.PoolSize > 1 {
-		handle := mrd.GetHandle()
+		mrdHandle := mrd.GetHandle()
 		p.creationWg.Add(1)
 		go func() {
 			defer p.creationWg.Done()
-			p.createRemainingMRDs(handle)
+			p.createRemainingMRDs(mrdHandle)
 		}()
 	}
 
@@ -131,14 +131,23 @@ func (p *MRDPool) RecreateMRD(entry *MRDEntry, fallbackHandle []byte) error {
 	defer entry.mu.Unlock()
 
 	var handle []byte
-	for i := 0; i < p.poolConfig.PoolSize; i++ {
-		if entry.mrd != nil {
-			handle = entry.mrd.GetHandle()
-			break
-		}
-	}
-	if handle == nil {
+	if entry.mrd != nil {
+		handle = entry.mrd.GetHandle()
+	} else if fallbackHandle != nil {
 		handle = fallbackHandle
+	} else {
+		for i := 0; i < int(p.currentSize.Load()); i++ {
+			if &p.entries[i] == entry {
+				continue
+			}
+			p.entries[i].mu.RLock()
+			if p.entries[i].mrd != nil {
+				handle = p.entries[i].mrd.GetHandle()
+				p.entries[i].mu.RUnlock()
+				break
+			}
+			p.entries[i].mu.RUnlock()
+		}
 	}
 
 	mrd, err := p.poolConfig.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
