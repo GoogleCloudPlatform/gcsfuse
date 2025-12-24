@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
@@ -14,7 +15,9 @@ import (
 )
 
 const (
-	onlyListPermCustomRole = "roles/storage.objects.list"
+	// This role is a custom role and granting this role to any service account grants only storage.objects.list permission.
+	// Custom roles follow the naming pattern projects/<project-id>/roles/<custom-role-name>
+	listPermCustomRoleName = "storage.objects.list"
 )
 
 type MountAccessTest struct {
@@ -63,11 +66,19 @@ func (testSuite *MountAccessTest) mountWithKeyFile(bucketName, keyFile string) (
 	return nil
 }
 
-func (testSuite *MountAccessTest) TestMountWithSAWithMinimalAccessSucceeds() {
+func (testSuite *MountAccessTest) TestMountingWithMinimalAccessSucceeds() {
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials(gCtx)
-	creds_tests.ApplyCustomRoleToServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, onlyListPermCustomRole, setup.TestBucket())
+	creds_tests.ApplyCustomRoleToServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, setup.TestBucket())
 
 	err := testSuite.mountWithKeyFile(setup.TestBucket(), localKeyFilePath)
 
 	assert.NoError(testSuite.T(), err)
+	creds_tests.RevokeCustomRoleFromServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, setup.TestBucket())
+}
+
+func TestMountAccess(t *testing.T) {
+	// Set log file.
+	setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, t.Name()))
+
+	suite.Run(t, &MountAccessTest{})
 }
