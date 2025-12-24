@@ -970,6 +970,14 @@ params:
     default: 0
     hide-flag: true
 
+  - config-path: "mrd.pool-size"
+    flag-name: "mrd-pool-size"
+    type: "int"
+    usage: >-
+      Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.
+    default: "4"
+    hide-flag: true
+
   - config-path: "only-dir"
     flag-name: "only-dir"
     type: "string"
@@ -981,14 +989,6 @@ params:
     type: "string"
     usage: "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing"
     default: ""
-
-  - config-path: "mrd.pool-size"
-    flag-name: "mrd-pool-size"
-    type: "int"
-    usage: >-
-      Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.
-    default: 4
-    hide-flag: true
 
   - config-path: "read.block-size-mb"
     flag-name: "read-block-size-mb"

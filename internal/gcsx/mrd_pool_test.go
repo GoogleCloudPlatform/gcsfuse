@@ -207,7 +207,7 @@ func (t *mrdPoolTest) TestClose() {
 	pool.Close()
 
 	// Verify entries are cleared
-	for _, e := range pool.entries {
-		assert.Nil(t.T(), e.mrd)
+	for i := 0; i < len(pool.entries); i++ {
+		assert.Nil(t.T(), pool.entries[i].mrd)
 	}
 }

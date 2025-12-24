@@ -391,13 +391,13 @@ type Config struct {
 
 	Monitoring MonitoringConfig `yaml:"monitoring"`
 
+	Mrd MrdConfig `yaml:"mrd"`
+
 	OnlyDir string `yaml:"only-dir"`
 
 	Profile string `yaml:"profile"`
 
 	Read ReadConfig `yaml:"read"`
-
-	MRD MRDConfig `yaml:"mrd"`
 
 	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight"`
 
@@ -604,6 +604,10 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
+type MrdConfig struct {
+	PoolSize int64 `yaml:"pool-size"`
+}
+
 type ReadConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
@@ -620,10 +624,6 @@ type ReadConfig struct {
 	RandomSeekThreshold int64 `yaml:"random-seek-threshold"`
 
 	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
-}
-
-type MRDConfig struct {
-	MRDPoolSize int64 `yaml:"pool-size"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -1068,6 +1068,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("mrd-pool-size", "", 4, "Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.")
+
+	if err := flagSet.MarkHidden("mrd-pool-size"); err != nil {
+		return err
+	}
+
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
@@ -1081,12 +1087,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
-
-	flagSet.IntP("mrd-pool-size", "", 4, "Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.")
-
-	if err := flagSet.MarkHidden("mrd-pool-size"); err != nil {
-		return err
-	}
 
 	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than 0. This is used to read data in chunks from GCS.")
 
@@ -1607,6 +1607,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("mrd.pool-size", flagSet.Lookup("mrd-pool-size")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.fuse-options", flagSet.Lookup("o")); err != nil {
 		return err
 	}
@@ -1624,10 +1628,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("mrd.pool-size", flagSet.Lookup("mrd-pool-size")); err != nil {
 		return err
 	}
 

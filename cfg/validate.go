@@ -256,9 +256,9 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 	return nil
 }
 
-func isValidMRDConfig(mrdConfig *MRDConfig) error {
-	if mrdConfig.MRDPoolSize < 1 {
-		return fmt.Errorf("invalid value of mrd-pool-size: %d; should be >=1", mrdConfig.MRDPoolSize)
+func isValidMRDConfig(mrdConfig *MrdConfig) error {
+	if mrdConfig.PoolSize < 1 {
+		return fmt.Errorf("invalid value of mrd-pool-size: %d; should be >=1", mrdConfig.PoolSize)
 	}
 	return nil
 }
@@ -338,7 +338,7 @@ func ValidateConfig(v isSet, config *Config) error {
 		return fmt.Errorf("error parsing buffered read config: %w", err)
 	}
 
-	if err = isValidMRDConfig(&config.MRD); err != nil {
+	if err = isValidMRDConfig(&config.Mrd); err != nil {
 		return fmt.Errorf("error parsing mrd config: %w", err)
 	}
 
