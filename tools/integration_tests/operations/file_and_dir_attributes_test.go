@@ -36,7 +36,7 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	if err != nil {
 		t.Errorf("os.Stat error: %s, %v", objName, err)
 	}
-	statObjName := path.Join(setup.MntDir(), DirForOperationTests, oStat.Name())
+	statObjName := path.Join(path.Dir(objName), oStat.Name())
 	if objName != statObjName {
 		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statObjName, objName)
 	}
