@@ -16,10 +16,24 @@ package clock
 
 import "time"
 
-// Implements Clock interface.
-type RealClock struct{}
+// Implements clock interface. It should be used during tests to mimic waiting.
+type FakeClock struct {
+	WaitTime time.Duration
+}
 
-// Notifies on the return channel after the specified time has passed.
-func (RealClock) After(d time.Duration) <-chan time.Time {
-	return time.After(d)
+// Now returns the current time. This implementation uses the real time, making
+// this clock a hybrid.
+func (mc *FakeClock) Now() time.Time {
+	return time.Now()
+}
+
+// Notifies on the returned channel after the wait time specified during
+// creation of FakeClock.
+func (mc *FakeClock) After(time.Duration) <-chan time.Time {
+	ch := make(chan time.Time)
+	go func() {
+		time.Sleep(mc.WaitTime)
+		ch <- time.Now()
+	}()
+	return ch
 }
