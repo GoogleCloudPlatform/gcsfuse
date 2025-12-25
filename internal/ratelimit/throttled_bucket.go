@@ -264,7 +264,7 @@ func (b *throttledBucket) RenameFolder(ctx context.Context, folderName string, d
 	return
 }
 
-func (b *throttledBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+func (b *throttledBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (folder *gcs.Folder, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -272,7 +272,7 @@ func (b *throttledBucket) GetFolder(ctx context.Context, folderName string) (fol
 	}
 
 	// Call through.
-	folder, err = b.wrapped.GetFolder(ctx, folderName)
+	folder, err = b.wrapped.GetFolder(ctx, req)
 
 	return folder, err
 }

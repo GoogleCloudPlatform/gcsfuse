@@ -297,13 +297,12 @@ func makeRootForBucket(
 		fs.implicitDirs,
 		fs.newConfig.List.EnableEmptyManagedFolders,
 		fs.enableNonexistentTypeCache,
-		fs.dirTypeCacheTTL,
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
 		fs.newConfig.EnableUnsupportedPathSupport,
+		fs.newConfig.MetadataCache.TtlSecs,
 	)
 }
 
@@ -782,7 +781,8 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		fs.cacheClock,
 		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
-		fs.newConfig.EnableUnsupportedPathSupport)
+		fs.newConfig.EnableUnsupportedPathSupport,
+		fs.newConfig.MetadataCache.TtlSecs)
 
 	return in
 }
@@ -820,13 +820,12 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.implicitDirs,
 			fs.newConfig.List.EnableEmptyManagedFolders,
 			fs.enableNonexistentTypeCache,
-			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 			fs.newConfig.EnableHns,
 			fs.newConfig.EnableUnsupportedPathSupport,
+			fs.newConfig.MetadataCache.TtlSecs,
 		)
 
 	case inode.IsSymlink(ic.MinObject):
@@ -2011,7 +2010,6 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 
 	parent.Lock()
 	defer parent.Unlock()
-	parent.InsertFileIntoTypeCache(name)
 	return child, nil
 }
 
@@ -2345,9 +2343,6 @@ func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
 		return fmt.Errorf("atomicRename: while invalidating cache for renamed file: %w", err)
 	}
-
-	// Insert new file in type cache.
-	newParent.InsertFileIntoTypeCache(newName)
 
 	return nil
 }

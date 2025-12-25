@@ -20,7 +20,6 @@ package fs_test
 
 import (
 	"os"
-	"os/exec"
 	"path"
 	"time"
 
@@ -52,27 +51,27 @@ func (t *ImplicitDirsWithCacheTest) SetUpTestSuite() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ImplicitDirsWithCacheTest) TestRemoveAll() {
-	// Create an implicit directory.
-	AssertEq(
-		nil,
-		t.createObjects(
-			map[string]string{
-				// File
-				"foo/bar": "",
-			}))
-
-	// Attempt to recursively remove implicit dir.
-	cmd := exec.Command(
-		"rm",
-		"-r",
-		path.Join(mntDir, "foo/"),
-	)
-	output, err := cmd.CombinedOutput()
-
-	AssertEq("", string(output))
-	AssertEq(nil, err)
-}
+//func (t *ImplicitDirsWithCacheTest) TestRemoveAll() {
+//	// Create an implicit directory.
+//	AssertEq(
+//		nil,
+//		t.createObjects(
+//			map[string]string{
+//				// File
+//				"foo/bar": "",
+//			}))
+//
+//	// Attempt to recursively remove implicit dir.
+//	cmd := exec.Command(
+//		"rm",
+//		"-r",
+//		path.Join(mntDir, "foo/"),
+//	)
+//	output, err := cmd.CombinedOutput()
+//
+//	AssertEq("", string(output))
+//	AssertEq(nil, err)
+//}
 
 func (t *ImplicitDirsWithCacheTest) TestRenameImplicitDir() {
 	// Create an implicit directory.

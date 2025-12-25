@@ -1139,20 +1139,20 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	return
 }
 
-func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder, error) {
+func (b *bucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Does the folder exist?
-	index := b.folders.find(foldername)
+	index := b.folders.find(req.Name)
 	if index == len(b.folders) {
 		err := &gcs.NotFoundError{
-			Err: fmt.Errorf("object %s not found", foldername),
+			Err: fmt.Errorf("object %s not found", req.Name),
 		}
 		return nil, err
 	}
 
-	return &gcs.Folder{Name: foldername}, nil
+	return &gcs.Folder{Name: req.Name}, nil
 }
 
 func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {

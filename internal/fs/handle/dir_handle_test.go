@@ -79,13 +79,12 @@ func (t *DirHandleTest) resetDirHandle() {
 		false, // implicitDirs,
 		true,  // enableManagedFoldersListing
 		false, // enableNonExistentTypeCache
-		0,     // typeCacheTTL
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		0,
 		false,
-		true)
+		true,
+		60)
 
 	t.dh = NewDirHandle(
 		dirInode,
