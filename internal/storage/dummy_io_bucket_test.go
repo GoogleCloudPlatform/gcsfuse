@@ -528,6 +528,22 @@ func TestDummyMultiRangeDownloader_Add_MultipleConcurrent(t *testing.T) {
 	}
 }
 
+func TestDummyMultiRangeDownloader_Add_ValidateContent(t *testing.T) {
+	mrd := &dummyMultiRangeDownloader{}
+	var output bytes.Buffer
+	length := int64(5)
+	offset := int64(0)
+
+	mrd.Add(&output, offset, length, nil)
+	mrd.Wait()
+
+	// Check content
+	result := output.Bytes()
+	assert.Equal(t, int(length), len(result))
+	// Verify the returned data is zeros
+	assert.Equal(t, make([]byte, length), result[:])
+}
+
 func TestDummyMultiRangeDownloader_Close(t *testing.T) {
 	mrd := &dummyMultiRangeDownloader{}
 	var output bytes.Buffer
