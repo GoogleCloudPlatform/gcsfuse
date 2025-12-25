@@ -329,6 +329,64 @@ func TestDummyIOBucket_NewReaderWithReadHandle_WithLatency(t *testing.T) {
 	assert.Equal(t, uint64(0), reader.(*dummyReader).bytesRead)
 }
 
+////////////////////////////////////////////////////////////////////////
+// Test for calculateLatency
+////////////////////////////////////////////////////////////////////////
+
+func TestCalculateLatency(t *testing.T) {
+	const MB = 1024 * 1024
+	testCases := []struct {
+		name         string
+		bytes        int64
+		perMBLatency time.Duration
+		expected     time.Duration
+	}{
+		{
+			name:         "ZeroLatency",
+			bytes:        MB,
+			perMBLatency: 0,
+			expected:     0,
+		},
+		{
+			name:         "NegativeLatency",
+			bytes:        MB,
+			perMBLatency: -10 * time.Millisecond,
+			expected:     0,
+		},
+		{
+			name:         "ZeroBytes",
+			bytes:        0,
+			perMBLatency: 100 * time.Millisecond,
+			expected:     0,
+		},
+		{
+			name:         "OneMB",
+			bytes:        MB,
+			perMBLatency: 100 * time.Millisecond,
+			expected:     100 * time.Millisecond,
+		},
+		{
+			name:         "MultipleMBs",
+			bytes:        5 * MB,
+			perMBLatency: 100 * time.Millisecond,
+			expected:     500 * time.Millisecond,
+		},
+		{
+			name:         "FractionOfMB",
+			bytes:        MB / 2,
+			perMBLatency: 100 * time.Millisecond,
+			expected:     50 * time.Millisecond,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := calculateLatency(tc.bytes, tc.perMBLatency)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
 // //////////////////////////////////////////////////////////////////////
 // Test for dummyReader
 // //////////////////////////////////////////////////////////////////////

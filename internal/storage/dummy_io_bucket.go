@@ -240,6 +240,13 @@ type dummyReader struct {
 	perMBLatency time.Duration
 }
 
+func calculateLatency(bytes int64, perMBLatency time.Duration) time.Duration {
+	if perMBLatency <= 0 {
+		return 0
+	}
+	return time.Duration(float64(bytes) * float64(perMBLatency.Nanoseconds()) / float64(MB))
+}
+
 // newDummyReader creates a new dummyReader with the specified total length.
 func newDummyReader(totalLen uint64, perMBLatency time.Duration) *dummyReader {
 	return &dummyReader{
@@ -268,9 +275,7 @@ func (dr *dummyReader) Read(p []byte) (n int, err error) {
 	}
 
 	// Simulate per-MB latency if specified
-	if dr.perMBLatency > 0 {
-		time.Sleep(time.Duration(float64(toRead) * float64(dr.perMBLatency.Nanoseconds()) / float64(MB)))
-	}
+	time.Sleep(calculateLatency(int64(toRead), dr.perMBLatency))
 
 	dr.bytesRead += toRead
 
@@ -301,37 +306,25 @@ type dummyMultiRangeDownloader struct {
 	wg           sync.WaitGroup
 }
 
+// zeroReader is an io.Reader that always reads zeros.
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
+
 func (d *dummyMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
 
 		// Simulate latency
-		if d.perMBLatency > 0 {
-			time.Sleep(time.Duration(float64(length) * float64(d.perMBLatency.Nanoseconds()) / float64(MB)))
-		}
+		time.Sleep(calculateLatency(length, d.perMBLatency))
 
 		// Write zeros
-		chunkSize := 1024 * 1024 // 1MB chunk
-		zeros := make([]byte, chunkSize)
-
-		var bytesWritten int64
-		var err error
-		remaining := length
-		for remaining > 0 {
-			toWrite := int64(chunkSize)
-			if remaining < toWrite {
-				toWrite = remaining
-			}
-
-			n, wErr := output.Write(zeros[:int(toWrite)])
-			bytesWritten += int64(n)
-			if wErr != nil {
-				err = wErr
-				break
-			}
-			remaining -= int64(n)
-		}
+		// output writer is bytes.Buffer which implements io.ReaderFrom interface
+		bytesWritten, err := io.Copy(output, io.LimitReader(zeroReader{}, length))
 
 		if callback != nil {
 			callback(offset, bytesWritten, err)
