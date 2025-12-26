@@ -126,6 +126,12 @@ func (s *SymlinkInode) SourceGeneration() Generation {
 	return s.sourceGeneration
 }
 
+func (s *SymlinkInode) UpdateSize(size uint64) {
+	// The size of a symlink is its target's length, not the backing object's size.
+	// However, to keep generation info consistent, we update it.
+	s.sourceGeneration.Size = size
+}
+
 // LOCKS_REQUIRED(s.mu)
 func (s *SymlinkInode) IncrementLookupCount() {
 	s.lc.Inc()

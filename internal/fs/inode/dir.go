@@ -528,6 +528,14 @@ func (d *dirInode) Destroy() (err error) {
 	return
 }
 
+// UpdateSize is a no-op for implicit directories. These directories are not
+// backed by a real GCS object but are inferred from the presence of other
+// objects (e.g., the directory "foo/" is implied by the object "foo/bar.txt").
+// Since there is no backing object, there is no size attribute to update.
+func (d *dirInode) UpdateSize(size uint64) {
+	// No-op for directories.
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Attributes(
 	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {

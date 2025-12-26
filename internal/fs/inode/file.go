@@ -459,6 +459,16 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 }
 
 // LOCKS_REQUIRED(f.mu)
+// UpdateSize updates the size of the backing GCS object. It also calls
+// updateMRDWrapper to ensure that the multi-range downloader (which is used
+// for random reads) is aware of the new size. This prevents the downloader
+// from operating on stale object information.
+func (f *FileInode) UpdateSize(size uint64) {
+	f.src.Size = size
+	f.updateMRDWrapper()
+}
+
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 	if f.localFileCache {

@@ -56,6 +56,9 @@ type Inode interface {
 	// Clean up any local resources used by the inode, putting it into an
 	// indeterminate state where no method should be called except Unlock.
 	//
+	// Update the size of the inode.
+	UpdateSize(size uint64)
+
 	// This method may block. Errors are for logging purposes only.
 	Destroy() (err error)
 
@@ -112,16 +115,6 @@ func (latest Generation) Compare(current Generation) int {
 	case latest.Metadata > current.Metadata:
 		return 1
 	}
-
-	// Break ties on object size.
-	// Because objects in zonal buckets can be appended without altering their
-	// generation or metageneration, the following case applies exclusively to
-	// zonal buckets.
-	if latest.Size > current.Size {
-		return 1
-	}
-	// We ignore latest.Size < current.Size case as little staleness is expected
-	// on the GCS object's size.
 
 	return 0
 }

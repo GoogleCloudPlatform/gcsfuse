@@ -1854,6 +1854,24 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEn
 	assert.Equal(t.T(), attrs.Atime, mtime)
 }
 
+func (t *FileTest) TestUpdateSize() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	// Check initial size.
+	attrs, err = t.in.Attributes(t.ctx, true)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), uint64(len(t.initialContents)), attrs.Size)
+
+	// Update size.
+	newSize := uint64(100)
+	t.in.UpdateSize(newSize)
+
+	// Check new size.
+	attrs, err = t.in.Attributes(t.ctx, true)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), newSize, attrs.Size)
+}
+
 func (t *FileTest) TestRegisterFileHandle() {
 	tbl := []struct {
 		name        string

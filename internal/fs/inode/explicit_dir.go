@@ -87,3 +87,7 @@ func (d *explicitDirInode) SourceGeneration() (gen Generation) {
 	gen = d.generation
 	return
 }
+
+func (d *explicitDirInode) UpdateSize(size uint64) {
+	// No-op for directories.
+}
