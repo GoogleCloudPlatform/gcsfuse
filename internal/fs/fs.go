@@ -1062,6 +1062,26 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		}
 
 		if core == nil {
+			// Check if the directory is present in implicitDirInodes or folderInodes.
+			// This is required because when an implicit directory becomes empty,
+			// it is no longer visible in GCS, but we might still have an active
+			// inode for it (e.g. if it's being removed by rm -r).
+			dirName := inode.NewDirName(parent.Name(), childName)
+			fs.mu.Lock()
+			child = fs.implicitDirInodes[dirName]
+			if child == nil {
+				child = fs.folderInodes[dirName]
+			}
+			if child != nil {
+				child.IncrementLookupCount()
+			}
+			fs.mu.Unlock()
+
+			if child != nil {
+				child.Lock()
+				return
+			}
+
 			err = fuse.ENOENT
 			return
 		}
