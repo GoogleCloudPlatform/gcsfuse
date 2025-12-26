@@ -50,7 +50,9 @@ type OptimizationResult struct {
 	Optimized bool `yaml:"-" json:"-"` // Field hidden from YAML and JSON to avoid it in logs.
 }
 
-type isValueSet interface {
+// IsValueSet interface allows checking if a flag was explicitly set by the user.
+// This is used to determine whether to apply optimization rules or respect user choices.
+type IsValueSet interface {
 	IsSet(string) bool
 	GetString(string) string
 	GetBool(string) bool
@@ -104,7 +106,7 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 }
 
 // getMachineType fetches the machine type from the metadata server if not set in isSet, cfg.
-func getMachineType(isSet isValueSet, cfg *Config) (string, error) {
+func getMachineType(isSet IsValueSet, cfg *Config) (string, error) {
 	// Precedence: 1. CLI flag, 2. Config file, 3. Metadata server.
 	// 1. Check if the machine-type flag is set in CLI flag.
 	if isSet.IsSet(machineTypeFlg) {
@@ -156,7 +158,7 @@ func convertToCamelCase(input string) string {
 }
 
 // setFlagValue uses reflection to set the value of a flag in ServerConfig.
-func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValueSet) error {
+func setFlagValue(cfg *Config, flag string, override flagOverride, isSet IsValueSet) error {
 	// Split the flag name into parts to traverse nested structs.
 	parts := strings.Split(flag, ".")
 	if len(parts) == 0 {
@@ -229,9 +231,11 @@ func getOptimizedValue(
 	currentValue any,
 	profileName string,
 	machineType string,
+	input OptimizationInput,
 	machineTypeToGroupMap map[string]string,
 ) OptimizationResult {
-	// Precedence: Profile -> Machine -> Default
+	// Precedence: Profile -> (Machine / Bucket) -> Default
+	// Assuming Machine and Bucket optimizations are applied on mutually exclusive flags.
 
 	// 1. If a profile with the given name is active and has optimization defined for it, then it takes precedence.
 	for _, p := range rules.Profiles {
@@ -257,7 +261,20 @@ func getOptimizedValue(
 		}
 	}
 
-	// 3. If no optimization is found, return the original value.
+	// 3. Only if no profile is set, check for bucket-type optimization.
+	if input.BucketType != BucketTypeUnknown {
+		for _, bbo := range rules.BucketBasedOptimization {
+			if BucketType(bbo.BucketType) == input.BucketType {
+				return OptimizationResult{
+					FinalValue:         bbo.Value,
+					OptimizationReason: fmt.Sprintf("bucket-type %q", input.BucketType),
+					Optimized:          true,
+				}
+			}
+		}
+	}
+
+	// 4. If no optimization is found, return the original value.
 	return OptimizationResult{
 		FinalValue: currentValue,
 		Optimized:  false,

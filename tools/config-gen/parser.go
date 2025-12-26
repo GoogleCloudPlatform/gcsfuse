@@ -125,6 +125,17 @@ func validateParam(param Param) error {
 		return fmt.Errorf("unsupported datatype: %s", param.Type)
 	}
 
+	// Validate bucket-based optimizations if present.
+	if param.Optimizations != nil {
+		for _, bbo := range param.Optimizations.BucketBasedOptimization {
+			validBucketTypes := []string{"zonal", "hierarchical", "standard"}
+			if !slices.Contains(validBucketTypes, bbo.BucketType) {
+				return fmt.Errorf("invalid bucket-type %q for flag %s; must be one of: %v",
+					bbo.BucketType, param.FlagName, validBucketTypes)
+			}
+		}
+	}
+
 	return nil
 }
 

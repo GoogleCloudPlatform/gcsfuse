@@ -179,7 +179,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, isSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -213,7 +213,8 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 		mountPoint,
 		newConfig,
 		storageHandle,
-		metricHandle)
+		metricHandle,
+		isSet)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
@@ -569,7 +570,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		startTime := time.Now()
-		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
+		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle, mountInfo.isUserSet)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply
@@ -620,16 +621,19 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 		markSuccessfulMount()
 
-		if newConfig.FileSystem.MaxReadAheadKb != 0 {
-			setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
-		}
+		// Apply kernel settings only when kernel reader is enabled and file-cache is disabled and not a dynamic mount.
+		if !isDynamicMount(bucketName) && newConfig.FileSystem.EnableKernelReader && !cfg.IsFileCacheEnabled(newConfig) {
+			if newConfig.FileSystem.MaxReadAheadKb > 0 {
+				setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
+			}
 
-		if newConfig.FileSystem.CongestionThreshold != 0 {
-			setCongestionThreshold(mountPoint, int(newConfig.FileSystem.CongestionThreshold))
-		}
+			if newConfig.FileSystem.CongestionThreshold > 0 {
+				setCongestionThreshold(mountPoint, int(newConfig.FileSystem.CongestionThreshold))
+			}
 
-		if newConfig.FileSystem.MaxBackground != 0 {
-			setMaxBackground(mountPoint, int(newConfig.FileSystem.MaxBackground))
+			if newConfig.FileSystem.MaxBackground > 0 {
+				setMaxBackground(mountPoint, int(newConfig.FileSystem.MaxBackground))
+			}
 		}
 	}
 

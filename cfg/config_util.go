@@ -61,3 +61,16 @@ func IsMetricsEnabled(c *MetricsConfig) bool {
 func IsGKEEnvironment(mountPoint string) bool {
 	return strings.HasPrefix(mountPoint, "/dev/fd/")
 }
+
+// GetBucketType converts BucketType boolean flags to a BucketType enum.
+// The priority order is: Zonal > Hierarchical > Standard.
+// This is used to determine bucket-specific optimizations for kernel configs.
+func GetBucketType(hierarchical bool, zonal bool) BucketType {
+	if zonal {
+		return BucketTypeZonal
+	}
+	if hierarchical {
+		return BucketTypeHierarchical
+	}
+	return BucketTypeStandard
+}
