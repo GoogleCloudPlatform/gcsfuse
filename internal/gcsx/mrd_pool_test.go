@@ -154,6 +154,45 @@ func (t *mrdPoolTest) TestNext() {
 	pool.Close()
 }
 
+func (t *mrdPoolTest) TestDeterminePoolSize() {
+	testCases := []struct {
+		name             string
+		objectSize       uint64
+		initialPoolSize  int
+		expectedPoolSize int
+	}{
+		{
+			name:             "SmallFile",
+			objectSize:       100 * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 1,
+		},
+		{
+			name:             "LargeFile",
+			objectSize:       1000 * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 4,
+		},
+		{
+			name:             "ThresholdFile",
+			objectSize:       smallFileThresholdMiB * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 4,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.object.Size = tc.objectSize
+			t.poolConfig.PoolSize = tc.initialPoolSize
+
+			t.poolConfig.determinePoolSize()
+
+			assert.Equal(t.T(), tc.expectedPoolSize, t.poolConfig.PoolSize)
+		})
+	}
+}
+
 func (t *mrdPoolTest) TestRecreateMRD() {
 	t.poolConfig.PoolSize = 1
 	mrd1 := fake.NewFakeMultiRangeDownloader(t.object, nil)

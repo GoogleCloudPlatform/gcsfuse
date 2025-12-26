@@ -24,6 +24,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
+const smallFileThresholdMiB = 500
+
 // MRDEntry holds a single MultiRangeDownloader instance and a mutex to protect access to it.
 type MRDEntry struct {
 	mrd gcs.MultiRangeDownloader
@@ -53,18 +55,22 @@ type MRDPool struct {
 	creationWg sync.WaitGroup
 }
 
+// determinePoolSize sets the pool size to 1 if the object size is smaller than
+// smallFileThresholdMiB.
+func (mrdPoolConfig *MRDPoolConfig) determinePoolSize() {
+	if mrdPoolConfig.object.Size < smallFileThresholdMiB*MiB {
+		mrdPoolConfig.PoolSize = 1
+	}
+}
+
 // NewMRDPool initializes a new MRDPool.
 // It creates the first MRD synchronously to ensure immediate availability and starts a background goroutine to create the remaining MRDs.
 func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
-	// Limiting the pool size to 1 for files smaller than 500 MiB
-	if config.object.Size < 500*MiB {
-		config.PoolSize = 1
-	}
-
 	p := &MRDPool{
 		poolConfig: config,
 	}
-	p.entries = make([]MRDEntry, config.PoolSize)
+	p.poolConfig.determinePoolSize()
+	p.entries = make([]MRDEntry, p.poolConfig.PoolSize)
 	p.ctx, p.cancelFunc = context.WithCancel(context.Background())
 
 	// Create the first MRD synchronously.
@@ -81,7 +87,7 @@ func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 	p.currentSize.Store(1)
 
 	// Create the rest of the MRDs asynchronously.
-	if config.PoolSize > 1 {
+	if p.poolConfig.PoolSize > 1 {
 		mrdHandle := mrd.GetHandle()
 		p.creationWg.Add(1)
 		go func() {
@@ -118,6 +124,7 @@ func (p *MRDPool) createRemainingMRDs(handle []byte) {
 }
 
 // Next returns the next available MRDEntry from the pool using a round-robin strategy based on the number of currently initialized MRDs.
+// Please check returned MRD is non nil and valid (i.e. not in an error state) before using it.
 func (p *MRDPool) Next() *MRDEntry {
 	limit := p.currentSize.Load()
 	idx := p.current.Add(1) % limit
