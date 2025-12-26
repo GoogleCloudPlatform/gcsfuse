@@ -121,7 +121,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
 	mrdWrapper.mu.Lock()
 	defer mrdWrapper.mu.Unlock()
 
-	wasZero := mrdWrapper.refCount == 0
 	mrdWrapper.refCount++
 	if mrdWrapper.cancelCleanup != nil {
 		mrdWrapper.cancelCleanup()
@@ -129,7 +128,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
 	}
 
 	// If refCount was 0, remove from cache (file is being reopened)
-	if wasZero && mrdWrapper.mrdCache != nil {
+	if mrdWrapper.refCount == 1 && mrdWrapper.mrdCache != nil {
 		deletedEntry := mrdWrapper.mrdCache.Erase(wrapperKey(mrdWrapper))
 		if deletedEntry != nil {
 			logger.Tracef("MRDWrapper (%s) erased from cache", mrdWrapper.object.Name)
@@ -145,9 +144,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
 // when MultiRangeDownloader is no longer needed & can be cleaned up.
 func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	mrdWrapper.mu.Lock()
+	defer mrdWrapper.mu.Unlock()
 
 	if mrdWrapper.refCount <= 0 {
-		mrdWrapper.mu.Unlock()
 		err = fmt.Errorf("MultiRangeDownloaderWrapper DecrementRefCount: Refcount cannot be negative")
 		return
 	}
@@ -155,7 +154,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	mrdWrapper.refCount--
 	// Do nothing if MRD is in use or cache is not enabled.
 	if mrdWrapper.refCount > 0 || mrdWrapper.mrdCache == nil {
-		mrdWrapper.mu.Unlock()
 		return
 	}
 
@@ -163,7 +161,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	evictedValues, err := mrdWrapper.mrdCache.Insert(wrapperKey(mrdWrapper), mrdWrapper)
 	if err != nil {
 		logger.Errorf("failed to insert wrapper (%s) into cache: %v", mrdWrapper.object.Name, err)
-		mrdWrapper.mu.Unlock()
 		return
 	}
 	logger.Tracef("MRDWrapper (%s) added wrapper to cache", mrdWrapper.object.Name)
@@ -173,10 +170,13 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	for _, wrapper := range evictedValues {
 		mrdWrapper, ok := wrapper.(*MultiRangeDownloaderWrapper)
 		if !ok {
-			return fmt.Errorf("invalid value type during cache eviction")
+			logger.Errorf("invalid value type, expected MultiRangeDownloaderWrapper, got %T", wrapper)
 		}
 		mrdWrapper.CloseMRDForEviction()
 	}
+	// Reacquire the lock ensuring safe defer's Unlock.
+	mrdWrapper.mu.Lock()
+
 	return nil
 }
 
@@ -197,10 +197,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) CloseMRDForEviction() {
 	if mrdWrapper.mrdCache != nil && mrdWrapper.mrdCache.LookUpWithoutChangingOrder(wrapperKey(mrdWrapper)) != nil {
 		return
 	}
-
-	if mrdWrapper.closeLocked() {
-		logger.Tracef("MRDWrapper (%s) closed MRD due to eviction", mrdWrapper.object.Name)
-	}
+	mrdWrapper.closeLocked()
 }
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
@@ -321,11 +318,11 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	return
 }
 
-// closeLocked closes the MultiRangeDownloader, returns true if closes.
+// closeLocked closes the MultiRangeDownloader.
 // LOCK_REQUIRED(mrdWrapper.mu.Lock)
-func (mrdWrapper *MultiRangeDownloaderWrapper) closeLocked() bool {
+func (mrdWrapper *MultiRangeDownloaderWrapper) closeLocked() {
 	if mrdWrapper.Wrapped == nil {
-		return false
+		return
 	}
 
 	// Save handle for potential recreation
@@ -334,11 +331,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) closeLocked() bool {
 	// Close the MRD
 	if err := mrdWrapper.Wrapped.Close(); err != nil {
 		logger.Warnf("Error closing MRD (%s): %v", mrdWrapper.object.Name, err)
-		return false
+		return
 	}
-
+	logger.Tracef("MRDWrapper (%s) closed MRD", mrdWrapper.object.Name)
 	mrdWrapper.Wrapped = nil
-	return true
 }
 
 // Size returns the size of the wrapper for LRU cache accounting.
