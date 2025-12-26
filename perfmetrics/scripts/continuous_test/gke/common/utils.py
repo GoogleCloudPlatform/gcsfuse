@@ -90,7 +90,7 @@ async def check_prerequisites():
   echo_process = await asyncio.create_subprocess_exec(
       "echo",
       "deb [signed-by=/usr/share/keyrings/cloud.google.gpg]"
-      " https://packages.cloud.google.com/apt cloud-sdk main",
+      "https://packages.cloud.google.com/apt cloud-sdk main",
       stdout=asyncio.subprocess.PIPE,
   )
   tee_process = await asyncio.create_subprocess_exec(
