@@ -626,7 +626,7 @@ func TestDummyMultiRangeDownloader_Latency(t *testing.T) {
 	length := int64(MB / 2) // 0.5 MB
 	expectedLatencyNs := float64(length) * float64(perMBLatency.Nanoseconds()) / float64(MB)
 	expectedLatency := time.Duration(expectedLatencyNs)
-	
+
 	start := time.Now()
 	mrd.Add(&output, 0, length, nil)
 	mrd.Wait()
