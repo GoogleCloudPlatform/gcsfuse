@@ -81,7 +81,7 @@ type MultiRangeDownloaderWrapper struct {
 	// next time during MRD recreation.
 	handle []byte
 
-	// MRD cache for LRU-based eviction of unused MRD instances.
+	// MRD cache for LRU-based eviction of inactive MRD instances.
 	mrdCache *lru.Cache
 }
 
@@ -165,14 +165,20 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	}
 	logger.Tracef("MRDWrapper (%s) added wrapper to cache", mrdWrapper.object.Name)
 
+	// Do not proceed if no eviction happened.
+	if evictedValues == nil {
+		return nil
+	}
+
 	// Evict outside all locks to avoid deadlock.
 	mrdWrapper.mu.Unlock()
 	for _, wrapper := range evictedValues {
 		mrdWrapper, ok := wrapper.(*MultiRangeDownloaderWrapper)
 		if !ok {
 			logger.Errorf("invalid value type, expected MultiRangeDownloaderWrapper, got %T", wrapper)
+		} else {
+			mrdWrapper.CloseMRDForEviction()
 		}
-		mrdWrapper.CloseMRDForEviction()
 	}
 	// Reacquire the lock ensuring safe defer's Unlock.
 	mrdWrapper.mu.Lock()

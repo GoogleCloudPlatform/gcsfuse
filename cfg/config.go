@@ -469,6 +469,8 @@ type FileSystemConfig struct {
 
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
+	InactiveMrdCacheSize int64 `yaml:"inactive-mrd-cache-size"`
+
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
 	MaxBackground int64 `yaml:"max-background"`
@@ -482,8 +484,6 @@ type FileSystemConfig struct {
 	TempDir ResolvedPath `yaml:"temp-dir"`
 
 	Uid int64 `yaml:"uid"`
-
-	UnusedMrdCacheSize int64 `yaml:"unused-mrd-cache-size"`
 }
 
 type GcsAuthConfig struct {
@@ -982,6 +982,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
+	flagSet.IntP("inactive-mrd-cache-size", "", 0, "Sets the cache-size of inactive (no open file) MRD instances. When this limit is exceeded, the least recently inactive MRD instances will be closed. Set to 0 to disable the cache, which will keep all the inactive MRD instances open forever.")
+
+	if err := flagSet.MarkHidden("inactive-mrd-cache-size"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used.")
@@ -1179,12 +1185,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
-
-	flagSet.IntP("unused-mrd-cache-size", "", 0, "Sets the cache-size of unused (no open file) MRD instances. When this limit is exceeded, the least recently unused MRD instances will be closed. Set to 0 to disable the cache, which will keep the unused MRD instances open forever.")
-
-	if err := flagSet.MarkHidden("unused-mrd-cache-size"); err != nil {
-		return err
-	}
 
 	flagSet.BoolP("visualize-workload-insight", "", false, "A flag to enable workload visualization. When enabled, workload insights will include visualizations to help understand access patterns. Insights will be written to the file specified by --workload-insight-output-file.")
 
@@ -1503,6 +1503,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.inactive-mrd-cache-size", flagSet.Lookup("inactive-mrd-cache-size")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs")); err != nil {
 		return err
 	}
@@ -1708,10 +1712,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.unused-mrd-cache-size", flagSet.Lookup("unused-mrd-cache-size")); err != nil {
 		return err
 	}
 
