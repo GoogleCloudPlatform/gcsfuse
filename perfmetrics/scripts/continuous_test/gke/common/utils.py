@@ -70,9 +70,6 @@ async def check_prerequisites():
   missing, it attempts to install it using 'gcloud components install'.
   Exits the script if any other required tool is not found.
   """
-  if is_cloudtop():
-    print("Running on cloudtop, skipping prerequisite checks.")
-    return
 
   await run_command_async(
       ["sudo","apt","install","-y","apt-transport-https","ca-certificates","gnupg","curl"]
@@ -85,7 +82,7 @@ async def check_prerequisites():
       stdout=asyncio.subprocess.PIPE,
   )
   gpg_process = await asyncio.create_subprocess_exec(
-      "sudo gpg --yes --dearmor -o /usr/share/keyrings/cloud.google.gpg",
+      "sudo", "gpg", "--yes", "--dearmor", "-o", "/usr/share/keyrings/cloud.google.gpg",
       stdin=asyncio.subprocess.PIPE,
   )
   await gpg_process.communicate(input=await curl_process.stdout.read())
@@ -93,8 +90,7 @@ async def check_prerequisites():
   # Pipe echo output to tee
   echo_process = await asyncio.create_subprocess_exec(
       "echo",
-      "deb [signed-by=/usr/share/keyrings/cloud.google.gpg]"
-      " https://packages.cloud.google.com/apt cloud-sdk main",
+      "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main",
       stdout=asyncio.subprocess.PIPE,
   )
   tee_process = await asyncio.create_subprocess_exec(
