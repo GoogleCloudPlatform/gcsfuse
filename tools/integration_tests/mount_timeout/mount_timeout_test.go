@@ -25,19 +25,28 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
-// A directory containing outputs created by build_gcsfuse, set up and deleted
-// in TestMain.
-var gBuildDir string
+var (
+	// A directory containing outputs created by build_gcsfuse, set up and deleted
+	// in TestMain.
+	gBuildDir string
 
-// On Linux, the path to fusermount, whose directory must be in gcsfuse's PATH
-// variable in order to successfully mount. Set by TestMain.
-var gFusermountPath string
+	// On Linux, the path to fusermount, whose directory must be in gcsfuse's PATH
+	// variable in order to successfully mount. Set by TestMain.
+	gFusermountPath string
+
+	// storage client for permission setup on the bucket for mount access.
+	gStorageClient *storage.Client
+
+	gCtx context.Context
+)
 
 const (
 	// Constants specific to non-ZB E2E runs.
@@ -129,7 +138,17 @@ func TestMain(m *testing.M) {
 			log.Fatalf("LookPath(fusermount): %p", err)
 		}
 	}
-	testEnv := findTestExecutionEnvironment(context.Background())
+	gCtx = context.Background()
+
+	// Create storage client for direct bucket access.
+	gStorageClient, err = client.CreateStorageClient(gCtx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer gStorageClient.Close()
+
+	testEnv := findTestExecutionEnvironment(gCtx)
 	err = os.Setenv("TEST_ENV", testEnv)
 	if err != nil {
 		fmt.Println("Error setting environment variable:", err)
