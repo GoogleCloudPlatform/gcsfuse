@@ -506,7 +506,6 @@ func TestDummyMultiRangeDownloader_Add_Single(t *testing.T) {
 		cbErr = e
 		wg.Done()
 	})
-
 	wg.Wait() // Wait for callback to be called
 
 	assert.NoError(t, cbErr)
@@ -532,7 +531,6 @@ func TestDummyMultiRangeDownloader_Add_ZeroLength(t *testing.T) {
 		cbErr = e
 		wg.Done()
 	})
-
 	wg.Wait() // Wait for callback to be called
 
 	assert.NoError(t, cbErr)
@@ -551,7 +549,6 @@ func TestDummyMultiRangeDownloader_Add_MultipleConcurrent(t *testing.T) {
 			var output bytes.Buffer
 			length := int64(100 + i*10)
 			offset := int64(50 + i*100)
-
 			mrd.Add(&output, offset, length, func(o, bw int64, e error) {
 				if e != nil {
 					errChan <- fmt.Errorf("callback error: %w", e)
@@ -577,7 +574,6 @@ func TestDummyMultiRangeDownloader_Add_MultipleConcurrent(t *testing.T) {
 			})
 		}(i)
 	}
-
 	mrd.Wait() // Wait for all Add goroutines to finish writing
 
 	for i := 0; i < numAdds; i++ {
@@ -612,10 +608,9 @@ func TestDummyMultiRangeDownloader_Close(t *testing.T) {
 		time.Sleep(10 * time.Millisecond) // Simulate some work in callback
 		callbackDone <- true
 	})
-
 	err := mrd.Close() // Close should wait for the Add to complete.
-	assert.NoError(t, err)
 
+	assert.NoError(t, err)
 	select {
 	case <-callbackDone:
 		// success
@@ -629,14 +624,13 @@ func TestDummyMultiRangeDownloader_Latency(t *testing.T) {
 	mrd := &dummyMultiRangeDownloader{perMBLatency: perMBLatency}
 	var output bytes.Buffer
 	length := int64(MB / 2) // 0.5 MB
-
+	expectedLatencyNs := float64(length) * float64(perMBLatency.Nanoseconds()) / float64(MB)
+	expectedLatency := time.Duration(expectedLatencyNs)
+	
 	start := time.Now()
 	mrd.Add(&output, 0, length, nil)
 	mrd.Wait()
 	elapsed := time.Since(start)
-
-	expectedLatencyNs := float64(length) * float64(perMBLatency.Nanoseconds()) / float64(MB)
-	expectedLatency := time.Duration(expectedLatencyNs)
 
 	// Allow some tolerance for scheduling delays
 	assert.GreaterOrEqual(t, elapsed, expectedLatency)
@@ -645,12 +639,16 @@ func TestDummyMultiRangeDownloader_Latency(t *testing.T) {
 
 func TestDummyMultiRangeDownloader_GetHandle(t *testing.T) {
 	mrd := &dummyMultiRangeDownloader{}
+
 	handle := mrd.GetHandle()
+
 	assert.Equal(t, []byte("dummy-handle"), handle)
 }
 
 func TestDummyMultiRangeDownloader_Error(t *testing.T) {
 	mrd := &dummyMultiRangeDownloader{}
+
 	err := mrd.Error()
+
 	assert.NoError(t, err)
 }
