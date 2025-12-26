@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
@@ -88,11 +89,10 @@ func (d *dummyIOBucket) NewReaderWithReadHandle(
 }
 
 // NewMultiRangeDownloader creates a multi-range downloader for object contents.
-// TODO: Add custom logic for Read path if needed
 func (d *dummyIOBucket) NewMultiRangeDownloader(
 	ctx context.Context,
 	req *gcs.MultiRangeDownloaderRequest) (gcs.MultiRangeDownloader, error) {
-	return d.wrapped.NewMultiRangeDownloader(ctx, req)
+	return &dummyMultiRangeDownloader{perMBLatency: d.perMBLatency}, nil
 }
 
 // CreateObject creates or overwrites an object.
@@ -234,20 +234,26 @@ func (d *dummyIOBucket) GCSName(object *gcs.MinObject) string {
 // Reading beyond the specified length returns io.EOF.
 // Also, it always returns a non-nil read handle.
 type dummyReader struct {
-	totalLen       uint64 // Total length of data to serve
-	bytesRead      uint64 // Number of bytes already read
-	readHandle     storagev2.ReadHandle
-	perByteLatency time.Duration
+	totalLen     uint64 // Total length of data to serve
+	bytesRead    uint64 // Number of bytes already read
+	readHandle   storagev2.ReadHandle
+	perMBLatency time.Duration
+}
+
+func calculateLatency(bytes int64, perMBLatency time.Duration) time.Duration {
+	if perMBLatency <= 0 {
+		return 0
+	}
+	return time.Duration(float64(bytes) * float64(perMBLatency.Nanoseconds()) / float64(MB))
 }
 
 // newDummyReader creates a new dummyReader with the specified total length.
 func newDummyReader(totalLen uint64, perMBLatency time.Duration) *dummyReader {
 	return &dummyReader{
-		totalLen:   totalLen,
-		bytesRead:  0,
-		readHandle: []byte{}, // Always return a non-nil read handle
-		// TODO: fix precision issue in perByteLatency because of upper bound.
-		perByteLatency: time.Duration(perMBLatency.Nanoseconds()+MB-1) / MB,
+		totalLen:     totalLen,
+		bytesRead:    0,
+		readHandle:   []byte{}, // Always return a non-nil read handle
+		perMBLatency: perMBLatency,
 	}
 }
 
@@ -269,9 +275,7 @@ func (dr *dummyReader) Read(p []byte) (n int, err error) {
 	}
 
 	// Simulate per-MB latency if specified
-	if dr.perByteLatency > 0 {
-		time.Sleep(time.Duration(toRead) * dr.perByteLatency)
-	}
+	time.Sleep(calculateLatency(int64(toRead), dr.perMBLatency))
 
 	dr.bytesRead += toRead
 
@@ -291,4 +295,56 @@ func (dr *dummyReader) Close() error {
 // ReadHandle returns the read handle. For dummy reader, this returns a nil handle.
 func (dr *dummyReader) ReadHandle() storagev2.ReadHandle {
 	return dr.readHandle
+}
+
+////////////////////////////////////////////////////////////////////////
+// dummyMultiRangeDownloader
+////////////////////////////////////////////////////////////////////////
+
+type dummyMultiRangeDownloader struct {
+	perMBLatency time.Duration
+	wg           sync.WaitGroup
+}
+
+// zeroReader is an io.Reader that always reads zeros.
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
+
+func (d *dummyMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+	d.wg.Add(1)
+	go func() {
+		defer d.wg.Done()
+
+		// Simulate latency
+		time.Sleep(calculateLatency(length, d.perMBLatency))
+
+		// Write zeros
+		// output writer is bytes.Buffer which implements io.ReaderFrom interface
+		bytesWritten, err := io.Copy(output, io.LimitReader(zeroReader{}, length))
+
+		if callback != nil {
+			callback(offset, bytesWritten, err)
+		}
+	}()
+}
+
+func (d *dummyMultiRangeDownloader) Close() error {
+	d.Wait()
+	return nil
+}
+
+func (d *dummyMultiRangeDownloader) Wait() {
+	d.wg.Wait()
+}
+
+func (d *dummyMultiRangeDownloader) Error() error {
+	return nil
+}
+
+func (d *dummyMultiRangeDownloader) GetHandle() []byte {
+	return []byte("dummy-handle")
 }
