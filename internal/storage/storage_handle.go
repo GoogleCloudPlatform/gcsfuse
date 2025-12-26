@@ -145,15 +145,16 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 
-	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
+	if clientConfig.EnableGrpcMetrics {
 		// Pass the OpenTelemetry MeterProvider to the Go storage client,
 		// using the new WithMeterProvider client option.
+		// TODO - Gracefully handle gRPC metrics outside of GKE.
 		mp := otel.GetMeterProvider()
 		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
 			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
 			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
 		}
-	} else if !clientConfig.EnableGrpcMetrics {
+	} else {
 		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
 
