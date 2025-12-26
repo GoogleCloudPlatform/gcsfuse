@@ -27,8 +27,6 @@ go version
 echo "Step 3: Cloning GCSFuse repo..."
 git clone -b "$GCSFUSE_BRANCH" https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
-echo "Repo content:"
-ls -F
 
 echo "Step 4: Running tests ..."
 # These tests are chosen to verify that machine-type is correctly passed by
