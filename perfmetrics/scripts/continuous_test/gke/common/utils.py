@@ -17,6 +17,7 @@
 import asyncio
 import os
 import shlex
+import socket
 import subprocess
 import sys
 
@@ -63,6 +64,12 @@ async def run_command_async(command_list, check=True, cwd=None):
   return stdout_decoded, stderr_decoded, process.returncode
 
 
+def is_cloudtop():
+  """Checks if the script is running on a Google Cloudtop."""
+  hostname = socket.gethostname()
+  return "c.googlers.com" in hostname
+
+
 async def check_prerequisites():
   """Checks for required command-line tools.
 
@@ -70,6 +77,10 @@ async def check_prerequisites():
   missing, it attempts to install it using 'gcloud components install'.
   Exits the script if any other required tool is not found.
   """
+  if is_cloudtop():
+    print("Running on cloudtop, skipping prerequisite checks.")
+    return
+
   await run_command_async(
       ["sudo","apt","install","-y","apt-transport-https","ca-certificates","gnupg","curl"]
   )
@@ -102,7 +113,6 @@ async def check_prerequisites():
   await tee_process.communicate(input=await echo_process.stdout.read())
 
   await run_command_async(["sudo", "apt", "update", "-y"])
-
   print("Checking for required tools...")
   tools = {
       "gcloud": ["gcloud", "--version"],

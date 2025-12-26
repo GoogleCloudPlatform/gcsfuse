@@ -155,13 +155,10 @@ async def execute_test_workload(
   """
   print(f"Executing workload for machine type: {machine_type}...")
 
-  if not is_tpu_machine_type(machine_type):
-    raise ValueError(
-        f"Machine type {machine_type} is not supported. Only TPU machine types"
-        " are supported."
-    )
-
-  template_file = "pod_tpu.yaml.template"
+  if is_tpu_machine_type(machine_type):
+    template_file = "pod_tpu.yaml.template"
+  else:
+    template_file = "pod_non_tpu.yaml.template"
 
   template_path = os.path.join(SCRIPT_DIR, template_file)
   print(f"Using pod template: {template_path}")
