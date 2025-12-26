@@ -36,7 +36,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	defaultMetadataCacheTTL = 60 * time.Second
+	defaultMetadataCacheTTL = time.Minute
 )
 
 // Struct to store the details of a mount point
@@ -195,11 +195,6 @@ func (t *BaseSuite) isMetadataCacheEnabled() bool {
 }
 
 func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
-	type testRun struct {
-		primaryFlags   []string
-		secondaryFlags []string
-	}
-
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
 			for i, flagStr := range cfg.Flags {
