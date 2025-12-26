@@ -83,6 +83,8 @@ unit-test:
 	CGO_ENABLED=0 go test -p 1 ./...
 
 integ-test:
-	ZONE=$(curl -H "Metadata-Flavor: Google" metadata.google.internal/computeMetadata/v1/instance/zone | awk -F'/' '{print $NF}')
-	REGION=$(echo $ZONE | sed 's/-[a-z]$//')
-	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $REGION
+	ZONE=$$(curl -H "Metadata-Flavor: Google" metadata.google.internal/computeMetadata/v1/instance/zone | awk -F'/' '{print $$NF}'); \
+	echo $$ZONE; \
+	REGION=$$(echo $$ZONE | sed 's/-[a-z]$$//'); \
+	echo $$REGION; \
+	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION
