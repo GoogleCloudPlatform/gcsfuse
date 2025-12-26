@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -30,26 +31,24 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Timeout value which determines when the MultiRangeDownloader will be closed after
-// it's refcount reaches 0.
-const multiRangeDownloaderTimeout = 60 * time.Second
-
-func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config) (MultiRangeDownloaderWrapper, error) {
-	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{}, config)
+func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config, mrdCache *lru.Cache) (*MultiRangeDownloaderWrapper, error) {
+	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{}, config, mrdCache)
 }
 
-func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock, config *cfg.Config) (MultiRangeDownloaderWrapper, error) {
+func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clk clock.Clock, config *cfg.Config, mrdCache *lru.Cache) (*MultiRangeDownloaderWrapper, error) {
 	if object == nil {
-		return MultiRangeDownloaderWrapper{}, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
+		return nil, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
 	}
 	// In case of a local inode, MRDWrapper would be created with an empty minObject (i.e. with a minObject without any information)
 	// and when the object is actually created, MRDWrapper would be updated using SetMinObject method.
-	return MultiRangeDownloaderWrapper{
-		clock:  clock,
-		bucket: bucket,
-		object: object,
-		config: config,
-	}, nil
+	wrapper := MultiRangeDownloaderWrapper{
+		clock:    clk,
+		bucket:   bucket,
+		object:   object,
+		config:   config,
+		mrdCache: mrdCache,
+	}
+	return &wrapper, nil
 }
 
 type readResult struct {
@@ -58,6 +57,8 @@ type readResult struct {
 }
 
 type MultiRangeDownloaderWrapper struct {
+	lru.ValueType // For LRU cache compatibility
+
 	// Holds the object implementing MultiRangeDownloader interface.
 	Wrapped gcs.MultiRangeDownloader
 
@@ -79,6 +80,9 @@ type MultiRangeDownloaderWrapper struct {
 	// MRD Read handle. Would be updated when MRD is being closed so that it can be used
 	// next time during MRD recreation.
 	handle []byte
+
+	// MRD cache for LRU-based eviction of inactive MRD instances.
+	mrdCache *lru.Cache
 }
 
 // SetMinObject sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
@@ -88,6 +92,13 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObjec
 	}
 	mrdWrapper.object = minObj
 	return nil
+}
+
+// wrapperKey generates a unique key for the given MultiRangeDownloaderWrapper.
+// Uses the pointer address as the unique identifier, would be safe as long as
+// wrapper is uniquely associated with the lifecycle of the FileInode instance.
+func wrapperKey(wrapper *MultiRangeDownloaderWrapper) string {
+	return fmt.Sprintf("%p", wrapper)
 }
 
 // GetMinObject returns the minObject stored in MultiRangeDownloaderWrapper. Used only for unit testing.
@@ -105,6 +116,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) GetRefCount() int {
 // IncrementRefCount increments the refcount and cancel any running cleanup function.
 // This method should be called exactly once per user of this wrapper.
 // It has to be called before using the MultiRangeDownloader.
+// If lru cache is enabled and refCount was 0, the wrapper is removed from the cache.
 func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
 	mrdWrapper.mu.Lock()
 	defer mrdWrapper.mu.Unlock()
@@ -114,9 +126,19 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
 		mrdWrapper.cancelCleanup()
 		mrdWrapper.cancelCleanup = nil
 	}
+
+	// If refCount was 0, remove from cache (file is being reopened)
+	if mrdWrapper.refCount == 1 && mrdWrapper.mrdCache != nil {
+		deletedEntry := mrdWrapper.mrdCache.Erase(wrapperKey(mrdWrapper))
+		if deletedEntry != nil {
+			logger.Tracef("MRDWrapper (%s) erased from cache", mrdWrapper.object.Name)
+		}
+	}
 }
 
-// DecrementRefCount decrements the refcount. In case refcount reaches 0, cleanup the MRD.
+// DecrementRefCount decrements the refcount. When refCount reaches 0, the wrapper
+// with added to the cache for potential reuse. In case, cache is not enabled, MRD
+// is closed immediately.
 // Returns error on invalid usage.
 // This method should be called exactly once per user of this wrapper
 // when MultiRangeDownloader is no longer needed & can be cleaned up.
@@ -130,12 +152,58 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	}
 
 	mrdWrapper.refCount--
-	if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
-		mrdWrapper.handle = mrdWrapper.Wrapped.GetHandle()
-		mrdWrapper.Wrapped.Close()
-		mrdWrapper.Wrapped = nil
+	// Do nothing if MRD is in use or cache is not enabled.
+	if mrdWrapper.refCount > 0 || mrdWrapper.mrdCache == nil {
+		return
 	}
-	return
+
+	// Cache with refCount 0: add the wrapper to cache and evict overflow wrappers.
+	evictedValues, err := mrdWrapper.mrdCache.Insert(wrapperKey(mrdWrapper), mrdWrapper)
+	if err != nil {
+		logger.Errorf("failed to insert wrapper (%s) into cache: %v", mrdWrapper.object.Name, err)
+		return
+	}
+	logger.Tracef("MRDWrapper (%s) added wrapper to cache", mrdWrapper.object.Name)
+
+	// Do not proceed if no eviction happened.
+	if evictedValues == nil {
+		return nil
+	}
+
+	// Evict outside all locks to avoid deadlock.
+	mrdWrapper.mu.Unlock()
+	for _, wrapper := range evictedValues {
+		mrdWrapper, ok := wrapper.(*MultiRangeDownloaderWrapper)
+		if !ok {
+			logger.Errorf("invalid value type, expected MultiRangeDownloaderWrapper, got %T", wrapper)
+		} else {
+			mrdWrapper.CloseMRDForEviction()
+		}
+	}
+	// Reacquire the lock ensuring safe defer's Unlock.
+	mrdWrapper.mu.Lock()
+
+	return nil
+}
+
+// CloseMRDForEviction closes the MRD when evicted from cache.
+// This method is called after wrapper was removed from cache for eviction.
+// Race protection: wrapper could be reopened (refCount>0) or re-added to cache before eviction.
+func (mrdWrapper *MultiRangeDownloaderWrapper) CloseMRDForEviction() {
+	mrdWrapper.mu.Lock()
+	defer mrdWrapper.mu.Unlock()
+
+	// Check if wrapper was reopened (refCount>0) - must skip eviction.
+	if mrdWrapper.refCount > 0 {
+		return
+	}
+
+	// Check if wrapper was re-added to cache (refCount went 0→1→0 in between eviction and closure.)
+	// Lock order: wrapper.mu -> cache.mu (consistent with Increment/DecrementRefCount)
+	if mrdWrapper.mrdCache != nil && mrdWrapper.mrdCache.LookUpWithoutChangingOrder(wrapperKey(mrdWrapper)) != nil {
+		return
+	}
+	mrdWrapper.closeLocked()
 }
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
@@ -254,4 +322,29 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
 
 	return
+}
+
+// closeLocked closes the MultiRangeDownloader.
+// LOCK_REQUIRED(mrdWrapper.mu.Lock)
+func (mrdWrapper *MultiRangeDownloaderWrapper) closeLocked() {
+	if mrdWrapper.Wrapped == nil {
+		return
+	}
+
+	// Save handle for potential recreation
+	mrdWrapper.handle = mrdWrapper.Wrapped.GetHandle()
+
+	// Close the MRD
+	if err := mrdWrapper.Wrapped.Close(); err != nil {
+		logger.Warnf("Error closing MRD (%s): %v", mrdWrapper.object.Name, err)
+		return
+	}
+	logger.Tracef("MRDWrapper (%s) closed MRD", mrdWrapper.object.Name)
+	mrdWrapper.Wrapped = nil
+}
+
+// Size returns the size of the wrapper for LRU cache accounting.
+// Later, we can set to the number of MRD instances within the cache.
+func (mrdWrapper *MultiRangeDownloaderWrapper) Size() uint64 {
+	return 1
 }

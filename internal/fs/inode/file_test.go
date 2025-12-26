@@ -155,7 +155,8 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		&t.clock,
 		local,
 		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64))
+		semaphore.NewWeighted(math.MaxInt64),
+		nil)
 
 	t.in.Lock()
 }

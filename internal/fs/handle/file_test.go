@@ -147,6 +147,7 @@ func createFileInode(
 		false,
 		config,
 		semaphore.NewWeighted(100),
+		nil,
 	)
 }
 
@@ -279,7 +280,7 @@ func (t *fileTest) Test_IsValidReader_GenerationValidation() {
 		t.Run(tc.name, func() {
 			minObj := in.Source()
 			minObj.Generation = tc.readerGeneration
-			fh.reader = gcsx.NewRandomReader(minObj, &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), &in.MRDWrapper, config, 0)
+			fh.reader = gcsx.NewRandomReader(minObj, &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), in.MRDWrapper, config, 0)
 
 			result := fh.isValidReader()
 

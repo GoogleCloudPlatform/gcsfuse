@@ -211,6 +211,13 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 	}
+
+	// Initialize MRD cache if enabled
+	if serverCfg.NewConfig.FileSystem.InactiveMrdCacheSize > 0 {
+		fs.mrdCache = lru.NewCache(uint64(serverCfg.NewConfig.FileSystem.InactiveMrdCacheSize))
+		logger.Infof("MRD cache (LRU-based) enabled with maxSize=%d (pools closed-file MRDs)", serverCfg.NewConfig.FileSystem.InactiveMrdCacheSize)
+	}
+
 	if serverCfg.Notifier != nil {
 		fs.notifier = serverCfg.Notifier
 	}
@@ -533,6 +540,9 @@ type fileSystem struct {
 	// that can be allocated for buffered read across all file-handles in the file system.
 	// This helps control the overall memory usage for buffered reads.
 	globalMaxReadBlocksSem *semaphore.Weighted
+
+	// mrdCache manages the cache of inactive MultiRangeDownloaders.
+	mrdCache *lru.Cache
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -857,7 +867,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.mtimeClock,
 			ic.Local,
 			fs.newConfig,
-			fs.globalMaxWriteBlocksSem)
+			fs.globalMaxWriteBlocksSem,
+			fs.mrdCache)
 	}
 
 	// Place it in our map of IDs to inodes.

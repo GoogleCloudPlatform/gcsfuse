@@ -442,9 +442,9 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	t.object.Size = 20 * MiB
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{}, nil)
 	assert.NoError(t.T(), err, "Error in creating MRDWrapper")
-	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
+	t.gcsReader.mrr.mrdWrapper = fakeMRDWrapper
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Twice()
 	buf := make([]byte, 3*MiB)
 
@@ -483,9 +483,9 @@ func (t *gcsReaderTest) Test_ReadAt_MRDShortReadOnZonal() {
 	t.object.Size = 200
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{})
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, nil)
 	require.NoError(t.T(), err)
-	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
+	t.gcsReader.mrr.mrdWrapper = fakeMRDWrapper
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Times(2)
 	t.readAt(t.ctx, &gcsx.ReadRequest{
 		Buffer: make([]byte, 1),
@@ -521,7 +521,7 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 	// Mock bucket and MRD
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{})
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, nil)
 	require.NoError(t.T(), err)
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Twice()
 	// Sequential read #1
@@ -534,7 +534,7 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 		Buffer: make([]byte, 1),
 		Offset: 12 * MiB,
 	})
-	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
+	t.gcsReader.mrr.mrdWrapper = fakeMRDWrapper
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil)
 
 	// Parallel reads

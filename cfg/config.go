@@ -471,6 +471,8 @@ type FileSystemConfig struct {
 
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
+	InactiveMrdCacheSize int64 `yaml:"inactive-mrd-cache-size"`
+
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
 	MaxBackground int64 `yaml:"max-background"`
@@ -1000,6 +1002,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
+	flagSet.IntP("inactive-mrd-cache-size", "", 0, "Sets the cache-size of inactive (no open file) MRD instances. When this limit is exceeded, the least recently inactive MRD instances will be closed. Set to 0 to disable the cache, which will keep all the inactive MRD instances open forever.")
+
+	if err := flagSet.MarkHidden("inactive-mrd-cache-size"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used.")
@@ -1520,6 +1528,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("implicit-dirs", flagSet.Lookup("implicit-dirs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.inactive-mrd-cache-size", flagSet.Lookup("inactive-mrd-cache-size")); err != nil {
 		return err
 	}
 

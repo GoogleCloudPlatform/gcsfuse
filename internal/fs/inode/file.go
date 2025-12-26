@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -106,7 +107,7 @@ type FileInode struct {
 	// creates a cyclic dependency.
 	// Todo: Investigate if cyclic dependency can be removed by removing some unused
 	// code.
-	MRDWrapper gcsx.MultiRangeDownloaderWrapper
+	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
 	bwh    bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
@@ -146,7 +147,8 @@ func NewFileInode(
 	mtimeClock timeutil.Clock,
 	localFile bool,
 	cfg *cfg.Config,
-	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
+	globalMaxBlocksSem *semaphore.Weighted,
+	mrdCache *lru.Cache) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -167,7 +169,7 @@ func NewFileInode(
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 	var err error
-	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg)
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
 	if err != nil {
 		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
