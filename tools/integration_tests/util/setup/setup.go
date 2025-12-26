@@ -848,6 +848,10 @@ func OverrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath str
 			// Iterate over the indices of the flags slice
 			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
 		}
+		for i := range flags.SecondaryFlags {
+			// Iterate over the indices of the secondary flags slice
+			flags.SecondaryFlags[i] = strings.ReplaceAll(flags.SecondaryFlags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
+		}
 	}
 }
 

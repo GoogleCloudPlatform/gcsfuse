@@ -70,7 +70,7 @@ func (t *DualMountAppendsTestSuite) TestAppendSessionInvalidatedByAnotherClientU
 	// ReadFile() due to BWH still being initialized, is expected to error out with stale NFS file handle.
 	operations.CloseFileShouldThrowError(t.T(), appendFileHandle)
 	expectedContent := t.fileContent + appendContent
-	content, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	content, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, string(content))
 }
@@ -95,7 +95,7 @@ func (t *SingleMountAppendsTestSuite) TestContentAppendedInNonAppendModeNotVisib
 	require.Equal(t.T(), len(data), n)
 
 	// Read from GCS to validate that appended content is not yet visible.
-	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentBeforeClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), initialContent, string(contentBeforeClose))
 
@@ -105,7 +105,7 @@ func (t *SingleMountAppendsTestSuite) TestContentAppendedInNonAppendModeNotVisib
 
 	// Validate that the appended content is now visible in GCS.
 	expectedContent := initialContent + data
-	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
@@ -116,7 +116,7 @@ func (t *SingleMountAppendsTestSuite) TestAppendsToFinalizedObjectNotVisibleUnti
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	// Create Finalized Object in the GCS bucket.
 	client.CreateFinalizedObjectInGCSTestDir(
-		ctx, storageClient, testDirName, t.fileName, initialContent, t.T())
+		testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, initialContent, t.T())
 
 	// Append to the finalized object from the primary mount.
 	data := setup.GenerateRandomString(contentSizeForBW * operations.OneMiB)
@@ -128,14 +128,14 @@ func (t *SingleMountAppendsTestSuite) TestAppendsToFinalizedObjectNotVisibleUnti
 	require.Equal(t.T(), len(data), n)
 
 	// Read from GCS to validate appended content is not yet visible.
-	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentBeforeClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), initialContent, string(contentBeforeClose))
 
 	// Close the file handle and verify appended content is now visible.
 	require.NoError(t.T(), fh.Close())
 	expectedContent := initialContent + data
-	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
@@ -172,7 +172,7 @@ func (t *SingleMountAppendsTestSuite) TestAppendsVisibleInRealTimeWithConcurrent
 	// and some part of data written by the "r+" file handle.
 	dataInBlockOffset := blockSize - len(initialContent)
 	expectedContent := t.fileContent + initialContent + data[0:dataInBlockOffset]
-	contentRead, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentRead, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	require.GreaterOrEqual(t.T(), len(contentRead), len(expectedContent))
 	assert.Equal(t.T(), expectedContent, string(contentRead[0:len(expectedContent)]))
@@ -200,14 +200,14 @@ func (t *SingleMountAppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcu
 	require.Equal(t.T(), len(data), n)
 
 	// Validate content is not yet visible.
-	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentBeforeClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.fileContent, string(contentBeforeClose))
 
 	// Close handle and validate final content (with null byte for the gap).
 	readHandle.Close()
 	expectedContent := t.fileContent + "\x00" + data
-	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
@@ -229,14 +229,14 @@ func (t *SingleMountAppendsTestSuite) TestFallbackHappensWhenNonAppendHandleDoes
 	require.Equal(t.T(), len(data), n)
 
 	// Validate content is not yet visible.
-	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentBeforeClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.fileContent, string(contentBeforeClose))
 
 	// Close handle and validate final content.
 	readHandle.Close()
 	expectedContent := t.fileContent + data
-	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
@@ -290,30 +290,14 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Ex
 // Test Runner
 ////////////////////////////////////////////////////////////////////////
 
-// appendTestConfigs defines the matrix of configurations for the AppendsTestSuite.
-var appendTestConfigs = []*testConfig{
-	{
-		name:              "SingleMount",
-		isDualMount:       false,
-		primaryMountFlags: []string{"--write-block-size-mb=1"},
-	},
-	{
-		name:                "DualMount",
-		isDualMount:         true,
-		primaryMountFlags:   []string{"--write-block-size-mb=1"},
-		secondaryMountFlags: []string{"--write-block-size-mb=1"},
-	},
+func TestSingleMountAppendsTestSuite(t *testing.T) {
+	RunTests(t, "TestSingleMountAppendsTestSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &SingleMountAppendsTestSuite{BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags}}
+	})
 }
 
-// TestAppendsSuiteRunner executes all general append tests against the appendTestConfigs matrix.
-func TestAppendsSuiteRunner(t *testing.T) {
-	for _, cfg := range appendTestConfigs {
-		t.Run(cfg.name, func(t *testing.T) {
-			if cfg.isDualMount {
-				suite.Run(t, &DualMountAppendsTestSuite{BaseSuite{cfg: cfg}})
-			} else {
-				suite.Run(t, &SingleMountAppendsTestSuite{BaseSuite{cfg: cfg}})
-			}
-		})
-	}
+func TestDualMountAppendsTestSuite(t *testing.T) {
+	RunTests(t, "TestDualMountAppendsTestSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &DualMountAppendsTestSuite{BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags}}
+	})
 }
