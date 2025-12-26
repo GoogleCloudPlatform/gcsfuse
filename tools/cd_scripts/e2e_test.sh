@@ -336,7 +336,6 @@ TEST_DIR_PARALLEL=(
   "gzip"
   "write_large_files"
   "rename_dir_limit"
-  "read_large_files"
   "explicit_dir"
   "implicit_dir"
   "interrupt"
@@ -364,6 +363,8 @@ TEST_DIR_NON_PARALLEL=(
   "managed_folders"
   "readonly_creds"
   "list_large_dir"
+  "read_cache"
+  "read_large_files"
 )
 
 # For Zonal buckets : Test directory arrays
