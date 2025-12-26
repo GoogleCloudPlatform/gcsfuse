@@ -78,3 +78,11 @@ build-csi:
 	@echo "--------------------------------------"
 	# Actual build commands would go here...
 	gcloud builds submit --config csi_driver_build.yml --project=$(PROJECT) --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)
+
+unit-test:
+	CGO_ENABLED=0 go test -p 1 ./...
+
+integ-test:
+	ZONE=$(curl -H "Metadata-Flavor: Google" metadata.google.internal/computeMetadata/v1/instance/zone | awk -F'/' '{print $NF}')
+	REGION=$(echo $ZONE | sed 's/-[a-z]$//')
+	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $REGION
