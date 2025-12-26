@@ -24,7 +24,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -42,7 +41,6 @@ type mrdWrapperTest struct {
 	objectData []byte
 	mockBucket *storage.TestifyMockBucket
 	mrdWrapper *MultiRangeDownloaderWrapper
-	mrdTimeout time.Duration
 }
 
 func TestMRDWrapperTestSuite(t *testing.T) {
@@ -59,8 +57,7 @@ func (t *mrdWrapperTest) SetupTest() {
 	t.objectData = testutil.GenerateRandomBytes(int(t.object.Size))
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.mrdTimeout = time.Millisecond
-	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, &cfg.Config{}, nil)
+	t.mrdWrapper, err = NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, nil)
 	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
 	t.mrdWrapper.refCount = 0
@@ -79,20 +76,6 @@ func (t *mrdWrapperTest) Test_IncrementRefCount_ParallelUpdates() {
 	wg.Wait()
 
 	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
-}
-
-func (t *mrdWrapperTest) Test_IncrementRefCount_CancelCleanup() {
-	const finalRefCount int = 1
-	t.mrdWrapper.IncrementRefCount()
-	err := t.mrdWrapper.DecrementRefCount()
-
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
-
-	t.mrdWrapper.IncrementRefCount()
-
-	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
-	assert.Nil(t.T(), t.mrdWrapper.cancelCleanup)
 }
 
 func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
@@ -250,7 +233,7 @@ func (t *mrdWrapperTest) Test_NewMultiRangeDownloaderWrapper() {
 			name:   "NilMinObject",
 			bucket: t.mockBucket,
 			obj:    nil,
-			err:    fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject"),
+			err:    fmt.Errorf("NewMultiRangeDownloaderWrapper: Missing MinObject"),
 		},
 	}
 
@@ -417,10 +400,9 @@ func (t *mrdWrapperCacheTest) SetupTest() {
 	// Recreate wrapper with cache enabled
 	t.cache = lru.NewCache(3)
 	var err error
-	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(
+	t.mrdWrapper, err = NewMultiRangeDownloaderWrapper(
 		t.mockBucket,
 		t.object,
-		&clock.FakeClock{WaitTime: t.mrdTimeout},
 		&cfg.Config{},
 		t.cache,
 	)
@@ -443,25 +425,6 @@ func (t *mrdWrapperCacheTest) Test_Cache_AddAndRemove() {
 	assert.Equal(t.T(), 1, t.mrdWrapper.refCount)
 	assert.Nil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Wrapper should be removed from cache")
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped, "MRD should still exist (reused)")
-}
-
-// Override parent test - with cache enabled, MRD stays pooled instead of being closed
-// TODO (b/471341773): remove the test with CancelCleanup and clock logic.
-func (t *mrdWrapperCacheTest) Test_IncrementRefCount_CancelCleanup() {
-	// Arrange
-	key := wrapperKey(t.mrdWrapper)
-
-	// Act: Open, close, and reopen file
-	t.mrdWrapper.IncrementRefCount()
-	err := t.mrdWrapper.DecrementRefCount()
-	t.mrdWrapper.IncrementRefCount()
-
-	// Assert: MRD pooled on close, reused on reopen, and removed from cache
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 1, t.mrdWrapper.refCount)
-	assert.Nil(t.T(), t.mrdWrapper.cancelCleanup)
-	assert.NotNil(t.T(), t.mrdWrapper.Wrapped, "MRD should be pooled and reused")
-	assert.Nil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Wrapper should be removed from cache after reopen")
 }
 
 // Override parent test - with cache enabled, MRD stays pooled
@@ -508,10 +471,9 @@ func (t *mrdWrapperCacheTest) Test_Cache_EvictionOnOverflow() {
 			Size:       100,
 			Generation: int64(1000 + i),
 		}
-		wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+		wrapper, err := NewMultiRangeDownloaderWrapper(
 			t.mockBucket,
 			obj,
-			&clock.FakeClock{WaitTime: t.mrdTimeout},
 			&cfg.Config{},
 			t.cache,
 		)
@@ -545,10 +507,9 @@ func (t *mrdWrapperCacheTest) Test_Cache_DeletedIfReopened() {
 			Size:       100,
 			Generation: int64(1000 + i),
 		}
-		wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+		wrapper, err := NewMultiRangeDownloaderWrapper(
 			t.mockBucket,
 			obj,
-			&clock.FakeClock{WaitTime: t.mrdTimeout},
 			&cfg.Config{},
 			t.cache,
 		)
@@ -594,10 +555,9 @@ func (t *mrdWrapperCacheTest) Test_Cache_ConcurrentAddRemove() {
 
 func (t *mrdWrapperCacheTest) Test_Cache_Disabled() {
 	// Arrange: Create wrapper with nil cache (disabled)
-	wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+	wrapper, err := NewMultiRangeDownloaderWrapper(
 		t.mockBucket,
 		t.object,
-		&clock.FakeClock{WaitTime: t.mrdTimeout},
 		&cfg.Config{},
 		nil, // Cache disabled
 	)
@@ -624,10 +584,9 @@ func (t *mrdWrapperCacheTest) Test_Cache_EvictionRaceWithRepool() {
 			Size:       100,
 			Generation: int64(1000 + i),
 		}
-		wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+		wrapper, err := NewMultiRangeDownloaderWrapper(
 			t.mockBucket,
 			obj,
-			&clock.FakeClock{WaitTime: t.mrdTimeout},
 			&cfg.Config{},
 			t.cache,
 		)
@@ -662,10 +621,9 @@ func (t *mrdWrapperCacheTest) Test_Cache_MultipleEvictions() {
 			Size:       100,
 			Generation: int64(1000 + i),
 		}
-		wrapper, err := NewMultiRangeDownloaderWrapperWithClock(
+		wrapper, err := NewMultiRangeDownloaderWrapper(
 			t.mockBucket,
 			obj,
-			&clock.FakeClock{WaitTime: t.mrdTimeout},
 			&cfg.Config{},
 			smallCache,
 		)
