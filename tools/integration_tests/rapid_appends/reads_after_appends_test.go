@@ -165,8 +165,14 @@ func TestSingleMountReadsTestSuite(t *testing.T) {
 	})
 }
 
-func TestDualMountReadsTestSuite(t *testing.T) {
-	RunTests(t, "TestDualMountReadsTestSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
-		return &DualMountReadsTestSuite{BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags}}
+func TestDualMountReadsTestSuiteWithMetadataCache(t *testing.T) {
+	RunTests(t, "TestDualMountReadsTestSuiteWithMetadataCache", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &DualMountReadsTestSuite{BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags, metadataCacheEnabled: true}}
+	})
+}
+
+func TestDualMountReadsTestSuiteWithoutMetadataCache(t *testing.T) {
+	RunTests(t, "TestDualMountReadsTestSuiteWithoutMetadataCache", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &DualMountReadsTestSuite{BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags, metadataCacheEnabled: false}}
 	})
 }

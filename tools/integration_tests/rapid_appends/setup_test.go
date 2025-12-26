@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 		cfg.RapidAppends[0].TestBucket = setup.TestBucket()
 		cfg.RapidAppends[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.RapidAppends[0].LogFile = setup.LogFile()
-		cfg.RapidAppends[0].Configs = make([]test_suite.ConfigItem, 4)
+		cfg.RapidAppends[0].Configs = make([]test_suite.ConfigItem, 5)
 
 		// 1. TestSingleMountAppendsTestSuite
 		cfg.RapidAppends[0].Configs[0].Flags = []string{"--write-block-size-mb=1"}
@@ -87,21 +87,29 @@ func TestMain(m *testing.M) {
 		cfg.RapidAppends[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.RapidAppends[0].Configs[2].Run = "TestSingleMountReadsTestSuite"
 
-		// 4. TestDualMountReadsTestSuite
+		// 4. TestDualMountReadsTestSuiteWithMetadataCache
 		cfg.RapidAppends[0].Configs[3].Flags = []string{
-			"--metadata-cache-ttl-secs=0",
 			"--metadata-cache-ttl-secs=70",
-			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0",
 			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary",
 		}
 		cfg.RapidAppends[0].Configs[3].SecondaryFlags = []string{
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
+		}
+		cfg.RapidAppends[0].Configs[3].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.RapidAppends[0].Configs[3].Run = "TestDualMountReadsTestSuiteWithMetadataCache"
+
+		// 5. TestDualMountReadsTestSuiteWithoutMetadataCache
+		cfg.RapidAppends[0].Configs[4].Flags = []string{
+			"--metadata-cache-ttl-secs=0",
+			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0",
+		}
+		cfg.RapidAppends[0].Configs[4].SecondaryFlags = []string{
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 		}
-		cfg.RapidAppends[0].Configs[3].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[3].Run = "TestDualMountReadsTestSuite"
+		cfg.RapidAppends[0].Configs[4].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.RapidAppends[0].Configs[4].Run = "TestDualMountReadsTestSuiteWithoutMetadataCache"
 	}
 
 	testEnv.ctx = context.Background()

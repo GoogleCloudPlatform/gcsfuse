@@ -734,15 +734,23 @@ rapid_appends:
           hns: false
           zonal: true
         run_on_gke: true
-      - run: TestDualMountReadsTestSuite
+      - run: TestDualMountReadsTestSuiteWithMetadataCache
         flags:
-          - "--metadata-cache-ttl-secs=0"
           - "--metadata-cache-ttl-secs=70"
-          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0"
           - "--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary"
         secondary_flags:
           - "--write-block-size-mb=1"
           - "--write-block-size-mb=1"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestDualMountReadsTestSuiteWithoutMetadataCache
+        flags:
+          - "--metadata-cache-ttl-secs=0"
+          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0"
+        secondary_flags:
           - "--write-block-size-mb=1"
           - "--write-block-size-mb=1"
         compatible:

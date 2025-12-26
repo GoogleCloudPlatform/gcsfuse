@@ -15,7 +15,6 @@
 package rapid_appends
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -51,12 +50,13 @@ type mountPoint struct {
 // BaseSuite provides the common structure and configuration-driven setup logic.
 type BaseSuite struct {
 	suite.Suite
-	primaryFlags   []string
-	secondaryFlags []string
-	primaryMount   mountPoint
-	secondaryMount mountPoint
-	fileName       string
-	fileContent    string
+	primaryFlags         []string
+	secondaryFlags       []string
+	primaryMount         mountPoint
+	secondaryMount       mountPoint
+	fileName             string
+	fileContent          string
+	metadataCacheEnabled bool
 }
 
 // SingleMountReadsTestSuite groups all single-mount tests related to reading after appends.
@@ -191,47 +191,14 @@ func getNewEmptyCacheDir(rootDir string) string {
 }
 
 func (t *BaseSuite) isMetadataCacheEnabled() bool {
-	for _, flag := range t.primaryFlags {
-		if strings.Contains(flag, "--metadata-cache-ttl-secs") {
-			// Check if value is not 0
-			parts := strings.Split(flag, "=")
-			if len(parts) == 2 {
-				return parts[1] != "0"
-			}
-		}
-	}
-	return true
-}
-
-func getTestName(flags []string) string {
-	metadataCache := "Enabled"
-	fileCache := "Disabled"
-
-	for _, f := range flags {
-		if strings.HasPrefix(f, "--metadata-cache-ttl-secs=") {
-			parts := strings.Split(f, "=")
-			if len(parts) == 2 && parts[1] == "0" {
-				metadataCache = "Disabled"
-			}
-		}
-		if strings.HasPrefix(f, "--file-cache-max-size-mb=") {
-			parts := strings.Split(f, "=")
-			if len(parts) == 2 && parts[1] != "0" {
-				fileCache = "Enabled"
-			}
-		}
-	}
-
-	return fmt.Sprintf("FileCache_%s_MetadataCache_%s", fileCache, metadataCache)
+	return t.metadataCacheEnabled
 }
 
 func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
 	type testRun struct {
-		name           string
 		primaryFlags   []string
 		secondaryFlags []string
 	}
-	var runs []testRun
 
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
@@ -241,22 +208,8 @@ func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondary
 				if len(cfg.SecondaryFlags) > i {
 					secondaryFlags = strings.Fields(cfg.SecondaryFlags[i])
 				}
-				runs = append(runs, testRun{
-					name:           getTestName(primaryFlags),
-					primaryFlags:   primaryFlags,
-					secondaryFlags: secondaryFlags,
-				})
+				suite.Run(t, factory(primaryFlags, secondaryFlags))
 			}
-		}
-	}
-
-	for _, r := range runs {
-		if len(runs) == 1 {
-			suite.Run(t, factory(r.primaryFlags, r.secondaryFlags))
-		} else {
-			t.Run(r.name, func(t *testing.T) {
-				suite.Run(t, factory(r.primaryFlags, r.secondaryFlags))
-			})
 		}
 	}
 }
