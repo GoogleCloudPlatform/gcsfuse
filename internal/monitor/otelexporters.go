@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	cloudmetric "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
@@ -34,6 +35,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const serviceName = "gcsfuse"
@@ -96,8 +99,45 @@ func setupCloudMonitoring(secs int64) []metric.Option {
 		return nil
 	}
 
-	r := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Duration(secs)*time.Second))
-	return []metric.Option{metric.WithReader(r)}
+	// Wrap the exporter to handle permission denied errors
+	wrappedExporter := &permissionAwareExporter{
+		Exporter: exporter,
+	}
+
+	reader := metric.NewPeriodicReader(wrappedExporter, metric.WithInterval(time.Duration(secs)*time.Second))
+	return []metric.Option{metric.WithReader(reader)}
+}
+
+// permissionAwareExporter wraps a metric.Exporter and disables itself if it encounters
+// a PermissionDenied error. This prevents log spam when the environment lacks
+// necessary permissions.
+type permissionAwareExporter struct {
+	metric.Exporter
+	// disabled indicates whether the exporter has been permanently disabled.
+	disabled atomic.Bool
+}
+
+func (e *permissionAwareExporter) Export(ctx context.Context, rm *metricdata.ResourceMetrics) error {
+	// Check if disabled before attempting export to save resources and avoid noise.
+	if e.disabled.Load() {
+		return nil
+	}
+
+	err := e.Exporter.Export(ctx, rm)
+	// If we get a PermissionDenied error, disable the exporter to prevent future attempts.
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		if e.disabled.CompareAndSwap(false, true) {
+			logger.Errorf("Disabling Cloud Monitoring exporter due to permission denied error: %v", err)
+		}
+	}
+	return err
+}
+
+func (e *permissionAwareExporter) ForceFlush(ctx context.Context) error {
+	if e.disabled.Load() {
+		return nil
+	}
+	return e.Exporter.ForceFlush(ctx)
 }
 
 func metricFormatter(m metricdata.Metrics) string {
