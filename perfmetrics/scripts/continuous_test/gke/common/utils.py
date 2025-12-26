@@ -70,10 +70,6 @@ async def check_prerequisites():
   missing, it attempts to install it using 'gcloud components install'.
   Exits the script if any other required tool is not found.
   """
-  if is_cloudtop():
-    print("Running on cloudtop, skipping prerequisite checks.")
-    return
-
   await run_command_async(
       ["sudo","apt","install","-y","apt-transport-https","ca-certificates","gnupg","curl"]
   )
