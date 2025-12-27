@@ -48,6 +48,9 @@ type memoryBlock struct {
 
 	// readSeek is used to track the position for reading data.
 	readSeek int64
+
+	// onDeallocate is a callback function that is called when the block is deallocated.
+	onDeallocate func()
 }
 
 func (m *memoryBlock) Reuse() {
@@ -137,6 +140,10 @@ func (m *memoryBlock) Deallocate() error {
 	if err != nil {
 		// if we get here, there is likely memory corruption.
 		return fmt.Errorf("munmap error: %v", err)
+	}
+
+	if m.onDeallocate != nil {
+		m.onDeallocate()
 	}
 
 	return nil
