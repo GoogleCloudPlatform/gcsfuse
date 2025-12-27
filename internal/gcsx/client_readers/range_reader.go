@@ -111,7 +111,7 @@ func (rr *RangeReader) closeReader() {
 	}
 }
 
-func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
+func (rr *RangeReader) Read(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
 	var (
 		readResponse gcsx.ReadResponse
 		err          error

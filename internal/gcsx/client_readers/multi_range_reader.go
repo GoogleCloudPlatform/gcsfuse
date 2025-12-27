@@ -27,6 +27,9 @@ import (
 )
 
 type MultiRangeReader struct {
+	// Reader interface is required to support kernel reader. We will remove
+	// gcsx.GCSReader after Rapid GA
+	gcsx.Reader
 	gcsx.GCSReader
 
 	object *gcs.MinObject
@@ -75,7 +78,7 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle, forceCreateMRD)
 }
 
-func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
+func (mrd *MultiRangeReader) Read(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
 	var (
 		readResponse gcsx.ReadResponse
 		err          error
@@ -89,6 +92,19 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequ
 	readResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ForceCreateReader)
 
 	return readResponse, err
+}
+
+func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	gcsReaderRequest := &gcsx.GCSReaderRequest{
+		Buffer:            req.Buffer,
+		Offset:            req.Offset,
+		EndOffset:         req.Offset + int64(len(req.Buffer)),
+		ReadInfo:          &req.ReadInfo,
+		ForceCreateReader: false,
+		SkipSizeChecks:    req.SkipSizeChecks,
+	}
+
+	return mrd.Read(ctx, gcsReaderRequest)
 }
 
 func (mrd *MultiRangeReader) destroy() {
