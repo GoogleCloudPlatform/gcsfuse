@@ -92,27 +92,27 @@ charset-normalizer==3.1.0 \
 dataclasses==0.6 \
     --hash=sha256:454a69d788c7fda44efd71e259be79577822f5e3f53f029a22d08004e951dc9f \
     --hash=sha256:6988bd2b895eef432d562370bb707d540f32f7360ab13da45340101bc2307d84
-    # via -r perfmetrics/scripts/requirements.in
+    # via -r requirements.in
 exceptiongroup==1.1.1 \
     --hash=sha256:232c37c63e4f682982c8b6459f33a8981039e5fb8756b2074364e5055c498c9e \
     --hash=sha256:d484c3090ba2889ae2928419117447a14daf3c1231d5e30d0aae34f354f01785
-    # via -r perfmetrics/scripts/requirements.in
+    # via -r requirements.in
 google-api-core[grpc]==2.15.0 \
     --hash=sha256:2aa56d2be495551e66bbff7f729b790546f87d5c90e74781aa77233bcb395a8a \
     --hash=sha256:abc978a72658f14a2df1e5e12532effe40f94f868f6e23d95133bd6abcca35ca
     # via
-    #   -r perfmetrics/scripts/requirements.in
+    #   -r requirements.in
     #   google-api-python-client
     #   google-cloud-monitoring
 google-api-python-client==2.55.0 \
     --hash=sha256:1766c700eee14809ca1f7f52868c937755153289ea77ecdfd73dea6910e9a34d \
     --hash=sha256:7837094c6d35cc8e680b60ebefe37f117ad521f3b263b0c7a6efa0b2f84cb17a
-    # via -r perfmetrics/scripts/requirements.in
+    # via -r requirements.in
 google-auth==2.26.1 \
     --hash=sha256:2c8b55e3e564f298122a02ab7b97458ccfcc5617840beb5d0ac757ada92c9780 \
     --hash=sha256:54385acca5c0fbdda510cd8585ba6f3fcb06eeecf8a6ecca39d3ee148b092590
     # via
-    #   -r perfmetrics/scripts/requirements.in
+    #   -r requirements.in
     #   google-api-core
     #   google-api-python-client
     #   google-auth-httplib2
@@ -123,16 +123,16 @@ google-auth-httplib2==0.1.0 \
 google-cloud==0.34.0 \
     --hash=sha256:01430187cf56df10a9ba775dd547393185d4b40741db0ea5889301f8e7a9d5d3 \
     --hash=sha256:fb1ab7b0548fe44b3d538041f0a374505b7f990d448a935ea36649c5ccab5acf
-    # via -r perfmetrics/scripts/requirements.in
+    # via -r requirements.in
 google-cloud-monitoring==2.11.1 \
     --hash=sha256:3d76463cc7abfd8e339b1d94b3c11facb60b9c5d6d805eb76431e60663cf334c \
     --hash=sha256:cc8a4b118b56ce2566ad7dfab56926f35747ca28465dbac21e8f6e258704a16f
-    # via -r perfmetrics/scripts/requirements.in
+    # via -r requirements.in
 googleapis-common-protos==1.59.0 \
     --hash=sha256:4168fcb568a826a52f23510412da405abd93f4d23ba544bb68d943b14ba3cb44 \
     --hash=sha256:b287dc48449d1d41af0c69f4ea26242b5ae4c3d7249a38b0984c86a4caffff1f
     # via
-    #   -r perfmetrics/scripts/requirements.in
+    #   -r requirements.in
     #   google-api-core
     #   grpcio-status
 grpcio==1.54.3 \
@@ -182,7 +182,7 @@ grpcio==1.54.3 \
     --hash=sha256:f78fb0d5e3b1f22060aa32872eab185f214b22a278d1763a2ffd7ca04cc16366 \
     --hash=sha256:fd5779aab42c92fc0d31ac4f240c99f02007f0310704eb761abd7ad955edf411
     # via
-    #   -r perfmetrics/scripts/requirements.in
+    #   -r requirements.in
     #   google-api-core
     #   grpcio-status
 grpcio-status==1.54.0 \
@@ -219,7 +219,7 @@ proto-plus==1.22.1 \
     --hash=sha256:6c7dfd122dfef8019ff654746be4f5b1d9c80bba787fe9611b508dd88be3a2fa \
     --hash=sha256:ea8982669a23c379f74495bc48e3dcb47c822c484ce8ee1d1d7beb339d4e34c5
     # via
-    #   -r perfmetrics/scripts/requirements.in
+    #   -r requirements.in
     #   google-cloud-monitoring
 protobuf==4.21.6 \
     --hash=sha256:07a0bb9cc6114f16a39c866dc28b6e3d96fa4ffb9cc1033057412547e6e75cb9 \
@@ -237,7 +237,7 @@ protobuf==4.21.6 \
     --hash=sha256:ba596b9ffb85c909fcfe1b1a23136224ed678af3faf9912d3fa483d5f9813c4e \
     --hash=sha256:c7c864148a237f058c739ae7a05a2b403c0dfa4ce7d1f3e5213f352ad52d57c6
     # via
-    #   -r perfmetrics/scripts/requirements.in
+    #   -r requirements.in
     #   google-api-core
     #   google-cloud-monitoring
     #   googleapis-common-protos
@@ -260,12 +260,12 @@ pyparsing==3.0.9 \
 pytest==7.3.1 \
     --hash=sha256:3799fa815351fea3a5e96ac7e503a96fa51cc9942c3753cda7651b93c1cfa362 \
     --hash=sha256:434afafd78b1d78ed0addf160ad2b77a30d35d4bdf8af234fe621919d9ed15e3
-    # via -r perfmetrics/scripts/requirements.in
-requests==2.32.2 \
-    --hash=sha256:dd951ff5ecf3e3b3aa26b40703ba77495dab41da839ae72ef3c8e5d8e2433289 \
-    --hash=sha256:fc06670dd0ed212426dfeb94fc1b983d917c4f9847c863f313c9dfaaffb7c23c
+    # via -r requirements.in
+requests==2.32.4 \
+    --hash=sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c \
+    --hash=sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422
     # via
-    #   -r perfmetrics/scripts/requirements.in
+    #   -r requirements.in
     #   google-api-core
 rsa==4.9 \
     --hash=sha256:90260d9058e514786967344d0ef75fa8727eed8a7d2e43ce9f4bcf1b536174f7 \
@@ -278,15 +278,15 @@ six==1.16.0 \
 testresources==2.0.1 \
     --hash=sha256:67a361c3a2412231963b91ab04192209aa91a1aa052f0ab87245dbea889d1282 \
     --hash=sha256:ee9d1982154a1e212d4e4bac6b610800bfb558e4fb853572a827bc14a96e4417
-    # via -r perfmetrics/scripts/requirements.in
+    # via -r requirements.in
 tomli==2.0.1 \
     --hash=sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc \
     --hash=sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f
-    # via -r perfmetrics/scripts/requirements.in
+    # via -r requirements.in
 typing==3.7.4.3 \
     --hash=sha256:1187fb9c82fd670d10aa07bbb6cfcfe4bdda42d6fab8d5134f04e8c4d0b71cc9 \
     --hash=sha256:283d868f5071ab9ad873e5e52268d611e851c870a2ba354193026f2dfb29d8b5
-    # via -r perfmetrics/scripts/requirements.in
+    # via -r requirements.in
 uritemplate==4.1.1 \
     --hash=sha256:4346edfc5c3b79f694bccd6d6099a322bbeb628dbf2cd86eea55a456ce5124f0 \
     --hash=sha256:830c08b8d99bdd312ea4ead05994a38e8936266f84b9a7878232db50b044e02e
@@ -295,5 +295,5 @@ urllib3==2.2.2 \
     --hash=sha256:a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472 \
     --hash=sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168
     # via
-    #   -r perfmetrics/scripts/requirements.in
+    #   -r requirements.in
     #   requests
