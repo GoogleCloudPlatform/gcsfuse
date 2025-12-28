@@ -23,7 +23,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -32,17 +31,12 @@ import (
 )
 
 func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config, mrdCache *lru.Cache) (*MultiRangeDownloaderWrapper, error) {
-	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{}, config, mrdCache)
-}
-
-func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clk clock.Clock, config *cfg.Config, mrdCache *lru.Cache) (*MultiRangeDownloaderWrapper, error) {
 	if object == nil {
-		return nil, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
+		return nil, fmt.Errorf("NewMultiRangeDownloaderWrapper: Missing MinObject")
 	}
 	// In case of a local inode, MRDWrapper would be created with an empty minObject (i.e. with a minObject without any information)
 	// and when the object is actually created, MRDWrapper would be updated using SetMinObject method.
 	wrapper := MultiRangeDownloaderWrapper{
-		clock:    clk,
 		bucket:   bucket,
 		object:   object,
 		config:   config,
@@ -71,10 +65,6 @@ type MultiRangeDownloaderWrapper struct {
 	refCount int
 	// Mutex is used to synchronize access over refCount.
 	mu sync.RWMutex
-	// Holds the cancel function, which can be called to cancel the cleanup function.
-	cancelCleanup context.CancelFunc
-	// Used for waiting for timeout (helps us in mocking the functionality).
-	clock clock.Clock
 	// GCSFuse mount config.
 	config *cfg.Config
 	// MRD Read handle. Would be updated when MRD is being closed so that it can be used
@@ -113,7 +103,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) GetRefCount() int {
 	return mrdWrapper.refCount
 }
 
-// IncrementRefCount increments the refcount and cancel any running cleanup function.
+// IncrementRefCount increments the refcount.
 // This method should be called exactly once per user of this wrapper.
 // It has to be called before using the MultiRangeDownloader.
 // If lru cache is enabled and refCount was 0, the wrapper is removed from the cache.
@@ -122,10 +112,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
 	defer mrdWrapper.mu.Unlock()
 
 	mrdWrapper.refCount++
-	if mrdWrapper.cancelCleanup != nil {
-		mrdWrapper.cancelCleanup()
-		mrdWrapper.cancelCleanup = nil
-	}
 
 	// If refCount was 0, remove from cache (file is being reopened)
 	if mrdWrapper.refCount == 1 && mrdWrapper.mrdCache != nil {
