@@ -103,6 +103,7 @@ func createDirInode(
 		4,
 		false,
 		true,
+		false,
 	)
 }
 

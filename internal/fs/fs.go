@@ -311,6 +311,7 @@ func makeRootForBucket(
 		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
 		fs.newConfig.EnableUnsupportedPathSupport,
+		fs.newConfig.EnableTypeCacheDeprecation,
 	)
 }
 
@@ -792,7 +793,8 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		fs.cacheClock,
 		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
-		fs.newConfig.EnableUnsupportedPathSupport)
+		fs.newConfig.EnableUnsupportedPathSupport,
+		fs.newConfig.EnableTypeCacheDeprecation)
 
 	return in
 }
@@ -837,6 +839,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 			fs.newConfig.EnableHns,
 			fs.newConfig.EnableUnsupportedPathSupport,
+			fs.newConfig.EnableTypeCacheDeprecation,
 		)
 
 	case inode.IsSymlink(ic.MinObject):

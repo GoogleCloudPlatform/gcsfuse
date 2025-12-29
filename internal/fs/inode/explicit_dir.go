@@ -46,7 +46,8 @@ func NewExplicitDirInode(
 	cacheClock timeutil.Clock,
 	typeCacheMaxSizeMB int64,
 	enableHNS bool,
-	enableUnsupportedPathSupport bool) (d ExplicitDirInode) {
+	enableUnsupportedPathSupport bool,
+	enableTypeCacheDeprecation bool) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
 		name,
@@ -60,7 +61,8 @@ func NewExplicitDirInode(
 		cacheClock,
 		typeCacheMaxSizeMB,
 		enableHNS,
-		enableUnsupportedPathSupport)
+		enableUnsupportedPathSupport,
+		enableTypeCacheDeprecation)
 
 	dirInode := &explicitDirInode{
 		dirInode: wrapped.(*dirInode),

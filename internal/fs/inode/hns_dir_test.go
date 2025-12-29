@@ -108,6 +108,7 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		typeCacheMaxSizeMB,
 		true,
 		true,
+		false,
 	)
 
 	d := t.in.(*dirInode)
@@ -138,6 +139,7 @@ func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 		4,
 		false,
 		true,
+		false,
 	)
 }
 
@@ -216,7 +218,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.Folder.Name)
-	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	}
 }
 
 func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent() {
@@ -229,7 +233,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
-	assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name))
+	}
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
@@ -237,7 +243,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.Folder.Name)
-	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	}
 }
 
 func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularFileType() {
@@ -265,7 +273,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	assert.Equal(t.T(), fileName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
-	assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
+	}
 }
 
 func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkType() {
@@ -293,7 +303,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	assert.Equal(t.T(), fileName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
-	assert.Equal(t.T(), metadata.SymlinkType, t.typeCache.Get(t.fixedTime.Now(), name))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.SymlinkType, t.typeCache.Get(t.fixedTime.Now(), name))
+	}
 }
 
 func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentType() {
@@ -424,7 +436,9 @@ func (t *NonHNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagFalseAndNonHNSBuck
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+	}
 	assert.False(t.T(), dirIn.IsUnlinked())
 }
 func (t *NonHNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectThrowAnError() {
@@ -480,7 +494,9 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+	}
 	assert.True(t.T(), dirIn.IsUnlinked())
 }
 
@@ -515,7 +531,9 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithFailure() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NotNil(t.T(), err)
 	assert.Nil(t.T(), result)
-	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+	}
 }
 
 func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
@@ -531,7 +549,9 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
 	assert.NotNil(t.T(), result)
 	assert.Equal(t.T(), dirName, result.Folder.Name)
 	assert.Equal(t.T(), dirName, result.FullName.objectName)
-	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	}
 }
 
 func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
@@ -546,7 +566,9 @@ func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NotNil(t.T(), err)
 	assert.Nil(t.T(), result)
-	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+	}
 }
 
 func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
@@ -564,7 +586,9 @@ func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 	assert.NotNil(t.T(), result)
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
 	assert.Equal(t.T(), dirName, result.FullName.objectName)
-	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	if !t.typeCache.IsDeprecated() {
+		assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	}
 }
 
 func (t *HNSDirTest) TestDeleteObjects() {
@@ -652,27 +676,39 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 		case folder1:
 			assert.Equal(t.T(), folder1, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
-			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), folder1))
+			if !t.typeCache.IsDeprecated() {
+				assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), folder1))
+			}
 		case folder2:
 			assert.Equal(t.T(), folder2, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
-			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), folder2))
+			if !t.typeCache.IsDeprecated() {
+				assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), folder2))
+			}
 		case implicitDir:
 			assert.Equal(t.T(), implicitDir, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
-			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), implicitDir))
+			if !t.typeCache.IsDeprecated() {
+				assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), implicitDir))
+			}
 		case file1:
 			assert.Equal(t.T(), file1, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
-			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file1))
+			if !t.typeCache.IsDeprecated() {
+				assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file1))
+			}
 		case file2:
 			assert.Equal(t.T(), file2, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
-			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file2))
+			if !t.typeCache.IsDeprecated() {
+				assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file2))
+			}
 		case file3:
 			assert.Equal(t.T(), file3, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
-			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file3))
+			if !t.typeCache.IsDeprecated() {
+				assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file3))
+			}
 		}
 	}
 }
