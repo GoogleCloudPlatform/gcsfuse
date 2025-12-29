@@ -12,8 +12,17 @@ updates:
   schedule:
     interval: weekly
   open-pull-requests-limit: 10
+  groups:
+    # Group all Go updates together
+    go-dependencies:
+      patterns:
+        - "*"
 - package-ecosystem: pip
   directory: "/"
   schedule:
     interval: weekly
   open-pull-requests-limit: 10
+  groups:
+    python-dependencies:
+      patterns:
+        - "*"
