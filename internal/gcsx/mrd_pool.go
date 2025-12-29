@@ -57,9 +57,9 @@ type MRDPool struct {
 // It creates the first MRD synchronously to ensure immediate availability and starts a background goroutine to create the remaining MRDs.
 func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 	// Limiting the pool size to 1 for files smaller than 500 MiB
-	if config.object.Size < 500*MiB {
-		config.PoolSize = 1
-	}
+	// if config.object.Size < 500*MiB {
+	// 	config.PoolSize = 1
+	// }
 
 	p := &MRDPool{
 		poolConfig: config,

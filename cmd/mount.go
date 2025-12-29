@@ -171,6 +171,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// access two files under same directory parallely, then the lookups also
 		// happen parallely.
 		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
+		EnableAsyncReads:     true,
 		// We disable write-back cache when streaming writes are enabled.
 		DisableWritebackCaching: newConfig.Write.EnableStreamingWrites,
 		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
