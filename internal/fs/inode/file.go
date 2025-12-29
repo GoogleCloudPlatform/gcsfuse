@@ -46,7 +46,7 @@ const (
 	FileMtimeMetadataKey = gcs.MtimeMetadataKey
 	// TODO(b/447991081): Update streaming writes semantic message once semantics for ZB are updated on semantics doc.
 	StreamingWritesSemantics = "Streaming writes is supported for sequential writes to new/empty files. " +
-		"For more details, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes"
+			"For more details, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes"
 )
 
 type FileInode struct {
@@ -124,6 +124,8 @@ type FileInode struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	mrdInstance gcsx.MrdInstance
 }
 
 var _ Inode = &FileInode{}
@@ -137,18 +139,18 @@ var _ Inode = &FileInode{}
 // REQUIRES: len(m.Name) > 0
 // REQUIRES: m.Name[len(m.Name)-1] != '/'
 func NewFileInode(
-	id fuseops.InodeID,
-	name Name,
-	m *gcs.MinObject,
-	attrs fuseops.InodeAttributes,
-	bucket *gcsx.SyncerBucket,
-	localFileCache bool,
-	contentCache *contentcache.ContentCache,
-	mtimeClock timeutil.Clock,
-	localFile bool,
-	cfg *cfg.Config,
-	globalMaxBlocksSem *semaphore.Weighted,
-	mrdCache *lru.Cache) (f *FileInode) {
+		id fuseops.InodeID,
+		name Name,
+		m *gcs.MinObject,
+		attrs fuseops.InodeAttributes,
+		bucket *gcsx.SyncerBucket,
+		localFileCache bool,
+		contentCache *contentcache.ContentCache,
+		mtimeClock timeutil.Clock,
+		localFile bool,
+		cfg *cfg.Config,
+		globalMaxBlocksSem *semaphore.Weighted,
+		mrdCache *lru.Cache) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -167,6 +169,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
+		mrdInstance:             gcsx.NewMrdInstance(),
 	}
 	var err error
 	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
@@ -474,7 +477,7 @@ func (f *FileInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
+		ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 	// Obtain default information from the source object.
 	attrs.Mtime = f.src.Updated
@@ -559,9 +562,9 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
-	ctx context.Context,
-	dst []byte,
-	offset int64) (n int, err error) {
+		ctx context.Context,
+		dst []byte,
+		offset int64) (n int, err error) {
 	if f.bwh != nil {
 		err = fmt.Errorf("unexpected read call for %q when streaming write is in progress for it", f.Name().LocalName())
 		return
@@ -593,10 +596,10 @@ func (f *FileInode) Read(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
-	ctx context.Context,
-	data []byte,
-	offset int64,
-	openMode util.OpenMode) (bool, error) {
+		ctx context.Context,
+		data []byte,
+		offset int64,
+		openMode util.OpenMode) (bool, error) {
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
@@ -704,8 +707,8 @@ func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SetMtime(
-	ctx context.Context,
-	mtime time.Time) (err error) {
+		ctx context.Context,
+		mtime time.Time) (err error) {
 	if f.IsUnlinked() {
 		// No need to update mtime on GCS for unlinked file.
 		return
@@ -983,8 +986,8 @@ func (f *FileInode) truncateUsingTempFile(ctx context.Context, size int64) error
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
-	ctx context.Context,
-	size int64) (bool, error) {
+		ctx context.Context,
+		size int64) (bool, error) {
 	if f.IsUsingBWH() {
 		return f.truncateUsingBufferedWriteHandler(ctx, size)
 	}
@@ -1058,9 +1061,9 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Warnf("File %s will use legacy staged writes because concurrent streaming write "+
-				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
-				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
-				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
+					"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
+					"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
+					"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
 			return false, nil
 		}
 		if err != nil {
