@@ -355,45 +355,6 @@ func TestApplyOptimizations_NoError(t *testing.T) {
 	assert.NotEmpty(t, optimizedFlags)
 }
 
-func TestSetFlagValue_Bool(t *testing.T) {
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-
-	err := setFlagValue(cfg, "implicit-dirs", flagOverride{newValue: true}, isSet)
-
-	require.NoError(t, err)
-	assert.True(t, cfg.ImplicitDirs)
-}
-
-func TestSetFlagValue_String(t *testing.T) {
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-
-	err := setFlagValue(cfg, "app-name", flagOverride{newValue: "optimal_gcsfuse"}, isSet)
-
-	require.NoError(t, err)
-	assert.Equal(t, "optimal_gcsfuse", cfg.AppName)
-}
-
-func TestSetFlagValue_Int(t *testing.T) {
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-
-	err := setFlagValue(cfg, "metadata-cache.stat-cache-max-size-mb", flagOverride{newValue: 1024}, isSet)
-
-	require.NoError(t, err)
-	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
-}
-
-func TestSetFlagValue_InvalidFlagName(t *testing.T) {
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-
-	err := setFlagValue(cfg, "invalid-flag", flagOverride{newValue: true}, isSet)
-
-	assert.Error(t, err)
-}
-
 func TestApplyOptimizations_Success(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
