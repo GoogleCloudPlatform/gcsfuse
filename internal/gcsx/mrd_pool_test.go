@@ -126,10 +126,10 @@ func (t *mrdPoolTest) TestNext() {
 	e3 := pool.Next()
 	e4 := pool.Next()
 
-	assert.Equal(t.T(), e1.mrd, fakeMRD1)
-	assert.Equal(t.T(), e2.mrd, fakeMRD2)
-	assert.Equal(t.T(), e3.mrd, fakeMRD3)
-	assert.Equal(t.T(), e4.mrd, fakeMRD1)
+	assert.Same(t.T(), e1.mrd, fakeMRD1)
+	assert.Same(t.T(), e2.mrd, fakeMRD2)
+	assert.Same(t.T(), e3.mrd, fakeMRD3)
+	assert.Same(t.T(), e4.mrd, fakeMRD1)
 }
 
 func (t *mrdPoolTest) TestDeterminePoolSize() {
@@ -173,10 +173,10 @@ func (t *mrdPoolTest) TestDeterminePoolSize() {
 
 func (t *mrdPoolTest) TestRecreateMRD() {
 	t.poolConfig.PoolSize = 1
-	mrd1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	mrd2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd1, nil).Once()
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd2, nil).Once()
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 	pool, err := NewMRDPool(t.poolConfig, nil)
 	assert.NoError(t.T(), err)
 	entry := pool.Next()
@@ -201,7 +201,7 @@ func (t *mrdPoolTest) TestRecreateMRD_Error() {
 	err = pool.RecreateMRD(entry, nil)
 
 	assert.Error(t.T(), err)
-	assert.Equal(t.T(), oldMRD, entry.mrd) // Should remain unchanged on error
+	assert.Same(t.T(), oldMRD, entry.mrd) // Should remain unchanged on error
 }
 
 func (t *mrdPoolTest) TestClose() {

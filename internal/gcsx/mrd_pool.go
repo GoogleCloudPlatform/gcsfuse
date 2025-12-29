@@ -127,7 +127,8 @@ func (p *MRDPool) createRemainingMRDs(handle []byte) {
 // Please check returned MRD is non nil and valid (i.e. not in an error state) before using it.
 func (p *MRDPool) Next() *MRDEntry {
 	limit := p.currentSize.Load()
-	idx := p.current.Add(1) % limit
+	// Use post-increment style to get 0-based index for round-robin.
+	idx := (p.current.Add(1) - 1) % limit
 	return &p.entries[idx]
 }
 
