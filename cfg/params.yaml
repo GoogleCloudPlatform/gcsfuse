@@ -818,6 +818,13 @@ params:
       mount, since we are not refreshing the cache, it will still return nil.
     default: false
 
+  - config-path: "metadata-cache.enable-type-cache-deprecation"
+    flag-name: "enable-type-cache-deprecation"
+    type: "bool"
+    usage: "Enable the deprecation of type-cache-ttl flag."
+    default: false
+    hide-flag: true
+
   - config-path: "metadata-cache.experimental-dir-metadata-prefetch"
     flag-name: "experimental-dir-metadata-prefetch"
     type: "bool"
