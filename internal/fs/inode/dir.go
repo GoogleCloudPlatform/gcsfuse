@@ -580,12 +580,13 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
+	var cachedType metadata.Type
 	if d.isEnableTypeCacheDeprecation {
 		// TODO: Add deprecation logic.
-		return nil, nil
+		cachedType = metadata.UnknownType
+	} else {
+		cachedType = d.cache.Get(d.cacheClock.Now(), name)
 	}
-
-	cachedType := d.cache.Get(d.cacheClock.Now(), name)
 	switch cachedType {
 	case metadata.ImplicitDirType:
 		dirResult = &Core{
