@@ -45,19 +45,19 @@ var (
 
 type TypeCacheTest struct {
 	suite.Suite
-	cache *typeCache
+	cache TypeCache
 	ttl   time.Duration
 }
 
 type ZeroSizeTypeCacheTest struct {
 	suite.Suite
-	cache *typeCache
+	cache TypeCache
 	ttl   time.Duration
 }
 
 type ZeroTtlTypeCacheTest struct {
 	suite.Suite
-	cache *typeCache
+	cache TypeCache
 }
 
 func TestTypeCacheTestSuite(t *testing.T) {
@@ -139,6 +139,7 @@ func (t *TypeCacheTest) TestNewTypeCache() {
 
 	for _, input := range input {
 		tc := createNewTypeCache(t.T(), input.maxSizeMB, input.ttl)
+
 		t.Equal(input.entriesShouldBeNil, tc.entries == nil)
 	}
 }
