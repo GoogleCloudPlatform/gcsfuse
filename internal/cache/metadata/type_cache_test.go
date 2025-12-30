@@ -73,26 +73,26 @@ func TestZeroTtlTypeCacheTestSuite(t *testing.T) {
 }
 
 func (t *TypeCacheTest) SetupTest() {
+	t.ttl = TTL
+	t.cache = createNewTypeCache(t.T(), TypeCacheMaxSizeMB, t.ttl)
 	if t.cache.IsDeprecated() {
 		t.T().Skip("Skipping TypeCacheTest because EnableTypeCacheDeprecation is true")
 	}
-	t.ttl = TTL
-	t.cache = createNewTypeCache(t.T(), TypeCacheMaxSizeMB, t.ttl)
 }
 
 func (t *ZeroSizeTypeCacheTest) SetupTest() {
+	t.ttl = TTL
+	t.cache = createNewTypeCache(t.T(), 0, t.ttl)
 	if t.cache.IsDeprecated() {
 		t.T().Skip("Skipping ZeroSizeTypeCacheTest because EnableTypeCacheDeprecation is true")
 	}
-	t.ttl = TTL
-	t.cache = createNewTypeCache(t.T(), 0, t.ttl)
 }
 
 func (t *ZeroTtlTypeCacheTest) SetupTest() {
+	t.cache = createNewTypeCache(t.T(), TypeCacheMaxSizeMB, 0)
 	if t.cache.IsDeprecated() {
 		t.T().Skip("Skipping ZeroTtlTypeCacheTest because EnableTypeCacheDeprecation is true")
 	}
-	t.cache = createNewTypeCache(t.T(), TypeCacheMaxSizeMB, 0)
 }
 
 ////////////////////////////////////////////////////////////////////////
