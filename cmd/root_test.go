@@ -1417,6 +1417,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableTypeCacheDeprecationFlags(t *testing.T) {
+	tests := []struct {
+		name                               string
+		args                               []string
+		expectedEnableTypeCacheDeprecation bool
+	}{
+		{
+			name:                               "normal",
+			args:                               []string{"gcsfuse", "--enable-type-cache-deprecation=true", "abc", "pqr"},
+			expectedEnableTypeCacheDeprecation: true,
+		},
+		{
+			name:                               "default",
+			args:                               []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableTypeCacheDeprecation: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableTypeCacheDeprecation bool
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableTypeCacheDeprecation = mountInfo.config.EnableTypeCacheDeprecation
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableTypeCacheDeprecation, gotEnableTypeCacheDeprecation)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 	tests := []struct {
 		name                           string

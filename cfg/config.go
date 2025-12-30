@@ -365,6 +365,8 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
+	EnableTypeCacheDeprecation bool `yaml:"enable-type-cache-deprecation"`
+
 	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
 
 	ExperimentalHandleVisualizer bool `yaml:"experimental-handle-visualizer"`
@@ -861,6 +863,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
+
+	flagSet.BoolP("enable-type-cache-deprecation", "", false, "Enables support to deprecate type cache.")
+
+	if err := flagSet.MarkHidden("enable-type-cache-deprecation"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("enable-unsupported-path-support", "", true, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
@@ -1400,6 +1408,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-type-cache-deprecation", flagSet.Lookup("enable-type-cache-deprecation")); err != nil {
 		return err
 	}
 
