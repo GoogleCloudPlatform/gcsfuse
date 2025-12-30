@@ -15,19 +15,44 @@ pip install matplotlib
 
 ## Usage
 
-Run the script with the path to the JSON log file:
+### Static Analysis
+
+Run the script with the path to an existing JSON log file:
 
 ```bash
 python3 tools/handle_visualizer/visualizer.py <path_to_log_file>
 ```
 
-Options:
-*   `--output <file>`, `-o <file>`: Specify the output image file (default: `read_pattern.png`).
+### Live Integration with GCSFuse
 
-## Example
+To monitor GCSFuse logs in real-time and generate the graph parallelly while GCSFuse runs:
+
+1.  **Configure GCSFuse to log to a file:**
+
+    ```bash
+    # Example starting GCSFuse
+    gcsfuse --log-file=/tmp/gcsfuse.log --debug_fuse ...
+    ```
+
+2.  **Run the visualizer in live mode:**
+
+    In a separate terminal:
+
+    ```bash
+    python3 tools/handle_visualizer/visualizer.py --live /tmp/gcsfuse.log
+    ```
+
+    The tool will tail the log file, update the graph in real-time, and save the updated plot to `read_pattern.png` (or specified output) every second. If you have a display environment, it will also show a window.
+
+### Piping logs (Unix style)
+
+You can also pipe the output of GCSFuse directly to the visualizer using `-` as the filename:
 
 ```bash
-python3 tools/handle_visualizer/visualizer.py my_gcsfuse_logs.json
+gcsfuse --foreground --debug_fuse ... | python3 tools/handle_visualizer/visualizer.py --live -
 ```
 
-This will generate `read_pattern.png` showing the read patterns. Sequential reads will appear as a diagonal line (or straight line if time is on X and offset on Y), while random reads will appear scattered.
+## Options
+
+*   `--output <file>`, `-o <file>`: Specify the output image file (default: `read_pattern.png`).
+*   `--live`: Enable live monitoring mode.
