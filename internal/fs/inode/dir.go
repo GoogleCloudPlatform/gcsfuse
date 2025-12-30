@@ -1036,8 +1036,8 @@ func (d *dirInode) DeleteChildFile(
 			MetaGenerationPrecondition: metaGeneration,
 		})
 
-	if err != nil {
-		err = fmt.Errorf("DeleteObject: %w", err)
+	if err == nil {
+		d.cache.Erase(name)
 		return
 	}
 	if !d.IsTypeCacheDeprecated() {
