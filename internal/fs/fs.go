@@ -989,6 +989,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// The existing inode has the same generation but a different size.
 		// Update the size and return the existing inode.
 		if cmp == 2 {
+			logger.Warnf("The size of object has changed remotely. Updating the existing inode to reflect the size change.\n")
 			existingInode.UpdateSize(oGen.Size)
 			in = existingInode
 			return
