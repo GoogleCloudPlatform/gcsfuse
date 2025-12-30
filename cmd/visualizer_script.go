@@ -179,7 +179,19 @@ def run_live(logfile, output_file):
     ani = animation.FuncAnimation(vis.fig, vis.update, interval=1000, cache_frame_data=False)
 
     try:
-        plt.show()
+        # Check if we are running in a headless environment/backend
+        # 'agg' is the standard non-interactive backend
+        if plt.get_backend().lower() == 'agg':
+            print(f"Running in headless mode (backend: {plt.get_backend()}). Saving plots to {output_file}.")
+            # Manual event loop since plt.show() does nothing for Agg
+            while not stop_event.is_set():
+                if not t.is_alive():
+                    print("Log reader thread ended.")
+                    break
+                vis.update(0)
+                time.sleep(1)
+        else:
+            plt.show()
     except KeyboardInterrupt:
         print("Stopping...")
     finally:
