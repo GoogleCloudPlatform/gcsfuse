@@ -997,6 +997,14 @@ params:
     default: 0
     hide-flag: true
 
+  - config-path: "mrd.pool-size"
+    flag-name: "mrd-pool-size"
+    type: "int"
+    usage: >-
+      Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.
+    default: "4"
+    hide-flag: true
+
   - config-path: "only-dir"
     flag-name: "only-dir"
     type: "string"

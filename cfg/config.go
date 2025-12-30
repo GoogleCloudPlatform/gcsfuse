@@ -395,6 +395,8 @@ type Config struct {
 
 	Monitoring MonitoringConfig `yaml:"monitoring"`
 
+	Mrd MrdConfig `yaml:"mrd"`
+
 	OnlyDir string `yaml:"only-dir"`
 
 	Profile string `yaml:"profile"`
@@ -606,6 +608,10 @@ type MonitoringConfig struct {
 	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
+}
+
+type MrdConfig struct {
+	PoolSize int64 `yaml:"pool-size"`
 }
 
 type ReadConfig struct {
@@ -1087,6 +1093,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("metrics-workers", "", 3, "The number of workers that update histogram metrics concurrently.")
 
 	if err := flagSet.MarkHidden("metrics-workers"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("mrd-pool-size", "", 4, "Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.")
+
+	if err := flagSet.MarkHidden("mrd-pool-size"); err != nil {
 		return err
 	}
 
@@ -1632,6 +1644,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.workers", flagSet.Lookup("metrics-workers")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("mrd.pool-size", flagSet.Lookup("mrd-pool-size")); err != nil {
 		return err
 	}
 
