@@ -365,9 +365,9 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
-	EnableTypeCacheDeprecation bool `yaml:"enable-type-cache-deprecation"`
-
 	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
+
+	ExperimentalHandleVisualizer bool `yaml:"experimental-handle-visualizer"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -868,12 +868,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-type-cache-deprecation", "", false, "Enables support to deprecate type cache.")
-
-	if err := flagSet.MarkHidden("enable-type-cache-deprecation"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("enable-unsupported-path-support", "", true, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
 	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
@@ -915,6 +909,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkDeprecated("experimental-grpc-conn-pool-size", "Experimental flag: can be removed in a minor release."); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("experimental-handle-visualizer", "", false, "Enables the experimental file handle visualizer tool. This will spawn a background process that visualizes read patterns.")
 
 	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
 
@@ -1419,10 +1415,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("enable-type-cache-deprecation", flagSet.Lookup("enable-type-cache-deprecation")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
 		return err
 	}
@@ -1448,6 +1440,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("experimental-handle-visualizer", flagSet.Lookup("experimental-handle-visualizer")); err != nil {
 		return err
 	}
 

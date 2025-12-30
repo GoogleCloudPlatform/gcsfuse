@@ -173,6 +173,17 @@ func UpdateDefaultLogger(format, fsName string) {
 	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName)
 }
 
+// AddWriterAndRefresh adds an extra writer and refreshes the default logger.
+func AddWriterAndRefresh(w io.Writer, fsName string) {
+	// Lock only to modify slice
+	defaultLoggerFactory.mu.Lock()
+	defaultLoggerFactory.extraWriters = append(defaultLoggerFactory.extraWriters, w)
+	defaultLoggerFactory.mu.Unlock()
+
+	// Create new logger (calls handler() which locks)
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName)
+}
+
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...any) {
 	if LevelTrace >= programLevel.Level() {
@@ -230,13 +241,14 @@ func Fatal(format string, v ...any) {
 }
 
 type loggerFactory struct {
-	// If nil, log to stdout or stderr. Otherwise, log to this file.
+	mu         sync.Mutex
 	file       *os.File
 	sysWriter  *syslog.Writer
 	format     string
 	level      string
 	logRotate  cfg.LogRotateLoggingConfig
 	fileWriter *lumberjack.Logger
+	extraWriters []io.Writer
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
@@ -267,12 +279,23 @@ func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog
 }
 
 func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var primaryWriter io.Writer
 	if f.fileWriter != nil {
-		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+		primaryWriter = f.fileWriter
+	} else if f.sysWriter != nil {
+		primaryWriter = f.sysWriter
+	} else {
+		primaryWriter = os.Stdout
 	}
 
-	if f.sysWriter != nil {
-		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+	var finalWriter io.Writer = primaryWriter
+	if len(f.extraWriters) > 0 {
+		writers := append([]io.Writer{primaryWriter}, f.extraWriters...)
+		finalWriter = io.MultiWriter(writers...)
 	}
-	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+
+	return f.createJsonOrTextHandler(finalWriter, levelVar, prefix)
 }

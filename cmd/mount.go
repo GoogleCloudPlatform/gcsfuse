@@ -16,7 +16,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -34,15 +37,87 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+// AsyncPipeWriter provides a non-blocking writer for piping logs.
+// It uses a buffered channel to drop messages if the consumer (python script)
+// is too slow, preventing the main application from hanging.
+type AsyncPipeWriter struct {
+	pipeWriter io.WriteCloser
+	ch         chan []byte
+	done       chan struct{}
+	mu         sync.Mutex
+	closed     bool
+}
+
+func NewAsyncPipeWriter(pipeWriter io.WriteCloser, bufferSize int) *AsyncPipeWriter {
+	w := &AsyncPipeWriter{
+		pipeWriter: pipeWriter,
+		ch:         make(chan []byte, bufferSize),
+		done:       make(chan struct{}),
+	}
+	go w.run()
+	return w
+}
+
+func (w *AsyncPipeWriter) Write(p []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		// Ignore writes after close to avoid panic
+		return len(p), nil
+	}
+
+	// Make a copy of the data because p might be reused by the caller
+	data := make([]byte, len(p))
+	copy(data, p)
+
+	select {
+	case w.ch <- data:
+		// Success
+	default:
+		// Channel full, drop message to avoid blocking
+		// We could count dropped messages metric here
+	}
+	return len(p), nil
+}
+
+func (w *AsyncPipeWriter) run() {
+	defer w.pipeWriter.Close()
+	defer close(w.done)
+	for data := range w.ch {
+		if _, err := w.pipeWriter.Write(data); err != nil {
+			// If pipe is broken, stop writing
+			return
+		}
+	}
+}
+
+func (w *AsyncPipeWriter) Close() error {
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return nil
+	}
+	w.closed = true
+	close(w.ch)
+	w.mu.Unlock()
+
+	<-w.done
+	return nil
+}
+
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
+// It also returns a cleanup function that should be called when the mount process is done.
 func mountWithStorageHandle(
 	ctx context.Context,
 	bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
-	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, cleanupFunc func(), err error) {
+	// Initialize default cleanup function
+	cleanupFunc = func() {}
+
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -58,6 +133,71 @@ func mountWithStorageHandle(
 					"with the correct permissions",
 				err.Error())
 			return
+		}
+	}
+
+	// Handle Experimental Handle Visualizer
+	if newConfig.ExperimentalHandleVisualizer {
+		// Override logging settings to ensure visualizer gets what it needs
+		if newConfig.Logging.Format != "json" {
+			logger.Warnf("Enforcing JSON log format for handle visualizer.")
+			newConfig.Logging.Format = "json"
+			// Force update the default logger format if it was already initialized
+			logger.UpdateDefaultLogger("json", fsName(bucketName))
+		}
+
+		if newConfig.Logging.Severity != "trace" {
+			logger.Warnf("Enforcing TRACE log severity for handle visualizer.")
+			newConfig.Logging.Severity = "trace"
+		}
+
+		// Write the embedded python script to a temporary file
+		tmpScript, err := os.CreateTemp("", "gcsfuse_visualizer_*.py")
+		if err != nil {
+			logger.Errorf("Failed to create temp file for visualizer script: %v", err)
+		} else {
+			if _, err := tmpScript.WriteString(handleVisualizerScript); err != nil {
+				logger.Errorf("Failed to write visualizer script: %v", err)
+				tmpScript.Close()
+			} else {
+				tmpScript.Close()
+				scriptPath := tmpScript.Name()
+
+				// Ensure python3 is available
+				if _, err := exec.LookPath("python3"); err != nil {
+					logger.Errorf("python3 not found in PATH. Handle visualizer requires python3.")
+				} else {
+					cmd := exec.Command("python3", scriptPath, "--live", "-")
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+
+					stdinPipe, err := cmd.StdinPipe()
+					if err != nil {
+						logger.Errorf("Failed to create stdin pipe for visualizer: %v", err)
+					} else {
+						// Use AsyncPipeWriter to avoid blocking the main app
+						asyncWriter := NewAsyncPipeWriter(stdinPipe, 10000)
+
+						if err := cmd.Start(); err != nil {
+							logger.Errorf("Failed to start visualizer: %v", err)
+							asyncWriter.Close() // Cleanup
+						} else {
+							logger.Infof("Started handle visualizer (PID %d)", cmd.Process.Pid)
+							logger.AddWriterAndRefresh(asyncWriter, fsName(bucketName))
+
+							// Set cleanup function to be called later
+							cleanupFunc = func() {
+								asyncWriter.Close()
+								// Kill process if it's still running
+								if cmd.Process != nil {
+									cmd.Process.Kill()
+								}
+								os.Remove(scriptPath)
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
