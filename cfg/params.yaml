@@ -233,6 +233,12 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "experimental-handle-visualizer"
+    flag-name: "experimental-handle-visualizer"
+    type: "bool"
+    usage: "Enables the experimental file handle visualizer tool. This will spawn a background process that visualizes read patterns."
+    default: false
+
   - config-path: "file-cache.cache-file-for-range-read"
     flag-name: "file-cache-cache-file-for-range-read"
     type: "bool"

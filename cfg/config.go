@@ -367,6 +367,8 @@ type Config struct {
 
 	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
 
+	ExperimentalHandleVisualizer bool `yaml:"experimental-handle-visualizer"`
+
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
 	FileSystem FileSystemConfig `yaml:"file-system"`
@@ -902,6 +904,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("experimental-handle-visualizer", "", false, "Enables the experimental file handle visualizer tool. This will spawn a background process that visualizes read patterns.")
+
 	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
 
 	if err := flagSet.MarkHidden("experimental-local-socket-address"); err != nil {
@@ -1424,6 +1428,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("experimental-handle-visualizer", flagSet.Lookup("experimental-handle-visualizer")); err != nil {
 		return err
 	}
 
