@@ -197,3 +197,7 @@ func (p *MRDPool) Close() (handle []byte) {
 	}
 	return
 }
+
+func (p *MRDPool) Size() uint64 {
+	return p.currentSize.Load()
+}
