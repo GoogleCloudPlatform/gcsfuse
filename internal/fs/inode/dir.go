@@ -1000,13 +1000,17 @@ func (d *dirInode) DeleteChildFile(
 			MetaGenerationPrecondition: metaGeneration,
 		})
 
-	if err != nil {
-		err = fmt.Errorf("DeleteObject: %w", err)
+	if err == nil {
+		d.cache.Erase(name)
 		return
 	}
-	d.cache.Erase(name)
-
-	return
+	var notFoundError *gcs.NotFoundError
+	// DeleteObject returns notFoundError when the type has been modified remotely.
+	// So, evict from type-cache in such cases.
+	if errors.As(err, &notFoundError) {
+		d.cache.Erase(name)
+	}
+	return fmt.Errorf("DeleteObject: %w", err)
 }
 
 // LOCKS_REQUIRED(d)
