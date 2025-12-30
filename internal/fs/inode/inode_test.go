@@ -62,7 +62,7 @@ func TestGenerationCompare(t *testing.T) {
 			name:     "latest.Object == current.Object, latest.Metadata == current.Metadata, latest.Size > current.Size",
 			latest:   inode.Generation{Object: 1, Metadata: 1, Size: 200},
 			current:  inode.Generation{Object: 1, Metadata: 1, Size: 100},
-			expected: 0,
+			expected: 2,
 		},
 		{
 			name:     "latest.Object == current.Object, latest.Metadata == current.Metadata, latest.Size < current.Size",
