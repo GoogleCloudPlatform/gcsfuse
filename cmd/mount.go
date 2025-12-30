@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -43,6 +44,8 @@ type AsyncPipeWriter struct {
 	pipeWriter io.WriteCloser
 	ch         chan []byte
 	done       chan struct{}
+	mu         sync.Mutex
+	closed     bool
 }
 
 func NewAsyncPipeWriter(pipeWriter io.WriteCloser, bufferSize int) *AsyncPipeWriter {
@@ -56,6 +59,13 @@ func NewAsyncPipeWriter(pipeWriter io.WriteCloser, bufferSize int) *AsyncPipeWri
 }
 
 func (w *AsyncPipeWriter) Write(p []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		// Ignore writes after close to avoid panic
+		return len(p), nil
+	}
+
 	// Make a copy of the data because p might be reused by the caller
 	data := make([]byte, len(p))
 	copy(data, p)
@@ -82,20 +92,32 @@ func (w *AsyncPipeWriter) run() {
 }
 
 func (w *AsyncPipeWriter) Close() error {
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return nil
+	}
+	w.closed = true
 	close(w.ch)
+	w.mu.Unlock()
+
 	<-w.done
 	return nil
 }
 
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
+// It also returns a cleanup function that should be called when the mount process is done.
 func mountWithStorageHandle(
 	ctx context.Context,
 	bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
-	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, cleanupFunc func(), err error) {
+	// Initialize default cleanup function
+	cleanupFunc = func() {}
+
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -163,11 +185,15 @@ func mountWithStorageHandle(
 							logger.Infof("Started handle visualizer (PID %d)", cmd.Process.Pid)
 							logger.AddWriterAndRefresh(asyncWriter, fsName(bucketName))
 
-							defer func() {
+							// Set cleanup function to be called later
+							cleanupFunc = func() {
 								asyncWriter.Close()
-								cmd.Process.Kill()
+								// Kill process if it's still running
+								if cmd.Process != nil {
+									cmd.Process.Kill()
+								}
 								os.Remove(scriptPath)
-							}()
+							}
 						}
 					}
 				}

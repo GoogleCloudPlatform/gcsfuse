@@ -223,13 +223,6 @@ params:
     default: true
     hide-flag: true
 
-  - config-path: "enable-type-cache-deprecation"
-    flag-name: "enable-type-cache-deprecation"
-    type: "bool"
-    usage: "Enables support to deprecate type cache."
-    default: false
-    hide-flag: true
-
   - config-path: "enable-unsupported-path-support"
     flag-name: "enable-unsupported-path-support"
     type: "bool"

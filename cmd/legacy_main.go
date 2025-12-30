@@ -179,7 +179,10 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, cleanupFunc func(), err error) {
+	// Initialize default cleanup function
+	cleanupFunc = func() {}
+
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -207,7 +210,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 
 	// Mount the file system.
 	logger.Infof("Creating a mount at %q\n", mountPoint)
-	mfs, err = mountWithStorageHandle(
+	mfs, cleanupFunc, err = mountWithStorageHandle(
 		context.Background(),
 		bucketName,
 		mountPoint,
@@ -567,9 +570,10 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
+	var cleanupFunc func()
 	{
 		startTime := time.Now()
-		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
+		mfs, cleanupFunc, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply
@@ -601,6 +605,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 
 		if err != nil {
 			markMountFailure(err)
+			cleanupFunc() // Cleanup if mount failed
 			return err
 		}
 		if !isDynamicMount(bucketName) {
@@ -608,6 +613,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			case cfg.ExperimentalMetadataPrefetchOnMountSynchronous:
 				if err = callListRecursive(mountPoint); err != nil {
 					markMountFailure(err)
+					cleanupFunc()
 					return err
 				}
 			case cfg.ExperimentalMetadataPrefetchOnMountAsynchronous:
@@ -640,6 +646,9 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	if err = mfs.Join(ctx); err != nil {
 		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
 	}
+
+	// Invoke cleanup function after unmount
+	cleanupFunc()
 
 	if shutdownFn != nil {
 		if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
