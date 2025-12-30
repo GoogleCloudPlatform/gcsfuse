@@ -105,8 +105,9 @@ class LiveVisualizer:
         self.parser = parser
         self.output_file = output_file
         self.fig, self.ax = plt.subplots(figsize=(12, 6))
-        self.scatters = {} # handle -> PathCollection
         self.start_time = None
+        # Handle colors
+        self.colors = plt.cm.get_cmap('tab10')
 
     def update(self, frame):
         reads, handle_info = self.parser.get_data()
@@ -123,25 +124,35 @@ class LiveVisualizer:
                  return
 
         self.ax.clear()
-        self.ax.set_xlabel("Time (s) from first read")
-        self.ax.set_ylabel("Offset (bytes)")
-        self.ax.set_title("File Read Patterns (Live)")
+        self.ax.set_xlabel("File Offset (bytes)")
+        self.ax.set_ylabel("Time (s) from first read")
+        self.ax.set_title("File Read Patterns (Ranges)")
         self.ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
         sorted_handles = sorted(reads.keys(), key=lambda h: int(h))
 
-        for handle in sorted_handles:
+        for i, handle in enumerate(sorted_handles):
             events = reads[handle]
             # No need to sort if appended in order, but safe to sort
             events.sort(key=lambda x: x[0])
 
             times = [e[0] - self.start_time for e in events]
             offsets = [e[1] for e in events]
+            sizes = [e[2] for e in events]
+            ends = [o + s for o, s in zip(offsets, sizes)]
 
             inode = handle_info.get(handle, {}).get('inode', '?')
             label = f"Handle {handle} (Inode {inode})"
 
-            self.ax.scatter(times, offsets, label=label, alpha=0.7, s=30, edgecolors='none')
+            # Use hlines to draw ranges: y=time, xmin=offset, xmax=offset+size
+            # We assign a color per handle
+            color = self.colors(i % 10)
+
+            # We can use hlines for all events at once
+            self.ax.hlines(y=times, xmin=offsets, xmax=ends, colors=[color]*len(times), label=label, linewidth=2)
+
+            # Optional: Add dots at start points to make it clearer where read starts
+            # self.ax.scatter(offsets, times, color=color, s=10)
 
         self.ax.legend()
 
