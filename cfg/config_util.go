@@ -65,6 +65,7 @@ func IsGKEEnvironment(mountPoint string) bool {
 // GetBucketType converts BucketType boolean flags to a BucketType enum.
 // The priority order is: Zonal > Hierarchical > Flat.
 // This is used to determine bucket-specific optimizations for kernel configs.
+// TODO (b/472597952): Make BucketType in bucket_handle.go as enum
 func GetBucketType(hierarchical, zonal bool) BucketType {
 	if zonal {
 		return BucketTypeZonal
