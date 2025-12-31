@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"maps"
 	"math"
 	"os"
 	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -247,15 +249,27 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
 
-		// Apply bucket-type-specific optimizations now that we know the bucket type
+		// Optimize flags for non-dynamic mounts based on the bucket type.
+		// WHY HERE: The bucket type is required for these optimizations, and this is the
+		// first point it becomes available.
+		// WHY NOT EARLIER: Although ideal to do this during cobra init in root.go,
+		// the bucket type isn't known then. A major refactor (involving creation and caching of
+		// bucketHandle to avoid duplicated network calls) would be needed to change this.
+		// IMPACT: Flags are used after this. Optimization/rationalization functions are called twice
+		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		if serverCfg.IsUserSet != nil {
 			bucketType := syncerBucket.BucketType()
 			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal)
-			logger.Tracef("Applying bucket-type optimizations for %s bucket", bucketTypeEnum)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.IsUserSet, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
-			logger.Tracef("Bucket based optimized flags: %+v", optimizedFlags)
+			if len(optimizedFlags) > 0 {
+				logger.Info("GCSFuse Config", "Full Config", fmt.Sprintf("Optimizing flags for %s bucket: ", bucketTypeEnum), optimizedFlags)
+				optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
+				if err := cfg.Rationalize(serverCfg.IsUserSet, serverCfg.NewConfig, optimizedFlagNames); err != nil {
+					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
+				}
+			}
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
 		}
