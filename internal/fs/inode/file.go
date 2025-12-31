@@ -565,12 +565,31 @@ func (f *FileInode) Attributes(
 		// If the object has been clobbered, we reflect that as the inode being
 		// unlinked.
 		var clobbered bool
-		_, clobbered, err = f.clobbered(ctx, false, false)
+		var o *gcs.Object
+		o, clobbered, err = f.clobbered(ctx, false, false)
 		if err != nil {
 			err = fmt.Errorf("clobbered: %w", err)
 			return
 		}
 		if clobbered {
+			// If clobbered check is true but the minObject returned is not nil, it means the clobber
+			// was due to update in object size remotely (appends case). In this scenario, we will update
+			// the inode attributes to reflect latest size.
+			if o != nil {
+				minObj := storageutil.ConvertObjToMinObject(o)
+				f.src = *minObj
+				f.updateMRDWrapper()
+
+				f.attrs.Size = f.src.Size
+				f.attrs.Mtime = f.src.Updated
+
+				attrs.Size = f.src.Size
+				attrs.Mtime = f.src.Updated
+
+				attrs.Nlink = 1
+				return
+
+			}
 			attrs.Nlink = 0
 			return
 		}
