@@ -125,7 +125,8 @@ func (t *BaseDirTest) resetInode() {
 			Mode: dirMode,
 		},
 		t.bm,
-		metrics.NewNoopMetrics())
+		metrics.NewNoopMetrics(),
+		false)
 
 	t.in.Lock()
 }

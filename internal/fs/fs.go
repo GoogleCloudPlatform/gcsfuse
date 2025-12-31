@@ -331,6 +331,7 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 		},
 		fs.bucketManager,
 		fs.metricHandle,
+		fs.newConfig.EnableTypeCacheDeprecation,
 	)
 }
 

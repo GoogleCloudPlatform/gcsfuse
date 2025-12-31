@@ -184,6 +184,8 @@ type DirInode interface {
 	IsUnlinked() bool
 
 	Unlink()
+
+	IsTypeCacheDeprecated() bool
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -290,6 +292,14 @@ func NewDirInode(
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
+	var cache metadata.TypeCache
+	if !isEnableTypeCacheDeprecation {
+		cache = metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL)
+	} else {
+		// Disable Type cache.
+		cache = metadata.NewTypeCache(0, 0)
+	}
+
 	typed := &dirInode{
 		bucket:                          bucket,
 		mtimeClock:                      mtimeClock,
@@ -300,9 +310,10 @@ func NewDirInode(
 		enableNonexistentTypeCache:      enableNonexistentTypeCache,
 		name:                            name,
 		attrs:                           attrs,
-		cache:                           metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL, isEnableTypeCacheDeprecation),
+		cache:                           cache,
 		isHNSEnabled:                    isHNSEnabled,
 		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
+		isEnableTypeCacheDeprecation:    isEnableTypeCacheDeprecation,
 		unlinked:                        false,
 	}
 
@@ -581,7 +592,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return
 	}
 	var cachedType metadata.Type
-	if d.isEnableTypeCacheDeprecation {
+	logger.Info("Deprecation: ", d.IsTypeCacheDeprecated())
+	if d.IsTypeCacheDeprecated() {
 		// TODO: Add deprecation logic.
 		cachedType = metadata.UnknownType
 	} else {
@@ -629,10 +641,12 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		result = fileResult
 	}
 
-	if result != nil {
-		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+	if !d.IsTypeCacheDeprecated() {
+		if result != nil {
+			d.cache.Insert(d.cacheClock.Now(), name, result.Type())
+		} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
+			d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+		}
 	}
 
 	return result, nil
@@ -1239,4 +1253,8 @@ func (d *dirInode) isBucketHierarchical() bool {
 		return true
 	}
 	return false
+}
+
+func (d *dirInode) IsTypeCacheDeprecated() bool {
+	return d.isEnableTypeCacheDeprecation
 }
