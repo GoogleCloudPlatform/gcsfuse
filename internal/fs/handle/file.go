@@ -56,6 +56,13 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	readManager gcsx.ReadManager
 
+	// A mrdSimpleReader configured to some (potentially previous) generation of
+	// the object backing the inode, or nil.
+	//
+	// INVARIANT: If mrdSimpleReader != nil, mrdSimpleReader.CheckInvariants() doesn't panic.
+	//
+	// GUARDED_BY(mu)
+	mrdSimpleReader *gcsx.MrdSimpleReader
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
 	fileCacheHandler *file.CacheHandler
@@ -95,6 +102,11 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		handleID:               handleID,
 	}
 
+	if inode != nil && inode.Bucket().BucketType().Zonal {
+		fh.mrdSimpleReader = gcsx.NewMrdSimpleReader(inode.GetMRDInstance())
+		// fh.mrdSimpleReader.CheckInvariants()
+	}
+
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
@@ -116,6 +128,9 @@ func (fh *FileHandle) Destroy() {
 	}
 	if fh.readManager != nil {
 		fh.readManager.Destroy()
+	}
+	if fh.mrdSimpleReader != nil {
+		fh.mrdSimpleReader.Destroy()
 	}
 }
 
@@ -244,6 +259,37 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	}
 
 	return readResponse, nil
+}
+
+// ReadWithMrdSimpleReader reads data at the given offset using the mrd simple reader.
+//
+// LOCKS_REQUIRED(fh.inode.mu)
+// UNLOCK_FUNCTION(fh.inode.mu)
+func (fh *FileHandle) ReadWithMrdSimpleReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
+	// and fh.inode.SourceGenerationIsAuthoritative() will return false
+	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
+		fh.inode.Unlock()
+		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
+	}
+
+	if !fh.inode.SourceGenerationIsAuthoritative() {
+		// Read from inode if source generation is not authoratative
+		defer fh.inode.Unlock()
+		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
+		return gcsx.ReadResponse{Size: n}, err
+	}
+
+	fh.lockHandleAndRelockInode(true)
+
+	if fh.mrdSimpleReader == nil {
+		fh.unlockHandleAndInode(true)
+		return gcsx.ReadResponse{}, errors.New("mrdSimpleReader is not initialized")
+	}
+
+	fh.inode.Unlock()
+	defer fh.mu.RUnlock()
+	return fh.mrdSimpleReader.ReadAt(ctx, req)
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be

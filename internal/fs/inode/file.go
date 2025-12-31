@@ -124,6 +124,8 @@ type FileInode struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	mrdInstance gcsx.MrdInstance
 }
 
 var _ Inode = &FileInode{}
@@ -167,6 +169,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
+		mrdInstance:             gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg.Mrd),
 	}
 	var err error
 	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
@@ -384,6 +387,10 @@ func (f *FileInode) Source() *gcs.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
+}
+
+func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
+	return &f.mrdInstance
 }
 
 // If true, it is safe to serve reads directly from the object given by

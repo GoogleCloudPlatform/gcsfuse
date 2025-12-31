@@ -24,19 +24,21 @@ type MrdInstance struct {
 	mrdConfig cfg.MrdConfig
 }
 
-func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID) MrdInstance {
+func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, cfg cfg.MrdConfig) MrdInstance {
 	return MrdInstance{
-		object:   obj,
-		bucket:   bucket,
-		mrdCache: cache,
-		inodeId:  inodeId,
+		object:    obj,
+		bucket:    bucket,
+		mrdCache:  cache,
+		inodeId:   inodeId,
+		mrdConfig: cfg,
 	}
 }
 
-func (mi *MrdInstance) GetMRD() gcs.MultiRangeDownloader {
-	// Take locks
+func (mi *MrdInstance) GetMRDEntry() *MRDEntry {
+	mi.mu.RLock()
+	defer mi.mu.RUnlock()
 	if mi.mrdPool != nil {
-		return mi.mrdPool.Next().mrd
+		return mi.mrdPool.Next()
 	}
 	return nil
 }
@@ -52,6 +54,14 @@ func (mi *MrdInstance) EnsureMrdInstance() {
 	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object, bucket: mi.bucket, Handle: handle}, handle)
 	if err != nil {
 		logger.Errorf("MrdInstance::EnsureMrdInstance Error in creating MRDPool")
+	}
+}
+
+func (mi *MrdInstance) RecreateMRDEntry(entry *MRDEntry) {
+	mi.mu.RLock()
+	defer mi.mu.RUnlock()
+	if mi.mrdPool != nil {
+		mi.mrdPool.RecreateMRD(entry, nil)
 	}
 }
 

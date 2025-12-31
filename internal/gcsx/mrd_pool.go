@@ -148,13 +148,15 @@ func (p *MRDPool) RecreateMRD(entry *MRDEntry, fallbackHandle []byte) error {
 			if &p.entries[i] == entry {
 				continue
 			}
-			p.entries[i].mu.RLock()
-			if p.entries[i].mrd != nil {
-				handle = p.entries[i].mrd.GetHandle()
+			// Use TryRLock to avoid deadlock if multiple entries are being recreated simultaneously.
+			if p.entries[i].mu.TryRLock() {
+				if p.entries[i].mrd != nil {
+					handle = p.entries[i].mrd.GetHandle()
+					p.entries[i].mu.RUnlock()
+					break
+				}
 				p.entries[i].mu.RUnlock()
-				break
 			}
-			p.entries[i].mu.RUnlock()
 		}
 	}
 
