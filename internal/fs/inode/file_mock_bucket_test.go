@@ -160,14 +160,11 @@ func (t *FileMockBucketTest) TestSync_RemoteAppendClobber() {
 	// Expect CreateObject from createLockedInode
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
 		Return(&gcs.Object{Name: fileName, Generation: 1, MetaGeneration: 1}, nil)
-
 	t.createLockedInode(fileName, emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
-
 	// Dirty the file.
 	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
 	require.NoError(t.T(), err)
-
 	// Mock StatObject to return same generation but larger size (remote append).
 	// Current size is 0 (emptyGCSFile).
 	// We simulate remote append by returning size 100.
@@ -191,14 +188,11 @@ func (t *FileMockBucketTest) TestSync_GenerationMismatchClobber() {
 	// Expect CreateObject from createLockedInode
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
 		Return(&gcs.Object{Name: fileName, Generation: 1, MetaGeneration: 1}, nil)
-
 	t.createLockedInode(fileName, emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
-
 	// Dirty the file.
 	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
 	require.NoError(t.T(), err)
-
 	// Mock StatObject to return different generation.
 	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
 		Return(&gcs.MinObject{
