@@ -11,9 +11,8 @@ updates:
   - dependency-type: "direct"
   schedule:
     interval: weekly
-  open-pull-requests-limit: 10
   groups:
-    # Group all Go updates together
+    # Group all Go updates together in a single PR.
     go-dependencies:
       patterns:
         - "*"
@@ -21,7 +20,6 @@ updates:
   directory: "/"
   schedule:
     interval: weekly
-  open-pull-requests-limit: 10
   groups:
     python-dependencies:
       patterns:
