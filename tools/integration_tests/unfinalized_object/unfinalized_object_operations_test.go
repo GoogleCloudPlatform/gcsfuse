@@ -60,6 +60,23 @@ func (s *unfinalizedObjectOperations) SetupSuite() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Helper methods
+////////////////////////////////////////////////////////////////////////
+
+func (t *unfinalizedObjectOperations) setupUnfinalizedObjectAndGetInitialInode(initialContentSize int) (filePath string, initialInodeID uint64) {
+	filePath = path.Join(t.testDirPath, t.fileName)
+	initialContent := setup.GenerateRandomString(initialContentSize)
+
+	// 1. Create an unfinalized object.
+	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), initialContent)
+
+	// 2. Stat the file to get initial Inode ID.
+	initialStat := operations.StatFileOrFatal(filePath, t.T())
+	initialInodeID = initialStat.Ino
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
@@ -137,6 +154,49 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreated
 	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, "New"+t.fileName))
 
 	require.NoError(t.T(), err)
+}
+
+func (t *unfinalizedObjectOperations) TestInodeIDPreservedOnRemoteAppend() {
+	// Setup and stat the file.
+	filePath, initialInodeID := t.setupUnfinalizedObjectAndGetInitialInode(initialSize)
+	appendContent := setup.GenerateRandomString(appendSize)
+	// Remotely append content to the object. This will increase the size of the unfinalized
+	// object without changing the generation.
+	obj, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
+	require.NoError(t.T(), err)
+	writer, err := client.AppendableWriter(t.ctx, t.storageClient, path.Join(testDirName, t.fileName), obj.Generation)
+	require.NoError(t.T(), err)
+	_, err = writer.Write([]byte(appendContent))
+	require.NoError(t.T(), err)
+	err = writer.Close()
+	require.NoError(t.T(), err)
+	// Validate that the content was appended to the unfinalized object without changing the object generation.
+	finalObject, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), obj.Generation, finalObject.Generation)
+
+	// Stat the file again.
+	// Since we are using StatCacheTTL=0, this should trigger LookupInode.
+	newStat := operations.StatFileOrFatal(filePath, t.T())
+
+	// Assert Inode ID is preserved and Size is updated.
+	assert.Equal(t.T(), initialInodeID, newStat.Ino, "Inode ID should be preserved")
+	assert.Equal(t.T(), int64(initialSize+appendSize), newStat.Size, "Size should be updated")
+}
+
+func (t *unfinalizedObjectOperations) TestInodeIDChangedOnRemoteOverwrite() {
+	// Setup and stat the file.
+	filePath, initialInodeID := t.setupUnfinalizedObjectAndGetInitialInode(initialSize)
+	newContent := setup.GenerateRandomString(initialSize)
+	// Remotely overwrite the object (this changes generation).
+	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), newContent)
+
+	// Stat the file again.
+	newStat := operations.StatFileOrFatal(filePath, t.T())
+
+	// Assert Inode ID is DIFFERENT.
+	assert.NotEqual(t.T(), initialInodeID, newStat.Ino, "Inode ID should change when generation changes")
+	assert.Equal(t.T(), int64(initialSize), newStat.Size)
 }
 
 ////////////////////////////////////////////////////////////////////////
