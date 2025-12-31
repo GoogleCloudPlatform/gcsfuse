@@ -58,7 +58,7 @@ ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
 RUN git clone ${GCSFUSE_REPO}
 
 ARG GO_VERSION="$(cat gcsfuse/.go-version)"
-RUN wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-${ARCHITECTURE}.tar.gz -q
+RUN wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q
 RUN rm -rf /usr/local/go
 RUN tar -C /usr/local -xzf go_tar.tar.gz
 RUN PATH=$PATH:/usr/local/go/bin
