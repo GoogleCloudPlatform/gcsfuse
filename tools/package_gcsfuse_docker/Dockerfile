@@ -52,6 +52,12 @@ RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; the
     exit 1; \
     fi
 
+ARG GCSFUSE_VERSION
+ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
+ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+RUN git clone ${GCSFUSE_REPO}
+
+ARG GO_VERSION="$(cat gcsfuse/.go-version)"
 RUN wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-${ARCHITECTURE}.tar.gz -q
 RUN rm -rf /usr/local/go
 RUN tar -C /usr/local -xzf go_tar.tar.gz
@@ -62,10 +68,6 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GO111MODULE=auto
 
-ARG GCSFUSE_VERSION
-ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git clone ${GCSFUSE_REPO} 
 ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
 RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}" && git checkout ${BRANCH_NAME}

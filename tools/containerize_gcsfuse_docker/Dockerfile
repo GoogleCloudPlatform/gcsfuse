@@ -29,12 +29,12 @@
 # (b) using ubuntu/debain image
 #   E.g.
 #   > docker run -it --privileged -v $HOME/key.json:/key.json -v /mnt/gcs:/gcs:rw,rshared -e BUCKET_NAME="my-bucket-name" gcsfuse-ubuntu:v0.41.7
-
+ARG GO_VERSION
 ARG OS_VERSION
 ARG OS_NAME
 
 # Image with gcsfuse installed and its package (.deb)
-FROM golang:1.24.11 as gcsfuse-package
+FROM golang:${GO_VERSION} as gcsfuse-package
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document bundler
 

@@ -77,4 +77,5 @@ build-csi:
 	@echo "Starting build for version: $(STAGINGVERSION)"
 	@echo "--------------------------------------"
 	# Actual build commands would go here...
-	gcloud builds submit --config csi_driver_build.yml --project=$(PROJECT) --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)
+	GO_VERSION=$(shell cat .go-version)
+	gcloud builds submit --config csi_driver_build.yml --substitutions=_GOLANG_VERSION=${GO_VERSION} --project=$(PROJECT) --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)

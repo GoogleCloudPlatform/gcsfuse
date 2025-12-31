@@ -23,9 +23,9 @@ sudo apt-get update
 echo "Installing git"
 sudo apt-get install git
 # Install Golang.
-#wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-amd64.tar.gz -q
+version=$(cat "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/.go-version")
 architecture=$(dpkg --print-architecture)
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-${architecture}.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go"${version}".linux-"${architecture}".tar.gz -q
 sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
