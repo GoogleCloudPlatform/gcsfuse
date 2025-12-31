@@ -159,9 +159,6 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
 			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
-			for k := range optimizedFlags {
-				optimizedFlagNames = append(optimizedFlagNames, k)
-			}
 			if err := cfg.Rationalize(v, mountInfo.config, optimizedFlagNames); err != nil {
 				return fmt.Errorf("error rationalizing config: %w", err)
 			}
