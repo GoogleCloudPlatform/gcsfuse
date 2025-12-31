@@ -45,6 +45,9 @@ type mountInfo struct {
 	// optimizedFlags contains the flags that were optimized
 	// based on either machine-type or profile.
 	optimizedFlags map[string]any
+	// isUserSet is used to check if a flag was explicitly set by the user.
+	// This is needed for bucket-type-based optimizations.
+	isUserSet cfg.IsValueSet
 }
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
@@ -156,8 +159,9 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return fmt.Errorf("invalid config: %w", err)
 			}
 
-			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
-			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
+			isUserSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
+			mountInfo.isUserSet = isUserSet
+			optimizedFlags := mountInfo.config.ApplyOptimizations(isUserSet, nil)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			for k := range optimizedFlags {
 				optimizedFlagNames = append(optimizedFlagNames, k)

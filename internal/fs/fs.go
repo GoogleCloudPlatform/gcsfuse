@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"maps"
 	"math"
 	"os"
 	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -134,6 +136,11 @@ type ServerConfig struct {
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
 
+	// IsUserSet tracks which flags were explicitly set by the user (vs defaults)
+	// This is used for bucket-type-based optimizations once bucket-type is known
+	// during the RootDirInode creation.
+	IsUserSet cfg.IsValueSet
+
 	MetricHandle metrics.MetricHandle
 
 	// Notifier allows the file system to send invalidation messages to the FUSE
@@ -241,6 +248,32 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
+
+		// Optimize flags for non-dynamic mounts based on the bucket type.
+		// WHY HERE: The bucket type is required for these optimizations, and this is the
+		// first point it becomes available.
+		// WHY NOT EARLIER: Although ideal to do this during cobra init in root.go,
+		// the bucket type isn't known then. A major refactor (involving creation and caching of
+		// bucketHandle to avoid duplicated network calls) would be needed to change this.
+		// IMPACT: Flags are used after this. Optimization/rationalization functions are called twice
+		// for non-dynamic mounts, but they are idempotent, so it's safe.
+		if serverCfg.IsUserSet != nil {
+			bucketType := syncerBucket.BucketType()
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal)
+			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.IsUserSet, &cfg.OptimizationInput{
+				BucketType: bucketTypeEnum,
+			})
+			if len(optimizedFlags) > 0 {
+				logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
+				optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
+				if err := cfg.Rationalize(serverCfg.IsUserSet, serverCfg.NewConfig, optimizedFlagNames); err != nil {
+					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
+				}
+			}
+		} else {
+			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
+		}
+
 		root = makeRootForBucket(fs, syncerBucket)
 	}
 	root.Lock()

@@ -32,6 +32,7 @@ func TestApplyOptimizations(t *testing.T) {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
@@ -56,6 +57,12 @@ func TestApplyOptimizations(t *testing.T) {
 					},
 					{{- end }}
 				},
+				{{- if .Optimizations.BucketTypeOptimization }}
+				{{- $bto := index .Optimizations.BucketTypeOptimization 0 }}
+				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				{{- else }}
+				input:           nil,
+				{{- end }}
 				expectOptimized: false,
 				expectedValue:
 				{{- if eq $flag.GoType "int64" }} int64(98765),
@@ -72,6 +79,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   {{$flag.DefaultValue}},
 			},
@@ -80,6 +88,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_{{.Name}}",
 				config:          Config{Profile: "{{.Name}}"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   {{.Value}},
 			},
@@ -94,8 +103,22 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "{{$machineType}}"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   {{$mbo.Value}},
+			},
+		{{- end }}
+		{{- range .Optimizations.BucketTypeOptimization }}
+			{{- $bto := . }}
+			{
+				name:   "bucket_type_{{$bto.BucketType}}",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				expectOptimized: true,
+				expectedValue:   {{$bto.Value}},
 			},
 		{{- end }}
 		{{- if and .Optimizations.Profiles .Optimizations.MachineBasedOptimization }}
@@ -109,8 +132,39 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "{{$machineType}}"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   {{$profile.Value}},
+			},
+		{{- end }}
+		{{- if and .Optimizations.Profiles .Optimizations.BucketTypeOptimization }}
+			{{- $profile := index .Optimizations.Profiles 0 -}}
+			{{- $bto := index .Optimizations.BucketTypeOptimization 0 -}}
+			{
+				name:   "profile_overrides_bucket_type",
+				config: Config{Profile: "{{$profile.Name}}"},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				expectOptimized: true,
+				expectedValue:   {{$profile.Value}},
+			},
+		{{- end }}
+		{{- if and .Optimizations.MachineBasedOptimization .Optimizations.BucketTypeOptimization }}
+			{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
+			{{- $bto := index .Optimizations.BucketTypeOptimization 0 -}}
+			{{- $machineType := index $.MachineTypeGroups $mbo.Group 0 }}
+			{
+				name:   "machine_type_overrides_bucket_type",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "{{$machineType}}"},
+				},
+				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				expectOptimized: true,
+				expectedValue:   {{$mbo.Value}},
 			},
 		{{- end }}
 		{{- if .Optimizations.MachineBasedOptimization }}
@@ -123,6 +177,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "{{$machineType}}"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   {{$mbo.Value}},
 			},
@@ -141,6 +196,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "{{$machineType}}"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   {{$mbo.Value}},
 			},
@@ -158,8 +214,8 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
 				}
-
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "{{$flag.ConfigPath}}")
