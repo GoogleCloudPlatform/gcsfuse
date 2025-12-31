@@ -16,16 +16,19 @@ package inode
 
 import (
 	"context"
+	"errors"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -151,4 +154,58 @@ func (t *FileMockBucketTest) TestFlushSyncedFileForceFetchObjectFromGCS() {
 
 	require.NoError(t.T(), err)
 	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *FileMockBucketTest) TestSync_RemoteAppendClobber() {
+	// Expect CreateObject from createLockedInode
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Generation: 1, MetaGeneration: 1}, nil)
+	t.createLockedInode(fileName, emptyGCSFile)
+	assert.False(t.T(), t.in.IsLocal())
+	// Dirty the file.
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
+	require.NoError(t.T(), err)
+	// Mock StatObject to return same generation but larger size (remote append).
+	// Current size is 0 (emptyGCSFile).
+	// We simulate remote append by returning size 100.
+	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
+		Return(&gcs.MinObject{
+			Name:           fileName,
+			Generation:     t.in.SourceGeneration().Object,
+			MetaGeneration: t.in.SourceGeneration().Metadata,
+			Size:           100, // Larger size
+		}, &gcs.ExtendedObjectAttributes{}, nil)
+
+	_, err = t.in.Sync(t.ctx)
+
+	require.Error(t.T(), err)
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	require.True(t.T(), errors.As(err, &clobberedErr))
+	assert.Contains(t.T(), clobberedErr.Err.Error(), "file was clobbered due to increase in size at same generation(remote appends)")
+}
+
+func (t *FileMockBucketTest) TestSync_GenerationMismatchClobber() {
+	// Expect CreateObject from createLockedInode
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Generation: 1, MetaGeneration: 1}, nil)
+	t.createLockedInode(fileName, emptyGCSFile)
+	assert.False(t.T(), t.in.IsLocal())
+	// Dirty the file.
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
+	require.NoError(t.T(), err)
+	// Mock StatObject to return different generation.
+	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
+		Return(&gcs.MinObject{
+			Name:           fileName,
+			Generation:     t.in.SourceGeneration().Object + 1, // Different generation
+			MetaGeneration: t.in.SourceGeneration().Metadata,
+			Size:           0,
+		}, &gcs.ExtendedObjectAttributes{}, nil)
+
+	_, err = t.in.Sync(t.ctx)
+
+	require.Error(t.T(), err)
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	require.True(t.T(), errors.As(err, &clobberedErr))
+	assert.Contains(t.T(), clobberedErr.Err.Error(), "file was clobbered due to generation/metageneration mismatch")
 }
