@@ -333,20 +333,17 @@ func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReque
 }
 
 func getProjectionValue(req gcs.Projection) storage.Projection {
-	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
-	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
-	switch int(req) {
-	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
-	case 0:
-		convertedProjection = storage.Projection(1)
-	// Projection Value 1 in jacobsa/gcloud maps to Projection Value 2 in Go Client API, that is for "noAcl".
-	case 1:
-		convertedProjection = storage.Projection(2)
-	// Default Projection value in jacobsa/gcloud library is 0 that maps to 1 in Go Client API interface, and that is for "full".
+	// Map gcs.Projection enum to storage.Projection enum.
+	// The two libraries use different enum values for the same concepts.
+	switch req {
+	case gcs.Full:
+		return storage.ProjectionFull
+	case gcs.NoAcl:
+		return storage.ProjectionNoACL
 	default:
-		convertedProjection = storage.Projection(1)
+		// Default to Full projection for any unknown values
+		return storage.ProjectionFull
 	}
-	return convertedProjection
 }
 
 func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
