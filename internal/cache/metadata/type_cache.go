@@ -60,8 +60,6 @@ type TypeCache interface {
 	// If entry doesn't exist in the cache, then
 	// UnknownType is returned.
 	Get(now time.Time, name string) Type
-
-	IsDeprecated() bool
 }
 
 type cacheEntry struct {
@@ -129,9 +127,6 @@ type typeCache struct {
 	// INVARIANT: entries.CheckInvariants() does not panic
 	// INVARIANT: Each value is of type cacheEntry
 	entries *lru.Cache
-
-	// Disable usage of type cache.
-	enableTypeCacheDeprecation bool
 }
 
 // NewTypeCache creates an LRU-policy-based cache with given parameters.
@@ -139,26 +134,21 @@ type typeCache struct {
 // When insertion of next entry would cause size of cache > maxSizeMB,
 // older entries are evicted according to the LRU-policy.
 // If either of TTL or maxSizeMB is zero, nothing is ever cached.
-func NewTypeCache(maxSizeMB int64, ttl time.Duration, enableTypeCacheDeprecation bool) TypeCache {
+func NewTypeCache(maxSizeMB int64, ttl time.Duration) TypeCache {
 	if ttl > 0 && maxSizeMB != 0 {
 		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when maxSizeMB = -1
 		if maxSizeMB > 0 {
 			lruSizeInBytesToUse = util.MiBsToBytes(uint64(maxSizeMB))
 		}
 		return &typeCache{
-			ttl:                        ttl,
-			entries:                    lru.NewCache(lruSizeInBytesToUse),
-			enableTypeCacheDeprecation: enableTypeCacheDeprecation,
+			ttl:     ttl,
+			entries: lru.NewCache(lruSizeInBytesToUse),
 		}
 	}
 	return &typeCache{}
 }
 
 func (tc *typeCache) Insert(now time.Time, name string, it Type) {
-	if tc.enableTypeCacheDeprecation {
-		return
-	}
-
 	if tc.entries != nil { // only if caching is enabled
 		_, err := tc.entries.Insert(name, cacheEntry{
 			expiry:    now.Add(tc.ttl),
@@ -172,9 +162,6 @@ func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 }
 
 func (tc *typeCache) Erase(name string) {
-	if tc.enableTypeCacheDeprecation {
-		return
-	}
 	if tc.entries != nil { // only if caching is enabled
 		tc.entries.Erase(name)
 	}
@@ -197,8 +184,4 @@ func (tc *typeCache) Get(now time.Time, name string) Type {
 		return UnknownType
 	}
 	return entry.inodeType
-}
-
-func (tc *typeCache) IsDeprecated() bool {
-	return tc.enableTypeCacheDeprecation
 }
