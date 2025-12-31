@@ -590,6 +590,8 @@ func (f *FileInode) Attributes(
 				return
 
 			}
+			// If the minObj is nil, it means that file has been clobbered genuinely due to generation
+			// or metageneration changes.
 			attrs.Nlink = 0
 			return
 		}
