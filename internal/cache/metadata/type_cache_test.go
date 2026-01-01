@@ -91,7 +91,7 @@ func (t *ZeroTtlTypeCacheTest) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func createNewTypeCache(t *testing.T, maxSizeMB int64, ttl time.Duration) *typeCache {
-	tc := NewTypeCache(maxSizeMB, ttl, false)
+	tc := NewTypeCache(maxSizeMB, ttl)
 
 	assert.NotNil(t, tc)
 	assert.NotNil(t, tc.(*typeCache))
