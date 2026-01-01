@@ -179,7 +179,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 	}
 
-	// Enable async reads if enbale-kernel-reader flag is set to true.
+	// Enable async reads if enable-kernel-reader flag is set to true.
 	if newConfig.Read.EnableKernelReader {
 		mountCfg.EnableAsyncReads = true
 	}

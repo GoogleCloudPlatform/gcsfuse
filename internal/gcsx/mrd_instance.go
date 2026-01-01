@@ -96,6 +96,11 @@ func (mi *MrdInstance) Destroy() {
 	// delete the instance
 	mi.mu.Lock()
 	defer mi.mu.Unlock()
+	mi.destroyLocked()
+}
+
+// destroyLocked closes the MRD pool while holding the lock.
+func (mi *MrdInstance) destroyLocked() {
 	if mi.mrdPool != nil {
 		mi.mrdPool.Close()
 		mi.mrdPool = nil
@@ -106,12 +111,14 @@ func (mi *MrdInstance) Destroy() {
 // instance is actively used (refCount > 0), it is removed from the inactive
 // MRD cache to prevent eviction.
 func (mi *MrdInstance) IncrementRefCount() {
-	// Add to cache
 	mi.mu.Lock()
-	defer mi.mu.Unlock()
 	mi.refCount++
+	mi.mu.Unlock()
 
+	mi.mu.RLock()
+	defer mi.mu.RUnlock()
 	if mi.refCount == 1 && mi.mrdCache != nil {
+		// Remove from cache
 		deletedEntry := mi.mrdCache.Erase(strconv.FormatUint(uint64(mi.inodeId), 10))
 		if deletedEntry != nil {
 			logger.Tracef("MrdInstance (%s) erased from cache", mi.object.Name)
@@ -122,9 +129,8 @@ func (mi *MrdInstance) IncrementRefCount() {
 // DecRefCount decreases the reference count. When the count drops to zero, the
 // instance is considered inactive and is added to the LRU cache for potential
 // reuse. If the cache is full, this may trigger the eviction and closure of the
-// least recently used MRD pool.
+// least recently used MRD instances.
 func (mi *MrdInstance) DecRefCount() {
-	// Delete from cache
 	mi.mu.Lock()
 	defer mi.mu.Unlock()
 	mi.refCount--
@@ -132,32 +138,46 @@ func (mi *MrdInstance) DecRefCount() {
 		logger.Errorf("MrdInstance::DecRefCount: Invalid refcount")
 		return
 	}
-	if mi.refCount > 0 || mi.mrdPool == nil {
+	if mi.refCount > 0 || mi.mrdCache == nil {
 		return
 	}
 
-	evictedValues, err := mi.mrdCache.Insert(strconv.FormatUint(uint64(mi.inodeId), 10), mi.mrdPool)
-	if err != nil {
-		logger.Errorf("failed to insert wrapper (%s) into cache: %v", mi.object.Name, err)
-		return
-	}
-	logger.Tracef("MrdInstance (%s) added wrapper to cache", mi.object.Name)
-
-	// Do not proceed if no eviction happened.
-	if evictedValues == nil {
-		return
-	}
-
-	// Evict outside all locks to avoid deadlock.
+	// Add to cache & evict outside all locks to avoid deadlock.
 	mi.mu.Unlock()
-	for _, pool := range evictedValues {
-		mrdPool, ok := pool.(*MRDPool)
+	evictedValues, err := mi.mrdCache.Insert(strconv.FormatUint(uint64(mi.inodeId), 10), mi)
+	if err != nil {
+		logger.Errorf("failed to insert MrdInstance for object (%s) into cache: %v", mi.object.Name, err)
+		// Reacquire the lock ensuring safe defer's Unlock.
+		mi.mu.Lock()
+		return
+	}
+	logger.Tracef("MrdInstance for object (%s) added to cache", mi.object.Name)
+
+	for _, instance := range evictedValues {
+		mrdInstance, ok := instance.(*MrdInstance)
 		if !ok {
-			logger.Errorf("invalid value type, expected *MRDPool, got %T", mrdPool)
+			logger.Errorf("invalid value type, expected MrdInstance, got %T", mrdInstance)
 		} else {
-			mrdPool.Close()
+			// Check if the instance was resurrected while we were unlocked.
+			mrdInstance.mu.Lock()
+			if mrdInstance.refCount > 0 {
+				mrdInstance.mu.Unlock()
+				continue
+			}
+			mrdInstance.destroyLocked()
+			mrdInstance.mu.Unlock()
 		}
 	}
 	// Reacquire the lock ensuring safe defer's Unlock.
 	mi.mu.Lock()
+}
+
+// Size returns the number of active MRDs.
+func (mi *MrdInstance) Size() uint64 {
+	mi.mu.RLock()
+	defer mi.mu.RUnlock()
+	if mi.mrdPool != nil {
+		return mi.mrdPool.Size()
+	}
+	return 1
 }

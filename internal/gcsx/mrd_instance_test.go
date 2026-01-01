@@ -145,7 +145,7 @@ func (t *MrdInstanceTest) TestIncrementRefCount() {
 	t.mrdInstance.EnsureMrdInstance()
 	// Manually insert into cache to simulate it being inactive
 	key := strconv.FormatUint(uint64(t.inodeID), 10)
-	_, err := t.cache.Insert(key, t.mrdInstance.mrdPool)
+	_, err := t.cache.Insert(key, t.mrdInstance)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key))
 
@@ -170,10 +170,10 @@ func (t *MrdInstanceTest) TestDecRefCount() {
 
 func (t *MrdInstanceTest) TestDecRefCount_Eviction() {
 	// Fill cache with other items
-	var mrdPool MRDPool
-	mrdPool.currentSize.Store(1)
-	t.cache.Insert("other1", &mrdPool)
-	t.cache.Insert("other2", &mrdPool)
+	localMrdInstance := &MrdInstance{mrdPool: &MRDPool{}}
+	localMrdInstance.mrdPool.currentSize.Store(1)
+	t.cache.Insert("other1", localMrdInstance)
+	t.cache.Insert("other2", localMrdInstance)
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	t.mrdInstance.EnsureMrdInstance()
