@@ -262,14 +262,14 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithMrdSimpleReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
-	// and fh.inode.SourceGenerationIsAuthoritative() will return false
+	// and fh.inode.SourceGenerationIsAuthoritative() will return false.
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
 		fh.inode.Unlock()
 		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
 	if !fh.inode.SourceGenerationIsAuthoritative() {
-		// Read from inode if source generation is not authoratative
+		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
 		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
 		return gcsx.ReadResponse{Size: n}, err

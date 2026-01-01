@@ -735,7 +735,7 @@ func (t *fileTest) Test_ReadWithMrdSimpleReader_NilReader() {
 	}
 	fh.inode.Lock()
 
-	// 2. Call ReadWithMRDSimpleReader.
+	// 2. Call ReadWithMrdSimpleReader.
 	_, err := fh.ReadWithMrdSimpleReader(t.ctx, req)
 
 	// 3. Assertions

@@ -56,9 +56,7 @@ func (mi *MrdInstance) GetMRDEntry() *MRDEntry {
 }
 
 // EnsureMrdInstance ensures that the MRD pool is initialized. If the pool
-// already exists, it is closed and a new one is created. This is useful for
-// scenarios where the underlying object's properties (like generation) change,
-// requiring a fresh set of downloaders.
+// already exists, this function is a no-op.
 func (mi *MrdInstance) EnsureMrdInstance() {
 	mi.mu.Lock()
 	defer mi.mu.Unlock()
@@ -155,7 +153,7 @@ func (mi *MrdInstance) DecRefCount() {
 	for _, pool := range evictedValues {
 		mrdPool, ok := pool.(*MRDPool)
 		if !ok {
-			logger.Errorf("invalid value type, expected MultiRangeDownloaderWrapper, got %T", mrdPool)
+			logger.Errorf("invalid value type, expected *MRDPool, got %T", mrdPool)
 		} else {
 			mrdPool.Close()
 		}
