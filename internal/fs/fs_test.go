@@ -118,6 +118,9 @@ func defaultFileCacheConfig() cfg.FileCacheConfig {
 		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
 		MaxSizeMb:                -1,
 		ParallelDownloadsPerFile: 16,
+		SizeScanEnable:           false,
+		SizeScanFiles:            false,
+		SizeScanFrequencySeconds: 10,
 	}
 }
 
