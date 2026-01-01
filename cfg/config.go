@@ -619,6 +619,8 @@ type ReadConfig struct {
 
 	EnableBufferedRead bool `yaml:"enable-buffered-read"`
 
+	EnableKernelReader bool `yaml:"enable-kernel-reader"`
+
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
 	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
@@ -847,6 +849,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-http-dns-cache", "", true, "Enables DNS cache for HTTP/1 connections")
 
 	if err := flagSet.MarkHidden("enable-http-dns-cache"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-kernel-reader", "", false, "Enables kernel reader.")
+
+	if err := flagSet.MarkHidden("enable-kernel-reader"); err != nil {
 		return err
 	}
 
@@ -1396,6 +1404,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.enable-http-dns-cache", flagSet.Lookup("enable-http-dns-cache")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.enable-kernel-reader", flagSet.Lookup("enable-kernel-reader")); err != nil {
 		return err
 	}
 

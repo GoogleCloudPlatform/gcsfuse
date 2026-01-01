@@ -56,12 +56,8 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	readManager gcsx.ReadManager
 
-	// A mrdSimpleReader configured to some (potentially previous) generation of
-	// the object backing the inode, or nil.
-	//
-	// INVARIANT: If mrdSimpleReader != nil, mrdSimpleReader.CheckInvariants() doesn't panic.
-	//
-	// GUARDED_BY(mu)
+	// A mrdSimpleReader is a new reader based on MRD and reads whatever is
+	// requested using MrdInstance.
 	mrdSimpleReader *gcsx.MrdSimpleReader
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
@@ -104,7 +100,6 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 
 	if inode != nil && inode.Bucket().BucketType().Zonal {
 		fh.mrdSimpleReader = gcsx.NewMrdSimpleReader(inode.GetMRDInstance())
-		// fh.mrdSimpleReader.CheckInvariants()
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)

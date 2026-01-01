@@ -1035,6 +1035,13 @@ params:
       Note: Enabling this flag can increase the memory usage significantly.
     default: false
 
+  - config-path: "read.enable-kernel-reader"
+    flag-name: "enable-kernel-reader"
+    type: "bool"
+    usage: "Enables kernel reader."
+    default: false
+    hide-flag: true
+
   - config-path: "read.global-max-blocks"
     flag-name: "read-global-max-blocks"
     type: "int"
