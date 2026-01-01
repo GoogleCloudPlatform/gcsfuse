@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -38,11 +39,17 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket               *storage.BucketHandle
+	buckets              []*storage.BucketHandle
+	rrIndex              uint64
 	bucketName           string
 	bucketType           *gcs.BucketType
 	controlClient        StorageControlClient
 	finalizeFileForRapid bool
+}
+
+func (bh *bucketHandle) bucket() *storage.BucketHandle {
+	index := atomic.AddUint64(&bh.rrIndex, 1)
+	return bh.buckets[index%uint64(len(bh.buckets))]
 }
 
 func (bh *bucketHandle) Name() string {
@@ -75,7 +82,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 		length = end - start
 	}
 
-	obj := bh.bucket.Object(req.Name)
+	obj := bh.bucket().Object(req.Name)
 
 	// Switching to the requested generation of object.
 	if req.Generation != 0 {
@@ -107,7 +114,7 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 		err = gcs.GetGCSError(err)
 	}()
 
-	obj := bh.bucket.Object(req.Name)
+	obj := bh.bucket().Object(req.Name)
 
 	// Switching to the requested generation of the object. By default, generation
 	// is 0 which signifies the latest generation. Note: GCS will delete the
@@ -136,7 +143,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
-	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
+	attrs, err = bh.bucket().Object(req.Name).Attrs(ctx)
 	if err != nil {
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
@@ -153,7 +160,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 }
 
 func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjectRequest) *storage.ObjectHandle {
-	obj := bh.bucket.Object(req.Name)
+	obj := bh.bucket().Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
@@ -308,8 +315,10 @@ func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReque
 		err = gcs.GetGCSError(err)
 	}()
 
-	srcObj := bh.bucket.Object(req.SrcName)
-	dstObj := bh.bucket.Object(req.DstName)
+	// Round robin to select the client, but use the same client for both src and dst to avoid any potential issues.
+	b := bh.bucket()
+	srcObj := b.Object(req.SrcName)
+	dstObj := b.Object(req.DstName)
 
 	// Switching to the requested generation of source object.
 	if req.SrcGeneration != 0 {
@@ -376,7 +385,7 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		return
 	}
 
-	itr := bh.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
+	itr := bh.bucket().Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
 	pi.Token = req.ContinuationToken
@@ -429,7 +438,7 @@ func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectR
 		err = gcs.GetGCSError(err)
 	}()
 
-	obj := bh.bucket.Object(req.Name)
+	obj := bh.bucket().Object(req.Name)
 
 	if req.Generation != 0 {
 		obj = obj.Generation(req.Generation)
@@ -483,7 +492,8 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 		err = gcs.GetGCSError(err)
 	}()
 
-	dstObj := bh.bucket.Object(req.DstName)
+	b := bh.bucket()
+	dstObj := b.Object(req.DstName)
 
 	dstObjConds := storage.Conditions{}
 	if req.DstMetaGenerationPrecondition != nil {
@@ -509,7 +519,7 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 	// Converting the req.Sources list to a list of storage.ObjectHandle as expected by the Go Storage Client.
 	var srcObjList []*storage.ObjectHandle
 	for _, src := range req.Sources {
-		currSrcObj := bh.bucket.Object(src.Name)
+		currSrcObj := b.Object(src.Name)
 		// Switching to requested Generation of the object.
 		// Zero src generation is the latest generation, we are skipping it because by default it will take the latest one
 		if src.Generation != 0 {
@@ -548,7 +558,7 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 		err = gcs.GetGCSError(err)
 	}()
 
-	obj := bh.bucket.Object(req.SrcName)
+	obj := bh.bucket().Object(req.SrcName)
 
 	// Switching to the requested generation of source object.
 	if req.SrcGeneration != 0 {
@@ -651,7 +661,7 @@ func (bh *bucketHandle) NewMultiRangeDownloader(
 		err = gcs.GetGCSError(err)
 	}()
 
-	obj := bh.bucket.Object(req.Name)
+	obj := bh.bucket().Object(req.Name)
 
 	// Switching to the requested generation of object.
 	if req.Generation != 0 {
