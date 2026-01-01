@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
@@ -646,6 +647,137 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 	assert.NotEqual(t.T(), oldReader, fh.reader)
 	assert.Equal(t.T(), len(content2), n)
 	assert.Equal(t.T(), content2, output)
+}
+
+func (t *fileTest) Test_ReadWithMrdSimpleReader_Success() {
+	// 1. Setup
+	expectedData := []byte("hello from mrd reader")
+	objectName := "test_obj_mrd_reader"
+	// Create a mock bucket that behaves like a zonal bucket.
+	mockBucket := new(storage.TestifyMockBucket)
+	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	// Mock CreateObject which is called by createFileInode.
+	mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
+	// Create File Inode.
+	mockSyncerBucket := gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", mockBucket)
+	parent := createDirInode(&mockSyncerBucket, &t.clock)
+	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
+	// Create File Handle.
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
+	require.NotNil(t.T(), fh.mrdSimpleReader)
+	// Mock the downloader that mrdSimpleReader will use.
+	fakeMRD := fake.NewFakeMultiRangeDownloader(in.Source(), expectedData)
+	mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	// Create read request and take inode lock.
+	buf := make([]byte, len(expectedData))
+	req := &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+	fh.inode.Lock() // Required by the function signature.
+
+	// 2. Call ReadWithMrdSimpleReader.
+	resp, err := fh.ReadWithMrdSimpleReader(t.ctx, req)
+
+	// 3. Assertions
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), len(expectedData), resp.Size)
+	assert.Equal(t.T(), expectedData, buf[:resp.Size])
+	mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileTest) Test_ReadWithMrdSimpleReader_NotAuthoritative() {
+	// 1. Setup
+	zonalBucket := gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "zonal_bucket", gcs.BucketType{Zonal: true}))
+	originalData := []byte("some data") // 9 bytes
+	parent := createDirInode(&zonalBucket, &t.clock)
+	in := createFileInode(t.T(), &zonalBucket, &t.clock, &cfg.Config{}, parent, "test_obj", originalData, false)
+	// Make inode dirty.
+	in.Lock()
+	_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode) // 5 bytes
+	in.Unlock()
+	require.NoError(t.T(), err)
+	// After write, content should be "dirtydata".
+	expectedReadData := "dirtydata"
+	// Create file handle.
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
+	require.NotNil(t.T(), fh.mrdSimpleReader)
+	// Create read request and take inode lock.
+	buf := make([]byte, len(expectedReadData))
+	req := &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+	fh.inode.Lock()
+
+	// 2. Call ReadWithMrdSimpleReader
+	resp, err := fh.ReadWithMrdSimpleReader(t.ctx, req)
+
+	// 3. Assertions
+	// It should read from inode, which contains "dirty data".
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), len(expectedReadData), resp.Size)
+	assert.Equal(t.T(), expectedReadData, string(buf[:resp.Size]))
+}
+
+func (t *fileTest) Test_ReadWithMrdSimpleReader_NilReader() {
+	// 1. Setup with a non-zonal bucket.
+	nonZonalBucket := gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "non_zonal_bucket", gcs.BucketType{Zonal: false}))
+	parent := createDirInode(&nonZonalBucket, &t.clock)
+	in := createFileInode(t.T(), &nonZonalBucket, &t.clock, &cfg.Config{}, parent, "test_obj", []byte("data"), false)
+	// Create file handle.
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
+	require.Nil(t.T(), fh.mrdSimpleReader)
+	// Create read request and take inode lock.
+	req := &gcsx.ReadRequest{
+		Buffer: make([]byte, 4),
+		Offset: 0,
+	}
+	fh.inode.Lock()
+
+	// 2. Call ReadWithMRDSimpleReader.
+	_, err := fh.ReadWithMrdSimpleReader(t.ctx, req)
+
+	// 3. Assertions
+	assert.Error(t.T(), err)
+	assert.Equal(t.T(), "mrdSimpleReader is not initialized", err.Error())
+}
+
+func (t *fileTest) Test_ReadWithMrdSimpleReader_ReadAtError() {
+	// 1. Setup
+	expectedData := []byte("hello from mrd reader")
+	objectName := "test_obj_mrd_reader_error"
+	// Mock required functions from mock bucket.
+	mockBucket := new(storage.TestifyMockBucket)
+	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
+	// Create file inode.
+	mockSyncerBucket := gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", mockBucket)
+	parent := createDirInode(&mockSyncerBucket, &t.clock)
+	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
+	// Create file handle.
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
+	require.NotNil(t.T(), fh.mrdSimpleReader)
+	// Mock the downloader to return an error.
+	expectedErr := errors.New("mrd read error")
+	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(in.Source(), expectedData, 0, expectedErr)
+	mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	// Create read request & take inode lock.
+	buf := make([]byte, len(expectedData))
+	req := &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+	fh.inode.Lock()
+
+	// 2. Call ReadWithMrdSimpleReader.
+	resp, err := fh.ReadWithMrdSimpleReader(t.ctx, req)
+
+	// 3. Assertions
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), expectedErr.Error())
+	assert.Zero(t.T(), resp.Size)
+	mockBucket.AssertExpectations(t.T())
 }
 
 func (t *fileTest) TestOpenMode() {
