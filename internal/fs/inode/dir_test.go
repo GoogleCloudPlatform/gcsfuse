@@ -131,7 +131,7 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
 	t.tc = d.cache
-	//AssertNe(nil, t.tc)
+	AssertNe(nil, t.tc)
 
 	t.in.Lock()
 }
