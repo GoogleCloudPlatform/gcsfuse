@@ -108,3 +108,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
 )
+
+replace github.com/jacobsa/fuse => /home/princer_google_com/dev/fuse
