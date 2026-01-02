@@ -576,16 +576,9 @@ func (f *FileInode) Attributes(
 			// was due to update in object size remotely (appends case). In this scenario, we will update
 			// the inode attributes to reflect latest size.
 			if o != nil {
-				minObj := storageutil.ConvertObjToMinObject(o)
-				f.src = *minObj
-				f.updateMRDWrapper()
-
+				f.UpdateSize(o.Size)
 				f.attrs.Size = f.src.Size
-				f.attrs.Mtime = f.src.Updated
-
-				attrs.Size = f.src.Size
-				attrs.Mtime = f.src.Updated
-
+				attrs = f.attrs
 				attrs.Nlink = 1
 				return
 

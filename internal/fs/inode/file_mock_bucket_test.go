@@ -245,48 +245,48 @@ func (t *FileMockBucketTest) TestAttributes_SizeIncreasedSameGeneration() {
 	initialSize := uint64(len("taco"))
 	initialGeneration := int64(123)
 	initialMetaGeneration := int64(456)
-	initialTime := t.clock.Now()
 	// Setup the minObject.
 	backingObj := &gcs.MinObject{
 		Name:           fileName,
 		Size:           initialSize,
 		Generation:     initialGeneration,
 		MetaGeneration: initialMetaGeneration,
-		Updated:        initialTime,
 	}
 	f := t.createGCSBackedFileInode(backingObj)
 	defer f.Unlock()
-	newSize := initialSize + 10
-	t.clock.AdvanceTime(time.Minute) // To have a different mtime
-	updatedTime := t.clock.Now()
-	updatedMinObject := &gcs.MinObject{
-		Name:           fileName,
-		Generation:     initialGeneration,
-		MetaGeneration: initialMetaGeneration,
-		Size:           newSize,
-		Updated:        updatedTime,
-	}
-	// Mock StatObject to return the updated object.
 	statReq := &gcs.StatObjectRequest{
 		Name:                           fileName,
 		ForceFetchFromGcs:              false,
 		ReturnExtendedObjectAttributes: false,
 	}
+	// 1. First call to Attributes: Mock StatObject to return the original object.
+	t.bucket.On("StatObject", t.ctx, statReq).
+		Return(backingObj, &gcs.ExtendedObjectAttributes{}, nil).Once()
+	attrs1, err1 := f.Attributes(t.ctx, true)
+	require.NoError(t.T(), err1)
+	// Check that attributes match the initial object.
+	assert.Equal(t.T(), initialSize, attrs1.Size)
+	// 2. Second call to Attributes: Mock StatObject to return an updated object.
+	newSize := initialSize + 10
+	updatedMinObject := &gcs.MinObject{
+		Name:           fileName,
+		Generation:     initialGeneration,
+		MetaGeneration: initialMetaGeneration,
+		Size:           newSize,
+	}
 	t.bucket.On("StatObject", t.ctx, statReq).
 		Return(updatedMinObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
 
-	attrs, err := f.Attributes(t.ctx, true)
+	attrs2, err2 := f.Attributes(t.ctx, true)
 
-	require.NoError(t.T(), err)
-	t.bucket.AssertExpectations(t.T())
+	require.NoError(t.T(), err2)
 	// Check that attributes are updated.
-	assert.Equal(t.T(), newSize, attrs.Size)
-	assert.Equal(t.T(), updatedTime, attrs.Mtime)
+	assert.Equal(t.T(), newSize, attrs2.Size)
 	// Check that internal state is updated.
 	assert.Equal(t.T(), newSize, f.Source().Size)
-	assert.Equal(t.T(), updatedTime, f.Source().Updated)
 	assert.Equal(t.T(), newSize, f.attrs.Size)
-	assert.Equal(t.T(), updatedTime, f.attrs.Mtime)
+	// Assert that all mock expectations were met.
+	t.bucket.AssertExpectations(t.T())
 }
 
 func (t *FileMockBucketTest) TestAttributes_NoChangeInAttributes() {
