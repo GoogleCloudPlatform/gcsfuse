@@ -74,7 +74,7 @@ Pass [_netdev option](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master
 
 ### Cloud Storage FUSE get stuck when using it to concurrently work with a large number of opened files (reference issue [here](https://github.com/GoogleCloudPlatform/gcsfuse/issues/1043))
 
-This happens when gcsfuse is mounted with http1 client (default) and the application using gcsfuse tries to keep more than value of `--max-conns-per-host` number of files opened. You can try (a) Passing a value higher than the number of files you want to keep open to `--max-conns-per-host` flag. (b) Adding some timeout for http client connections using `--http-client-timeout` flag.
+This happens when gcsfuse is mounted with http1 client (default) and the application using gcsfuse tries to keep more than value of `--max-conns-per-host` number of files opened. You can try adding some timeout for http client connections using `--http-client-timeout` flag.
 
 ### Permission Denied error.
 
