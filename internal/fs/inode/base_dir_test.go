@@ -240,3 +240,35 @@ func (t *BaseDirTest) TestReadEntryCores() {
 	ExpectEq("", newTok)
 	ExpectEq(syscall.ENOTSUP, err)
 }
+
+func (t *BaseDirTest) Test_IsTypeCacheDeprecated_false() {
+	dInode := NewBaseDirInode(
+		dirInodeID,
+		NewRootName(""),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		t.bm,
+		metrics.NewNoopMetrics(),
+		false)
+
+	AssertFalse(dInode.IsTypeCacheDeprecated())
+}
+
+func (t *BaseDirTest) Test_IsTypeCacheDeprecated_true() {
+	dInode := NewBaseDirInode(
+		dirInodeID,
+		NewRootName(""),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		t.bm,
+		metrics.NewNoopMetrics(),
+		true)
+
+	AssertTrue(dInode.IsTypeCacheDeprecated())
+}

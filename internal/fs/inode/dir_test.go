@@ -137,6 +137,10 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 }
 
 func (t *DirTest) createDirInode(dirInodeName string) DirInode {
+	return t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, false)
+}
+
+func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string, isTypeCacheDeprecated bool) DirInode {
 	return NewDirInode(
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
@@ -155,7 +159,7 @@ func (t *DirTest) createDirInode(dirInodeName string) DirInode {
 		4,
 		false,
 		true,
-		false,
+		isTypeCacheDeprecated,
 	)
 }
 
@@ -1914,4 +1918,16 @@ func (t *DirTest) Test_InvalidateKernelListCache() {
 	t.in.InvalidateKernelListCache()
 
 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
+}
+
+func (t *DirTest) Test_IsTypeCacheDeprecated_false() {
+	dInode := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, false)
+
+	AssertFalse(dInode.IsTypeCacheDeprecated())
+}
+
+func (t *DirTest) Test_IsTypeCacheDeprecated_true() {
+	dInode := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+
+	AssertTrue(dInode.IsTypeCacheDeprecated())
 }
