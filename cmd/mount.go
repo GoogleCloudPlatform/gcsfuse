@@ -44,12 +44,8 @@ func mountWithStorageHandle(
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
 	metricHandle metrics.MetricHandle,
-<<<<<<< HEAD
+	traceHandle tracing.TraceHandle,
 	isUserSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
-
-=======
-	traceHandle tracing.TraceHandle) (mfs *fuse.MountedFileSystem, err error) {
->>>>>>> 25bbb6cc1 (add read tracings)
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.

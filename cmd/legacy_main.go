@@ -215,8 +215,8 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 		newConfig,
 		storageHandle,
 		metricHandle,
-		isSet,
-		traceHandle)
+		traceHandle,
+		isSet)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
