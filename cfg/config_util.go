@@ -25,6 +25,15 @@ func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
 }
 
+func DefaultMaxBackground() int {
+	return max(12, 2*runtime.NumCPU())
+}
+
+func DefaultCongestionThreshold() int {
+	// 75 % of DefaultMaxBackground
+	return (3 * DefaultMaxBackground()) / 4
+}
+
 func IsFileCacheEnabled(mountConfig *Config) bool {
 	return mountConfig.FileCache.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
 }
