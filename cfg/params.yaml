@@ -354,6 +354,17 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.enable-kernel-reader"
+    flag-name: "enable-kernel-reader"
+    type: "bool"
+    usage: "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache."
+    default: false
+    hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: true
+
   - config-path: "file-system.experimental-enable-dentry-cache"
     flag-name: "experimental-enable-dentry-cache"
     type: "bool"
@@ -1034,13 +1045,6 @@ params:
       data from GCS. This improves performance for large file sequential reads.
       Note: Enabling this flag can increase the memory usage significantly.
     default: false
-
-  - config-path: "read.enable-kernel-reader"
-    flag-name: "enable-kernel-reader"
-    type: "bool"
-    usage: "Enables kernel reader."
-    default: false
-    hide-flag: true
 
   - config-path: "read.global-max-blocks"
     flag-name: "read-global-max-blocks"

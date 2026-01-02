@@ -216,6 +216,22 @@ func (f *FileInode) checkInvariants() {
 	}
 }
 
+// clobbered checks if the FileInode's corresponding GCS object has been
+// unexpectedly modified or deleted.
+//
+// It compares the GCS object's metadata (generation, size, meta-generation)
+// against the inode's expected f.SourceGeneration().
+//
+// Return Values (object *gcs.Object, isClobbered bool, err error):
+//
+// | Condition                                    | oGen.Compare | GCS Error | Returns (*gcs.Object, bool, error)          |
+// |----------------------------------------------|--------------|-----------|---------------------------------------------|
+// | Generations Match                            | 0            | nil       | (latestObject, false, nil)                  |
+// | GCS Object Size Greater at same generation   | 2            | nil       | (latestObject, true, nil)                   |
+// | GCS Object Older/Divergent                   | -1 or 1      | nil       | (nil, true, nil)                            |
+// | Object Not Found                             | N/A          | NotFound  | (nil, true(false if local), nil)            |
+// | Other GCS Stat Error                         | N/A          | Other     | (nil, false, <GCS Error>)                   |
+//
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
@@ -252,9 +268,21 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 
 	// We are clobbered iff the generation doesn't match our source generation.
 	oGen := Generation{o.Generation, o.MetaGeneration, o.Size}
-	b = oGen.Compare(f.SourceGeneration()) != 0
-
-	return
+	cmp := oGen.Compare(f.SourceGeneration())
+	switch cmp {
+	case 0:
+		// Generations and size match: Not clobbered. Return the fetched object.
+		return o, false, nil
+	case 2:
+		// The latest GCS object has greater size at the same generation. Return
+		// the fetched object. We also return isClobbered true to indicate the
+		// remote size change.
+		return o, true, nil
+	default: // -1 (GCS is older) or 1 (GCS has different gen/metagen)
+		// GCS object is older, or generation/metageneration mismatch: Clobbered.
+		// Return nil for the object as it's not the version we might want to use.
+		return nil, true, nil
+	}
 }
 
 // Open a reader for the generation of object we care about.
@@ -474,6 +502,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 // from operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
+	f.attrs.Size = size
 	f.updateMRDWrapper()
 }
 
@@ -544,12 +573,25 @@ func (f *FileInode) Attributes(
 		// If the object has been clobbered, we reflect that as the inode being
 		// unlinked.
 		var clobbered bool
-		_, clobbered, err = f.clobbered(ctx, false, false)
+		var o *gcs.Object
+		o, clobbered, err = f.clobbered(ctx, false, false)
 		if err != nil {
 			err = fmt.Errorf("clobbered: %w", err)
 			return
 		}
 		if clobbered {
+			// If clobbered check is true but the minObject returned is not nil, it means the clobber
+			// was due to update in object size remotely (appends case). In this scenario, we will update
+			// the inode attributes to reflect latest size.
+			if o != nil {
+				f.UpdateSize(o.Size)
+				attrs = f.attrs
+				attrs.Nlink = 1
+				return
+
+			}
+			// If the minObj is nil, it means that file has been clobbered genuinely due to generation
+			// or metageneration changes.
 			attrs.Nlink = 0
 			return
 		}
@@ -820,8 +862,14 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 		return nil, err
 	}
 	if isClobbered {
+		var err error
+		if latestGcsObj != nil {
+			err = fmt.Errorf("file was clobbered due to increase in size at same generation(remote appends)")
+		} else {
+			err = fmt.Errorf("file was clobbered due to generation/metageneration mismatch")
+		}
 		return nil, &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("file was clobbered"),
+			Err:        err,
 			ObjectName: f.src.Name,
 		}
 	}

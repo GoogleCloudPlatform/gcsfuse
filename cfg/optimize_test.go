@@ -233,7 +233,7 @@ func TestApplyOptimizations_DisableAutoConfig(t *testing.T) {
 	cfg.DisableAutoconfig = true
 	isSet := &mockIsValueSet{}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
 
 	require.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -256,7 +256,7 @@ func TestApplyOptimizations_MatchingMachineType(t *testing.T) {
 	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -279,7 +279,7 @@ func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {
 	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
 
 	assert.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -304,7 +304,7 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -327,7 +327,7 @@ func TestApplyOptimizations_GetMachineTypeError(t *testing.T) {
 	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
 
 	assert.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -350,7 +350,7 @@ func TestApplyOptimizations_NoError(t *testing.T) {
 	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 }
@@ -367,7 +367,7 @@ func TestApplyOptimizations_Success(t *testing.T) {
 	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
 
 	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "write.global-max-blocks"))
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)

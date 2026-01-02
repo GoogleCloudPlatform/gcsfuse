@@ -188,6 +188,38 @@ params:
     type: "string"
     default: "gcsfuse"
     "usage": "Application name"
+  - config-path: "file-system.enable-kernel-reader"
+    flag-name: "enable-kernel-reader"
+    type: "bool"
+    default: false
+    "usage": "Whether to enable kernel-based reader"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: zonal
+          value: true
+        - bucket-type: hierarchical
+          value: false
+        - bucket-type: flat
+          value: true
+  - config-path: "file-system.max-read-ahead-kb"
+    flag-name: "max-read-ahead-kb"
+    type: "int"
+    default: "128"
+    "usage": "Maximum read ahead in KB"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: zonal
+          value: 1024
+        - bucket-type: hierarchical
+          value: 2048
+        - bucket-type: flat
+          value: 2048
+      machine-based-optimization:
+        - group: high-performance
+          value: 2048
+      profiles:
+        - name: aiml-training
+          value: 4096
   - config-path: "implicit-dirs"
     flag-name: "implicit-dirs"
     type: "bool"
@@ -225,8 +257,46 @@ params:
 		assert.Equal(t, expectedGroups, parsedYAML.MachineTypeGroups)
 	})
 
-	t.Run("TestParamWithOnlyMachineBasedOptimizations", func(t *testing.T) {
+	t.Run("TestParamWithOnlyBucketBasedOptimizations", func(t *testing.T) {
 		param := parsedYAML.Params[1]
+		require.NotNil(t, param.Optimizations)
+		expected := &shared.OptimizationRules{
+			BucketTypeOptimization: []shared.BucketTypeOptimization{
+				{BucketType: "zonal", Value: true},
+				{BucketType: "hierarchical", Value: false},
+				{BucketType: "flat", Value: true},
+			},
+		}
+		assert.Equal(t, "file-system.enable-kernel-reader", param.ConfigPath)
+		assert.Equal(t, expected.BucketTypeOptimization, param.Optimizations.BucketTypeOptimization)
+		assert.Nil(t, param.Optimizations.Profiles)
+		assert.Nil(t, param.Optimizations.MachineBasedOptimization)
+	})
+
+	t.Run("TestParamWithAllOptimizationTypes", func(t *testing.T) {
+		param := parsedYAML.Params[2]
+		require.NotNil(t, param.Optimizations)
+		expected := &shared.OptimizationRules{
+			BucketTypeOptimization: []shared.BucketTypeOptimization{
+				{BucketType: "zonal", Value: 1024},
+				{BucketType: "hierarchical", Value: 2048},
+				{BucketType: "flat", Value: 2048},
+			},
+			MachineBasedOptimization: []shared.MachineBasedOptimization{
+				{Group: "high-performance", Value: 2048},
+			},
+			Profiles: []shared.ProfileOptimization{
+				{Name: "aiml-training", Value: 4096},
+			},
+		}
+		assert.Equal(t, "file-system.max-read-ahead-kb", param.ConfigPath)
+		assert.Equal(t, expected.BucketTypeOptimization, param.Optimizations.BucketTypeOptimization)
+		assert.Equal(t, expected.MachineBasedOptimization, param.Optimizations.MachineBasedOptimization)
+		assert.Equal(t, expected.Profiles, param.Optimizations.Profiles)
+	})
+
+	t.Run("TestParamWithOnlyMachineBasedOptimizations", func(t *testing.T) {
+		param := parsedYAML.Params[3]
 		require.NotNil(t, param.Optimizations)
 		expected := &shared.OptimizationRules{
 			MachineBasedOptimization: []shared.MachineBasedOptimization{
@@ -239,7 +309,7 @@ params:
 	})
 
 	t.Run("TestParamWithMixedOptimizations", func(t *testing.T) {
-		param := parsedYAML.Params[2]
+		param := parsedYAML.Params[4]
 		require.NotNil(t, param.Optimizations)
 		expected := &shared.OptimizationRules{
 			MachineBasedOptimization: []shared.MachineBasedOptimization{
@@ -325,6 +395,22 @@ machine-type-groups:
   my-group: []
 `,
 			expectedErrorSubstring: "group \"my-group\" must contain at least one machine type",
+		},
+		{
+			name: "UnsupportedBucketType",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag for bucket type validation"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "invalid-bucket-type"
+          value: true
+`,
+			expectedErrorSubstring: "invalid bucket-type",
 		},
 	}
 

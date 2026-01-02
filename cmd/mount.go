@@ -42,7 +42,9 @@ func mountWithStorageHandle(
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
-	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+	metricHandle metrics.MetricHandle,
+	isUserSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
+
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -123,6 +125,7 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		NewConfig:                  newConfig,
+		IsUserSet:                  isUserSet,
 		MetricHandle:               metricHandle,
 	}
 	if serverCfg.NewConfig.FileSystem.ExperimentalEnableDentryCache {
@@ -180,7 +183,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	}
 
 	// Enable async reads if enable-kernel-reader flag is set to true.
-	if newConfig.Read.EnableKernelReader {
+	if newConfig.FileSystem.EnableKernelReader {
 		mountCfg.EnableAsyncReads = true
 	}
 
