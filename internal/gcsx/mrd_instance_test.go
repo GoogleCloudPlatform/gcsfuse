@@ -40,8 +40,7 @@ func (t *MrdInstanceTest) SetupTest() {
 	t.inodeID = 100
 	t.mrdConfig = cfg.MrdConfig{PoolSize: 1}
 
-	mi := NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.mrdConfig)
-	t.mrdInstance = &mi
+	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.mrdConfig)
 }
 
 func (t *MrdInstanceTest) TestNewMrdInstance() {

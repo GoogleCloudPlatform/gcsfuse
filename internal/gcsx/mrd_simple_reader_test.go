@@ -44,8 +44,7 @@ func (t *MrdSimpleReaderTest) SetupTest() {
 	t.inodeID = 100
 	t.mrdConfig = cfg.MrdConfig{PoolSize: 1}
 
-	mi := NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.mrdConfig)
-	t.mrdInstance = &mi
+	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.mrdConfig)
 	t.reader = NewMrdSimpleReader(t.mrdInstance)
 }
 
