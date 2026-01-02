@@ -83,11 +83,11 @@ func (testSuite *MountAccessTest) mountWithKeyFile(bucketName, keyFile string) (
 func (testSuite *MountAccessTest) TestMountingWithMinimalAccessSucceeds() {
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials(gCtx)
 	creds_tests.ApplyCustomRoleToServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, setup.TestBucket())
+	defer creds_tests.RevokeCustomRoleFromServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, setup.TestBucket())
 
 	err := testSuite.mountWithKeyFile(setup.TestBucket(), localKeyFilePath)
 
 	assert.NoError(testSuite.T(), err)
-	creds_tests.RevokeCustomRoleFromServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, setup.TestBucket())
 }
 
 func TestMountAccess(t *testing.T) {
