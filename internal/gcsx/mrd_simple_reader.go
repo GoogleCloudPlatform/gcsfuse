@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,8 +60,13 @@ func (msr *MrdSimpleReader) getValidEntry() (*MRDEntry, error) {
 	entry := msr.mrdInstance.GetMRDEntry()
 
 	// If no entry is available, the pool might not be initialized.
+	var err error
 	if entry == nil {
-		msr.mrdInstance.EnsureMrdInstance()
+		err = msr.mrdInstance.EnsureMrdInstance()
+		if err != nil {
+			return nil, err
+		}
+		// After initialization, get the next available entry.
 		entry = msr.mrdInstance.GetMRDEntry()
 	} else {
 		// If an entry was retrieved, check if it's usable.
@@ -70,13 +75,16 @@ func (msr *MrdSimpleReader) getValidEntry() (*MRDEntry, error) {
 		entry.mu.RUnlock()
 
 		if needsRecreation {
-			msr.mrdInstance.RecreateMRDEntry(entry)
+			err = msr.mrdInstance.RecreateMRDEntry(entry)
+			if err != nil {
+				return nil, err
+			}
 			// After recreation, get the next available entry.
 			entry = msr.mrdInstance.GetMRDEntry()
 		}
 	}
 
-	return entry, nil
+	return entry, err
 }
 
 // ReadAt reads data into the provided request buffer starting at the specified

@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package gcsx
 
 import (
@@ -58,8 +72,9 @@ func (t *MrdInstanceTest) TestEnsureMrdInstance() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
 
-	t.mrdInstance.EnsureMrdInstance()
+	err := t.mrdInstance.EnsureMrdInstance()
 
+	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
 	t.bucket.AssertExpectations(t.T())
 }
@@ -67,12 +82,14 @@ func (t *MrdInstanceTest) TestEnsureMrdInstance() {
 func (t *MrdInstanceTest) TestEnsureMrdInstance_AlreadyExists() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	t.mrdInstance.EnsureMrdInstance()
+	err := t.mrdInstance.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
 	pool := t.mrdInstance.mrdPool
 
 	// Call again
-	t.mrdInstance.EnsureMrdInstance()
+	err = t.mrdInstance.EnsureMrdInstance()
 
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), pool, t.mrdInstance.mrdPool)
 	t.bucket.AssertExpectations(t.T()) // Should only be called once
 }
@@ -80,7 +97,8 @@ func (t *MrdInstanceTest) TestEnsureMrdInstance_AlreadyExists() {
 func (t *MrdInstanceTest) TestGetMRDEntry() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	t.mrdInstance.EnsureMrdInstance()
+	err := t.mrdInstance.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
 
 	entry := t.mrdInstance.GetMRDEntry()
 
@@ -99,7 +117,8 @@ func (t *MrdInstanceTest) TestRecreateMRDEntry() {
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	// Initial creation
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	t.mrdInstance.EnsureMrdInstance()
+	err := t.mrdInstance.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
 	entry := t.mrdInstance.GetMRDEntry()
 	assert.Equal(t.T(), fakeMRD1, entry.mrd)
 
@@ -115,7 +134,8 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	// Initial creation
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	t.mrdInstance.EnsureMrdInstance()
+	err := t.mrdInstance.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
 	pool1 := t.mrdInstance.mrdPool
 
 	// Recreate
@@ -141,10 +161,11 @@ func (t *MrdInstanceTest) TestIncrementRefCount() {
 	// Setup: Put something in cache first to verify removal
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	t.mrdInstance.EnsureMrdInstance()
+	err := t.mrdInstance.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
 	// Manually insert into cache to simulate it being inactive
 	key := strconv.FormatUint(uint64(t.inodeID), 10)
-	_, err := t.cache.Insert(key, t.mrdInstance)
+	_, err = t.cache.Insert(key, t.mrdInstance)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key))
 
@@ -157,7 +178,8 @@ func (t *MrdInstanceTest) TestIncrementRefCount() {
 func (t *MrdInstanceTest) TestDecrementRefCount() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	t.mrdInstance.EnsureMrdInstance()
+	err := t.mrdInstance.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
 	t.mrdInstance.refCount = 1
 
 	t.mrdInstance.DecrementRefCount()
@@ -171,11 +193,14 @@ func (t *MrdInstanceTest) TestDecrementRefCount_Eviction() {
 	// Fill cache with other items
 	localMrdInstance := &MrdInstance{mrdPool: &MRDPool{}}
 	localMrdInstance.mrdPool.currentSize.Store(1)
-	t.cache.Insert("other1", localMrdInstance)
-	t.cache.Insert("other2", localMrdInstance)
+	_, err := t.cache.Insert("other1", localMrdInstance)
+	assert.NoError(t.T(), err)
+	_, err = t.cache.Insert("other2", localMrdInstance)
+	assert.NoError(t.T(), err)
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	t.mrdInstance.EnsureMrdInstance()
+	err = t.mrdInstance.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
 	t.mrdInstance.refCount = 1
 
 	// This should trigger eviction of "other1" (LRU)

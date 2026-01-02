@@ -1,6 +1,21 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package gcsx
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -59,7 +74,7 @@ func (mi *MrdInstance) GetMRDEntry() *MRDEntry {
 
 // EnsureMrdInstance ensures that the MRD pool is initialized. If the pool
 // already exists, this function is a no-op.
-func (mi *MrdInstance) EnsureMrdInstance() {
+func (mi *MrdInstance) EnsureMrdInstance() (err error) {
 	mi.poolMu.Lock()
 	defer mi.poolMu.Unlock()
 
@@ -69,29 +84,37 @@ func (mi *MrdInstance) EnsureMrdInstance() {
 	}
 
 	// Creating a new pool. Not reusing any handle while creating a new pool.
-	var err error
 	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
 	if err != nil {
-		logger.Errorf("MrdInstance::EnsureMrdInstance Error in creating MRDPool")
-		return
+		err = fmt.Errorf("MrdInstance::EnsureMrdInstance Error in creating MRDPool: %w", err)
 	}
+	return
 }
 
 // RecreateMRDEntry recreates a specific, potentially failed, entry in the MRD pool.
-func (mi *MrdInstance) RecreateMRDEntry(entry *MRDEntry) {
+func (mi *MrdInstance) RecreateMRDEntry(entry *MRDEntry) (err error) {
 	mi.poolMu.RLock()
 	defer mi.poolMu.RUnlock()
 	if mi.mrdPool != nil {
-		mi.mrdPool.RecreateMRD(entry, nil)
+		err = mi.mrdPool.RecreateMRD(entry, nil)
+		if err != nil {
+			err = fmt.Errorf("MrdInstance::RecreateMRDEntry Error in recreating MRD: %w", err)
+		}
+		return
 	}
+	return fmt.Errorf("MrdInstance::RecreateMRDEntry MRDPool is nil")
 }
 
 // RecreateMRD recreates the entire MRD pool. This is typically called by the
 // file inode when the backing GCS object's generation changes, invalidating
 // all existing downloader instances.
-func (mi *MrdInstance) RecreateMRD(object *gcs.MinObject) {
+func (mi *MrdInstance) RecreateMRD(object *gcs.MinObject) error {
 	mi.Destroy()
-	mi.EnsureMrdInstance()
+	err := mi.EnsureMrdInstance()
+	if err != nil {
+		return fmt.Errorf("MrdInstance::RecreateMRD Error in recreating MRD: %w", err)
+	}
+	return nil
 }
 
 // Destroy closes all MRD instances in the pool and releases associated resources.
@@ -117,7 +140,7 @@ func (mi *MrdInstance) IncrementRefCount() {
 		// Remove from cache
 		deletedEntry := mi.mrdCache.Erase(strconv.FormatUint(uint64(mi.inodeId), 10))
 		if deletedEntry != nil {
-			logger.Tracef("MrdInstance (%s) erased from cache", mi.object.Name)
+			logger.Tracef("MrdInstance::IncrementRefCount: MrdInstance (%s) erased from cache", mi.object.Name)
 		}
 	}
 }
@@ -144,20 +167,20 @@ func (mi *MrdInstance) DecrementRefCount() {
 	// This is a safe order.
 	evictedValues, err := mi.mrdCache.Insert(strconv.FormatUint(uint64(mi.inodeId), 10), mi)
 	if err != nil {
-		logger.Errorf("failed to insert MrdInstance for object (%s) into cache, destroying immediately: %v", mi.object.Name, err)
+		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for object (%s) into cache, destroying immediately: %v", mi.object.Name, err)
 		// The instance could not be inserted into the cache. Since the refCount is 0,
 		// we must destroy it now to prevent it from being leaked.
 		mi.Destroy()
 		mi.refCountMu.Unlock()
 		return
 	}
-	logger.Tracef("MrdInstance for object (%s) added to cache", mi.object.Name)
+	logger.Tracef("MrdInstance::DecrementRefCount: MrdInstance for object (%s) added to cache", mi.object.Name)
 	mi.refCountMu.Unlock()
 
 	for _, instance := range evictedValues {
 		mrdInstance, ok := instance.(*MrdInstance)
 		if !ok {
-			logger.Errorf("invalid value type, expected MrdInstance, got %T", mrdInstance)
+			logger.Errorf("MrdInstance::DecrementRefCount: Invalid value type, expected *MrdInstance, got %T", mrdInstance)
 		} else {
 			// Check if the instance was resurrected.
 			mrdInstance.refCountMu.Lock()
