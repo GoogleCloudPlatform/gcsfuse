@@ -182,6 +182,11 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 	}
 
+	// Enable async reads if enable-kernel-reader flag is set to true.
+	if newConfig.FileSystem.EnableKernelReader {
+		mountCfg.EnableAsyncReads = true
+	}
+
 	// GCSFuse to Jacobsa Fuse Log Level mapping:
 	// OFF           OFF
 	// ERROR         ERROR
