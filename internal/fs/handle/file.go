@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
@@ -64,6 +65,8 @@ type FileHandle struct {
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
 	metricHandle          metrics.MetricHandle
+	traceHandle           tracing.TraceHandle
+
 	// openMode is used to store the mode in which the file is opened.
 	openMode util.OpenMode
 
@@ -82,12 +85,13 @@ type FileHandle struct {
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted, handleID fuseops.HandleID) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted, handleID fuseops.HandleID) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                  inode,
 		fileCacheHandler:       fileCacheHandler,
 		cacheFileForRangeRead:  cacheFileForRangeRead,
 		metricHandle:           metricHandle,
+		traceHandle:            traceHandle,
 		openMode:               openMode,
 		config:                 c,
 		bufferedReadWorkerPool: bufferedReadWorkerPool,
@@ -204,6 +208,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 			FileCacheHandler:      fh.fileCacheHandler,
 			CacheFileForRangeRead: fh.cacheFileForRangeRead,
 			MetricHandle:          fh.metricHandle,
+			TraceHandle:           fh.traceHandle,
 			MrdWrapper:            mrdWrapper,
 			Config:                fh.config,
 			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
@@ -284,7 +289,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 		fh.destroyReader()
 		// Attempt to create an appropriate reader.
-		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config, fh.handleID)
+		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, fh.traceHandle, mrdWrapper, fh.config, fh.handleID)
 
 		// Release RWLock and take RLock on file handle again
 		fh.mu.Unlock()
