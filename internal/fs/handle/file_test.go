@@ -25,7 +25,6 @@ import (
 	"os"
 	"sync"
 	"testing"
-
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -48,6 +47,7 @@ import (
 )
 
 const testDirName = "parentRoot"
+const isTypeCacheDeprecationEnabled = false
 
 var readMode = util.NewOpenMode(util.ReadOnly, 0)
 var writeMode = util.NewOpenMode(util.WriteOnly, 0)
@@ -103,6 +103,7 @@ func createDirInode(
 		4,
 		false,
 		true,
+		isTypeCacheDeprecationEnabled,
 	)
 }
 
