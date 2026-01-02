@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sys/unix"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -179,7 +180,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, isSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, isSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -214,6 +215,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 		newConfig,
 		storageHandle,
 		metricHandle,
+		traceHandle,
 		isSet)
 
 	if err != nil {
@@ -558,6 +560,11 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
+	traceHandle := tracing.NewNoopTracer()
+	if cfg.IsTracingEnabled(newConfig) {
+		traceHandle = tracing.NewOtelTracer()
+	}
+
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// No-op if profiler is disabled.
@@ -570,7 +577,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		startTime := time.Now()
-		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle, mountInfo.isUserSet)
+		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle, traceHandle, mountInfo.isUserSet)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply
