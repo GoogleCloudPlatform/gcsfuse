@@ -2445,7 +2445,7 @@ func (fs *fileSystem) nonAtomicRename(
 	// while deletion.
 	if deleteErr == nil {
 		if invErr := fs.invalidateChildFileCacheIfExist(oldParent, oldName); invErr != nil {
-			return fmt.Errorf("nonAtomicRename: while invalidating cache for delete file: %w", invErr)
+			logger.Warnf("File cache eviction failed after successful delete on GCS: %v", invErr)
 		}
 		return nil
 	}
