@@ -32,6 +32,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
@@ -97,6 +99,8 @@ type Job struct {
 	rangeChan chan data.ObjectRange
 
 	metricsHandle metrics.MetricHandle
+
+	traceHandle tracing.TraceHandle
 }
 
 // JobStatus represents the status of job.
@@ -123,6 +127,7 @@ func NewJob(
 	fileCacheConfig *cfg.FileCacheConfig,
 	maxParallelismSem *semaphore.Weighted,
 	metricHandle metrics.MetricHandle,
+	traceHandle tracing.TraceHandle,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -134,6 +139,7 @@ func NewJob(
 		fileCacheConfig:      fileCacheConfig,
 		maxParallelismSem:    maxParallelismSem,
 		metricsHandle:        metricHandle,
+		traceHandle:          traceHandle,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -486,8 +492,15 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 	} else if job.status.Name == NotStarted {
 		// Start the async download
 		job.status.Name = Downloading
-		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
-		go job.downloadObjectAsync()
+		span := trace.SpanFromContext(ctx)
+		newCtx := context.Background()
+		newCtx = trace.ContextWithSpan(newCtx, span)
+		newCtx, downloadSpan := job.traceHandle.StartTraceLink(newCtx, tracing.FileCacheRead)
+		job.cancelCtx, job.cancelFunc = context.WithCancel(newCtx)
+		go func() {
+			defer job.traceHandle.EndTrace(downloadSpan)
+			job.downloadObjectAsync()
+		}()
 	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {
 		defer job.mu.Unlock()
 		return job.status, nil

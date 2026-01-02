@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/net/context"
 )
 
@@ -194,7 +195,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) CloseMRDForEviction() {
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
 // LOCK_REQUIRED(mrdWrapper.mu.RLock)
-func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceRecreateMRD bool) (err error) {
+func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(ctx context.Context, forceRecreateMRD bool) (err error) {
+	ctx = tracing.MaybePropagateTraceContext(context.Background(), ctx, cfg.IsTracingEnabled(mrdWrapper.config))
+
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
@@ -224,7 +227,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 					handle = mrdWrapper.handle
 				}
 			}
-			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(ctx, &gcs.MultiRangeDownloaderRequest{
 				Name:           mrdWrapper.object.Name,
 				Generation:     mrdWrapper.object.Generation,
 				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
@@ -248,7 +251,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	}
 
 	mrdWrapper.mu.RLock()
-	err = mrdWrapper.ensureMultiRangeDownloader(forceCreateMRD)
+	err = mrdWrapper.ensureMultiRangeDownloader(ctx, forceCreateMRD)
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
 		mrdWrapper.mu.RUnlock()

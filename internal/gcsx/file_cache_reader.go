@@ -29,7 +29,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -66,16 +68,19 @@ type FileCacheReader struct {
 
 	metricHandle metrics.MetricHandle
 
+	traceHandle tracing.TraceHandle
+
 	handleID fuseops.HandleID
 }
 
-func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, handleID fuseops.HandleID) *FileCacheReader {
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, handleID fuseops.HandleID) *FileCacheReader {
 	return &FileCacheReader{
 		object:                o,
 		bucket:                bucket,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
+		traceHandle:           traceHandle,
 		handleID:              handleID,
 	}
 }
@@ -212,8 +217,16 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadRe
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
+	ctx, span := fc.traceHandle.StartTrace(ctx, tracing.FileCacheRead)
+	defer fc.traceHandle.EndTrace(span)
+
 	bytesRead, cacheHit, err := fc.tryReadingFromFileCache(ctx, req.Buffer, req.Offset)
+	span.SetAttributes(
+		attribute.Bool(tracing.IS_CACHE_HIT, cacheHit),
+		attribute.Int(tracing.BYTES_READ, bytesRead),
+	)
 	if err != nil {
+		fc.traceHandle.RecordError(span, err)
 		return readResponse, fmt.Errorf("ReadAt: while reading from cache: %w", err)
 	}
 	// Data was served from cache.

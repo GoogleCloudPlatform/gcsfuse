@@ -32,7 +32,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/net/context"
 )
 
@@ -107,7 +109,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config, handleID fuseops.HandleID) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config, handleID fuseops.HandleID) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -118,6 +120,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
+		traceHandle:           traceHandle,
 		config:                config,
 		handleID:              handleID,
 	}
@@ -177,6 +180,8 @@ type randomReader struct {
 	isMRDInUse atomic.Bool
 
 	metricHandle metrics.MetricHandle
+
+	traceHandle tracing.TraceHandle
 
 	config *cfg.Config
 
@@ -355,8 +360,15 @@ func (rr *randomReader) ReadAt(
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
+	ctx, span := rr.traceHandle.StartTrace(ctx, tracing.FileCacheRead)
+	defer rr.traceHandle.EndTrace(span)
 	n, cacheHit, err := rr.tryReadingFromFileCache(ctx, p, offset)
+	span.SetAttributes(
+		attribute.Bool(tracing.IS_CACHE_HIT, cacheHit),
+		attribute.Int(tracing.BYTES_READ, n),
+	)
 	if err != nil {
+		rr.traceHandle.RecordError(span, err)
 		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return
 	}
@@ -485,9 +497,9 @@ func (rr *randomReader) readFull(
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
-func (rr *randomReader) startRead(start int64, end int64, readType int64) (err error) {
+func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, readType int64) (err error) {
 	// Begin the read.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(tracing.MaybePropagateTraceContext(context.Background(), ctx, cfg.IsTracingEnabled(rr.config)))
 
 	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
 		rr.reader, err = NewInactiveTimeoutReader(
@@ -700,7 +712,7 @@ func (rr *randomReader) readFromExistingRangeReader(ctx context.Context, p []byt
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
-		err = rr.startRead(offset, end, readType)
+		err = rr.startRead(ctx, offset, end, readType)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return

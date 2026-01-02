@@ -34,10 +34,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 
 	"golang.org/x/sync/semaphore"
-
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -143,6 +142,8 @@ type ServerConfig struct {
 
 	MetricHandle metrics.MetricHandle
 
+	TraceHandle tracing.TraceHandle
+
 	// Notifier allows the file system to send invalidation messages to the FUSE
 	// kernel module. This enables proactive cache invalidation (e.g., for dentries)
 	// when underlying content changes, improving consistency while still leveraging
@@ -213,6 +214,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		metricHandle:               serverCfg.MetricHandle,
+		traceHandle:                serverCfg.TraceHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		isTracingEnabled:           cfg.IsTracingEnabled(serverCfg.NewConfig),
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
@@ -313,7 +315,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache)
 	return
 }
@@ -551,6 +553,8 @@ type fileSystem struct {
 	cacheFileForRangeRead bool
 
 	metricHandle metrics.MetricHandle
+
+	traceHandle tracing.TraceHandle
 
 	enableAtomicRenameObject bool
 
@@ -1732,16 +1736,6 @@ func (fs *fileSystem) StatFS(
 	return
 }
 
-// When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
-func maybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
-	if !isTracingEnabled {
-		return newCtx
-	}
-
-	span := trace.SpanFromContext(oldCtx)
-	return trace.ContextWithSpan(newCtx, span)
-}
-
 // getInterruptlessContext returns a new context that is not cancellable by the
 // parent context if the ignore-interrupts flag is set. Otherwise, it returns
 // the original context.
@@ -1750,7 +1744,7 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		newCtx := context.Background()
-		return maybePropagateTraceContext(newCtx, ctx, fs.isTracingEnabled)
+		return tracing.MaybePropagateTraceContext(newCtx, ctx, fs.isTracingEnabled)
 	}
 
 	return ctx
@@ -2096,7 +2090,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, fs.traceHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
 
 	fs.mu.Unlock()
 
@@ -2870,7 +2864,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, fs.traceHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
