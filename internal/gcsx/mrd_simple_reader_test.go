@@ -171,8 +171,3 @@ func (t *MrdSimpleReaderTest) TestDestroy() {
 	// Verify that calling Destroy again doesn't panic
 	t.reader.Destroy()
 }
-
-func (t *MrdSimpleReaderTest) TestCheckInvariants() {
-	// Should not panic
-	t.reader.CheckInvariants()
-}

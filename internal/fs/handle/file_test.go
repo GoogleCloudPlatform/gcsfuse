@@ -294,7 +294,7 @@ func (t *fileTest) Test_IsValidReader_GenerationValidation() {
 func (t *fileTest) Test_Read_Success() {
 	expectedData := []byte("hello from reader")
 	parent := createDirInode(&t.bucket, &t.clock)
-	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, "test_obj_reader", expectedData, false)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, "test_obj_reader", expectedData, false)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
@@ -310,7 +310,7 @@ func (t *fileTest) Test_Read_Success() {
 func (t *fileTest) Test_ReadWithReadManager_Success() {
 	expectedData := []byte("hello from readManager")
 	parent := createDirInode(&t.bucket, &t.clock)
-	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, "test_obj_readManager", expectedData, false)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, "test_obj_readManager", expectedData, false)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
@@ -460,7 +460,7 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 		t.Run(tc.name, func() {
 			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock)
-			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
+			testInode := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, object.Name, []byte("data"), false)
 			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
 			fh.inode.Lock()
 			mockRM := new(read_manager.MockReadManager)
@@ -500,7 +500,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 		t.Run(tc.name, func() {
 			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock)
-			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
+			testInode := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, object.Name, []byte("data"), false)
 			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
 			fh.inode.Lock()
 			mockReader := new(gcsx.MockRandomReader)
@@ -525,7 +525,7 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	objectData := []byte("fallback data")
 	object := gcs.MinObject{Name: "test_obj"}
 	parent := createDirInode(&t.bucket, &t.clock)
-	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, object.Name, objectData, true)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
 	fh.inode.Lock()
 	mockRM := new(read_manager.MockReadManager)
@@ -549,7 +549,7 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	objectData := []byte("fallback data")
 	object := gcs.MinObject{Name: "test_obj"}
 	parent := createDirInode(&t.bucket, &t.clock)
-	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, object.Name, objectData, true)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
 	fh.inode.Lock()
 	mockR := new(gcsx.MockRandomReader)
@@ -663,7 +663,7 @@ func (t *fileTest) Test_ReadWithMrdSimpleReader_Success() {
 	parent := createDirInode(&mockSyncerBucket, &t.clock)
 	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
 	// Create File Handle.
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
 	require.NotNil(t.T(), fh.mrdSimpleReader)
 	// Mock the downloader that mrdSimpleReader will use.
 	fakeMRD := fake.NewFakeMultiRangeDownloader(in.Source(), expectedData)
@@ -691,7 +691,7 @@ func (t *fileTest) Test_ReadWithMrdSimpleReader_NotAuthoritative() {
 	zonalBucket := gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "zonal_bucket", gcs.BucketType{Zonal: true}))
 	originalData := []byte("some data") // 9 bytes
 	parent := createDirInode(&zonalBucket, &t.clock)
-	in := createFileInode(t.T(), &zonalBucket, &t.clock, &cfg.Config{}, parent, "test_obj", originalData, false)
+	in := createFileInode(t.T(), &zonalBucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
 	// Make inode dirty.
 	in.Lock()
 	_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode) // 5 bytes
@@ -700,7 +700,7 @@ func (t *fileTest) Test_ReadWithMrdSimpleReader_NotAuthoritative() {
 	// After write, content should be "dirtydata".
 	expectedReadData := "dirtydata"
 	// Create file handle.
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
 	require.NotNil(t.T(), fh.mrdSimpleReader)
 	// Create read request and take inode lock.
 	buf := make([]byte, len(expectedReadData))
@@ -726,7 +726,7 @@ func (t *fileTest) Test_ReadWithMrdSimpleReader_NilReader() {
 	parent := createDirInode(&nonZonalBucket, &t.clock)
 	in := createFileInode(t.T(), &nonZonalBucket, &t.clock, &cfg.Config{}, parent, "test_obj", []byte("data"), false)
 	// Create file handle.
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
 	require.Nil(t.T(), fh.mrdSimpleReader)
 	// Create read request and take inode lock.
 	req := &gcsx.ReadRequest{
@@ -754,9 +754,9 @@ func (t *fileTest) Test_ReadWithMrdSimpleReader_ReadAtError() {
 	// Create file inode.
 	mockSyncerBucket := gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", mockBucket)
 	parent := createDirInode(&mockSyncerBucket, &t.clock)
-	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
+	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, objectName, expectedData, false)
 	// Create file handle.
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{}, nil, nil, 0)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
 	require.NotNil(t.T(), fh.mrdSimpleReader)
 	// Mock the downloader to return an error.
 	expectedErr := errors.New("mrd read error")

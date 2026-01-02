@@ -125,6 +125,7 @@ type FileInode struct {
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
+	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance *gcsx.MrdInstance
 }
 
@@ -417,6 +418,7 @@ func (f *FileInode) Source() *gcs.MinObject {
 	return &o
 }
 
+// Returns MrdInstace for this inode.
 func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
 	return f.mrdInstance
 }

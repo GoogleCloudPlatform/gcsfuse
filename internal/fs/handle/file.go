@@ -98,7 +98,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		handleID:               handleID,
 	}
 
-	if inode != nil && inode.Bucket().BucketType().Zonal {
+	if c.FileSystem.EnableKernelReader && inode != nil && inode.Bucket().BucketType().Zonal {
 		fh.mrdSimpleReader = gcsx.NewMrdSimpleReader(inode.GetMRDInstance())
 	}
 

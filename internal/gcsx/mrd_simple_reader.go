@@ -173,5 +173,5 @@ func (msr *MrdSimpleReader) Destroy() {
 
 // CheckInvariants is a no-op for this reader type. It's included to satisfy
 // the gcsx.Reader interface.
-func (msr *MrdSimpleReader) CheckInvariants() {
-}
+// func (msr *MrdSimpleReader) CheckInvariants() {
+// }
