@@ -495,6 +495,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 // from operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
+	f.attrs.Size = size
 	f.updateMRDWrapper()
 }
 
@@ -577,7 +578,6 @@ func (f *FileInode) Attributes(
 			// the inode attributes to reflect latest size.
 			if o != nil {
 				f.UpdateSize(o.Size)
-				f.attrs.Size = f.src.Size
 				attrs = f.attrs
 				attrs.Nlink = 1
 				return
