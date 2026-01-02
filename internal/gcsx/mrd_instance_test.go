@@ -124,8 +124,9 @@ func (t *MrdInstanceTest) TestRecreateMRDEntry() {
 
 	// Recreate
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	t.mrdInstance.RecreateMRDEntry(entry)
+	err = t.mrdInstance.RecreateMRDEntry(entry)
 
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fakeMRD2, entry.mrd)
 }
 
@@ -140,8 +141,9 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 
 	// Recreate
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	t.mrdInstance.RecreateMRD(t.object)
+	err = t.mrdInstance.RecreateMRD(t.object)
 
+	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
 	assert.NotEqual(t.T(), pool1, t.mrdInstance.mrdPool)
 }
@@ -149,7 +151,8 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 func (t *MrdInstanceTest) TestDestroy() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	t.mrdInstance.EnsureMrdInstance()
+	err := t.mrdInstance.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
 
 	t.mrdInstance.Destroy()
