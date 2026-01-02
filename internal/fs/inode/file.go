@@ -125,7 +125,7 @@ type FileInode struct {
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
-	mrdInstance gcsx.MrdInstance
+	mrdInstance *gcsx.MrdInstance
 }
 
 var _ Inode = &FileInode{}
@@ -390,7 +390,7 @@ func (f *FileInode) Source() *gcs.MinObject {
 }
 
 func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
-	return &f.mrdInstance
+	return f.mrdInstance
 }
 
 // If true, it is safe to serve reads directly from the object given by

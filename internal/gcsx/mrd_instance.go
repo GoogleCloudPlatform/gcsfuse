@@ -34,8 +34,8 @@ type MrdInstance struct {
 }
 
 // NewMrdInstance creates a new MrdInstance for a given GCS object.
-func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, cfg cfg.MrdConfig) MrdInstance {
-	return MrdInstance{
+func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, cfg cfg.MrdConfig) *MrdInstance {
+	return &MrdInstance{
 		object:    obj,
 		bucket:    bucket,
 		mrdCache:  cache,
@@ -126,16 +126,16 @@ func (mi *MrdInstance) IncrementRefCount() {
 	}
 }
 
-// DecRefCount decreases the reference count. When the count drops to zero, the
+// DecrementRefCount decreases the reference count. When the count drops to zero, the
 // instance is considered inactive and is added to the LRU cache for potential
 // reuse. If the cache is full, this may trigger the eviction and closure of the
 // least recently used MRD instances.
-func (mi *MrdInstance) DecRefCount() {
+func (mi *MrdInstance) DecrementRefCount() {
 	mi.mu.Lock()
 	defer mi.mu.Unlock()
 	mi.refCount--
 	if mi.refCount < 0 {
-		logger.Errorf("MrdInstance::DecRefCount: Invalid refcount")
+		logger.Errorf("MrdInstance::DecrementRefCount: Invalid refcount")
 		return
 	}
 	if mi.refCount > 0 || mi.mrdCache == nil {

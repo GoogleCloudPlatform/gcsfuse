@@ -155,20 +155,20 @@ func (t *MrdInstanceTest) TestIncrementRefCount() {
 	assert.Nil(t.T(), t.cache.LookUpWithoutChangingOrder(key))
 }
 
-func (t *MrdInstanceTest) TestDecRefCount() {
+func (t *MrdInstanceTest) TestDecrementRefCount() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	t.mrdInstance.EnsureMrdInstance()
 	t.mrdInstance.refCount = 1
 
-	t.mrdInstance.DecRefCount()
+	t.mrdInstance.DecrementRefCount()
 
 	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
 	key := strconv.FormatUint(uint64(t.inodeID), 10)
 	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key))
 }
 
-func (t *MrdInstanceTest) TestDecRefCount_Eviction() {
+func (t *MrdInstanceTest) TestDecrementRefCount_Eviction() {
 	// Fill cache with other items
 	localMrdInstance := &MrdInstance{mrdPool: &MRDPool{}}
 	localMrdInstance.mrdPool.currentSize.Store(1)
@@ -180,7 +180,7 @@ func (t *MrdInstanceTest) TestDecRefCount_Eviction() {
 	t.mrdInstance.refCount = 1
 
 	// This should trigger eviction of "other1" (LRU)
-	t.mrdInstance.DecRefCount()
+	t.mrdInstance.DecrementRefCount()
 
 	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
 	key := strconv.FormatUint(uint64(t.inodeID), 10)

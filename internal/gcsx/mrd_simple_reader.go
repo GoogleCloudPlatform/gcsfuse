@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 )
 
 // MrdSimpleReader is a reader that uses an MRD Instance to read data from a GCS object.
@@ -28,8 +29,9 @@ import (
 //	to switch between sequential and random read strategies.
 type MrdSimpleReader struct {
 	// mu protects the internal state of the reader, specifically access to mrdInstance.
-	mu          sync.RWMutex
-	mrdInstance *MrdInstance
+	mu               sync.RWMutex
+	mrdInstanceInUse atomic.Bool
+	mrdInstance      *MrdInstance
 }
 
 // NewMrdSimpleReader creates a new MrdSimpleReader that uses the provided
@@ -48,6 +50,10 @@ func (msr *MrdSimpleReader) getValidEntry() (*MRDEntry, error) {
 
 	if msr.mrdInstance == nil {
 		return nil, fmt.Errorf("MrdSimpleReader: mrdInstance is nil")
+	}
+
+	if msr.mrdInstanceInUse.CompareAndSwap(false, true) {
+		msr.mrdInstance.IncrementRefCount()
 	}
 
 	// Attempt to get an entry.
@@ -159,7 +165,8 @@ func (msr *MrdSimpleReader) Destroy() {
 	msr.mu.Lock()
 	defer msr.mu.Unlock()
 	if msr.mrdInstance != nil {
-		msr.mrdInstance.Destroy()
+		msr.mrdInstanceInUse.Store(false)
+		msr.mrdInstance.DecrementRefCount()
 		msr.mrdInstance = nil
 	}
 }
