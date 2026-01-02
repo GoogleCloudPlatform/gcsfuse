@@ -60,10 +60,11 @@ RUN git clone ${GCSFUSE_REPO} && \
     git checkout ${BRANCH_NAME}
 RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}"
 
-RUN rm -rf /usr/local/go
-RUN GO_VERSION=$(cat gcsfuse/.go-version) && \
+RUN rm -rf /usr/local/go && \
+    GO_VERSION=$(cat gcsfuse/.go-version) && \
     wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q && \
-    tar -C /usr/local -xzf go_tar.tar.gz
+    tar -C /usr/local -xzf go_tar.tar.gz && \
+    rm go_tar.tar.gz
 RUN PATH=$PATH:/usr/local/go/bin
 RUN go version
 

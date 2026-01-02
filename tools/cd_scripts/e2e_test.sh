@@ -298,7 +298,7 @@ cd gcsfuse
 # Install golang.
 version=$(cat .go-version)
 wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-${architecture}.tar.gz
-sudo tar -C /usr/local -xzf go_tar.tar.gz
+sudo tar -C /usr/local -xzf go_tar.tar.gz && rm go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 
 #Write gcsfuse and go version to log file

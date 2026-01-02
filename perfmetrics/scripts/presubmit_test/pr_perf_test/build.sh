@@ -152,7 +152,7 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running package build tests...."
-  ./perfmetrics/scripts/build_and_install_gcsfuse.sh master
+  ./perfmetrics/scripts/build_and_install_gcsfuse.sh "$(git rev-parse HEAD)"
 fi
 
 # Execute JAX checkpoints tests.
