@@ -152,6 +152,13 @@ func resolveLoggingConfig(config *Config) {
 	}
 }
 
+func disableKernelReaderFlagBasedOnFileCache(c *Config) {
+	if IsFileCacheEnabled(c) {
+		log.Print("Warning: kernel-reader cannot be enabled when file-cache is enabled. Disabling kernel-reader.")
+		c.FileSystem.EnableKernelReader = false
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	var err error
@@ -171,6 +178,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
 	resolveFileCacheAndBufferedReadConflict(v, c)
+	disableKernelReaderFlagBasedOnFileCache(c)
 
 	return nil
 }

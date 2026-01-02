@@ -753,3 +753,42 @@ func TestResolveLoggingConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestDisableKernelReaderBasedOnFileCache(t *testing.T) {
+	testCases := []struct {
+		name                     string
+		config                   *Config
+		expectedEnableKernelRead bool
+	}{
+		{
+			name: "file_cache_enabled",
+			config: &Config{
+				CacheDir: ResolvedPath("/some-path"),
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 500,
+				},
+				FileSystem: FileSystemConfig{
+					EnableKernelReader: true,
+				},
+			},
+			expectedEnableKernelRead: false,
+		},
+		{
+			name: "file_cache_disabled",
+			config: &Config{
+				FileSystem: FileSystemConfig{
+					EnableKernelReader: true,
+				},
+			},
+			expectedEnableKernelRead: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			disableKernelReaderFlagBasedOnFileCache(tc.config)
+
+			assert.Equal(t, tc.expectedEnableKernelRead, tc.config.FileSystem.EnableKernelReader)
+		})
+	}
+}
