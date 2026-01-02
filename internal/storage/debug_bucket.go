@@ -303,11 +303,11 @@ func (b *debugBucket) DeleteFolder(ctx context.Context, folderName string) (err 
 	return err
 }
 
-func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
-	id, desc, start := b.startRequest("GetFolder(%q)", folderName)
+func (b *debugBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (folder *gcs.Folder, err error) {
+	id, desc, start := b.startRequest("GetFolder(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
-	folder, err = b.wrapped.GetFolder(ctx, folderName)
+	folder, err = b.wrapped.GetFolder(ctx, req)
 	return
 }
 

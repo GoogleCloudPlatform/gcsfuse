@@ -35,6 +35,14 @@ func (nfe *NotFoundError) Error() string {
 	return fmt.Sprintf("gcs.NotFoundError: %v", nfe.Err)
 }
 
+type NotFoundCacheError struct {
+	Err error
+}
+
+func (nfe *NotFoundCacheError) Error() string {
+	return fmt.Sprintf("gcs.NotFoundCacheError: %v", nfe.Err)
+}
+
 // A *PreconditionError value is an error that indicates a precondition failed.
 type PreconditionError struct {
 	Err error

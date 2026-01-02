@@ -717,7 +717,7 @@ func TestGetFolder_Prefix(t *testing.T) {
 
 	result, err := bucket.GetFolder(
 		ctx,
-		folderName)
+		&gcs.GetFolderRequest{Name: folderName})
 
 	assert.Nil(nil, err)
 	assert.Equal(t, folderName, result.Name)
@@ -742,7 +742,7 @@ func TestDeleteFolder(t *testing.T) {
 	if assert.Nil(t, err) {
 		_, err = wrapped.GetFolder(
 			ctx,
-			folderName)
+			&gcs.GetFolderRequest{Name: folderName})
 		var notFoundErr *gcs.NotFoundError
 		assert.ErrorAs(t, err, &notFoundErr)
 	}
@@ -766,10 +766,10 @@ func TestRenameFolder(t *testing.T) {
 	assert.Equal(t, new_suffix, f.Name)
 
 	// New folder should get created
-	_, err = bucket.GetFolder(ctx, new_suffix)
+	_, err = bucket.GetFolder(ctx, &gcs.GetFolderRequest{Name: new_suffix})
 	assert.Nil(t, err)
 	// Old folder should be gone.
-	_, err = bucket.GetFolder(ctx, old_suffix)
+	_, err = bucket.GetFolder(ctx, &gcs.GetFolderRequest{Name: old_suffix})
 	var notFoundErr *gcs.NotFoundError
 	assert.True(t, errors.As(err, &notFoundErr))
 }
@@ -788,7 +788,7 @@ func TestCreateFolder(t *testing.T) {
 	assert.Equal(t, f.Name, suffix)
 	assert.NoError(t, err)
 	// Folder should get created
-	_, err = bucket.GetFolder(ctx, suffix)
+	_, err = bucket.GetFolder(ctx, &gcs.GetFolderRequest{Name: suffix})
 	assert.NoError(t, err)
 }
 
