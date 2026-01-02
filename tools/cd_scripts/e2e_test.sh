@@ -291,18 +291,21 @@ else
     sudo yum -y install gcc gcc-c++ make
 fi
 
-# install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.11.linux-${architecture}.tar.gz
-sudo tar -C /usr/local -xzf go_tar.tar.gz
+# Clone and checkout gcsfuse repository
+git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ${LOG_FILE}
+cd gcsfuse
+
+# Install golang.
+version=$(cat .go-version)
+wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-${architecture}.tar.gz
+sudo tar -C /usr/local -xzf go_tar.tar.gz && rm go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
+
 #Write gcsfuse and go version to log file
 gcsfuse --version |& tee -a ${LOG_FILE}
 go version |& tee -a ${LOG_FILE}
 
-# Clone and checkout gcsfuse repo
-export PATH=${PATH}:/usr/local/go/bin
-git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ${LOG_FILE}
-cd gcsfuse
+# Install latest gcloud.
 bash ./perfmetrics/scripts/install_latest_gcloud.sh
 
 # Installation of crcmod is working through pip only on rhel and centos.

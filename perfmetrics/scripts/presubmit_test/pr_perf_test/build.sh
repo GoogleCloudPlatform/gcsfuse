@@ -21,7 +21,6 @@ readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly BUCKET_LOCATION=us-west4
-readonly GO_VERSION="1.24.11"
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
 
@@ -47,7 +46,11 @@ set -e
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+# Get the absolute path to the repo root
+REPO_ROOT=${KOKORO_ARTIFACTS_DIR}/github/gcsfuse
+cd "${REPO_ROOT}"
+# Read the version
+GO_VERSION=$(cat "${REPO_ROOT}/.go-version")
 # Install required go version.
 ./perfmetrics/scripts/install_go.sh "$GO_VERSION"
 export CGO_ENABLED=0
@@ -149,7 +152,7 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running package build tests...."
-  ./perfmetrics/scripts/build_and_install_gcsfuse.sh master
+  ./perfmetrics/scripts/build_and_install_gcsfuse.sh "$(git rev-parse HEAD)"
 fi
 
 # Execute JAX checkpoints tests.

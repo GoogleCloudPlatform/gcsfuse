@@ -45,7 +45,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.24"
+        go-version-file: '.go-version'
     - name: CodeGen
       run: go generate ./...
     - name: Formatting diff
@@ -53,18 +53,15 @@ jobs:
 
   linux-tests:
     needs: filter
-    strategy:
-      matrix:
-        go: [ 1.24.x ]
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Go ${{ matrix.go }}
-      uses: actions/setup-go@v2.1.4
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
       with:
-        go-version: ${{ matrix.go }}
+        go-version-file: '.go-version'
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
     - name: Build
@@ -92,14 +89,14 @@ jobs:
     if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: "1.24"
     - name: checkout code
       uses: actions/checkout@v4
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: '.go-version'
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
+      uses: golangci/golangci-lint-action@v6
       with:
         args: -E=goimports,unused --timeout 3m0s
         only-new-issues: true
