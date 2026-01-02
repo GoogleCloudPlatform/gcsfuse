@@ -108,13 +108,17 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		typeCacheMaxSizeMB,
 		true,
 		true,
-		false,
+		isTypeCacheDeprecationEnabled,
 	)
 
 	d := t.in.(*dirInode)
 	assert.NotNil(t.T(), d)
 	t.typeCache = d.cache
-	assert.NotNil(t.T(), t.typeCache)
+	if !d.IsTypeCacheDeprecated() {
+		assert.NotNil(t.T(), t.typeCache)
+	} else {
+		assert.Nil(t.T(), t.typeCache)
+	}
 
 	//Lock dir Inode
 	t.in.Lock()
@@ -139,7 +143,7 @@ func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 		4,
 		false,
 		true,
-		false,
+		isTypeCacheDeprecationEnabled,
 	)
 }
 
@@ -209,7 +213,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 		Name: dirName,
 	}
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
-	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.ExplicitDirType)
+	if !t.in.IsTypeCacheDeprecated() {
+		t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.ExplicitDirType)
+	}
 
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
@@ -263,7 +269,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 		CacheControl: "some-value",
 	}
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
-	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.RegularFileType)
+	if !t.in.IsTypeCacheDeprecated() {
+		t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.RegularFileType)
+	}
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
@@ -294,7 +302,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 		CacheControl: "some-value",
 	}
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
-	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.SymlinkType)
+	if !t.in.IsTypeCacheDeprecated() {
+		t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.SymlinkType)
+	}
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
@@ -310,7 +320,9 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 
 func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentType() {
 	const name = "file_type"
-	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.NonexistentType)
+	if !t.in.IsTypeCacheDeprecated() {
+		t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.NonexistentType)
+	}
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 

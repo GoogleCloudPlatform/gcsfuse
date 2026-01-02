@@ -53,6 +53,7 @@ const dirInodeName = "foo/bar/"
 const dirMode os.FileMode = 0712 | os.ModeDir
 const typeCacheTTL = time.Second
 const testSymlinkTarget = "blah"
+const isTypeCacheDeprecationEnabled = false
 
 type DirTest struct {
 	ctx    context.Context
@@ -125,13 +126,17 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		typeCacheMaxSizeMB,
 		false,
 		true,
-		false,
+		isTypeCacheDeprecationEnabled,
 	)
 
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
 	t.tc = d.cache
-	AssertNe(nil, t.tc)
+	if !d.IsTypeCacheDeprecated() {
+		AssertNe(nil, t.tc)
+	} else {
+		AssertEq(nil, t.tc)
+	}
 
 	t.in.Lock()
 }
@@ -641,6 +646,9 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 }
 
 func (t *DirTest) LookUpChild_TypeCaching() {
+	if t.in.IsTypeCacheDeprecated() {
+		return
+	}
 	const name = "qux"
 	fileObjName := path.Join(dirInodeName, name)
 	dirObjName := path.Join(dirInodeName, name) + "/"
@@ -693,6 +701,9 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 }
 
 func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
+	if t.in.IsTypeCacheDeprecated() {
+		return
+	}
 	// Enable enableNonexistentTypeCache for type cache
 	t.resetInode(false, true)
 
@@ -737,6 +748,9 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 }
 
 func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
+	if t.in.IsTypeCacheDeprecated() {
+		return
+	}
 	// Enable implicitDirs and enableNonexistentTypeCache for type cache
 	t.resetInode(true, true)
 
@@ -1041,6 +1055,9 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 }
 
 func (t *DirTest) ReadEntries_TypeCaching() {
+	if t.in.IsTypeCacheDeprecated() {
+		return
+	}
 	const name = "qux"
 	fileObjName := path.Join(dirInodeName, name)
 	dirObjName := path.Join(dirInodeName, name) + "/"
@@ -1258,6 +1275,9 @@ func (t *DirTest) CreateChildFile_Exists() {
 }
 
 func (t *DirTest) CreateChildFile_TypeCaching() {
+	if t.in.IsTypeCacheDeprecated() {
+		return
+	}
 	const name = "qux"
 	fileObjName := path.Join(dirInodeName, name)
 	dirObjName := path.Join(dirInodeName, name) + "/"
@@ -1394,6 +1414,9 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 }
 
 func (t *DirTest) CloneToChildFile_TypeCaching() {
+	if t.in.IsTypeCacheDeprecated() {
+		return
+	}
 	const srcName = "blah/baz"
 	dstName := path.Join(dirInodeName, "qux")
 
@@ -1480,6 +1503,9 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 }
 
 func (t *DirTest) CreateChildSymlink_TypeCaching() {
+	if t.in.IsTypeCacheDeprecated() {
+		return
+	}
 	const name = "qux"
 	linkObjName := path.Join(dirInodeName, name)
 	dirObjName := path.Join(dirInodeName, name) + "/"
@@ -1654,6 +1680,9 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 }
 
 func (t *DirTest) DeleteChildFile_TypeCaching() {
+	if t.in.IsTypeCacheDeprecated() {
+		return
+	}
 	const name = "qux"
 	fileObjName := path.Join(dirInodeName, name)
 	dirObjName := path.Join(dirInodeName, name) + "/"

@@ -292,14 +292,6 @@ func NewDirInode(
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
-	var cache metadata.TypeCache
-	if !isEnableTypeCacheDeprecation {
-		cache = metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL)
-	} else {
-		// Disable Type cache.
-		cache = metadata.NewTypeCache(0, 0)
-	}
-
 	typed := &dirInode{
 		bucket:                          bucket,
 		mtimeClock:                      mtimeClock,
@@ -310,11 +302,15 @@ func NewDirInode(
 		enableNonexistentTypeCache:      enableNonexistentTypeCache,
 		name:                            name,
 		attrs:                           attrs,
-		cache:                           cache,
 		isHNSEnabled:                    isHNSEnabled,
 		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
 		isEnableTypeCacheDeprecation:    isEnableTypeCacheDeprecation,
 		unlinked:                        false,
+	}
+	var cache metadata.TypeCache
+	if !isEnableTypeCacheDeprecation {
+		cache = metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL)
+		typed.cache = cache
 	}
 
 	typed.lc.Init(id)
@@ -592,7 +588,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return
 	}
 	var cachedType metadata.Type
-	logger.Info("Deprecation: ", d.IsTypeCacheDeprecated())
 	if d.IsTypeCacheDeprecated() {
 		// TODO: Add deprecation logic.
 		cachedType = metadata.UnknownType
@@ -641,10 +636,12 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		result = fileResult
 	}
 
-	if result != nil {
-		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+	if !d.IsTypeCacheDeprecated() {
+		if result != nil {
+			d.cache.Insert(d.cacheClock.Now(), name, result.Type())
+		} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
+			d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+		}
 	}
 
 	return result, nil
@@ -729,12 +726,14 @@ func (d *dirInode) readObjects(
 	}
 
 	cores = make(map[Name]*Core)
-	defer func() {
-		now := d.cacheClock.Now()
-		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
-		}
-	}()
+	if !d.IsTypeCacheDeprecated() {
+		defer func() {
+			now := d.cacheClock.Now()
+			for fullName, c := range cores {
+				d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+			}
+		}()
+	}
 
 	for _, o := range listing.MinObjects {
 		if storageutil.IsUnsupportedPath(o.Name) {
@@ -881,7 +880,9 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}
 	m := storageutil.ConvertObjToMinObject(o)
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	}
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
@@ -900,18 +901,24 @@ func (d *dirInode) CreateLocalChildFileCore(name string) (Core, error) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) InsertFileIntoTypeCache(name string) {
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	}
 }
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) EraseFromTypeCache(name string) {
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 }
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
-	// Erase any existing type information for this name.
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		// Erase any existing type information for this name.
+		d.cache.Erase(name)
+	}
 	fullName := NewFileName(d.Name(), name)
 
 	// Clone over anything that might already exist for the name.
@@ -933,7 +940,9 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 		FullName:  fullName,
 		MinObject: m,
 	}
-	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	}
 	return c, nil
 }
 
@@ -950,7 +959,9 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 	}
 	m := storageutil.ConvertObjToMinObject(o)
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
+	}
 
 	return &Core{
 		Bucket:    d.Bucket(),
@@ -986,7 +997,9 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	}
 
 	// Insert the new directory into the type cache.
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
+	}
 
 	return &Core{
 		Bucket:    d.Bucket(),
@@ -1002,7 +1015,9 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -1017,7 +1032,9 @@ func (d *dirInode) DeleteChildFile(
 		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 
 	return
 }
@@ -1028,7 +1045,9 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool,
 	dirInode DirInode) error {
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 
 	// If the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
@@ -1052,7 +1071,9 @@ func (d *dirInode) DeleteChildDir(
 		if err != nil {
 			return fmt.Errorf("DeleteObject: %w", err)
 		}
-		d.cache.Erase(name)
+		if !d.IsTypeCacheDeprecated() {
+			d.cache.Erase(name)
+		}
 		return nil
 	}
 
@@ -1067,7 +1088,9 @@ func (d *dirInode) DeleteChildDir(
 		dirInode.Unlink()
 	}
 
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 	return nil
 }
 
@@ -1223,7 +1246,9 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 	o, err := d.bucket.MoveObject(ctx, req)
 
 	// Invalidate the cache entry for the old object name.
-	d.cache.Erase(fileToRename.Name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(fileToRename.Name)
+	}
 
 	return o, err
 }
@@ -1236,7 +1261,9 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 
 	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
 	// Remove old entry from type cache.
-	d.cache.Erase(folderName)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(folderName)
+	}
 
 	return folder, nil
 }

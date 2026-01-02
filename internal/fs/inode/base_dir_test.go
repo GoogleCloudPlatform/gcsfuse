@@ -126,7 +126,7 @@ func (t *BaseDirTest) resetInode() {
 		},
 		t.bm,
 		metrics.NewNoopMetrics(),
-		false)
+		isTypeCacheDeprecationEnabled)
 
 	t.in.Lock()
 }
