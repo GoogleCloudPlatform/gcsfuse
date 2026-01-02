@@ -55,12 +55,15 @@ RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; the
 ARG GCSFUSE_VERSION
 ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git clone ${GCSFUSE_REPO}
+RUN git clone ${GCSFUSE_REPO} && \
+    cd gcsfuse && \
+    git checkout ${BRANCH_NAME}
+RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}"
 
-ARG GO_VERSION="$(cat gcsfuse/.go-version)"
-RUN wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q
 RUN rm -rf /usr/local/go
-RUN tar -C /usr/local -xzf go_tar.tar.gz
+RUN GO_VERSION=$(cat gcsfuse/.go-version) && \
+    wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q && \
+    tar -C /usr/local -xzf go_tar.tar.gz
 RUN PATH=$PATH:/usr/local/go/bin
 RUN go version
 
@@ -70,7 +73,6 @@ ENV GO111MODULE=auto
 
 ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
-RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}" && git checkout ${BRANCH_NAME}
 
 ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
 ARG DEBFULLNAME="GCSFuse Team"
