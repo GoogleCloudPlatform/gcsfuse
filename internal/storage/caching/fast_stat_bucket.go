@@ -397,10 +397,17 @@ func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
 	err = b.wrapped.DeleteObject(ctx, req)
-	if err != nil {
-		b.invalidate(req.Name)
-	} else {
+	// In case of successful delete, add a negative entry to the cache.
+	if err == nil {
 		b.addNegativeEntry(req.Name)
+		return
+	}
+	// If the delete failed due to a precondition error, invalidate the cache entry
+	// as the object's state is uncertain. For other errors, we don't touch the
+	// cache because the object likely still exists.
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		b.invalidate(req.Name)
 	}
 	return
 }
