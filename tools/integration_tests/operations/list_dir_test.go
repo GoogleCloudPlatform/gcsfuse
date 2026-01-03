@@ -28,9 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
-func createDirectoryStructureForTest(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
-
+func createDirectoryStructureForTest(testDir string, t *testing.T) {
 	// Directory structure
 	// testBucket/dirForOperationTests/directoryForListTest                                                                            -- Dir
 	// testBucket/dirForOperationTests/directoryForListTest/fileInDirectoryForListTest1		                                      -- File
@@ -66,7 +64,7 @@ func TestListDirectoryRecursively(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// Create directory structure for testing.
-	createDirectoryStructureForTest(t)
+	createDirectoryStructureForTest(testDir, t)
 
 	// Recursively walk into directory and test.
 	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
