@@ -16,5 +16,6 @@
 
 code_review:
   pull_request_opened:
-    code_review: false
-    summary: false
+    code_review: true
+    summary: true
+    include_drafts: false
