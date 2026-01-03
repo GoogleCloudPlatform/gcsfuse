@@ -603,12 +603,60 @@ build_gcsfuse_once() {
 }
 
 install_packages() {
-  sudo apt-get install -y python3
-  # install python3-setuptools tools.
-  sudo apt-get install -y gcc python3-dev python3-setuptools
-  # Downloading composite object requires integrity checking with CRC32c in gsutil.
-  # it requires to install crcmod.
-  sudo apt install -y python3-crcmod
+  local os_id
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    os_id=$ID
+  else
+    log_error "Cannot detect OS. /etc/os-release not found. Defaulting to apt-get logic, which may fail."
+    os_id="unknown"
+  fi
+  
+  log_info "Detected OS ID: $os_id"
+
+  case "$os_id" in
+    ubuntu|debian)
+      sudo apt-get update
+      sudo apt-get install -y python3
+      # install python3-setuptools tools.
+      sudo apt-get install -y gcc python3-dev python3-setuptools
+      # Downloading composite object requires integrity checking with CRC32c in gsutil.
+      # it requires to install crcmod.
+      sudo apt-get install -y python3-crcmod
+      ;;
+    rhel|centos|fedora|almalinux|rocky)
+      # RHEL/CentOS logic
+      sudo yum install -y python3
+      # Note: python3-devel is the name in RHEL-based systems, not python3-dev
+      sudo yum install -y gcc python3-devel python3-setuptools
+      # Try to install crcmod if available (e.g. via EPEL), otherwise continue.
+      # It is often better not to fail hard if this specific package is missing in base repos.
+      if sudo yum list installed epel-release >/dev/null 2>&1 || sudo yum search python3-crcmod >/dev/null 2>&1; then
+         sudo yum install -y python3-crcmod || log_info "python3-crcmod not found via yum, skipping."
+      fi
+      ;;
+    arch|manjaro)
+      # Arch Linux logic
+      sudo pacman -Sy --noconfirm
+      # Arch uses 'python' for python 3. 'base-devel' includes gcc.
+      # python-crcmod is available in official repos (extra).
+      sudo pacman -S --noconfirm python gcc python-setuptools python-crcmod
+      ;;
+    *)
+      # Fallback or unknown
+      if command -v apt-get &> /dev/null; then
+         log_info "OS not explicitly matched, but apt-get found. Trying apt logic."
+         sudo apt-get update && sudo apt-get install -y python3 gcc python3-dev python3-setuptools python3-crcmod
+      elif command -v yum &> /dev/null; then
+         log_info "OS not explicitly matched, but yum found. Trying yum logic."
+         sudo yum install -y python3 gcc python3-devel python3-setuptools
+      else
+         log_error "Unsupported OS or Package Manager not found for ID: $os_id"
+         exit 1
+      fi
+      ;;
+  esac
+
   # Install required go version.
   bash ./perfmetrics/scripts/install_go.sh "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
