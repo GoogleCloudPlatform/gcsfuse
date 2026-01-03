@@ -34,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 
 	"golang.org/x/sync/semaphore"
 
@@ -1750,7 +1751,7 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		newCtx := context.Background()
-		return maybePropagateTraceContext(newCtx, ctx, fs.isTracingEnabled)
+		return tracing.MaybePropagateTraceContext(newCtx, ctx, fs.isTracingEnabled)
 	}
 
 	return ctx
