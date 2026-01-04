@@ -72,10 +72,6 @@ Only specific OS distributions are currently supported, learn more about [Instal
 
 Pass [_netdev option](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/mounting.md#persisting-a-mount) in fstab entry (reference issue [here](https://github.com/GoogleCloudPlatform/gcsfuse/issues/1043)). With this option, mount will be attempted on reboot only when network is connected.
 
-### Cloud Storage FUSE get stuck when using it to concurrently work with a large number of opened files (reference issue [here](https://github.com/GoogleCloudPlatform/gcsfuse/issues/1043))
-
-This happens when gcsfuse is mounted with http1 client (default) and the application using gcsfuse tries to keep more than value of `--max-conns-per-host` number of files opened. You can try adding some timeout for http client connections using `--http-client-timeout` flag.
-
 ### Permission Denied error.
 
 Please refer [here](https://cloud.google.com/storage/docs/gcsfuse-mount#authenticate_by_using_a_service_account) to know more about permissions
