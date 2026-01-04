@@ -24,7 +24,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-const smallFileThresholdMiB = 500
+const smallFileThresholdMiB = 200
+const midiumFileThresholdMiB = 1500
+const largeFileThresholdMiB = 2500
 
 // MRDEntry holds a single MultiRangeDownloader instance and a mutex to protect access to it.
 type MRDEntry struct {
@@ -60,6 +62,12 @@ type MRDPool struct {
 func (mrdPoolConfig *MRDPoolConfig) determinePoolSize() {
 	if mrdPoolConfig.object.Size < smallFileThresholdMiB*MiB {
 		mrdPoolConfig.PoolSize = 1
+	} else if mrdPoolConfig.object.Size < midiumFileThresholdMiB*MiB {
+		mrdPoolConfig.PoolSize = 2
+	} else if mrdPoolConfig.object.Size < largeFileThresholdMiB*MiB {
+		mrdPoolConfig.PoolSize = 3
+	} else {
+		mrdPoolConfig.PoolSize = 4
 	}
 }
 
