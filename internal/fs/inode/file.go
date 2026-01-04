@@ -124,6 +124,9 @@ type FileInode struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	// mrdInstance manages the MultiRangeDownloader instances for this inode.
+	mrdInstance *gcsx.MrdInstance
 }
 
 var _ Inode = &FileInode{}
@@ -167,6 +170,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
+		mrdInstance:             gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg.Mrd),
 	}
 	var err error
 	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
@@ -414,6 +418,11 @@ func (f *FileInode) Source() *gcs.MinObject {
 	return &o
 }
 
+// Returns MrdInstace for this inode.
+func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
+	return f.mrdInstance
+}
+
 // If true, it is safe to serve reads directly from the object given by
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
@@ -495,6 +504,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 // from operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
+	f.attrs.Size = size
 	f.updateMRDWrapper()
 }
 
@@ -565,12 +575,25 @@ func (f *FileInode) Attributes(
 		// If the object has been clobbered, we reflect that as the inode being
 		// unlinked.
 		var clobbered bool
-		_, clobbered, err = f.clobbered(ctx, false, false)
+		var o *gcs.Object
+		o, clobbered, err = f.clobbered(ctx, false, false)
 		if err != nil {
 			err = fmt.Errorf("clobbered: %w", err)
 			return
 		}
 		if clobbered {
+			// If clobbered check is true but the minObject returned is not nil, it means the clobber
+			// was due to update in object size remotely (appends case). In this scenario, we will update
+			// the inode attributes to reflect latest size.
+			if o != nil {
+				f.UpdateSize(o.Size)
+				attrs = f.attrs
+				attrs.Nlink = 1
+				return
+
+			}
+			// If the minObj is nil, it means that file has been clobbered genuinely due to generation
+			// or metageneration changes.
 			attrs.Nlink = 0
 			return
 		}

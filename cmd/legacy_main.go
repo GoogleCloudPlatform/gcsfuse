@@ -621,8 +621,8 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 		markSuccessfulMount()
 
-		// Apply kernel settings only when kernel reader is enabled.
-		if !isDynamicMount(bucketName) && newConfig.FileSystem.EnableKernelReader {
+		// Apply kernel settings only when kernel reader is enabled and not a dynamic mount.
+		if newConfig.FileSystem.EnableKernelReader && (!isDynamicMount(bucketName)) {
 			if newConfig.FileSystem.MaxReadAheadKb > 0 {
 				setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
 			}
