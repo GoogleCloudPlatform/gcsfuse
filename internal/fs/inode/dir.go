@@ -702,8 +702,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
-// LOCKS_REQUIRED(d)
-func (d *dirInode) readObjects(
+// Helper function to handle the common listing logic and GCS request preparation.
+func (d *dirInode) listObjectsAndBuildCores(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
@@ -831,6 +831,43 @@ func (d *dirInode) readObjects(
 	if len(unsupportedPaths) > 0 {
 		logger.Warnf("Encountered unsupported prefixes during listing: %v", unsupportedPaths)
 	}
+	return
+}
+
+func (d *dirInode) insertToCache(cores map[Name]*Core) {
+	now := d.cacheClock.Now()
+	for fullName, c := range cores {
+		d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+	}
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) readObjects(
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+	if err == nil {
+		d.insertToCache(cores)
+	}
+	return
+}
+
+// LOCK_EXCLUDED(d)
+// readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
+func (d *dirInode) readObjectsUnlocked(
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+	if err != nil {
+		return
+	}
+
+	d.mu.Lock()
+	d.insertToCache(cores)
+	d.mu.Unlock()
+
 	return
 }
 
