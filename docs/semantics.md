@@ -339,7 +339,7 @@ The above example was based on greenfield deployments which assumes starting fre
 
 However, if a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the bucket using Cloud Storage FUSE, the directories and objects under the directories will not be visible until a user manually creates the directory, with the same name, using mkdir on the local instance. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.  These backing objects for directories are special 0-byte objects which are placeholders for directories. Note that these can also be created via the WebUI and Cloud Storage SDKs, but not by the Cloud Storage CLI tools such as gcloud or gsutil.
 
-If a user has the following objects in their Cloud Storage buckets, for example created by uploading a local directory using `gsutil cp -r` command.
+If a user has the following objects in their Cloud Storage buckets, for example created by uploading a local directory using `gcloud storage cp --recursive` command.
 - A/1.txt
 - A/B/2.txt
 - C/3.txt
@@ -554,4 +554,3 @@ Not all of the usual file system features are supported. Most prominently:
 - File and directory permissions and ownership cannot be changed. See the permissions section above.
 - Modification times are not tracked for any inodes except for files.
 - No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
-
