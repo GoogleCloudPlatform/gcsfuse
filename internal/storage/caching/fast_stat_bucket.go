@@ -109,7 +109,6 @@ func (b *fastStatBucket) insertListing(listing *gcs.Listing, dirName string) {
 	// If the listing contains objects but the directory itself is not returned
 	// as an explicit object, we infer and cache it as an implicit directory.
 	if len(listing.MinObjects) > 0 && listing.MinObjects[0].Name != dirName {
-		fmt.Println("Dir name: ", dirName)
 		m := &gcs.MinObject{
 			Name: dirName,
 		}
@@ -118,7 +117,6 @@ func (b *fastStatBucket) insertListing(listing *gcs.Listing, dirName string) {
 
 	// 2. Cache Explicit Objects
 	for _, o := range listing.MinObjects {
-		fmt.Println("O name: ", o.Name)
 		b.cache.Insert(o, expiration)
 		minObjectNames[o.Name] = struct{}{}
 	}
