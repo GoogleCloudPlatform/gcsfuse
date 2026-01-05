@@ -98,7 +98,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		handleID:               handleID,
 	}
 
-	if c.FileSystem.EnableKernelReader && inode != nil && inode.Bucket().BucketType().Zonal {
+	if c.FileSystem.EnableKernelReader {
 		fh.mrdSimpleReader = gcsx.NewMrdSimpleReader(inode.GetMRDInstance())
 	}
 
@@ -126,6 +126,7 @@ func (fh *FileHandle) Destroy() {
 	}
 	if fh.mrdSimpleReader != nil {
 		fh.mrdSimpleReader.Destroy()
+		fh.mrdSimpleReader = nil
 	}
 }
 
@@ -261,29 +262,21 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithMrdSimpleReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
-	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
-	// and fh.inode.SourceGenerationIsAuthoritative() will return false.
-	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
-		fh.inode.Unlock()
-		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
-	}
-
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
 		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
 		return gcsx.ReadResponse{Size: n}, err
 	}
+	fh.inode.Unlock()
 
-	fh.lockHandleAndRelockInode(true)
+	fh.mu.RLock()
+	defer fh.mu.RUnlock()
 
 	if fh.mrdSimpleReader == nil {
-		fh.unlockHandleAndInode(true)
 		return gcsx.ReadResponse{}, errors.New("mrdSimpleReader is not initialized")
 	}
 
-	fh.inode.Unlock()
-	defer fh.mu.RUnlock()
 	return fh.mrdSimpleReader.ReadAt(ctx, req)
 }
 

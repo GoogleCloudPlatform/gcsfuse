@@ -180,11 +180,8 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
 		// attributes in a single operation.
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
-	}
-
-	// Enable async reads if enable-kernel-reader flag is set to true.
-	if newConfig.FileSystem.EnableKernelReader {
-		mountCfg.EnableAsyncReads = true
+		// Enable async reads if enable-kernel-reader flag is set to true.
+		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
 	// GCSFuse to Jacobsa Fuse Log Level mapping:

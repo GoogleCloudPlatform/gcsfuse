@@ -2916,7 +2916,7 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
-	if fs.newConfig.FileSystem.EnableKernelReader && fh.Inode().Bucket().BucketType().Zonal {
+	if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
 		req := &gcsx.ReadRequest{
 			Buffer: op.Dst,

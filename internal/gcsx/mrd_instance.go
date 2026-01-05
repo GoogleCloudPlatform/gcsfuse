@@ -75,10 +75,18 @@ func (mi *MrdInstance) GetMRDEntry() *MRDEntry {
 // EnsureMrdInstance ensures that the MRD pool is initialized. If the pool
 // already exists, this function is a no-op.
 func (mi *MrdInstance) EnsureMrdInstance() (err error) {
+	// Return early if pool exists.
+	mi.poolMu.RLock()
+	if mi.mrdPool != nil {
+		mi.poolMu.RUnlock()
+		return
+	}
+	mi.poolMu.RUnlock()
+
 	mi.poolMu.Lock()
 	defer mi.poolMu.Unlock()
 
-	// Return early if pool exists.
+	// Re-check under write lock to handle race condition.
 	if mi.mrdPool != nil {
 		return
 	}
