@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -903,6 +904,142 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 
 	AssertEq(nil, err)
 	ExpectEq(expected, listing)
+}
+
+////////////////////////////////////////////////////////////////////////
+// ListObjectsTest_InsertListing
+////////////////////////////////////////////////////////////////////////
+
+type minObjectMatcher struct {
+	expected *gcs.MinObject
+	Matcher
+}
+
+func (m *minObjectMatcher) Matches(c interface{}) error {
+	// 1. Assert the type
+	actual, ok := c.(*gcs.MinObject)
+	if !ok {
+		return fmt.Errorf("expected *gcs.MinObject, got %T", c)
+	}
+
+	// 2. Compare VALUES, not pointers.
+	// We dereference both (*actual, *m.expected) to compare struct contents.
+	if !reflect.DeepEqual(*actual, *m.expected) {
+		return fmt.Errorf("mismatch:\nActual:   %+v\nExpected: %+v", *actual, *m.expected)
+	}
+
+	return nil
+}
+
+func (m *minObjectMatcher) Description() string {
+	return fmt.Sprintf("is equal to %v", m.expected)
+}
+
+type ListObjectsTest_InsertListing struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&ListObjectsTest_InsertListing{}) }
+
+func (t *ListObjectsTest_InsertListing) callAndVerify(
+	listing *gcs.Listing,
+	prefix string,
+	expectedInserts map[string]*gcs.MinObject) {
+	// Wrapped
+	ExpectCall(t.wrapped, "BucketType")().
+		WillOnce(Return(gcs.BucketType{Hierarchical: false}))
+	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
+		WillOnce(Return(listing, nil))
+
+	// 3. Register expectations in sorted order
+	for _, obj := range expectedInserts {
+		matcher := &minObjectMatcher{expected: obj}
+		ExpectCall(t.cache, "Insert")(matcher, Any())
+	}
+
+	// Call
+	_, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{Prefix: prefix, IsTypeCacheDeprecated: true})
+	AssertEq(nil, err)
+}
+
+func (t *ListObjectsTest_InsertListing) EmptyListing() {
+	listing := &gcs.Listing{}
+	expectedInserts := make(map[string]*gcs.MinObject)
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+			{Name: "dir/b", Size: 2},
+		},
+	}
+	expectedInserts := map[string]*gcs.MinObject{
+		"dir/":  {Name: "dir/"},
+		"dir/a": {Name: "dir/a", Size: 1},
+		"dir/b": {Name: "dir/b", Size: 2},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) CollapsedRunsOnly() {
+	listing := &gcs.Listing{
+		CollapsedRuns: []string{"dir/a/", "dir/b/"},
+	}
+	expectedInserts := map[string]*gcs.MinObject{
+		"dir/a/": {Name: "dir/a/"},
+		"dir/b/": {Name: "dir/b/"},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectsAndCollapsedRuns() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+		},
+		CollapsedRuns: []string{"dir/b/"},
+	}
+	expectedInserts := map[string]*gcs.MinObject{
+		"dir/":   {Name: "dir/"},
+		"dir/a":  {Name: "dir/a", Size: 1},
+		"dir/b/": {Name: "dir/b/"},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ImplicitDir() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+		},
+	}
+	expectedInserts := map[string]*gcs.MinObject{
+		"dir/":  {Name: "dir/"},
+		"dir/a": {Name: "dir/a", Size: 1},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a/", Size: 0},
+		},
+		CollapsedRuns: []string{"dir/a/"},
+	}
+	expectedInserts := map[string]*gcs.MinObject{
+		"dir/":   {Name: "dir/"},
+		"dir/a/": {Name: "dir/a/", Size: 0},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
 }
 
 ////////////////////////////////////////////////////////////////////////
