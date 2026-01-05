@@ -571,8 +571,9 @@ func (t *StatObjectTest) CallsCache() {
 	const name = "taco"
 
 	// LookUp
+	minObject := &gcs.MinObject{}
 	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
-		WillOnce(Return(true, &gcs.MinObject{}))
+		WillOnce(Return(true, minObject))
 
 	// Call
 	req := &gcs.StatObjectRequest{
@@ -868,7 +869,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 		WillOnce(Return(expected, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(2)
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(3)
 
 	// Call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
@@ -1053,7 +1054,7 @@ func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, folder))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1065,7 +1066,7 @@ func (t *StatObjectTest) TestShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	AssertEq(nil, result)
@@ -1076,15 +1077,16 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 	folder := &gcs.Folder{
 		Name: name,
 	}
+	req := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
 		WillOnce(Return())
-	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), req).
 		WillOnce(Return(folder, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), req)
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1093,13 +1095,14 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 func (t *StatObjectTest) TestShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
 	const name = "some-name"
 	error := errors.New("connection error")
+	req := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
-	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), req).
 		WillOnce(Return(nil, error))
 
-	folder, result := t.bucket.GetFolder(context.TODO(), name)
+	folder, result := t.bucket.GetFolder(context.TODO(), req)
 
 	AssertEq(nil, folder)
 	AssertEq(error, result)

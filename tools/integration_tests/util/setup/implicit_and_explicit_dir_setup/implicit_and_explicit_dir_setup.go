@@ -84,7 +84,7 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 
 	dir, err := os.Stat(dirPath)
 	if err == nil && dir.Name() == dirName && dir.IsDir() {
-		t.Errorf("Directory is not deleted.")
+		t.Errorf("Directory is not deleted: %s", dirName)
 	}
 }
 

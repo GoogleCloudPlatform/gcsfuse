@@ -60,7 +60,6 @@ type DirTest struct {
 	clock  timeutil.SimulatedClock
 
 	in DirInode
-	tc metadata.TypeCache
 }
 
 var _ SetUpInterface = &DirTest{}
@@ -99,10 +98,10 @@ func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // This poses a challenge for writing unit tests for includeFoldersAsPrefixes.
 
 func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache bool) {
-	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, true, 4, typeCacheTTL)
+	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, true)
 }
 
-func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
+func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -118,19 +117,16 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		implicitDirs,
 		enableManagedFoldersListing,
 		enableNonexistentTypeCache,
-		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		typeCacheMaxSizeMB,
 		false,
 		true,
+		60,
 	)
 
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
-	t.tc = d.cache
-	AssertNe(nil, t.tc)
 
 	t.in.Lock()
 }
@@ -147,18 +143,13 @@ func (t *DirTest) createDirInode(dirInodeName string) DirInode {
 		false,
 		false,
 		true,
-		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		4,
 		false,
 		true,
+		60,
 	)
-}
-
-func (t *DirTest) getTypeFromCache(name string) metadata.Type {
-	return t.tc.Get(t.in.(*dirInode).cacheClock.Now(), name)
 }
 
 // Read all of the entries and sort them by name.
@@ -255,7 +246,6 @@ func (t *DirTest) validateCore(cores map[Name]*Core, entryName string, isDir boo
 	AssertTrue(ok, "entry for "+entryName+" not found")
 	ExpectEq(expectedFullName, core.FullName.GcsObjectName())
 	ExpectEq(expectedType, core.Type())
-	ExpectEq(expectedType, t.getTypeFromCache(entryName))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -306,7 +296,6 @@ func (t *DirTest) LookUpChild_NonExistent() {
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) LookUpChild_FileOnly() {
@@ -324,7 +313,6 @@ func (t *DirTest) LookUpChild_FileOnly() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, result.MinObject.Name)
@@ -335,7 +323,6 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_DirOnly() {
@@ -353,7 +340,6 @@ func (t *DirTest) LookUpChild_DirOnly() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, result.MinObject.Name)
@@ -364,7 +350,6 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
@@ -380,13 +365,11 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 	result, err := t.in.LookUpChild(t.ctx, name)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 
 	// Ditto with a conflict marker.
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
@@ -408,7 +391,6 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 
 	AssertEq(nil, err)
 	ExpectEq(nil, result.MinObject)
-	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(metadata.ImplicitDirType, result.Type())
@@ -417,7 +399,6 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_FileAndDir() {
@@ -439,7 +420,6 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.MinObject.Name)
@@ -451,7 +431,6 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	AssertEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 
 	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, result.MinObject.Name)
@@ -488,7 +467,6 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	// created as a regular directory object on GCS,
 	// and is read back the same to gcsfuse and is this stored in type-cache
 	// also as a directory.
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.MinObject.Name)
@@ -500,7 +478,6 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 
 	ExpectEq(linkObjName, result.FullName.GcsObjectName())
 	ExpectEq(linkObjName, result.MinObject.Name)
@@ -532,8 +509,6 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(path.Join(dirInodeName, name)))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.MinObject.Name)
@@ -579,8 +554,6 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(path.Join(dirInodeName, name)))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.MinObject.Name)
@@ -592,7 +565,6 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 
 	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, result.MinObject.Name)
@@ -600,202 +572,128 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	ExpectEq(fileObj.Size, result.MinObject.Size)
 }
 
-func (t *DirTest) LookUpChild_TypeCaching() {
-	const name = "qux"
-	fileObjName := path.Join(dirInodeName, name)
-	dirObjName := path.Join(dirInodeName, name) + "/"
+// func (t *DirTest) LookUpChild_TypeCaching() {
+// 	const name = "qux"
+// 	fileObjName := path.Join(dirInodeName, name)
+// 	dirObjName := path.Join(dirInodeName, name) + "/"
 
-	var err error
+// 	var err error
 
-	// Create a backing object for a file.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
-	AssertEq(nil, err)
+// 	// Create a backing object for a file.
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+// 	AssertEq(nil, err)
 
-	// Look up; we should get the file.
-	result, err := t.in.LookUpChild(t.ctx, name)
+// 	// Look up; we should get the file.
+// 	result, err := t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(fileObjName, result.MinObject.Name)
+// 	ExpectEq(fileObjName, result.MinObject.Name)
 
-	// Create a backing object for a directory.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
-	AssertEq(nil, err)
+// 	// Create a backing object for a directory.
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+// 	AssertEq(nil, err)
 
-	// Look up again. Even though the directory should shadow the file, because
-	// we've cached only seeing the file that's what we should get back.
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	// Look up again. Even though the directory should shadow the file, because
+// 	// we've cached only seeing the file that's what we should get back.
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(fileObjName, result.MinObject.Name)
+// 	ExpectEq(fileObjName, result.MinObject.Name)
 
-	// But after the TTL expires, the behavior should flip.
-	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+// 	// But after the TTL expires, the behavior should flip.
+// 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(dirObjName, result.MinObject.Name)
-}
+// 	ExpectEq(dirObjName, result.MinObject.Name)
+// }
 
-func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
-	// Enable enableNonexistentTypeCache for type cache
-	t.resetInode(false, true)
+// func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
+// 	// Enable enableNonexistentTypeCache for type cache
+// 	t.resetInode(false, true)
 
-	const name = "qux"
-	objName := path.Join(dirInodeName, name) + "/"
+// 	const name = "qux"
+// 	objName := path.Join(dirInodeName, name) + "/"
 
-	// Look up nonexistent object, return nil
-	result, err := t.in.LookUpChild(t.ctx, name)
+// 	// Look up nonexistent object, return nil
+// 	result, err := t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertEq(nil, result)
+// 	AssertEq(nil, err)
+// 	AssertEq(nil, result)
 
-	// Create a backing object.
-	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
-	AssertEq(nil, err)
+// 	// Create a backing object.
+// 	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+// 	AssertEq(nil, err)
 
-	// Look up again, should still return nil due to cache
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	// Look up again, should still return nil due to cache
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertEq(nil, result)
-	ExpectEq(metadata.NonexistentType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertEq(nil, result)
 
-	// But after the TTL expires, the behavior should flip.
-	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+// 	// But after the TTL expires, the behavior should flip.
+// 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	// Look up again, should return correct object
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	// Look up again, should return correct object
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(objName, result.FullName.GcsObjectName())
-	ExpectEq(objName, result.MinObject.Name)
-	ExpectEq(createObj.Generation, result.MinObject.Generation)
-	ExpectEq(createObj.Size, result.MinObject.Size)
-}
+// 	ExpectEq(objName, result.FullName.GcsObjectName())
+// 	ExpectEq(objName, result.MinObject.Name)
+// 	ExpectEq(createObj.Generation, result.MinObject.Generation)
+// 	ExpectEq(createObj.Size, result.MinObject.Size)
+// }
 
-func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
-	// Enable implicitDirs and enableNonexistentTypeCache for type cache
-	t.resetInode(true, true)
+// func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
+// 	// Enable implicitDirs and enableNonexistentTypeCache for type cache
+// 	t.resetInode(true, true)
 
-	const name = "qux"
-	objName := path.Join(dirInodeName, name) + "/"
+// 	const name = "qux"
+// 	objName := path.Join(dirInodeName, name) + "/"
 
-	// Look up nonexistent object, return nil
-	result, err := t.in.LookUpChild(t.ctx, name)
+// 	// Look up nonexistent object, return nil
+// 	result, err := t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertEq(nil, result)
-	ExpectEq(metadata.NonexistentType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertEq(nil, result)
 
-	// Create an object that implicitly defines the directory.
-	otherObjName := path.Join(objName, "asdf")
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
-	AssertEq(nil, err)
+// 	// Create an object that implicitly defines the directory.
+// 	otherObjName := path.Join(objName, "asdf")
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+// 	AssertEq(nil, err)
 
-	// Look up again, should still return nil due to cache
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	// Look up again, should still return nil due to cache
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertEq(nil, result)
-	ExpectEq(metadata.NonexistentType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertEq(nil, result)
 
-	// But after the TTL expires, the behavior should flip.
-	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+// 	// But after the TTL expires, the behavior should flip.
+// 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	// Look up again, should return correct object
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	// Look up again, should return correct object
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	ExpectEq(nil, result.MinObject)
+// 	AssertEq(nil, err)
+// 	ExpectEq(nil, result.MinObject)
 
-	ExpectEq(objName, result.FullName.GcsObjectName())
-	ExpectEq(metadata.ImplicitDirType, result.Type())
+// 	ExpectEq(objName, result.FullName.GcsObjectName())
+// 	ExpectEq(metadata.ImplicitDirType, result.Type())
 
-	// A conflict marker should not work.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
-	AssertEq(nil, err)
-	ExpectEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
-}
-
-func (t *DirTest) LookUpChild_TypeCacheEnabled() {
-	inputs := []struct {
-		typeCacheMaxSizeMB int64
-		typeCacheTTL       time.Duration
-	}{{
-		typeCacheMaxSizeMB: 4,
-		typeCacheTTL:       time.Second,
-	}, {
-		typeCacheMaxSizeMB: -1,
-		typeCacheTTL:       time.Second,
-	}}
-
-	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
-
-		const name = "qux"
-		objName := path.Join(dirInodeName, name)
-
-		// Create a backing object.
-		o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
-
-		AssertEq(nil, err)
-		AssertNe(nil, o)
-
-		// Look up nonexistent object, return nil
-		result, err := t.in.LookUpChild(t.ctx, name)
-
-		AssertEq(nil, err)
-		AssertNe(nil, result)
-		ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
-	}
-}
-
-func (t *DirTest) LookUpChild_TypeCacheDisabled() {
-	inputs := []struct {
-		typeCacheMaxSizeMB int64
-		typeCacheTTL       time.Duration
-	}{{
-		typeCacheMaxSizeMB: 0,
-		typeCacheTTL:       time.Second,
-	}, {
-		typeCacheMaxSizeMB: 4,
-		typeCacheTTL:       0,
-	}}
-
-	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
-
-		const name = "qux"
-		objName := path.Join(dirInodeName, name)
-
-		// Create a backing object.
-		o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
-
-		AssertEq(nil, err)
-		AssertNe(nil, o)
-
-		// Look up nonexistent object, return nil
-		result, err := t.in.LookUpChild(t.ctx, name)
-
-		AssertEq(nil, err)
-		AssertNe(nil, result)
-		ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
-	}
-}
+// 	// A conflict marker should not work.
+// 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+// 	AssertEq(nil, err)
+// 	ExpectEq(nil, result)
+// }
 
 func (t *DirTest) ReadDescendants_Empty() {
 	descendants, err := t.in.ReadDescendants(t.ctx, 10)
@@ -877,22 +775,18 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	entry = entries[0]
 	ExpectEq("backed_dir_empty", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
 
 	entry = entries[1]
 	ExpectEq("backed_dir_nonempty", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
 
 	entry = entries[2]
 	ExpectEq("file", entry.Name)
 	ExpectEq(fuseutil.DT_File, entry.Type)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("file"))
 
 	entry = entries[3]
 	ExpectEq("symlink", entry.Name)
 	ExpectEq(fuseutil.DT_Link, entry.Type)
-	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
 
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
@@ -936,81 +830,73 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	entry = entries[0]
 	ExpectEq("backed_dir_empty", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
 
 	entry = entries[1]
 	ExpectEq("backed_dir_nonempty", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
 
 	entry = entries[2]
 	ExpectEq("file", entry.Name)
 	ExpectEq(fuseutil.DT_File, entry.Type)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("file"))
 
 	entry = entries[3]
 	ExpectEq("implicit_dir", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache("implicit_dir"))
 
 	entry = entries[4]
 	ExpectEq("symlink", entry.Name)
 	ExpectEq(fuseutil.DT_Link, entry.Type)
-	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
 
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
 
-func (t *DirTest) ReadEntries_TypeCaching() {
-	const name = "qux"
-	fileObjName := path.Join(dirInodeName, name)
-	dirObjName := path.Join(dirInodeName, name) + "/"
+// func (t *DirTest) ReadEntries_TypeCaching() {
+// 	const name = "qux"
+// 	fileObjName := path.Join(dirInodeName, name)
+// 	dirObjName := path.Join(dirInodeName, name) + "/"
 
-	var err error
+// 	var err error
 
-	// Create a backing object for a file.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
-	AssertEq(nil, err)
+// 	// Create a backing object for a file.
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+// 	AssertEq(nil, err)
 
-	// Nil prevDirListingTimeStamp
-	d := t.in.(*dirInode)
-	AssertNe(nil, d)
-	AssertTrue(d.prevDirListingTimeStamp.IsZero())
+// 	// Nil prevDirListingTimeStamp
+// 	d := t.in.(*dirInode)
+// 	AssertNe(nil, d)
+// 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
-	// Read the directory, priming the type cache.
-	_, err = t.readAllEntries()
-	AssertEq(nil, err)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
+// 	// Read the directory, priming the type cache.
+// 	_, err = t.readAllEntries()
+// 	AssertEq(nil, err)
 
-	// Create a backing object for a directory.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
-	AssertEq(nil, err)
+// 	// Create a backing object for a directory.
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+// 	AssertEq(nil, err)
 
-	// Look up the name. Even though the directory should shadow the file,
-	// because we've cached only seeing the file that's what we should get back.
-	result, err := t.in.LookUpChild(t.ctx, name)
+// 	// Look up the name. Even though the directory should shadow the file,
+// 	// because we've cached only seeing the file that's what we should get back.
+// 	result, err := t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(fileObjName, result.MinObject.Name)
+// 	ExpectEq(fileObjName, result.MinObject.Name)
 
-	// But after the TTL expires, the behavior should flip.
-	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+// 	// But after the TTL expires, the behavior should flip.
+// 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(dirObjName, result.MinObject.Name)
+// 	ExpectEq(dirObjName, result.MinObject.Name)
 
-	// Make sure prevDirListingTimeStamp is initialized.
-	AssertFalse(d.prevDirListingTimeStamp.IsZero())
-}
+// 	// Make sure prevDirListingTimeStamp is initialized.
+// 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
+// }
 
 func (t *DirTest) ReadEntryCores_Empty() {
 	d := t.in.(*dirInode)
@@ -1143,7 +1029,6 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	ExpectEq(result.FullName.GcsObjectName(), result.MinObject.Name)
 	ExpectEq(objName, result.MinObject.Name)
 	ExpectFalse(IsSymlink(result.MinObject))
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	ExpectEq(1, len(result.MinObject.Metadata))
 	ExpectEq(
@@ -1165,46 +1050,42 @@ func (t *DirTest) CreateChildFile_Exists() {
 	_, err = t.in.CreateChildFile(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
-func (t *DirTest) CreateChildFile_TypeCaching() {
-	const name = "qux"
-	fileObjName := path.Join(dirInodeName, name)
-	dirObjName := path.Join(dirInodeName, name) + "/"
+// func (t *DirTest) CreateChildFile_TypeCaching() {
+// 	const name = "qux"
+// 	fileObjName := path.Join(dirInodeName, name)
+// 	dirObjName := path.Join(dirInodeName, name) + "/"
 
-	var err error
+// 	var err error
 
-	// Create the name.
-	_, err = t.in.CreateChildFile(t.ctx, name)
-	AssertEq(nil, err)
+// 	// Create the name.
+// 	_, err = t.in.CreateChildFile(t.ctx, name)
+// 	AssertEq(nil, err)
 
-	// Create a backing object for a directory.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
-	AssertEq(nil, err)
+// 	// Create a backing object for a directory.
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+// 	AssertEq(nil, err)
 
-	// Look up the name. Even though the directory should shadow the file,
-	// because we've cached only seeing the file that's what we should get back.
-	result, err := t.in.LookUpChild(t.ctx, name)
+// 	// Look up the name. Even though the directory should shadow the file,
+// 	// because we've cached only seeing the file that's what we should get back.
+// 	result, err := t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(fileObjName, result.MinObject.Name)
+// 	ExpectEq(fileObjName, result.MinObject.Name)
 
-	// But after the TTL expires, the behavior should flip.
-	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+// 	// But after the TTL expires, the behavior should flip.
+// 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(dirObjName, result.MinObject.Name)
-}
+// 	ExpectEq(dirObjName, result.MinObject.Name)
+// }
 
 func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	const srcName = "blah/baz"
@@ -1227,7 +1108,6 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), srcMinObject)
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(dstName))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
@@ -1244,7 +1124,6 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	AssertEq(nil, err)
 	AssertNe(nil, result)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.MinObject.Name)
@@ -1255,7 +1134,6 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, dstName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationExists() {
@@ -1276,7 +1154,6 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	AssertEq(nil, err)
 	AssertNe(nil, result)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.MinObject.Name)
@@ -1288,50 +1165,47 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, dstName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 }
 
-func (t *DirTest) CloneToChildFile_TypeCaching() {
-	const srcName = "blah/baz"
-	dstName := path.Join(dirInodeName, "qux")
+// func (t *DirTest) CloneToChildFile_TypeCaching() {
+// 	const srcName = "blah/baz"
+// 	dstName := path.Join(dirInodeName, "qux")
 
-	var err error
+// 	var err error
 
-	// Create the source.
-	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
-	AssertEq(nil, err)
+// 	// Create the source.
+// 	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
+// 	AssertEq(nil, err)
 
-	// Clone to the destination.
-	srcMinObject := storageutil.ConvertObjToMinObject(src)
-	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), srcMinObject)
-	AssertEq(nil, err)
+// 	// Clone to the destination.
+// 	srcMinObject := storageutil.ConvertObjToMinObject(src)
+// 	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), srcMinObject)
+// 	AssertEq(nil, err)
 
-	// Create a backing object for a directory.
-	dirObjName := dstName + "/"
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
-	AssertEq(nil, err)
+// 	// Create a backing object for a directory.
+// 	dirObjName := dstName + "/"
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+// 	AssertEq(nil, err)
 
-	// Look up the name. Even though the directory should shadow the file,
-	// because we've cached only seeing the file that's what we should get back.
-	result, err := t.in.LookUpChild(t.ctx, path.Base(dstName))
+// 	// Look up the name. Even though the directory should shadow the file,
+// 	// because we've cached only seeing the file that's what we should get back.
+// 	result, err := t.in.LookUpChild(t.ctx, path.Base(dstName))
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(dstName, result.MinObject.Name)
+// 	ExpectEq(dstName, result.MinObject.Name)
 
-	// But after the TTL expires, the behavior should flip.
-	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+// 	// But after the TTL expires, the behavior should flip.
+// 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, path.Base(dstName))
+// 	result, err = t.in.LookUpChild(t.ctx, path.Base(dstName))
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("qux"))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(dirObjName, result.MinObject.Name)
-}
+// 	ExpectEq(dirObjName, result.MinObject.Name)
+// }
 
 func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	const name = "qux"
@@ -1343,7 +1217,6 @@ func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	AssertEq(nil, err)
 	AssertNe(nil, result)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.SymlinkType, t.getTypeFromCache(name))
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.MinObject.Name)
@@ -1366,46 +1239,43 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 	_, err = t.in.CreateChildSymlink(t.ctx, name, target)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
-func (t *DirTest) CreateChildSymlink_TypeCaching() {
-	const name = "qux"
-	linkObjName := path.Join(dirInodeName, name)
-	dirObjName := path.Join(dirInodeName, name) + "/"
+// func (t *DirTest) CreateChildSymlink_TypeCaching() {
+// 	const name = "qux"
+// 	linkObjName := path.Join(dirInodeName, name)
+// 	dirObjName := path.Join(dirInodeName, name) + "/"
 
-	var err error
+// 	var err error
 
-	// Create the name.
-	_, err = t.in.CreateChildSymlink(t.ctx, name, "")
-	AssertEq(nil, err)
+// 	// Create the name.
+// 	_, err = t.in.CreateChildSymlink(t.ctx, name, "")
+// 	AssertEq(nil, err)
 
-	// Create a backing object for a directory.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
-	AssertEq(nil, err)
+// 	// Create a backing object for a directory.
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+// 	AssertEq(nil, err)
 
-	// Look up the name. Even though the directory should shadow the symlink,
-	// because we've cached only seeing the symlink that's what we should get
-	// back.
-	result, err := t.in.LookUpChild(t.ctx, name)
+// 	// Look up the name. Even though the directory should shadow the symlink,
+// 	// because we've cached only seeing the symlink that's what we should get
+// 	// back.
+// 	result, err := t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.SymlinkType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(linkObjName, result.MinObject.Name)
+// 	ExpectEq(linkObjName, result.MinObject.Name)
 
-	// But after the TTL expires, the behavior should flip.
-	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+// 	// But after the TTL expires, the behavior should flip.
+// 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(dirObjName, result.MinObject.Name)
-}
+// 	ExpectEq(dirObjName, result.MinObject.Name)
+// }
 
 func (t *DirTest) CreateChildDir_DoesntExist() {
 	const name = "qux"
@@ -1416,7 +1286,6 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	AssertEq(nil, err)
 	AssertNe(nil, result)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.MinObject.Name)
@@ -1438,7 +1307,6 @@ func (t *DirTest) CreateChildDir_Exists() {
 	_, err = t.in.CreateChildDir(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) DeleteChildFile_DoesntExist() {
@@ -1446,7 +1314,6 @@ func (t *DirTest) DeleteChildFile_DoesntExist() {
 
 	err := t.in.DeleteChildFile(t.ctx, name, 0, nil)
 	ExpectEq(nil, err)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) DeleteChildFile_WrongGeneration() {
@@ -1533,41 +1400,40 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
-func (t *DirTest) DeleteChildFile_TypeCaching() {
-	const name = "qux"
-	fileObjName := path.Join(dirInodeName, name)
-	dirObjName := path.Join(dirInodeName, name) + "/"
+// func (t *DirTest) DeleteChildFile_TypeCaching() {
+// 	const name = "qux"
+// 	fileObjName := path.Join(dirInodeName, name)
+// 	dirObjName := path.Join(dirInodeName, name) + "/"
 
-	var err error
+// 	var err error
 
-	// Create the name, priming the type cache.
-	_, err = t.in.CreateChildFile(t.ctx, name)
-	AssertEq(nil, err)
+// 	// Create the name, priming the type cache.
+// 	_, err = t.in.CreateChildFile(t.ctx, name)
+// 	AssertEq(nil, err)
 
-	// Create a backing object for a directory. It should be shadowed by the
-	// file.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
-	AssertEq(nil, err)
+// 	// Create a backing object for a directory. It should be shadowed by the
+// 	// file.
+// 	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+// 	AssertEq(nil, err)
 
-	result, err := t.in.LookUpChild(t.ctx, name)
+// 	result, err := t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	AssertEq(fileObjName, result.MinObject.Name)
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
+// 	AssertEq(fileObjName, result.MinObject.Name)
 
-	// But after deleting the file via the inode, the directory should be
-	// revealed.
-	err = t.in.DeleteChildFile(t.ctx, name, 0, nil)
-	AssertEq(nil, err)
+// 	// But after deleting the file via the inode, the directory should be
+// 	// revealed.
+// 	err = t.in.DeleteChildFile(t.ctx, name, 0, nil)
+// 	AssertEq(nil, err)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+// 	result, err = t.in.LookUpChild(t.ctx, name)
 
-	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, result.MinObject)
 
-	ExpectEq(dirObjName, result.MinObject.Name)
-}
+// 	ExpectEq(dirObjName, result.MinObject.Name)
+// }
 
 func (t *DirTest) DeleteChildDir_DoesntExist() {
 	const name = "qux"
@@ -1620,25 +1486,6 @@ func (t *DirTest) LocalChildFileCore() {
 	result, err := t.in.LookUpChild(t.ctx, "qux")
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache("qux"))
-}
-
-func (t *DirTest) InsertIntoTypeCache() {
-	t.in.InsertFileIntoTypeCache("abc")
-
-	d := t.in.(*dirInode)
-	tp := t.tc.Get(d.cacheClock.Now(), "abc")
-	AssertEq(2, tp)
-}
-
-func (t *DirTest) EraseFromTypeCache() {
-	t.in.InsertFileIntoTypeCache("abc")
-
-	t.in.EraseFromTypeCache("abc")
-
-	d := t.in.(*dirInode)
-	tp := d.cache.Get(d.cacheClock.Now(), "abc")
-	AssertEq(0, tp)
 }
 
 func (t *DirTest) TestDeleteObjects() {

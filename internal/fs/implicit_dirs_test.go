@@ -186,7 +186,7 @@ func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ConflictingNames_PlaceholderPresent() {
+func (t *ImplicitDirsTest) Test_ConflictingNames_PlaceholderPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
