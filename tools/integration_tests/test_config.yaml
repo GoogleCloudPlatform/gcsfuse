@@ -586,6 +586,14 @@ unfinalized_object:
           zonal: true
         run: TestUnfinalizedObjectOperationTest
         run_on_gke: true
+      - flags:
+        - "--metadata-cache-ttl-secs=2"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run: TestUnfinalizedObjectTailingReadTest
+        run_on_gke: true
 
 interrupt:
   - mounted_directory: "${MOUNTED_DIR}"
