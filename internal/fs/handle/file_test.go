@@ -722,11 +722,11 @@ func (t *fileTest) Test_ReadWithMrdSimpleReader_NotAuthoritative() {
 
 func (t *fileTest) Test_ReadWithMrdSimpleReader_NilReader() {
 	// 1. Setup with a non-zonal bucket.
-	nonZonalBucket := gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "non_zonal_bucket", gcs.BucketType{Zonal: false}))
+	nonZonalBucket := gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "non_zonal_bucket", gcs.BucketType{Zonal: true}))
 	parent := createDirInode(&nonZonalBucket, &t.clock)
 	in := createFileInode(t.T(), &nonZonalBucket, &t.clock, &cfg.Config{}, parent, "test_obj", []byte("data"), false)
 	// Create file handle.
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: false}}, nil, nil, 0)
 	require.Nil(t.T(), fh.mrdSimpleReader)
 	// Create read request and take inode lock.
 	req := &gcsx.ReadRequest{
