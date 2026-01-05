@@ -62,9 +62,8 @@ func (t *unfinalizedObjectTailingReads) TestTailingRead() {
 	initialContent := setup.GenerateRandomString(initialSize)
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), initialContent)
 
-	readPath := path.Join(t.testDirPath, t.fileName)
-
 	// 2. Open file for reading
+	readPath := path.Join(t.testDirPath, t.fileName)
 	readFile, err := os.OpenFile(readPath, os.O_RDONLY, setup.FilePermission_0600)
 	require.NoError(t.T(), err)
 	defer operations.CloseFileShouldNotThrowError(t.T(), readFile)
@@ -80,15 +79,14 @@ func (t *unfinalizedObjectTailingReads) TestTailingRead() {
 	numAppends := 2
 	appendSize := 10
 	for i := 0; i < numAppends; i++ {
-		// Append
-		appendData := setup.GenerateRandomString(appendSize)
-
-		// Remotely append content to the object.
+		// Open an appendable writer to the object at correct generation.
 		obj, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
 		require.NoError(t.T(), err)
-
 		writer, err := client.AppendableWriter(t.ctx, t.storageClient, path.Join(testDirName, t.fileName), obj.Generation)
 		require.NoError(t.T(), err)
+
+		// Remotely append content to the object.
+		appendData := setup.GenerateRandomString(appendSize)
 		_, err = writer.Write([]byte(appendData))
 		require.NoError(t.T(), err)
 		err = writer.Close()
@@ -101,7 +99,6 @@ func (t *unfinalizedObjectTailingReads) TestTailingRead() {
 		// Check Stat (fstat on the read handle)
 		fi, err := readFile.Stat()
 		require.NoError(t.T(), err)
-
 		expectedSize := int64(len(initialContent) + (i+1)*appendSize)
 		require.Equal(t.T(), expectedSize, fi.Size(), "File size should update after append")
 
