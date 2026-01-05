@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2025 Google LLC
+# Copyright 2026 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,79 +26,89 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
+
+# Source common utilities for OS and Arch detection
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+if [ -f "${SCRIPT_DIR}/get_os_arch.sh.sh" ]; then
+  source "${SCRIPT_DIR}/get_os_arch.sh.sh"
+else
+  echo "Error: get_os_arch.sh.sh not found in ${SCRIPT_DIR}" >&2
+  exit 1
+fi
+
 GO_VERSION="$1"
 INSTALL_DIR="/usr/local" # Installation directory
 
 # Function to download, extract, and install go
 install_go() {
-    local temp_dir architecture system_arch
-    temp_dir=$(mktemp -d /tmp/go_install_src.XXXXXX)
-    pushd "$temp_dir" > /dev/null
+  local temp_dir architecture os_id system_arch
+  
+  os_id=$(get_os_id)
+  architecture=$(get_go_arch)
+  system_arch=$(uname -m)
 
-    # Detect Architecture regardless of Distro (RHEL/Arch/Debian)
-    # uname -m returns x86_64 on Intel/AMD and aarch64 on ARM
-    system_arch=$(uname -m)
-    case "$system_arch" in
-        x86_64)
-            architecture="amd64"
-            ;;
-        aarch64|arm64)
-            architecture="arm64"
-            ;;
-        *)
-            echo "Unsupported architecture: $system_arch" >&2
-            exit 1
-            ;;
-    esac
+  if [ "$architecture" == "unsupported" ]; then
+    echo "Unsupported architecture: $system_arch" >&2
+    exit 1
+  fi
 
-    echo "Detected architecture: $system_arch mapped to Go arch: $architecture"
+  echo "Detected architecture: $system_arch mapped to Go arch: $architecture"
 
-    # Download with retries
-    local url="https://go.dev/dl/go${GO_VERSION}.linux-${architecture}.tar.gz"
-    echo "Downloading from: $url"
-    
-    # Check if wget exists, otherwise try curl
-    if command -v wget >/dev/null 2>&1; then
-        wget -O go_tar.tar.gz "$url" -q
-    elif command -v curl >/dev/null 2>&1; then
-        curl -s -L -o go_tar.tar.gz "$url"
-    else
-        echo "Error: Neither wget nor curl is installed." >&2
-        exit 1
-    fi
+  # Install dependencies required for installing Go (curl/wget, tar)
+  # This makes the script isolated and robust.
+  echo "Checking and installing dependencies for Go installation..."
+  install_packages_by_os "$os_id" "curl" "wget" "tar" || {
+    echo "Warning: Could not install dependencies via package manager. Proceeding with existing tools." >&2
+  }
 
-    sudo rm -rf "${INSTALL_DIR}/go" # Remove previous installation.
-    sudo tar -C "$INSTALL_DIR" -xzf go_tar.tar.gz
-    
-    popd > /dev/null
-    sudo rm -rf "$temp_dir"
+  temp_dir=$(mktemp -d /tmp/go_install_src.XXXXXX)
+  pushd "$temp_dir" > /dev/null
+
+  local url="https://go.dev/dl/go${GO_VERSION}.linux-${architecture}.tar.gz"
+  echo "Downloading from: $url"
+
+  # Check if wget exists, otherwise try curl
+  if command -v wget >/dev/null 2>&1; then
+    wget -O go_tar.tar.gz "$url" -q
+  elif command -v curl >/dev/null 2>&1; then
+    curl -s -L -o go_tar.tar.gz "$url"
+  else
+    echo "Error: Neither wget nor curl is installed." >&2
+    exit 1
+  fi
+
+  sudo rm -rf "${INSTALL_DIR}/go" # Remove previous installation.
+  sudo tar -C "$INSTALL_DIR" -xzf go_tar.tar.gz
+  
+  popd > /dev/null
+  sudo rm -rf "$temp_dir"
 }
 
 echo "Installing Go version ${GO_VERSION} to ${INSTALL_DIR}"
 INSTALLATION_LOG=$(mktemp /tmp/go_install_log.XXXXXX)
 # We redirect stdout/stderr to log, but if it fails, we cat the log.
 if ! install_go > "$INSTALLATION_LOG" 2>&1; then
-    echo "Go version ${GO_VERSION} installation failed."
-    echo "--- Installation Log ---"
-    cat "$INSTALLATION_LOG"
-    echo "------------------------"
-    rm -f "$INSTALLATION_LOG"
-    exit 1
+  echo "Go version ${GO_VERSION} installation failed."
+  echo "--- Installation Log ---"
+  cat "$INSTALLATION_LOG"
+  echo "------------------------"
+  rm -f "$INSTALLATION_LOG"
+  exit 1
 else
-    echo "Go version ${GO_VERSION} installed successfully."
+  echo "Go version ${GO_VERSION} installed successfully."
     # If this script is run in background or different shell then
     # export PATH needs to be called from the shell or use absolute go path
     # or permanently add this to path variable in bashrc.
-    export PATH="${INSTALL_DIR}/go/bin:$PATH"
-    
-    # Verify installation
-    if ! command -v go >/dev/null 2>&1; then
-        echo "Error: 'go' command not found after installation. Check path."
-        cat "$INSTALLATION_LOG"
-        exit 1
-    fi
-    
-    echo "Go version is: $(go version)"
-    echo "Go is present at: $(which go)"
-    rm -f "$INSTALLATION_LOG"
+  export PATH="${INSTALL_DIR}/go/bin:$PATH"
+  
+  # Verify installation
+  if ! command -v go >/dev/null 2>&1; then
+    echo "Error: 'go' command not found after installation. Check path."
+    cat "$INSTALLATION_LOG"
+    exit 1
+  fi
+  
+  echo "Go version is: $(go version)"
+  echo "Go is present at: $(which go)"
+  rm -f "$INSTALLATION_LOG"
 fi

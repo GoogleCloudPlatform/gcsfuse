@@ -604,74 +604,18 @@ build_gcsfuse_once() {
 
 install_packages() {
   local os_id
-  if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    os_id=$ID
-  else
-    log_error "Cannot detect OS. /etc/os-release not found. Defaulting to apt-get logic, which may fail."
-    os_id="unknown"
-  fi
   
+  # Source common utilities (assuming run from root)
+  source ./perfmetrics/scripts/os_utils.sh
+  
+  os_id=$(get_os_id)
   log_info "Detected OS ID: $os_id"
 
-  case "$os_id" in
-    ubuntu|debian)
-      sudo apt-get update
-      sudo apt-get install -y python3
-      # install python3-setuptools tools.
-      # Added curl, wget, tar for robust go installation
-      sudo apt-get install -y gcc python3-dev python3-setuptools curl wget tar
-      # Downloading composite object requires integrity checking with CRC32c in gsutil.
-      # it requires to install crcmod.
-      sudo apt-get install -y python3-crcmod
-      ;;
-    rhel|centos|fedora|almalinux|rocky)
-      # RHEL/CentOS logic
-      sudo yum install -y python3
-      # Note: python3-devel is the name in RHEL-based systems, not python3-dev
-      # Added curl, wget, tar for robust go installation
-      sudo yum install -y gcc python3-devel python3-setuptools curl wget tar
-      # Try to install crcmod if available (e.g. via EPEL), otherwise continue.
-      if sudo yum list installed epel-release >/dev/null 2>&1 || sudo yum search python3-crcmod >/dev/null 2>&1; then
-         sudo yum install -y python3-crcmod || log_info "python3-crcmod not found via yum, skipping."
-      fi
-      ;;
-    arch|manjaro)
-      # Arch Linux logic
-      sudo pacman -Sy --noconfirm
-      # Arch uses 'python' for python 3. 'base-devel' includes gcc.
-      # python-crcmod is available in official repos (extra).
-      # Added curl, wget, tar for robust go installation
-      sudo pacman -S --noconfirm python gcc python-setuptools python-crcmod curl wget tar
-      ;;
-    *)
-      # Fallback or unknown
-      if command -v apt-get &> /dev/null; then
-         log_info "OS not explicitly matched, but apt-get found. Trying apt logic."
-         sudo apt-get update && sudo apt-get install -y python3 gcc python3-dev python3-setuptools python3-crcmod curl wget tar
-      elif command -v yum &> /dev/null; then
-         log_info "OS not explicitly matched, but yum found. Trying yum logic."
-         sudo yum install -y python3 gcc python3-devel python3-setuptools curl wget tar
-      else
-         log_error "Unsupported OS or Package Manager not found for ID: $os_id"
-         exit 1
-      fi
-      ;;
-  esac
+  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools"
 
   # Install required go version.
   bash ./perfmetrics/scripts/install_go.sh "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
-  # Install latest gcloud version.
-  bash ./perfmetrics/scripts/install_latest_gcloud.sh
-  export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
-  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
-  export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
-  if ${KOKORO_DIR_AVAILABLE} ; then
-    # Install go-junit-report to generate XML test reports from go logs.
-    go install github.com/jstemmer/go-junit-report/v2@latest
-    export PATH="$(go env GOPATH)/bin:$PATH"
-  fi
 }
 
 # Generic function to run a group of E2E tests for a given bucket type.
