@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2025 LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,71 +14,72 @@
 # limitations under the License.
 
 # PREVENT MULTIPLE SOURCING
-if [ -z "${_OS_UTILS_SH_LOADED}" ]; then
-  _OS_UTILS_SH_LOADED=true
+if [ "${_OS_UTILS_SH_LOADED:-}" = "true" ]; then
+  return 0
+fi
 
-  # Detect OS ID from /etc/os-release
+_OS_UTILS_SH_LOADED=true
+
+# Detect OS ID from /etc/os-release
   get_os_id() {
-    if [ -f /etc/os-release ]; then
-      ( . /etc/os-release && echo "$ID" )
-    else
-      echo "unknown"
-    fi
-  }
+  if [ -f /etc/os-release ]; then
+    ( . /etc/os-release && echo "$ID" )
+  else
+    echo "unknown"
+  fi
+}
 
-  # Detect and map system architecture to Go architecture
-  get_go_arch() {
-    local system_arch=$(uname -m)
-    case "$system_arch" in
-      x86_64) echo "amd64" ;;
-      aarch64|arm64) echo "arm64" ;;
-      *) echo "unsupported" ;;
-    esac
-  }
+# Detect and map system architecture to Go architecture
+get_go_arch() {
+  local system_arch=$(uname -m)
+  case "$system_arch" in
+    x86_64) echo "amd64" ;;
+    aarch64|arm64) echo "arm64" ;;
+    *) echo "unsupported" ;;
+  esac
+}
 
-  # Install packages based on OS ID
-  install_packages_by_os() {
-    local os_id=$1
-    shift
-    local pkgs=("$@")
+# Install packages based on OS ID
+install_packages_by_os() {
+  local os_id=$1
+  shift
+  local pkgs=("$@")
     
-    if [ "${#pkgs[@]}" -eq 0 ]; then
-      return 0
-    fi
+  if [ "${#pkgs[@]}" -eq 0 ]; then
+    return 0
+  fi
 
-    case "$os_id" in
-      ubuntu|debian)
-        sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"
-        ;;
-      rhel|centos|fedora|almalinux|rocky)
-        # Map package names for RHEL if necessary
-        local rhel_pkgs=()
-        for pkg in "${pkgs[@]}"; do
-          if [[ "$pkg" == "python3-dev" ]]; then
-            rhel_pkgs+=("python3-devel")
-          else
-            rhel_pkgs+=("$pkg")
-          fi
-        done
-        sudo yum install -y "${rhel_pkgs[@]}"
-        ;;
-      arch|manjaro)
-        # Map package names for Arch
-        local arch_pkgs=()
-        for pkg in "${pkgs[@]}"; do
-          case "$pkg" in
-            python3|python3-dev) arch_pkgs+=("python") ;;
-            python3-setuptools) arch_pkgs+=("python-setuptools") ;;
-            python3-crcmod) arch_pkgs+=("python-crcmod") ;;
-            *) arch_pkgs+=("$pkg") ;;
-          esac
-        done
-        sudo pacman -Sy --noconfirm && sudo pacman -S --noconfirm "${arch_pkgs[@]}"
-        ;;
-      *)
-        echo "Error: Unsupported OS ID for package installation: $os_id" >&2
-        return 1
-        ;;
-    esac
-  }
-fi # End of Include Guard
+  case "$os_id" in
+    ubuntu|debian)
+      sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"
+      ;;
+    rhel|centos|fedora|almalinux|rocky)
+      # Map package names for RHEL if necessary
+      local rhel_pkgs=()
+      for pkg in "${pkgs[@]}"; do
+        if [[ "$pkg" == "python3-dev" ]]; then
+          rhel_pkgs+=("python3-devel")
+        else
+          rhel_pkgs+=("$pkg")
+        fi
+      done
+      sudo yum install -y "${rhel_pkgs[@]}"
+      ;;
+    arch|manjaro)
+      # Map package names for Arch
+      local arch_pkgs=()
+      for pkg in "${pkgs[@]}"; do
+        case "$pkg" in
+          python3|python3-dev) arch_pkgs+=("python") ;;
+          python3-setuptools) arch_pkgs+=("python-setuptools") ;;
+          *) arch_pkgs+=("$pkg") ;;
+        esac
+      done
+      sudo pacman -Sy --noconfirm && sudo pacman -S --noconfirm "${arch_pkgs[@]}"
+      ;;
+    *)
+      echo "Error: Unsupported OS ID for package installation: $os_id" >&2
+      return 1
+      ;;
+  esac
+}
