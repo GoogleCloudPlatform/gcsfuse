@@ -85,7 +85,8 @@ func (t *DirHandleTest) resetDirHandle() {
 		&t.clock,
 		0,
 		false,
-		true)
+		true,
+		isTypeCacheDeprecationEnabled)
 
 	t.dh = NewDirHandle(
 		dirInode,
