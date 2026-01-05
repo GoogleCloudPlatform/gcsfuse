@@ -5,7 +5,7 @@ echo 256 | sudo tee /proc/sys/fs/fuse/max_pages_limit
 
 sevirity="trace"
 
-go install . && gcsfuse --log-severity=$sevirity --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
+go install . && gcsfuse --max-read-ahead-kb 65536 --log-severity=$sevirity --log-format=text --log-file ~/logs.txt princer-gcsfuse-test-zonal-us-west4a ~/gcs1
 
 # mkdir -p /home/princer_google_com/gcs1/5M
 # fio --name=multi_file_5000mb \
