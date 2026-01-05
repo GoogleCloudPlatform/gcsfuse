@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 Google Inc. All Rights Reserved.
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,10 +29,10 @@ fi
 
 # Source common utilities for OS and Arch detection
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-if [ -f "${SCRIPT_DIR}/get_os_arch.sh.sh" ]; then
-  source "${SCRIPT_DIR}/get_os_arch.sh.sh"
+if [ -f "${SCRIPT_DIR}/os_utils.sh" ]; then
+  source "${SCRIPT_DIR}/os_utils.sh"
 else
-  echo "Error: get_os_arch.sh.sh not found in ${SCRIPT_DIR}" >&2
+  echo "Error: os_utils.sh not found in ${SCRIPT_DIR}" >&2
   exit 1
 fi
 

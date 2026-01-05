@@ -605,17 +605,36 @@ build_gcsfuse_once() {
 install_packages() {
   local os_id
   
-  # Source common utilities (assuming run from root)
-  source ./perfmetrics/scripts/os_utils.sh
+  # Determine the absolute location of THIS script
+  SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+
+  # Calculate the Repo Root
+  REPO_ROOT="${SCRIPT_DIR}/../.."
+
+  source "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh"
   
   os_id=$(get_os_id)
   log_info "Detected OS ID: $os_id"
 
-  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools"
+  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod" || {
+    log_error "Failed to install required packages."
+    exit 1
+  }
 
-  # Install required go version.
-  bash ./perfmetrics/scripts/install_go.sh "$GO_VERSION"
+  # Execute install_go.sh using the absolute path
+  bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
+  
+  # Install latest gcloud version.
+  bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
+  export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+  export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+  if ${KOKORO_DIR_AVAILABLE} ; then
+    # Install go-junit-report to generate XML test reports from go logs.
+    go install github.com/jstemmer/go-junit-report/v2@latest
+    export PATH="$(go env GOPATH)/bin:$PATH"
+  fi
 }
 
 # Generic function to run a group of E2E tests for a given bucket type.
