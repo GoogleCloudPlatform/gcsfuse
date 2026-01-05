@@ -941,16 +941,12 @@ type ListObjectsTest_InsertListing struct {
 
 func init() { RegisterTestSuite(&ListObjectsTest_InsertListing{}) }
 
-func (t *ListObjectsTest_InsertListing) callAndVerify(
-	listing *gcs.Listing,
-	prefix string,
-	expectedInserts []*gcs.MinObject) {
+func (t *ListObjectsTest_InsertListing) callAndVerify(listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject) {
 	// Wrapped
 	ExpectCall(t.wrapped, "BucketType")().
 		WillOnce(Return(gcs.BucketType{Hierarchical: false}))
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(listing, nil))
-
 	// Register expectations.
 	for _, obj := range expectedInserts {
 		matcher := &minObjectMatcher{expected: obj}
@@ -958,8 +954,10 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(
 	}
 
 	// Call
-	_, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{Prefix: prefix, IsTypeCacheDeprecated: true})
+	gotListing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{Prefix: prefix, IsTypeCacheDeprecated: true})
+
 	AssertEq(nil, err)
+	AssertEq(listing, gotListing)
 }
 
 func (t *ListObjectsTest_InsertListing) EmptyListing() {
