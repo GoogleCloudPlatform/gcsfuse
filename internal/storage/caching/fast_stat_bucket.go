@@ -106,9 +106,12 @@ func (b *fastStatBucket) insertListing(listing *gcs.Listing, dirName string) {
 	minObjectNames := make(map[string]struct{})
 
 	// 1. Parent Directory Inference (Implicit Check)
-	// If the listing contains objects but the directory itself is not returned
-	// as an explicit object, we infer and cache it as an implicit directory.
-	if len(listing.MinObjects) > 0 && listing.MinObjects[0].Name != dirName {
+	// If the listing contains objects or sub-directories but the directory itself
+	// is not returned as an explicit object, we infer and cache it as an
+	// implicit directory.
+	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
+	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
+	if dirHasContents && !isDirInListing {
 		m := &gcs.MinObject{
 			Name: dirName,
 		}

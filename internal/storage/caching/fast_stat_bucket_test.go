@@ -944,14 +944,14 @@ func init() { RegisterTestSuite(&ListObjectsTest_InsertListing{}) }
 func (t *ListObjectsTest_InsertListing) callAndVerify(
 	listing *gcs.Listing,
 	prefix string,
-	expectedInserts map[string]*gcs.MinObject) {
+	expectedInserts []*gcs.MinObject) {
 	// Wrapped
 	ExpectCall(t.wrapped, "BucketType")().
 		WillOnce(Return(gcs.BucketType{Hierarchical: false}))
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(listing, nil))
 
-	// 3. Register expectations in sorted order
+	// Register expectations.
 	for _, obj := range expectedInserts {
 		matcher := &minObjectMatcher{expected: obj}
 		ExpectCall(t.cache, "Insert")(matcher, Any())
@@ -964,7 +964,7 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(
 
 func (t *ListObjectsTest_InsertListing) EmptyListing() {
 	listing := &gcs.Listing{}
-	expectedInserts := make(map[string]*gcs.MinObject)
+	expectedInserts := []*gcs.MinObject{}
 
 	t.callAndVerify(listing, "dir/", expectedInserts)
 }
@@ -976,10 +976,10 @@ func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
 			{Name: "dir/b", Size: 2},
 		},
 	}
-	expectedInserts := map[string]*gcs.MinObject{
-		"dir/":  {Name: "dir/"},
-		"dir/a": {Name: "dir/a", Size: 1},
-		"dir/b": {Name: "dir/b", Size: 2},
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
+		{Name: "dir/b", Size: 2},
 	}
 
 	t.callAndVerify(listing, "dir/", expectedInserts)
@@ -989,9 +989,10 @@ func (t *ListObjectsTest_InsertListing) CollapsedRunsOnly() {
 	listing := &gcs.Listing{
 		CollapsedRuns: []string{"dir/a/", "dir/b/"},
 	}
-	expectedInserts := map[string]*gcs.MinObject{
-		"dir/a/": {Name: "dir/a/"},
-		"dir/b/": {Name: "dir/b/"},
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a/"},
+		{Name: "dir/b/"},
 	}
 
 	t.callAndVerify(listing, "dir/", expectedInserts)
@@ -1004,10 +1005,10 @@ func (t *ListObjectsTest_InsertListing) ObjectsAndCollapsedRuns() {
 		},
 		CollapsedRuns: []string{"dir/b/"},
 	}
-	expectedInserts := map[string]*gcs.MinObject{
-		"dir/":   {Name: "dir/"},
-		"dir/a":  {Name: "dir/a", Size: 1},
-		"dir/b/": {Name: "dir/b/"},
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
+		{Name: "dir/b/"},
 	}
 
 	t.callAndVerify(listing, "dir/", expectedInserts)
@@ -1019,9 +1020,9 @@ func (t *ListObjectsTest_InsertListing) ImplicitDir() {
 			{Name: "dir/a", Size: 1},
 		},
 	}
-	expectedInserts := map[string]*gcs.MinObject{
-		"dir/":  {Name: "dir/"},
-		"dir/a": {Name: "dir/a", Size: 1},
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
 	}
 
 	t.callAndVerify(listing, "dir/", expectedInserts)
@@ -1034,9 +1035,9 @@ func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
 		},
 		CollapsedRuns: []string{"dir/a/"},
 	}
-	expectedInserts := map[string]*gcs.MinObject{
-		"dir/":   {Name: "dir/"},
-		"dir/a/": {Name: "dir/a/", Size: 0},
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a/", Size: 0},
 	}
 
 	t.callAndVerify(listing, "dir/", expectedInserts)
