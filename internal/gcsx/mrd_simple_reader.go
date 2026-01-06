@@ -79,8 +79,6 @@ func (msr *MrdSimpleReader) getValidEntry() (*MRDEntry, error) {
 			if err != nil {
 				return nil, err
 			}
-			// After recreation, get the next available entry.
-			entry = msr.mrdInstance.GetMRDEntry()
 		}
 	}
 

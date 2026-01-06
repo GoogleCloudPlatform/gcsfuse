@@ -141,7 +141,7 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 
 	// Recreate
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	err = t.mrdInstance.RecreateMRD(t.object)
+	err = t.mrdInstance.RecreateMRD()
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
@@ -214,4 +214,50 @@ func (t *MrdInstanceTest) TestDecrementRefCount_Eviction() {
 	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key))
 	assert.Nil(t.T(), t.cache.LookUpWithoutChangingOrder("other1"))
 	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder("other2"))
+}
+
+func (t *MrdInstanceTest) TestDestroyEvictedCacheEntries() {
+	// 1. Instance to be destroyed
+	mi1 := NewMrdInstance(t.object, t.bucket, t.cache, 1, t.mrdConfig)
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	err := mi1.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mi1.mrdPool)
+	// 2. Instance that is resurrected (refCount > 0)
+	mi2 := NewMrdInstance(t.object, t.bucket, t.cache, 2, t.mrdConfig)
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	err = mi2.EnsureMrdInstance()
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mi2.mrdPool)
+	mi2.refCount = 1
+	// Entries to be evicted
+	evicted := []lru.ValueType{mi1, mi2}
+
+	destroyEvictedCacheEntries(evicted)
+
+	// Verify mi1 is destroyed
+	mi1.poolMu.RLock()
+	assert.Nil(t.T(), mi1.mrdPool)
+	mi1.poolMu.RUnlock()
+	// Verify mi2 is NOT destroyed
+	mi2.poolMu.RLock()
+	assert.NotNil(t.T(), mi2.mrdPool)
+	mi2.poolMu.RUnlock()
+}
+
+func (t *MrdInstanceTest) TestGetKey() {
+	testCases := []struct {
+		inodeID  fuseops.InodeID
+		expected string
+	}{
+		{0, "0"},
+		{123, "123"},
+		{18446744073709551615, "18446744073709551615"}, // Max uint64
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t.T(), tc.expected, getKey(tc.inodeID))
+	}
 }
