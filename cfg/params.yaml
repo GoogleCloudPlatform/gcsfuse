@@ -474,7 +474,7 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal"
-          value: 32768 # 32 MiB
+          value: 16384 # 16 MiB
   
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"

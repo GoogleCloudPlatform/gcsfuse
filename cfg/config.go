@@ -89,7 +89,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
-			Value:      int64(32768),
+			Value:      int64(16384),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {

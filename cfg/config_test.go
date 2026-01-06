@@ -538,7 +538,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
-				expectedValue:   32768,
+				expectedValue:   16384,
 			},
 		}
 
