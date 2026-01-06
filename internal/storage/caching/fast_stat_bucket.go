@@ -402,11 +402,13 @@ func (b *fastStatBucket) DeleteObject(
 		b.addNegativeEntry(req.Name)
 		return
 	}
-	// If the delete failed due to a precondition error, invalidate the cache entry
-	// as the object's state is uncertain. For other errors, we don't touch the
-	// cache because the object likely still exists.
+	// If the delete failed due to a precondition error or not found error,
+	// invalidate the cache entry as the object's state is uncertain.
+	// For other errors, we don't touch the cache because the object likely
+	// still exists.
 	var preconditionErr *gcs.PreconditionError
-	if errors.As(err, &preconditionErr) {
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
 		b.invalidate(req.Name)
 	}
 	return

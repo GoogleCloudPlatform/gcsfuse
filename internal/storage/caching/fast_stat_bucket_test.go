@@ -1009,7 +1009,7 @@ func (t *DeleteObjectTest) CallsWrapped() {
 	ExpectEq(name, wrappedReq.Name)
 }
 
-func (t *DeleteObjectTest) WrappedFails_NonPreconditionError() {
+func (t *DeleteObjectTest) WrappedFails_GenericError() {
 	const name = ""
 	var err error
 
@@ -1035,6 +1035,20 @@ func (t *DeleteObjectTest) WrappedReturnsPreconditionError() {
 	err := t.deleteObject(name)
 
 	ExpectThat(err, Error(HasSubstr("precondition failed")))
+}
+
+func (t *DeleteObjectTest) WrappedReturnsNotFoundError() {
+	const name = "taco"
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
+		WillOnce(Return(&gcs.NotFoundError{Err: errors.New("object not found")}))
+
+	// Call.
+	err := t.deleteObject(name)
+
+	ExpectThat(err, Error(HasSubstr("object not found")))
 }
 
 func (t *DeleteObjectTest) WrappedSucceeds_AddsNegativeEntry() {
