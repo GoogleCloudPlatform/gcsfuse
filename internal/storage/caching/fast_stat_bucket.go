@@ -551,7 +551,7 @@ func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, req *gcs.GetFolde
 
 	// Special case: NotFoundError -> negative entry.
 	if _, ok := err.(*gcs.NotFoundError); ok {
-		b.addNegativeEntryForFolder(prefix)
+		b.addNegativeEntryForFolder(req.Name)
 	}
 	return nil, err
 }

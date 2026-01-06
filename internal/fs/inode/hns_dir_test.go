@@ -194,8 +194,11 @@ func (t *HNSDirTest) TestLookUpChildWithConflictMarkerName() {
 	statObjectRequest := gcs.StatObjectRequest{
 		Name: path.Join(dirInodeName, name),
 	}
+	getFolderRequest := gcs.GetFolderRequest{
+		Name: dirName,
+	}
 	object := gcs.MinObject{Name: dirName}
-	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
+	t.mockBucket.On("GetFolder", mock.Anything, &getFolderRequest).Return(folder, nil)
 	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
 
 	c, err := t.in.LookUpChild(t.ctx, name+"\n")
