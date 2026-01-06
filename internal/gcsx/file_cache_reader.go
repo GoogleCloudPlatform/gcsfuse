@@ -216,8 +216,12 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadRe
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
+	ctx, span := fc.traceHandle.StartTrace(ctx, tracing.FileCacheRead)
+	defer fc.traceHandle.EndTrace(span)
 	bytesRead, cacheHit, err := fc.tryReadingFromFileCache(ctx, req.Buffer, req.Offset)
+	fc.traceHandle.SetCacheReadAttributes(span, cacheHit, bytesRead)
 	if err != nil {
+		fc.traceHandle.RecordError(span, err)
 		return readResponse, fmt.Errorf("ReadAt: while reading from cache: %w", err)
 	}
 	// Data was served from cache.

@@ -140,7 +140,9 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// the file, capped by the configured minimum.
 	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
 	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
+	_, span := opts.TraceHandle.StartTrace(context.Background(), tracing.ReadPrefetchBlockPoolGen)
 	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
+	opts.TraceHandle.EndTrace(span)
 	if err != nil {
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")

@@ -30,4 +30,6 @@ type TraceHandle interface {
 	EndTrace(span trace.Span)
 
 	RecordError(span trace.Span, err error)
+
+	SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int)
 }

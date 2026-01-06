@@ -36,6 +36,8 @@ func (*noopTracer) EndTrace(span trace.Span) {}
 
 func (*noopTracer) RecordError(span trace.Span, err error) {}
 
+func (*noopTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {}
+
 func NewNoopTracer() TraceHandle {
 	var n noopTracer
 	return &n

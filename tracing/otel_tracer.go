@@ -52,6 +52,13 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.SetStatus(codes.Error, err.Error())
 }
 
+func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
+	span.SetAttributes(
+		attribute.Bool(IS_CACHE_HIT, isCacheHit),
+		attribute.Int(BYTES_READ, bytesRead),
+	)
+}
+
 func NewOtelTracer() TraceHandle {
 	var o otelTracer
 	return &o

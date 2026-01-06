@@ -359,8 +359,12 @@ func (rr *randomReader) ReadAt(
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
+	ctx, span := rr.traceHandle.StartTrace(ctx, tracing.FileCacheRead)
+	defer rr.traceHandle.EndTrace(span)
 	n, cacheHit, err := rr.tryReadingFromFileCache(ctx, p, offset)
+	rr.traceHandle.SetCacheReadAttributes(span, cacheHit, n)
 	if err != nil {
+		rr.traceHandle.RecordError(span, err)
 		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return
 	}
