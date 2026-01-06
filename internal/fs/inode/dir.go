@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -41,6 +42,12 @@ import (
 // By default 1000 results are returned if maxResults is not set.
 // Defining a constant to set maxResults param.
 const MaxResultsForListObjectsCall = 5000
+
+// Constants for the metadata prefetch state.
+const (
+	prefetchReady      uint32 = 0
+	prefetchInProgress uint32 = 1
+)
 
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
@@ -249,6 +256,14 @@ type dirInode struct {
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
+
+	// Variables for metadata prefetching.
+	enableMetadataPrefetch bool
+	metadataCacheTTL       time.Duration
+	prefetchState          atomic.Uint32 // 0=Ready, 1=InProgress
+	lastPrefetchTime       time.Time
+	prefetchCtx            context.Context
+	prefetchCancel         context.CancelFunc
 }
 
 var _ DirInode = &dirInode{}
@@ -289,6 +304,8 @@ func NewDirInode(
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
+	// Initialize a new context for metadata prefetch worker so it can run in background.
+	prefetchCtx, prefetchCcancel := context.WithCancel(context.Background())
 	typed := &dirInode{
 		bucket:                          bucket,
 		mtimeClock:                      mtimeClock,
@@ -303,6 +320,12 @@ func NewDirInode(
 		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
+		enableMetadataPrefetch:          cfg.MetadataCache.ExperimentalDirMetadataPrefetch,
+		metadataCacheTTL:                typeCacheTTL,
+		prefetchCtx:                     prefetchCtx,
+		prefetchCancel:                  prefetchCcancel,
+		// prefetchState is 0 (prefetchReady) by default.
+		// lastPrefetchTime is time.Time{} (zero) by default.
 	}
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
@@ -481,6 +504,49 @@ func (d *dirInode) createNewObject(
 	return
 }
 
+// runOnDemandPrefetch attempts to prefetch metadata for the directory if a prefetch is due.
+// It uses an atomic prefetchState to ensure only one prefetch operation runs at a time and prevents concurrent execution.
+func (d *dirInode) runOnDemandPrefetch(ctx context.Context) {
+	// Atomically swap state from Ready (0) to InProgress (1).
+	if !d.prefetchState.CompareAndSwap(prefetchReady, prefetchInProgress) {
+		// Another prefetch is already in progress. Abort.
+		return
+	}
+
+	// We are in the InProgress state while this function executes. We must reset to Ready before returning.
+	defer d.prefetchState.Store(prefetchReady)
+
+	// If the last prefetch has not expired, abort.
+	currentTime := d.cacheClock.Now()
+	if currentTime.Sub(d.lastPrefetchTime) < d.metadataCacheTTL {
+		return
+	}
+
+	// 2. Run the Prefetch
+	var tok string
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Debugf("Metadata prefetch for directory inode %d aborted due to context cancellation.", d.id)
+			return
+		default:
+		}
+
+		// Perform slow network I/O *without* holding the inode lock.
+		_, _, newTok, err := d.readObjectsUnlocked(ctx, tok)
+		if err != nil {
+			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
+			return // Abort.
+		}
+		if newTok == "" {
+			break // Entire directory has been listed.
+		}
+		tok = newTok
+	}
+	// 3. Update lastPrefetchTime on successful completion.
+	d.lastPrefetchTime = currentTime
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -535,7 +601,10 @@ func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
-	// Nothing interesting to do.
+	if d.enableMetadataPrefetch && d.prefetchCancel != nil {
+		// cancel any in progress prefetch when the inode is getting destroyed.
+		d.prefetchCancel()
+	}
 	return
 }
 
@@ -621,6 +690,12 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
+		// Check if a prefetch is due (prefetch not in progress and TTL expired), launch the prefetch worker in the background.
+		if d.enableMetadataPrefetch && d.prefetchState.Load() == prefetchReady && d.cacheClock.Now().Sub(d.lastPrefetchTime) >= d.metadataCacheTTL {
+			// Use prefetchCtx since this long-running background task should not be tied to short-lived `LookUpChild` ctx.
+			go d.runOnDemandPrefetch(d.prefetchCtx)
+		}
+
 		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
 			group.Go(lookUpHNSDir)
