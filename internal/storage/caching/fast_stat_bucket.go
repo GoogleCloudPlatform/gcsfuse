@@ -30,6 +30,16 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+// A *CacheMissError value is an error that indicates an object name or a
+// particular generation for that name were not found from cache.
+type CacheMissError struct {
+	Err error
+}
+
+func (nfe *CacheMissError) Error() string {
+	return fmt.Sprintf("CacheMissError: %v", nfe.Err)
+}
+
 // Create a bucket that caches object records returned by the supplied wrapped
 // bucket. Records are invalidated when modifications are made through this
 // bucket, and after the supplied TTL.
@@ -391,22 +401,31 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	// Do we have an entry in the cache?
-	if hit, entry := b.lookUp(req.Name); hit {
-		// Negative entries result in NotFoundError.
-		if entry == nil {
-			err = &gcs.NotFoundError{
-				Err: fmt.Errorf("negative cache entry for %v", req.Name),
-			}
-
-			return
-		}
-
-		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
-		m = entry
-		return
+	// Deprecated Skip: The deprecated logic skips cache if FetchFromCache is false.
+	if req.IsTypeCacheDeprecated && !req.FetchFromCache {
+		return b.StatObjectFromGcs(ctx, req)
 	}
 
+	// Cache Lookup
+	if hit, entry := b.lookUp(req.Name); hit {
+		if entry == nil {
+			// Negative cache entry (explicitly not found).
+			return nil, nil, &gcs.NotFoundError{
+				Err: fmt.Errorf("negative cache entry for %q", req.Name),
+			}
+		}
+		// Positive cache hit.
+		return entry, nil, nil
+	}
+
+	// Cache Miss Handling
+	if req.IsTypeCacheDeprecated {
+		return nil, nil, &CacheMissError{
+			Err: fmt.Errorf("cache miss for %q", req.Name),
+		}
+	}
+
+	// Standard fallback to GCS.
 	return b.StatObjectFromGcs(ctx, req)
 }
 
@@ -414,6 +433,28 @@ func (b *fastStatBucket) StatObject(
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	if req.IsTypeCacheDeprecated && req.FetchFromCache {
+		var hit bool
+		var entry any
+		hit, entry = b.lookUp(req.Prefix)
+
+		if hit {
+			// Negative entries result in NotFoundError.
+			if entry.(*gcs.MinObject) == nil {
+				return nil, &gcs.NotFoundError{
+					Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+				}
+			}
+			if minObject, ok := entry.(*gcs.MinObject); ok {
+				if minObject.Generation == 0 { // Assumed to be a directory-like object from a collapsed run.
+					return &gcs.Listing{CollapsedRuns: []string{minObject.Name}}, nil
+				}
+				return &gcs.Listing{MinObjects: []*gcs.MinObject{minObject}}, nil
+			}
+		}
+		return nil, &CacheMissError{Err: fmt.Errorf("Not found cache entry for %v", req.Prefix)}
+	}
+
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
@@ -524,6 +565,11 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 }
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	if req.IsTypeCacheDeprecated && !req.FetchFromCache {
+		return b.getFolderFromGCS(ctx, req)
+	}
+
+	// Cache Lookup
 	if hit, entry := b.lookUpFolder(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
@@ -535,6 +581,10 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 		}
 
 		return entry, nil
+	}
+
+	if req.IsTypeCacheDeprecated {
+		return nil, &CacheMissError{Err: fmt.Errorf("Not found cache entry for %v", req.Name)}
 	}
 
 	// Fetch the Folder from GCS

@@ -242,6 +242,26 @@ type StatObjectRequest struct {
 
 	// Controls whether StatObject response includes GCS ExtendedObjectAttributes.
 	ReturnExtendedObjectAttributes bool
+
+	// Flag to enable deprecation logic of Type cache.
+	IsTypeCacheDeprecated bool
+
+	// FetchFromCache is a boolean flag.
+	// If true, the request attempts to fetch the object metadata/listing only from the stat cache.
+	// If false (default), the request proceeds to the backend (GCS) if the cache miss occurs or if the cache is bypassed entirely.
+	FetchFromCache bool
+}
+
+type GetFolderRequest struct {
+	Name string
+
+	// FetchFromCache is a boolean flag.
+	// If true, the request attempts to fetch the object metadata/listing only from the stat cache.
+	// If false (default), the request proceeds to the backend (GCS) if the cache miss occurs or if the cache is bypassed entirely.
+	FetchFromCache bool
+
+	// Flag to enable deprecation logic of Type cache.
+	IsTypeCacheDeprecated bool
 }
 
 type Projection int64
@@ -323,6 +343,11 @@ type ListObjectsRequest struct {
 
 	// Flag to enable deprecation logic of Type cache.
 	IsTypeCacheDeprecated bool
+
+	// FetchFromCache is a boolean flag.
+	// If true, the request attempts to fetch the object metadata/listing only from the stat cache.
+	// If false (default), the request proceeds to the backend (GCS) if the cache miss occurs or if the cache is bypassed entirely.
+	FetchFromCache bool
 }
 
 // Listing contains a set of objects and delimter-based collapsed runs returned
