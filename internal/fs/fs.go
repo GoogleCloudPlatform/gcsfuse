@@ -2431,24 +2431,32 @@ func (fs *fileSystem) nonAtomicRename(
 	// Delete behind. Make sure to delete exactly the generation we cloned, in
 	// case the referent of the name has changed in the meantime.
 	oldParent.Lock()
-	err = oldParent.DeleteChildFile(
+	defer oldParent.Unlock()
+
+	deleteErr := oldParent.DeleteChildFile(
 		ctx,
 		oldName,
 		oldObject.Generation,
 		&oldObject.MetaGeneration)
 
-	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
-		return fmt.Errorf("nonAtomicRename: while invalidating cache for delete file: %w", err)
+	// In case the delete is successful or a precondition error is encountered,
+	// then file cache becomes unusable, thus, should be invalidated.
+	// File cache must not be invalidated in case of any other errors encountered
+	// while deletion.
+	if deleteErr == nil {
+		if invErr := fs.invalidateChildFileCacheIfExist(oldParent, oldName); invErr != nil {
+			logger.Warnf("File cache eviction failed after successful delete on GCS: %v", invErr)
+		}
+		return nil
 	}
 
-	oldParent.Unlock()
-
-	if err != nil {
-		err = fmt.Errorf("DeleteChildFile: %w", err)
-		return err
+	var precondErr *gcs.PreconditionError
+	if errors.As(deleteErr, &precondErr) {
+		if invErr := fs.invalidateChildFileCacheIfExist(oldParent, oldName); invErr != nil {
+			logger.Warnf("File cache eviction failed after precondition error during delete: %v", invErr)
+		}
 	}
-
-	return nil
+	return fmt.Errorf("DeleteChildFile: %w", deleteErr)
 }
 
 func (fs *fileSystem) releaseInodes(inodes *[]inode.DirInode) {
@@ -2712,12 +2720,18 @@ func (fs *fileSystem) Unlink(
 		0,   // Latest generation
 		nil) // No meta-generation precondition
 
-	if err != nil {
-		err = fmt.Errorf("DeleteChildFile: %w", err)
-		return err
+	var preconditionErr *gcs.PreconditionError
+	// Do not invalidate the file cache in case of error while deleting file
+	// which is not precondition error.
+	if err != nil && !errors.As(err, &preconditionErr) {
+		return fmt.Errorf("DeleteChildFile: %w", err)
 	}
 
+	// In case of successful delete or precondition error, we should invalidate
+	// the file cache as it is no longer usable.
 	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
+		// In case of file cache invalidation error, we should return the error,
+		// but still consider the unlink operation successful.
 		return fmt.Errorf("unlink: while invalidating cache for delete file: %w", err)
 	}
 
