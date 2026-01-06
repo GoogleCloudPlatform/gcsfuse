@@ -64,17 +64,6 @@ func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, ino
 	}
 }
 
-// // GetMRDEntry returns the next available MRDEntry from the pool using a
-// // round-robin strategy. It is thread-safe.
-// func (mi *MrdInstance) GetMRDEntry() *MRDEntry {
-// 	mi.poolMu.RLock()
-// 	defer mi.poolMu.RUnlock()
-// 	if mi.mrdPool != nil {
-// 		return mi.mrdPool.Next()
-// 	}
-// 	return nil
-// }
-
 // getMRDEntry returns a valid MRDEntry from the pool.
 // It ensures the pool is initialized and the returned entry is in a usable state,
 // recreating it if necessary.

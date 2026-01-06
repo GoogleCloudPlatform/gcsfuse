@@ -22,9 +22,8 @@ import (
 )
 
 // MrdSimpleReader is a reader that uses an MRD Instance to read data from a GCS object.
-// This reader is simpler than the full `randomReader` as it doesn't have complex logic
-//
-//	to switch between sequential and random read strategies.
+// This reader is simpler than the GCSReader as it doesn't have complex logic
+// to switch between sequential and random read strategies.
 type MrdSimpleReader struct {
 	// mu protects the internal state of the reader, specifically access to mrdInstance.
 	mu               sync.RWMutex
