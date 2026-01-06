@@ -45,14 +45,14 @@ install_go() {
     
     if ! os_id=$(get_os_id); then
       log_error "Failed to detect OS ID."
-      exit 1
+      return 1
     fi
     architecture=$(get_go_arch)
     system_arch=$(uname -m)
 
     if [ "$architecture" == "unsupported" ]; then
       echo "Unsupported architecture: $system_arch"
-      exit 1
+      return 1
     fi
     echo "Detected architecture: $system_arch mapped to Go arch: $architecture"
 
