@@ -66,6 +66,9 @@ func (mrdPoolConfig *MRDPoolConfig) determinePoolSize() {
 // NewMRDPool initializes a new MRDPool.
 // It creates the first MRD synchronously to ensure immediate availability and starts a background goroutine to create the remaining MRDs.
 func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
+	if config == nil {
+		return nil, fmt.Errorf("config cannot be nil")
+	}
 	p := &MRDPool{
 		poolConfig: config,
 	}
@@ -200,6 +203,7 @@ func (p *MRDPool) Close() (handle []byte) {
 	return
 }
 
+// Return the max size of the pool.
 func (p *MRDPool) Size() uint64 {
-	return p.currentSize.Load()
+	return uint64(p.poolConfig.PoolSize)
 }
