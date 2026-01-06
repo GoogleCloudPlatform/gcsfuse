@@ -21,11 +21,12 @@ fi
 _OS_UTILS_SH_LOADED=true
 
 # Detect OS ID from /etc/os-release
-  get_os_id() {
+get_os_id() {
   if [ -f /etc/os-release ]; then
     ( . /etc/os-release && echo "$ID" )
   else
-    echo "unknown"
+    echo "Error: /etc/os-release not found. Cannot detect OS."
+    return 1
   fi
 }
 
@@ -78,7 +79,7 @@ install_packages_by_os() {
       sudo pacman -Sy --noconfirm && sudo pacman -S --noconfirm "${arch_pkgs[@]}"
       ;;
     *)
-      echo "Error: Unsupported OS ID for package installation: $os_id" >&2
+      echo "Error: Unsupported OS ID for package installation: $os_id"
       return 1
       ;;
   esac

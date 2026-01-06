@@ -613,10 +613,13 @@ install_packages() {
 
   source "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh"
   
-  os_id=$(get_os_id)
+  if ! os_id=$(get_os_id); then
+    log_error "Failed to detect OS ID."
+    exit 1
+  fi
   log_info "Detected OS ID: $os_id"
 
-  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" || {
+  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod" || {
     log_error "Failed to install required packages."
     exit 1
   }
