@@ -132,7 +132,9 @@ func (b *fastStatBucket) insertListing(listing *gcs.Listing, dirName string) {
 			continue
 		}
 
-		// Ensure the prefix follows naming conventions (trailing slash).
+		// Ensure the prefix follows directory naming conventions (trailing slash).
+		// Although 'collapsedRuns' is expected to contain only directories, we perform
+		// this defensive check to prevent processing malformed prefixes.
 		if !strings.HasSuffix(p, "/") {
 			logger.Errorf("fastStatBucket: ignoring malformed prefix name: %s", p)
 			continue
