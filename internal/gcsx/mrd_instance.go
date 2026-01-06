@@ -15,7 +15,10 @@
 package gcsx
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"sync"
 
@@ -61,20 +64,93 @@ func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, ino
 	}
 }
 
-// GetMRDEntry returns the next available MRDEntry from the pool using a
-// round-robin strategy. It is thread-safe.
-func (mi *MrdInstance) GetMRDEntry() *MRDEntry {
+// // GetMRDEntry returns the next available MRDEntry from the pool using a
+// // round-robin strategy. It is thread-safe.
+// func (mi *MrdInstance) GetMRDEntry() *MRDEntry {
+// 	mi.poolMu.RLock()
+// 	defer mi.poolMu.RUnlock()
+// 	if mi.mrdPool != nil {
+// 		return mi.mrdPool.Next()
+// 	}
+// 	return nil
+// }
+
+// getMRDEntry returns a valid MRDEntry from the pool.
+// It ensures the pool is initialized and the returned entry is in a usable state,
+// recreating it if necessary.
+func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
+	// Ensure the pool is initialized.
+	if err := mi.ensureMrdInstance(); err != nil {
+		return nil, err
+	}
+
 	mi.poolMu.RLock()
 	defer mi.poolMu.RUnlock()
-	if mi.mrdPool != nil {
-		return mi.mrdPool.Next()
+	if mi.mrdPool == nil {
+		return nil, fmt.Errorf("MrdInstance::getMRDEntry: MRDPool is nil")
 	}
-	return nil
+
+	entry := mi.mrdPool.Next()
+
+	// Check if the entry is valid.
+	entry.mu.RLock()
+	isValid := entry.mrd != nil && entry.mrd.Error() == nil
+	entry.mu.RUnlock()
+
+	// Recreate the entry if it is not valid.
+	if !isValid {
+		if err := mi.mrdPool.RecreateMRD(entry, nil); err != nil {
+			return nil, fmt.Errorf("MrdInstance::getMRDEntry: failed to recreate MRD: %w", err)
+		}
+	}
+	return entry, nil
 }
 
-// EnsureMrdInstance ensures that the MRD pool is initialized. If the pool
+// Read downloads data from the GCS object into the provided buffer starting at the offset.
+// It handles the details of selecting a valid MRD entry, locking it, and waiting for the async download to complete.
+func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	entry, err := mi.getMRDEntry()
+	if err != nil {
+		return 0, err
+	}
+
+	// Prepare the buffer for the read operation.
+	// bytes.NewBuffer creates a buffer using p as the initial content.
+	// Reset() sets the length to 0 but keeps the capacity, allowing writes to fill p.
+	buffer := bytes.NewBuffer(p)
+	buffer.Reset()
+	done := make(chan readResult, 1)
+
+	// Take Read lock before using MRD for reading.
+	entry.mu.RLock()
+	if entry.mrd == nil {
+		entry.mu.RUnlock()
+		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
+	}
+
+	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
+		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
+	})
+	entry.mu.RUnlock()
+
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	case res := <-done:
+		if res.err != nil && res.err != io.EOF {
+			return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
+		}
+		return res.bytesRead, res.err
+	}
+}
+
+// ensureMrdInstance ensures that the MRD pool is initialized. If the pool
 // already exists, this function is a no-op.
-func (mi *MrdInstance) EnsureMrdInstance() (err error) {
+func (mi *MrdInstance) ensureMrdInstance() (err error) {
 	// Return early if pool exists.
 	mi.poolMu.RLock()
 	if mi.mrdPool != nil {
@@ -94,32 +170,33 @@ func (mi *MrdInstance) EnsureMrdInstance() (err error) {
 	// Creating a new pool. Not reusing any handle while creating a new pool.
 	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
 	if err != nil {
-		err = fmt.Errorf("MrdInstance::EnsureMrdInstance Error in creating MRDPool: %w", err)
+		err = fmt.Errorf("MrdInstance::ensureMrdInstance Error in creating MRDPool: %w", err)
 	}
 	return
-}
-
-// RecreateMRDEntry recreates a specific, potentially failed, entry in the MRD pool.
-func (mi *MrdInstance) RecreateMRDEntry(entry *MRDEntry) (err error) {
-	mi.poolMu.RLock()
-	defer mi.poolMu.RUnlock()
-	if mi.mrdPool != nil {
-		if err = mi.mrdPool.RecreateMRD(entry, nil); err != nil {
-			err = fmt.Errorf("MrdInstance::RecreateMRDEntry Error in recreating MRD: %w", err)
-		}
-		return
-	}
-	return fmt.Errorf("MrdInstance::RecreateMRDEntry MRDPool is nil")
 }
 
 // RecreateMRD recreates the entire MRD pool. This is typically called by the
 // file inode when the backing GCS object's generation changes, invalidating
 // all existing downloader instances.
 func (mi *MrdInstance) RecreateMRD() error {
-	mi.Destroy()
-	err := mi.EnsureMrdInstance()
+	// Create the new pool first to avoid a period where mrdPool is nil.
+	newPool, err := NewMRDPool(&MRDPoolConfig{
+		PoolSize: int(mi.mrdConfig.PoolSize),
+		object:   mi.object,
+		bucket:   mi.bucket,
+	}, nil)
 	if err != nil {
 		return fmt.Errorf("MrdInstance::RecreateMRD Error in recreating MRD: %w", err)
+	}
+
+	mi.poolMu.Lock()
+	oldPool := mi.mrdPool
+	mi.mrdPool = newPool
+	mi.poolMu.Unlock()
+
+	// Close the old pool after swapping.
+	if oldPool != nil {
+		oldPool.Close()
 	}
 	return nil
 }

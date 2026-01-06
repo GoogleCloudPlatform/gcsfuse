@@ -16,10 +16,7 @@ package gcsx
 
 import (
 	"context"
-	"errors"
-	"io"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -87,59 +84,44 @@ func (t *MrdSimpleReaderTest) TestReadAt_Success() {
 		Buffer: make([]byte, 5),
 		Offset: 0,
 	}
+	// Verify initial refCount
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, resp.Size)
 	assert.Equal(t.T(), "hello", string(req.Buffer))
+	// Verify refCount incremented
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
 }
 
-func (t *MrdSimpleReaderTest) TestReadAt_ContextCancelled() {
-	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleep(t.object, []byte("hello"), 100*time.Millisecond)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	ctx, cancel := context.WithCancel(context.Background())
-	req := &ReadRequest{
-		Buffer: make([]byte, 5),
-		Offset: 0,
-	}
-	cancel()
-
-	resp, err := t.reader.ReadAt(ctx, req)
-
-	assert.Error(t.T(), err)
-	assert.Equal(t.T(), context.Canceled, err)
-	assert.Equal(t.T(), 0, resp.Size)
-}
-
-func (t *MrdSimpleReaderTest) TestReadAt_MrdError() {
-	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte("hello"), 0, errors.New("read error"))
+func (t *MrdSimpleReaderTest) TestReadAt_MultipleCalls() {
+	data := []byte("hello world")
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
+	// Expect NewMultiRangeDownloader only once because subsequent reads reuse the instance/pool
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	req := &ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
 	}
 
-	resp, err := t.reader.ReadAt(context.Background(), req)
+	// First call
+	_, err := t.reader.ReadAt(context.Background(), req)
+	assert.NoError(t.T(), err)
 
-	assert.Error(t.T(), err)
-	assert.Contains(t.T(), err.Error(), "read error")
-	assert.Equal(t.T(), 0, resp.Size)
-}
+	// Second call
+	_, err = t.reader.ReadAt(context.Background(), req)
+	assert.NoError(t.T(), err)
 
-func (t *MrdSimpleReaderTest) TestReadAt_MrdEOF() {
-	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte("hello"), 0, io.EOF)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	req := &ReadRequest{
-		Buffer: make([]byte, 5),
-		Offset: 0,
-	}
-
-	resp, err := t.reader.ReadAt(context.Background(), req)
-
-	assert.Error(t.T(), err)
-	assert.Equal(t.T(), io.EOF, err)
-	assert.Equal(t.T(), 0, resp.Size)
+	// Verify refCount is still 1
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
 }
 
 func (t *MrdSimpleReaderTest) TestReadAt_NilMrdInstance() {
@@ -156,33 +138,19 @@ func (t *MrdSimpleReaderTest) TestReadAt_NilMrdInstance() {
 	assert.Equal(t.T(), 0, resp.Size)
 }
 
-func (t *MrdSimpleReaderTest) TestReadAt_Recreation() {
-	// 1. Initial creation with a broken MRD
-	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, []byte("data"), errors.New("broken"))
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	// Initialize pool manually to simulate existing bad state
-	err := t.mrdInstance.EnsureMrdInstance()
-	assert.NoError(t.T(), err)
-	// 2. ReadAt called. getValidEntry gets entry with fakeMRD1.
-	// It sees error, calls RecreateMRDEntry.
-	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, []byte("data"))
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	req := &ReadRequest{
-		Buffer: make([]byte, 4),
-		Offset: 0,
-	}
-
-	resp, err := t.reader.ReadAt(context.Background(), req)
-
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 4, resp.Size)
-	assert.Equal(t.T(), "data", string(req.Buffer))
-}
-
 func (t *MrdSimpleReaderTest) TestDestroy() {
+	// Setup state where refCount is incremented
+	t.reader.mrdInstanceInUse.Store(true)
+	t.mrdInstance.refCount = 1
+
 	t.reader.Destroy()
 
 	assert.Nil(t.T(), t.reader.mrdInstance)
+	assert.False(t.T(), t.reader.mrdInstanceInUse.Load())
+	// Verify refCount decremented
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
 	// Verify that calling Destroy again doesn't panic
 	t.reader.Destroy()
 }

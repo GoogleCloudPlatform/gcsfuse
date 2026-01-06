@@ -15,8 +15,11 @@
 package gcsx
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -67,67 +70,170 @@ func (t *MrdInstanceTest) TestNewMrdInstance() {
 	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
 }
 
-func (t *MrdInstanceTest) TestEnsureMrdInstance() {
+func (t *MrdInstanceTest) TestRead_Success() {
+	data := []byte("hello world")
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	buf := make([]byte, 5)
+
+	n, err := t.mrdInstance.Read(context.Background(), buf, 0)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, n)
+	assert.Equal(t.T(), "hello", string(buf))
+}
+
+func (t *MrdInstanceTest) TestRead_InitializesPool() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
+	buf := make([]byte, 1)
 
-	err := t.mrdInstance.EnsureMrdInstance()
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
-	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *MrdInstanceTest) TestEnsureMrdInstance_AlreadyExists() {
-	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	err := t.mrdInstance.EnsureMrdInstance()
-	assert.NoError(t.T(), err)
-	pool := t.mrdInstance.mrdPool
-
-	// Call again
-	err = t.mrdInstance.EnsureMrdInstance()
-
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), pool, t.mrdInstance.mrdPool)
-	t.bucket.AssertExpectations(t.T()) // Should only be called once
-}
-
-func (t *MrdInstanceTest) TestGetMRDEntry() {
-	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	err := t.mrdInstance.EnsureMrdInstance()
-	assert.NoError(t.T(), err)
-
-	entry := t.mrdInstance.GetMRDEntry()
-
-	assert.NotNil(t.T(), entry)
-	assert.Equal(t.T(), fakeMRD, entry.mrd)
-}
-
-func (t *MrdInstanceTest) TestGetMRDEntry_NilPool() {
-	entry := t.mrdInstance.GetMRDEntry()
-
-	assert.Nil(t.T(), entry)
-}
-
-func (t *MrdInstanceTest) TestRecreateMRDEntry() {
+func (t *MrdInstanceTest) TestRead_RecreatesInvalidEntry() {
 	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	// Initial creation
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	err := t.mrdInstance.EnsureMrdInstance()
+	buf := make([]byte, 1)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0)
 	assert.NoError(t.T(), err)
-	entry := t.mrdInstance.GetMRDEntry()
-	assert.Equal(t.T(), fakeMRD1, entry.mrd)
 
-	// Recreate
+	// Manually invalidate the entry to simulate a failure
+	entry := &t.mrdInstance.mrdPool.entries[0]
+	entry.mrd.Close() // Close it.
+	// Replace the entry's MRD with one that returns an error.
+	entry.mu.Lock()
+	entry.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
+	entry.mu.Unlock()
+
+	// Expect recreation
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	err = t.mrdInstance.RecreateMRDEntry(entry)
+
+	_, err = t.mrdInstance.Read(context.Background(), buf, 0)
 
 	assert.NoError(t.T(), err)
+	entry.mu.RLock()
 	assert.Equal(t.T(), fakeMRD2, entry.mrd)
+	entry.mu.RUnlock()
+}
+
+func (t *MrdInstanceTest) TestRead_EnsureFails() {
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("init error")).Once()
+	assert.Nil(t.T(), t.mrdInstance.mrdPool)
+	buf := make([]byte, 1)
+
+	n, err := t.mrdInstance.Read(context.Background(), buf, 0)
+
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "init error")
+	assert.Equal(t.T(), 0, n)
+}
+
+func (t *MrdInstanceTest) TestRead_RecreationFails() {
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	// Initial creation.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	buf := make([]byte, 1)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0)
+	assert.NoError(t.T(), err)
+
+	// Manually invalidate the entry to simulate a failure.
+	entry := &t.mrdInstance.mrdPool.entries[0]
+	entry.mrd.Close() // Close it.
+	// Replace the entry's MRD with one that returns an error.
+	entry.mu.Lock()
+	entry.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
+	entry.mu.Unlock()
+
+	// Expect recreation failure.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("recreate error")).Once()
+
+	n, err := t.mrdInstance.Read(context.Background(), buf, 0)
+
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "recreate error")
+	assert.Equal(t.T(), 0, n)
+}
+
+func (t *MrdInstanceTest) TestRead_EmptyBuffer() {
+	n, err := t.mrdInstance.Read(context.Background(), []byte{}, 0)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 0, n)
+}
+
+func (t *MrdInstanceTest) TestRead_ContextCancelled() {
+	data := []byte("hello world")
+	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleep(t.object, data, 100*time.Millisecond)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	ctx, cancel := context.WithCancel(context.Background())
+	buf := make([]byte, 5)
+
+	cancel()
+	n, err := t.mrdInstance.Read(ctx, buf, 0)
+
+	assert.Error(t.T(), err)
+	assert.Equal(t.T(), context.Canceled, err)
+	assert.Equal(t.T(), 0, n)
+}
+
+func (t *MrdInstanceTest) TestRead_AddError() {
+	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte("data"), 0, fmt.Errorf("read error"))
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	buf := make([]byte, 5)
+
+	n, err := t.mrdInstance.Read(context.Background(), buf, 0)
+
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "read error")
+	assert.Equal(t.T(), 0, n)
+}
+
+func (t *MrdInstanceTest) TestGetMRDEntry_Success() {
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	entry, err := t.mrdInstance.getMRDEntry()
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), entry)
+	assert.Equal(t.T(), fakeMRD, entry.mrd)
+}
+
+func (t *MrdInstanceTest) TestGetMRDEntry_EnsureFails() {
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("init error")).Once()
+
+	entry, err := t.mrdInstance.getMRDEntry()
+
+	assert.Error(t.T(), err)
+	assert.Nil(t.T(), entry)
+	assert.Contains(t.T(), err.Error(), "init error")
+}
+
+func (t *MrdInstanceTest) TestGetMRDEntry_RecreatesInvalidMRD() {
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	entry1, err := t.mrdInstance.getMRDEntry()
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), fakeMRD1, entry1.mrd)
+	entry1.mrd.Close()
+	entry1.mu.Lock()
+	entry1.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
+	entry1.mu.Unlock()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+
+	// This should force recreation of the MRD.
+	entry2, err := t.mrdInstance.getMRDEntry()
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), fakeMRD2, entry2.mrd)
 }
 
 func (t *MrdInstanceTest) TestRecreateMRD() {
@@ -135,12 +241,13 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	// Initial creation
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	err := t.mrdInstance.EnsureMrdInstance()
+	buf := make([]byte, 1)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0)
 	assert.NoError(t.T(), err)
 	pool1 := t.mrdInstance.mrdPool
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 
 	// Recreate
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 	err = t.mrdInstance.RecreateMRD()
 
 	assert.NoError(t.T(), err)
@@ -151,7 +258,8 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 func (t *MrdInstanceTest) TestDestroy() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	err := t.mrdInstance.EnsureMrdInstance()
+	buf := make([]byte, 1)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
 
@@ -164,7 +272,8 @@ func (t *MrdInstanceTest) TestIncrementRefCount() {
 	// Setup: Put something in cache first to verify removal
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	err := t.mrdInstance.EnsureMrdInstance()
+	buf := make([]byte, 1)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0)
 	assert.NoError(t.T(), err)
 	// Manually insert into cache to simulate it being inactive
 	key := strconv.FormatUint(uint64(t.inodeID), 10)
@@ -181,7 +290,8 @@ func (t *MrdInstanceTest) TestIncrementRefCount() {
 func (t *MrdInstanceTest) TestDecrementRefCount() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	err := t.mrdInstance.EnsureMrdInstance()
+	buf := make([]byte, 1)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0)
 	assert.NoError(t.T(), err)
 	t.mrdInstance.refCount = 1
 
@@ -201,7 +311,8 @@ func (t *MrdInstanceTest) TestDecrementRefCount_Eviction() {
 	assert.NoError(t.T(), err)
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	err = t.mrdInstance.EnsureMrdInstance()
+	buf := make([]byte, 1)
+	_, err = t.mrdInstance.Read(context.Background(), buf, 0)
 	assert.NoError(t.T(), err)
 	t.mrdInstance.refCount = 1
 
@@ -220,14 +331,15 @@ func (t *MrdInstanceTest) TestDestroyEvictedCacheEntries() {
 	mi1 := NewMrdInstance(t.object, t.bucket, t.cache, 1, t.mrdConfig)
 	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	err := mi1.EnsureMrdInstance()
+	buf := make([]byte, 1)
+	_, err := mi1.Read(context.Background(), buf, 0)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mi1.mrdPool)
 	// 2. Instance that is resurrected (refCount > 0)
 	mi2 := NewMrdInstance(t.object, t.bucket, t.cache, 2, t.mrdConfig)
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	err = mi2.EnsureMrdInstance()
+	_, err = mi2.Read(context.Background(), buf, 0)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mi2.mrdPool)
 	mi2.refCount = 1
@@ -259,4 +371,41 @@ func (t *MrdInstanceTest) TestGetKey() {
 	for _, tc := range testCases {
 		assert.Equal(t.T(), tc.expected, getKey(tc.inodeID))
 	}
+}
+
+func (t *MrdInstanceTest) TestEnsureMrdInstance_Success() {
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	assert.Nil(t.T(), t.mrdInstance.mrdPool)
+
+	err := t.mrdInstance.ensureMrdInstance()
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
+}
+
+func (t *MrdInstanceTest) TestEnsureMrdInstance_AlreadyExists() {
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	err := t.mrdInstance.ensureMrdInstance()
+	assert.NoError(t.T(), err)
+	pool := t.mrdInstance.mrdPool
+
+	// Call again
+	err = t.mrdInstance.ensureMrdInstance()
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), pool, t.mrdInstance.mrdPool)
+	t.bucket.AssertExpectations(t.T()) // Should only be called once
+}
+
+func (t *MrdInstanceTest) TestEnsureMrdInstance_Failure() {
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("init error")).Once()
+	assert.Nil(t.T(), t.mrdInstance.mrdPool)
+
+	err := t.mrdInstance.ensureMrdInstance()
+
+	assert.Error(t.T(), err)
+	assert.Nil(t.T(), t.mrdInstance.mrdPool)
+	assert.Contains(t.T(), err.Error(), "init error")
 }
