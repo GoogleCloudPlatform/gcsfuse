@@ -339,7 +339,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		entry := p.blockQueue.Peek()
 		blk := entry.block
 
-		status, waitErr := blk.AwaitReady(ctx)
+		fetchCtx, span := p.traceHandle.StartTrace(ctx, tracing.WaitForPrefetchBlock)
+		status, waitErr := blk.AwaitReady(fetchCtx)
+		p.traceHandle.EndTrace(span)
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
@@ -361,7 +363,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 		relOff := readOffset - blk.AbsStartOff()
 		bytesToRead := len(req.Buffer) - bytesRead
+		_, span = p.traceHandle.StartTrace(ctx, tracing.ReadFromPrefetchBlock)
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
+		p.traceHandle.EndTrace(span)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen
 		readOffset += int64(sliceLen)
@@ -528,6 +532,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 		block:        b,
 		readHandle:   p.readHandle,
 		metricHandle: p.metricHandle,
+		traceHandle:  p.traceHandle,
 	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
