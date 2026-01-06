@@ -1566,7 +1566,7 @@ func (t *DirTest) TestDeleteChildFile_Succeeds_TypeCacheEvicted() {
 	// Check the bucket.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
 	var notFoundErr *gcs.NotFoundError
-	assert.ErrorAs(t.T(), notFoundErr, err)
+	assert.ErrorAs(t.T(), err, &notFoundErr)
 	// Check that the type cache has been updated.
 	assert.Equal(t.T(), metadata.UnknownType, t.getTypeFromCache(name))
 }
@@ -1842,7 +1842,7 @@ func (t *DirTest) TestEraseFromTypeCache() {
 	require.EqualValues(t.T(), 0, tp)
 }
 
-func (t *DirTest) TestTestDeleteObjects() {
+func (t *DirTest) TestDeleteObjects() {
 	// Arrange
 	parentDirGcsName := t.in.Name().GcsObjectName() // e.g., "foo/bar/"
 	d := t.in.(*dirInode)

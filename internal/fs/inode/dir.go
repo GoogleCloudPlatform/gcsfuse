@@ -734,15 +734,6 @@ func (d *dirInode) listObjectsAndBuildCores(
 	}
 
 	cores = make(map[Name]*Core)
-	if !d.IsTypeCacheDeprecated() {
-		defer func() {
-			now := d.cacheClock.Now()
-			for fullName, c := range cores {
-				d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
-			}
-		}()
-	}
-
 	for _, o := range listing.MinObjects {
 		if storageutil.IsUnsupportedPath(o.Name) {
 			unsupportedPaths = append(unsupportedPaths, o.Name)
@@ -835,6 +826,9 @@ func (d *dirInode) listObjectsAndBuildCores(
 }
 
 func (d *dirInode) insertToCache(cores map[Name]*Core) {
+	if d.IsTypeCacheDeprecated() {
+		return
+	}
 	now := d.cacheClock.Now()
 	for fullName, c := range cores {
 		d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
