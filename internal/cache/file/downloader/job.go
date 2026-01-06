@@ -496,7 +496,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		span := trace.SpanFromContext(ctx)
 		newCtx := context.Background()
 		newCtx = trace.ContextWithSpan(newCtx, span)
-		newCtx, downloadSpan := job.traceHandle.StartTraceLink(newCtx, tracing.FileCacheRead)
+		newCtx, downloadSpan := job.traceHandle.StartTraceLink(newCtx, tracing.FileDownloadJob)
 		job.cancelCtx, job.cancelFunc = context.WithCancel(newCtx)
 		go func() {
 			defer job.traceHandle.EndTrace(downloadSpan)
