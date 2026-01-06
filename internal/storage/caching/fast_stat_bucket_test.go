@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -910,31 +909,6 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 // ListObjectsTest_InsertListing
 ////////////////////////////////////////////////////////////////////////
 
-type minObjectMatcher struct {
-	expected *gcs.MinObject
-	Matcher
-}
-
-func (m *minObjectMatcher) Matches(c interface{}) error {
-	// 1. Assert the type
-	actual, ok := c.(*gcs.MinObject)
-	if !ok {
-		return fmt.Errorf("expected *gcs.MinObject, got %T", c)
-	}
-
-	// 2. Compare VALUES, not pointers.
-	// We dereference both (*actual, *m.expected) to compare struct contents.
-	if !reflect.DeepEqual(*actual, *m.expected) {
-		return fmt.Errorf("mismatch:\nActual:   %+v\nExpected: %+v", *actual, *m.expected)
-	}
-
-	return nil
-}
-
-func (m *minObjectMatcher) Description() string {
-	return fmt.Sprintf("is equal to %v", m.expected)
-}
-
 type ListObjectsTest_InsertListing struct {
 	fastStatBucketTest
 }
@@ -949,8 +923,7 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(listing *gcs.Listing, pref
 		WillOnce(Return(listing, nil))
 	// Register expectations.
 	for _, obj := range expectedInserts {
-		matcher := &minObjectMatcher{expected: obj}
-		ExpectCall(t.cache, "Insert")(matcher, Any())
+		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
 	}
 
 	// Call
