@@ -69,7 +69,7 @@ func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, ino
 // recreating it if necessary.
 func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
 	// Ensure the pool is initialized.
-	if err := mi.ensureMrdInstance(); err != nil {
+	if err := mi.ensureMRDPool(); err != nil {
 		return nil, err
 	}
 
@@ -137,9 +137,9 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, e
 	}
 }
 
-// ensureMrdInstance ensures that the MRD pool is initialized. If the pool
+// ensureMRDPool ensures that the MRD pool is initialized. If the pool
 // already exists, this function is a no-op.
-func (mi *MrdInstance) ensureMrdInstance() (err error) {
+func (mi *MrdInstance) ensureMRDPool() (err error) {
 	// Return early if pool exists.
 	mi.poolMu.RLock()
 	if mi.mrdPool != nil {
@@ -159,7 +159,7 @@ func (mi *MrdInstance) ensureMrdInstance() (err error) {
 	// Creating a new pool. Not reusing any handle while creating a new pool.
 	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
 	if err != nil {
-		err = fmt.Errorf("MrdInstance::ensureMrdInstance Error in creating MRDPool: %w", err)
+		err = fmt.Errorf("MrdInstance::ensureMRDPool Error in creating MRDPool: %w", err)
 	}
 	return
 }
@@ -230,7 +230,7 @@ func destroyEvictedCacheEntries(evictedValues []lru.ValueType) {
 	for _, instance := range evictedValues {
 		mrdInstance, ok := instance.(*MrdInstance)
 		if !ok {
-			logger.Errorf("destroyEvictedCacheEntries: Invalid value type, expected *MrdInstance, got %T", mrdInstance)
+			logger.Errorf("destroyEvictedCacheEntries: Invalid value type, expected *MrdInstance, got %T", instance)
 		} else {
 			// Check if the instance was resurrected.
 			mrdInstance.refCountMu.Lock()

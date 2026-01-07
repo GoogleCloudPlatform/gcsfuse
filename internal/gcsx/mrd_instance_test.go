@@ -373,37 +373,37 @@ func (t *MrdInstanceTest) TestGetKey() {
 	}
 }
 
-func (t *MrdInstanceTest) TestEnsureMrdInstance_Success() {
+func (t *MrdInstanceTest) TestEnsureMRDPool_Success() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
 
-	err := t.mrdInstance.ensureMrdInstance()
+	err := t.mrdInstance.ensureMRDPool()
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
 }
 
-func (t *MrdInstanceTest) TestEnsureMrdInstance_AlreadyExists() {
+func (t *MrdInstanceTest) TestEnsureMRDPool_AlreadyExists() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	err := t.mrdInstance.ensureMrdInstance()
+	err := t.mrdInstance.ensureMRDPool()
 	assert.NoError(t.T(), err)
 	pool := t.mrdInstance.mrdPool
 
 	// Call again
-	err = t.mrdInstance.ensureMrdInstance()
+	err = t.mrdInstance.ensureMRDPool()
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), pool, t.mrdInstance.mrdPool)
 	t.bucket.AssertExpectations(t.T()) // Should only be called once
 }
 
-func (t *MrdInstanceTest) TestEnsureMrdInstance_Failure() {
+func (t *MrdInstanceTest) TestEnsureMRDPool_Failure() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("init error")).Once()
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
 
-	err := t.mrdInstance.ensureMrdInstance()
+	err := t.mrdInstance.ensureMRDPool()
 
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)

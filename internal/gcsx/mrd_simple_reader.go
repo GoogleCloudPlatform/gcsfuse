@@ -66,8 +66,8 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 // the associated MrdInstance. This should be called when the reader is no
 // longer needed.
 func (msr *MrdSimpleReader) Destroy() {
-	msr.mu.Lock()
-	defer msr.mu.Unlock()
+	// No need to take lock as Destroy will only be called when file handle is being released
+	// and there will be no read calls at that point.
 	if msr.mrdInstance != nil {
 		msr.mrdInstanceInUse.Store(false)
 		msr.mrdInstance.DecrementRefCount()
