@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 // KernelParam represents an individual parameter setting.
@@ -85,9 +86,26 @@ func (b *KernelParameterBuilder) WithCongestionWindowThreshold(val int) *KernelP
 	return b
 }
 
+func runningOnGKE() bool {
+	return true
+}
+
 // Apply serializes the current configuration and writes it atomically to the
 // target path in case of GKE environment or applies automatically in case of GCE environments
 func (b *KernelParameterBuilder) Apply(targetPath string) error {
+	if runningOnGKE() {
+		logger.Infof(fmt.Sprintf("Writing kernel parameters to file %s", targetPath), "kernal parameters", b)
+		err := b.updateKernelParamsToCsiDriver(targetPath)
+		if err != nil {
+			logger.Errorf("Unable to write kernel parameters to file %s, err: %v", targetPath, err)
+		}
+		logger.Infof("Succesfully wrote kernel parameters to file %s", targetPath)
+	}
+	return nil
+	// TODO: GCE logic for kernel updates
+}
+
+func (b *KernelParameterBuilder) updateKernelParamsToCsiDriver(targetPath string) error {
 	config := KernelParamsConfig{
 		RequestID:  uuid.New().String(),
 		Timestamp:  time.Now().UTC().Format(time.RFC3339),
