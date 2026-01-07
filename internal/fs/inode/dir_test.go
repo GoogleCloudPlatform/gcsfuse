@@ -2006,18 +2006,28 @@ func (t *DirTest) Test_ReadObjectsUnlocked() {
 		enableImplicitDirs bool
 		expectedCoresCount int
 		expectedUnsupCount int
+		startOffset        string
 	}{
 		{
 			name:               "ImplicitDirsDisabled",
 			enableImplicitDirs: false,
 			expectedCoresCount: 4, // backed_dir_empty, backed_dir_nonempty, file2, symlink
 			expectedUnsupCount: 0,
+			startOffset:        "",
 		},
 		{
 			name:               "ImplicitDirsEnabled",
 			enableImplicitDirs: true,
 			expectedCoresCount: 5, // Above + implicit_dir
 			expectedUnsupCount: 1, // dirInodeName + "//"
+			startOffset:        "",
+		},
+		{
+			name:               "ImplicitDirsDisabledWithStartOffset",
+			enableImplicitDirs: false,
+			expectedCoresCount: 3, // backed_dir_nonempty, file2, symlink
+			expectedUnsupCount: 0,
+			startOffset:        path.Join(dirInodeName, "backed_dir_nonempty") + "/",
 		},
 	}
 
@@ -2043,13 +2053,15 @@ func (t *DirTest) Test_ReadObjectsUnlocked() {
 
 			// Execute with lock management
 			t.in.Unlock()
-			cores, unsupported, _, err := d.readObjectsUnlocked(t.ctx, "")
+			cores, unsupported, _, err := d.readObjectsUnlocked(t.ctx, "", tc.startOffset)
 			t.in.Lock()
 
 			require.NoError(st, err)
 			assert.Equal(st, tc.expectedCoresCount, len(cores))
 			assert.Equal(st, tc.expectedUnsupCount, len(unsupported))
-			t.validateCore(cores, "backed_dir_empty", true, metadata.ExplicitDirType, path.Join(dirInodeName, "backed_dir_empty")+"/")
+			if tc.startOffset == "" {
+				t.validateCore(cores, "backed_dir_empty", true, metadata.ExplicitDirType, path.Join(dirInodeName, "backed_dir_empty")+"/")
+			}
 			t.validateCore(cores, "backed_dir_nonempty", true, metadata.ExplicitDirType, path.Join(dirInodeName, "backed_dir_nonempty")+"/")
 			t.validateCore(cores, "file2", false, metadata.RegularFileType, path.Join(dirInodeName, "file2"))
 			t.validateCore(cores, "symlink", false, metadata.SymlinkType, path.Join(dirInodeName, "symlink"))
@@ -2067,7 +2079,7 @@ func (t *DirTest) Test_readObjectsUnlocked_Empty() {
 	d := t.in.(*dirInode)
 	assert.NotNil(t.T(), d)
 
-	cores, unsupportedPaths, newTok, err := d.readObjectsUnlocked(t.ctx, "")
+	cores, unsupportedPaths, newTok, err := d.readObjectsUnlocked(t.ctx, "", "")
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 0, len(cores))

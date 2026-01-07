@@ -152,7 +152,7 @@ func (t *DirPrefetchTest) TestPrefetch_ConcurrentSafety() {
 	t.in.prefetchState.Store(prefetchInProgress)
 
 	// Call runOnDemandPrefetch. It should return immediately without doing work.
-	t.in.runOnDemandPrefetch(t.ctx)
+	t.in.runOnDemandPrefetch(t.ctx, "")
 
 	// lastPrefetchTime should remain Zero.
 	assert.True(t.T(), t.in.lastPrefetchTime.IsZero())

@@ -353,6 +353,10 @@ type ListObjectsRequest struct {
 	//
 	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
 	FetchOnlyFromCache bool
+
+	// StartOffset is used to filter results to objects whose names are
+	// lexicographically equal to or after startOffset.
+	StartOffset string
 }
 
 // Listing contains a set of objects and delimter-based collapsed runs returned

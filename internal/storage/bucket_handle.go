@@ -358,6 +358,7 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		Projection:               getProjectionValue(req.ProjectionVal),
 		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
+		StartOffset:              req.StartOffset,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
 	minObjAttrs := []string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"}

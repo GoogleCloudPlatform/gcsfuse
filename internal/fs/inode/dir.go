@@ -506,7 +506,7 @@ func (d *dirInode) createNewObject(
 
 // runOnDemandPrefetch attempts to prefetch metadata for the directory if a prefetch is due.
 // It uses an atomic prefetchState to ensure only one prefetch operation runs at a time and prevents concurrent execution.
-func (d *dirInode) runOnDemandPrefetch(ctx context.Context) {
+func (d *dirInode) runOnDemandPrefetch(ctx context.Context, startOffset string) {
 	// Atomically swap state from Ready (0) to InProgress (1).
 	if !d.prefetchState.CompareAndSwap(prefetchReady, prefetchInProgress) {
 		// Another prefetch is already in progress. Abort.
@@ -533,7 +533,7 @@ func (d *dirInode) runOnDemandPrefetch(ctx context.Context) {
 		}
 
 		// Perform slow network I/O *without* holding the inode lock.
-		_, _, newTok, err := d.readObjectsUnlocked(ctx, tok)
+		_, _, newTok, err := d.readObjectsUnlocked(ctx, tok, startOffset)
 		if err != nil {
 			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
 			return // Abort.
@@ -693,7 +693,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		// Check if a prefetch is due (prefetch not in progress and TTL expired), launch the prefetch worker in the background.
 		if d.enableMetadataPrefetch && d.prefetchState.Load() == prefetchReady && d.cacheClock.Now().Sub(d.lastPrefetchTime) >= d.metadataCacheTTL {
 			// Use prefetchCtx since this long-running background task should not be tied to short-lived `LookUpChild` ctx.
-			go d.runOnDemandPrefetch(d.prefetchCtx)
+			go d.runOnDemandPrefetch(d.prefetchCtx, d.Name().GcsObjectName())
 		}
 
 		group.Go(lookUpFile)
@@ -779,9 +779,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 }
 
 // Helper function to handle the common listing logic and GCS request preparation.
-func (d *dirInode) listObjectsAndBuildCores(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, maxListCallResults int, listStartOffset string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
 	includeTrailingDelimeter := true // Important for flat bucket to list explicit directory.
 	if d.isBucketHierarchical() {
@@ -796,11 +794,12 @@ func (d *dirInode) listObjectsAndBuildCores(
 		IncludeTrailingDelimiter: includeTrailingDelimeter,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
-		MaxResults:               MaxResultsForListObjectsCall,
+		MaxResults:               maxListCallResults,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
 		ProjectionVal:            gcs.NoAcl,
 		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+		StartOffset:              listStartOffset,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -916,7 +915,7 @@ func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
-	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, MaxResultsForListObjectsCall, "")
 	if err == nil {
 		d.insertToCache(cores)
 	}
@@ -925,11 +924,11 @@ func (d *dirInode) readObjects(
 
 // LOCK_EXCLUDED(d)
 // readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
-func (d *dirInode) readObjectsUnlocked(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOffset string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+	// TODO: add hidden flag to control this value.
+	const maxListCallResults = 1000
 
-	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, maxListCallResults, startOffset)
 	if err != nil {
 		return
 	}
