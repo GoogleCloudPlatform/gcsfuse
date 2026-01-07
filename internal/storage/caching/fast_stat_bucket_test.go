@@ -1176,6 +1176,24 @@ func (t *DeleteObjectTest) WrappedSucceeds_AddsNegativeEntry() {
 	AssertEq(nil, err)
 }
 
+func (t *DeleteObjectTest) IsTypeCacheDeprecated_OnlyDeleteFromCache() {
+	const name = "taco"
+	req := &gcs.DeleteObjectRequest{
+		Name:                  name,
+		IsTypeCacheDeprecated: true,
+		OnlyDeleteFromCache:   true,
+	}
+
+	// Expect AddNegativeEntry call.
+	ExpectCall(t.cache, "AddNegativeEntry")(
+		name,
+		timeutil.TimeEq(t.clock.Now().Add(negativeCacheTTL)))
+
+	err := t.bucket.DeleteObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+}
+
 func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
 	const name = "some-name"
 	folder := &gcs.Folder{
