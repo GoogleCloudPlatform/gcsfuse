@@ -2922,7 +2922,17 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
-	if fs.newConfig.EnableNewReader {
+	if fs.newConfig.FileSystem.EnableKernelReader {
+		var resp gcsx.ReadResponse
+		req := &gcsx.ReadRequest{
+			Buffer: op.Dst,
+			Offset: op.Offset,
+		}
+		resp, err = fh.ReadWithMrdSimpleReader(ctx, req)
+		op.BytesRead = resp.Size
+		op.Data = resp.Data
+		op.Callback = resp.Callback
+	} else if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
 		req := &gcsx.ReadRequest{
 			Buffer: op.Dst,
