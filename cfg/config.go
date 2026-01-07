@@ -29,7 +29,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
-			Value:      bool(true),
+			Value:      bool(false),
 		},
 	},
 }, "file-cache.cache-file-for-range-read": {
