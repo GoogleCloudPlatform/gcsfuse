@@ -50,7 +50,7 @@ func mountGcsfuseWithPersistentMountingWithConfigFile(config *test_suite.TestCon
 		"-o",
 		"log_file=" + config.LogFile,
 		"-o",
-		"--enable-kernel-reader=false",
+		"enable-kernel-reader=false",
 	}
 
 	persistentMountingArgs := makePersistentMountingArgs(flags)
