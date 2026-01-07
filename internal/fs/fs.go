@@ -335,16 +335,12 @@ func makeRootForBucket(
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
-		fs.newConfig.List.EnableEmptyManagedFolders,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
-		fs.newConfig.EnableHns,
-		fs.newConfig.EnableUnsupportedPathSupport,
-		fs.newConfig.EnableTypeCacheDeprecation,
+		fs.newConfig,
 	)
 }
 
@@ -819,16 +815,12 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
-		fs.newConfig.List.EnableEmptyManagedFolders,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
 		ic.Bucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
-		fs.newConfig.EnableHns,
-		fs.newConfig.EnableUnsupportedPathSupport,
-		fs.newConfig.EnableTypeCacheDeprecation)
+		fs.newConfig)
 
 	return in
 }
@@ -864,16 +856,12 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
-			fs.newConfig.List.EnableEmptyManagedFolders,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
-			fs.newConfig.EnableHns,
-			fs.newConfig.EnableUnsupportedPathSupport,
-			fs.newConfig.EnableTypeCacheDeprecation,
+			fs.newConfig,
 		)
 
 	case inode.IsSymlink(ic.MinObject):

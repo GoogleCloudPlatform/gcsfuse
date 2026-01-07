@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
@@ -276,16 +277,12 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
-	includeFoldersAsPrefixes bool,
 	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int64,
-	isHNSEnabled bool,
-	isUnsupportedPathSupportEnabled bool,
-	isEnableTypeCacheDeprecation bool,
+	cfg *cfg.Config,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -298,18 +295,18 @@ func NewDirInode(
 		cacheClock:                      cacheClock,
 		id:                              id,
 		implicitDirs:                    implicitDirs,
-		includeFoldersAsPrefixes:        includeFoldersAsPrefixes,
+		includeFoldersAsPrefixes:        cfg.List.EnableEmptyManagedFolders,
 		enableNonexistentTypeCache:      enableNonexistentTypeCache,
 		name:                            name,
 		attrs:                           attrs,
-		isHNSEnabled:                    isHNSEnabled,
-		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
-		isEnableTypeCacheDeprecation:    isEnableTypeCacheDeprecation,
+		isHNSEnabled:                    cfg.EnableHns,
+		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
+		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
 	}
 	var cache metadata.TypeCache
-	if !isEnableTypeCacheDeprecation {
-		cache = metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL)
+	if !cfg.EnableTypeCacheDeprecation {
+		cache = metadata.NewTypeCache(cfg.MetadataCache.TypeCacheMaxSizeMb, typeCacheTTL)
 		typed.cache = cache
 	}
 
