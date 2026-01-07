@@ -246,18 +246,28 @@ type StatObjectRequest struct {
 	// Flag to enable deprecation logic of Type cache.
 	IsTypeCacheDeprecated bool
 
-	// FetchFromCache is a boolean flag.
-	// If true, the request attempts to fetch the object metadata/listing only from the stat cache.
-	// If false (default), the request proceeds to the backend (GCS) if the cache miss occurs or if the cache is bypassed entirely.
+	// FetchFromCache determines if the request should be served exclusively from the stat cache.
+	//
+	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError
+	// and does not fall back to GCS.
+	//
+	// If false, the cache is bypassed entirely and the request is served directly from GCS.
+	//
+	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
 	FetchFromCache bool
 }
 
 type GetFolderRequest struct {
 	Name string
 
-	// FetchFromCache is a boolean flag.
-	// If true, the request attempts to fetch the object metadata/listing only from the stat cache.
-	// If false (default), the request proceeds to the backend (GCS) if the cache miss occurs or if the cache is bypassed entirely.
+	// FetchFromCache determines if the request should be served exclusively from the stat cache.
+	//
+	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError
+	// and does not fall back to GCS.
+	//
+	// If false, the cache is bypassed entirely and the request is served directly from GCS.
+	//
+	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
 	FetchFromCache bool
 
 	// Flag to enable deprecation logic of Type cache.
@@ -344,9 +354,14 @@ type ListObjectsRequest struct {
 	// Flag to enable deprecation logic of Type cache.
 	IsTypeCacheDeprecated bool
 
-	// FetchFromCache is a boolean flag.
-	// If true, the request attempts to fetch the object metadata/listing only from the stat cache.
-	// If false (default), the request proceeds to the backend (GCS) if the cache miss occurs or if the cache is bypassed entirely.
+	// FetchFromCache determines if the request should be served exclusively from the stat cache.
+	//
+	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError
+	// and does not fall back to GCS.
+	//
+	// If false, the cache is bypassed entirely and the request is served directly from GCS.
+	//
+	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
 	FetchFromCache bool
 }
 
