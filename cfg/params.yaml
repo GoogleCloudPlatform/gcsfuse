@@ -363,7 +363,7 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal"
-          value: false
+          value: true
 
   - config-path: "file-system.experimental-enable-dentry-cache"
     flag-name: "experimental-enable-dentry-cache"
