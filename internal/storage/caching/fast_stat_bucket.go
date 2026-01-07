@@ -452,7 +452,9 @@ func (b *fastStatBucket) ListObjects(
 				return &gcs.Listing{MinObjects: []*gcs.MinObject{minObject}}, nil
 			}
 		}
-		return nil, &CacheMissError{Err: fmt.Errorf("Not found cache entry for %v", req.Prefix)}
+		return nil, &CacheMissError{
+			Err: fmt.Errorf("cache miss for %q", req.Prefix),
+		}
 	}
 
 	// Fetch the listing.
@@ -584,7 +586,9 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 	}
 
 	if req.IsTypeCacheDeprecated {
-		return nil, &CacheMissError{Err: fmt.Errorf("Not found cache entry for %v", req.Name)}
+		return nil, &CacheMissError{
+			Err: fmt.Errorf("cache miss for %q", req.Name),
+		}
 	}
 
 	// Fetch the Folder from GCS
