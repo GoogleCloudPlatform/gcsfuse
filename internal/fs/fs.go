@@ -2887,6 +2887,10 @@ func (fs *fileSystem) ReadFile(
 	op *fuseops.ReadFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 
+	// Track I/O depth
+	fs.metricHandle.IoDepthFs(1, metrics.OpTypeReadAttr)
+	defer fs.metricHandle.IoDepthFs(-1, metrics.OpTypeReadAttr)
+
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
@@ -2973,6 +2977,10 @@ func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	// Track I/O depth
+	fs.metricHandle.IoDepthFs(1, metrics.OpTypeWriteAttr)
+	defer fs.metricHandle.IoDepthFs(-1, metrics.OpTypeWriteAttr)
 
 	// Find the inode( and file handle in case of appends).
 	fs.mu.Lock()

@@ -234,6 +234,17 @@
     - "OTHER_ERRORS"
     - "STALLED_READ_REQUEST"
 
+- metric-name: "io/depth_fs"
+  description: "Current number of concurrent I/O operations in the filesystem by operation type."
+  type: "int_up_down_counter"
+  unit: "{operations}"
+  attributes:
+  - attribute-name: "op_type"
+    attribute-type: "string"
+    values:
+    - "read"
+    - "write"
+
 - metric-name: "test/updown_counter"
   description: "Test metric for updown counters."
   type: "int_up_down_counter"
