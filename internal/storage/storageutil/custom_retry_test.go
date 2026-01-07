@@ -94,6 +94,11 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 			expectedResult: true,
 		},
 		{
+			name:           "URL Error - network is unreachable",
+			err:            &url.Error{Err: errors.New("network is unreachable")},
+			expectedResult: true,
+		},
+		{
 			name:           "Op Error - Connection Refused",
 			err:            &net.OpError{Err: errors.New("connection refused")},
 			expectedResult: true,
@@ -111,6 +116,11 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 		{
 			name:           "Op Error - connection refused by peer",
 			err:            &net.OpError{Err: errors.New("connection refused by peer")},
+			expectedResult: true,
+		},
+		{
+			name:           "Op Error - network is unreachable",
+			err:            &net.OpError{Err: errors.New("network is unreachable")},
 			expectedResult: true,
 		},
 	}
