@@ -33,10 +33,10 @@ type DummyIOBucketParams struct {
 }
 
 // dummyIOBucket is a wrapper over gcs.Bucket that implements gcs.Bucket interface.
-// It directly delegates all calls to the wrapped bucket, and performs dummy IO for
-// read and write operations.
+// It embeds baseBucketWrapper to inherit default delegation behavior, and only
+// overrides the read operations to perform dummy IO for testing purposes.
 type dummyIOBucket struct {
-	wrapped       gcs.Bucket
+	baseBucketWrapper
 	readerLatency time.Duration
 	perMBLatency  time.Duration
 }
@@ -49,20 +49,10 @@ func NewDummyIOBucket(wrapped gcs.Bucket, params DummyIOBucketParams) gcs.Bucket
 	}
 
 	return &dummyIOBucket{
-		wrapped:       wrapped,
-		readerLatency: params.ReaderLatency,
-		perMBLatency:  params.PerMBLatency,
+		baseBucketWrapper: baseBucketWrapper{wrapped: wrapped},
+		readerLatency:     params.ReaderLatency,
+		perMBLatency:      params.PerMBLatency,
 	}
-}
-
-// Name returns the name of the bucket.
-func (d *dummyIOBucket) Name() string {
-	return d.wrapped.Name()
-}
-
-// BucketType returns the type of the bucket.
-func (d *dummyIOBucket) BucketType() gcs.BucketType {
-	return d.wrapped.BucketType()
 }
 
 // NewReaderWithReadHandle creates a reader for reading object contents.
@@ -95,136 +85,9 @@ func (d *dummyIOBucket) NewMultiRangeDownloader(
 	return &dummyMultiRangeDownloader{perMBLatency: d.perMBLatency}, nil
 }
 
-// CreateObject creates or overwrites an object.
-// TODO: Add custom logic for Write path if needed
-func (d *dummyIOBucket) CreateObject(
-	ctx context.Context,
-	req *gcs.CreateObjectRequest) (*gcs.Object, error) {
-	return d.wrapped.CreateObject(ctx, req)
-}
-
-// CreateObjectChunkWriter creates a writer for resumable uploads.
-// TODO: Add custom logic for Write path if needed
-func (d *dummyIOBucket) CreateObjectChunkWriter(
-	ctx context.Context,
-	req *gcs.CreateObjectRequest,
-	chunkSize int,
-	callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	return d.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
-}
-
-// CreateAppendableObjectWriter creates a writer to append to an existing object.
-// TODO: Add custom logic for Write path if needed
-func (d *dummyIOBucket) CreateAppendableObjectWriter(
-	ctx context.Context,
-	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	return d.wrapped.CreateAppendableObjectWriter(ctx, req)
-}
-
-// FinalizeUpload completes the write operation and creates the object on GCS.
-// TODO: Add custom logic for Write path if needed
-func (d *dummyIOBucket) FinalizeUpload(
-	ctx context.Context,
-	writer gcs.Writer) (*gcs.MinObject, error) {
-	return d.wrapped.FinalizeUpload(ctx, writer)
-}
-
-// FlushPendingWrites flushes pending data in the writer buffer for zonal buckets.
-// TODO: Add custom logic for Write path if needed
-func (d *dummyIOBucket) FlushPendingWrites(
-	ctx context.Context,
-	writer gcs.Writer) (*gcs.MinObject, error) {
-	return d.wrapped.FlushPendingWrites(ctx, writer)
-}
-
-// CopyObject copies an object to a new name.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) CopyObject(
-	ctx context.Context,
-	req *gcs.CopyObjectRequest) (*gcs.Object, error) {
-	return d.wrapped.CopyObject(ctx, req)
-}
-
-// ComposeObjects composes one or more source objects into a single destination object.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) ComposeObjects(
-	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (*gcs.Object, error) {
-	return d.wrapped.ComposeObjects(ctx, req)
-}
-
-// StatObject returns current information about the object.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) StatObject(
-	ctx context.Context,
-	req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
-	return d.wrapped.StatObject(ctx, req)
-}
-
-// ListObjects lists the objects in the bucket that meet the criteria.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) ListObjects(
-	ctx context.Context,
-	req *gcs.ListObjectsRequest) (*gcs.Listing, error) {
-	return d.wrapped.ListObjects(ctx, req)
-}
-
-// UpdateObject updates the object specified by request.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) UpdateObject(
-	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (*gcs.Object, error) {
-	return d.wrapped.UpdateObject(ctx, req)
-}
-
-// DeleteObject deletes an object.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) DeleteObject(
-	ctx context.Context,
-	req *gcs.DeleteObjectRequest) error {
-	return d.wrapped.DeleteObject(ctx, req)
-}
-
-// MoveObject moves an object to a new name.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) MoveObject(
-	ctx context.Context,
-	req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	return d.wrapped.MoveObject(ctx, req)
-}
-
-// DeleteFolder deletes a folder.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) DeleteFolder(ctx context.Context, folderName string) error {
-	return d.wrapped.DeleteFolder(ctx, folderName)
-}
-
-// GetFolder retrieves folder information.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
-	return d.wrapped.GetFolder(ctx, folderName)
-}
-
-// RenameFolder atomically renames a folder for Hierarchical bucket.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) RenameFolder(
-	ctx context.Context,
-	folderName string,
-	destinationFolderId string) (*gcs.Folder, error) {
-	return d.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
-}
-
-// CreateFolder creates a new folder.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
-	return d.wrapped.CreateFolder(ctx, folderName)
-}
-
-// GCSName returns the original GCS name for the object.
-// Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) GCSName(object *gcs.MinObject) string {
-	return d.wrapped.GCSName(object)
-}
+// All other methods (CreateObject, DeleteFolder, GetFolder, etc.) are inherited
+// from baseBucketWrapper and delegate directly to the wrapped bucket.
+// This eliminates ~170 lines of boilerplate delegation code.
 
 ////////////////////////////////////////////////////////////////////////
 // dummyReader
