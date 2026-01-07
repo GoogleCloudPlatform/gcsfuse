@@ -108,6 +108,14 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		t.in.Unlock()
 	}
 
+	config := &cfg.Config{
+		List:                         cfg.ListConfig{EnableEmptyManagedFolders: enableManagedFoldersListing},
+		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: typeCacheMaxSizeMB},
+		EnableHns:                    false,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+	}
+
 	t.in = NewDirInode(
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
@@ -117,16 +125,12 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 			Mode: dirMode,
 		},
 		implicitDirs,
-		enableManagedFoldersListing,
 		enableNonexistentTypeCache,
 		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		typeCacheMaxSizeMB,
-		false,
-		true,
-		isTypeCacheDeprecationEnabled,
+		config,
 	)
 
 	d := t.in.(*dirInode)
@@ -146,6 +150,14 @@ func (t *DirTest) createDirInode(dirInodeName string) DirInode {
 }
 
 func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string, isTypeCacheDeprecated bool) DirInode {
+	config := &cfg.Config{
+		List:                         cfg.ListConfig{EnableEmptyManagedFolders: false},
+		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
+		EnableHns:                    false,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
+	}
+
 	return NewDirInode(
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
@@ -155,16 +167,12 @@ func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string
 			Mode: dirMode,
 		},
 		false,
-		false,
 		true,
 		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		4,
-		false,
-		true,
-		isTypeCacheDeprecated,
+		config,
 	)
 }
 

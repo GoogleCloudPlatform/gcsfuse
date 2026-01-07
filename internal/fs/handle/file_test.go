@@ -85,6 +85,14 @@ func (t *fileTest) TearDownTest() {
 func createDirInode(
 	bucket *gcsx.SyncerBucket,
 	clock *timeutil.SimulatedClock) inode.DirInode {
+	config := &cfg.Config{
+		List:                         cfg.ListConfig{EnableEmptyManagedFolders: false},
+		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
+		EnableHns:                    false,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+	}
+
 	return inode.NewDirInode(
 		1,
 		inode.NewDirName(inode.NewRootName(""), testDirName),
@@ -94,16 +102,12 @@ func createDirInode(
 			Mode: 0712,
 		},
 		false,
-		false,
 		true,
 		0,
 		bucket,
 		clock,
 		clock,
-		4,
-		false,
-		true,
-		isTypeCacheDeprecationEnabled,
+		config,
 	)
 }
 
