@@ -17,7 +17,6 @@ package gcsx
 import (
 	"context"
 	"fmt"
-	"sync"
 	"sync/atomic"
 )
 
@@ -25,8 +24,6 @@ import (
 // This reader is simpler than the GCSReader as it doesn't have complex logic
 // to switch between sequential and random read strategies.
 type MrdSimpleReader struct {
-	// mu protects the internal state of the reader, specifically access to mrdInstance.
-	mu               sync.RWMutex
 	mrdInstanceInUse atomic.Bool
 	mrdInstance      *MrdInstance
 }
