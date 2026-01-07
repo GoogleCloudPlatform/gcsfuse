@@ -136,25 +136,26 @@ func (t *mrdPoolTest) TestDeterminePoolSize() {
 	testCases := []struct {
 		name             string
 		objectSize       uint64
-		initialPoolSize  int
 		expectedPoolSize int
 	}{
 		{
 			name:             "SmallFile",
 			objectSize:       100 * MiB,
-			initialPoolSize:  4,
 			expectedPoolSize: 1,
 		},
 		{
-			name:             "LargeFile",
+			name:             "MediumFile",
 			objectSize:       1000 * MiB,
-			initialPoolSize:  4,
-			expectedPoolSize: 4,
+			expectedPoolSize: 2,
 		},
 		{
-			name:             "ThresholdFile",
-			objectSize:       smallFileThresholdMiB * MiB,
-			initialPoolSize:  4,
+			name:             "Large File",
+			objectSize:       2000 * MiB,
+			expectedPoolSize: 3,
+		},
+		{
+			name:             "Very large ThresholdFile",
+			objectSize:       3000 * MiB,
 			expectedPoolSize: 4,
 		},
 	}
@@ -162,7 +163,6 @@ func (t *mrdPoolTest) TestDeterminePoolSize() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.object.Size = tc.objectSize
-			t.poolConfig.PoolSize = tc.initialPoolSize
 
 			t.poolConfig.determinePoolSize()
 

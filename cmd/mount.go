@@ -180,6 +180,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
 		// attributes in a single operation.
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
+		EnableAsyncReads:  newConfig.FileSystem.EnableKernelReader,
 	}
 
 	// GCSFuse to Jacobsa Fuse Log Level mapping:

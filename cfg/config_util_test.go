@@ -25,6 +25,14 @@ func Test_DefaultMaxParallelDownloads(t *testing.T) {
 	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
 }
 
+func Test_DefaultMaxBackground(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultMaxBackground(), 12)
+}
+
+func Test_DefaultCongestionThreshold(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultMaxBackground(), 9)
+}
+
 func TestIsFileCacheEnabled(t *testing.T) {
 	testCases := []struct {
 		name                       string

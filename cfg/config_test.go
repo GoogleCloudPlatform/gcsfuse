@@ -23,6 +23,75 @@ import (
 )
 
 func TestApplyOptimizations(t *testing.T) {
+	// Tests for file-system.congestion-threshold
+	t.Run("file-system.congestion-threshold", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			isSet           *mockIsValueSet
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{
+						"congestion-threshold": true,
+						"machine-type":         true,
+					},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   0,
+			},
+			{
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   DefaultCongestionThreshold(),
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.CongestionThreshold = tc.expectedValue.(int64)
+				} else {
+					c.FileSystem.CongestionThreshold = 0
+				}
+
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.congestion-threshold")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.congestion-threshold")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.CongestionThreshold)
+			})
+		}
+	})
 	// Tests for file-system.enable-kernel-reader
 	t.Run("file-system.enable-kernel-reader", func(t *testing.T) {
 		testCases := []struct {
@@ -355,6 +424,144 @@ func TestApplyOptimizations(t *testing.T) {
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.FileSystem.KernelListCacheTtlSecs)
+			})
+		}
+	})
+	// Tests for file-system.max-background
+	t.Run("file-system.max-background", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			isSet           *mockIsValueSet
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{
+						"max-background": true,
+						"machine-type":   true,
+					},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   0,
+			},
+			{
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   DefaultMaxBackground(),
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.MaxBackground = tc.expectedValue.(int64)
+				} else {
+					c.FileSystem.MaxBackground = 0
+				}
+
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.max-background")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.max-background")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.MaxBackground)
+			})
+		}
+	})
+	// Tests for file-system.max-read-ahead-kb
+	t.Run("file-system.max-read-ahead-kb", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			isSet           *mockIsValueSet
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{
+						"max-read-ahead-kb": true,
+						"machine-type":      true,
+					},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   0,
+			},
+			{
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   16384,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.MaxReadAheadKb = tc.expectedValue.(int64)
+				} else {
+					c.FileSystem.MaxReadAheadKb = 0
+				}
+
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.max-read-ahead-kb")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.max-read-ahead-kb")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.MaxReadAheadKb)
 			})
 		}
 	})

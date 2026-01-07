@@ -24,7 +24,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-const smallFileThresholdMiB = 500
+const smallFileThresholdMiB = 200
+const midiumFileThresholdMiB = 1500
+const largeFileThresholdMiB = 2500
 
 // MRDEntry holds a single MultiRangeDownloader instance and a mutex to protect access to it.
 type MRDEntry struct {
@@ -60,6 +62,12 @@ type MRDPool struct {
 func (mrdPoolConfig *MRDPoolConfig) determinePoolSize() {
 	if mrdPoolConfig.object.Size < smallFileThresholdMiB*MiB {
 		mrdPoolConfig.PoolSize = 1
+	} else if mrdPoolConfig.object.Size < midiumFileThresholdMiB*MiB {
+		mrdPoolConfig.PoolSize = 2
+	} else if mrdPoolConfig.object.Size < largeFileThresholdMiB*MiB {
+		mrdPoolConfig.PoolSize = 3
+	} else {
+		mrdPoolConfig.PoolSize = 4
 	}
 }
 
@@ -148,13 +156,15 @@ func (p *MRDPool) RecreateMRD(entry *MRDEntry, fallbackHandle []byte) error {
 			if &p.entries[i] == entry {
 				continue
 			}
-			p.entries[i].mu.RLock()
-			if p.entries[i].mrd != nil {
-				handle = p.entries[i].mrd.GetHandle()
+			// Use TryRLock to avoid deadlock if multiple entries are being recreated simultaneously.
+			if p.entries[i].mu.TryRLock() {
+				if p.entries[i].mrd != nil {
+					handle = p.entries[i].mrd.GetHandle()
+					p.entries[i].mu.RUnlock()
+					break
+				}
 				p.entries[i].mu.RUnlock()
-				break
 			}
-			p.entries[i].mu.RUnlock()
 		}
 	}
 
@@ -196,4 +206,8 @@ func (p *MRDPool) Close() (handle []byte) {
 		entry.mu.Unlock()
 	}
 	return
+}
+
+func (p *MRDPool) Size() uint64 {
+	return p.currentSize.Load()
 }
