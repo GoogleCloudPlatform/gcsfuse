@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path"
@@ -32,7 +33,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 
