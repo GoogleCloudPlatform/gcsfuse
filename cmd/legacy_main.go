@@ -463,12 +463,17 @@ func forwardedEnvVars() []string {
 const targetPath = "/gcsfuse-tmp/.volumes/gcs-vol/kernel-params.json"
 
 func performKernelTuning(targetPath string) {
-	kerneltuner.NewKernelParameters().
+	err := kerneltuner.NewKernelParameters().
 		WithReadAheadKb(4096).
 		WithMaxPage(1024).
 		WithCongestionWindowThreshold(100).
 		WithTransparentHugePages("madvise").
 		Apply(targetPath)
+	if err != nil {
+		logger.Errorf("Could not write kernel parameters for CSI Driver: %v", err)
+	} else {
+		logger.Infof("Successfully wrote kernel parameters for CSI Driver")
+	}
 }
 
 // logGCSFuseMountInformation logs the CLI flags, config file flags and the resolved config.
