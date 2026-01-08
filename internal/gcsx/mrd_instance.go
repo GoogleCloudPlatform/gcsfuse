@@ -77,6 +77,10 @@ func (mi *MrdInstance) SetMinObject(minObj *gcs.MinObject) error {
 	return nil
 }
 
+func (mi *MrdInstance) GetMinObject() *gcs.MinObject {
+	return mi.object.Load()
+}
+
 // getMRDEntry returns a valid MRDEntry from the pool.
 // It ensures the pool is initialized and the returned entry is in a usable state,
 // recreating it if necessary.

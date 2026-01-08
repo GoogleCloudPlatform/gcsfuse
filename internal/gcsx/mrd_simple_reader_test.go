@@ -125,6 +125,36 @@ func (t *MrdSimpleReaderTest) TestReadAt_MultipleCalls() {
 	t.mrdInstance.refCountMu.Unlock()
 }
 
+func (t *MrdSimpleReaderTest) TestReadAt_ShortRead_RetrySuccess() {
+	data := []byte("hello world")
+	// First MRD returns short read.
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
+	// Second MRD returns full read.
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, data)
+	// Expectation:
+	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
+	// 2. Read returns short read.
+	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD2.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	buf := make([]byte, len(data))
+	req := &ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), len(data), resp.Size)
+	assert.Equal(t.T(), string(data), string(buf))
+	// Verify refCount incremented
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
+	t.bucket.AssertExpectations(t.T())
+}
+
 func (t *MrdSimpleReaderTest) TestReadAt_NilMrdInstance() {
 	t.reader.mrdInstance = nil
 	req := &ReadRequest{
