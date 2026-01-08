@@ -401,16 +401,20 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	// Cache Lookup
+	// Do we have an entry in the cache?
 	if hit, entry := b.lookUp(req.Name); hit {
+		// Negative entries result in NotFoundError.
 		if entry == nil {
-			// Negative cache entry (explicitly not found).
-			return nil, nil, &gcs.NotFoundError{
-				Err: fmt.Errorf("negative cache entry for %q", req.Name),
+			err = &gcs.NotFoundError{
+				Err: fmt.Errorf("negative cache entry for %v", req.Name),
 			}
+
+			return
 		}
-		// Positive cache hit.
-		return entry, nil, nil
+
+		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+		m = entry
+		return
 	}
 
 	// Cache Miss Handling
