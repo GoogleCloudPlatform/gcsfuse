@@ -207,6 +207,9 @@ func (mi *MrdInstance) RecreateMRD() error {
 
 // Destroy closes all MRD instances in the pool and releases associated resources.
 func (mi *MrdInstance) Destroy() {
+	if mi.mrdCache != nil {
+		mi.mrdCache.Erase(getKey(mi.inodeId))
+	}
 	mi.poolMu.Lock()
 	defer mi.poolMu.Unlock()
 	if mi.mrdPool != nil {
