@@ -81,7 +81,7 @@ async def check_prerequisites():
       stdout=asyncio.subprocess.PIPE,
   )
   gpg_process = await asyncio.create_subprocess_exec(
-      "sudo gpg --yes --dearmor -o /usr/share/keyrings/cloud.google.gpg",
+      "sudo", "gpg", "--yes", "--dearmor", "-o", "/usr/share/keyrings/cloud.google.gpg",
       stdin=asyncio.subprocess.PIPE,
   )
   await gpg_process.communicate(input=await curl_process.stdout.read())
@@ -89,8 +89,7 @@ async def check_prerequisites():
   # Pipe echo output to tee
   echo_process = await asyncio.create_subprocess_exec(
       "echo",
-      "deb [signed-by=/usr/share/keyrings/cloud.google.gpg]"
-      "https://packages.cloud.google.com/apt cloud-sdk main",
+      "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main",
       stdout=asyncio.subprocess.PIPE,
   )
   tee_process = await asyncio.create_subprocess_exec(
