@@ -92,6 +92,21 @@ function install_requirements() {
   cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 }
 
+function execute_gke_test() {
+  local bucket_name=$1
+  local script_path=$2
+
+  echo checkout PR branch
+  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+
+  export PROJECT_ID="gcs-fuse-test-ml"
+  export ZONE="europe-west4-a"
+  export RESERVATION_NAME="cloudtpu-20251107233000-76736260"
+  export BUCKET_NAME="$bucket_name"
+
+  python3 "$script_path"
+}
+
 # execute perf tests.
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
@@ -174,29 +189,13 @@ fi
 # Execute Orbax benchmark.
 if [[ "$orbaxBenchmarkTestStr" == *"$EXECUTE_ORBAX_BENCHMARK_LABEL"* ]];
 then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
-
   echo "Running Orbax benchmark..."
-  export PROJECT_ID="gcs-fuse-test-ml"
-  export BUCKET_NAME="llama_europe_west4"
-  export ZONE="europe-west4-a"
-  export RESERVATION_NAME="cloudtpu-20251107233000-76736260"
-  
-  python3 perfmetrics/scripts/continuous_test/gke/orbax_benchmark/run_benchmark.py
+  execute_gke_test "llama_europe_west4" "perfmetrics/scripts/continuous_test/gke/orbax_benchmark/run_benchmark.py"
 fi
 
 # Execute Machine Type Test.
 if [[ "$machineTypeTestStr" == *"$EXECUTE_MACHINE_TYPE_TEST_LABEL"* ]];
 then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
-
   echo "Running Machine Type Test..."
-  export PROJECT_ID="gcs-fuse-test-ml"
-  export BUCKET_NAME="gcsfuse_gke_machine_type_test_flat_euw4"
-  export ZONE="europe-west4-a"
-  export RESERVATION_NAME="cloudtpu-20251107233000-76736260"
-  
-  python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py
+  execute_gke_test "gcsfuse_gke_machine_type_test_flat_euw4" "perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py"
 fi
