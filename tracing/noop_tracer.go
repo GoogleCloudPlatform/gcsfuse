@@ -17,18 +17,21 @@ package tracing
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type noopTracer struct{}
 
-func (*noopTracer) StartTrace(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+func (*noopTracer) StartTrace(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	return ctx, noop.Span{}
 }
 
-func (*noopTracer) StartTraceLink(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+func (*noopTracer) StartServerTrace(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	return ctx, noop.Span{}
+}
+
+func (*noopTracer) StartTraceLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	return ctx, noop.Span{}
 }
 

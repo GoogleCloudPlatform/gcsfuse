@@ -17,15 +17,16 @@ package tracing
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // TraceHandle provides an interface for recording traces
 type TraceHandle interface {
-	StartTrace(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span)
+	StartTrace(ctx context.Context, traceName string) (context.Context, trace.Span)
 
-	StartTraceLink(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span)
+	StartServerTrace(ctx context.Context, traceName string) (context.Context, trace.Span)
+
+	StartTraceLink(ctx context.Context, traceName string) (context.Context, trace.Span)
 
 	EndTrace(span trace.Span)
 

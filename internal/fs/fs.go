@@ -38,8 +38,6 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -1728,16 +1726,6 @@ func (fs *fileSystem) StatFS(
 	op.IoSize = 1 << 20
 
 	return
-}
-
-// When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
-func maybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
-	if !isTracingEnabled {
-		return newCtx
-	}
-
-	span := trace.SpanFromContext(oldCtx)
-	return trace.ContextWithSpan(newCtx, span)
 }
 
 // getInterruptlessContext returns a new context that is not cancellable by the

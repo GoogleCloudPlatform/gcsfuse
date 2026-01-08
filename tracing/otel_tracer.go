@@ -24,13 +24,17 @@ import (
 
 type otelTracer struct{}
 
-func (o *otelTracer) StartTrace(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+func (o *otelTracer) StartTrace(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	ctx, span := GCSFuseTracer.Start(ctx, traceName)
-	span.SetAttributes(attrs...)
 	return ctx, span
 }
 
-func (o *otelTracer) StartTraceLink(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+func (o *otelTracer) StartServerTrace(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	ctx, span := GCSFuseTracer.Start(ctx, traceName, trace.WithSpanKind(trace.SpanKindServer))
+	return ctx, span
+}
+
+func (o *otelTracer) StartTraceLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	span := trace.SpanFromContext(ctx)
 	traceOpts := make([]trace.SpanStartOption, 0, 1)
 	traceOpts = append(traceOpts, trace.WithLinks(trace.Link{

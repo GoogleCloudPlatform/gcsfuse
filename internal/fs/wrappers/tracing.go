@@ -19,22 +19,20 @@ import (
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 
 	internal_trace "github.com/googlecloudplatform/gcsfuse/v3/tracing"
 )
 
 type tracing struct {
-	wrapped fuseutil.FileSystem
-	tracer  trace.Tracer
+	wrapped     fuseutil.FileSystem
+	traceHandle internal_trace.TraceHandle
 }
 
 // WithTracing wraps a FileSystem and creates a root trace.
-func WithTracing(wrapped fuseutil.FileSystem) fuseutil.FileSystem {
+func WithTracing(wrapped fuseutil.FileSystem, traceHandle internal_trace.TraceHandle) fuseutil.FileSystem {
 	return &tracing{
-		wrapped: wrapped,
-		tracer:  internal_trace.GCSFuseTracer,
+		wrapped:     wrapped,
+		traceHandle: traceHandle,
 	}
 }
 
@@ -44,13 +42,12 @@ func (fs *tracing) Destroy() {
 
 func (fs *tracing) invokeWrapped(ctx context.Context, opName string, w wrappedCall) error {
 	// Span's SpanKind is set to trace.SpanKindServer since GCSFuse is like a server for the requests that the Kernel sends.
-	ctx, span := fs.tracer.Start(ctx, opName, trace.WithSpanKind(trace.SpanKindServer))
-	defer span.End()
+	ctx, span := fs.traceHandle.StartServerTrace(ctx, opName)
+	defer fs.traceHandle.EndTrace(span)
 	err := w(ctx)
 
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		fs.traceHandle.RecordError(span, err)
 	}
 
 	return err
