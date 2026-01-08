@@ -340,6 +340,10 @@ params:
       new requests. 0 means system default (typically 75% of max-background; 9).
     default: "0"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: "DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
@@ -453,6 +457,10 @@ params:
       (typically 12).
     default: "0"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: "DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -463,6 +471,10 @@ params:
       and system default will be used.
     default: "0"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: 16384 # 16 MiB
   
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
