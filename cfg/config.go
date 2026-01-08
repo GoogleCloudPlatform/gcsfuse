@@ -25,7 +25,14 @@ import (
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
-var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.enable-kernel-reader": {
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(DefaultCongestionThreshold()),
+		},
+	},
+}, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
@@ -69,6 +76,20 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			Name:  "aiml-serving",
 			Value: int64(-1),
+		},
+	},
+}, "file-system.max-background": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(DefaultMaxBackground()),
+		},
+	},
+}, "file-system.max-read-ahead-kb": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(16384),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
@@ -224,6 +245,18 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
+	if !isSet.IsSet("congestion-threshold") {
+		rules := AllFlagOptimizationRules["file-system.congestion-threshold"]
+		result := getOptimizedValue(&rules, c.FileSystem.CongestionThreshold, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.CongestionThreshold != val {
+					c.FileSystem.CongestionThreshold = val
+					optimizedFlags["file-system.congestion-threshold"] = result
+				}
+			}
+		}
+	}
 	if !isSet.IsSet("enable-kernel-reader") {
 		rules := AllFlagOptimizationRules["file-system.enable-kernel-reader"]
 		result := getOptimizedValue(&rules, c.FileSystem.EnableKernelReader, profileName, machineType, input, machineTypeToGroupMap)
@@ -268,6 +301,30 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 				if c.FileSystem.KernelListCacheTtlSecs != val {
 					c.FileSystem.KernelListCacheTtlSecs = val
 					optimizedFlags["file-system.kernel-list-cache-ttl-secs"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("max-background") {
+		rules := AllFlagOptimizationRules["file-system.max-background"]
+		result := getOptimizedValue(&rules, c.FileSystem.MaxBackground, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.MaxBackground != val {
+					c.FileSystem.MaxBackground = val
+					optimizedFlags["file-system.max-background"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("max-read-ahead-kb") {
+		rules := AllFlagOptimizationRules["file-system.max-read-ahead-kb"]
+		result := getOptimizedValue(&rules, c.FileSystem.MaxReadAheadKb, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.MaxReadAheadKb != val {
+					c.FileSystem.MaxReadAheadKb = val
+					optimizedFlags["file-system.max-read-ahead-kb"] = result
 				}
 			}
 		}
