@@ -163,6 +163,8 @@ func formatValue(v any) string {
 	case reflect.String:
 		s := v.(string)
 		// Check if it looks like a function call - if so, output as-is without quotes
+		// To make it more robust, check that it starts with an uppercase letter as well.
+		// As the function shoud be exported only.
 		if len(s) > 2 && s[len(s)-2:] == "()" && unicode.IsUpper(rune(s[0])) {
 			return s
 		}
