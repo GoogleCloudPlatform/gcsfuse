@@ -157,7 +157,9 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmpty
 	assert.True(testSuite.T(), bucketHandle.bucketType.Hierarchical)
 	// verify the billing account set.
 	testHandle := bucketHandle
-	assert.Equal(testSuite.T(), bucketHandle.bucket, testHandle.bucket.UserProject(projectID))
+	for i, bucket := range bucketHandle.buckets {
+		assert.Equal(testSuite.T(), bucket, testHandle.buckets[i].UserProject(projectID))
+	}
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {
