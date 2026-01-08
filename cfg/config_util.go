@@ -27,7 +27,7 @@ func DefaultMaxBackground() int {
 
 func DefaultCongestionThreshold() int {
 	// 75 % of DefaultMaxBackground
-	return (4 * DefaultMaxBackground()) / 4
+	return (3 * DefaultMaxBackground()) / 4
 }
 
 func DefaultMaxParallelDownloads() int {

@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"slices"
 	"text/template" // NOLINT
+	"unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"golang.org/x/text/cases"
@@ -162,7 +163,7 @@ func formatValue(v any) string {
 	case reflect.String:
 		s := v.(string)
 		// Check if it looks like a function call - if so, output as-is without quotes
-		if len(s) > 2 && s[len(s)-2:] == "()" {
+		if len(s) > 2 && s[len(s)-2:] == "()" && unicode.IsUpper(rune(s[0])) {
 			return s
 		}
 		// Use %q to safely quote strings, e.g., "my-string"
