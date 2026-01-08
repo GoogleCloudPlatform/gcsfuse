@@ -21,6 +21,7 @@ readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly EXECUTE_ORBAX_BENCHMARK_LABEL="execute-orbax-benchmark"
+readonly EXECUTE_MACHINE_TYPE_TEST_LABEL="execute-machine-type-test"
 readonly BUCKET_LOCATION=us-west4
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
@@ -32,6 +33,7 @@ integrationTestsOnZB=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB\"" pr.json)
 packageBuildTests=$(grep "$EXECUTE_PACKAGE_BUILD_TEST_LABEL" pr.json)
 checkpointTests=$(grep "$EXECUTE_CHECKPOINT_TEST_LABEL" pr.json)
 orbaxBenchmarkTest=$(grep "$EXECUTE_ORBAX_BENCHMARK_LABEL" pr.json)
+machineTypeTest=$(grep "$EXECUTE_MACHINE_TYPE_TEST_LABEL" pr.json)
 rm pr.json
 perfTestStr="$perfTest"
 integrationTestsStr="$integrationTests"
@@ -39,7 +41,8 @@ integrationTestsOnZBStr="$integrationTestsOnZB"
 packageBuildTestsStr="$packageBuildTests"
 checkpointTestStr="$checkpointTests"
 orbaxBenchmarkTestStr="$orbaxBenchmarkTest"
-if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$integrationTestsOnZBStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* && "$orbaxBenchmarkTestStr" != *"$EXECUTE_ORBAX_BENCHMARK_LABEL"* ]]
+machineTypeTestStr="$machineTypeTest"
+if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$integrationTestsOnZBStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* && "$orbaxBenchmarkTestStr" != *"$EXECUTE_ORBAX_BENCHMARK_LABEL"* && "$machineTypeTestStr" != *"$EXECUTE_MACHINE_TYPE_TEST_LABEL"* ]]
 then
   echo "No need to execute tests"
   exit 0
@@ -179,6 +182,21 @@ then
   export BUCKET_NAME="llama_europe_west4"
   export ZONE="europe-west4-a"
   export RESERVATION_NAME="cloudtpu-20251107233000-76736260"
+  
+  python3 perfmetrics/scripts/continuous_test/gke/orbax_benchmark/run_benchmark.py
+fi
 
-  python3 ./perfmetrics/scripts/continuous_test/gke/orbax_benchmark/run_benchmark.py
+# Execute Machine Type Test.
+if [[ "$machineTypeTestStr" == *"$EXECUTE_MACHINE_TYPE_TEST_LABEL"* ]];
+then
+  echo checkout PR branch
+  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+
+  echo "Running Machine Type Test..."
+  export PROJECT_ID="gcs-fuse-test-ml"
+  export BUCKET_NAME="gcsfuse_gke_machine_type_test_flat_euw4"
+  export ZONE="europe-west4-a"
+  export RESERVATION_NAME="cloudtpu-20251107233000-76736260"
+  
+  python3 perfmetrics/scripts/continuous_test/gke/machine_type_test/run.py
 fi
