@@ -1255,6 +1255,71 @@ func (t *StatObjectTest) TestRenameFolder() {
 	ExpectEq(result, folder)
 }
 
+func (t *StatObjectTest) FetchOnlyFromCacheFalse() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: false,
+	}
+	// We expect a call to GCS, so we mock the wrapped bucket.
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(false, nil))
+
+	minObj := &gcs.MinObject{Name: name}
+	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
+		WillOnce(Return(minObj, nil, nil))
+	ExpectCall(t.cache, "Insert")(Any(), Any())
+
+	m, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(minObj, m)
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	minObj := &gcs.MinObject{Name: name}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(true, minObj))
+
+	m, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(minObj, m)
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(true, nil))
+
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheMiss() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(false, nil))
+
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
+}
+
 type DeleteFolderTest struct {
 	fastStatBucketTest
 }
@@ -1411,204 +1476,24 @@ func (t *NewReaderWithReadHandleTest) CallsWrappedAndDoesNotInvalidateOnSuccess(
 }
 
 ////////////////////////////////////////////////////////////////////////
-// StatObject_IsTypeCacheDeprecated
+// GetFolder
 ////////////////////////////////////////////////////////////////////////
 
-type StatObject_IsTypeCacheDeprecated struct {
+type GetFolderTest struct {
 	fastStatBucketTest
 }
 
-func init() { RegisterTestSuite(&StatObject_IsTypeCacheDeprecated{}) }
+func init() { RegisterTestSuite(&GetFolderTest{}) }
 
-func (t *StatObject_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheFalse() {
-	const name = "taco"
-	req := &gcs.StatObjectRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    false,
-	}
-	// We expect a call to GCS, so we mock the wrapped bucket.
-	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(false, nil))
-
-	minObj := &gcs.MinObject{Name: name}
-	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(minObj, nil, nil))
-	ExpectCall(t.cache, "Insert")(Any(), Any())
-
-	m, _, err := t.bucket.StatObject(context.TODO(), req)
-
-	AssertEq(nil, err)
-	ExpectEq(minObj, m)
-}
-
-func (t *StatObject_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheHitPositive() {
-	const name = "taco"
-	req := &gcs.StatObjectRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
-	}
-	minObj := &gcs.MinObject{Name: name}
-	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(true, minObj))
-
-	m, _, err := t.bucket.StatObject(context.TODO(), req)
-
-	AssertEq(nil, err)
-	ExpectEq(minObj, m)
-}
-
-func (t *StatObject_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheHitNegative() {
-	const name = "taco"
-	req := &gcs.StatObjectRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
-	}
-	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(true, nil))
-
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
-
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-}
-
-func (t *StatObject_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheMiss() {
-	const name = "taco"
-	req := &gcs.StatObjectRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
-	}
-	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(false, nil))
-
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
-
-	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
-}
-
-////////////////////////////////////////////////////////////////////////
-// ListObjects_IsTypeCacheDeprecated
-////////////////////////////////////////////////////////////////////////
-
-type ListObjects_IsTypeCacheDeprecated struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&ListObjects_IsTypeCacheDeprecated{}) }
-
-func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheHitNegative() {
-	const prefix = "taco/"
-	req := &gcs.ListObjectsRequest{
-		Prefix:                prefix,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
-	}
-	ExpectCall(t.cache, "LookUp")(prefix, Any()).
-		WillOnce(Return(true, nil))
-
-	_, err := t.bucket.ListObjects(context.TODO(), req)
-
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-}
-
-func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheHitPositive_Directory() {
-	const prefix = "taco/"
-	req := &gcs.ListObjectsRequest{
-		Prefix:                prefix,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
-	}
-	minObj := &gcs.MinObject{Name: prefix, Generation: 0}
-	ExpectCall(t.cache, "LookUp")(prefix, Any()).
-		WillOnce(Return(true, minObj))
-
-	listing, err := t.bucket.ListObjects(context.TODO(), req)
-
-	AssertEq(nil, err)
-	AssertNe(nil, listing)
-	ExpectEq(1, len(listing.CollapsedRuns))
-	ExpectEq(prefix, listing.CollapsedRuns[0])
-	ExpectEq(0, len(listing.MinObjects))
-}
-
-func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheHitPositive_File() {
-	const prefix = "taco"
-	req := &gcs.ListObjectsRequest{
-		Prefix:                prefix,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
-	}
-	minObj := &gcs.MinObject{Name: prefix, Generation: 123}
-	ExpectCall(t.cache, "LookUp")(prefix, Any()).
-		WillOnce(Return(true, minObj))
-
-	listing, err := t.bucket.ListObjects(context.TODO(), req)
-
-	AssertEq(nil, err)
-	AssertNe(nil, listing)
-	ExpectEq(0, len(listing.CollapsedRuns))
-	AssertEq(1, len(listing.MinObjects))
-	ExpectEq(minObj, listing.MinObjects[0])
-}
-
-func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheMiss() {
-	const prefix = "taco/"
-	req := &gcs.ListObjectsRequest{
-		Prefix:                prefix,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
-	}
-	ExpectCall(t.cache, "LookUp")(prefix, Any()).
-		WillOnce(Return(false, nil))
-
-	_, err := t.bucket.ListObjects(context.TODO(), req)
-
-	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
-}
-
-func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheFalse() {
-	const prefix = "taco/"
-	req := &gcs.ListObjectsRequest{
-		Prefix:                prefix,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    false,
-	}
-	expectedListing := &gcs.Listing{}
-	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.BucketType{}))
-	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
-		WillOnce(Return(expectedListing, nil))
-
-	listing, err := t.bucket.ListObjects(context.TODO(), req)
-
-	AssertEq(nil, err)
-	ExpectEq(expectedListing, listing)
-}
-
-////////////////////////////////////////////////////////////////////////
-// GetFolder_IsTypeCacheDeprecated
-////////////////////////////////////////////////////////////////////////
-
-type GetFolder_IsTypeCacheDeprecated struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&GetFolder_IsTypeCacheDeprecated{}) }
-
-func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheFalse() {
+func (t *GetFolderTest) FetchOnlyFromCacheFalse() {
 	const name = "taco/"
 	req := &gcs.GetFolderRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    false,
+		Name:               name,
+		FetchOnlyFromCache: false,
 	}
 	folder := &gcs.Folder{Name: name}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
-
 	ExpectCall(t.wrapped, "GetFolder")(Any(), Any()).
 		WillOnce(Return(folder, nil))
 	ExpectCall(t.cache, "InsertFolder")(Any(), Any())
@@ -1619,12 +1504,11 @@ func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCac
 	ExpectEq(folder, f)
 }
 
-func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheHitPositive() {
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
 	const name = "taco/"
 	req := &gcs.GetFolderRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
+		Name:               name,
+		FetchOnlyFromCache: true,
 	}
 	folder := &gcs.Folder{Name: name}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
@@ -1636,12 +1520,11 @@ func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCac
 	ExpectEq(folder, f)
 }
 
-func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheHitNegative() {
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
 	const name = "taco/"
 	req := &gcs.GetFolderRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
+		Name:               name,
+		FetchOnlyFromCache: true,
 	}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, nil))
@@ -1651,12 +1534,11 @@ func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCac
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
-func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCacheTrue_CacheMiss() {
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheMiss() {
 	const name = "taco/"
 	req := &gcs.GetFolderRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		FetchOnlyFromCache:    true,
+		Name:               name,
+		FetchOnlyFromCache: true,
 	}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))

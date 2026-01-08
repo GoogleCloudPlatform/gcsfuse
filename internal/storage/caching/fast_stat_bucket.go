@@ -418,7 +418,7 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	// Cache Miss Handling
-	if req.IsTypeCacheDeprecated && req.FetchOnlyFromCache {
+	if req.FetchOnlyFromCache {
 		return nil, nil, &CacheMissError{
 			Err: fmt.Errorf("cache miss for %q", req.Name),
 		}
@@ -432,30 +432,6 @@ func (b *fastStatBucket) StatObject(
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
-	if req.IsTypeCacheDeprecated && req.FetchOnlyFromCache {
-		var hit bool
-		var entry any
-		hit, entry = b.lookUp(req.Prefix)
-
-		if hit {
-			if minObject, ok := entry.(*gcs.MinObject); ok {
-				// Negative entries result in NotFoundError.
-				if minObject == nil {
-					return nil, &gcs.NotFoundError{
-						Err: fmt.Errorf("negative cache entry for %q", req.Prefix),
-					}
-				}
-				if minObject.Generation == 0 { // Assumed to be a directory-like object from a collapsed run.
-					return &gcs.Listing{CollapsedRuns: []string{minObject.Name}}, nil
-				}
-				return &gcs.Listing{MinObjects: []*gcs.MinObject{minObject}}, nil
-			}
-		}
-		return nil, &CacheMissError{
-			Err: fmt.Errorf("cache miss for %q", req.Prefix),
-		}
-	}
-
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
@@ -580,7 +556,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 		return entry, nil
 	}
 
-	if req.IsTypeCacheDeprecated && req.FetchOnlyFromCache {
+	if req.FetchOnlyFromCache {
 		return nil, &CacheMissError{
 			Err: fmt.Errorf("cache miss for %q", req.Name),
 		}

@@ -243,17 +243,12 @@ type StatObjectRequest struct {
 	// Controls whether StatObject response includes GCS ExtendedObjectAttributes.
 	ReturnExtendedObjectAttributes bool
 
-	// Flag to enable deprecation logic of Type cache.
-	IsTypeCacheDeprecated bool
-
 	// FetchOnlyFromCache determines if the request should be served exclusively from the stat cache.
 	//
 	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError
 	// and does not fall back to GCS.
 	//
 	// If false, the request falls back to GCS on a cache miss.
-	//
-	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
 	FetchOnlyFromCache bool
 }
 
@@ -266,12 +261,7 @@ type GetFolderRequest struct {
 	// and does not fall back to GCS.
 	//
 	// If false, the request falls back to GCS on a cache miss.
-	//
-	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
 	FetchOnlyFromCache bool
-
-	// Flag to enable deprecation logic of Type cache.
-	IsTypeCacheDeprecated bool
 }
 
 type Projection int64
