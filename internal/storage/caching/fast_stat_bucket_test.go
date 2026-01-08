@@ -1425,9 +1425,12 @@ func (t *StatObject_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCa
 	req := &gcs.StatObjectRequest{
 		Name:                  name,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        false,
+		FetchOnlyFromCache:    false,
 	}
 	// We expect a call to GCS, so we mock the wrapped bucket.
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(false, nil))
+
 	minObj := &gcs.MinObject{Name: name}
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
 		WillOnce(Return(minObj, nil, nil))
@@ -1444,7 +1447,7 @@ func (t *StatObject_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCa
 	req := &gcs.StatObjectRequest{
 		Name:                  name,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	minObj := &gcs.MinObject{Name: name}
 	ExpectCall(t.cache, "LookUp")(name, Any()).
@@ -1461,7 +1464,7 @@ func (t *StatObject_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCa
 	req := &gcs.StatObjectRequest{
 		Name:                  name,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	ExpectCall(t.cache, "LookUp")(name, Any()).
 		WillOnce(Return(true, nil))
@@ -1476,7 +1479,7 @@ func (t *StatObject_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCa
 	req := &gcs.StatObjectRequest{
 		Name:                  name,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	ExpectCall(t.cache, "LookUp")(name, Any()).
 		WillOnce(Return(false, nil))
@@ -1501,7 +1504,7 @@ func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromC
 	req := &gcs.ListObjectsRequest{
 		Prefix:                prefix,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	ExpectCall(t.cache, "LookUp")(prefix, Any()).
 		WillOnce(Return(true, nil))
@@ -1516,7 +1519,7 @@ func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromC
 	req := &gcs.ListObjectsRequest{
 		Prefix:                prefix,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	minObj := &gcs.MinObject{Name: prefix, Generation: 0}
 	ExpectCall(t.cache, "LookUp")(prefix, Any()).
@@ -1536,7 +1539,7 @@ func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromC
 	req := &gcs.ListObjectsRequest{
 		Prefix:                prefix,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	minObj := &gcs.MinObject{Name: prefix, Generation: 123}
 	ExpectCall(t.cache, "LookUp")(prefix, Any()).
@@ -1556,7 +1559,7 @@ func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromC
 	req := &gcs.ListObjectsRequest{
 		Prefix:                prefix,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	ExpectCall(t.cache, "LookUp")(prefix, Any()).
 		WillOnce(Return(false, nil))
@@ -1571,7 +1574,7 @@ func (t *ListObjects_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromC
 	req := &gcs.ListObjectsRequest{
 		Prefix:                prefix,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        false,
+		FetchOnlyFromCache:    false,
 	}
 	expectedListing := &gcs.Listing{}
 	ExpectCall(t.wrapped, "BucketType")().
@@ -1600,9 +1603,12 @@ func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCac
 	req := &gcs.GetFolderRequest{
 		Name:                  name,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        false,
+		FetchOnlyFromCache:    false,
 	}
 	folder := &gcs.Folder{Name: name}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(false, nil))
+
 	ExpectCall(t.wrapped, "GetFolder")(Any(), Any()).
 		WillOnce(Return(folder, nil))
 	ExpectCall(t.cache, "InsertFolder")(Any(), Any())
@@ -1618,7 +1624,7 @@ func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCac
 	req := &gcs.GetFolderRequest{
 		Name:                  name,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	folder := &gcs.Folder{Name: name}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
@@ -1635,7 +1641,7 @@ func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCac
 	req := &gcs.GetFolderRequest{
 		Name:                  name,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, nil))
@@ -1650,7 +1656,7 @@ func (t *GetFolder_IsTypeCacheDeprecated) IsTypeCacheDeprecatedTrue_FetchFromCac
 	req := &gcs.GetFolderRequest{
 		Name:                  name,
 		IsTypeCacheDeprecated: true,
-		FetchFromCache:        true,
+		FetchOnlyFromCache:    true,
 	}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))

@@ -36,8 +36,8 @@ type CacheMissError struct {
 	Err error
 }
 
-func (nfe *CacheMissError) Error() string {
-	return fmt.Sprintf("CacheMissError: %v", nfe.Err)
+func (cme *CacheMissError) Error() string {
+	return fmt.Sprintf("CacheMissError: %v", cme.Err)
 }
 
 // Create a bucket that caches object records returned by the supplied wrapped
@@ -401,11 +401,6 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	// Deprecated Skip: The deprecated logic skips cache if FetchFromCache is false.
-	if req.IsTypeCacheDeprecated && !req.FetchFromCache {
-		return b.StatObjectFromGcs(ctx, req)
-	}
-
 	// Cache Lookup
 	if hit, entry := b.lookUp(req.Name); hit {
 		if entry == nil {
@@ -419,7 +414,7 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	// Cache Miss Handling
-	if req.IsTypeCacheDeprecated {
+	if req.IsTypeCacheDeprecated && req.FetchOnlyFromCache {
 		return nil, nil, &CacheMissError{
 			Err: fmt.Errorf("cache miss for %q", req.Name),
 		}
@@ -433,7 +428,7 @@ func (b *fastStatBucket) StatObject(
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
-	if req.IsTypeCacheDeprecated && req.FetchFromCache {
+	if req.IsTypeCacheDeprecated && req.FetchOnlyFromCache {
 		var hit bool
 		var entry any
 		hit, entry = b.lookUp(req.Prefix)
@@ -567,10 +562,6 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 }
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
-	if req.IsTypeCacheDeprecated && !req.FetchFromCache {
-		return b.getFolderFromGCS(ctx, req)
-	}
-
 	// Cache Lookup
 	if hit, entry := b.lookUpFolder(req.Name); hit {
 		// Negative entries result in NotFoundError.
@@ -585,7 +576,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 		return entry, nil
 	}
 
-	if req.IsTypeCacheDeprecated {
+	if req.IsTypeCacheDeprecated && req.FetchOnlyFromCache {
 		return nil, &CacheMissError{
 			Err: fmt.Errorf("cache miss for %q", req.Name),
 		}

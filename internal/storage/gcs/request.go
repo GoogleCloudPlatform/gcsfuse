@@ -246,29 +246,29 @@ type StatObjectRequest struct {
 	// Flag to enable deprecation logic of Type cache.
 	IsTypeCacheDeprecated bool
 
-	// FetchFromCache determines if the request should be served exclusively from the stat cache.
+	// FetchOnlyFromCache determines if the request should be served exclusively from the stat cache.
 	//
 	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError
 	// and does not fall back to GCS.
 	//
-	// If false, the cache is bypassed entirely and the request is served directly from GCS.
+	// If false, the request falls back to GCS on a cache miss.
 	//
 	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
-	FetchFromCache bool
+	FetchOnlyFromCache bool
 }
 
 type GetFolderRequest struct {
 	Name string
 
-	// FetchFromCache determines if the request should be served exclusively from the stat cache.
+	// FetchOnlyFromCache determines if the request should be served exclusively from the stat cache.
 	//
 	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError
 	// and does not fall back to GCS.
 	//
-	// If false, the cache is bypassed entirely and the request is served directly from GCS.
+	// If false, the request falls back to GCS on a cache miss.
 	//
 	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
-	FetchFromCache bool
+	FetchOnlyFromCache bool
 
 	// Flag to enable deprecation logic of Type cache.
 	IsTypeCacheDeprecated bool
@@ -354,7 +354,7 @@ type ListObjectsRequest struct {
 	// Flag to enable deprecation logic of Type cache.
 	IsTypeCacheDeprecated bool
 
-	// FetchFromCache determines if the request should be served exclusively from the stat cache.
+	// FetchOnlyFromCache determines if the request should be served exclusively from the stat cache.
 	//
 	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError
 	// and does not fall back to GCS.
@@ -362,7 +362,7 @@ type ListObjectsRequest struct {
 	// If false, the cache is bypassed entirely and the request is served directly from GCS.
 	//
 	// Note: This flag is currently only respected when IsTypeCacheDeprecated is true.
-	FetchFromCache bool
+	FetchOnlyFromCache bool
 }
 
 // Listing contains a set of objects and delimter-based collapsed runs returned
