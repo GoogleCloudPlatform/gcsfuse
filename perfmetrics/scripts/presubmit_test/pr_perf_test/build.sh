@@ -42,8 +42,8 @@ integrationTests=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL\"" pr.json)
 integrationTestsOnZB=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB\"" pr.json)
 packageBuildTests=$(grep "$EXECUTE_PACKAGE_BUILD_TEST_LABEL" pr.json)
 checkpointTests=$(grep "$EXECUTE_CHECKPOINT_TEST_LABEL" pr.json)
-orbaxBenchmarkTest=$(grep "$EXECUTE_ORBAX_BENCHMARK_LABEL" pr.json)
-machineTypeTest=$(grep "$EXECUTE_MACHINE_TYPE_TEST_LABEL" pr.json)
+orbaxBenchmarkTest=$(grep "\"$EXECUTE_ORBAX_BENCHMARK_LABEL\"" pr.json)
+machineTypeTest=$(grep "\"$EXECUTE_MACHINE_TYPE_TEST_LABEL\"" pr.json)
 
 echo "DEBUG: orbaxBenchmarkTest grep result: '$orbaxBenchmarkTest'"
 echo "DEBUG: machineTypeTest grep result: '$machineTypeTest'"
