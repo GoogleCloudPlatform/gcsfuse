@@ -17,6 +17,7 @@ package inode
 import (
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
@@ -38,29 +39,23 @@ func NewExplicitDirInode(
 	m *gcs.MinObject,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
-	includeFoldersAsPrefixes bool,
 	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int64,
-	enableHNS bool,
-	enableUnsupportedPathSupport bool) (d ExplicitDirInode) {
+	cfg *cfg.Config) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
 		name,
 		attrs,
 		implicitDirs,
-		includeFoldersAsPrefixes,
 		enableNonexistentTypeCache,
 		typeCacheTTL,
 		bucket,
 		mtimeClock,
 		cacheClock,
-		typeCacheMaxSizeMB,
-		enableHNS,
-		enableUnsupportedPathSupport)
+		cfg)
 
 	dirInode := &explicitDirInode{
 		dirInode: wrapped.(*dirInode),

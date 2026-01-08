@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	cfg2 "github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
@@ -68,6 +69,13 @@ func (t *DirHandleTest) TearDown() {}
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 func (t *DirHandleTest) resetDirHandle() {
+	cfg := &cfg2.Config{
+		List:                         cfg2.ListConfig{EnableEmptyManagedFolders: true},
+		MetadataCache:                cfg2.MetadataCacheConfig{TypeCacheMaxSizeMb: 0},
+		EnableHns:                    false,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+	}
 	dirInode := inode.NewDirInode(
 		17,
 		inode.NewDirName(inode.NewRootName(""), "testDir"),
@@ -77,15 +85,12 @@ func (t *DirHandleTest) resetDirHandle() {
 			Mode: 0712,
 		},
 		false, // implicitDirs,
-		true,  // enableManagedFoldersListing
 		false, // enableNonExistentTypeCache
 		0,     // typeCacheTTL
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		0,
-		false,
-		true)
+		cfg)
 
 	t.dh = NewDirHandle(
 		dirInode,

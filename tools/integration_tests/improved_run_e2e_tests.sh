@@ -52,7 +52,7 @@ fi
 log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
-readonly GO_VERSION="1.24.11"
+readonly GO_VERSION=$(cat .go-version)
 readonly DEFAULT_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
@@ -603,17 +603,33 @@ build_gcsfuse_once() {
 }
 
 install_packages() {
-  sudo apt-get install -y python3
-  # install python3-setuptools tools.
-  sudo apt-get install -y gcc python3-dev python3-setuptools
-  # Downloading composite object requires integrity checking with CRC32c in gsutil.
-  # it requires to install crcmod.
-  sudo apt install -y python3-crcmod
-  # Install required go version.
-  bash ./perfmetrics/scripts/install_go.sh "$GO_VERSION"
+  local os_id
+  
+  # Determine the absolute location of THIS script
+  SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+
+  # Calculate the Repo Root
+  REPO_ROOT="${SCRIPT_DIR}/../.."
+
+  source "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh"
+  
+  if ! os_id=$(get_os_id); then
+    log_error "Failed to detect OS ID."
+    exit 1
+  fi
+  log_info "Detected OS ID: $os_id"
+
+  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod" || {
+    log_error "Failed to install required packages."
+    exit 1
+  }
+
+  # Execute install_go.sh using the absolute path
+  bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
+  
   # Install latest gcloud version.
-  bash ./perfmetrics/scripts/install_latest_gcloud.sh
+  bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
   export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
   export PATH="$HOME/.local/python-3.11.9/bin:$PATH"

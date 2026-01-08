@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
@@ -184,6 +185,8 @@ type DirInode interface {
 	IsUnlinked() bool
 
 	Unlink()
+
+	IsTypeCacheDeprecated() bool
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -241,6 +244,8 @@ type dirInode struct {
 
 	isUnsupportedPathSupportEnabled bool
 
+	isEnableTypeCacheDeprecation bool
+
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
@@ -272,15 +277,12 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
-	includeFoldersAsPrefixes bool,
 	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int64,
-	isHNSEnabled bool,
-	isUnsupportedPathSupportEnabled bool,
+	cfg *cfg.Config,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -293,14 +295,19 @@ func NewDirInode(
 		cacheClock:                      cacheClock,
 		id:                              id,
 		implicitDirs:                    implicitDirs,
-		includeFoldersAsPrefixes:        includeFoldersAsPrefixes,
+		includeFoldersAsPrefixes:        cfg.List.EnableEmptyManagedFolders,
 		enableNonexistentTypeCache:      enableNonexistentTypeCache,
 		name:                            name,
 		attrs:                           attrs,
-		cache:                           metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		isHNSEnabled:                    isHNSEnabled,
-		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
+		isHNSEnabled:                    cfg.EnableHns,
+		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
+		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
+	}
+	var cache metadata.TypeCache
+	if !cfg.EnableTypeCacheDeprecation {
+		cache = metadata.NewTypeCache(cfg.MetadataCache.TypeCacheMaxSizeMb, typeCacheTTL)
+		typed.cache = cache
 	}
 
 	typed.lc.Init(id)
@@ -585,8 +592,13 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
-
-	cachedType := d.cache.Get(d.cacheClock.Now(), name)
+	var cachedType metadata.Type
+	if d.IsTypeCacheDeprecated() {
+		// TODO: Add deprecation logic.
+		cachedType = metadata.UnknownType
+	} else {
+		cachedType = d.cache.Get(d.cacheClock.Now(), name)
+	}
 	switch cachedType {
 	case metadata.ImplicitDirType:
 		dirResult = &Core{
@@ -629,10 +641,12 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		result = fileResult
 	}
 
-	if result != nil {
-		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+	if !d.IsTypeCacheDeprecated() {
+		if result != nil {
+			d.cache.Insert(d.cacheClock.Now(), name, result.Type())
+		} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
+			d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+		}
 	}
 
 	return result, nil
@@ -685,8 +699,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
-// LOCKS_REQUIRED(d)
-func (d *dirInode) readObjects(
+// Helper function to handle the common listing logic and GCS request preparation.
+func (d *dirInode) listObjectsAndBuildCores(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
@@ -717,13 +731,6 @@ func (d *dirInode) readObjects(
 	}
 
 	cores = make(map[Name]*Core)
-	defer func() {
-		now := d.cacheClock.Now()
-		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
-		}
-	}()
-
 	for _, o := range listing.MinObjects {
 		if storageutil.IsUnsupportedPath(o.Name) {
 			unsupportedPaths = append(unsupportedPaths, o.Name)
@@ -815,6 +822,46 @@ func (d *dirInode) readObjects(
 	return
 }
 
+func (d *dirInode) insertToCache(cores map[Name]*Core) {
+	if d.IsTypeCacheDeprecated() {
+		return
+	}
+	now := d.cacheClock.Now()
+	for fullName, c := range cores {
+		d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+	}
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) readObjects(
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+	if err == nil {
+		d.insertToCache(cores)
+	}
+	return
+}
+
+// LOCK_EXCLUDED(d)
+// readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
+func (d *dirInode) readObjectsUnlocked(
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+	if err != nil {
+		return
+	}
+
+	d.mu.Lock()
+	d.insertToCache(cores)
+	d.mu.Unlock()
+
+	return
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
@@ -869,7 +916,9 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}
 	m := storageutil.ConvertObjToMinObject(o)
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	}
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
@@ -888,18 +937,24 @@ func (d *dirInode) CreateLocalChildFileCore(name string) (Core, error) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) InsertFileIntoTypeCache(name string) {
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	}
 }
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) EraseFromTypeCache(name string) {
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 }
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
-	// Erase any existing type information for this name.
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		// Erase any existing type information for this name.
+		d.cache.Erase(name)
+	}
 	fullName := NewFileName(d.Name(), name)
 
 	// Clone over anything that might already exist for the name.
@@ -921,7 +976,9 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 		FullName:  fullName,
 		MinObject: m,
 	}
-	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	}
 	return c, nil
 }
 
@@ -938,7 +995,9 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 	}
 	m := storageutil.ConvertObjToMinObject(o)
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
+	}
 
 	return &Core{
 		Bucket:    d.Bucket(),
@@ -974,7 +1033,9 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	}
 
 	// Insert the new directory into the type cache.
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
+	}
 
 	return &Core{
 		Bucket:    d.Bucket(),
@@ -990,7 +1051,6 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
-	d.cache.Erase(name)
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -1001,13 +1061,21 @@ func (d *dirInode) DeleteChildFile(
 			MetaGenerationPrecondition: metaGeneration,
 		})
 
-	if err != nil {
-		err = fmt.Errorf("DeleteObject: %w", err)
+	if err == nil {
+		if !d.IsTypeCacheDeprecated() {
+			d.cache.Erase(name)
+		}
 		return
 	}
-	d.cache.Erase(name)
-
-	return
+	var notFoundError *gcs.NotFoundError
+	// DeleteObject returns notFoundError when the type has been modified remotely.
+	// So, evict from type-cache in such cases.
+	if errors.As(err, &notFoundError) {
+		if !d.IsTypeCacheDeprecated() {
+			d.cache.Erase(name)
+		}
+	}
+	return fmt.Errorf("DeleteObject: %w", err)
 }
 
 // LOCKS_REQUIRED(d)
@@ -1016,7 +1084,9 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool,
 	dirInode DirInode) error {
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 
 	// If the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
@@ -1040,7 +1110,9 @@ func (d *dirInode) DeleteChildDir(
 		if err != nil {
 			return fmt.Errorf("DeleteObject: %w", err)
 		}
-		d.cache.Erase(name)
+		if !d.IsTypeCacheDeprecated() {
+			d.cache.Erase(name)
+		}
 		return nil
 	}
 
@@ -1055,7 +1127,9 @@ func (d *dirInode) DeleteChildDir(
 		dirInode.Unlink()
 	}
 
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 	return nil
 }
 
@@ -1211,7 +1285,9 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 	o, err := d.bucket.MoveObject(ctx, req)
 
 	// Invalidate the cache entry for the old object name.
-	d.cache.Erase(fileToRename.Name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(fileToRename.Name)
+	}
 
 	return o, err
 }
@@ -1224,7 +1300,9 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 
 	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
 	// Remove old entry from type cache.
-	d.cache.Erase(folderName)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(folderName)
+	}
 
 	return folder, nil
 }
@@ -1239,4 +1317,8 @@ func (d *dirInode) isBucketHierarchical() bool {
 		return true
 	}
 	return false
+}
+
+func (d *dirInode) IsTypeCacheDeprecated() bool {
+	return d.isEnableTypeCacheDeprecation
 }

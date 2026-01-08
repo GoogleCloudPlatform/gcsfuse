@@ -906,6 +906,115 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// ListObjectsTest_InsertListing
+////////////////////////////////////////////////////////////////////////
+
+type ListObjectsTest_InsertListing struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&ListObjectsTest_InsertListing{}) }
+
+func (t *ListObjectsTest_InsertListing) callAndVerify(listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject) {
+	// Wrapped
+	ExpectCall(t.wrapped, "BucketType")().
+		WillOnce(Return(gcs.BucketType{Hierarchical: false}))
+	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
+		WillOnce(Return(listing, nil))
+	// Register expectations.
+	for _, obj := range expectedInserts {
+		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
+	}
+
+	// Call
+	gotListing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{Prefix: prefix, IsTypeCacheDeprecated: true})
+
+	AssertEq(nil, err)
+	AssertEq(listing, gotListing)
+}
+
+func (t *ListObjectsTest_InsertListing) EmptyListing() {
+	listing := &gcs.Listing{}
+	expectedInserts := []*gcs.MinObject{}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+			{Name: "dir/b", Size: 2},
+		},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
+		{Name: "dir/b", Size: 2},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) CollapsedRunsOnly() {
+	listing := &gcs.Listing{
+		CollapsedRuns: []string{"dir/a/", "dir/b/"},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a/"},
+		{Name: "dir/b/"},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectsAndCollapsedRuns() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+		},
+		CollapsedRuns: []string{"dir/b/"},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
+		{Name: "dir/b/"},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ImplicitDir() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+		},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a/", Size: 0},
+		},
+		CollapsedRuns: []string{"dir/a/"},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a/", Size: 0},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+////////////////////////////////////////////////////////////////////////
 // UpdateObject
 ////////////////////////////////////////////////////////////////////////
 
@@ -994,11 +1103,8 @@ func (t *DeleteObjectTest) deleteObject(name string) (err error) {
 	return
 }
 
-func (t *DeleteObjectTest) CallsEraseAndWrapped() {
+func (t *DeleteObjectTest) CallsWrapped() {
 	const name = "taco"
-
-	// Erase
-	ExpectCall(t.cache, "Erase")(name)
 
 	// Wrapped
 	var wrappedReq *gcs.DeleteObjectRequest
@@ -1012,12 +1118,9 @@ func (t *DeleteObjectTest) CallsEraseAndWrapped() {
 	ExpectEq(name, wrappedReq.Name)
 }
 
-func (t *DeleteObjectTest) WrappedFails() {
+func (t *DeleteObjectTest) WrappedFails_GenericError() {
 	const name = ""
 	var err error
-
-	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
 	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
@@ -1029,7 +1132,35 @@ func (t *DeleteObjectTest) WrappedFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *DeleteObjectTest) WrappedSucceeds() {
+func (t *DeleteObjectTest) WrappedReturnsPreconditionError() {
+	const name = "taco"
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
+		WillOnce(Return(&gcs.PreconditionError{Err: errors.New("precondition failed")}))
+
+	// Call.
+	err := t.deleteObject(name)
+
+	ExpectThat(err, Error(HasSubstr("precondition failed")))
+}
+
+func (t *DeleteObjectTest) WrappedReturnsNotFoundError() {
+	const name = "taco"
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
+		WillOnce(Return(&gcs.NotFoundError{Err: errors.New("object not found")}))
+
+	// Call.
+	err := t.deleteObject(name)
+
+	ExpectThat(err, Error(HasSubstr("object not found")))
+}
+
+func (t *DeleteObjectTest) WrappedSucceeds_AddsNegativeEntry() {
 	const name = ""
 	var err error
 

@@ -63,8 +63,18 @@ sed -i 's/define \+FIO_IO_U_PLAT_GROUP_NR \+\([0-9]\+\)/define FIO_IO_U_PLAT_GRO
 ./configure && make && sudo make install
 cd -
 
+# Export WORKING_DIR env variable and add it to ~/.bashrc.
+export WORKING_DIR=$WD
+echo "export WORKING_DIR=$WD" >> ~/.bashrc
+
+# Clone gcsfuse to get fio load test script.
+if [ ! -d "./gcsfuse" ]; then
+  git clone -b  master https://github.com/GoogleCloudPlatform/gcsfuse.git
+fi
+
 # Install and validate go.
-version=1.24.11
+# Read the version
+version=$(cat "$WORKING_DIR/gcsfuse/.go-version")
 wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go
 tar -xzf go_tar.tar.gz && sudo mv go /usr/local
@@ -74,17 +84,8 @@ export PATH=$PATH:/usr/local/go/bin && go version && rm go_tar.tar.gz
 export PATH=$PATH:$HOME/go/bin/
 echo 'export PATH=$PATH:$HOME/go/bin/:/usr/local/go/bin' >> ~/.bashrc
 
-# Export WORKING_DIR env variable and add it to ~/.bashrc.
-export WORKING_DIR=$WD
-echo "export WORKING_DIR=$WD" >> ~/.bashrc
-
 # Install gcsfuse.
 CGO_ENABLED=0 go install github.com/googlecloudplatform/gcsfuse@master
-
-# Clone gcsfuse to get fio load test script.
-if [ ! -d "./gcsfuse" ]; then
-  git clone -b  master https://github.com/GoogleCloudPlatform/gcsfuse.git
-fi
 
 # Mount gcsfuse.
 $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/mount_gcsfuse.sh

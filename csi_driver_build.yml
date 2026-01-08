@@ -13,7 +13,7 @@
 # limitations under the License.
 
 substitutions:
-  _GOLANG_VERSION: '1.24.11'
+  _GOLANG_VERSION: '0.0.0' #Makefile will pass _GOLANG_VERSION parameter to override this value.
   _GCSFUSE_VERSION: 'v4'
   _CSI_VERSION: 'main'
   _BUILD_ARM: 'false'
