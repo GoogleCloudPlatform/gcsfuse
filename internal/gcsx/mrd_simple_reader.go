@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"io"
 	"sync/atomic"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // MrdSimpleReader is a reader that uses an MRD Instance to read data from a GCS object.
@@ -28,13 +30,15 @@ import (
 type MrdSimpleReader struct {
 	mrdInstanceInUse atomic.Bool
 	mrdInstance      *MrdInstance
+	metrics          metrics.MetricHandle
 }
 
 // NewMrdSimpleReader creates a new MrdSimpleReader that uses the provided
 // MrdInstance to manage MRD connections.
-func NewMrdSimpleReader(mrdInstance *MrdInstance) *MrdSimpleReader {
+func NewMrdSimpleReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *MrdSimpleReader {
 	return &MrdSimpleReader{
 		mrdInstance: mrdInstance,
+		metrics:     metricsHandle,
 	}
 }
 
@@ -74,17 +78,18 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		msr.mrdInstance.IncrementRefCount()
 	}
 
-	n, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset)
+	n, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset, msr.metrics)
 
 	if isShortRead(n, len(req.Buffer), err) {
 		msr.mrdInstance.RecreateMRD()
 		req.Offset += int64(n)
 		req.Buffer = req.Buffer[n:]
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, req.Buffer, req.Offset)
+		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, req.Buffer, req.Offset, msr.metrics)
 		n += bytesReadOnRetry
 	}
 
+	metrics.CaptureGCSReadMetrics(msr.metrics, metrics.ReadTypeParallelAttr, int64(n))
 	return ReadResponse{Size: n}, err
 }
 
