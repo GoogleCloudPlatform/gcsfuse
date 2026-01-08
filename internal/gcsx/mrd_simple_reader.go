@@ -42,15 +42,13 @@ func NewMrdSimpleReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHa
 	}
 }
 
+// isShortRead checks if the read operation returned fewer bytes than requested
+// without encountering a fatal error.
+// It returns true if bytesRead < bufferSize and err is either nil, io.EOF, or io.ErrUnexpectedEOF.
 func isShortRead(bytesRead int, bufferSize int, err error) bool {
 	if bytesRead >= bufferSize {
 		return false
 	}
-
-	// Should we check for object size?
-	// For direct=0 cases, we would not get requests beyond object size
-	// For direct=1 case, we do not want to check object size
-	// So, no point of checking with object size
 
 	if !(err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)) {
 		return false
@@ -78,19 +76,19 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		msr.mrdInstance.IncrementRefCount()
 	}
 
-	n, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset, msr.metrics)
+	bytesRead, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset, msr.metrics)
 
-	if isShortRead(n, len(req.Buffer), err) {
+	if isShortRead(bytesRead, len(req.Buffer), err) {
 		msr.mrdInstance.RecreateMRD()
-		req.Offset += int64(n)
-		req.Buffer = req.Buffer[n:]
+		retryOffset := req.Offset + int64(bytesRead)
+		retryBuffer := req.Buffer[bytesRead:]
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, req.Buffer, req.Offset, msr.metrics)
-		n += bytesReadOnRetry
+		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, retryBuffer, retryOffset, msr.metrics)
+		bytesRead += bytesReadOnRetry
 	}
 
-	metrics.CaptureGCSReadMetrics(msr.metrics, metrics.ReadTypeParallelAttr, int64(n))
-	return ReadResponse{Size: n}, err
+	metrics.CaptureGCSReadMetrics(msr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
+	return ReadResponse{Size: bytesRead}, err
 }
 
 // Destroy cleans up the resources used by the reader, primarily by destroying
