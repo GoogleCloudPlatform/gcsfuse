@@ -21,11 +21,14 @@ import (
 	"io"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -97,7 +100,7 @@ func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
 
 // Read downloads data from the GCS object into the provided buffer starting at the offset.
 // It handles the details of selecting a valid MRD entry, locking it, and waiting for the async download to complete.
-func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, error) {
+func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics metrics.MetricHandle) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -121,6 +124,7 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, e
 		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
 	}
 
+	start := time.Now()
 	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
 	})
@@ -130,6 +134,7 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, e
 	case <-ctx.Done():
 		return 0, ctx.Err()
 	case res := <-done:
+		monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
 		if res.err != nil && res.err != io.EOF {
 			return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
 		}
