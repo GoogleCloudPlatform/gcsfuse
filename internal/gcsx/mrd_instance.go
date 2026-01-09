@@ -21,11 +21,15 @@ import (
 	"io"
 	"strconv"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -38,7 +42,7 @@ type MrdInstance struct {
 	// inodeId is the ID of the file inode associated with this instance.
 	inodeId fuseops.InodeID
 	// object is the GCS object for which the downloaders are created.
-	object *gcs.MinObject
+	object atomic.Pointer[gcs.MinObject]
 	// bucket is the GCS bucket containing the object.
 	bucket gcs.Bucket
 	// refCount tracks the number of active users of this instance.
@@ -55,13 +59,26 @@ type MrdInstance struct {
 
 // NewMrdInstance creates a new MrdInstance for a given GCS object.
 func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, cfg cfg.MrdConfig) *MrdInstance {
-	return &MrdInstance{
-		object:    obj,
+	mrdInstance := MrdInstance{
 		bucket:    bucket,
 		mrdCache:  cache,
 		inodeId:   inodeId,
 		mrdConfig: cfg,
 	}
+	mrdInstance.object.Store(obj)
+	return &mrdInstance
+}
+
+func (mi *MrdInstance) SetMinObject(minObj *gcs.MinObject) error {
+	if minObj == nil {
+		return fmt.Errorf("MrdInstance::SetMinObject: Missing MinObject")
+	}
+	mi.object.Store(minObj)
+	return nil
+}
+
+func (mi *MrdInstance) GetMinObject() *gcs.MinObject {
+	return mi.object.Load()
 }
 
 // getMRDEntry returns a valid MRDEntry from the pool.
@@ -97,7 +114,7 @@ func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
 
 // Read downloads data from the GCS object into the provided buffer starting at the offset.
 // It handles the details of selecting a valid MRD entry, locking it, and waiting for the async download to complete.
-func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, error) {
+func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics metrics.MetricHandle) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -121,6 +138,7 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, e
 		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
 	}
 
+	start := time.Now()
 	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
 	})
@@ -130,6 +148,7 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, e
 	case <-ctx.Done():
 		return 0, ctx.Err()
 	case res := <-done:
+		monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
 		if res.err != nil && res.err != io.EOF {
 			return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
 		}
@@ -157,7 +176,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 	}
 
 	// Creating a new pool. Not reusing any handle while creating a new pool.
-	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
+	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object.Load(), bucket: mi.bucket}, nil)
 	if err != nil {
 		err = fmt.Errorf("MrdInstance::ensureMRDPool Error in creating MRDPool: %w", err)
 	}
@@ -171,7 +190,7 @@ func (mi *MrdInstance) RecreateMRD() error {
 	// Create the new pool first to avoid a period where mrdPool is nil.
 	newPool, err := NewMRDPool(&MRDPoolConfig{
 		PoolSize: int(mi.mrdConfig.PoolSize),
-		object:   mi.object,
+		object:   mi.object.Load(),
 		bucket:   mi.bucket,
 	}, nil)
 	if err != nil {
@@ -192,6 +211,9 @@ func (mi *MrdInstance) RecreateMRD() error {
 
 // Destroy closes all MRD instances in the pool and releases associated resources.
 func (mi *MrdInstance) Destroy() {
+	if mi.mrdCache != nil {
+		mi.mrdCache.Erase(getKey(mi.inodeId))
+	}
 	mi.poolMu.Lock()
 	defer mi.poolMu.Unlock()
 	if mi.mrdPool != nil {
@@ -218,7 +240,7 @@ func (mi *MrdInstance) IncrementRefCount() {
 		// Remove from cache
 		deletedEntry := mi.mrdCache.Erase(getKey(mi.inodeId))
 		if deletedEntry != nil {
-			logger.Tracef("MrdInstance::IncrementRefCount: MrdInstance (%s) erased from cache", mi.object.Name)
+			logger.Tracef("MrdInstance::IncrementRefCount: MrdInstance (%s) erased from cache", mi.object.Load().Name)
 		}
 	}
 }
@@ -269,13 +291,13 @@ func (mi *MrdInstance) DecrementRefCount() {
 	// This is a safe order.
 	evictedValues, err := mi.mrdCache.Insert(getKey(mi.inodeId), mi)
 	if err != nil {
-		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for object (%s) into cache, destroying immediately: %v", mi.object.Name, err)
+		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for object (%s) into cache, destroying immediately: %v", mi.object.Load().Name, err)
 		// The instance could not be inserted into the cache. Since the refCount is 0,
 		// we must destroy it now to prevent it from being leaked.
 		mi.Destroy()
 		return
 	}
-	logger.Tracef("MrdInstance::DecrementRefCount: MrdInstance for object (%s) added to cache", mi.object.Name)
+	logger.Tracef("MrdInstance::DecrementRefCount: MrdInstance for object (%s) added to cache", mi.object.Load().Name)
 
 	// Do not proceed if no eviction happened.
 	if evictedValues == nil {
