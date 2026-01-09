@@ -38,7 +38,7 @@ pip install --require-hashes -r requirements.txt --user
 2. Install the required packages as mentioned in the above section.
 3. Create a service account by following this [documentation](https://cloud.google.com/iam/docs/creating-managing-service-accounts). Generate your service account key, `creds.json` by following [this doc](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-console) and upload the file on your GCS bucket `your-bucket-name`. If using an old credentials file, make sure that it is not expired. Run the following command to copy it into `gsheet` directory:
 ```bash
-gsutil cp gs://your-bucket-name/creds.json ../gsheet
+gcloud storage cp gs://your-bucket-name/creds.json ../gsheet
 ```
 4. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/1IJIjWuEs7cL6eYqPmlVaEGdclr6MSiaKJdnFXXC5tg8/).
 5. Share the above copied Google Sheet with your service account(created in step 2)
