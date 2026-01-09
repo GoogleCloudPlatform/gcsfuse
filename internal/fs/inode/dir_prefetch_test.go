@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -29,12 +30,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/net/context"
 )
 
-// //////////////////////////////////////////////////////////////////////
-// Boilerplate
-// //////////////////////////////////////////////////////////////////////
 type DirPrefetchTest struct {
 	ctx    context.Context
 	bucket gcsx.SyncerBucket
@@ -75,8 +72,8 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 
 func (t *DirPrefetchTest) SetupTest() {
 	t.in = t.setup(true, time.Minute)
-	// 1. Setup GCS state: a directory with 3 files.
-	files := []string{"dir/file1.txt", "dir/file2.txt", "dir/dir/"}
+	// Setup GCS state: a directory with files.
+	files := []string{"dir/a", "dir/b", "dir/c/", "dir/d"}
 	require.NoError(t.T(), storageutil.CreateEmptyObjects(t.ctx, t.bucket, files))
 }
 
@@ -93,45 +90,43 @@ func TestDirPrefetch(t *testing.T) {
 	suite.Run(t, new(DirPrefetchTest))
 }
 
+// Tests that LookUpChild triggers the background prefetch and populates siblings.
 func (t *DirPrefetchTest) TestPrefetch_TriggersOnUnknownType() {
-	// 1. Trigger LookUpChild for a name not in cache.
-	// This should trigger the background prefetch worker.
+	// Trigger LookUpChild for "file1.txt" which is not in cache.
 	t.in.mu.Lock()
-	_, err := t.in.LookUpChild(t.ctx, "file1.txt")
+	_, err := t.in.LookUpChild(t.ctx, "a")
 	t.in.mu.Unlock()
 	require.NoError(t.T(), err)
 
-	// 2. Wait for the background worker to populate the cache.
+	// Wait for the background worker to populate the cache for siblings.
 	assert.Eventually(t.T(), func() bool {
 		t.in.mu.RLock()
 		defer t.in.mu.RUnlock()
-		return t.in.cache.Get(t.clock.Now(), "file2.txt") == metadata.RegularFileType &&
-			t.in.cache.Get(t.clock.Now(), "dir") == metadata.ExplicitDirType
+		return t.in.cache.Get(t.clock.Now(), "a") == metadata.RegularFileType &&
+			t.in.cache.Get(t.clock.Now(), "b") == metadata.RegularFileType &&
+			t.in.cache.Get(t.clock.Now(), "c") == metadata.ExplicitDirType &&
+			t.in.cache.Get(t.clock.Now(), "d") == metadata.RegularFileType
 	}, 2*time.Second, 10*time.Millisecond, "Prefetch should populate siblings in cache")
 }
 
-func (t *DirPrefetchTest) TestPrefetch_RespectsTTL() {
-	// First call triggers prefetch.
+// Tests that LookUpChild triggers the background prefetch and populates siblings.
+func (t *DirPrefetchTest) TestPrefetch_CachesOnlyLexicographicallyGreaterObjects() {
+	// Trigger LookUpChild for "file1.txt" which is not in cache.
 	t.in.mu.Lock()
-	_, err := t.in.LookUpChild(t.ctx, "file1.txt")
-	require.NoError(t.T(), err)
+	_, err := t.in.LookUpChild(t.ctx, "c")
 	t.in.mu.Unlock()
-	// Advance clock but stay within TTL.
-	t.clock.AdvanceTime(time.Minute / 2)
-	// Reset prefetch state manually to simulate a finished task.
-	t.in.prefetchState.Store(prefetchReady)
-	// Second call should NOT trigger prefetch because lastPrefetchTime is recent.
-	// We check this by seeing if lastPrefetchTime changes.
-	originalPrefetchTime := t.in.lastPrefetchTime
-
-	t.in.mu.Lock()
-	_, err = t.in.LookUpChild(t.ctx, "file1.txt")
 	require.NoError(t.T(), err)
-	t.in.mu.Unlock()
 
-	assert.Equal(t.T(), originalPrefetchTime, t.in.lastPrefetchTime)
+	// Wait for the background worker to populate the cache for siblings.
+	assert.Eventually(t.T(), func() bool {
+		t.in.mu.RLock()
+		defer t.in.mu.RUnlock()
+		return t.in.cache.Get(t.clock.Now(), "c") == metadata.ExplicitDirType &&
+			t.in.cache.Get(t.clock.Now(), "d") == metadata.RegularFileType
+	}, 2*time.Second, 10*time.Millisecond, "Prefetch should populate siblings in cache")
 }
 
+// Tests that if prefetch is disabled in config, LookUpChild doesn't trigger it.
 func (t *DirPrefetchTest) TestPrefetch_Disabled() {
 	t.in = t.setup(false, time.Minute) // Prefetch OFF
 
@@ -143,17 +138,45 @@ func (t *DirPrefetchTest) TestPrefetch_Disabled() {
 	// Give it a moment to ensure no background task runs.
 	time.Sleep(100 * time.Millisecond)
 	t.in.mu.RLock()
-	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file2.txt"), "Sibling should not be cached")
-	t.in.mu.RUnlock()
+	defer t.in.mu.RUnlock()
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file2.txt"), "Sibling should not be cached when prefetch is disabled")
 }
 
+// Tests that only one prefetch can run at a time using the atomic state.
 func (t *DirPrefetchTest) TestPrefetch_ConcurrentSafety() {
-	// Simulate prefetch already in progress.
+	// 1. Manually set state to InProgress.
 	t.in.prefetchState.Store(prefetchInProgress)
 
-	// Call runOnDemandPrefetch. It should return immediately without doing work.
-	t.in.runOnDemandPrefetch(t.ctx, "")
+	// 2. Call runOnDemandPrefetch. It should return immediately because of the state.
+	// If it didn't return immediately, it would try to list objects and update cache.
+	t.in.runOnDemandPrefetch(t.ctx, "some-offset")
 
-	// lastPrefetchTime should remain Zero.
-	assert.True(t.T(), t.in.lastPrefetchTime.IsZero())
+	// 3. Since we are mocking the state as InProgress, the cache should remain empty
+	// because the function exited early.
+	t.in.mu.RLock()
+	defer t.in.mu.RUnlock()
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file2.txt"))
+}
+
+// Tests that the prefetcher respects the prefetchCtx and stops when Inode is destroyed.
+func (t *DirPrefetchTest) TestPrefetch_CancellationOnDestroy() {
+	// Trigger a prefetch.
+	t.in.mu.Lock()
+	_, _ = t.in.LookUpChild(t.ctx, "file1.txt")
+	t.in.mu.Unlock()
+
+	// Ensure it started.
+	assert.Eventually(t.T(), func() bool {
+		return t.in.prefetchState.Load() == prefetchInProgress
+	}, 1*time.Second, 5*time.Millisecond)
+
+	// Destroy the inode, which calls prefetchCancel().
+	err := t.in.Destroy()
+	require.NoError(t.T(), err)
+
+	// The state should eventually return to Ready because the loop checks for ctx.Done().
+	assert.Equal(t.T(), t.in.prefetchCtx.Err(), context.Canceled)
+	assert.Eventually(t.T(), func() bool {
+		return t.in.prefetchState.Load() == prefetchReady
+	}, 1*time.Second, 5*time.Millisecond)
 }

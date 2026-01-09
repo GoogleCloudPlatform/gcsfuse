@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"path"
 	"strings"
 	"sync/atomic"
@@ -45,8 +46,8 @@ const MaxResultsForListObjectsCall = 5000
 
 // Constants for the metadata prefetch state.
 const (
-	prefetchReady      uint32 = 0
-	prefetchInProgress uint32 = 1
+	prefetchReady uint32 = iota
+	prefetchInProgress
 )
 
 // An inode representing a directory, with facilities for listing entries,
@@ -261,7 +262,6 @@ type dirInode struct {
 	enableMetadataPrefetch bool
 	metadataCacheTTL       time.Duration
 	prefetchState          atomic.Uint32 // 0=Ready, 1=InProgress
-	lastPrefetchTime       time.Time
 	prefetchCtx            context.Context
 	prefetchCancel         context.CancelFunc
 }
@@ -305,7 +305,7 @@ func NewDirInode(
 	}
 
 	// Initialize a new context for metadata prefetch worker so it can run in background.
-	prefetchCtx, prefetchCcancel := context.WithCancel(context.Background())
+	prefetchCtx, prefetchCancel := context.WithCancel(context.Background())
 	typed := &dirInode{
 		bucket:                          bucket,
 		mtimeClock:                      mtimeClock,
@@ -323,9 +323,8 @@ func NewDirInode(
 		enableMetadataPrefetch:          cfg.MetadataCache.ExperimentalDirMetadataPrefetch,
 		metadataCacheTTL:                typeCacheTTL,
 		prefetchCtx:                     prefetchCtx,
-		prefetchCancel:                  prefetchCcancel,
+		prefetchCancel:                  prefetchCancel,
 		// prefetchState is 0 (prefetchReady) by default.
-		// lastPrefetchTime is time.Time{} (zero) by default.
 	}
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
@@ -516,12 +515,6 @@ func (d *dirInode) runOnDemandPrefetch(ctx context.Context, startOffset string) 
 	// We are in the InProgress state while this function executes. We must reset to Ready before returning.
 	defer d.prefetchState.Store(prefetchReady)
 
-	// If the last prefetch has not expired, abort.
-	currentTime := d.cacheClock.Now()
-	if currentTime.Sub(d.lastPrefetchTime) < d.metadataCacheTTL {
-		return
-	}
-
 	// 2. Run the Prefetch
 	var tok string
 	for {
@@ -543,8 +536,6 @@ func (d *dirInode) runOnDemandPrefetch(ctx context.Context, startOffset string) 
 		}
 		tok = newTok
 	}
-	// 3. Update lastPrefetchTime on successful completion.
-	d.lastPrefetchTime = currentTime
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -690,10 +681,11 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
-		// Check if a prefetch is due (prefetch not in progress and TTL expired), launch the prefetch worker in the background.
-		if d.enableMetadataPrefetch && d.prefetchState.Load() == prefetchReady && d.cacheClock.Now().Sub(d.lastPrefetchTime) >= d.metadataCacheTTL {
+		// Entry not present in cache.
+		// Check if a prefetch is due and launch the prefetch worker in the background.
+		if d.enableMetadataPrefetch && d.metadataCacheTTL != 0 && d.prefetchState.Load() == prefetchReady {
 			// Use prefetchCtx since this long-running background task should not be tied to short-lived `LookUpChild` ctx.
-			go d.runOnDemandPrefetch(d.prefetchCtx, d.Name().GcsObjectName())
+			go d.runOnDemandPrefetch(d.prefetchCtx, NewFileName(d.Name(), name).GcsObjectName())
 		}
 
 		group.Go(lookUpFile)
@@ -794,7 +786,7 @@ func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, max
 		IncludeTrailingDelimiter: includeTrailingDelimeter,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
-		MaxResults:               maxListCallResults,
+		MaxResults:               MaxResultsForListObjectsCall,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
 		ProjectionVal:            gcs.NoAcl,
@@ -807,9 +799,17 @@ func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, max
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
+	// Return an appropriate continuation token, if any.
+	newTok = listing.ContinuationToken
 
 	cores = make(map[Name]*Core)
 	for _, o := range listing.MinObjects {
+		// Stop if we've reached the user-requested limit
+		if maxListCallResults > 0 && len(cores) >= maxListCallResults {
+			newTok = "" // Set new token to empty since user requested data has been received.
+			break
+		}
+
 		if storageutil.IsUnsupportedPath(o.Name) {
 			unsupportedPaths = append(unsupportedPaths, o.Name)
 			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
@@ -853,15 +853,18 @@ func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, max
 		}
 	}
 
-	// Return an appropriate continuation token, if any.
-	newTok = listing.ContinuationToken
-
 	if !d.implicitDirs && !d.isBucketHierarchical() {
 		return
 	}
 
 	// Add implicit directories into the result.
 	for _, p := range listing.CollapsedRuns {
+		// Stop if we've reached the user-requested limit
+		if maxListCallResults > 0 && len(cores) >= maxListCallResults {
+			newTok = "" // Set new token to empty since user requested data has been received.
+			break
+		}
+
 		pathBase := path.Base(p)
 		if storageutil.IsUnsupportedPath(p) {
 			unsupportedPaths = append(unsupportedPaths, p)
@@ -915,7 +918,7 @@ func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
-	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, MaxResultsForListObjectsCall, "")
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, math.MaxInt, "")
 	if err == nil {
 		d.insertToCache(cores)
 	}
@@ -926,7 +929,7 @@ func (d *dirInode) readObjects(
 // readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
 func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOffset string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 	// TODO: add hidden flag to control this value.
-	const maxListCallResults = 1000
+	maxListCallResults := 5000
 
 	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, maxListCallResults, startOffset)
 	if err != nil {
