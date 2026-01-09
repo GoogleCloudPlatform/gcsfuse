@@ -36,6 +36,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -92,10 +93,10 @@ func (t *fileCacheReaderTest) SetupTest() {
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
 	lruCache := lru.NewCache(cacheMaxSize)
 	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: false}
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics())
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false)
-	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), 0)
-	t.reader_unfinalized_object = NewFileCacheReader(t.unfinalized_object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), 0)
+	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
+	t.reader_unfinalized_object = NewFileCacheReader(t.unfinalized_object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
 	t.ctx = context.Background()
 }
 
@@ -120,19 +121,20 @@ func getReadCloser(content []byte) io.ReadCloser {
 }
 
 func (t *fileCacheReaderTest) TestNewFileCacheReader() {
-	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil, 0)
+	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
 
 	assert.NotNil(t.T(), reader)
 	assert.Equal(t.T(), t.object, reader.object)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
 	assert.Equal(t.T(), t.cacheHandler, reader.fileCacheHandler)
 	assert.True(t.T(), reader.cacheFileForRangeRead)
-	assert.Nil(t.T(), reader.metricHandle)
+	assert.NotNil(t.T(), reader.metricHandle)
+	assert.NotNil(t.T(), reader.traceHandle)
 	assert.Nil(t.T(), reader.fileCacheHandle)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_NilFileCacheHandlerThrowFallBackError() {
-	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, nil, 0)
+	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
 
 	readResponse, err := reader.ReadAt(t.ctx, &ReadRequest{
 		Buffer: make([]byte, 10),
