@@ -252,12 +252,12 @@ func (mi *MrdInstance) CloseMRDForEviction() {
 	mi.refCountMu.Lock()
 	defer mi.refCountMu.Unlock()
 
-	// Check if wrapper was reopened (refCount>0) - must skip eviction.
+	// Check if mrdInstance was reopened (refCount>0) - must skip eviction.
 	if mi.refCount > 0 {
 		return
 	}
 
-	// Check if wrapper was re-added to cache (refCount went 0→1→0 in between eviction and closure.)
+	// Check if mrdInstance was re-added to cache (refCount went 0→1→0 in between eviction and closure.)
 	// Lock order: refCountMu -> cache.mu (consistent with Increment/DecrementRefCount)
 	if mi.mrdCache != nil && mi.mrdCache.LookUpWithoutChangingOrder(getKey(mi.inodeId)) == mi {
 		return
