@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fuseops"
@@ -31,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -45,6 +47,8 @@ type ReadManager struct {
 	// readTypeClassifier tracks the read access pattern (e.g., sequential, random)
 	// across all readers for a file handle to optimize read strategies.
 	readTypeClassifier *gcsx.ReadTypeClassifier
+
+	traceHandle tracing.TraceHandle
 }
 
 // ReadManagerConfig holds the configuration parameters for creating a new ReadManager.
@@ -53,6 +57,7 @@ type ReadManagerConfig struct {
 	FileCacheHandler      *file.CacheHandler
 	CacheFileForRangeRead bool
 	MetricHandle          metrics.MetricHandle
+	TraceHandle           tracing.TraceHandle
 	MrdWrapper            *gcsx.MultiRangeDownloaderWrapper
 	Config                *cfg.Config
 	GlobalMaxBlocksSem    *semaphore.Weighted
@@ -75,6 +80,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			config.FileCacheHandler,
 			config.CacheFileForRangeRead,
 			config.MetricHandle,
+			config.TraceHandle,
 			config.HandleID,
 		)
 		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
@@ -99,6 +105,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			GlobalMaxBlocksSem: config.GlobalMaxBlocksSem,
 			WorkerPool:         config.WorkerPool,
 			MetricHandle:       config.MetricHandle,
+			TraceHandle:        config.TraceHandle,
 			ReadTypeClassifier: readClassifier,
 			HandleID:           config.HandleID,
 		}
@@ -116,6 +123,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		bucket,
 		&clientReaders.GCSReaderConfig{
 			MetricHandle:       config.MetricHandle,
+			TraceHandle:        config.TraceHandle,
 			MrdWrapper:         config.MrdWrapper,
 			Config:             config.Config,
 			ReadTypeClassifier: readClassifier,
@@ -128,6 +136,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		object:             object,
 		readers:            readers, // Readers are prioritized: file cache first, then GCS.
 		readTypeClassifier: readClassifier,
+		traceHandle:        config.TraceHandle,
 	}
 }
 
@@ -162,7 +171,9 @@ func (rr *ReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.
 
 	var err error
 	for _, r := range rr.readers {
-		readResponse, err = r.ReadAt(ctx, req)
+		newCtx, span := rr.traceHandle.StartTrace(ctx, reflect.TypeOf(r).String())
+		readResponse, err = r.ReadAt(newCtx, req)
+		rr.traceHandle.EndTrace(span)
 		if err == nil {
 			rr.readTypeClassifier.RecordRead(req.Offset, int64(readResponse.Size))
 			return readResponse, nil
