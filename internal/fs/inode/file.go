@@ -170,7 +170,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
-		mrdInstance:             gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg.Mrd),
+		mrdInstance:             gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg),
 	}
 	var err error
 	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
