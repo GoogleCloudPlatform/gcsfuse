@@ -18,8 +18,7 @@ package tracing
 
 // Span name constants for GCSFuse operations.
 // These constants define the canonical names for spans created during FUSE
-// operations. Using these constants ensures consistency and allows for easier
-// filtering in distributed tracing backends like Cloud Trace.
+// operations. Using these constants ensures consistency and better readability and a single source of truth where all the span names are listed.
 
 const (
 	StatFS             = "StatFS"

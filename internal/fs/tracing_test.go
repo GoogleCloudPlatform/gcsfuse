@@ -16,8 +16,9 @@ package fs_test
 
 import (
 	"context"
-	"os"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
@@ -36,7 +37,18 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-var globalExporter *tracetest.InMemoryExporter
+type TracingTestSuite struct {
+	suite.Suite
+	globalExporter *tracetest.InMemoryExporter
+}
+
+func (s *TracingTestSuite) SetupSuite() {
+	s.globalExporter = newInMemoryExporter()
+}
+
+func (s *TracingTestSuite) SetupSubTest() {
+	s.globalExporter.Reset()
+}
 
 func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInterrupts bool) (gcs.Bucket, fuseutil.FileSystem) {
 	t.Helper()
@@ -83,13 +95,7 @@ func newInMemoryExporter() *tracetest.InMemoryExporter {
 	return ex
 }
 
-func TestMain(m *testing.M) {
-	// 1. Initialize the shared exporter
-	globalExporter = newInMemoryExporter()
-	os.Exit(m.Run())
-}
-
-func TestTraceLookupInode(t *testing.T) {
+func (s *TracingTestSuite) TestTraceLookupInode() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -100,8 +106,8 @@ func TestTraceLookupInode(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -116,7 +122,7 @@ func TestTraceLookupInode(t *testing.T) {
 			err := m.LookUpInode(context.Background(), lookupOp)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -126,7 +132,7 @@ func TestTraceLookupInode(t *testing.T) {
 	}
 }
 
-func TestTraceStatFS(t *testing.T) {
+func (s *TracingTestSuite) TestTraceStatFS() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -137,8 +143,8 @@ func TestTraceStatFS(t *testing.T) {
 		{"disabled", false, []string{"StatFS"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -150,7 +156,7 @@ func TestTraceStatFS(t *testing.T) {
 			err := m.StatFS(context.Background(), statFsOp)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -160,7 +166,7 @@ func TestTraceStatFS(t *testing.T) {
 	}
 }
 
-func TestTraceGetInodeAttributes(t *testing.T) {
+func (s *TracingTestSuite) TestTraceGetInodeAttributes() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -171,8 +177,8 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 		{"disabled", false, []string{"GetInodeAttributes"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -186,7 +192,7 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 			err := m.GetInodeAttributes(context.Background(), op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -196,7 +202,7 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 	}
 }
 
-func TestTraceSetInodeAttributes(t *testing.T) {
+func (s *TracingTestSuite) TestTraceSetInodeAttributes() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -207,8 +213,8 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "SetInodeAttributes"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -229,7 +235,7 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 			err = m.SetInodeAttributes(context.Background(), op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -239,7 +245,7 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 	}
 }
 
-func TestTraceForgetInode(t *testing.T) {
+func (s *TracingTestSuite) TestTraceForgetInode() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -250,8 +256,8 @@ func TestTraceForgetInode(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "ForgetInode"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			ctx := context.Background()
 			fileName := "test.txt"
@@ -272,7 +278,7 @@ func TestTraceForgetInode(t *testing.T) {
 			err = m.ForgetInode(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -282,7 +288,7 @@ func TestTraceForgetInode(t *testing.T) {
 	}
 }
 
-func TestTraceMkDir(t *testing.T) {
+func (s *TracingTestSuite) TestTraceMkDir() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -293,8 +299,8 @@ func TestTraceMkDir(t *testing.T) {
 		{"disabled", false, []string{"MkDir"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -309,7 +315,7 @@ func TestTraceMkDir(t *testing.T) {
 			err := m.MkDir(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -319,7 +325,7 @@ func TestTraceMkDir(t *testing.T) {
 	}
 }
 
-func TestTraceMkNode(t *testing.T) {
+func (s *TracingTestSuite) TestTraceMkNode() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -330,8 +336,8 @@ func TestTraceMkNode(t *testing.T) {
 		{"disabled", false, []string{"MkNode"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -346,7 +352,7 @@ func TestTraceMkNode(t *testing.T) {
 			err := m.MkNode(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -356,7 +362,7 @@ func TestTraceMkNode(t *testing.T) {
 	}
 }
 
-func TestTraceCreateFile(t *testing.T) {
+func (s *TracingTestSuite) TestTraceCreateFile() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -367,8 +373,8 @@ func TestTraceCreateFile(t *testing.T) {
 		{"disabled", false, []string{"CreateFile"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -383,7 +389,7 @@ func TestTraceCreateFile(t *testing.T) {
 			err := m.CreateFile(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -393,7 +399,7 @@ func TestTraceCreateFile(t *testing.T) {
 	}
 }
 
-func TestTraceCreateLink(t *testing.T) {
+func (s *TracingTestSuite) TestTraceCreateLink() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -404,8 +410,8 @@ func TestTraceCreateLink(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "CreateLink"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -427,7 +433,7 @@ func TestTraceCreateLink(t *testing.T) {
 			err = m.CreateLink(ctx, op)
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -437,7 +443,7 @@ func TestTraceCreateLink(t *testing.T) {
 	}
 }
 
-func TestTraceCreateSymlink(t *testing.T) {
+func (s *TracingTestSuite) TestTraceCreateSymlink() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -448,8 +454,8 @@ func TestTraceCreateSymlink(t *testing.T) {
 		{"disabled", false, []string{"CreateSymlink"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -465,7 +471,7 @@ func TestTraceCreateSymlink(t *testing.T) {
 			err := m.CreateSymlink(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -475,7 +481,7 @@ func TestTraceCreateSymlink(t *testing.T) {
 	}
 }
 
-func TestTraceRename(t *testing.T) {
+func (s *TracingTestSuite) TestTraceRename() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -486,8 +492,8 @@ func TestTraceRename(t *testing.T) {
 		{"disabled", false, []string{"Rename"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -505,7 +511,7 @@ func TestTraceRename(t *testing.T) {
 			err := m.Rename(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -515,7 +521,7 @@ func TestTraceRename(t *testing.T) {
 	}
 }
 
-func TestTraceRmDir(t *testing.T) {
+func (s *TracingTestSuite) TestTraceRmDir() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -526,8 +532,8 @@ func TestTraceRmDir(t *testing.T) {
 		{"disabled", false, []string{"MkDir", "RmDir"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -549,7 +555,7 @@ func TestTraceRmDir(t *testing.T) {
 			err = m.RmDir(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -559,7 +565,7 @@ func TestTraceRmDir(t *testing.T) {
 	}
 }
 
-func TestTraceUnlink(t *testing.T) {
+func (s *TracingTestSuite) TestTraceUnlink() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -570,8 +576,8 @@ func TestTraceUnlink(t *testing.T) {
 		{"disabled", false, []string{"Unlink"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -586,7 +592,7 @@ func TestTraceUnlink(t *testing.T) {
 			err := m.Unlink(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -596,7 +602,7 @@ func TestTraceUnlink(t *testing.T) {
 	}
 }
 
-func TestTraceOpenDir(t *testing.T) {
+func (s *TracingTestSuite) TestTraceOpenDir() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -607,8 +613,8 @@ func TestTraceOpenDir(t *testing.T) {
 		{"disabled", false, []string{"OpenDir"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -622,7 +628,7 @@ func TestTraceOpenDir(t *testing.T) {
 			err := m.OpenDir(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -632,7 +638,7 @@ func TestTraceOpenDir(t *testing.T) {
 	}
 }
 
-func TestTraceReadDir(t *testing.T) {
+func (s *TracingTestSuite) TestTraceReadDir() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -643,8 +649,8 @@ func TestTraceReadDir(t *testing.T) {
 		{"disabled", false, []string{"OpenDir", "ReadDir"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -666,7 +672,7 @@ func TestTraceReadDir(t *testing.T) {
 			err = m.ReadDir(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -676,7 +682,7 @@ func TestTraceReadDir(t *testing.T) {
 	}
 }
 
-func TestTraceReadDirPlus(t *testing.T) {
+func (s *TracingTestSuite) TestTraceReadDirPlus() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -687,8 +693,8 @@ func TestTraceReadDirPlus(t *testing.T) {
 		{"disabled", false, []string{"OpenDir", "ReadDirPlus"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -712,7 +718,7 @@ func TestTraceReadDirPlus(t *testing.T) {
 			err = m.ReadDirPlus(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -722,7 +728,7 @@ func TestTraceReadDirPlus(t *testing.T) {
 	}
 }
 
-func TestTraceReleaseDirHandle(t *testing.T) {
+func (s *TracingTestSuite) TestTraceReleaseDirHandle() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -733,8 +739,8 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 		{"disabled", false, []string{"OpenDir", "ReleaseDirHandle"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -753,7 +759,7 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 			err = m.ReleaseDirHandle(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -763,7 +769,7 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 	}
 }
 
-func TestTraceOpenFile(t *testing.T) {
+func (s *TracingTestSuite) TestTraceOpenFile() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -774,8 +780,8 @@ func TestTraceOpenFile(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "OpenFile"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -795,7 +801,7 @@ func TestTraceOpenFile(t *testing.T) {
 			err = m.OpenFile(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -805,7 +811,7 @@ func TestTraceOpenFile(t *testing.T) {
 	}
 }
 
-func TestTraceReadFile(t *testing.T) {
+func (s *TracingTestSuite) TestTraceReadFile() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -816,8 +822,8 @@ func TestTraceReadFile(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "ReadFile"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -844,7 +850,7 @@ func TestTraceReadFile(t *testing.T) {
 			err = m.ReadFile(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -854,7 +860,7 @@ func TestTraceReadFile(t *testing.T) {
 	}
 }
 
-func TestTraceWriteFile(t *testing.T) {
+func (s *TracingTestSuite) TestTraceWriteFile() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -865,8 +871,8 @@ func TestTraceWriteFile(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "WriteFile"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -894,7 +900,7 @@ func TestTraceWriteFile(t *testing.T) {
 			err = m.WriteFile(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -904,7 +910,7 @@ func TestTraceWriteFile(t *testing.T) {
 	}
 }
 
-func TestTraceSyncFile(t *testing.T) {
+func (s *TracingTestSuite) TestTraceSyncFile() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -915,8 +921,8 @@ func TestTraceSyncFile(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "SyncFile"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -936,7 +942,7 @@ func TestTraceSyncFile(t *testing.T) {
 			err = m.SyncFile(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -946,7 +952,7 @@ func TestTraceSyncFile(t *testing.T) {
 	}
 }
 
-func TestTraceFlushFile(t *testing.T) {
+func (s *TracingTestSuite) TestTraceFlushFile() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -957,8 +963,8 @@ func TestTraceFlushFile(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "FlushFile"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -984,7 +990,7 @@ func TestTraceFlushFile(t *testing.T) {
 			err = m.FlushFile(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -994,7 +1000,7 @@ func TestTraceFlushFile(t *testing.T) {
 	}
 }
 
-func TestTraceReleaseFileHandle(t *testing.T) {
+func (s *TracingTestSuite) TestTraceReleaseFileHandle() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -1005,8 +1011,8 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "ReleaseFileHandle"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -1031,7 +1037,7 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 			err = m.ReleaseFileHandle(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -1041,7 +1047,7 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 	}
 }
 
-func TestTraceReadSymlink(t *testing.T) {
+func (s *TracingTestSuite) TestTraceReadSymlink() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -1052,8 +1058,8 @@ func TestTraceReadSymlink(t *testing.T) {
 		{"disabled", false, []string{"CreateSymlink", "ReadSymlink"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			_, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -1073,7 +1079,7 @@ func TestTraceReadSymlink(t *testing.T) {
 			err = m.ReadSymlink(ctx, op)
 			require.NoError(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -1083,7 +1089,7 @@ func TestTraceReadSymlink(t *testing.T) {
 	}
 }
 
-func TestTraceRemoveXattr(t *testing.T) {
+func (s *TracingTestSuite) TestTraceRemoveXattr() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -1094,8 +1100,8 @@ func TestTraceRemoveXattr(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "RemoveXattr"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -1116,7 +1122,7 @@ func TestTraceRemoveXattr(t *testing.T) {
 			err = m.RemoveXattr(ctx, op)
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -1126,7 +1132,7 @@ func TestTraceRemoveXattr(t *testing.T) {
 	}
 }
 
-func TestTraceGetXattr(t *testing.T) {
+func (s *TracingTestSuite) TestTraceGetXattr() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -1137,8 +1143,8 @@ func TestTraceGetXattr(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "GetXattr"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -1159,7 +1165,7 @@ func TestTraceGetXattr(t *testing.T) {
 			err = m.GetXattr(ctx, op)
 			assert.NotNil(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -1169,7 +1175,7 @@ func TestTraceGetXattr(t *testing.T) {
 	}
 }
 
-func TestTraceListXattr(t *testing.T) {
+func (s *TracingTestSuite) TestTraceListXattr() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -1180,8 +1186,8 @@ func TestTraceListXattr(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "ListXattr"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -1201,7 +1207,7 @@ func TestTraceListXattr(t *testing.T) {
 			err = m.ListXattr(ctx, op)
 			assert.NotNil(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -1211,7 +1217,7 @@ func TestTraceListXattr(t *testing.T) {
 	}
 }
 
-func TestTraceSetXattr(t *testing.T) {
+func (s *TracingTestSuite) TestTraceSetXattr() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -1222,8 +1228,8 @@ func TestTraceSetXattr(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "SetXattr"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -1245,7 +1251,7 @@ func TestTraceSetXattr(t *testing.T) {
 			err = m.SetXattr(ctx, op)
 			assert.NotNil(t, err)
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -1255,7 +1261,7 @@ func TestTraceSetXattr(t *testing.T) {
 	}
 }
 
-func TestTraceFallocate(t *testing.T) {
+func (s *TracingTestSuite) TestTraceFallocate() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -1266,8 +1272,8 @@ func TestTraceFallocate(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "Fallocate"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -1296,7 +1302,7 @@ func TestTraceFallocate(t *testing.T) {
 			err = m.Fallocate(ctx, op)
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -1306,7 +1312,7 @@ func TestTraceFallocate(t *testing.T) {
 	}
 }
 
-func TestTraceSyncFS(t *testing.T) {
+func (s *TracingTestSuite) TestTraceSyncFS() {
 	ctx := context.Background()
 	testCases := []struct {
 		name             string
@@ -1317,8 +1323,8 @@ func TestTraceSyncFS(t *testing.T) {
 		{"disabled", false, []string{"LookUpInode", "SyncFS"}},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			globalExporter.Reset()
+		s.Run(tt.name, func() {
+			t := s.T()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
@@ -1338,7 +1344,7 @@ func TestTraceSyncFS(t *testing.T) {
 			err = m.SyncFS(ctx, op)
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
-			ss := globalExporter.GetSpans()
+			ss := s.globalExporter.GetSpans()
 			require.Len(t, ss, len(tt.spans))
 			for i, spanName := range tt.spans {
 				assert.Equal(t, spanName, ss[i].Name)
@@ -1346,4 +1352,8 @@ func TestTraceSyncFS(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTracingTestSuite(t *testing.T) {
+	suite.Run(t, new(TracingTestSuite))
 }
