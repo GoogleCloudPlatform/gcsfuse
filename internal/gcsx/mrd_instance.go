@@ -201,6 +201,28 @@ func (mi *MrdInstance) Destroy() {
 	}
 }
 
+// DestroyAndRemoveFromCache completely destroys the MrdInstance, cleaning up
+// its resources and ensuring it is removed from the cache. This should be
+// called when the owning inode is destroyed.
+func (mi *MrdInstance) DestroyAndRemoveFromCache() {
+	mi.refCountMu.Lock()
+	defer mi.refCountMu.Unlock()
+
+	// If it's in use, this indicates a potential lifecycle mismatch between the
+	// inode and its readers.
+	if mi.refCount > 0 {
+		logger.Warnf("MrdInstance.DestroyAndRemoveFromCache called on an instance with refCount %d", mi.refCount)
+	}
+
+	// Remove from cache.
+	if mi.mrdCache != nil {
+		mi.mrdCache.Erase(getKey(mi.inodeId))
+	}
+
+	// Destroy the pool.
+	mi.Destroy()
+}
+
 // getKey generates a unique key for the MrdInstance based on its inode ID.
 func getKey(id fuseops.InodeID) string {
 	return strconv.FormatUint(uint64(id), 10)
@@ -223,26 +245,24 @@ func (mi *MrdInstance) IncrementRefCount() {
 	}
 }
 
-// destroyEvictedCacheEntries is a helper function to destroy evicted MrdInstance objects.
-// It handles type assertion and ensures that only truly inactive instances are destroyed.
-// This function should not be called when refCountMu is held.
-func destroyEvictedCacheEntries(evictedValues []lru.ValueType) {
-	for _, instance := range evictedValues {
-		mrdInstance, ok := instance.(*MrdInstance)
-		if !ok {
-			logger.Errorf("destroyEvictedCacheEntries: Invalid value type, expected *MrdInstance, got %T", instance)
-		} else {
-			// Check if the instance was resurrected.
-			mrdInstance.refCountMu.Lock()
-			if mrdInstance.refCount > 0 {
-				mrdInstance.refCountMu.Unlock()
-				continue
-			}
-			// Safe to destroy. Hold refCountMu to prevent concurrent resurrection.
-			mrdInstance.Destroy()
-			mrdInstance.refCountMu.Unlock()
-		}
+// CloseMRDForEviction closes the MRD when evicted from cache.
+// This method is called after wrapper was removed from cache for eviction.
+// Race protection: wrapper could be reopened (refCount>0) or re-added to cache before eviction.
+func (mi *MrdInstance) CloseMRDForEviction() {
+	mi.refCountMu.Lock()
+	defer mi.refCountMu.Unlock()
+
+	// Check if wrapper was reopened (refCount>0) - must skip eviction.
+	if mi.refCount > 0 {
+		return
 	}
+
+	// Check if wrapper was re-added to cache (refCount went 0→1→0 in between eviction and closure.)
+	// Lock order: refCountMu -> cache.mu (consistent with Increment/DecrementRefCount)
+	if mi.mrdCache != nil && mi.mrdCache.LookUpWithoutChangingOrder(getKey(mi.inodeId)) == mi {
+		return
+	}
+	mi.Destroy()
 }
 
 // DecrementRefCount decreases the reference count. When the count drops to zero, the
@@ -284,7 +304,14 @@ func (mi *MrdInstance) DecrementRefCount() {
 
 	// Evict outside all locks.
 	mi.refCountMu.Unlock()
-	destroyEvictedCacheEntries(evictedValues)
+	for _, instance := range evictedValues {
+		mrdInstance, ok := instance.(*MrdInstance)
+		if !ok {
+			logger.Errorf("MrdInstance::DecrementRefCount: Invalid value type, expected *MrdInstance, got %T", instance)
+		} else {
+			mrdInstance.CloseMRDForEviction()
+		}
+	}
 	// Reacquire the lock ensuring safe defer's Unlock.
 	mi.refCountMu.Lock()
 }
