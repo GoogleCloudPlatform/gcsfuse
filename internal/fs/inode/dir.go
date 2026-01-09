@@ -15,10 +15,13 @@
 package inode
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"math"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -31,7 +34,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -41,6 +43,12 @@ import (
 // By default 1000 results are returned if maxResults is not set.
 // Defining a constant to set maxResults param.
 const MaxResultsForListObjectsCall = 5000
+
+// Constants for the metadata prefetch state.
+const (
+	prefetchReady uint32 = iota
+	prefetchInProgress
+)
 
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
@@ -249,6 +257,14 @@ type dirInode struct {
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
+
+	// Variables for metadata prefetching.
+	enableMetadataPrefetch bool
+	metadataCacheTTL       time.Duration
+	prefetchState          atomic.Uint32 // 0=Ready, 1=InProgress
+	prefetchCtx            context.Context
+	prefetchCancel         context.CancelFunc
+	maxPrefetchCount       int64
 }
 
 var _ DirInode = &dirInode{}
@@ -289,6 +305,8 @@ func NewDirInode(
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
+	// Initialize a new context for metadata prefetch worker so it can run in background.
+	prefetchCtx, prefetchCancel := context.WithCancel(context.Background())
 	typed := &dirInode{
 		bucket:                          bucket,
 		mtimeClock:                      mtimeClock,
@@ -303,6 +321,12 @@ func NewDirInode(
 		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
+		enableMetadataPrefetch:          cfg.MetadataCache.ExperimentalDirMetadataPrefetch,
+		metadataCacheTTL:                typeCacheTTL,
+		prefetchCtx:                     prefetchCtx,
+		prefetchCancel:                  prefetchCancel,
+		maxPrefetchCount:                MaxResultsForListObjectsCall, // TODO: make it user configurable
+		// prefetchState is 0 (prefetchReady) by default.
 	}
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
@@ -481,6 +505,45 @@ func (d *dirInode) createNewObject(
 	return
 }
 
+// runOnDemandPrefetch attempts to prefetch metadata for the directory if a prefetch is due.
+// It uses an atomic prefetchState to ensure only one prefetch operation runs at a time and prevents concurrent execution.
+func (d *dirInode) runOnDemandPrefetch(ctx context.Context, startOffset string) {
+	// Atomically swap state from Ready (0) to InProgress (1).
+	if !d.prefetchState.CompareAndSwap(prefetchReady, prefetchInProgress) {
+		// Another prefetch is already in progress. Abort.
+		return
+	}
+
+	// We are in the InProgress state while this function executes. We must reset to Ready before returning.
+	defer d.prefetchState.Store(prefetchReady)
+
+	// 2. Run the Prefetch
+	var tok string
+	var totalPrefetched int64 = 0
+	maxToPrefetch := d.maxPrefetchCount
+	for totalPrefetched < maxToPrefetch {
+		select {
+		case <-ctx.Done():
+			logger.Debugf("Metadata prefetch for directory inode %d aborted due to context cancellation.", d.id)
+			return
+		default:
+		}
+
+		// Perform slow network I/O *without* holding the inode lock.
+		listResultCountRequired := int(math.Min(float64(maxToPrefetch-totalPrefetched), float64(MaxResultsForListObjectsCall)))
+		cores, _, newTok, err := d.readObjectsUnlocked(ctx, tok, startOffset, listResultCountRequired)
+		if err != nil {
+			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
+			return // Abort.
+		}
+		totalPrefetched += int64(len(cores))
+		if newTok == "" || totalPrefetched >= maxToPrefetch {
+			break // Requested sibling entries have been listed.
+		}
+		tok = newTok
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -535,7 +598,10 @@ func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
-	// Nothing interesting to do.
+	if d.enableMetadataPrefetch && d.prefetchCancel != nil {
+		// cancel any in progress prefetch when the inode is getting destroyed.
+		d.prefetchCancel()
+	}
 	return
 }
 
@@ -621,6 +687,13 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
+		// Entry not present in cache.
+		// Check if a prefetch is due and launch the prefetch worker in the background.
+		if d.enableMetadataPrefetch && d.metadataCacheTTL != 0 && d.prefetchState.Load() == prefetchReady {
+			// Use prefetchCtx since this long-running background task should not be tied to short-lived `LookUpChild` ctx.
+			go d.runOnDemandPrefetch(d.prefetchCtx, NewFileName(d.Name(), name).GcsObjectName())
+		}
+
 		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
 			group.Go(lookUpHNSDir)
@@ -704,9 +777,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 }
 
 // Helper function to handle the common listing logic and GCS request preparation.
-func (d *dirInode) listObjectsAndBuildCores(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, maxListCallResults int, listStartOffset string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
 	includeTrailingDelimeter := true // Important for flat bucket to list explicit directory.
 	if d.isBucketHierarchical() {
@@ -721,11 +792,12 @@ func (d *dirInode) listObjectsAndBuildCores(
 		IncludeTrailingDelimiter: includeTrailingDelimeter,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
-		MaxResults:               MaxResultsForListObjectsCall,
+		MaxResults:               maxListCallResults,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
 		ProjectionVal:            gcs.NoAcl,
 		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+		StartOffset:              listStartOffset,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -841,7 +913,7 @@ func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
-	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, MaxResultsForListObjectsCall, "")
 	if err == nil {
 		d.insertToCache(cores)
 	}
@@ -850,11 +922,8 @@ func (d *dirInode) readObjects(
 
 // LOCK_EXCLUDED(d)
 // readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
-func (d *dirInode) readObjectsUnlocked(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
-
-	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOffset string, maxListCallResults int) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, maxListCallResults, startOffset)
 	if err != nil {
 		return
 	}
