@@ -48,11 +48,7 @@ func isShortRead(bytesRead int, bufferSize int, err error) bool {
 		return false
 	}
 
-	if !(err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)) {
-		return false
-	}
-
-	return true
+	return err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
 }
 
 // ReadAt reads data into the provided request buffer starting at the specified
@@ -78,7 +74,7 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 	if isShortRead(bytesRead, len(req.Buffer), err) {
 		originalErr := err
 		if err = msr.mrdInstance.RecreateMRD(); err != nil {
-			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD")
+			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
 		}
 		retryOffset := req.Offset + int64(bytesRead)
 		retryBuffer := req.Buffer[bytesRead:]
