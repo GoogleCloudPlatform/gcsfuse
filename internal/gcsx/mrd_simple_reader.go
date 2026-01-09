@@ -83,8 +83,12 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		retryOffset := req.Offset + int64(bytesRead)
 		retryBuffer := req.Buffer[bytesRead:]
 		var bytesReadOnRetry int
+		originalErr := err
 		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, retryBuffer, retryOffset, msr.metrics)
 		bytesRead += bytesReadOnRetry
+		if bytesReadOnRetry == 0 {
+			err = originalErr
+		}
 	}
 
 	metrics.CaptureGCSReadMetrics(msr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
