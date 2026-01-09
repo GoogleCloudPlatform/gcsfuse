@@ -201,8 +201,8 @@ func (d *dummyIOBucket) DeleteFolder(ctx context.Context, folderName string) err
 
 // GetFolder retrieves folder information.
 // Directly delegates to wrapped bucket.
-func (d *dummyIOBucket) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
-	return d.wrapped.GetFolder(ctx, folderName)
+func (d *dummyIOBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	return d.wrapped.GetFolder(ctx, req)
 }
 
 // RenameFolder atomically renames a folder for Hierarchical bucket.

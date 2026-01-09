@@ -1184,7 +1184,7 @@ func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, folder))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1196,7 +1196,7 @@ func (t *StatObjectTest) TestShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	AssertEq(nil, result)
@@ -1207,15 +1207,16 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 	folder := &gcs.Folder{
 		Name: name,
 	}
+	getFolderReq := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
 		WillOnce(Return())
-	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), getFolderReq).
 		WillOnce(Return(folder, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), getFolderReq)
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1224,13 +1225,14 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 func (t *StatObjectTest) TestShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
 	const name = "some-name"
 	error := errors.New("connection error")
+	getFolderReq := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
-	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), getFolderReq).
 		WillOnce(Return(nil, error))
 
-	folder, result := t.bucket.GetFolder(context.TODO(), name)
+	folder, result := t.bucket.GetFolder(context.TODO(), getFolderReq)
 
 	AssertEq(nil, folder)
 	AssertEq(error, result)
@@ -1251,6 +1253,71 @@ func (t *StatObjectTest) TestRenameFolder() {
 
 	AssertEq(nil, err)
 	ExpectEq(result, folder)
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheFalse() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: false,
+	}
+	// We expect a call to GCS, so we mock the wrapped bucket.
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(false, nil))
+
+	minObj := &gcs.MinObject{Name: name}
+	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
+		WillOnce(Return(minObj, nil, nil))
+	ExpectCall(t.cache, "Insert")(Any(), Any())
+
+	m, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(minObj, m)
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	minObj := &gcs.MinObject{Name: name}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(true, minObj))
+
+	m, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(minObj, m)
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(true, nil))
+
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheMiss() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(false, nil))
+
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
 }
 
 type DeleteFolderTest struct {
@@ -1406,4 +1473,77 @@ func (t *NewReaderWithReadHandleTest) CallsWrappedAndDoesNotInvalidateOnSuccess(
 
 	AssertEq(nil, err)
 	ExpectEq(expectedReader, rd)
+}
+
+////////////////////////////////////////////////////////////////////////
+// GetFolder
+////////////////////////////////////////////////////////////////////////
+
+type GetFolderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&GetFolderTest{}) }
+
+func (t *GetFolderTest) FetchOnlyFromCacheFalse() {
+	const name = "taco/"
+	req := &gcs.GetFolderRequest{
+		Name:               name,
+		FetchOnlyFromCache: false,
+	}
+	folder := &gcs.Folder{Name: name}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(false, nil))
+	ExpectCall(t.wrapped, "GetFolder")(Any(), Any()).
+		WillOnce(Return(folder, nil))
+	ExpectCall(t.cache, "InsertFolder")(Any(), Any())
+
+	f, err := t.bucket.GetFolder(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(folder, f)
+}
+
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
+	const name = "taco/"
+	req := &gcs.GetFolderRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	folder := &gcs.Folder{Name: name}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(true, folder))
+
+	f, err := t.bucket.GetFolder(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(folder, f)
+}
+
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
+	const name = "taco/"
+	req := &gcs.GetFolderRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(true, nil))
+
+	_, err := t.bucket.GetFolder(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheMiss() {
+	const name = "taco/"
+	req := &gcs.GetFolderRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(false, nil))
+
+	_, err := t.bucket.GetFolder(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
 }

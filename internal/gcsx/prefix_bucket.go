@@ -279,10 +279,12 @@ func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err
 	return b.wrapped.DeleteFolder(ctx, mFolderName)
 }
 
-func (b *prefixBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
-	mFolderName := b.wrappedName(folderName)
+func (b *prefixBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (folder *gcs.Folder, err error) {
+	mReq := new(gcs.GetFolderRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
 
-	f, err := b.wrapped.GetFolder(ctx, mFolderName)
+	f, err := b.wrapped.GetFolder(ctx, mReq)
 
 	// Modify the returned folder.
 	if f != nil {

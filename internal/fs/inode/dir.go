@@ -404,7 +404,11 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 }
 
 func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
-	folder, err := bucket.GetFolder(ctx, name.GcsObjectName())
+	// Call the bucket.
+	req := &gcs.GetFolderRequest{
+		Name: name.GcsObjectName(),
+	}
+	folder, err := bucket.GetFolder(ctx, req)
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError
