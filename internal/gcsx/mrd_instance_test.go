@@ -61,7 +61,7 @@ func (t *MrdInstanceTest) SetupTest() {
 }
 
 func (t *MrdInstanceTest) TestNewMrdInstance() {
-	assert.Equal(t.T(), t.object, t.mrdInstance.object)
+	assert.Equal(t.T(), t.object, t.mrdInstance.object.Load())
 	assert.Equal(t.T(), t.bucket, t.mrdInstance.bucket)
 	assert.Equal(t.T(), t.cache, t.mrdInstance.mrdCache)
 	assert.Equal(t.T(), t.inodeID, t.mrdInstance.inodeId)
