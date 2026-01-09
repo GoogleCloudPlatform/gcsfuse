@@ -122,7 +122,6 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		bucket,
 		&clientReaders.GCSReaderConfig{
 			MetricHandle:       config.MetricHandle,
-			TraceHandle:        config.TraceHandle,
 			MrdWrapper:         config.MrdWrapper,
 			Config:             config.Config,
 			ReadTypeClassifier: readClassifier,

@@ -20,15 +20,17 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// TraceHandle provides an interface for recording traces
+// TraceHandle provides an interface for recording traces, trace links and everything related to tracing to ensure a corresponding no-op implementation
 type TraceHandle interface {
-	StartTrace(ctx context.Context, traceName string) (context.Context, trace.Span)
+	// Start a span with a given name & context
+	StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span)
 
-	StartServerTrace(ctx context.Context, traceName string) (context.Context, trace.Span)
+	// Start a span of span kind server given name & context
+	StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span)
 
-	StartTraceLink(ctx context.Context, traceName string) (context.Context, trace.Span)
+	// End a span
+	EndSpan(span trace.Span)
 
-	EndTrace(span trace.Span)
-
+	// Record an error on the span for export in case of failure
 	RecordError(span trace.Span, err error)
 }

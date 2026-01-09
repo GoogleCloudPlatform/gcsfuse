@@ -26,7 +26,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	internal_trace "github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	tracing "github.com/googlecloudplatform/gcsfuse/v3/tracing"
 )
 
 func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
@@ -172,9 +172,9 @@ func TestSpanCreation(t *testing.T) {
 	t.Cleanup(func() {
 		ex.Reset()
 	})
-	m := tracing{
+	m := tracedFuseFileSystem{
 		wrapped:     dummyFS{},
-		traceHandle: internal_trace.NewOtelTracer(),
+		traceHandle: tracing.NewOtelTracer(),
 	}
 
 	err := m.StatFS(context.Background(), nil)

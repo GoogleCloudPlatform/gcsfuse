@@ -16,6 +16,7 @@ package fs_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -85,6 +86,7 @@ func newInMemoryExporter() *tracetest.InMemoryExporter {
 func TestMain(m *testing.M) {
 	// 1. Initialize the shared exporter
 	globalExporter = newInMemoryExporter()
+	os.Exit(m.Run())
 }
 
 func TestTraceLookupInode(t *testing.T) {
