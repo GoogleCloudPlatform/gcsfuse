@@ -16,9 +16,7 @@ package gcsx
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"sync/atomic"
 )
 
@@ -36,23 +34,6 @@ func NewMrdSimpleReader(mrdInstance *MrdInstance) *MrdSimpleReader {
 	return &MrdSimpleReader{
 		mrdInstance: mrdInstance,
 	}
-}
-
-func isShortRead(bytesRead int, bufferSize int, err error) bool {
-	if bytesRead >= bufferSize {
-		return false
-	}
-
-	// Should we check for object size?
-	// For direct=0 cases, we would not get requests beyond object size
-	// For direct=1 case, we do not want to check object size
-	// So, no point of checking with object size
-
-	if !(err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)) {
-		return false
-	}
-
-	return true
 }
 
 // ReadAt reads data into the provided request buffer starting at the specified
@@ -75,16 +56,6 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 	}
 
 	n, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset)
-
-	if isShortRead(n, len(req.Buffer), err) {
-		msr.mrdInstance.RecreateMRD()
-		req.Offset += int64(n)
-		req.Buffer = req.Buffer[n:]
-		var bytesReadOnRetry int
-		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, req.Buffer, req.Offset)
-		n += bytesReadOnRetry
-	}
-
 	return ReadResponse{Size: n}, err
 }
 

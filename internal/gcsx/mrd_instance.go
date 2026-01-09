@@ -167,7 +167,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 	}
 
 	// Creating a new pool. Not reusing any handle while creating a new pool.
-	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
+	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object.Load(), bucket: mi.bucket}, nil)
 	if err != nil {
 		err = fmt.Errorf("MrdInstance::ensureMRDPool Error in creating MRDPool: %w", err)
 	}
