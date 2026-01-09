@@ -53,17 +53,21 @@ type MrdInstance struct {
 	// mrdCache is a shared cache for inactive MrdInstance objects.
 	mrdCache *lru.Cache
 	// mrdConfig holds configuration for the MRD pool.
-	mrdConfig cfg.MrdConfig
+	config *cfg.Config
 }
 
 // NewMrdInstance creates a new MrdInstance for a given GCS object.
-func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, cfg cfg.MrdConfig) *MrdInstance {
+// Passed config should not be nil. Code will panic otherwise.
+func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, config *cfg.Config) *MrdInstance {
+	if config == nil {
+		panic("NewMrdInstance: config cannot be nil")
+	}
 	return &MrdInstance{
-		object:    obj,
-		bucket:    bucket,
-		mrdCache:  cache,
-		inodeId:   inodeId,
-		mrdConfig: cfg,
+		object:   obj,
+		bucket:   bucket,
+		mrdCache: cache,
+		inodeId:  inodeId,
+		config:   config,
 	}
 }
 
@@ -125,16 +129,24 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics
 	}
 
 	start := time.Now()
+	defer monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
 	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
 	})
 	entry.mu.RUnlock()
 
-	select {
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	case res := <-done:
-		monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
+	if !mi.config.FileSystem.IgnoreInterrupts {
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case res := <-done:
+			if res.err != nil && res.err != io.EOF {
+				return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
+			}
+			return res.bytesRead, res.err
+		}
+	} else {
+		res := <-done
 		if res.err != nil && res.err != io.EOF {
 			return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
 		}
@@ -162,7 +174,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 	}
 
 	// Creating a new pool. Not reusing any handle while creating a new pool.
-	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
+	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.config.Mrd.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
 	if err != nil {
 		err = fmt.Errorf("MrdInstance::ensureMRDPool Error in creating MRDPool: %w", err)
 	}
@@ -175,7 +187,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 func (mi *MrdInstance) RecreateMRD() error {
 	// Create the new pool first to avoid a period where mrdPool is nil.
 	newPool, err := NewMRDPool(&MRDPoolConfig{
-		PoolSize: int(mi.mrdConfig.PoolSize),
+		PoolSize: int(mi.config.Mrd.PoolSize),
 		object:   mi.object,
 		bucket:   mi.bucket,
 	}, nil)

@@ -39,7 +39,7 @@ type MrdInstanceTest struct {
 	bucket      *storage.TestifyMockBucket
 	cache       *lru.Cache
 	inodeID     fuseops.InodeID
-	mrdConfig   cfg.MrdConfig
+	config      *cfg.Config
 	mrdInstance *MrdInstance
 }
 
@@ -56,9 +56,9 @@ func (t *MrdInstanceTest) SetupTest() {
 	t.bucket = new(storage.TestifyMockBucket)
 	t.cache = lru.NewCache(2) // Small cache size for testing eviction
 	t.inodeID = 100
-	t.mrdConfig = cfg.MrdConfig{PoolSize: 1}
+	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 
-	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.mrdConfig)
+	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
 }
 
 func (t *MrdInstanceTest) TestNewMrdInstance() {
@@ -66,7 +66,7 @@ func (t *MrdInstanceTest) TestNewMrdInstance() {
 	assert.Equal(t.T(), t.bucket, t.mrdInstance.bucket)
 	assert.Equal(t.T(), t.cache, t.mrdInstance.mrdCache)
 	assert.Equal(t.T(), t.inodeID, t.mrdInstance.inodeId)
-	assert.Equal(t.T(), t.mrdConfig, t.mrdInstance.mrdConfig)
+	assert.Equal(t.T(), t.config, t.mrdInstance.config)
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
 	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
 }
@@ -329,7 +329,7 @@ func (t *MrdInstanceTest) TestDecrementRefCount_Eviction() {
 
 func (t *MrdInstanceTest) TestDestroyEvictedCacheEntries() {
 	// 1. Instance to be destroyed
-	mi1 := NewMrdInstance(t.object, t.bucket, t.cache, 1, t.mrdConfig)
+	mi1 := NewMrdInstance(t.object, t.bucket, t.cache, 1, t.config)
 	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	buf := make([]byte, 1)
@@ -337,7 +337,7 @@ func (t *MrdInstanceTest) TestDestroyEvictedCacheEntries() {
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mi1.mrdPool)
 	// 2. Instance that is resurrected (refCount > 0)
-	mi2 := NewMrdInstance(t.object, t.bucket, t.cache, 2, t.mrdConfig)
+	mi2 := NewMrdInstance(t.object, t.bucket, t.cache, 2, t.config)
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 	_, err = mi2.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())

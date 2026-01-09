@@ -36,7 +36,7 @@ type MrdSimpleReaderTest struct {
 	bucket      *storage.TestifyMockBucket
 	cache       *lru.Cache
 	inodeID     fuseops.InodeID
-	mrdConfig   cfg.MrdConfig
+	config      *cfg.Config
 	mrdInstance *MrdInstance
 	reader      *MrdSimpleReader
 }
@@ -54,9 +54,9 @@ func (t *MrdSimpleReaderTest) SetupTest() {
 	t.bucket = new(storage.TestifyMockBucket)
 	t.cache = lru.NewCache(2)
 	t.inodeID = 100
-	t.mrdConfig = cfg.MrdConfig{PoolSize: 1}
+	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 
-	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.mrdConfig)
+	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
 	t.reader = NewMrdSimpleReader(t.mrdInstance, metrics.NewNoopMetrics())
 }
 
