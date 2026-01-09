@@ -229,6 +229,13 @@ func Fatal(format string, v ...any) {
 	os.Exit(1)
 }
 
+// SetOutput sets the output destination for the default logger.
+// This is primarily used for testing.
+func SetOutput(w io.Writer) {
+	defaultLogger = slog.New(defaultLoggerFactory.createJsonOrTextHandler(w, programLevel, ""))
+	slog.SetDefault(defaultLogger)
+}
+
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file       *os.File
