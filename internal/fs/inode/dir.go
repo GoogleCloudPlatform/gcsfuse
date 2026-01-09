@@ -1138,10 +1138,6 @@ func (d *dirInode) DeleteChildDir(
 		return fmt.Errorf("DeleteObject: %w", err)
 	}
 
-	if !d.IsTypeCacheDeprecated() {
-		d.cache.Erase(name)
-	}
-
 	return nil
 }
 
