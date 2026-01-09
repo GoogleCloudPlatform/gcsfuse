@@ -1113,10 +1113,6 @@ func (d *dirInode) DeleteChildDir(
 			dirInode.Unlink()
 		}
 
-		if !d.IsTypeCacheDeprecated() {
-			d.cache.Erase(name)
-		}
-
 		return nil
 	}
 
