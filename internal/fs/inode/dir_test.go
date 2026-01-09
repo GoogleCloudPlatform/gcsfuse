@@ -2053,7 +2053,7 @@ func (t *DirTest) Test_ReadObjectsUnlocked() {
 
 			// Execute with lock management
 			t.in.Unlock()
-			cores, unsupported, _, err := d.readObjectsUnlocked(t.ctx, "", tc.startOffset)
+			cores, unsupported, _, err := d.readObjectsUnlocked(t.ctx, "", tc.startOffset, MaxResultsForListObjectsCall)
 			t.in.Lock()
 
 			require.NoError(st, err)
@@ -2079,7 +2079,7 @@ func (t *DirTest) Test_readObjectsUnlocked_Empty() {
 	d := t.in.(*dirInode)
 	assert.NotNil(t.T(), d)
 
-	cores, unsupportedPaths, newTok, err := d.readObjectsUnlocked(t.ctx, "", "")
+	cores, unsupportedPaths, newTok, err := d.readObjectsUnlocked(t.ctx, "", "", MaxResultsForListObjectsCall)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 0, len(cores))

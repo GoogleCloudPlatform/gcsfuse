@@ -264,6 +264,7 @@ type dirInode struct {
 	prefetchState          atomic.Uint32 // 0=Ready, 1=InProgress
 	prefetchCtx            context.Context
 	prefetchCancel         context.CancelFunc
+	maxPrefetchCount       int64
 }
 
 var _ DirInode = &dirInode{}
@@ -324,6 +325,7 @@ func NewDirInode(
 		metadataCacheTTL:                typeCacheTTL,
 		prefetchCtx:                     prefetchCtx,
 		prefetchCancel:                  prefetchCancel,
+		maxPrefetchCount:                MaxResultsForListObjectsCall, // TODO: make it user configurable
 		// prefetchState is 0 (prefetchReady) by default.
 	}
 	var cache metadata.TypeCache
@@ -517,7 +519,9 @@ func (d *dirInode) runOnDemandPrefetch(ctx context.Context, startOffset string) 
 
 	// 2. Run the Prefetch
 	var tok string
-	for {
+	var totalPrefetched int64 = 0
+	maxToPrefetch := d.maxPrefetchCount
+	for totalPrefetched < maxToPrefetch {
 		select {
 		case <-ctx.Done():
 			logger.Debugf("Metadata prefetch for directory inode %d aborted due to context cancellation.", d.id)
@@ -526,13 +530,15 @@ func (d *dirInode) runOnDemandPrefetch(ctx context.Context, startOffset string) 
 		}
 
 		// Perform slow network I/O *without* holding the inode lock.
-		_, _, newTok, err := d.readObjectsUnlocked(ctx, tok, startOffset)
+		listResultCountRequired := int(math.Min(float64(maxToPrefetch-totalPrefetched), float64(MaxResultsForListObjectsCall)))
+		cores, _, newTok, err := d.readObjectsUnlocked(ctx, tok, startOffset, listResultCountRequired)
 		if err != nil {
 			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
 			return // Abort.
 		}
-		if newTok == "" {
-			break // Entire directory has been listed.
+		totalPrefetched += int64(len(cores))
+		if newTok == "" || totalPrefetched >= maxToPrefetch {
+			break // Requested sibling entries have been listed.
 		}
 		tok = newTok
 	}
@@ -786,7 +792,7 @@ func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, max
 		IncludeTrailingDelimiter: includeTrailingDelimeter,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
-		MaxResults:               MaxResultsForListObjectsCall,
+		MaxResults:               maxListCallResults,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
 		ProjectionVal:            gcs.NoAcl,
@@ -799,17 +805,9 @@ func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, max
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
-	// Return an appropriate continuation token, if any.
-	newTok = listing.ContinuationToken
 
 	cores = make(map[Name]*Core)
 	for _, o := range listing.MinObjects {
-		// Stop if we've reached the user-requested limit
-		if maxListCallResults > 0 && len(cores) >= maxListCallResults {
-			newTok = "" // Set new token to empty since user requested data has been received.
-			break
-		}
-
 		if storageutil.IsUnsupportedPath(o.Name) {
 			unsupportedPaths = append(unsupportedPaths, o.Name)
 			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
@@ -853,18 +851,15 @@ func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, max
 		}
 	}
 
+	// Return an appropriate continuation token, if any.
+	newTok = listing.ContinuationToken
+
 	if !d.implicitDirs && !d.isBucketHierarchical() {
 		return
 	}
 
 	// Add implicit directories into the result.
 	for _, p := range listing.CollapsedRuns {
-		// Stop if we've reached the user-requested limit
-		if maxListCallResults > 0 && len(cores) >= maxListCallResults {
-			newTok = "" // Set new token to empty since user requested data has been received.
-			break
-		}
-
 		pathBase := path.Base(p)
 		if storageutil.IsUnsupportedPath(p) {
 			unsupportedPaths = append(unsupportedPaths, p)
@@ -918,7 +913,7 @@ func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
-	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, math.MaxInt, "")
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, MaxResultsForListObjectsCall, "")
 	if err == nil {
 		d.insertToCache(cores)
 	}
@@ -927,10 +922,7 @@ func (d *dirInode) readObjects(
 
 // LOCK_EXCLUDED(d)
 // readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
-func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOffset string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
-	// TODO: add hidden flag to control this value.
-	maxListCallResults := MaxResultsForListObjectsCall
-
+func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOffset string, maxListCallResults int) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, maxListCallResults, startOffset)
 	if err != nil {
 		return

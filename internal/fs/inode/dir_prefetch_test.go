@@ -16,6 +16,7 @@ package inode
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -51,7 +52,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 	config := &cfg.Config{
 		MetadataCache: cfg.MetadataCacheConfig{
 			ExperimentalDirMetadataPrefetch: enablePrefetch,
-			TypeCacheMaxSizeMb:              4,
+			TypeCacheMaxSizeMb:              400,
 		},
 	}
 
@@ -124,6 +125,8 @@ func (t *DirPrefetchTest) TestPrefetch_CachesOnlyLexicographicallyGreaterObjects
 		return t.in.cache.Get(t.clock.Now(), "c") == metadata.ExplicitDirType &&
 			t.in.cache.Get(t.clock.Now(), "d") == metadata.RegularFileType
 	}, 2*time.Second, 10*time.Millisecond, "Prefetch should populate siblings in cache")
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "a"), "Objects before StartOffset should not be prefetched")
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "b"), "Objects before StartOffset should not be prefetched")
 }
 
 // Tests that if prefetch is disabled in config, LookUpChild doesn't trigger it.
@@ -178,4 +181,65 @@ func (t *DirPrefetchTest) TestPrefetch_CancellationOnDestroy() {
 	assert.Eventually(t.T(), func() bool {
 		return t.in.prefetchState.Load() == prefetchReady
 	}, 1*time.Second, 5*time.Millisecond)
+}
+
+func (t *DirPrefetchTest) TestPrefetch_RespectsMaxPrefetchCount() {
+	t.in.maxPrefetchCount = 2 // Set to a small value.
+
+	// Trigger LookUpChild for "a".
+	// This starts a prefetch from "a" lexicographically.
+	t.in.mu.Lock()
+	_, err := t.in.LookUpChild(t.ctx, "a")
+	t.in.mu.Unlock()
+	require.NoError(t.T(), err)
+	// Wait for the prefetcher to finish.
+	assert.Eventually(t.T(), func() bool {
+		return t.in.prefetchState.Load() == prefetchReady
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// Verify the cache.
+	t.in.mu.RLock()
+	defer t.in.mu.RUnlock()
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "a"))
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "b"))
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "c"), "Sibling c should NOT be cached (limit reached)")
+}
+
+func (t *DirPrefetchTest) TestPrefetch_HandlesMultiplePages() {
+	// 1. Create 6000 objects with padded names to ensure consistent string sorting.
+	// Names will be: dir/file0000, dir/file0001, ... dir/file5999
+	files := make([]string, 0, 6000)
+	for i := 0; i < 6000; i++ {
+		files = append(files, fmt.Sprintf("dir/file%04d", i))
+	}
+	require.NoError(t.T(), storageutil.CreateEmptyObjects(t.ctx, t.bucket, files))
+	// 2. Set maxPrefetchCount to 5500.
+	// This forces the prefetcher to perform:
+	// Page 1: 5000 results (MaxResultsForListObjectsCall)
+	// Page 2: 500 results (Remainder)
+	t.in.maxPrefetchCount = 5500
+
+	// 3. Trigger LookUpChild. We use a name that starts at the beginning
+	// of the sequence to ensure we fetch from file0000 onwards.
+	t.in.mu.Lock()
+	_, err := t.in.LookUpChild(t.ctx, "file0000")
+	t.in.mu.Unlock()
+	require.NoError(t.T(), err)
+
+	// 4. Wait for the background worker to finish.
+	assert.Eventually(t.T(), func() bool {
+		return t.in.prefetchState.Load() == prefetchReady
+	}, 5*time.Second, 50*time.Millisecond)
+	// 5. Verify the cache boundaries.
+	t.in.mu.RLock()
+	defer t.in.mu.RUnlock()
+	// Check the first item.
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "file0000"))
+	// Check an item right at the first page boundary (5000).
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "file4999"))
+	// Check the last item that SHOULD be cached (5499 is the 5500th item).
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "file5499"))
+	// Check the first item that SHOULD NOT be cached (5500).
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file5500"),
+		"Should have stopped prefetching after 5500 items")
 }
