@@ -39,7 +39,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/kerneltuner"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -460,22 +459,6 @@ func forwardedEnvVars() []string {
 	return env
 }
 
-const targetPath = "/gcsfuse-tmp/.volumes/gcs-vol/kernel-params.json"
-
-func performKernelTuning(targetPath string) {
-	err := kerneltuner.NewKernelParameters().
-		WithReadAheadKb(4096).
-		WithMaxPage(1024).
-		WithCongestionWindowThreshold(100).
-		WithTransparentHugePages("madvise").
-		Apply(targetPath)
-	if err != nil {
-		logger.Errorf("Could not write kernel parameters for CSI Driver: %v", err)
-	} else {
-		logger.Infof("Successfully wrote kernel parameters for CSI Driver")
-	}
-}
-
 // logGCSFuseMountInformation logs the CLI flags, config file flags and the resolved config.
 func logGCSFuseMountInformation(mountInfo *mountInfo) {
 	logger.Info("GCSFuse Config", "CLI Flags", mountInfo.cliFlags)
@@ -561,7 +544,6 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		if mountDuration > MountTimeThreshold {
 			logger.Warnf(MountSlownessMessage, mountDuration, MountTimeThreshold)
 		}
-		performKernelTuning(targetPath)
 		logger.Infof(SuccessfulMountMessage)
 		return err
 	}
@@ -606,7 +588,6 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
-			performKernelTuning(targetPath)
 			callDaemonizeSignalOutcome(nil)
 		}
 

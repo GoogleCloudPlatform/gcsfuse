@@ -92,7 +92,7 @@ func runningOnGKE() bool {
 
 // Apply serializes the current configuration and writes it atomically to the
 // target path in case of GKE environment or applies automatically in case of GCE environments
-func (b *KernelParameterBuilder) Apply(targetPath string) error {
+func (b *KernelParameterBuilder) Apply(targetPath string) {
 	if runningOnGKE() {
 		logger.Infof(fmt.Sprintf("Writing kernel parameters to file %s", targetPath), "kernal parameters", b)
 		err := b.updateKernelParamsToCsiDriver(targetPath)
@@ -101,7 +101,6 @@ func (b *KernelParameterBuilder) Apply(targetPath string) error {
 		}
 		logger.Infof("Succesfully wrote kernel parameters to file %s", targetPath)
 	}
-	return nil
 	// TODO: GCE logic for kernel updates
 }
 

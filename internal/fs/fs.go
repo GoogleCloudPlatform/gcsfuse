@@ -32,6 +32,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kerneltuner"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
@@ -269,11 +270,18 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 				if err := cfg.Rationalize(serverCfg.IsUserSet, serverCfg.NewConfig, optimizedFlagNames); err != nil {
 					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
 				}
+			} else {
+				logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
 			}
-		} else {
-			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
 		}
-
+		// This targetPath woule be passed via CSI Driver.
+		const targetPath = "/gcsfuse-tmp/.volumes/gcs-vol/kernel-params.json"
+		kerneltuner.NewKernelParameters().
+			WithReadAheadKb(4096).
+			WithMaxPage(1024).
+			WithCongestionWindowThreshold(100).
+			WithTransparentHugePages("madvise").
+			Apply(targetPath)
 		root = makeRootForBucket(fs, syncerBucket)
 	}
 	root.Lock()
