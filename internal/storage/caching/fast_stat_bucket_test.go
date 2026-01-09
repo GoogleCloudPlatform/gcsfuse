@@ -1176,14 +1176,12 @@ func (t *DeleteObjectTest) WrappedSucceeds_AddsNegativeEntry() {
 	AssertEq(nil, err)
 }
 
-func (t *DeleteObjectTest) IsTypeCacheDeprecated_OnlyDeleteFromCache() {
+func (t *DeleteObjectTest) OnlyDeleteFromCache() {
 	const name = "taco"
 	req := &gcs.DeleteObjectRequest{
-		Name:                  name,
-		IsTypeCacheDeprecated: true,
-		OnlyDeleteFromCache:   true,
+		Name:                name,
+		OnlyDeleteFromCache: true,
 	}
-
 	// Expect AddNegativeEntry call.
 	ExpectCall(t.cache, "AddNegativeEntry")(
 		name,

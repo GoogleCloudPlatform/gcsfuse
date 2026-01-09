@@ -475,7 +475,7 @@ func (b *fastStatBucket) UpdateObject(
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
-	if req.IsTypeCacheDeprecated && req.OnlyDeleteFromCache {
+	if req.OnlyDeleteFromCache {
 		b.addNegativeEntry(req.Name)
 		return nil
 	}
