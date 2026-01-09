@@ -426,16 +426,21 @@ func (t *MrdInstanceTest) TestDestroy_WithRefCount() {
 	t.mrdInstance.Destroy()
 
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
-	assert.Contains(t.T(), buf.String(), "MrdInstance::Destroy called on an instance with refCount")
+	assert.Contains(t.T(), buf.String(), "MrdInstance::Destroy called on an instance with refCount 1")
 }
 
 func (t *MrdInstanceTest) TestDecrementRefCount_Negative() {
 	t.mrdInstance.refCount = 0
+	// Capture logs to verify error message
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
 
 	// Should log error and return, not panic. RefCount should remain 0.
 	t.mrdInstance.DecrementRefCount()
 
 	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
+	assert.Contains(t.T(), buf.String(), "MrdInstance::DecrementRefCount: Refcount cannot be negative")
 }
 
 func (t *MrdInstanceTest) TestDecrementRefCount_CacheInsertFailure() {
