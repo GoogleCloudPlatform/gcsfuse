@@ -1002,12 +1002,10 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 // Should be called when minObject associated with inode is updated.
 func (f *FileInode) updateMRD() {
 	minObj := f.Source()
-	err := f.mrdInstance.SetMinObject(minObj)
-	if err != nil {
+	if err := f.mrdInstance.SetMinObject(minObj); err != nil {
 		logger.Errorf("FileInode::updateMRD Error in setting minObject for MrdInstance %v", err)
 	}
-	err = f.MRDWrapper.SetMinObject(minObj)
-	if err != nil {
+	if err := f.MRDWrapper.SetMinObject(minObj); err != nil {
 		logger.Errorf("FileInode::updateMRD Error in setting minObject for MRDWrapper %v", err)
 	}
 }
