@@ -190,8 +190,8 @@ func (mi *MrdInstance) RecreateMRD() error {
 	return nil
 }
 
-// Destroy closes all MRD instances in the pool and releases associated resources.
-func (mi *MrdInstance) Destroy() {
+// closePool closes all MRD instances in the pool and releases associated resources.
+func (mi *MrdInstance) closePool() {
 	mi.poolMu.Lock()
 	defer mi.poolMu.Unlock()
 	if mi.mrdPool != nil {
@@ -201,17 +201,17 @@ func (mi *MrdInstance) Destroy() {
 	}
 }
 
-// DestroyAndRemoveFromCache completely destroys the MrdInstance, cleaning up
+// Destroy completely destroys the MrdInstance, cleaning up
 // its resources and ensuring it is removed from the cache. This should be
 // called when the owning inode is destroyed.
-func (mi *MrdInstance) DestroyAndRemoveFromCache() {
+func (mi *MrdInstance) Destroy() {
 	mi.refCountMu.Lock()
 	defer mi.refCountMu.Unlock()
 
 	// If it's in use, this indicates a potential lifecycle mismatch between the
 	// inode and its readers.
 	if mi.refCount > 0 {
-		logger.Warnf("MrdInstance.DestroyAndRemoveFromCache called on an instance with refCount %d", mi.refCount)
+		logger.Warnf("MrdInstance::Destroy called on an instance with refCount %d", mi.refCount)
 	}
 
 	// Remove from cache.
@@ -220,7 +220,7 @@ func (mi *MrdInstance) DestroyAndRemoveFromCache() {
 	}
 
 	// Destroy the pool.
-	mi.Destroy()
+	mi.closePool()
 }
 
 // getKey generates a unique key for the MrdInstance based on its inode ID.
@@ -245,10 +245,9 @@ func (mi *MrdInstance) IncrementRefCount() {
 	}
 }
 
-// CloseMRDForEviction closes the MRD when evicted from cache.
-// This method is called after wrapper was removed from cache for eviction.
-// Race protection: wrapper could be reopened (refCount>0) or re-added to cache before eviction.
-func (mi *MrdInstance) CloseMRDForEviction() {
+// handleEviction handles the cleanup of the MrdInstance when it is evicted from the cache.
+// Race protection: MrdInstance could be reopened (refCount>0) or re-added to cache before eviction.
+func (mi *MrdInstance) handleEviction() {
 	mi.refCountMu.Lock()
 	defer mi.refCountMu.Unlock()
 
@@ -262,7 +261,7 @@ func (mi *MrdInstance) CloseMRDForEviction() {
 	if mi.mrdCache != nil && mi.mrdCache.LookUpWithoutChangingOrder(getKey(mi.inodeId)) == mi {
 		return
 	}
-	mi.Destroy()
+	mi.closePool()
 }
 
 // DecrementRefCount decreases the reference count. When the count drops to zero, the
@@ -292,7 +291,7 @@ func (mi *MrdInstance) DecrementRefCount() {
 		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for object (%s) into cache, destroying immediately: %v", mi.object.Name, err)
 		// The instance could not be inserted into the cache. Since the refCount is 0,
 		// we must destroy it now to prevent it from being leaked.
-		mi.Destroy()
+		mi.closePool()
 		return
 	}
 	logger.Tracef("MrdInstance::DecrementRefCount: MrdInstance for object (%s) added to cache", mi.object.Name)
@@ -309,7 +308,7 @@ func (mi *MrdInstance) DecrementRefCount() {
 		if !ok {
 			logger.Errorf("MrdInstance::DecrementRefCount: Invalid value type, expected *MrdInstance, got %T", instance)
 		} else {
-			mrdInstance.CloseMRDForEviction()
+			mrdInstance.handleEviction()
 		}
 	}
 	// Reacquire the lock ensuring safe defer's Unlock.

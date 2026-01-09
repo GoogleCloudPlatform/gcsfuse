@@ -518,7 +518,7 @@ func (f *FileInode) Destroy() (err error) {
 		f.content.Destroy()
 	}
 	if f.mrdInstance != nil {
-		f.mrdInstance.DestroyAndRemoveFromCache()
+		f.mrdInstance.Destroy()
 	}
 	return
 }
