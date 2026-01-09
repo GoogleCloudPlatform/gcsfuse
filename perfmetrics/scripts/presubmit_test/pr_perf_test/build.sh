@@ -26,7 +26,8 @@ readonly BUCKET_LOCATION=us-west4
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
 
-# Common constants for GKE tests
+# Common constants for GKE tests on TPU
+# (gcsfuse/perfmetrics/scripts/continuous_test/gke/*)
 readonly TPU_TEST_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPU_TEST_ZONE="europe-west4-a"
 readonly TPU_TEST_RESERVATION_NAME="cloudtpu-20251107233000-76736260"
