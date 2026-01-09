@@ -66,6 +66,7 @@ func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, ino
 	return &mrdInstance
 }
 
+// SetMinObject sets the gcs.MinObject stored in the MrdInstance to passed value, only if it's non nil.
 func (mi *MrdInstance) SetMinObject(minObj *gcs.MinObject) error {
 	if minObj == nil {
 		return fmt.Errorf("MrdInstance::SetMinObject: Missing MinObject")
@@ -74,6 +75,7 @@ func (mi *MrdInstance) SetMinObject(minObj *gcs.MinObject) error {
 	return nil
 }
 
+// GetMinObject returns the gcs.MinObject stored in MrdInstance.
 func (mi *MrdInstance) GetMinObject() *gcs.MinObject {
 	return mi.object.Load()
 }
