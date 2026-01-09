@@ -23,7 +23,11 @@ import (
 
 const name = "cloud.google.com/gcsfuse"
 
-var GCSFuseTracer = otel.Tracer(name)
+var tracer = otel.Tracer(name)
+
+func GCSFuseTracer() trace.Tracer {
+	return tracer
+}
 
 // When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
 func MaybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {

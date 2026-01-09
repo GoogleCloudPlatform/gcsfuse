@@ -103,7 +103,7 @@ func TestTraceLookupInode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -140,7 +140,7 @@ func TestTraceStatFS(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -174,7 +174,7 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -210,7 +210,7 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -257,7 +257,7 @@ func TestTraceForgetInode(t *testing.T) {
 			fileName := "test.txt"
 			content := "test content"
 			createWithContents(ctx, t, bucket, fileName, content)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			lookUpOp := &fuseops.LookUpInodeOp{
 				Parent: fuseops.RootInodeID,
 				Name:   fileName,
@@ -296,7 +296,7 @@ func TestTraceMkDir(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -333,7 +333,7 @@ func TestTraceMkNode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -370,7 +370,7 @@ func TestTraceCreateFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -407,7 +407,7 @@ func TestTraceCreateLink(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -451,7 +451,7 @@ func TestTraceCreateSymlink(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -489,7 +489,7 @@ func TestTraceRename(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			oldName := "old"
 			newName := "new"
@@ -529,7 +529,7 @@ func TestTraceRmDir(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -573,7 +573,7 @@ func TestTraceUnlink(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -610,7 +610,7 @@ func TestTraceOpenDir(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -646,7 +646,7 @@ func TestTraceReadDir(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -690,7 +690,7 @@ func TestTraceReadDirPlus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -736,7 +736,7 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -777,7 +777,7 @@ func TestTraceOpenFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -819,7 +819,7 @@ func TestTraceReadFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test"
 			content := "test content"
@@ -868,7 +868,7 @@ func TestTraceWriteFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := ""
@@ -918,7 +918,7 @@ func TestTraceSyncFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -960,7 +960,7 @@ func TestTraceFlushFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -1008,7 +1008,7 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -1055,7 +1055,7 @@ func TestTraceReadSymlink(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			_, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			symlinkName := "test"
 			target := "target"
@@ -1097,7 +1097,7 @@ func TestTraceRemoveXattr(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test"
 			content := "test content"
@@ -1140,7 +1140,7 @@ func TestTraceGetXattr(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test"
 			content := "test content"
@@ -1183,7 +1183,7 @@ func TestTraceListXattr(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -1225,7 +1225,7 @@ func TestTraceSetXattr(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -1269,7 +1269,7 @@ func TestTraceFallocate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
@@ -1320,7 +1320,7 @@ func TestTraceSyncFS(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			globalExporter.Reset()
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
-			m := wrappers.WithTracing(server, tracing.NewOtelTracer())
+			m := wrappers.WithTracing(server, tracing.NewOTELTracer())
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"

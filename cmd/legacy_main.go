@@ -562,7 +562,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
 	traceHandle := tracing.NewNoopTracer()
 	if cfg.IsTracingEnabled(newConfig) {
-		traceHandle = tracing.NewOtelTracer()
+		traceHandle = tracing.NewOTELTracer()
 	}
 
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)

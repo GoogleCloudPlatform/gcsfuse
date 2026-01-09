@@ -121,20 +121,20 @@ func getReadCloser(content []byte) io.ReadCloser {
 }
 
 func (t *fileCacheReaderTest) TestNewFileCacheReader() {
-	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil, nil, 0)
+	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
 
 	assert.NotNil(t.T(), reader)
 	assert.Equal(t.T(), t.object, reader.object)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
 	assert.Equal(t.T(), t.cacheHandler, reader.fileCacheHandler)
 	assert.True(t.T(), reader.cacheFileForRangeRead)
-	assert.Nil(t.T(), reader.metricHandle)
-	assert.Nil(t.T(), reader.traceHandle)
+	assert.NotNil(t.T(), reader.metricHandle)
+	assert.NotNil(t.T(), reader.traceHandle)
 	assert.Nil(t.T(), reader.fileCacheHandle)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_NilFileCacheHandlerThrowFallBackError() {
-	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, nil, nil, 0)
+	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
 
 	readResponse, err := reader.ReadAt(t.ctx, &ReadRequest{
 		Buffer: make([]byte, 10),

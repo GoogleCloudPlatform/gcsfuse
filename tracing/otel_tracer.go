@@ -24,11 +24,11 @@ import (
 type otelTracer struct{}
 
 func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
-	return GCSFuseTracer.Start(ctx, traceName)
+	return GCSFuseTracer().Start(ctx, traceName)
 }
 
 func (o *otelTracer) StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
-	return GCSFuseTracer.Start(ctx, traceName, trace.WithSpanKind(trace.SpanKindServer))
+	return GCSFuseTracer().Start(ctx, traceName, trace.WithSpanKind(trace.SpanKindServer))
 }
 
 func (o *otelTracer) EndSpan(span trace.Span) {
@@ -40,7 +40,7 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.SetStatus(codes.Error, err.Error())
 }
 
-func NewOtelTracer() TraceHandle {
+func NewOTELTracer() TraceHandle {
 	var o otelTracer
 	return &o
 }

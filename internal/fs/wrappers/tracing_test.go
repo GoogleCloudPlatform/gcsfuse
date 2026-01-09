@@ -172,9 +172,9 @@ func TestSpanCreation(t *testing.T) {
 	t.Cleanup(func() {
 		ex.Reset()
 	})
-	m := tracedFuseFileSystem{
+	m := tracedFS{
 		wrapped:     dummyFS{},
-		traceHandle: tracing.NewOtelTracer(),
+		traceHandle: tracing.NewOTELTracer(),
 	}
 
 	err := m.StatFS(context.Background(), nil)
