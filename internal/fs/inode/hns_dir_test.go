@@ -768,10 +768,8 @@ func (t *NonHNSDirTest) TestDeleteChildDir_ImplicitDir_TypeCacheDeprecated() {
 	}
 	t.mockBucket.On("DeleteObject", t.ctx, expectedReq).Return(nil)
 
-	// Call
 	err := dirInode.DeleteChildDir(t.ctx, name, true, nil)
 
-	// Assert
 	assert.NoError(t.T(), err)
 	t.mockBucket.AssertExpectations(t.T())
 }
@@ -797,10 +795,8 @@ func (t *NonHNSDirTest) TestDeleteChildDir_ExplicitDir_TypeCacheDeprecated() {
 		&t.fixedTime,
 		config,
 	)
-
 	const name = "explicit_dir"
 	dirName := path.Join(dirInodeName, name) + "/"
-
 	// Expectation: DeleteObject called with OnlyDeleteFromCache = false (default)
 	expectedReq := &gcs.DeleteObjectRequest{
 		Name:                dirName,
@@ -809,10 +805,8 @@ func (t *NonHNSDirTest) TestDeleteChildDir_ExplicitDir_TypeCacheDeprecated() {
 	}
 	t.mockBucket.On("DeleteObject", t.ctx, expectedReq).Return(nil)
 
-	// Call
 	err := dirInode.DeleteChildDir(t.ctx, name, false, nil)
 
-	// Assert
 	assert.NoError(t.T(), err)
 	t.mockBucket.AssertExpectations(t.T())
 }

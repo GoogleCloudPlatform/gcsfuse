@@ -1087,46 +1087,44 @@ func (d *dirInode) DeleteChildDir(
 	ctx context.Context,
 	name string,
 	isImplicitDir bool,
-	childInode DirInode, // Renamed from dirInode to avoid confusion
-) error {
-	// 1. Common Pre-emptive cache invalidation.
+	dirInode DirInode) error {
 	if !d.IsTypeCacheDeprecated() {
 		d.cache.Erase(name)
 	}
 
-	// Prepare the request common to both bucket types.
 	childName := NewDirName(d.Name(), name)
 	req := &gcs.DeleteObjectRequest{
 		Name:       childName.GcsObjectName(),
 		Generation: 0, // Delete the latest version.
 	}
-	// Handle Implicit Directories logic (Standard buckets only).
+
 	if isImplicitDir {
 		if !d.IsTypeCacheDeprecated() {
-			// Legacy cache: implicit dirs have no backing object, so we are done.
+			// If the directory is an implicit directory, then no backing object
+			// exists in the gcs bucket, so returning from here.
+			// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
 			return nil
 		}
-		// New cache: proceed to DeleteObject but flag it as cache-only.
+		// Implicit directories do not have a backing object in GCS.
+		// Set this flag to skip the GCS network call and only invalidate the local cache.
 		req.OnlyDeleteFromCache = true
 	}
 
 	// Hierarchical Namespace (HNS) Buckets
 	if d.isBucketHierarchical() {
-		// In HNS, we try to delete the backing object (placeholder).
-		// We ignore the error because we cannot know if the placeholder exists.
+		// Ignoring delete object error here, as in case of hns there is no way of knowing
+		// if underlying placeholder object exists or not in Hierarchical bucket.
+		// The DeleteFolder operation handles removing empty folders.
 		_ = d.bucket.DeleteObject(ctx, req)
 
-		// The actual directory removal happens here.
 		if err := d.bucket.DeleteFolder(ctx, req.Name); err != nil {
 			return fmt.Errorf("DeleteFolder: %w", err)
 		}
 
-		// Update the inode structure.
-		if childInode != nil {
-			childInode.Unlink()
+		if dirInode != nil {
+			dirInode.Unlink()
 		}
 
-		// Final cache invalidation on success.
 		if !d.IsTypeCacheDeprecated() {
 			d.cache.Erase(name)
 		}
@@ -1134,12 +1132,12 @@ func (d *dirInode) DeleteChildDir(
 		return nil
 	}
 
-	// Delete the backing object.
+	// Delete the backing object. Unfortunately we have no way to precondition
+	// this on the directory being empty.
 	if err := d.bucket.DeleteObject(ctx, req); err != nil {
 		return fmt.Errorf("DeleteObject: %w", err)
 	}
 
-	// Final cache invalidation on success.
 	if !d.IsTypeCacheDeprecated() {
 		d.cache.Erase(name)
 	}
