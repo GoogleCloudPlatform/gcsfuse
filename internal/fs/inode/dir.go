@@ -1087,53 +1087,63 @@ func (d *dirInode) DeleteChildDir(
 	ctx context.Context,
 	name string,
 	isImplicitDir bool,
-	dirInode DirInode) error {
+	childInode DirInode, // Renamed from dirInode to avoid confusion
+) error {
+	// 1. Common Pre-emptive cache invalidation.
 	if !d.IsTypeCacheDeprecated() {
 		d.cache.Erase(name)
 	}
 
-	// If the directory is an implicit directory, then no backing object
-	// exists in the gcs bucket, so returning from here.
-	// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
+	// Prepare the request common to both bucket types.
+	childName := NewDirName(d.Name(), name)
+	req := &gcs.DeleteObjectRequest{
+		Name:       childName.GcsObjectName(),
+		Generation: 0, // Delete the latest version.
+	}
+	// Handle Implicit Directories logic (Standard buckets only).
 	if isImplicitDir {
-		return nil
+		if !d.IsTypeCacheDeprecated() {
+			// Legacy cache: implicit dirs have no backing object, so we are done.
+			return nil
+		}
+		// New cache: proceed to DeleteObject but flag it as cache-only.
+		req.OnlyDeleteFromCache = true
 	}
 
-	childName := NewDirName(d.Name(), name)
+	// Hierarchical Namespace (HNS) Buckets
+	if d.isBucketHierarchical() {
+		// In HNS, we try to delete the backing object (placeholder).
+		// We ignore the error because we cannot know if the placeholder exists.
+		_ = d.bucket.DeleteObject(ctx, req)
 
-	// Delete the backing object. Unfortunately we have no way to precondition
-	// this on the directory being empty.
-	err := d.bucket.DeleteObject(
-		ctx,
-		&gcs.DeleteObjectRequest{
-			Name:       childName.GcsObjectName(),
-			Generation: 0, // Delete the latest version of object named after dir.
-		})
-
-	if !d.isBucketHierarchical() {
-		if err != nil {
-			return fmt.Errorf("DeleteObject: %w", err)
+		// The actual directory removal happens here.
+		if err := d.bucket.DeleteFolder(ctx, req.Name); err != nil {
+			return fmt.Errorf("DeleteFolder: %w", err)
 		}
+
+		// Update the inode structure.
+		if childInode != nil {
+			childInode.Unlink()
+		}
+
+		// Final cache invalidation on success.
 		if !d.IsTypeCacheDeprecated() {
 			d.cache.Erase(name)
 		}
+
 		return nil
 	}
 
-	// Ignoring delete object error here, as in case of hns there is no way of knowing
-	// if underlying placeholder object exists or not in Hierarchical bucket.
-	// The DeleteFolder operation handles removing empty folders.
-	if err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName()); err != nil {
-		return fmt.Errorf("DeleteFolder: %w", err)
+	// Delete the backing object.
+	if err := d.bucket.DeleteObject(ctx, req); err != nil {
+		return fmt.Errorf("DeleteObject: %w", err)
 	}
 
-	if d.isBucketHierarchical() {
-		dirInode.Unlink()
-	}
-
+	// Final cache invalidation on success.
 	if !d.IsTypeCacheDeprecated() {
 		d.cache.Erase(name)
 	}
+
 	return nil
 }
 

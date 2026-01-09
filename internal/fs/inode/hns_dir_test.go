@@ -736,3 +736,83 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 		}
 	}
 }
+
+func (t *NonHNSDirTest) TestDeleteChildDir_ImplicitDir_TypeCacheDeprecated() {
+	// Enable type cache deprecation
+	config := &cfg.Config{
+		EnableTypeCacheDeprecation: true,
+	}
+	dirInode := NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		true,  // implicitDirs
+		false, // enableNonexistentTypeCache
+		typeCacheTTL,
+		&t.bucket,
+		&t.fixedTime,
+		&t.fixedTime,
+		config,
+	)
+	const name = "implicit_dir"
+	dirName := path.Join(dirInodeName, name) + "/"
+	// Expectation: DeleteObject called with OnlyDeleteFromCache = true
+	expectedReq := &gcs.DeleteObjectRequest{
+		Name:                dirName,
+		Generation:          0,
+		OnlyDeleteFromCache: true,
+	}
+	t.mockBucket.On("DeleteObject", t.ctx, expectedReq).Return(nil)
+
+	// Call
+	err := dirInode.DeleteChildDir(t.ctx, name, true, nil)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *NonHNSDirTest) TestDeleteChildDir_ExplicitDir_TypeCacheDeprecated() {
+	// Enable type cache deprecation
+	config := &cfg.Config{
+		EnableTypeCacheDeprecation: true,
+	}
+	dirInode := NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		true,  // implicitDirs
+		false, // enableNonexistentTypeCache
+		typeCacheTTL,
+		&t.bucket,
+		&t.fixedTime,
+		&t.fixedTime,
+		config,
+	)
+
+	const name = "explicit_dir"
+	dirName := path.Join(dirInodeName, name) + "/"
+
+	// Expectation: DeleteObject called with OnlyDeleteFromCache = false (default)
+	expectedReq := &gcs.DeleteObjectRequest{
+		Name:                dirName,
+		Generation:          0,
+		OnlyDeleteFromCache: false,
+	}
+	t.mockBucket.On("DeleteObject", t.ctx, expectedReq).Return(nil)
+
+	// Call
+	err := dirInode.DeleteChildDir(t.ctx, name, false, nil)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	t.mockBucket.AssertExpectations(t.T())
+}
