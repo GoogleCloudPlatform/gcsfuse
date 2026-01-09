@@ -929,7 +929,7 @@ func (d *dirInode) readObjects(
 // readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
 func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOffset string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 	// TODO: add hidden flag to control this value.
-	maxListCallResults := 5000
+	maxListCallResults := MaxResultsForListObjectsCall
 
 	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, maxListCallResults, startOffset)
 	if err != nil {
