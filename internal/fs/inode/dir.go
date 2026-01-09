@@ -1098,18 +1098,6 @@ func (d *dirInode) DeleteChildDir(
 		Generation: 0, // Delete the latest version.
 	}
 
-	if isImplicitDir {
-		if !d.IsTypeCacheDeprecated() {
-			// If the directory is an implicit directory, then no backing object
-			// exists in the gcs bucket, so returning from here.
-			// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
-			return nil
-		}
-		// Implicit directories do not have a backing object in GCS.
-		// Set this flag to skip the GCS network call and only invalidate the local cache.
-		req.OnlyDeleteFromCache = true
-	}
-
 	// Hierarchical Namespace (HNS) Buckets
 	if d.isBucketHierarchical() {
 		// Ignoring delete object error here, as in case of hns there is no way of knowing
@@ -1130,6 +1118,18 @@ func (d *dirInode) DeleteChildDir(
 		}
 
 		return nil
+	}
+
+	if isImplicitDir {
+		if !d.IsTypeCacheDeprecated() {
+			// If the directory is an implicit directory, then no backing object
+			// exists in the gcs bucket, so returning from here.
+			// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
+			return nil
+		}
+		// Implicit directories do not have a backing object in GCS.
+		// Set this flag to skip the GCS network call and only invalidate the local cache.
+		req.OnlyDeleteFromCache = true
 	}
 
 	// Delete the backing object. Unfortunately we have no way to precondition
