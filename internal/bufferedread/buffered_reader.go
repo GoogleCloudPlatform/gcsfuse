@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/sync/semaphore"
 )
@@ -71,6 +72,8 @@ type BufferedReader struct {
 	numPrefetchBlocks int64
 
 	metricHandle metrics.MetricHandle
+
+	traceHandle tracing.TraceHandle
 
 	// handleID is the file handle id, used for logging.
 	handleID fuseops.HandleID
@@ -123,6 +126,7 @@ type BufferedReaderOptions struct {
 	GlobalMaxBlocksSem *semaphore.Weighted
 	WorkerPool         workerpool.WorkerPool
 	MetricHandle       metrics.MetricHandle
+	TraceHandle        tracing.TraceHandle
 	ReadTypeClassifier *gcsx.ReadTypeClassifier
 	HandleID           fuseops.HandleID
 }
@@ -136,7 +140,9 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// the file, capped by the configured minimum.
 	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
 	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
+	_, span := opts.TraceHandle.StartTrace(context.Background(), tracing.ReadPrefetchBlockPoolGen)
 	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
+	opts.TraceHandle.EndTrace(span)
 	if err != nil {
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
@@ -155,6 +161,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		blockPool:                blockpool,
 		workerPool:               opts.WorkerPool,
 		metricHandle:             opts.MetricHandle,
+		traceHandle:              opts.TraceHandle,
 		handleID:                 opts.HandleID,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
@@ -332,7 +339,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		entry := p.blockQueue.Peek()
 		blk := entry.block
 
-		status, waitErr := blk.AwaitReady(ctx)
+		fetchCtx, span := p.traceHandle.StartTrace(ctx, tracing.WaitForPrefetchBlock)
+		status, waitErr := blk.AwaitReady(fetchCtx)
+		p.traceHandle.EndTrace(span)
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
@@ -354,7 +363,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 		relOff := readOffset - blk.AbsStartOff()
 		bytesToRead := len(req.Buffer) - bytesRead
+		_, span = p.traceHandle.StartTrace(ctx, tracing.ReadFromPrefetchBlock)
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
+		p.traceHandle.EndTrace(span)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen
 		readOffset += int64(sliceLen)
@@ -521,6 +532,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 		block:        b,
 		readHandle:   p.readHandle,
 		metricHandle: p.metricHandle,
+		traceHandle:  p.traceHandle,
 	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)

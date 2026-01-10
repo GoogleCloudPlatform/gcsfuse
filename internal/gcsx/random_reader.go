@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -107,7 +108,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config, handleID fuseops.HandleID) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config, handleID fuseops.HandleID) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -118,6 +119,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
+		traceHandle:           traceHandle,
 		config:                config,
 		handleID:              handleID,
 	}
@@ -177,6 +179,8 @@ type randomReader struct {
 	isMRDInUse atomic.Bool
 
 	metricHandle metrics.MetricHandle
+
+	traceHandle tracing.TraceHandle
 
 	config *cfg.Config
 
@@ -355,8 +359,12 @@ func (rr *randomReader) ReadAt(
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
+	ctx, span := rr.traceHandle.StartTrace(ctx, tracing.FileCacheRead)
+	defer rr.traceHandle.EndTrace(span)
 	n, cacheHit, err := rr.tryReadingFromFileCache(ctx, p, offset)
+	rr.traceHandle.SetCacheReadAttributes(span, cacheHit, n)
 	if err != nil {
+		rr.traceHandle.RecordError(span, err)
 		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return
 	}

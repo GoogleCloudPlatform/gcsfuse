@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
@@ -43,6 +44,7 @@ func mountWithStorageHandle(
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
 	metricHandle metrics.MetricHandle,
+	traceHandle tracing.TraceHandle,
 	isUserSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
 
 	// Sanity check: make sure the temporary directory exists and is writable
@@ -127,6 +129,7 @@ be interacting with the file system.`)
 		NewConfig:                  newConfig,
 		IsUserSet:                  isUserSet,
 		MetricHandle:               metricHandle,
+		TraceHandle:                traceHandle,
 	}
 	if serverCfg.NewConfig.FileSystem.ExperimentalEnableDentryCache {
 		serverCfg.Notifier = fuse.NewNotifier()
