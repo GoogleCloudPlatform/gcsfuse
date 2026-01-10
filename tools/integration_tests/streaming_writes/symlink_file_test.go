@@ -39,7 +39,7 @@ func (t *StreamingWritesSuite) TestCreateSymlinkForLocalFileAndReadFromSymlink()
 	t.validateReadCall(symlink_fh, t.data)
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, t.data, t.T())
 }
 
 func (t *StreamingWritesSuite) TestReadingFromSymlinkForDeletedLocalFile() {
@@ -59,7 +59,7 @@ func (t *StreamingWritesSuite) TestReadingFromSymlinkForDeletedLocalFile() {
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(t.filePath)
 	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
-	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, t.dirName, t.fileName, t.T())
 	// Reading symlink should fail.
 	_, err = os.Stat(symlink)
 	assert.Error(t.T(), err)

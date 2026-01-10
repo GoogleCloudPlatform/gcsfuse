@@ -30,6 +30,7 @@ type StreamingWritesSuite struct {
 	// filePath of the above file in the mounted directory.
 	filePath string
 	data     string
+	dirName  string
 	test_suite.TestifySuite
 }
 
