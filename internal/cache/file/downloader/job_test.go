@@ -112,7 +112,7 @@ func (dt *downloaderTest) getFileInfo() lru.ValueType {
 }
 
 func (dt *downloaderTest) fileCachePath(bucketName string, objectName string) string {
-	return path.Join(cacheDir, bucketName, objectName)
+	return path.Join(dt.cacheDir, bucketName, objectName)
 }
 
 func (dt *downloaderTest) Test_init() {
