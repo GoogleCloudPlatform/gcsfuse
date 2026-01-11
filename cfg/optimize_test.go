@@ -99,7 +99,7 @@ func TestGetMachineType_Success(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	machineType, err := getMachineType(&mockIsValueSet{}, nil)
+	machineType, err := getMachineType(&mockIsValueSet{})
 
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
@@ -115,7 +115,7 @@ func TestGetMachineType_Failure(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	_, err := getMachineType(&mockIsValueSet{}, nil)
+	_, err := getMachineType(&mockIsValueSet{})
 
 	assert.Error(t, err)
 }
@@ -130,7 +130,7 @@ func TestGetMachineType_FlagIsSet(t *testing.T) {
 		stringFlags: map[string]string{"machine-type": "test-machine-type"},
 	}
 
-	machineType, err := getMachineType(isSet, nil)
+	machineType, err := getMachineType(isSet)
 
 	require.NoError(t, err)
 	assert.Equal(t, "test-machine-type", machineType)
@@ -190,7 +190,7 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			// Override metadataEndpoints for testing.
 			metadataEndpoints = []string{server.URL}
 
-			machineType, err := getMachineType(tc.isSet, tc.config)
+			machineType, err := getMachineType(tc.isSet)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedMachineType, machineType)
@@ -214,7 +214,7 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	machineType, err := getMachineType(&mockIsValueSet{}, nil)
+	machineType, err := getMachineType(&mockIsValueSet{})
 
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
@@ -300,7 +300,7 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
+	isSet := &mockIsValueSet{setFlags: map[string]bool{"file-system.rename-dir-limit": true}}
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
