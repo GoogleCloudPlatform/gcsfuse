@@ -2593,7 +2593,6 @@ func TestOptimization_RespectsConfigFile(t *testing.T) {
 			configContent: `write:
   global-max-blocks: 123
 `,
-			// a3-highgpu-8g usually optimizes write.global-max-blocks to 1600
 			args: []string{"--machine-type=a3-highgpu-8g"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
@@ -2604,7 +2603,6 @@ func TestOptimization_RespectsConfigFile(t *testing.T) {
 			name: "profile_optimization_respects_config_file",
 			configContent: `implicit-dirs: false
 `,
-			// aiml-training optimizes implicit-dirs to true
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
@@ -2616,17 +2614,13 @@ func TestOptimization_RespectsConfigFile(t *testing.T) {
 			configContent: `file-system:
   enable-kernel-reader: false
 `,
-			// No profile/machine type, just checking IsSet for future bucket optimization
 			args: []string{},
 			validate: func(t *testing.T, mi *mountInfo) {
-				// root.go doesn't apply bucket optimization (it passes nil input), but we verify the flag is marked as set
-				// so that downstream logic (NewServer) won't override it.
 				assert.False(t, mi.config.FileSystem.EnableKernelReader)
 				assert.True(t, mi.isUserSet.IsSet("file-system.enable-kernel-reader"), "isUserSet should be true for file-system.enable-kernel-reader")
 			},
 		},
 	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			configFile := createTempConfigFile(t, tc.configContent)
@@ -2638,16 +2632,58 @@ func TestOptimization_RespectsConfigFile(t *testing.T) {
 				return nil
 			})
 			require.NoError(t, err)
-
-			// Construct args: gcsfuse --config-file=... [other args] bucket mountpoint
 			cmdArgs := append([]string{"gcsfuse", "--config-file=" + configFile}, tc.args...)
 			cmdArgs = append(cmdArgs, "bucket", "mountpoint")
-
 			cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
+
 			err = cmd.Execute()
+
 			require.NoError(t, err)
 			require.NotNil(t, capturedMountInfo)
+			tc.validate(t, capturedMountInfo)
+		})
+	}
+}
 
+func TestOptimization_RespectsCliFlags(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		validate func(*testing.T, *mountInfo)
+	}{
+		{
+			name: "machine_type_optimization_respects_cli_flag",
+			args: []string{"--machine-type=a3-highgpu-8g", "--write-global-max-blocks=123"},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect CLI value 123, not optimize to 1600")
+				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+			},
+		},
+		{
+			name: "profile_optimization_respects_cli_flag",
+			args: []string{"--profile=" + cfg.ProfileAIMLTraining, "--implicit-dirs=false"},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
+				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedMountInfo *mountInfo
+			cmd, err := newRootCmd(func(mi *mountInfo, _, _ string) error {
+				capturedMountInfo = mi
+				return nil
+			})
+			require.NoError(t, err)
+			cmdArgs := append([]string{"gcsfuse"}, tc.args...)
+			cmdArgs = append(cmdArgs, "bucket", "mountpoint")
+			cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			require.NotNil(t, capturedMountInfo)
 			tc.validate(t, capturedMountInfo)
 		})
 	}
