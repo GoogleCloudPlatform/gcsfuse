@@ -38,8 +38,8 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"congestion-threshold": true,
-						"machine-type":         true,
+						"file-system.congestion-threshold": true,
+						"machine-type":                     true,
 					},
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
@@ -107,8 +107,8 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"enable-kernel-reader": true,
-						"machine-type":         true,
+						"file-system.enable-kernel-reader": true,
+						"machine-type":                     true,
 					},
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
@@ -178,7 +178,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"file-cache-cache-file-for-range-read": true,
+						"file-cache.cache-file-for-range-read": true,
 						"machine-type":                         true,
 					},
 				},
@@ -375,8 +375,8 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"kernel-list-cache-ttl-secs": true,
-						"machine-type":               true,
+						"file-system.kernel-list-cache-ttl-secs": true,
+						"machine-type":                           true,
 					},
 				},
 				input:           nil,
@@ -442,8 +442,8 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"max-background": true,
-						"machine-type":   true,
+						"file-system.max-background": true,
+						"machine-type":               true,
 					},
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
@@ -511,8 +511,8 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"max-read-ahead-kb": true,
-						"machine-type":      true,
+						"file-system.max-read-ahead-kb": true,
+						"machine-type":                  true,
 					},
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
@@ -582,7 +582,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"metadata-cache-negative-ttl-secs": true,
+						"metadata-cache.negative-ttl-secs": true,
 						"machine-type":                     true,
 					},
 					stringFlags: map[string]string{
@@ -702,7 +702,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"metadata-cache-ttl-secs": true,
+						"metadata-cache.ttl-secs": true,
 						"machine-type":            true,
 					},
 					stringFlags: map[string]string{
@@ -822,8 +822,8 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"rename-dir-limit": true,
-						"machine-type":     true,
+						"file-system.rename-dir-limit": true,
+						"machine-type":                 true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
@@ -936,8 +936,8 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"stat-cache-max-size-mb": true,
-						"machine-type":           true,
+						"metadata-cache.stat-cache-max-size-mb": true,
+						"machine-type":                          true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
@@ -1056,8 +1056,8 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"type-cache-max-size-mb": true,
-						"machine-type":           true,
+						"metadata-cache.type-cache-max-size-mb": true,
+						"machine-type":                          true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
@@ -1174,7 +1174,7 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"write-global-max-blocks": true,
+						"write.global-max-blocks": true,
 						"machine-type":            true,
 					},
 					stringFlags: map[string]string{

@@ -93,7 +93,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 	// Apply optimizations for each flag that has rules defined.
 {{- range .FlagTemplateData }}
 {{- if .Optimizations }}
-	if !isSet.IsSet("{{ .FlagName }}") {
+	if !isSet.IsSet("{{ .ConfigPath }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
 		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {

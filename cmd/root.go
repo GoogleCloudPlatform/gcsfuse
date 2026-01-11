@@ -52,34 +52,25 @@ type mountInfo struct {
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
 
-// pflagAsIsValueSet is an adapter that makes a pflag.FlagSet satisfy the
+// viperIsValueSet is an adapter that makes a viper.Viper satisfy the
 // cfg.isValueSet interface, allowing us to check for user-set flags reliably.
-type pflagAsIsValueSet struct {
-	fs *pflag.FlagSet
+type viperIsValueSet struct {
+	v *viper.Viper
 }
 
-// IsSet correctly checks if a flag was set by the user on the command line.
-func (p *pflagAsIsValueSet) IsSet(name string) bool {
-	// The pflag.Changed method is the reliable way to check this.
-	return p.fs.Changed(name)
+// IsSet correctly checks if a flag was set by the user on the command line or config file.
+func (v *viperIsValueSet) IsSet(name string) bool {
+	return v.v.IsSet(name)
 }
 
 // GetString is required to satisfy the interface used by getMachineType.
-func (p *pflagAsIsValueSet) GetString(name string) string {
-	val, err := p.fs.GetString(name)
-	if err != nil {
-		return ""
-	}
-	return val
+func (v *viperIsValueSet) GetString(name string) string {
+	return v.v.GetString(name)
 }
 
 // GetBool is required to satisfy the interface.
-func (p *pflagAsIsValueSet) GetBool(name string) bool {
-	val, err := p.fs.GetBool(name)
-	if err != nil {
-		return false
-	}
-	return val
+func (v *viperIsValueSet) GetBool(name string) bool {
+	return v.v.GetBool(name)
 }
 
 // getCliFlags returns the cli flags set by the user in map[string]string format.
@@ -159,7 +150,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return fmt.Errorf("invalid config: %w", err)
 			}
 
-			isUserSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
+			isUserSet := &viperIsValueSet{v: v}
 			mountInfo.isUserSet = isUserSet
 			optimizedFlags := mountInfo.config.ApplyOptimizations(isUserSet, nil)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
