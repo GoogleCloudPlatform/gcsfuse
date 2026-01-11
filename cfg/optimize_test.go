@@ -300,7 +300,7 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
+	isSet := &mockIsValueSet{setFlags: map[string]bool{"file-system.rename-dir-limit": true}}
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
