@@ -15,14 +15,15 @@
 package monitoring
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -30,51 +31,52 @@ import (
 // PromGrpcMetricsTest is the test suite for gRPC metrics.
 type PromGrpcMetricsTest struct {
 	PromTestBase
+	flags          []string
+	prometheusPort int
 }
 
-func (testSuite *PromGrpcMetricsTest) SetupTest() {
-	var err error
-	testSuite.gcsfusePath = setup.BinFile()
-	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
-	require.NoError(testSuite.T(), err)
-	setPrometheusPort(testSuite.T())
-
-	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
-	err = testSuite.mount(getBucket(testSuite.T()))
-	require.NoError(testSuite.T(), err)
+func (p *PromGrpcMetricsTest) SetupSuite() {
+	setup.SetUpLogFilePath("TestPromGrpcMetricsSuite", gkeTempDir, "", testEnv.cfg)
+	mountGCSFuseAndSetupTestDir(p.flags, testEnv.ctx, testEnv.storageClient)
 }
 
-func (testSuite *PromGrpcMetricsTest) TearDownTest() {
-	if err := util.Unmount(testSuite.mountPoint); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: unmount failed: %v\n", err)
-	}
-	os.Remove(testSuite.mountPoint)
+func (p *PromGrpcMetricsTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
-func (testSuite *PromGrpcMetricsTest) mount(bucketName string) error {
-	testSuite.T().Helper()
-	cacheDir, err := os.MkdirTemp("", "gcsfuse-cache")
-	require.NoError(testSuite.T(), err)
-	testSuite.T().Cleanup(func() { _ = os.RemoveAll(cacheDir) })
-
-	// Specify client protocol to "grpc" for gRPC metrics to be emitted and captured.
-	flags := []string{"--client-protocol=grpc", "--experimental-enable-grpc-metrics=true", fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
-	return testSuite.mountGcsfuse(bucketName, flags)
+func (p *PromGrpcMetricsTest) SetupTest() {
+	// Create a new directory for each test.
+	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
+	gcsDir := path.Join(testDirName, testName)
+	testEnv.testDirPath = path.Join(mountDir, gcsDir)
+	operations.CreateDirectory(testEnv.testDirPath, p.T())
+	client.SetupFileInTestDirectory(testEnv.ctx, testEnv.storageClient, gcsDir, "hello.txt", 10, p.T())
 }
 
-func (testSuite *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {
-	_, err := os.ReadFile(path.Join(testSuite.mountPoint, "hello/hello.txt"))
-	require.NoError(testSuite.T(), err)
+func (p *PromGrpcMetricsTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(p.T())
+}
+
+func (p *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {
+	_, err := os.ReadFile(path.Join(testEnv.testDirPath, "hello.txt"))
+	require.NoError(p.T(), err)
 
 	// Assert that gRPC metrics are present.
-	assertNonZeroCountMetric(testSuite.T(), "grpc_client_attempt_started", "", "")
-	assertNonZeroCountMetric(testSuite.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/ReadObject")
-	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_duration_seconds", "", "")
-	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_call_duration_seconds", "", "")
-	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_rcvd_total_compressed_message_size_bytes", "", "")
-	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_sent_total_compressed_message_size_bytes", "", "")
+	assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "", "", p.prometheusPort)
+	assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/ReadObject", p.prometheusPort)
+	assertNonZeroHistogramMetric(p.T(), "grpc_client_attempt_duration_seconds", "", "", p.prometheusPort)
+	assertNonZeroHistogramMetric(p.T(), "grpc_client_call_duration_seconds", "", "", p.prometheusPort)
+	assertNonZeroHistogramMetric(p.T(), "grpc_client_attempt_rcvd_total_compressed_message_size_bytes", "", "", p.prometheusPort)
+	assertNonZeroHistogramMetric(p.T(), "grpc_client_attempt_sent_total_compressed_message_size_bytes", "", "", p.prometheusPort)
 }
 
 func TestPromGrpcMetricsSuite(t *testing.T) {
-	suite.Run(t, new(PromGrpcMetricsTest))
+	ts := &PromGrpcMetricsTest{}
+	flagSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagSets {
+		ts.flags = flags
+		ts.prometheusPort = parsePortFromFlags(flags)
+		log.Printf("Running prom grpc metrics tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
+	}
 }
