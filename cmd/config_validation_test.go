@@ -1002,3 +1002,69 @@ func TestValidateConfigFile_MachineTypeConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateKernelParamsFileFlag(t *testing.T) {
+	testCases := []struct {
+		name               string
+		args               []string
+		configFileContent  string
+		expectedKernelFile string
+		wantErr            bool
+	}{
+		{
+			name:               "kernel-params-file from CLI",
+			args:               []string{"--kernel-params-file=/tmp/params-cli"},
+			configFileContent:  "",
+			expectedKernelFile: "/tmp/params-cli",
+			wantErr:            false,
+		},
+		{
+			name:               "kernel-params-file from config file",
+			args:               []string{},
+			configFileContent:  "file-system:\n  kernel-params-file: /tmp/params-config",
+			expectedKernelFile: "/tmp/params-config",
+			wantErr:            false,
+		},
+		{
+			name:               "CLI overrides config file",
+			args:               []string{"--kernel-params-file=/tmp/params-cli"},
+			configFileContent:  "file-system:\n  kernel-params-file: /tmp/params-config",
+			expectedKernelFile: "/tmp/params-cli",
+			wantErr:            false,
+		},
+		{
+			name:               "default value",
+			args:               []string{},
+			configFileContent:  "",
+			expectedKernelFile: "",
+			wantErr:            false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var err error
+			var c *cfg.Config
+			args := tc.args
+
+			if tc.configFileContent != "" {
+				f, err := os.CreateTemp(t.TempDir(), "config.yaml")
+				require.NoError(t, err)
+				_, err = f.WriteString(tc.configFileContent)
+				require.NoError(t, err)
+				require.NoError(t, f.Close())
+				args = append(args, fmt.Sprintf("--config-file=%s", f.Name()))
+			}
+
+			c, err = getConfigObject(t, args)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				if assert.NoError(t, err) {
+					assert.Equal(t, tc.expectedKernelFile, c.FileSystem.KernelParamsFile)
+				}
+			}
+		})
+	}
+}
