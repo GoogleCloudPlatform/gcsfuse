@@ -845,6 +845,14 @@ monitoring:
         - "--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=9192 --log-file=/gcsfuse-tmp/prom_grpc_metrics.log"
         compatible:
           flat: true
+          hns: false
+          zonal: false
+        run: "TestPromGrpcMetricsSuite"
+        run_on_gke: true
+      - flags:
+        - "--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=10192 --log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log"
+        compatible:
+          flat: false
           hns: true
           zonal: true
         run: "TestPromGrpcMetricsSuite"

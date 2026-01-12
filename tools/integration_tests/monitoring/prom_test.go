@@ -85,7 +85,7 @@ func TestMain(m *testing.M) {
 		testEnv.cfg.LogFile = setup.LogFile()
 		testEnv.cfg.GKEMountedDirectory = setup.MountedDirectory()
 
-		testEnv.cfg.Configs = make([]test_suite.ConfigItem, 5)
+		testEnv.cfg.Configs = make([]test_suite.ConfigItem, 6)
 		testEnv.cfg.Configs[0].Flags = []string{"--prometheus-port=9190 --cache-dir=/tmp/gcsfuse-cache --log-file=/gcsfuse-tmp/monitoring.log"}
 		testEnv.cfg.Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		testEnv.cfg.Configs[0].Run = "TestPromOTELSuite"
@@ -103,6 +103,9 @@ func TestMain(m *testing.M) {
 		testEnv.cfg.Configs[4].Flags = []string{"--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=9192 --log-file=/gcsfuse-tmp/prom_grpc_metrics.log",}
 		testEnv.cfg.Configs[4].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		testEnv.cfg.Configs[4].Run = "TestPromGrpcMetricsSuite"
+		testEnv.cfg.Configs[5].Flags = []string{"--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=10192 --log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log",}
+		testEnv.cfg.Configs[5].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
+		testEnv.cfg.Configs[5].Run = "TestPromGrpcMetricsSuite"
 	}
 	testEnv.cfg = &configFile.Monitoring[0]
 	testEnv.ctx = context.Background()
