@@ -559,6 +559,8 @@ type FileSystemConfig struct {
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
+	KernelParamsFile ResolvedPath `yaml:"kernel-params-file"`
+
 	MaxBackground int64 `yaml:"max-background"`
 
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
@@ -1110,6 +1112,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
+	flagSet.StringP("kernel-params-file", "", "", "File path used to communicate various kernel parameters to CSI Driver in GKE environment.")
+
+	if err := flagSet.MarkHidden("kernel-params-file"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used.")
 
 	flagSet.Float64P("limit-bytes-per-sec", "", -1, "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)")
@@ -1650,6 +1658,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.kernel-params-file", flagSet.Lookup("kernel-params-file")); err != nil {
 		return err
 	}
 
