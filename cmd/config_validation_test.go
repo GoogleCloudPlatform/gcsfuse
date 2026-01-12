@@ -1062,7 +1062,7 @@ func TestValidateKernelParamsFileFlag(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				if assert.NoError(t, err) {
-					assert.Equal(t, tc.expectedKernelFile, c.FileSystem.KernelParamsFile)
+					assert.Equal(t, tc.expectedKernelFile, string(c.FileSystem.KernelParamsFile))
 				}
 			}
 		})
