@@ -80,7 +80,10 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
 		if setup.IsZonalBucketRun() {
-			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+			var clientOpts []option.ClientOption
+			clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
+			clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
+			client, err = storage.NewGRPCClient(ctx, clientOpts...)
 		} else {
 			client, err = CreateHttp1StorageClient(ctx)
 		}
