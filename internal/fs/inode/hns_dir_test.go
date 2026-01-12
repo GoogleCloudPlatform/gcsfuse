@@ -777,7 +777,6 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 				&t.fixedTime,
 				config,
 			)
-
 			dirName := path.Join(dirInodeName, tc.name) + "/"
 			// Expectation: DeleteObject called with OnlyDeleteFromCache
 			expectedReq := &gcs.DeleteObjectRequest{
