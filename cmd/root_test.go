@@ -2682,7 +2682,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			},
 		},
 		{
-			name: "bucket_optimization_flag_is_detected_as_set",
+			name: "bucket_type_optimization_respects_cli_flags",
 			args: []string{"--enable-kernel-reader=false"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.FileSystem.EnableKernelReader)
