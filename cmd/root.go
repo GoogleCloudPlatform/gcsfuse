@@ -52,27 +52,6 @@ type mountInfo struct {
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
 
-// viperIsValueSet is an adapter that makes a viper.Viper satisfy the
-// cfg.isValueSet interface, allowing us to check for user-set flags reliably.
-type viperIsValueSet struct {
-	v *viper.Viper
-}
-
-// IsSet correctly checks if a flag was set by the user on the command line or config file.
-func (v *viperIsValueSet) IsSet(name string) bool {
-	return v.v.IsSet(name)
-}
-
-// GetString is required to satisfy the interface used by getMachineType.
-func (v *viperIsValueSet) GetString(name string) string {
-	return v.v.GetString(name)
-}
-
-// GetBool is required to satisfy the interface.
-func (v *viperIsValueSet) GetBool(name string) bool {
-	return v.v.GetBool(name)
-}
-
 // getCliFlags returns the cli flags set by the user in map[string]string format.
 func getCliFlags(flagSet *pflag.FlagSet) map[string]string {
 	cliFlags := make(map[string]string)
@@ -150,9 +129,8 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return fmt.Errorf("invalid config: %w", err)
 			}
 
-			isUserSet := &viperIsValueSet{v: v}
-			mountInfo.isUserSet = isUserSet
-			optimizedFlags := mountInfo.config.ApplyOptimizations(isUserSet, nil)
+			mountInfo.isUserSet = v
+			optimizedFlags := mountInfo.config.ApplyOptimizations(v, nil)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			if err := cfg.Rationalize(v, mountInfo.config, optimizedFlagNames); err != nil {
 				return fmt.Errorf("error rationalizing config: %w", err)
