@@ -99,11 +99,11 @@ func TestMain(m *testing.M) {
 		testEnv.cfg.Configs[3].Flags = []string{"--prometheus-port=10191 --enable-buffered-read --read-block-size-mb=4 --read-random-seek-threshold=2 --read-global-max-blocks=5 --read-min-blocks-per-handle=2 --read-start-blocks-per-handle=2 --log-file=/gcsfuse-tmp/prom_buffered_read_hns.log"}
 		testEnv.cfg.Configs[3].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 		testEnv.cfg.Configs[3].Run = "TestPromBufferedReadSuite"
-		
-		testEnv.cfg.Configs[4].Flags = []string{"--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=9192 --log-file=/gcsfuse-tmp/prom_grpc_metrics.log",}
-		testEnv.cfg.Configs[4].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+
+		testEnv.cfg.Configs[4].Flags = []string{"--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=9192 --log-file=/gcsfuse-tmp/prom_grpc_metrics.log"}
+		testEnv.cfg.Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		testEnv.cfg.Configs[4].Run = "TestPromGrpcMetricsSuite"
-		testEnv.cfg.Configs[5].Flags = []string{"--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=10192 --log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log",}
+		testEnv.cfg.Configs[5].Flags = []string{"--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=10192 --log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log"}
 		testEnv.cfg.Configs[5].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 		testEnv.cfg.Configs[5].Run = "TestPromGrpcMetricsSuite"
 	}
