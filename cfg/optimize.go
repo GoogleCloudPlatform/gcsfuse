@@ -54,7 +54,6 @@ type OptimizationResult struct {
 type IsValueSet interface {
 	IsSet(string) bool
 	GetString(string) string
-	GetBool(string) bool
 }
 
 // flagOverride represents a flag override with its new value.
