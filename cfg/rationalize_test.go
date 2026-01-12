@@ -23,14 +23,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
-
-type mockIsSet struct{}
-
-func (*mockIsSet) IsSet(flag string) bool {
-	return false
-}
 
 func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 	testCases := []struct {
@@ -60,7 +55,7 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
+			actualErr := Rationalize(viper.New(), tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
@@ -97,7 +92,7 @@ func TestRationalize_ReadConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := Rationalize(&mockIsSet{}, tc.config, []string{})
+			err := Rationalize(viper.New(), tc.config, []string{})
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedGlobalMaxBlocks, tc.config.Read.GlobalMaxBlocks)
@@ -123,7 +118,7 @@ func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, []string{}))
+			assert.Error(t, Rationalize(viper.New(), tc.config, []string{}))
 		})
 	}
 }
@@ -191,7 +186,7 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 			},
 		}
 
-		err := Rationalize(&mockIsSet{}, &c, []string{})
+		err := Rationalize(viper.New(), &c, []string{})
 
 		if assert.NoError(t, err) {
 			assert.Equal(t, tc.expected, c.Logging.Severity)
@@ -227,7 +222,7 @@ func TestRationalize_TokenURLSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
+			actualErr := Rationalize(viper.New(), tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
@@ -253,22 +248,15 @@ func TestRationalize_TokenURLUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, []string{}))
+			assert.Error(t, Rationalize(viper.New(), tc.config, []string{}))
 		})
 	}
-}
-
-// Implement the isSet interface
-type flagSet map[string]bool
-
-func (f flagSet) IsSet(key string) bool {
-	return f[key]
 }
 
 func TestRationalizeMetadataCache(t *testing.T) {
 	testCases := []struct {
 		name                    string
-		flags                   flagSet
+		flags                   map[string]bool
 		config                  *Config
 		expectedTTLSecs         int64
 		expectedNegativeTTLSecs int64
@@ -276,13 +264,13 @@ func TestRationalizeMetadataCache(t *testing.T) {
 	}{
 		{
 			name:            "new_ttl_flag_set",
-			flags:           flagSet{"metadata-cache.ttl-secs": true},
+			flags:           map[string]bool{"metadata-cache.ttl-secs": true},
 			config:          &Config{MetadataCache: MetadataCacheConfig{TtlSecs: 30}},
 			expectedTTLSecs: 30,
 		},
 		{
 			name:  "old_ttl_flags_set",
-			flags: flagSet{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			flags: map[string]bool{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					DeprecatedStatCacheTtl: 10 * time.Second,
@@ -293,28 +281,28 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		},
 		{
 			name:                  "new_stat-cache-size-mb_flag_set",
-			flags:                 flagSet{"metadata-cache.stat-cache-max-size-mb": true},
+			flags:                 map[string]bool{"metadata-cache.stat-cache-max-size-mb": true},
 			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 0}},
 			expectedTTLSecs:       0, // Assuming no change to TtlSecs in this function
 			expectedStatCacheSize: 0, // Should remain unchanged
 		},
 		{
 			name:                  "old_stat-cache-capacity_flag_set",
-			flags:                 flagSet{"metadata-cache.deprecated-stat-cache-capacity": true},
+			flags:                 map[string]bool{"metadata-cache.deprecated-stat-cache-capacity": true},
 			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 1000}},
 			expectedTTLSecs:       0,
 			expectedStatCacheSize: 2,
 		},
 		{
 			name:                  "no_relevant_flags_set",
-			flags:                 flagSet{},
+			flags:                 map[string]bool{},
 			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 50}},
 			expectedTTLSecs:       0,
 			expectedStatCacheSize: 1,
 		},
 		{
 			name: "both_new_and_old_flags_set",
-			flags: flagSet{
+			flags: map[string]bool{
 				"metadata-cache.stat-cache-max-size-mb": true,
 				"stat-cache-capacity":                   true,
 			},
@@ -329,7 +317,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		},
 		{
 			name:  "ttl_and_stat_cache_size_set_to_-1",
-			flags: flagSet{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
+			flags: map[string]bool{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					TtlSecs:            -1,
@@ -345,7 +333,11 @@ func TestRationalizeMetadataCache(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if assert.NoError(t, Rationalize(tc.flags, tc.config, []string{})) {
+			v := viper.New()
+			for key, val := range tc.flags {
+				v.Set(key, val)
+			}
+			if assert.NoError(t, Rationalize(v, tc.config, []string{})) {
 				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
 				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
 			}
@@ -356,7 +348,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 	testCases := []struct {
 		name                    string
-		flags                   flagSet
+		flags                   map[string]bool
 		config                  *Config
 		expectedTTLSecs         int64
 		expectedNegativeTTLSecs int64
@@ -364,19 +356,19 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 	}{
 		{
 			name:                    "negative_ttl_flag_set",
-			flags:                   flagSet{"metadata-cache.negative-ttl-secs": true},
+			flags:                   map[string]bool{"metadata-cache.negative-ttl-secs": true},
 			config:                  &Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 44}},
 			expectedNegativeTTLSecs: 44,
 		},
 		{
 			name:            "new_ttl_flag_set",
-			flags:           flagSet{"metadata-cache.ttl-secs": true},
+			flags:           map[string]bool{"metadata-cache.ttl-secs": true},
 			config:          &Config{MetadataCache: MetadataCacheConfig{TtlSecs: 30}},
 			expectedTTLSecs: 30,
 		},
 		{
 			name:  "old_ttl_flags_set",
-			flags: flagSet{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			flags: map[string]bool{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					DeprecatedStatCacheTtl: 10 * time.Second,
@@ -387,7 +379,7 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 		},
 		{
 			name:  "new_and_old_ttl_flags_set",
-			flags: flagSet{"metadata-cache.ttl-secs": true, "metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			flags: map[string]bool{"metadata-cache.ttl-secs": true, "metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					TtlSecs:                30,
@@ -399,28 +391,28 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 		},
 		{
 			name:                  "new_stat-cache-size-mb_flag_set",
-			flags:                 flagSet{"metadata-cache.stat-cache-max-size-mb": true},
+			flags:                 map[string]bool{"metadata-cache.stat-cache-max-size-mb": true},
 			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 100}},
 			expectedTTLSecs:       0, // Assuming no change to TtlSecs in this function
 			expectedStatCacheSize: 100,
 		},
 		{
 			name:                  "old_stat-cache-capacity_flag_set",
-			flags:                 flagSet{"metadata-cache.deprecated-stat-cache-capacity": true},
+			flags:                 map[string]bool{"metadata-cache.deprecated-stat-cache-capacity": true},
 			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 1000}},
 			expectedTTLSecs:       0,
 			expectedStatCacheSize: 2,
 		},
 		{
 			name:                  "new_and_old_stat-cache-capacity_flag_set",
-			flags:                 flagSet{"metadata-cache.stat-cache-max-size-mb": true, "metadata-cache.deprecated-stat-cache-capacity": true},
+			flags:                 map[string]bool{"metadata-cache.stat-cache-max-size-mb": true, "metadata-cache.deprecated-stat-cache-capacity": true},
 			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 100, DeprecatedStatCacheCapacity: 1000}},
 			expectedTTLSecs:       0,
 			expectedStatCacheSize: 100,
 		},
 		{
 			name:  "ttl_and_stat_cache_size_set_to_-1",
-			flags: flagSet{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
+			flags: map[string]bool{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					TtlSecs:            -1,
@@ -436,7 +428,11 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if assert.NoError(t, Rationalize(tc.flags, tc.config, []string{"metadata-cache.negative-ttl-secs", "metadata-cache.ttl-secs", "metadata-cache.stat-cache-max-size-mb", "metadata-cache.deprecated-stat-cache-capacity", "metadata-cache.deprecated-stat-cache-ttl", "metadata-cache.deprecated-type-cache-ttl"})) {
+			v := viper.New()
+			for key, val := range tc.flags {
+				v.Set(key, val)
+			}
+			if assert.NoError(t, Rationalize(v, tc.config, []string{"metadata-cache.negative-ttl-secs", "metadata-cache.ttl-secs", "metadata-cache.stat-cache-max-size-mb", "metadata-cache.deprecated-stat-cache-capacity", "metadata-cache.deprecated-stat-cache-ttl", "metadata-cache.deprecated-type-cache-ttl"})) {
 				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
 				assert.Equal(t, tc.expectedNegativeTTLSecs, tc.config.MetadataCache.NegativeTtlSecs)
 				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
@@ -502,7 +498,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
+			actualErr := Rationalize(viper.New(), tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
@@ -556,7 +552,7 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{})) {
+			if assert.NoError(t, Rationalize(viper.New(), tc.config, []string{})) {
 				assert.Equal(t, tc.expected, tc.config.Metrics.CloudMetricsExportIntervalSecs)
 			}
 		})
@@ -566,7 +562,7 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 	testCases := []struct {
 		name                      string
-		flags                     flagSet
+		flags                     map[string]bool
 		config                    *Config
 		expectedParallelDownloads bool
 	}{
@@ -597,8 +593,8 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 		{
 			name: "valid_config_parallel_download_explicit_false",
 			// flagset here is representing viper config, value true is not actual value of the flag
-			// it just means flag is SET by the user
-			flags: flagSet{"file-cache.enable-parallel-downloads": true},
+			// it just means flag is SET by the user.
+			flags: map[string]bool{"file-cache.enable-parallel-downloads": true},
 			config: &Config{
 				CacheDir: ResolvedPath("/some-path"),
 				FileCache: FileCacheConfig{
@@ -611,7 +607,11 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := Rationalize(tc.flags, tc.config, []string{})
+			v := viper.New()
+			for key, val := range tc.flags {
+				v.Set(key, val)
+			}
+			err := Rationalize(v, tc.config, []string{})
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
@@ -623,14 +623,14 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 	testCases := []struct {
 		name                       string
-		flags                      flagSet
+		flags                      map[string]bool
 		config                     *Config
 		expectedEnableBufferedRead bool
 		expectWarning              bool
 	}{
 		{
 			name:  "file cache and buffered read enabled (user set)",
-			flags: flagSet{"read.enable-buffered-read": true},
+			flags: map[string]bool{"read.enable-buffered-read": true},
 			config: &Config{
 				CacheDir: "/some/path",
 				FileCache: FileCacheConfig{
@@ -645,7 +645,7 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 		},
 		{
 			name:  "file cache enabled, buffered read enabled (default)",
-			flags: flagSet{},
+			flags: map[string]bool{},
 			config: &Config{
 				CacheDir: "/some/path",
 				FileCache: FileCacheConfig{
@@ -660,7 +660,7 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 		},
 		{
 			name:  "file cache disabled, buffered read enabled",
-			flags: flagSet{"read.enable-buffered-read": true},
+			flags: map[string]bool{"read.enable-buffered-read": true},
 			config: &Config{
 				Read: ReadConfig{
 					EnableBufferedRead: true,
@@ -671,7 +671,7 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 		},
 		{
 			name:                       "both disabled",
-			flags:                      flagSet{},
+			flags:                      map[string]bool{},
 			config:                     &Config{},
 			expectedEnableBufferedRead: false,
 			expectWarning:              false,
@@ -686,7 +686,11 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 			// Restore original logger output after test.
 			defer log.SetOutput(os.Stderr)
 
-			err := Rationalize(tc.flags, tc.config, []string{})
+			v := viper.New()
+			for key, val := range tc.flags {
+				v.Set(key, val)
+			}
+			err := Rationalize(v, tc.config, []string{})
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableBufferedRead, tc.config.Read.EnableBufferedRead)
