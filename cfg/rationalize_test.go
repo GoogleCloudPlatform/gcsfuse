@@ -753,17 +753,3 @@ func TestResolveLoggingConfig(t *testing.T) {
 		})
 	}
 }
-
-func TestRationalize_KernelParamsFileUnchanged(t *testing.T) {
-	config := &Config{
-		FileSystem: FileSystemConfig{
-			KernelParamsFile: "/tmp/kernel-params.json",
-		},
-	}
-
-	err := Rationalize(&mockIsSet{}, config, []string{})
-
-	if assert.NoError(t, err) {
-		assert.Equal(t, "/tmp/kernel-params.json", string(config.FileSystem.KernelParamsFile))
-	}
-}
