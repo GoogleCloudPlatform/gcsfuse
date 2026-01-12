@@ -322,6 +322,27 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "valid_kernel_params_file",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+				FileSystem: FileSystemConfig{KernelParamsFile: "/tmp/kernel-params.json"},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
