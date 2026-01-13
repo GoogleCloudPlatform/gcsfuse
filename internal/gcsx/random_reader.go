@@ -491,7 +491,7 @@ func (rr *randomReader) readFull(
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, readType int64) (err error) {
 	// Begin the read.
-	ctx, cancel := context.WithCancel(tracing.MaybePropagateTraceContext(context.Background(), ctx, cfg.IsTracingEnabled(rr.config)))
+	ctx, cancel := context.WithCancel(tracing.MaybePropagateTraceContext(context.Background(), ctx))
 
 	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
 		rr.reader, err = NewInactiveTimeoutReader(
