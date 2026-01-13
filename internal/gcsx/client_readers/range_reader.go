@@ -230,7 +230,7 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by SequentialReadSizeMb flag to serve future read requests.
 func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, readType int64) error {
-	ctx, cancel := context.WithCancel(tracing.MaybePropagateTraceContext(context.Background(), ctx, cfg.IsTracingEnabled(rr.config)))
+	ctx, cancel := context.WithCancel(tracing.MaybePropagateTraceContext(context.Background(), ctx))
 	var err error
 
 	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {

@@ -17,14 +17,31 @@ package tracing
 import (
 	"context"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
 
 const name = "cloud.google.com/gcsfuse"
 
+type traceSettings struct {
+	enabled bool
+	tracer  trace.Tracer
+}
+
+var settings = &traceSettings{enabled: false, tracer: otel.Tracer(name)}
+
+func EnableTracing() {
+	settings.enabled = true
+}
+
+func GCSFuseTracer() trace.Tracer {
+	return settings.tracer
+}
+
+// EnableTracing needs to be called temporally before using below function preferably during mount flow
 // When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
-func MaybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
-	if !isTracingEnabled {
+func MaybePropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
+	if !settings.enabled {
 		return newCtx
 	}
 

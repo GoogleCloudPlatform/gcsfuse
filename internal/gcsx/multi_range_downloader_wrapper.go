@@ -202,7 +202,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) CloseMRDForEviction() {
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
 // LOCK_REQUIRED(mrdWrapper.mu.RLock)
 func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(ctx context.Context, forceRecreateMRD bool) (err error) {
-	ctx = tracing.MaybePropagateTraceContext(context.Background(), ctx, cfg.IsTracingEnabled(mrdWrapper.config))
+	ctx = tracing.MaybePropagateTraceContext(context.Background(), ctx)
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}

@@ -317,7 +317,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 			t.mrdWrapper.mu.RLock()
 			defer t.mrdWrapper.mu.RUnlock()
-			err := t.mrdWrapper.ensureMultiRangeDownloader(false)
+			err := t.mrdWrapper.ensureMultiRangeDownloader(context.Background(), false)
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 				assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
@@ -339,7 +339,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UnusableExistingMRDTrig
 	t.mrdWrapper.mu.RLock()
 	defer t.mrdWrapper.mu.RUnlock()
 
-	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
+	err := t.mrdWrapper.ensureMultiRangeDownloader(context.Background(), false)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
@@ -353,7 +353,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UsableExistingMRDPreven
 	t.mrdWrapper.mu.RLock()
 	defer t.mrdWrapper.mu.RUnlock()
 
-	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
+	err := t.mrdWrapper.ensureMultiRangeDownloader(context.Background(), false)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
@@ -367,7 +367,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_ForceRecreateMRD() {
 	// First call to create an MRD.
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
 	t.mrdWrapper.mu.RLock()
-	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
+	err := t.mrdWrapper.ensureMultiRangeDownloader(context.Background(), false)
 	t.mrdWrapper.mu.RUnlock()
 	require.NoError(t.T(), err)
 	initialMRD := t.mrdWrapper.Wrapped
@@ -376,7 +376,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_ForceRecreateMRD() {
 	// Second call with forceRecreateMRD=true should create a new MRD.
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
 	t.mrdWrapper.mu.RLock()
-	err = t.mrdWrapper.ensureMultiRangeDownloader(true)
+	err = t.mrdWrapper.ensureMultiRangeDownloader(context.Background(), true)
 	t.mrdWrapper.mu.RUnlock()
 
 	require.NoError(t.T(), err)
