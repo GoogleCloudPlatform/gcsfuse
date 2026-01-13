@@ -21,11 +21,14 @@ import (
 	"io"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -49,18 +52,19 @@ type MrdInstance struct {
 	poolMu sync.RWMutex
 	// mrdCache is a shared cache for inactive MrdInstance objects.
 	mrdCache *lru.Cache
-	// mrdConfig holds configuration for the MRD pool.
-	mrdConfig cfg.MrdConfig
+	// holds config specified by the user using config-file flag and CLI flags.
+	config *cfg.Config
 }
 
 // NewMrdInstance creates a new MrdInstance for a given GCS object.
-func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, cfg cfg.MrdConfig) *MrdInstance {
+// Passed config should not be nil. Code will panic otherwise.
+func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, config *cfg.Config) *MrdInstance {
 	return &MrdInstance{
-		object:    obj,
-		bucket:    bucket,
-		mrdCache:  cache,
-		inodeId:   inodeId,
-		mrdConfig: cfg,
+		object:   obj,
+		bucket:   bucket,
+		mrdCache: cache,
+		inodeId:  inodeId,
+		config:   config,
 	}
 }
 
@@ -97,7 +101,7 @@ func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
 
 // Read downloads data from the GCS object into the provided buffer starting at the offset.
 // It handles the details of selecting a valid MRD entry, locking it, and waiting for the async download to complete.
-func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, error) {
+func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics metrics.MetricHandle) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -121,15 +125,25 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, e
 		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
 	}
 
+	start := time.Now()
+	defer monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
 	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
 	})
 	entry.mu.RUnlock()
 
-	select {
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	case res := <-done:
+	if !mi.config.FileSystem.IgnoreInterrupts {
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case res := <-done:
+			if res.err != nil && res.err != io.EOF {
+				return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
+			}
+			return res.bytesRead, res.err
+		}
+	} else {
+		res := <-done
 		if res.err != nil && res.err != io.EOF {
 			return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
 		}
@@ -157,7 +171,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 	}
 
 	// Creating a new pool. Not reusing any handle while creating a new pool.
-	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
+	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.config.Mrd.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
 	if err != nil {
 		err = fmt.Errorf("MrdInstance::ensureMRDPool Error in creating MRDPool: %w", err)
 	}
@@ -170,7 +184,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 func (mi *MrdInstance) RecreateMRD() error {
 	// Create the new pool first to avoid a period where mrdPool is nil.
 	newPool, err := NewMRDPool(&MRDPoolConfig{
-		PoolSize: int(mi.mrdConfig.PoolSize),
+		PoolSize: int(mi.config.Mrd.PoolSize),
 		object:   mi.object,
 		bucket:   mi.bucket,
 	}, nil)

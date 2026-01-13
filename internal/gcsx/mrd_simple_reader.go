@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // MrdSimpleReader is a reader that uses an MRD Instance to read data from a GCS object.
@@ -30,13 +31,15 @@ import (
 type MrdSimpleReader struct {
 	mrdInstanceInUse atomic.Bool
 	mrdInstance      *MrdInstance
+	metrics          metrics.MetricHandle
 }
 
 // NewMrdSimpleReader creates a new MrdSimpleReader that uses the provided
 // MrdInstance to manage MRD connections.
-func NewMrdSimpleReader(mrdInstance *MrdInstance) *MrdSimpleReader {
+func NewMrdSimpleReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *MrdSimpleReader {
 	return &MrdSimpleReader{
 		mrdInstance: mrdInstance,
+		metrics:     metricsHandle,
 	}
 }
 
@@ -70,7 +73,7 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		msr.mrdInstance.IncrementRefCount()
 	}
 
-	bytesRead, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset)
+	bytesRead, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset, msr.metrics)
 	if isShortRead(bytesRead, len(req.Buffer), err) {
 		originalErr := err
 		if err = msr.mrdInstance.RecreateMRD(); err != nil {
@@ -79,7 +82,7 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		retryOffset := req.Offset + int64(bytesRead)
 		retryBuffer := req.Buffer[bytesRead:]
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, retryBuffer, retryOffset)
+		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, retryBuffer, retryOffset, msr.metrics)
 		bytesRead += bytesReadOnRetry
 		// In case the offset is greater than object size, we can get OutOfRange error which should not be propagated
 		// to user. Also, MRD will have to be recreated in that scenario which will happen automatically during next read.
@@ -87,6 +90,7 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 			err = originalErr
 		}
 	}
+	metrics.CaptureGCSReadMetrics(msr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
 	return ReadResponse{Size: bytesRead}, err
 }
 
