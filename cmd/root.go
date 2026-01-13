@@ -45,9 +45,9 @@ type mountInfo struct {
 	// optimizedFlags contains the flags that were optimized
 	// based on either machine-type or profile.
 	optimizedFlags map[string]any
-	// isUserSet is used to check if a flag was explicitly set by the user.
-	// This is needed for bucket-type-based optimizations.
-	isUserSet cfg.IsValueSet
+	// userConfig is used to check if a flag was explicitly set by the user.
+	// This is used to determine if optimization rules should be applied.
+	userConfig *viper.Viper
 }
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
@@ -129,7 +129,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return fmt.Errorf("invalid config: %w", err)
 			}
 
-			mountInfo.isUserSet = v
+			mountInfo.userConfig = v
 			optimizedFlags := mountInfo.config.ApplyOptimizations(v, nil)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			if err := cfg.Rationalize(v, mountInfo.config, optimizedFlagNames); err != nil {

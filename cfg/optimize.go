@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/spf13/viper"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -46,13 +47,6 @@ type OptimizationResult struct {
 	OptimizationReason string `yaml:"optimization_reason" json:"optimization_reason"`
 	// Optimized true indicates that the value was changed by optimization (either machine-type based, or profile-based).
 	Optimized bool `yaml:"-" json:"-"` // Field hidden from YAML and JSON to avoid it in logs.
-}
-
-// IsValueSet interface allows checking if a flag was explicitly set by the user.
-// This is used to determine whether to apply optimization rules or respect user choices.
-type IsValueSet interface {
-	IsSet(string) bool
-	GetString(string) string
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -97,20 +91,17 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 	return body, nil
 }
 
-// getMachineType fetches the machine type from the metadata server if not set in isSet, cfg.
-func getMachineType(isSet IsValueSet, cfg *Config) (string, error) {
-	// Precedence: 1. CLI flag, 2. Config file, 3. Metadata server.
-	// 1. Check if the machine-type flag is set in CLI flag.
-	if isSet.IsSet(machineTypeFlg) {
-		if currentMachineType := isSet.GetString(machineTypeFlg); currentMachineType != "" {
+// getMachineType fetches the machine type, checking user-provided configuration
+// first (from CLI flags or config file), and falling back to the metadata server.
+func getMachineType(v *viper.Viper) (string, error) {
+	// Precedence: CLI flag > Config file > Metadata server.
+	// 1. Check if the machine-type flag is set by the user (via CLI flag or config file).
+	if v.IsSet(machineTypeFlg) {
+		if currentMachineType := v.GetString(machineTypeFlg); currentMachineType != "" {
 			return currentMachineType, nil
 		}
 	}
-	// 2. Check if machine-type flag is set in config-file.
-	if cfg != nil && cfg.MachineType != "" {
-		return cfg.MachineType, nil
-	}
-	// 3. Get machine-type from metadata server.
+	// 2. Get machine-type from metadata server.
 	client := http.Client{Timeout: httpTimeout}
 	for range maxRetries {
 		for _, endpoint := range metadataEndpoints {

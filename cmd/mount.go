@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/spf13/viper"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
@@ -45,7 +46,7 @@ func mountWithStorageHandle(
 	storageHandle storage.StorageHandle,
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
-	isUserSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
+	userConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
 
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
@@ -127,7 +128,7 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		NewConfig:                  newConfig,
-		IsUserSet:                  isUserSet,
+		UserConfig:                 userConfig,
 		MetricHandle:               metricHandle,
 		TraceHandle:                traceHandle,
 	}

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/spf13/viper"
 )
 
 func decodeURL(u string) (string, error) {
@@ -35,7 +36,7 @@ func decodeURL(u string) (string, error) {
 
 // resolveMetadataCacheTTL calculates the ttl to be used for stat/type cache based
 // on the user flags/configs or machine type based optimizations.
-func resolveMetadataCacheTTL(v IsValueSet, c *MetadataCacheConfig, optimizedFlags []string) {
+func resolveMetadataCacheTTL(v *viper.Viper, c *MetadataCacheConfig, optimizedFlags []string) {
 	optimizationAppliedToNegativeCacheTTL := isFlagPresent(optimizedFlags, MetadataNegativeCacheTTLConfigKey)
 
 	if v.IsSet(MetadataNegativeCacheTTLConfigKey) || optimizationAppliedToNegativeCacheTTL {
@@ -61,7 +62,7 @@ func resolveMetadataCacheTTL(v IsValueSet, c *MetadataCacheConfig, optimizedFlag
 
 // resolveStatCacheMaxSizeMB calculates the stat-cache size in MiBs based on the
 // machine-type default override, user's old and new flags/configs.
-func resolveStatCacheMaxSizeMB(v IsValueSet, c *MetadataCacheConfig, optimizedFlags []string) {
+func resolveStatCacheMaxSizeMB(v *viper.Viper, c *MetadataCacheConfig, optimizedFlags []string) {
 	// Local function to calculate size based on deprecated capacity.
 	calculateSizeFromCapacity := func(capacity int64) int64 {
 		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
@@ -106,7 +107,7 @@ func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
 	}
 }
 
-func resolveParallelDownloadsValue(v IsValueSet, fc *FileCacheConfig, c *Config) {
+func resolveParallelDownloadsValue(v *viper.Viper, fc *FileCacheConfig, c *Config) {
 	// Parallel downloads should be default ON when file cache is enabled, in case
 	// it is explicitly set by the user, use that value.
 	if IsFileCacheEnabled(c) && !v.IsSet(FileCacheParallelDownloadsConfigKey) {
@@ -114,7 +115,7 @@ func resolveParallelDownloadsValue(v IsValueSet, fc *FileCacheConfig, c *Config)
 	}
 }
 
-func resolveFileCacheAndBufferedReadConflict(v IsValueSet, c *Config) {
+func resolveFileCacheAndBufferedReadConflict(v *viper.Viper, c *Config) {
 	if IsFileCacheEnabled(c) && c.Read.EnableBufferedRead {
 		// Log a warning only if the user has explicitly enabled buffered-read.
 		// The default value for enable-buffered-read is true, so we don't want to
@@ -146,7 +147,7 @@ func resolveLoggingConfig(config *Config) {
 }
 
 // Rationalize updates the config fields based on the values of other fields.
-func Rationalize(v IsValueSet, c *Config, optimizedFlags []string) error {
+func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
 	if c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint); err != nil {
 		return err

@@ -2596,7 +2596,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--machine-type=a3-highgpu-8g"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
-				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.userConfig.IsSet("write.global-max-blocks"), "userConfig should be true for write.global-max-blocks")
 				assert.Contains(t, mi.optimizedFlags, "implicit-dirs", "Should optimize implicit-dirs")
 				if writeFlags, ok := mi.optimizedFlags["write"].(map[string]any); ok {
 					assert.NotContains(t, writeFlags, "global-max-blocks", "Should not optimize write.global-max-blocks")
@@ -2610,7 +2610,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
-				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.True(t, mi.userConfig.IsSet("implicit-dirs"), "userConfig should be true for implicit-dirs")
 				assert.NotContains(t, mi.optimizedFlags, "implicit-dirs", "Should not optimize implicit-dirs")
 			},
 		},
@@ -2622,7 +2622,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.FileSystem.EnableKernelReader)
-				assert.True(t, mi.isUserSet.IsSet("file-system.enable-kernel-reader"), "isUserSet should be true for file-system.enable-kernel-reader")
+				assert.True(t, mi.userConfig.IsSet("file-system.enable-kernel-reader"), "userConfig should be true for file-system.enable-kernel-reader")
 				assert.NotContains(t, mi.optimizedFlags, "implicit-dirs", "Should not optimize implicit-dirs")
 				if fsFlags, ok := mi.optimizedFlags["file-system"].(map[string]any); ok {
 					assert.NotContains(t, fsFlags, "enable-kernel-reader", "Should not optimize file-system.enable-kernel-reader")
@@ -2665,7 +2665,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--machine-type=a3-highgpu-8g", "--write-global-max-blocks=123"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect CLI value 123, not optimize to 1600")
-				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.userConfig.IsSet("write.global-max-blocks"), "userConfig should be true for write.global-max-blocks")
 				assert.Contains(t, mi.optimizedFlags, "implicit-dirs", "Should optimize implicit-dirs")
 				if writeFlags, ok := mi.optimizedFlags["write"].(map[string]any); ok {
 					assert.NotContains(t, writeFlags, "global-max-blocks", "Should not optimize write.global-max-blocks")
@@ -2677,7 +2677,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining, "--implicit-dirs=false"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
-				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.True(t, mi.userConfig.IsSet("implicit-dirs"), "userConfig should be true for implicit-dirs")
 				assert.NotContains(t, mi.optimizedFlags, "implicit-dirs", "Should not optimize implicit-dirs")
 			},
 		},
@@ -2686,7 +2686,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--enable-kernel-reader=false"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.FileSystem.EnableKernelReader)
-				assert.True(t, mi.isUserSet.IsSet("file-system.enable-kernel-reader"), "isUserSet should be true for file-system.enable-kernel-reader")
+				assert.True(t, mi.userConfig.IsSet("file-system.enable-kernel-reader"), "userConfig should be true for file-system.enable-kernel-reader")
 				if fsFlags, ok := mi.optimizedFlags["file-system"].(map[string]any); ok {
 					assert.NotContains(t, fsFlags, "enable-kernel-reader", "Should not optimize file-system.enable-kernel-reader")
 				}

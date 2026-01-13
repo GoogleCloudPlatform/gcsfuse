@@ -65,7 +65,7 @@ func TestGetMachineType_Success(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	machineType, err := getMachineType(viper.New(), nil)
+	machineType, err := getMachineType(viper.New())
 
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
@@ -81,7 +81,7 @@ func TestGetMachineType_Failure(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	_, err := getMachineType(viper.New(), nil)
+	_, err := getMachineType(viper.New())
 
 	assert.Error(t, err)
 }
@@ -91,10 +91,10 @@ func TestGetMachineType_Failure(t *testing.T) {
 func TestGetMachineType_FlagIsSet(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a viper instance where machine-type is set.
-	isSet := viper.New()
-	isSet.Set("machine-type", "test-machine-type")
+	v := viper.New()
+	v.Set("machine-type", "test-machine-type")
 
-	machineType, err := getMachineType(isSet, nil)
+	machineType, err := getMachineType(v)
 
 	require.NoError(t, err)
 	assert.Equal(t, "test-machine-type", machineType)
@@ -104,35 +104,16 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 	tests := []struct {
 		name                string
 		userSetFlags        map[string]any
-		config              *Config
 		expectedMachineType string
 	}{
 		{
-			name:                "CLI_flag_set",
-			userSetFlags:        map[string]any{"machine-type": "cli-machine-type"},
-			config:              nil,
-			expectedMachineType: "cli-machine-type",
+			name:                "Viper_set",
+			userSetFlags:        map[string]any{"machine-type": "test-machine-type"},
+			expectedMachineType: "test-machine-type",
 		},
 		{
-			name:         "Config_file_set",
-			userSetFlags: map[string]any{},
-			config: &Config{
-				MachineType: "config-file-machine-type",
-			},
-			expectedMachineType: "config-file-machine-type",
-		},
-		{
-			name:         "CLI_flag_and_Config_file_set_(CLI_priority)",
-			userSetFlags: map[string]any{"machine-type": "cli-machine-type"},
-			config: &Config{
-				MachineType: "config-file-machine-type",
-			},
-			expectedMachineType: "cli-machine-type",
-		},
-		{
-			name:                "no_CLI_flag_or_Config_file_set",
+			name:                "Viper_not_set",
 			userSetFlags:        map[string]any{},
-			config:              &Config{},
 			expectedMachineType: "n1-standard-1",
 		},
 	}
@@ -152,7 +133,7 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			for key, val := range tc.userSetFlags {
 				v.Set(key, val)
 			}
-			machineType, err := getMachineType(v, tc.config)
+			machineType, err := getMachineType(v)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedMachineType, machineType)
@@ -176,7 +157,7 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	machineType, err := getMachineType(viper.New(), nil)
+	machineType, err := getMachineType(viper.New())
 
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
@@ -259,12 +240,12 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := viper.New()
-	isSet.Set("file-system.rename-dir-limit", true)
+	v := viper.New()
+	v.Set("file-system.rename-dir-limit", true)
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
+	optimizedFlags := cfg.ApplyOptimizations(v, nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
