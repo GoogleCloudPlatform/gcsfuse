@@ -195,7 +195,7 @@ func (mi *MrdInstance) closePool() {
 	mi.poolMu.Lock()
 	defer mi.poolMu.Unlock()
 	if mi.mrdPool != nil {
-		// Delete the instance.
+		// Close the pool.
 		mi.mrdPool.Close()
 		mi.mrdPool = nil
 	}
@@ -219,7 +219,7 @@ func (mi *MrdInstance) Destroy() {
 		mi.mrdCache.Erase(getKey(mi.inodeId))
 	}
 
-	// Destroy the pool.
+	// Close the pool.
 	mi.closePool()
 }
 
@@ -261,6 +261,7 @@ func (mi *MrdInstance) handleEviction() {
 	if mi.mrdCache != nil && mi.mrdCache.LookUpWithoutChangingOrder(getKey(mi.inodeId)) == mi {
 		return
 	}
+
 	mi.closePool()
 }
 
@@ -290,7 +291,7 @@ func (mi *MrdInstance) DecrementRefCount() {
 	if err != nil {
 		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for object (%s) into cache, destroying immediately: %v", mi.object.Name, err)
 		// The instance could not be inserted into the cache. Since the refCount is 0,
-		// we must destroy it now to prevent it from being leaked.
+		// we must close it now to prevent it from being leaked.
 		mi.closePool()
 		return
 	}
