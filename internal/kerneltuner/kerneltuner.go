@@ -194,7 +194,7 @@ func (c *KernelParamsConfig) SetCongestionWindowThreshold(threshold int) {
 // This is typically used in GKE environments where CSI Driver (privileged) reads the file
 // to apply settings.
 func (c *KernelParamsConfig) ApplyGKE(kernelParamsFile string) {
-	kernelConfigJson, err := json.MarshalIndent(c, "", "  ")
+	kernelConfigJson, err := json.Marshal(c)
 	if err != nil {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
 		return
@@ -211,7 +211,7 @@ func (c *KernelParamsConfig) ApplyGKE(kernelParamsFile string) {
 // It resolves the device major/minor numbers for the mountPoint and attempts
 // to write each parameter, falling back to sudo if direct write fails.
 func (c *KernelParamsConfig) ApplyNonGKE(mountPoint string) {
-	kernelConfigJson, err := json.MarshalIndent(c, " ", " ")
+	kernelConfigJson, err := json.Marshal(c)
 	if err != nil {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
 		return
