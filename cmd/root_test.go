@@ -1283,6 +1283,40 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "Test file system kernel-params-file flag.",
+			args: []string{"gcsfuse", "--kernel-params-file=/tmp/params", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					KernelParamsFile:    "/tmp/params",
+				},
+			},
+		},
+		{
+			name: "Test file system kernel-params-file from config file.",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  kernel-params-file: /tmp/config_params"), "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					KernelParamsFile:    "/tmp/config_params",
+				},
+			},
+		},
+		{
 			name: "cli_flag_overrides_config_file",
 			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "machine-type: config-file-type"), "--machine-type=cli-type", "abc", "pqr"},
 			expectedConfig: &cfg.Config{

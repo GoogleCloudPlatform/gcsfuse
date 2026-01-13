@@ -1552,7 +1552,7 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 	testSuite.mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).Return(&mockFolder, nil)
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
-	result, err := testSuite.bucketHandle.GetFolder(ctx, TestFolderName)
+	result, err := testSuite.bucketHandle.GetFolder(ctx, &gcs.GetFolderRequest{Name: TestFolderName})
 
 	testSuite.mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), err)
@@ -1569,7 +1569,7 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 	testSuite.mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).Return(nil, status.Error(codes.NotFound, "folder not found"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
-	result, err := testSuite.bucketHandle.GetFolder(ctx, missingFolderName)
+	result, err := testSuite.bucketHandle.GetFolder(ctx, &gcs.GetFolderRequest{Name: missingFolderName})
 
 	testSuite.mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), result)

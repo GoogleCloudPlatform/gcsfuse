@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gcsfuse-gke-machine-type-test
+  annotations:
+    gke-gcsfuse/volumes: "true"
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    cloud.google.com/gke-tpu-topology: 2x2
+    cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
+  containers:
+  - name: gke-gcsfuse-sidecar
+    image: gcr.io/$project_id/cloudbuild-gcsfuse-csi/gcs-fuse-csi-driver-sidecar-mounter:$staging_version
+  - name: machine-type-test
+    image: ubuntu:24.04
+    imagePullPolicy: Always
+    resources:
+      limits:
+        google.com/tpu: 4
+    env:
+    - name: GCSFUSE_BRANCH
+      value: "$gcsfuse_branch"
+    - name: BUCKET_NAME
+      value: "$bucket_name"
+    command: ["/bin/bash", "/scripts/run_test.sh"]
+    volumeMounts:
+    - name: data-vol
+      mountPath: /data_mnt
+    - name: scripts-vol
+      mountPath: /scripts
+  serviceAccountName: default
+  volumes:
+  - name: data-vol
+    csi:
+      driver: gcsfuse.csi.storage.gke.io
+      volumeAttributes:
+        bucketName: "$bucket_name"
+        mountOptions: ""
+  - name: scripts-vol
+    configMap:
+      name: machine-type-test-scripts
+

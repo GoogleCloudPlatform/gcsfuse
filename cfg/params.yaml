@@ -305,7 +305,7 @@ params:
     type: "string"
     usage: "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching."
     default: ""
- 
+
   - config-path: "file-cache.max-parallel-downloads"
     flag-name: "file-cache-max-parallel-downloads"
     type: "int"
@@ -340,6 +340,10 @@ params:
       new requests. 0 means system default (typically 75% of max-background; 9).
     default: "0"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: "DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
@@ -443,6 +447,13 @@ params:
         - name: "aiml-serving"
           value: -1
 
+  - config-path: "file-system.kernel-params-file"
+    flag-name: "kernel-params-file"
+    type: "resolvedPath"
+    usage: >-
+      File path used to communicate various kernel parameters to CSI Driver in GKE environment.
+    hide-flag: true
+
   - config-path: "file-system.max-background"
     flag-name: "max-background"
     type: "int"
@@ -453,6 +464,10 @@ params:
       (typically 12).
     default: "0"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: "DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -463,6 +478,10 @@ params:
       and system default will be used.
     default: "0"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: 16384 # 16 MiB
   
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"

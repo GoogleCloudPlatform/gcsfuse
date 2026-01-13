@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,24 +17,24 @@ package tracing
 import (
 	"context"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
-const name = "cloud.google.com/gcsfuse"
+type noopTracer struct{}
 
-var tracer = otel.Tracer(name)
-
-func GCSFuseTracer() trace.Tracer {
-	return tracer
+func (*noopTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	return ctx, noop.Span{}
 }
 
-// When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
-func MaybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
-	if !isTracingEnabled {
-		return newCtx
-	}
+func (*noopTracer) StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	return ctx, noop.Span{}
+}
 
-	span := trace.SpanFromContext(oldCtx)
-	return trace.ContextWithSpan(newCtx, span)
+func (*noopTracer) EndSpan(span trace.Span) {}
+
+func (*noopTracer) RecordError(span trace.Span, err error) {}
+
+func NewNoopTracer() TraceHandle {
+	return new(noopTracer)
 }

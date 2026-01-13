@@ -152,13 +152,13 @@ func (c *Cache) Insert(
 		return nil, ErrInvalidEntry
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	valueSize := value.Size()
 	if valueSize > c.maxSize {
 		return nil, ErrInvalidEntrySize
 	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	e, ok := c.index[key]
 	if ok {

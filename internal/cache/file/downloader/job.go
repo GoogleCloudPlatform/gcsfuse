@@ -32,6 +32,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
@@ -97,6 +99,8 @@ type Job struct {
 	rangeChan chan data.ObjectRange
 
 	metricsHandle metrics.MetricHandle
+
+	traceHandle tracing.TraceHandle
 }
 
 // JobStatus represents the status of job.
@@ -123,6 +127,7 @@ func NewJob(
 	fileCacheConfig *cfg.FileCacheConfig,
 	maxParallelismSem *semaphore.Weighted,
 	metricHandle metrics.MetricHandle,
+	traceHandle tracing.TraceHandle,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -134,6 +139,7 @@ func NewJob(
 		fileCacheConfig:      fileCacheConfig,
 		maxParallelismSem:    maxParallelismSem,
 		metricsHandle:        metricHandle,
+		traceHandle:          traceHandle,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()

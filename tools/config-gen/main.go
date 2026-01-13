@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"slices"
 	"text/template" // NOLINT
+	"unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"golang.org/x/text/cases"
@@ -155,10 +156,18 @@ func main() {
 
 // formatValue is a custom template function that correctly formats values for Go code.
 // It adds quotes to strings and leaves other types as-is.
+// Special case: if a string looks like a function call (ends with ()), it's output as-is.
 func formatValue(v any) string {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.String:
+		s := v.(string)
+		// Check if it looks like a function call - if so, output as-is without quotes
+		// To make it more robust, check that it starts with an uppercase letter as well.
+		// As the function shoud be exported only.
+		if len(s) > 2 && s[len(s)-2:] == "()" && unicode.IsUpper(rune(s[0])) {
+			return s
+		}
 		// Use %q to safely quote strings, e.g., "my-string"
 		return fmt.Sprintf("%q", v)
 	default:

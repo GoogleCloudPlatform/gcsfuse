@@ -601,7 +601,7 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	return
 }
 
-func (bh *bucketHandle) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+func (bh *bucketHandle) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (folder *gcs.Folder, err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
@@ -609,11 +609,11 @@ func (bh *bucketHandle) GetFolder(ctx context.Context, folderName string) (folde
 	var callOptions []gax.CallOption
 	var clientFolder *controlpb.Folder
 	clientFolder, err = bh.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
+		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, req.Name),
 	}, callOptions...)
 
 	if err != nil {
-		err = fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err)
+		err = fmt.Errorf("error getting metadata for folder: %s, %w", req.Name, err)
 		return
 	}
 

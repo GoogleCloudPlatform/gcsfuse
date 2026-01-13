@@ -14,6 +14,7 @@
 
 CSI_VERSION ?= main
 GCSFUSE_VERSION ?= $(shell HASH=$$(git rev-parse --short=6 HEAD 2>/dev/null); if [ -z "$$HASH" ]; then echo "unknown"; else if [ -n "$$(git status --porcelain)" ]; then echo "$$HASH-dirty"; else echo "$$HASH"; fi; fi)
+GOLANG_VERSION := $(shell cat .go-version)
 BUILD_ARM ?= true
 
 # The following section is to set the value of STAGINGVERSION to be used in build-csi target.
@@ -77,4 +78,4 @@ build-csi:
 	@echo "Starting build for version: $(STAGINGVERSION)"
 	@echo "--------------------------------------"
 	# Actual build commands would go here...
-	GO_VERSION=$(shell cat .go-version); gcloud builds submit --config csi_driver_build.yml --substitutions=_GOLANG_VERSION=${GO_VERSION} --project=$(PROJECT) --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)
+	gcloud builds submit --config csi_driver_build.yml --project=$(PROJECT) --substitutions=_GOLANG_VERSION=$(GOLANG_VERSION),_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)

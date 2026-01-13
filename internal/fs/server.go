@@ -33,7 +33,7 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 
 	fs = wrappers.WithErrorMapping(fs, cfg.NewConfig.FileSystem.PreconditionErrors)
 	if newcfg.IsTracingEnabled(cfg.NewConfig) {
-		fs = wrappers.WithTracing(fs)
+		fs = wrappers.WithTracing(fs, cfg.TraceHandle)
 	}
 	fs = wrappers.WithMonitoring(fs, cfg.MetricHandle)
 	if cfg.Notifier != nil {
