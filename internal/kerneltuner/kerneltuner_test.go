@@ -69,19 +69,19 @@ func TestKernelParamsConfig_Setters(t *testing.T) {
 	cfg := NewKernelParamsConfig()
 
 	cfg.SetMaxPagesLimit(123)
-	assert.Contains(t, cfg.Parameters, KernelParam{Name: MaxPagesLimit, Value: "123"})
-
 	cfg.SetTransparentHugePages("always")
-	assert.Contains(t, cfg.Parameters, KernelParam{Name: TransparentHugePages, Value: "always"})
-
 	cfg.SetReadAheadKb(456)
-	assert.Contains(t, cfg.Parameters, KernelParam{Name: ReadAheadKb, Value: "456"})
-
 	cfg.SetMaxBackgroundRequests(789)
-	assert.Contains(t, cfg.Parameters, KernelParam{Name: MaxBackgroundRequests, Value: "789"})
-
 	cfg.SetCongestionWindowThreshold(101)
-	assert.Contains(t, cfg.Parameters, KernelParam{Name: CongestionWindowThreshold, Value: "101"})
+
+	expected := []KernelParam{
+		{Name: MaxPagesLimit, Value: "123"},
+		{Name: TransparentHugePages, Value: "always"},
+		{Name: ReadAheadKb, Value: "456"},
+		{Name: MaxBackgroundRequests, Value: "789"},
+		{Name: CongestionWindowThreshold, Value: "101"},
+	}
+	assert.ElementsMatch(t, expected, cfg.Parameters)
 }
 
 func TestApplyGKE(t *testing.T) {
