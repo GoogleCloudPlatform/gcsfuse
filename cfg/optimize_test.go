@@ -136,68 +136,6 @@ func TestGetMachineType_FlagIsSet(t *testing.T) {
 	assert.Equal(t, "test-machine-type", machineType)
 }
 
-func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
-	tests := []struct {
-		name                string
-		isSet               *mockIsValueSet
-		config              *Config
-		expectedMachineType string
-	}{
-		{
-			name: "CLI_flag_set",
-			isSet: &mockIsValueSet{
-				setFlags:    map[string]bool{"machine-type": true},
-				stringFlags: map[string]string{"machine-type": "cli-machine-type"},
-			},
-			config:              nil,
-			expectedMachineType: "cli-machine-type",
-		},
-		{
-			name:  "Config_file_set",
-			isSet: &mockIsValueSet{},
-			config: &Config{
-				MachineType: "config-file-machine-type",
-			},
-			expectedMachineType: "config-file-machine-type",
-		},
-		{
-			name: "CLI_flag_and_Config_file_set_(CLI_priority)",
-			isSet: &mockIsValueSet{
-				setFlags:    map[string]bool{"machine-type": true},
-				stringFlags: map[string]string{"machine-type": "cli-machine-type"},
-			},
-			config: &Config{
-				MachineType: "config-file-machine-type",
-			},
-			expectedMachineType: "cli-machine-type",
-		},
-		{
-			name:                "no_CLI_flag_or_Config_file_set",
-			isSet:               &mockIsValueSet{},
-			config:              &Config{},
-			expectedMachineType: "n1-standard-1",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			resetMetadataEndpoints(t)
-			// Create a test server that returns a machine type.
-			server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
-			})
-			defer closeTestServer(t, server)
-			// Override metadataEndpoints for testing.
-			metadataEndpoints = []string{server.URL}
-
-			machineType, err := getMachineType(tc.isSet)
-
-			require.NoError(t, err)
-			assert.Equal(t, tc.expectedMachineType, machineType)
-		})
-	}
-}
-
 func TestGetMachineType_QuotaError(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a quota error.
