@@ -15,8 +15,9 @@
 
 # Print commands and their arguments as they are executed.
 set -x
-# Exit immediately if a command exits with a non-zero status.
-set -e
+# -e: Exit on error, -u: Exit on unset vars, -o pipefail: Pipeline error trapping
+set -euo pipefail
+IFS=$'\n\t'
 
 # Defaults
 LOCAL_RUN=false
@@ -25,7 +26,9 @@ TEST_USER="starterscriptuser"
 HOME_DIR="/home/${TEST_USER}"
 ARTIFACTS_DIR="${HOME_DIR}/failure_logs"
 DETAILS_FILE="$(pwd)/details.txt"
-REPO_ROOT=$(pwd) # Capture current directory before sudo might change context
+# Determine the absolute location of THIS script to find repo root
+SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
 
 # Parse Arguments
 for arg in "$@"; do
@@ -67,23 +70,26 @@ trap cleanup EXIT
 
 install_system_deps() {
     echo "Installing system dependencies..."
-    if command -v apt-get &> /dev/null; then
-        sudo apt-get update && sudo apt-get install -y wget fuse git build-essential
-    elif command -v yum &> /dev/null; then
-        sudo yum install -y wget fuse git gcc gcc-c++ make
-        # For RHEL 8 / Rocky 8 specific python setup
-        if [ -f /etc/os-release ]; then
-             # shellcheck source=/dev/null
-            . /etc/os-release
-            if [[ ($ID == "rhel" || $ID == "rocky") ]]; then
-                sudo yum install -y python311
-                export CLOUDSDK_PYTHON=/usr/bin/python3.11
-            fi
-        fi
+    
+    # Source os_utils.sh
+    if [ -f "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh" ]; then
+        source "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh"
     else
-        echo "Unsupported package manager."
+        echo "Error: os_utils.sh not found."
         exit 1
     fi
+    
+    local os_id
+    os_id=$(get_os_id)
+    
+    local pkgs=("wget" "fuse" "git")
+    if [[ "$os_id" == "ubuntu" || "$os_id" == "debian" ]]; then
+        pkgs+=("build-essential")
+    else
+        pkgs+=("gcc" "gcc-c++" "make")
+    fi
+    
+    install_packages_by_os "$os_id" "${pkgs[@]}"
 
     # Ensure standard paths are included before checking
     export PATH=$PATH:/usr/local/google-cloud-sdk/bin
@@ -96,16 +102,10 @@ install_system_deps() {
 
     # Upgrade gcloud
     echo "Upgrading gcloud..."
-    wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-    sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-    # Run install script
-    if [[ -n "$CLOUDSDK_PYTHON" ]]; then
-        sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" /usr/local/google-cloud-sdk/install.sh --quiet
-    else
-        sudo /usr/local/google-cloud-sdk/install.sh --quiet
-    fi
-    
-    gcloud version && rm gcloud.tar.gz
+    bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
+    export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+    export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+    export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
 }
 
 fetch_metadata() {
@@ -176,22 +176,15 @@ setup_test_user() {
 }
 
 install_go() {
-    # Ensure standard paths are included before checking
-    export PATH=$PATH:/usr/local/go/bin
-
-    # Optimization: For local run, check if go exists first
+    # For local run, check if go exists first
     if [ "$LOCAL_RUN" = true ] && command -v go &> /dev/null; then
          echo "Local run detected and Go is present. Skipping Go installation."
          return 0
     fi
 
-    local arch=$1
     echo "Installing Go..."
-    wget -O go_tar.tar.gz "https://go.dev/dl/go1.24.10.linux-${arch}.tar.gz"
-    sudo tar -C /usr/local -xzf go_tar.tar.gz
-    # Path is already exported above, but needed for subsequent commands in this function
-    go version |& tee -a "${LOG_FILE}"
-    rm -f go_tar.tar.gz
+    bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "1.24.11"
+    export PATH="/usr/local/go/bin:$PATH"
 }
 
 install_gcsfuse_package() {
@@ -212,7 +205,7 @@ install_gcsfuse_package() {
     fi
 
     if [ "$NEEDS_BUILD" = true ]; then
-        install_go "$architecture"
+        install_go
     fi
 
     # In Local Run, we skip downloading the package and build from source later
@@ -294,7 +287,7 @@ REGION=\${ZONE_NAME%-*}
 TEST_SCRIPT="./tools/integration_tests/improved_run_e2e_tests.sh"
 chmod +x \$TEST_SCRIPT
 
-ARGS="--bucket-location \$REGION --test-installed-package --no-build-binary-in-script"
+ARGS="--bucket-location \$REGION --test-installed-package --no-build-binary-in-script --package-level-parallelism=5"
 
 if [[ "\$RUN_ON_ZB_ONLY" == "true" ]]; then
     ARGS="\$ARGS --zonal"
