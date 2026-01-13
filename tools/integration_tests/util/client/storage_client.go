@@ -46,6 +46,8 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
+const maxStorageClientRetryAttempts = 10
+
 func CreateHttp1StorageClient(ctx context.Context) (*storage.Client, error) {
 	defaultTokenSrc, err := google.DefaultTokenSource(ctx, storagev1.DevstorageFullControlScope)
 	if err != nil {
@@ -99,7 +101,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		}),
 		storage.WithPolicy(storage.RetryAlways),
 		storage.WithErrorFunc(storageutil.ShouldRetry),
-		storage.WithMaxAttempts(10))
+		storage.WithMaxAttempts(maxStorageClientRetryAttempts))
 	return client, nil
 }
 

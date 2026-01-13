@@ -27,6 +27,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const networkUnreachableError = "network is unreachable"
+
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
@@ -60,7 +62,7 @@ func ShouldRetry(err error) (b bool) {
 		}
 	}
 
-	if err != nil && strings.Contains(err.Error(), "network is unreachable") {
+	if err != nil && strings.Contains(err.Error(), networkUnreachableError) {
 		b = true
 		logger.Warnf("Retrying for 'network is unreachable' error: %v", err)
 		return
