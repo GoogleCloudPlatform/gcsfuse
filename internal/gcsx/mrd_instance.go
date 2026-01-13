@@ -52,16 +52,13 @@ type MrdInstance struct {
 	poolMu sync.RWMutex
 	// mrdCache is a shared cache for inactive MrdInstance objects.
 	mrdCache *lru.Cache
-	// mrdConfig holds configuration for the MRD pool.
+	// holds config specified by the user using config-file flag and CLI flags.
 	config *cfg.Config
 }
 
 // NewMrdInstance creates a new MrdInstance for a given GCS object.
 // Passed config should not be nil. Code will panic otherwise.
 func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, config *cfg.Config) *MrdInstance {
-	if config == nil {
-		panic("NewMrdInstance: config cannot be nil")
-	}
 	return &MrdInstance{
 		object:   obj,
 		bucket:   bucket,
