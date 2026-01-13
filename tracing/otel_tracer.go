@@ -24,13 +24,11 @@ import (
 
 type otelTracer struct{}
 
-func (o *otelTracer) StartTrace(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	ctx, span := GCSFuseTracer.Start(ctx, traceName)
-	span.SetAttributes(attrs...)
-	return ctx, span
+func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	return GCSFuseTracer().Start(ctx, traceName)
 }
 
-func (o *otelTracer) StartTraceLink(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+func (o *otelTracer) StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	span := trace.SpanFromContext(ctx)
 	traceOpts := make([]trace.SpanStartOption, 0, 1)
 	traceOpts = append(traceOpts, trace.WithLinks(trace.Link{
@@ -39,11 +37,14 @@ func (o *otelTracer) StartTraceLink(ctx context.Context, traceName string, attrs
 			attribute.Int64("gcp.cloud_trace.link_type", 1),
 		},
 	}))
-	ctx, span = GCSFuseTracer.Start(ctx, traceName, traceOpts...)
-	return ctx, span
+	return GCSFuseTracer().Start(ctx, traceName, traceOpts...)
 }
 
-func (o *otelTracer) EndTrace(span trace.Span) {
+func (o *otelTracer) StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	return GCSFuseTracer().Start(ctx, traceName, trace.WithSpanKind(trace.SpanKindServer))
+}
+
+func (o *otelTracer) EndSpan(span trace.Span) {
 	span.End()
 }
 
@@ -59,7 +60,7 @@ func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, by
 	)
 }
 
-func NewOtelTracer() TraceHandle {
+func NewOTELTracer() TraceHandle {
 	var o otelTracer
 	return &o
 }

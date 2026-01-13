@@ -43,6 +43,7 @@ func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags 
 		setup.OnlyDirMounted(),
 		"--log-severity=trace",
 		"--log-file=" + config.LogFile,
+		"--enable-kernel-reader=false",
 		config.TestBucket,
 		config.GCSFuseMountedDirectory}
 

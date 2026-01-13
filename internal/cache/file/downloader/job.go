@@ -496,10 +496,10 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		span := trace.SpanFromContext(ctx)
 		newCtx := context.Background()
 		newCtx = trace.ContextWithSpan(newCtx, span)
-		newCtx, downloadSpan := job.traceHandle.StartTraceLink(newCtx, tracing.FileDownloadJob)
+		newCtx, downloadSpan := job.traceHandle.StartSpanLink(newCtx, tracing.FileDownloadJob)
 		job.cancelCtx, job.cancelFunc = context.WithCancel(newCtx)
 		go func() {
-			defer job.traceHandle.EndTrace(downloadSpan)
+			defer job.traceHandle.EndSpan(downloadSpan)
 			job.downloadObjectAsync()
 		}()
 	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {

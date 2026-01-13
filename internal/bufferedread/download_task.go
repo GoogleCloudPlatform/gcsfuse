@@ -63,8 +63,8 @@ func (p *downloadTask) Execute() {
 	var err error
 	var n int64
 	var span trace.Span
-	p.ctx, span = p.traceHandle.StartTraceLink(p.ctx, tracing.DownloadPrefetchBlock)
-	defer p.traceHandle.EndTrace(span)
+	p.ctx, span = p.traceHandle.StartSpanLink(p.ctx, tracing.DownloadPrefetchBlock)
+	defer p.traceHandle.EndSpan(span)
 
 	defer func() {
 		dur := time.Since(stime)

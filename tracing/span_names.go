@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package tracing contains the constants and utilities for OpenTelemetry
+// instrumentation within gcsfuse.
 package tracing
+
+// Span name constants for GCSFuse operations.
+// These constants define the canonical names for spans created during FUSE
+// operations. Using these constants ensures consistency and better readability and a single source of truth where all the span names are listed.
 
 const (
 	FileCacheRead            = "FileCacheRead"
@@ -22,7 +28,6 @@ const (
 	DownloadPrefetchBlock    = "DownloadPrefetchBlock"
 	WaitForPrefetchBlock     = "WaitForPrefetchBlock"
 	ReadFromPrefetchBlock    = "ReadFromPrefetchBlock"
-	ReadAt                   = "ReadAt"
 	StatFS                   = "StatFS"
 	LookUpInode              = "LookUpInode"
 	GetInodeAttributes       = "GetInodeAttributes"

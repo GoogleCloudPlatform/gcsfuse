@@ -17,28 +17,30 @@ package tracing
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type noopTracer struct{}
 
-func (*noopTracer) StartTrace(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+func (*noopTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	return ctx, noop.Span{}
 }
 
-func (*noopTracer) StartTraceLink(ctx context.Context, traceName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+func (*noopTracer) StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	return ctx, noop.Span{}
 }
 
-func (*noopTracer) EndTrace(span trace.Span) {}
+func (*noopTracer) StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	return ctx, noop.Span{}
+}
+
+func (*noopTracer) EndSpan(span trace.Span) {}
 
 func (*noopTracer) RecordError(span trace.Span, err error) {}
 
-func (*noopTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {}
+func (o *noopTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {}
 
 func NewNoopTracer() TraceHandle {
-	var n noopTracer
-	return &n
+	return new(noopTracer)
 }

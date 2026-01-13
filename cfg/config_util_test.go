@@ -21,6 +21,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_DefaultMaxBackground(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultMaxBackground(), 12)
+}
+
+func Test_DefaultCongestionThreshold(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultCongestionThreshold(), 9)
+}
+
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
 	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
 }

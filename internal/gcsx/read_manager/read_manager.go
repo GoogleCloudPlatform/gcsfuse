@@ -171,9 +171,9 @@ func (rr *ReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.
 
 	var err error
 	for _, r := range rr.readers {
-		ctx, span := rr.traceHandle.StartTrace(ctx, reflect.TypeOf(r).String())
+		ctx, span := rr.traceHandle.StartSpan(ctx, reflect.TypeOf(r).String())
 		readResponse, err = r.ReadAt(ctx, req)
-		rr.traceHandle.EndTrace(span)
+		rr.traceHandle.EndSpan(span)
 		if err == nil {
 			rr.readTypeClassifier.RecordRead(req.Offset, int64(readResponse.Size))
 			return readResponse, nil

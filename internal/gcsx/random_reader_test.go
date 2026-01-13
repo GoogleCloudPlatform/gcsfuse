@@ -37,6 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
@@ -182,11 +183,11 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics())
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, metrics.NewNoopMetrics(), nil, nil, 0)
+	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), nil, nil, 0)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -548,7 +549,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
 	const readSize = 1 * MiB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, readSize/MiB, nil, false, metrics.NewNoopMetrics(), nil, nil, 0)
+	rr := NewRandomReader(t.object, t.bucket, readSize/MiB, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), nil, nil, 0)
 	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which

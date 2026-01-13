@@ -140,9 +140,9 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// the file, capped by the configured minimum.
 	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
 	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
-	_, span := opts.TraceHandle.StartTrace(context.Background(), tracing.ReadPrefetchBlockPoolGen)
+	_, span := opts.TraceHandle.StartSpan(context.Background(), tracing.ReadPrefetchBlockPoolGen)
 	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
-	opts.TraceHandle.EndTrace(span)
+	opts.TraceHandle.EndSpan(span)
 	if err != nil {
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
@@ -339,9 +339,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		entry := p.blockQueue.Peek()
 		blk := entry.block
 
-		fetchCtx, span := p.traceHandle.StartTrace(ctx, tracing.WaitForPrefetchBlock)
+		fetchCtx, span := p.traceHandle.StartSpan(ctx, tracing.WaitForPrefetchBlock)
 		status, waitErr := blk.AwaitReady(fetchCtx)
-		p.traceHandle.EndTrace(span)
+		p.traceHandle.EndSpan(span)
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
@@ -363,9 +363,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 		relOff := readOffset - blk.AbsStartOff()
 		bytesToRead := len(req.Buffer) - bytesRead
-		_, span = p.traceHandle.StartTrace(ctx, tracing.ReadFromPrefetchBlock)
+		_, span = p.traceHandle.StartSpan(ctx, tracing.ReadFromPrefetchBlock)
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
-		p.traceHandle.EndTrace(span)
+		p.traceHandle.EndSpan(span)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen
 		readOffset += int64(sliceLen)

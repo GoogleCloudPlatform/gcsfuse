@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
@@ -90,6 +91,14 @@ func (t *hnsDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, ena
 func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
 	t.fixedTime.SetTime(time.Date(2024, 7, 22, 2, 15, 0, 0, time.Local))
 
+	config := &cfg.Config{
+		List:                         cfg.ListConfig{EnableEmptyManagedFolders: enableManagedFoldersListing},
+		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: typeCacheMaxSizeMB},
+		EnableHns:                    true,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+	}
+
 	t.in = NewDirInode(
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
@@ -99,16 +108,12 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 			Mode: dirMode,
 		},
 		implicitDirs,
-		enableManagedFoldersListing,
 		enableNonexistentTypeCache,
 		typeCacheTTL,
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
-		typeCacheMaxSizeMB,
-		true,
-		true,
-		isTypeCacheDeprecationEnabled,
+		config,
 	)
 
 	d := t.in.(*dirInode)
@@ -125,6 +130,14 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 }
 
 func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
+	config := &cfg.Config{
+		List:                         cfg.ListConfig{EnableEmptyManagedFolders: false},
+		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
+		EnableHns:                    false,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+	}
+
 	return NewDirInode(
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
@@ -134,16 +147,12 @@ func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 			Mode: dirMode,
 		},
 		false,
-		false,
 		true,
 		typeCacheTTL,
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
-		4,
-		false,
-		true,
-		isTypeCacheDeprecationEnabled,
+		config,
 	)
 }
 
@@ -194,8 +203,11 @@ func (t *HNSDirTest) TestLookUpChildWithConflictMarkerName() {
 	statObjectRequest := gcs.StatObjectRequest{
 		Name: path.Join(dirInodeName, name),
 	}
+	getFolderRequest := gcs.GetFolderRequest{
+		Name: dirName,
+	}
 	object := gcs.MinObject{Name: dirName}
-	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
+	t.mockBucket.On("GetFolder", mock.Anything, &getFolderRequest).Return(folder, nil)
 	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
 
 	c, err := t.in.LookUpChild(t.ctx, name+"\n")

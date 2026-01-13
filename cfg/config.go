@@ -25,7 +25,14 @@ import (
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
-var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.enable-kernel-reader": {
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(DefaultCongestionThreshold()),
+		},
+	},
+}, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
@@ -69,6 +76,20 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			Name:  "aiml-serving",
 			Value: int64(-1),
+		},
+	},
+}, "file-system.max-background": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(DefaultMaxBackground()),
+		},
+	},
+}, "file-system.max-read-ahead-kb": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(16384),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
@@ -224,6 +245,18 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
+	if !isSet.IsSet("congestion-threshold") {
+		rules := AllFlagOptimizationRules["file-system.congestion-threshold"]
+		result := getOptimizedValue(&rules, c.FileSystem.CongestionThreshold, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.CongestionThreshold != val {
+					c.FileSystem.CongestionThreshold = val
+					optimizedFlags["file-system.congestion-threshold"] = result
+				}
+			}
+		}
+	}
 	if !isSet.IsSet("enable-kernel-reader") {
 		rules := AllFlagOptimizationRules["file-system.enable-kernel-reader"]
 		result := getOptimizedValue(&rules, c.FileSystem.EnableKernelReader, profileName, machineType, input, machineTypeToGroupMap)
@@ -268,6 +301,30 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 				if c.FileSystem.KernelListCacheTtlSecs != val {
 					c.FileSystem.KernelListCacheTtlSecs = val
 					optimizedFlags["file-system.kernel-list-cache-ttl-secs"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("max-background") {
+		rules := AllFlagOptimizationRules["file-system.max-background"]
+		result := getOptimizedValue(&rules, c.FileSystem.MaxBackground, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.MaxBackground != val {
+					c.FileSystem.MaxBackground = val
+					optimizedFlags["file-system.max-background"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("max-read-ahead-kb") {
+		rules := AllFlagOptimizationRules["file-system.max-read-ahead-kb"]
+		result := getOptimizedValue(&rules, c.FileSystem.MaxReadAheadKb, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.MaxReadAheadKb != val {
+					c.FileSystem.MaxReadAheadKb = val
+					optimizedFlags["file-system.max-read-ahead-kb"] = result
 				}
 			}
 		}
@@ -501,6 +558,8 @@ type FileSystemConfig struct {
 	InactiveMrdCacheSize int64 `yaml:"inactive-mrd-cache-size"`
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
+
+	KernelParamsFile ResolvedPath `yaml:"kernel-params-file"`
 
 	MaxBackground int64 `yaml:"max-background"`
 
@@ -1053,6 +1112,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
+	flagSet.StringP("kernel-params-file", "", "", "File path used to communicate various kernel parameters to CSI Driver in GKE environment.")
+
+	if err := flagSet.MarkHidden("kernel-params-file"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used.")
 
 	flagSet.Float64P("limit-bytes-per-sec", "", -1, "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)")
@@ -1593,6 +1658,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.kernel-params-file", flagSet.Lookup("kernel-params-file")); err != nil {
 		return err
 	}
 
