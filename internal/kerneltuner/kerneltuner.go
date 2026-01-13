@@ -146,15 +146,15 @@ func (c *KernelParamsConfig) applyDirectly(mountPoint string) {
 	for _, p := range c.Parameters {
 		path, err := pathForParam(p.Name, major, minor)
 		if err != nil {
-			logger.Warnf("Unable to apply setting %q to the mount point %q due to err: %v", p.Name, mountPoint, err)
+			logger.Warnf("Unable to update setting %q to value %q for the mount point %q due to err: %v", p.Name, p.Value, mountPoint, err)
 			continue
 		}
 
 		if err := writeValue(path, p.Value); err != nil {
-			logger.Warnf("Unable to apply setting %q to the mount point %q due to err: %v", p.Name, mountPoint, err)
+			logger.Warnf("Unable to update setting %q to value %q for the mount point %q due to err: %v", p.Name, p.Value, mountPoint, err)
 			continue
 		}
-		logger.Infof("Setting %q set to value %q for the mount point %q successfully.", p.Name, p.Value, mountPoint)
+		logger.Infof("Setting %q updated successfully to value %q for the mount point %q", p.Name, p.Value, mountPoint)
 	}
 }
 
