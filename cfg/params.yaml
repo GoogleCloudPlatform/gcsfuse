@@ -91,7 +91,7 @@ params:
     flag-name: "enable-cloud-profiler"
     type: "bool"
     usage: "Enables cloud-profiler, by default disabled."
-    default: false
+    default: true
     hide-flag: true
 
   - config-path: "cloud-profiler.goroutines"

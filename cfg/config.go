@@ -896,7 +896,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase the memory usage significantly.")
 
-	flagSet.BoolP("enable-cloud-profiler", "", false, "Enables cloud-profiler, by default disabled.")
+	flagSet.BoolP("enable-cloud-profiler", "", true, "Enables cloud-profiler, by default disabled.")
 
 	if err := flagSet.MarkHidden("enable-cloud-profiler"); err != nil {
 		return err
