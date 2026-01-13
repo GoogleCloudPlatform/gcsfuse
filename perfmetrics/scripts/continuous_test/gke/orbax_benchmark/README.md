@@ -32,40 +32,35 @@ The script performs the following steps:
 The script is controlled via command-line arguments.
 
 ```
-usage: run_benchmark.py [-h] [--project_id PROJECT_ID] --bucket_name BUCKET_NAME [--zone ZONE] [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] [--subnet_name SUBNET_NAME] [--machine_type MACHINE_TYPE] [--node_pool_name NODE_POOL_NAME] [--gcsfuse_branch GCSFUSE_BRANCH]
-                        [--reservation_name RESERVATION_NAME] [--no_cleanup] [--iterations ITERATIONS] [--performance_threshold_gbps PERFORMANCE_THRESHOLD_GBPS] [--pod_timeout_seconds POD_TIMEOUT_SECONDS] [--skip_csi_driver_build]
+usage: run_benchmark.py [-h] [--project_id PROJECT_ID] --bucket_name BUCKET_NAME [--zone ZONE] \
+                        [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] \
+                        [--subnet_name SUBNET_NAME] [--machine_type MACHINE_TYPE] \
+                        [--node_pool_name NODE_POOL_NAME] [--gcsfuse_branch GCSFUSE_BRANCH] \
+                        [--reservation_name RESERVATION_NAME] [--no_cleanup] \
+                        [--iterations ITERATIONS] \
+                        [--performance_threshold_gbps PERFORMANCE_THRESHOLD_GBPS] \
+                        [--pod_timeout_seconds POD_TIMEOUT_SECONDS] [--skip_csi_driver_build]
+```
 
-Run GKE Orbax benchmark.
+### Argument Reference
 
-options:
-  -h, --help            show this help message and exit
-  --project_id PROJECT_ID
-                        Google Cloud project ID. Can also be set with PROJECT_ID env var.
-  --bucket_name BUCKET_NAME GCS bucket name for the workload. The bucket must exist before running the script.
-  --zone ZONE           GCP zone. Can also be set with ZONE env var.
-  --cluster_name CLUSTER_NAME
-                        GKE cluster name. Can also be set with CLUSTER_NAME env var.
-  --network_name NETWORK_NAME
-                        VPC network name. Can also be set with NETWORK_NAME env var.
-  --subnet_name SUBNET_NAME
-                        VPC subnet name. Can also be set with SUBNET_NAME env var.
-  --machine_type MACHINE_TYPE
-                        Machine type for the node pool. Can also be set with MACHINE_TYPE env var.
-  --node_pool_name NODE_POOL_NAME
-                        Node pool name. Can also be set with NODE_POOL_NAME env var.
-  --gcsfuse_branch GCSFUSE_BRANCH
-                        GCSFuse branch or tag to build. Can also be set with GCSFUSE_BRANCH env var.
-  --reservation_name RESERVATION_NAME
-                        The specific reservation to use for the nodes. Can also be set with RESERVATION_NAME env var.
-  --no_cleanup          Don't clean up resources after. Can also be set with NO_CLEANUP=true env var.
-  --iterations ITERATIONS
-                        Number of iterations for the benchmark. Can also be set with ITERATIONS env var.
-  --performance_threshold_gbps PERFORMANCE_THRESHOLD_GBPS
-                        Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.
-  --pod_timeout_seconds POD_TIMEOUT_SECONDS
-                        Timeout in seconds for the benchmark pod to complete. Can also be set with POD_TIMEOUT_SECONDS env var.
-  --skip_csi_driver_build
-                        Skip building the CSI driver. Can also be set with SKIP_CSI_DRIVER_BUILD=true env var.
+Argument                  | Description                                                      | Default Value
+:------------------------ | :--------------------------------------------------------------- | :------------
+`--project_id`            | Google Cloud project ID.                                         | `gcs-fuse-test-ml` (Env: `PROJECT_ID`)
+`--bucket_name`           | **(Required)** GCS bucket name for the workload.                 | `None` (Env: `BUCKET_NAME`)
+`--zone`                  | GCP zone.                                                        | `europe-west4-a` (Env: `ZONE`)
+`--cluster_name`          | GKE cluster name.                                                | `gke-orbax-benchmark-cluster`
+`--network_name`          | VPC network name.                                                | `gke-orbax-benchmark-network-<ZONE>`
+`--subnet_name`           | VPC subnet name.                                                 | `gke-orbax-benchmark-subnet-<ZONE>`
+`--machine_type`          | Machine type for the node pool.                                  | `ct6e-standard-4t` (TPU v6e)
+`--node_pool_name`        | Node pool name.                                                  | `ct6e-pool`
+`--gcsfuse_branch`        | GCSFuse branch to build.                                         | `master`
+`--reservation_name`      | Specific reservation to use for the nodes.                       | `cloudtpu-20251107233000-76736260`
+`--no_cleanup`            | If set, resources will NOT be deleted after the test.            | `False`
+`--iterations`            | Number of iterations for the benchmark.                          | `20`
+`--performance_threshold_gbps` | Minimum throughput in GB/s for a successful iteration.      | `13.0`
+`--pod_timeout_seconds`   | Timeout in seconds for the pod to complete.                      | `1800` (30 mins)
+`--skip_csi_driver_build` | If set, skips building the CSI driver image (assumes it exists). | `False`
 ```
 
 ## Example
