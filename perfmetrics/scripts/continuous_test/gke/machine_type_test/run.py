@@ -321,8 +321,7 @@ async def main():
   )
   parser.add_argument(
       "--project_id",
-      required=os.environ.get("PROJECT_ID") is None,
-      default=os.environ.get("PROJECT_ID"),
+      default=os.environ.get("PROJECT_ID", utils.DEFAULT_PROJECT_ID),
       help="Google Cloud project ID. Can also be set with PROJECT_ID env var.",
   )
   parser.add_argument(
@@ -336,8 +335,7 @@ async def main():
   )
   parser.add_argument(
       "--zone",
-      required=os.environ.get("ZONE") is None,
-      default=os.environ.get("ZONE"),
+      default=os.environ.get("ZONE", utils.DEFAULT_ZONE),
       help="GCP zone. Can also be set with ZONE env var.",
   )
   parser.add_argument(
@@ -375,7 +373,7 @@ async def main():
   )
   parser.add_argument(
       "--reservation_name",
-      default=os.environ.get("RESERVATION_NAME"),
+      default=os.environ.get("RESERVATION_NAME", utils.DEFAULT_RESERVATION_NAME),
       help=(
           "The specific reservation to use for the nodes. Can also be set with"
           " RESERVATION_NAME env var."

@@ -16,8 +16,13 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"sync/atomic"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // MrdSimpleReader is a reader that uses an MRD Instance to read data from a GCS object.
@@ -26,14 +31,27 @@ import (
 type MrdSimpleReader struct {
 	mrdInstanceInUse atomic.Bool
 	mrdInstance      *MrdInstance
+	metrics          metrics.MetricHandle
 }
 
 // NewMrdSimpleReader creates a new MrdSimpleReader that uses the provided
 // MrdInstance to manage MRD connections.
-func NewMrdSimpleReader(mrdInstance *MrdInstance) *MrdSimpleReader {
+func NewMrdSimpleReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *MrdSimpleReader {
 	return &MrdSimpleReader{
 		mrdInstance: mrdInstance,
+		metrics:     metricsHandle,
 	}
+}
+
+// isShortRead checks if the read operation returned fewer bytes than requested
+// without encountering a fatal error.
+// It returns true if bytesRead < bufferSize and err is either nil, io.EOF, or io.ErrUnexpectedEOF.
+func isShortRead(bytesRead int, bufferSize int, err error) bool {
+	if bytesRead >= bufferSize {
+		return false
+	}
+
+	return err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
 }
 
 // ReadAt reads data into the provided request buffer starting at the specified
@@ -55,8 +73,25 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		msr.mrdInstance.IncrementRefCount()
 	}
 
-	n, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset)
-	return ReadResponse{Size: n}, err
+	bytesRead, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset, msr.metrics)
+	if isShortRead(bytesRead, len(req.Buffer), err) {
+		originalErr := err
+		if err = msr.mrdInstance.RecreateMRD(); err != nil {
+			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
+		}
+		retryOffset := req.Offset + int64(bytesRead)
+		retryBuffer := req.Buffer[bytesRead:]
+		var bytesReadOnRetry int
+		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, retryBuffer, retryOffset, msr.metrics)
+		bytesRead += bytesReadOnRetry
+		// In case the offset is greater than object size, we can get OutOfRange error which should not be propagated
+		// to user. Also, MRD will have to be recreated in that scenario which will happen automatically during next read.
+		if bytesReadOnRetry == 0 {
+			err = originalErr
+		}
+	}
+	metrics.CaptureGCSReadMetrics(msr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
+	return ReadResponse{Size: bytesRead}, err
 }
 
 // Destroy cleans up the resources used by the reader, primarily by destroying

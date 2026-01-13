@@ -46,6 +46,8 @@ type serverConfigParams struct {
 	enableSparseFileCache bool
 	// enableFileCacheForRangeRead controls if the file cache is used for random reads.
 	enableFileCacheForRangeRead bool
+	// enableKernelReader controls if the mrd_simple_reader is enabled.
+	enableKernelReader bool
 }
 
 func defaultServerConfigParams() *serverConfigParams {
@@ -54,6 +56,7 @@ func defaultServerConfigParams() *serverConfigParams {
 		enableNewReader:             true,
 		enableFileCache:             false,
 		enableFileCacheForRangeRead: true,
+		enableKernelReader:          false,
 	}
 }
 
@@ -81,6 +84,9 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 				MaxBlocksPerHandle: 10,
 			},
 			EnableNewReader: params.enableNewReader,
+			FileSystem: cfg.FileSystemConfig{
+				EnableKernelReader: params.enableKernelReader,
+			},
 		},
 		MetricHandle: mh,
 		CacheClock:   &timeutil.SimulatedClock{},
@@ -541,6 +547,44 @@ func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
 	// not the entire file (3MB), demonstrating sparse download behavior.
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(1))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(chunkSize))
+}
+
+func TestReadFile_MrdSimpleReaderMetrics(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableKernelReader = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, len(content)),
+	}
+
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	require.NoError(t, err, "ReadFile")
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(1))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), int64(1))
+	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), uint64(1))
 }
 
 func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
