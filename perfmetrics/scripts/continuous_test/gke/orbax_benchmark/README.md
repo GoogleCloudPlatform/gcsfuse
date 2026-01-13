@@ -32,30 +32,40 @@ The script performs the following steps:
 The script is controlled via command-line arguments.
 
 ```
-usage: run_benchmark.py [-h] --project_id PROJECT_ID --bucket_name BUCKET_NAME [--zone ZONE] [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] [--subnet_name SUBNET_NAME]
-                        [--machine_type MACHINE_TYPE] [--node_pool_name NODE_POOL_NAME] [--gcsfuse_branch GCSFUSE_BRANCH] [--no_cleanup]
+usage: run_benchmark.py [-h] [--project_id PROJECT_ID] --bucket_name BUCKET_NAME [--zone ZONE] [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] [--subnet_name SUBNET_NAME] [--machine_type MACHINE_TYPE] [--node_pool_name NODE_POOL_NAME] [--gcsfuse_branch GCSFUSE_BRANCH]
+                        [--reservation_name RESERVATION_NAME] [--no_cleanup] [--iterations ITERATIONS] [--performance_threshold_gbps PERFORMANCE_THRESHOLD_GBPS] [--pod_timeout_seconds POD_TIMEOUT_SECONDS] [--skip_csi_driver_build]
 
 Run GKE Orbax benchmark.
 
 options:
   -h, --help            show this help message and exit
   --project_id PROJECT_ID
-                        Google Cloud project ID.
+                        Google Cloud project ID. Can also be set with PROJECT_ID env var.
   --bucket_name BUCKET_NAME GCS bucket name for the workload. The bucket must exist before running the script.
-  --zone ZONE           GCP zone.
+  --zone ZONE           GCP zone. Can also be set with ZONE env var.
   --cluster_name CLUSTER_NAME
-                        GKE cluster name.
+                        GKE cluster name. Can also be set with CLUSTER_NAME env var.
   --network_name NETWORK_NAME
-                        VPC network name.
+                        VPC network name. Can also be set with NETWORK_NAME env var.
   --subnet_name SUBNET_NAME
-                        VPC subnet name.
+                        VPC subnet name. Can also be set with SUBNET_NAME env var.
   --machine_type MACHINE_TYPE
-                        Machine type for the node pool.
+                        Machine type for the node pool. Can also be set with MACHINE_TYPE env var.
   --node_pool_name NODE_POOL_NAME
-                        Node pool name.
+                        Node pool name. Can also be set with NODE_POOL_NAME env var.
   --gcsfuse_branch GCSFUSE_BRANCH
-                        GCSFuse branch or tag to build.
-  --no_cleanup          Don't clean up resources after the benchmark.
+                        GCSFuse branch or tag to build. Can also be set with GCSFUSE_BRANCH env var.
+  --reservation_name RESERVATION_NAME
+                        The specific reservation to use for the nodes. Can also be set with RESERVATION_NAME env var.
+  --no_cleanup          Don't clean up resources after. Can also be set with NO_CLEANUP=true env var.
+  --iterations ITERATIONS
+                        Number of iterations for the benchmark. Can also be set with ITERATIONS env var.
+  --performance_threshold_gbps PERFORMANCE_THRESHOLD_GBPS
+                        Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.
+  --pod_timeout_seconds POD_TIMEOUT_SECONDS
+                        Timeout in seconds for the benchmark pod to complete. Can also be set with POD_TIMEOUT_SECONDS env var.
+  --skip_csi_driver_build
+                        Skip building the CSI driver. Can also be set with SKIP_CSI_DRIVER_BUILD=true env var.
 ```
 
 ## Example
