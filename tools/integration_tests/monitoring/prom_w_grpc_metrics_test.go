@@ -62,8 +62,12 @@ func (p *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {
 	require.NoError(p.T(), err)
 
 	// Assert that gRPC metrics are present.
+	if(testEnv.bucketType=="zonal") {
+		assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/BidiReadObject", p.prometheusPort)
+	} else {
+		assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/ReadObject", p.prometheusPort)
+	}
 	assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "", "", p.prometheusPort)
-	assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/ReadObject", p.prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "grpc_client_attempt_duration_seconds", "", "", p.prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "grpc_client_call_duration_seconds", "", "", p.prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "grpc_client_attempt_rcvd_total_compressed_message_size_bytes", "", "", p.prometheusPort)
