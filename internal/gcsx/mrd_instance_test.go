@@ -460,7 +460,7 @@ func (t *MrdInstanceTest) TestDecrementRefCount_CacheInsertFailure() {
 	logger.SetOutput(&buf)
 	defer logger.SetOutput(os.Stdout)
 
-	// This should fail to insert into cache (Size 2 > Cap 1) and trigger Destroy
+	// This should fail to insert into cache (Size 2 > Cap 1) and should close the pool instantly.
 	mi.DecrementRefCount()
 
 	assert.Equal(t.T(), int64(0), mi.refCount)
