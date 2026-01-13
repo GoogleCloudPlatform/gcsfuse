@@ -19,7 +19,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
@@ -54,11 +53,6 @@ type OptimizationResult struct {
 type IsValueSet interface {
 	IsSet(string) bool
 	GetString(string) string
-}
-
-// flagOverride represents a flag override with its new value.
-type flagOverride struct {
-	newValue any
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -132,27 +126,6 @@ func getMachineType(isSet IsValueSet, cfg *Config) (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to get machine type from any metadata endpoint after retries")
-}
-
-// convertToCamelCase converts a string from snake-case to CamelCase.
-func convertToCamelCase(input string) string {
-	if input == "" {
-		return ""
-	}
-
-	// Split the string by hyphen.
-	parts := strings.Split(input, "-")
-
-	// Capitalize each part and join them together.
-	for i, part := range parts {
-		if len(part) > 0 {
-			runes := []rune(part)
-			runes[0] = unicode.ToUpper(runes[0])
-			parts[i] = string(runes)
-		}
-	}
-
-	return strings.Join(parts, "")
 }
 
 func isFlagPresent(flags []string, flag string) bool {

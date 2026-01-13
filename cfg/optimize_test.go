@@ -91,10 +91,10 @@ func TestGetMachineType_Failure(t *testing.T) {
 func TestGetMachineType_FlagIsSet(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a viper instance where machine-type is set.
-	userConfig := viper.New()
-	userConfig.Set("machine-type", "test-machine-type")
+	isSet := viper.New()
+	isSet.Set("machine-type", "test-machine-type")
 
-	machineType, err := getMachineType(userConfig, nil)
+	machineType, err := getMachineType(isSet, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "test-machine-type", machineType)
@@ -193,9 +193,8 @@ func TestApplyOptimizations_DisableAutoConfig(t *testing.T) {
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
 	cfg.DisableAutoconfig = true
-	userConfig := viper.New()
 
-	optimizedFlags := cfg.ApplyOptimizations(userConfig, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	require.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -216,9 +215,8 @@ func TestApplyOptimizations_MatchingMachineType(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	userConfig := viper.New()
 
-	optimizedFlags := cfg.ApplyOptimizations(userConfig, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -239,9 +237,8 @@ func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	userConfig := viper.New()
 
-	optimizedFlags := cfg.ApplyOptimizations(userConfig, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -262,12 +259,12 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	userConfig := viper.New()
-	userConfig.Set("file-system.rename-dir-limit", true)
+	isSet := viper.New()
+	isSet.Set("file-system.rename-dir-limit", true)
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizedFlags := cfg.ApplyOptimizations(userConfig, nil)
+	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -288,9 +285,8 @@ func TestApplyOptimizations_GetMachineTypeError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	userConfig := viper.New()
 
-	optimizedFlags := cfg.ApplyOptimizations(userConfig, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -311,9 +307,8 @@ func TestApplyOptimizations_NoError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	userConfig := viper.New()
 
-	optimizedFlags := cfg.ApplyOptimizations(userConfig, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 }
@@ -328,9 +323,8 @@ func TestApplyOptimizations_Success(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	userConfig := viper.New()
 
-	optimizedFlags := cfg.ApplyOptimizations(userConfig, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "write.global-max-blocks"))
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
