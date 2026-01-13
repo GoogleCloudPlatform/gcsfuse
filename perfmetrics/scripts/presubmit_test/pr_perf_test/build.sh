@@ -26,12 +26,6 @@ readonly BUCKET_LOCATION=us-west4
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
 
-# Common constants for GKE tests on TPU
-# (gcsfuse/perfmetrics/scripts/continuous_test/gke/*)
-readonly TPU_TEST_PROJECT_ID="gcs-fuse-test-ml"
-readonly TPU_TEST_ZONE="europe-west4-a"
-readonly TPU_TEST_RESERVATION_NAME="cloudtpu-20251107233000-76736260"
-
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
 integrationTests=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL\"" pr.json)
@@ -106,9 +100,6 @@ function execute_gke_test() {
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  export PROJECT_ID="${TPU_TEST_PROJECT_ID}"
-  export ZONE="${TPU_TEST_ZONE}"
-  export RESERVATION_NAME="${TPU_TEST_RESERVATION_NAME}"
   export BUCKET_NAME="$bucket_name"
 
   python3 "$script_path"
