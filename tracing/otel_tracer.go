@@ -17,6 +17,7 @@ package tracing
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -25,6 +26,18 @@ type otelTracer struct{}
 
 func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	return GCSFuseTracer().Start(ctx, traceName)
+}
+
+func (o *otelTracer) StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	span := trace.SpanFromContext(ctx)
+	traceOpts := make([]trace.SpanStartOption, 0, 1)
+	traceOpts = append(traceOpts, trace.WithLinks(trace.Link{
+		SpanContext: span.SpanContext(),
+		Attributes: []attribute.KeyValue{
+			attribute.Int64("gcp.cloud_trace.link_type", 1),
+		},
+	}))
+	return GCSFuseTracer().Start(ctx, traceName, traceOpts...)
 }
 
 func (o *otelTracer) StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
@@ -38,6 +51,13 @@ func (o *otelTracer) EndSpan(span trace.Span) {
 func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
+}
+
+func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
+	span.SetAttributes(
+		attribute.Bool(IS_CACHE_HIT, isCacheHit),
+		attribute.Int(BYTES_READ, bytesRead),
+	)
 }
 
 func NewOTELTracer() TraceHandle {
