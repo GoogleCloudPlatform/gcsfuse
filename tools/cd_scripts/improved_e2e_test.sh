@@ -30,7 +30,12 @@ DETAILS_FILE="$(pwd)/details.txt"
 SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
 
-# Parse Arguments
+usage() {
+    echo "Usage: $0 [--local-run]"
+    echo "  --local-run    Skips user creation and GCS log uploads and runs this script on local machine."
+    exit 1
+}
+
 for arg in "$@"; do
     case $arg in
         --local-run)
@@ -39,7 +44,14 @@ for arg in "$@"; do
             HOME_DIR="$HOME"
             ARTIFACTS_DIR="$(pwd)/failure_logs"
             DETAILS_FILE="$(pwd)/details.txt"
-            echo "Running in LOCAL MODE. No new users will be created, and logs will not be uploaded."
+            echo "Running on LOCAL machine. No new users created, logs won't be uploaded."
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "ERROR" "Unknown argument: $arg"
+            usage
             ;;
     esac
 done
