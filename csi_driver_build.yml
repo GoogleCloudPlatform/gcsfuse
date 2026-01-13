@@ -64,7 +64,7 @@ steps:
   - '-c'
   - |
     BUILD_ID_VAL="${BUILD_ID}"
-    BUCKET_NAME="gs://${PROJECT_ID}$${BUILD_ID_VAL:0:8}"
+    BUCKET_NAME="gs://${PROJECT_ID}-csi-$${BUILD_ID_VAL:0:8}"
     gcloud storage buckets create $$BUCKET_NAME
     echo $$BUCKET_NAME > /workspace/bucket_name
 
