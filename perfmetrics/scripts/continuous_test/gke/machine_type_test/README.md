@@ -81,11 +81,12 @@ The script performs the following steps:
 The script is controlled via command-line arguments.
 
 ```
-usage: run.py [-h] --project_id PROJECT_ID --bucket_name BUCKET_NAME --zone ZONE \
-                   [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] [--subnet_name SUBNET_NAME] \
-                   [--machine_type MACHINE_TYPE] [--node_pool_name NODE_POOL_NAME] \
-                   [--gcsfuse_branch GCSFUSE_BRANCH] [--reservation_name RESERVATION_NAME] \
-                   [--no_cleanup] [--skip_csi_driver_build] [--pod_timeout_seconds POD_TIMEOUT_SECONDS]
+usage: run.py [-h] [--project_id PROJECT_ID] --bucket_name BUCKET_NAME [--zone ZONE] \
+                   [--cluster_name CLUSTER_NAME] [--network_name NETWORK_NAME] \
+                   [--subnet_name SUBNET_NAME] [--machine_type MACHINE_TYPE] \
+                   [--node_pool_name NODE_POOL_NAME] [--gcsfuse_branch GCSFUSE_BRANCH] \
+                   [--reservation_name RESERVATION_NAME] [--no_cleanup] \
+                   [--pod_timeout_seconds POD_TIMEOUT_SECONDS] [--skip_csi_driver_build]
 ```
 
 ### Argument Reference
