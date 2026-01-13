@@ -92,16 +92,16 @@ usage: run.py [-h] --project_id PROJECT_ID --bucket_name BUCKET_NAME --zone ZONE
 
 Argument                  | Description                                                      | Default Value
 :------------------------ | :--------------------------------------------------------------- | :------------
-`--project_id`            | **(Required)** Google Cloud project ID.                          | `None` (Env: `PROJECT_ID`)
+`--project_id`            | Google Cloud project ID.                                         | `gcs-fuse-test-ml` (Env: `PROJECT_ID`)
 `--bucket_name`           | **(Required)** GCS bucket name for the workload.                 | `None` (Env: `BUCKET_NAME`)
-`--zone`                  | **(Required)** GCP zone.                                         | `None` (Env: `ZONE`)
+`--zone`                  | GCP zone.                                                        | `europe-west4-a` (Env: `ZONE`)
 `--cluster_name`          | GKE cluster name.                                                | `gke-machine-type-test-cluster`
 `--network_name`          | VPC network name.                                                | `gke-machine-type-test-network-<ZONE>`
 `--subnet_name`           | VPC subnet name.                                                 | `gke-machine-type-test-subnet-<ZONE>`
 `--machine_type`          | Machine type for the node pool.                                  | `ct6e-standard-4t` (TPU v6e)
 `--node_pool_name`        | Node pool name.                                                  | `ct6e-pool`
 `--gcsfuse_branch`        | GCSFuse branch to build.                                         | `master`
-`--reservation_name`      | Specific reservation to use for the nodes.                       | `None`
+`--reservation_name`      | Specific reservation to use for the nodes.                       | `cloudtpu-20251107233000-76736260`
 `--no_cleanup`            | If set, resources will NOT be deleted after the test.            | `False`
 `--skip_csi_driver_build` | If set, skips building the CSI driver image (assumes it exists). | `False`
 `--pod_timeout_seconds`   | Timeout in seconds for the pod to complete.                      | `1800` (30 mins)
