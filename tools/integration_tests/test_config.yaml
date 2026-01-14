@@ -18,7 +18,7 @@ explicit_dir:
     configs:
       - flags:
           - "--implicit-dirs=false"
-          - "--implicit-dirs=false --client-protocol=grpc"
+          - "--implicit-dirs=false,--client-protocol=grpc"
         compatible: # Bucket type to run these tests with
           flat: true
           hns: false
@@ -37,7 +37,7 @@ implicit_dir:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--implicit-dirs --client-protocol=grpc"
+          - "--implicit-dirs,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -49,14 +49,14 @@ list_large_dir:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
+          - "--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
         compatible:
           flat: true
           hns: true
           zonal: true
         run_on_gke: true
       - flags:
-          - "--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
+          - "--client-protocol=grpc,--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
         compatible:
           flat: true
           hns: true
@@ -68,10 +68,10 @@ operations:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
-        - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
-        - "--experimental-enable-json-read=true --enable-atomic-rename-object=true"
-        - "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true"
+        - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
+        - "--kernel-list-cache-ttl-secs=-1,--implicit-dirs=true"
+        - "--experimental-enable-json-read=true,--enable-atomic-rename-object=true"
+        - "--client-protocol=grpc,--implicit-dirs=true,--enable-atomic-rename-object=true"
         compatible:
           flat: true
           hns: true
@@ -87,7 +87,7 @@ write_large_files:
           # write-global-max-blocks=5 is for checking multiple file writes in parallel.
           # concurrent_write_files_test.go- we are writing 3 files in parallel.
           # with this config, we are giving 2 blocks to 2 files and 1 block to other file.
-          - "--write-max-blocks-per-file=2 --write-global-max-blocks=5"
+          - "--write-max-blocks-per-file=2,--write-global-max-blocks=5"
         compatible:
           flat: true
           hns: true
@@ -99,8 +99,8 @@ gzip:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--sequential-read-size-mb=1 --implicit-dirs"
-          - "--sequential-read-size-mb=1 --implicit-dirs --client-protocol=grpc"
+          - "--sequential-read-size-mb=1,--implicit-dirs"
+          - "--sequential-read-size-mb=1,--implicit-dirs,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -113,11 +113,11 @@ read_large_files:
     configs:
       - flags:
           - "--implicit-dirs"
-          - "--implicit-dirs --client-protocol=grpc"
-          - "--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --client-protocol=grpc --cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --client-protocol=grpc --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs,--client-protocol=grpc"
+          - "--implicit-dirs=true,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read=true,--cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read=true,--client-protocol=grpc,--cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true,--file-cache-max-size-mb=-1,--cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true,--file-cache-max-size-mb=-1,--client-protocol=grpc,--cache-dir=${CACHE_DIR_PATH}"
         compatible:
           flat: true
           hns: true
@@ -129,10 +129,10 @@ readonly:
     test_bucket: "${BUCKET_NAME}" # To be passed by both gcsfuse and gke tests
     configs:
       - flags:
-          - "--o=ro --implicit-dirs=true"
-          - "--file-mode=544 --dir-mode=544 --implicit-dirs=true"
-          - "--client-protocol=grpc --o=ro --implicit-dirs=true"
-          - "--o=ro --implicit-dirs=true --cache-dir=${CACHE_DIR_PATH} --file-cache-max-size-mb=3"
+          - "--o=ro,--implicit-dirs=true"
+          - "--file-mode=544,--dir-mode=544,--implicit-dirs=true"
+          - "--client-protocol=grpc,--o=ro,--implicit-dirs=true"
+          - "--o=ro,--implicit-dirs=true,--cache-dir=${CACHE_DIR_PATH},--file-cache-max-size-mb=3"
         compatible:
           flat: true
           hns: true
@@ -145,9 +145,9 @@ rename_dir_limit:
     only_dir: "${ONLY_DIR}"
     configs:
       - flags:
-          - "--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc"
+          - "--rename-dir-limit=3,--implicit-dirs,--client-protocol=grpc"
           - "--rename-dir-limit=3"
-          - "--rename-dir-limit=3 --client-protocol=grpc"
+          - "--rename-dir-limit=3,--client-protocol=grpc"
         compatible:
           flat: true
           hns: false
@@ -167,17 +167,17 @@ local_file:
     only_dir: "${ONLY_DIR}"
     configs:
       - flags:
-          - "--implicit-dirs=true --rename-dir-limit=3 --enable-streaming-writes=false"
-          - "--implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=false --client-protocol=grpc"
-          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=0"
+          - "--implicit-dirs=true,--rename-dir-limit=3,--enable-streaming-writes=false"
+          - "--implicit-dirs=false,--rename-dir-limit=3,--enable-streaming-writes=false,--client-protocol=grpc"
+          - "--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
         compatible:
           flat: true
           hns: true
           zonal: true
         run_on_gke: true
       - flags:
-          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1"
-          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1 --client-protocol=grpc"
+          - "--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
+          - "--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -189,8 +189,8 @@ streaming_writes:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --client-protocol=grpc --write-global-max-blocks=-1"
-          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1"
+          - "--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--client-protocol=grpc,--write-global-max-blocks=-1"
+          - "--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
         compatible:
           flat: true
           hns: true
@@ -203,7 +203,7 @@ cloud_profiler:
     configs:
       - flags:
           # Set the 'PROFILE_LABEL' environment variable for GKE
-          - "--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap --cloud-profiler-label=${PROFILE_LABEL}"
+          - "--enable-cloud-profiler,--cloud-profiler-cpu,--cloud-profiler-heap,--cloud-profiler-goroutines,--cloud-profiler-mutex,--cloud-profiler-allocated-heap,--cloud-profiler-label=${PROFILE_LABEL}"
         compatible:
           flat: true
           hns: true
@@ -228,10 +228,10 @@ read_cache:
     only_dir: "${ONLY_DIR}"
     configs:
       - flags:
-          - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --implicit-dirs"
-          - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE"
-          - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE -client-protocol=grpc --implicit-dirs"
+          - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--implicit-dirs"
+          - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,-cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE"
+          - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--client-protocol=grpc"
+          - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,-cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,-client-protocol=grpc,--implicit-dirs"
         compatible:
           flat: true
           hns: true
@@ -239,14 +239,14 @@ read_cache:
         run: TestSmallCacheTTLTest
         run_on_gke: true
       - flags:
-          - "--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false -implicit-dirs"
-          - "--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false --implicit-dirs --o=ro"
-          - "--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --o=ro"
-          - "--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false -implicit-dirs --client-protocol=grpc"
-          - "--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false --implicit-dirs --o=ro --client-protocol=grpc"
-          - "--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --o=ro --client-protocol=grpc"
+          - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,-implicit-dirs"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE"
+          - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--implicit-dirs,--o=ro"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--o=ro"
+          - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,-implicit-dirs,--client-protocol=grpc"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--client-protocol=grpc"
+          - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--implicit-dirs,--o=ro,--client-protocol=grpc"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--o=ro,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -254,8 +254,8 @@ read_cache:
         run: TestReadOnlyTest
         run_on_gke: true
       - flags:
-          - "--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRangeReadTest --log-file=/gcsfuse-tmp/TestRangeReadTest.log --log-severity=TRACE"
-          - "--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRangeReadTest --log-file=/gcsfuse-tmp/TestRangeReadTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--implicit-dirs,--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRangeReadTest,--log-file=/gcsfuse-tmp/TestRangeReadTest.log,--log-severity=TRACE"
+          - "--implicit-dirs,--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRangeReadTest,--log-file=/gcsfuse-tmp/TestRangeReadTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -263,8 +263,8 @@ read_cache:
         run: TestRangeReadTest
         run_on_gke: true
       - flags:
-          - "--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest --log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log --log-severity=TRACE"
-          - "--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest --log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--implicit-dirs,--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest,--log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log,--log-severity=TRACE"
+          - "--implicit-dirs,--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest,--log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -272,10 +272,10 @@ read_cache:
         run: TestRangeReadWithParallelDownloadsTest
         run_on_gke: true
       - flags:
-          - "--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --implicit-dirs"
-          - "--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc"
-          - "--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--implicit-dirs"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--implicit-dirs,--client-protocol=grpc"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -283,10 +283,10 @@ read_cache:
         run: TestLocalModificationTest
         run_on_gke: true
       - flags:
-          - "--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --implicit-dirs"
-          - "--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE"
-          - "--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc"
-          - "--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--implicit-dirs"
+          - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE"
+          - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--implicit-dirs,--client-protocol=grpc"
+          - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -294,12 +294,12 @@ read_cache:
         run: TestDisabledCacheTTLTest
         run_on_gke: true
       - flags:
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --implicit-dirs"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --file-cache-enable-o-direct=true"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc"
+          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--implicit-dirs"
+          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE"
+          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--file-cache-enable-o-direct=true"
+          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--implicit-dirs,--client-protocol=grpc"
+          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--client-protocol=grpc"
+          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--file-cache-enable-o-direct=true,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -308,12 +308,12 @@ read_cache:
         run_on_gke: true
 #        TODO: Enable Ram cache tests after bug b/383682524 is fixed
 #      - flags:
-#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE"
-#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true"
-#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE"
-#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
-#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc"
-#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log,--log-severity=TRACE"
+#          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log,--log-severity=TRACE,--file-cache-enable-o-direct=true"
+#          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log,--log-severity=TRACE"
+#          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log,--log-severity=TRACE,--client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log,--log-severity=TRACE,--file-cache-enable-o-direct=true,--client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log,--log-severity=TRACE,--client-protocol=grpc"
 #        compatible:
 #          flat: true
 #          hns: true
@@ -321,8 +321,8 @@ read_cache:
 #        run: TestCacheFileForRangeReadTrueWithRamCache
 #        run_on_gke: true
       - flags:
-          - "--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE"
-          - "--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--implicit-dirs,--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log,--log-severity=TRACE"
+          - "--implicit-dirs,--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -330,8 +330,8 @@ read_cache:
         run: TestCacheFileForRangeReadFalseTest
         run_on_gke: true
 #      - flags:
-#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE"
-#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log,--log-severity=TRACE"
+#          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log,--log-severity=TRACE,--client-protocol=grpc"
 #        compatible:
 #          flat: true
 #          hns: true
@@ -339,10 +339,10 @@ read_cache:
 #        run: TestCacheFileForRangeReadFalseWithRamCache
 #        run_on_gke: true
       - flags:
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --file-cache-enable-o-direct=true"
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc"
+          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log,--log-severity=TRACE"
+          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log,--log-severity=TRACE,--file-cache-enable-o-direct=true"
+          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log,--log-severity=TRACE,--client-protocol=grpc"
+          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log,--log-severity=TRACE,--file-cache-enable-o-direct=true,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -350,10 +350,10 @@ read_cache:
         run: TestCacheFileForRangeReadFalseWithParallelDownloads
         run_on_gke: true
 #      - flags:
-#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE"
-#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true"
-#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --client-protocol=grpc"
-#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=true,--cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log,--log-severity=TRACE"
+#          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=true,--cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log,--log-severity=TRACE,--file-cache-enable-o-direct=true"
+#          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=true,--cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log,--log-severity=TRACE,--client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=true,--cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log,--log-severity=TRACE,--file-cache-enable-o-direct=true,--client-protocol=grpc"
 #        compatible:
 #          flat: true
 #          hns: true
@@ -361,8 +361,8 @@ read_cache:
 #        run: TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache
 #        run_on_gke: true
       - flags:
-          - "--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=48,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestJobChunkTest,--log-file=/gcsfuse-tmp/TestJobChunkTest.log,--log-severity=TRACE"
+          - "--file-cache-max-size-mb=48,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestJobChunkTest,--log-file=/gcsfuse-tmp/TestJobChunkTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -371,15 +371,15 @@ read_cache:
         run_on_gke: true
       - flags:
           # with unlimited max parallel downloads.
-          - "--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads=true,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=-1,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc=true,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE"
+          - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads=true,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=-1,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc=true,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE,--client-protocol=grpc"
           # with go-routines not limited by max parallel downloads.
           # maxParallelDownloads > parallelDownloadsPerFile * number of files being accessed concurrently.
-          - "--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads=true,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=9,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc=true,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE"
+          - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads=true,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=9,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc=true,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE,--client-protocol=grpc"
           # with go-routines limited by max parallel downloads.
-          - "--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads=true,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=2,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc=true,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE"
+          - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads=true,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=2,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc=true,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -387,15 +387,15 @@ read_cache:
         run: TestJobChunkTestWithParallelDownloads
         run_on_gke: true
       - flags:
-          - "--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-exclude-regex=.,--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE"
+          - "--file-cache-exclude-regex=.,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE"
+          - "--file-cache-exclude-regex=^${BUCKET_NAME}/,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE"
+          - "--file-cache-exclude-regex=.,--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc"
+          - "--file-cache-exclude-regex=.,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc"
+          - "--file-cache-exclude-regex=^${BUCKET_NAME}/,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc"
           # Exclude regex flag takes precedence over include regex flag so files won't be cached.
-          - "--file-cache-include-regex=^${BUCKET_NAME}/ --file-cache-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-include-regex=^${BUCKET_NAME}/ --file-cache-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/,--file-cache-exclude-regex=^${BUCKET_NAME}/,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/,--file-cache-exclude-regex=^${BUCKET_NAME}/,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -403,10 +403,10 @@ read_cache:
         run: TestCacheFileForExcludeRegexTest
         run_on_gke: true
       - flags:
-          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE"
-          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE"
-          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--implicit-dirs,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE"
+          - "--implicit-dirs,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE"
+          - "--implicit-dirs,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE,--client-protocol=grpc"
+          - "--implicit-dirs,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -414,10 +414,10 @@ read_cache:
         run: TestRemountTest
         run_on_gke: false
       - flags:
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -430,8 +430,8 @@ stale_handle:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1"
-          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
+          - "--metadata-cache-ttl-secs=0,--write-block-size-mb=1,--write-max-blocks-per-file=1"
+          - "--metadata-cache-ttl-secs=0,--write-block-size-mb=1,--write-max-blocks-per-file=1,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -439,8 +439,8 @@ stale_handle:
         run: "TestStaleHandleStreamingWritesEnabled"
         run_on_gke: true
       - flags:
-          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
-          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
+          - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
+          - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -453,7 +453,7 @@ readdirplus:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log --log-severity=TRACE"
+          - "--implicit-dirs,--experimental-enable-readdirplus,--experimental-enable-dentry-cache,--log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log,--log-severity=TRACE"
         compatible:
           flat: true
           hns: true
@@ -461,7 +461,7 @@ readdirplus:
         run: TestReaddirplusWithDentryCacheTest
         run_on_gke: true
       - flags:
-          - "--implicit-dirs --experimental-enable-readdirplus --log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log --log-severity=TRACE"
+          - "--implicit-dirs,--experimental-enable-readdirplus,--log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log,--log-severity=TRACE"
         compatible:
           flat: true
           hns: true
@@ -474,8 +474,8 @@ inactive_stream_timeout:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-        - "--read-inactive-stream-timeout=1s --client-protocol=http1 --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log"
-        - "--read-inactive-stream-timeout=1s --client-protocol=grpc --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log"
+        - "--read-inactive-stream-timeout=1s,--client-protocol=http1,--log-format=json,--log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log"
+        - "--read-inactive-stream-timeout=1s,--client-protocol=grpc,--log-format=json,--log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log"
         compatible:
           flat: true
           hns: true
@@ -483,7 +483,7 @@ inactive_stream_timeout:
         run: TestTimeoutEnabledSuite
         run_on_gke: true
       - flags:
-        - "--read-inactive-stream-timeout=0s --client-protocol=http1 --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutDisabledSuite.log"
+        - "--read-inactive-stream-timeout=0s,--client-protocol=http1,--log-format=json,--log-file=/gcsfuse-tmp/TestTimeoutDisabledSuite.log"
         compatible:
           flat: true
           hns: true
@@ -506,8 +506,8 @@ benchmarking:
         run: "Benchmark_Stat"
         run_on_gke: true
       - flags:
-          - "--stat-cache-ttl=0 --enable-atomic-rename-object=true"
-          - "--stat-cache-ttl=0 --enable-atomic-rename-object=true --client-protocol=grpc"
+          - "--stat-cache-ttl=0,--enable-atomic-rename-object=true"
+          - "--stat-cache-ttl=0,--enable-atomic-rename-object=true,--client-protocol=grpc"
         compatible:
               flat: true
               hns: true
@@ -516,7 +516,7 @@ benchmarking:
         run_on_gke: true
       - flags:
           - "--stat-cache-ttl=0"
-          - "--client-protocol=grpc --stat-cache-ttl=0"
+          - "--client-protocol=grpc,--stat-cache-ttl=0"
         compatible:
               flat: true
               hns: true
@@ -529,7 +529,7 @@ dentry_cache:
    test_bucket: "${BUCKET_NAME}"
    configs:
      - flags:
-       - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2"
+       - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2"
        compatible:
          flat: true
          hns: true
@@ -537,7 +537,7 @@ dentry_cache:
        run: TestStatWithDentryCacheEnabledTest
        run_on_gke: true
      - flags:
-       - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
+       - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000"
        compatible:
          flat: true
          hns: true
@@ -545,7 +545,7 @@ dentry_cache:
        run: TestDeleteOperationTest
        run_on_gke: true
      - flags:
-       - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
+       - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000"
        compatible:
          flat: true
          hns: true
@@ -608,9 +608,9 @@ interrupt:
           zonal: false
         run_on_gke: true
       - flags:
-          - "--implicit-dirs=true --enable-streaming-writes=false"
-          - "--ignore-interrupts=true --enable-streaming-writes=false"
-          - "--ignore-interrupts=false --enable-streaming-writes=false"
+          - "--implicit-dirs=true,--enable-streaming-writes=false"
+          - "--ignore-interrupts=true,--enable-streaming-writes=false"
+          - "--ignore-interrupts=false,--enable-streaming-writes=false"
         compatible:
           flat: true
           hns: true
@@ -623,8 +623,8 @@ log_rotation:
     log_file: # To be removed
     configs:
       - flags:
-          - "--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace"
-          - "--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2,--log-rotate-backup-file-count=2,--log-rotate-compress=false,--log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2 ,-log-rotate-backup-file-count=2,--log-rotate-compress=true,--log-severity=trace"
         compatible:
           flat: true
           hns: true
@@ -667,9 +667,9 @@ flag_optimizations:
           - "--profile=aiml-training"
           - "--profile=aiml-serving"
           - "--profile=aiml-checkpointing"
-          - "--machine-type=low-end-machine --profile=aiml-training"
-          - "--machine-type=low-end-machine --profile=aiml-serving"
-          - "--machine-type=low-end-machine --profile=aiml-checkpointing"
+          - "--machine-type=low-end-machine,--profile=aiml-training"
+          - "--machine-type=low-end-machine,--profile=aiml-serving"
+          - "--machine-type=low-end-machine,--profile=aiml-checkpointing"
         compatible:
           flat: true
           hns: false
@@ -679,7 +679,7 @@ flag_optimizations:
         flags:
           - "--machine-type=a3-highgpu-8g"
           - "--profile=aiml-checkpointing"
-          - "--machine-type=low-end-machine --profile=aiml-checkpointing"
+          - "--machine-type=low-end-machine,--profile=aiml-checkpointing"
         compatible:
           flat: true
           hns: false
@@ -693,14 +693,14 @@ unsupported_path:
   log_file: # Optional
   configs:
   - flags:
-    - "--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    - "--implicit-dirs,--client-protocol=grpc,--enable-unsupported-path-support=true,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
     compatible:
       flat: true
       hns: true
       zonal: false
     run_on_gke: true
   - flags:
-    - "--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    - "--implicit-dirs,--enable-unsupported-path-support=true,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
     compatible:
       flat: true
       hns: true
@@ -722,7 +722,7 @@ kernel_list_cache:
       - flags:
           # Note: metadata cache is disabled to avoid cache consistency issue between gcsfuse cache and kernel cache. As
           # gcsfuse cache might hold the entry which already became stale due to delete operation.
-          - "--kernel-list-cache-ttl-secs=-1 --metadata-cache-ttl-secs=0 --metadata-cache-negative-ttl-secs=0"
+          - "--kernel-list-cache-ttl-secs=-1,--metadata-cache-ttl-secs=0,--metadata-cache-negative-ttl-secs=0"
         compatible:
           flat: true
           hns: true
@@ -730,7 +730,7 @@ kernel_list_cache:
         run: "TestInfiniteKernelListCacheDeleteDirTest"
         run_on_gke: true
       - flags:
-          - "--kernel-list-cache-ttl-secs=5 --rename-dir-limit=10"
+          - "--kernel-list-cache-ttl-secs=5,--rename-dir-limit=10"
         compatible:
           flat: true
           hns: true
@@ -738,7 +738,7 @@ kernel_list_cache:
         run: "TestFiniteKernelListCacheTest"
         run_on_gke: true
       - flags:
-          - "--kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10"
+          - "--kernel-list-cache-ttl-secs=0,--stat-cache-ttl=0,--rename-dir-limit=10"
         compatible:
           flat: true
           hns: true
@@ -773,8 +773,8 @@ rapid_appends:
         flags:
           - "--metadata-cache-ttl-secs=0" # NoCache
           - "--metadata-cache-ttl-secs=70" # MetadataCache
-          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0" # FileCache
-          - "--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache" # MetadataAndFileCache
+          - "--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--metadata-cache-ttl-secs=0" # FileCache
+          - "--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache" # MetadataAndFileCache
         compatible:
           flat: false
           hns: false
@@ -783,7 +783,7 @@ rapid_appends:
       - run: TestDualMountReadsTestSuiteWithMetadataCache
         flags:
           - "--metadata-cache-ttl-secs=70"
-          - "--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary"
+          - "--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary"
         secondary_flags:
           - "--write-block-size-mb=1"
           - "--write-block-size-mb=1"
@@ -795,7 +795,7 @@ rapid_appends:
       - run: TestDualMountReadsTestSuiteWithoutMetadataCache
         flags:
           - "--metadata-cache-ttl-secs=0"
-          - "--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0"
+          - "--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary,--metadata-cache-ttl-secs=0"
         secondary_flags:
           - "--write-block-size-mb=1"
           - "--write-block-size-mb=1"
