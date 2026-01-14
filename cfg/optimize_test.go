@@ -19,47 +19,13 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func defaultConfig() Config {
 	return Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 5, TtlSecs: 60, StatCacheMaxSizeMb: 33, TypeCacheMaxSizeMb: 4}, ImplicitDirs: false, FileSystem: FileSystemConfig{RenameDirLimit: 0}, Write: WriteConfig{EnableStreamingWrites: true}}
-}
-
-// Mock IsValueSet for testing.
-type mockIsValueSet struct {
-	setFlags    map[string]bool
-	boolFlags   map[string]bool
-	stringFlags map[string]string
-}
-
-func (m *mockIsValueSet) IsSet(flag string) bool {
-	return m.setFlags[flag]
-}
-
-func (m *mockIsValueSet) GetBool(flag string) bool {
-	return m.boolFlags[flag]
-}
-
-func (m *mockIsValueSet) GetString(flag string) string {
-	return m.stringFlags[flag]
-}
-
-func (m *mockIsValueSet) Set(flag string) {
-	m.setFlags[flag] = true
-}
-
-func (m *mockIsValueSet) SetString(flag string, value string) {
-	m.stringFlags[flag] = value
-}
-
-func (m *mockIsValueSet) SetBool(flag string, value bool) {
-	m.boolFlags[flag] = value
-}
-
-func (m *mockIsValueSet) Unset(flag string) {
-	delete(m.setFlags, flag)
 }
 
 // Helper function to create a test server.
@@ -99,7 +65,7 @@ func TestGetMachineType_Success(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	machineType, err := getMachineType(&mockIsValueSet{}, nil)
+	machineType, err := getMachineType(viper.New())
 
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
@@ -115,7 +81,7 @@ func TestGetMachineType_Failure(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	_, err := getMachineType(&mockIsValueSet{}, nil)
+	_, err := getMachineType(viper.New())
 
 	assert.Error(t, err)
 }
@@ -124,13 +90,11 @@ func TestGetMachineType_Failure(t *testing.T) {
 // and getMachineType returns the same value
 func TestGetMachineType_FlagIsSet(t *testing.T) {
 	resetMetadataEndpoints(t)
-	// Create a mockIsValueSet where machine-type is set.
-	isSet := &mockIsValueSet{
-		setFlags:    map[string]bool{"machine-type": true},
-		stringFlags: map[string]string{"machine-type": "test-machine-type"},
-	}
+	// Create a viper instance where machine-type is set.
+	v := viper.New()
+	v.Set("machine-type", "test-machine-type")
 
-	machineType, err := getMachineType(isSet, nil)
+	machineType, err := getMachineType(v)
 
 	require.NoError(t, err)
 	assert.Equal(t, "test-machine-type", machineType)
@@ -139,42 +103,17 @@ func TestGetMachineType_FlagIsSet(t *testing.T) {
 func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 	tests := []struct {
 		name                string
-		isSet               *mockIsValueSet
-		config              *Config
+		userSetFlags        map[string]any
 		expectedMachineType string
 	}{
 		{
-			name: "CLI_flag_set",
-			isSet: &mockIsValueSet{
-				setFlags:    map[string]bool{"machine-type": true},
-				stringFlags: map[string]string{"machine-type": "cli-machine-type"},
-			},
-			config:              nil,
-			expectedMachineType: "cli-machine-type",
+			name:                "Viper_set",
+			userSetFlags:        map[string]any{"machine-type": "test-machine-type"},
+			expectedMachineType: "test-machine-type",
 		},
 		{
-			name:  "Config_file_set",
-			isSet: &mockIsValueSet{},
-			config: &Config{
-				MachineType: "config-file-machine-type",
-			},
-			expectedMachineType: "config-file-machine-type",
-		},
-		{
-			name: "CLI_flag_and_Config_file_set_(CLI_priority)",
-			isSet: &mockIsValueSet{
-				setFlags:    map[string]bool{"machine-type": true},
-				stringFlags: map[string]string{"machine-type": "cli-machine-type"},
-			},
-			config: &Config{
-				MachineType: "config-file-machine-type",
-			},
-			expectedMachineType: "cli-machine-type",
-		},
-		{
-			name:                "no_CLI_flag_or_Config_file_set",
-			isSet:               &mockIsValueSet{},
-			config:              &Config{},
+			name:                "Viper_not_set",
+			userSetFlags:        map[string]any{},
 			expectedMachineType: "n1-standard-1",
 		},
 	}
@@ -190,7 +129,11 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			// Override metadataEndpoints for testing.
 			metadataEndpoints = []string{server.URL}
 
-			machineType, err := getMachineType(tc.isSet, tc.config)
+			v := viper.New()
+			for key, val := range tc.userSetFlags {
+				v.Set(key, val)
+			}
+			machineType, err := getMachineType(v)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedMachineType, machineType)
@@ -214,7 +157,7 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	machineType, err := getMachineType(&mockIsValueSet{}, nil)
+	machineType, err := getMachineType(viper.New())
 
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
@@ -231,9 +174,8 @@ func TestApplyOptimizations_DisableAutoConfig(t *testing.T) {
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
 	cfg.DisableAutoconfig = true
-	isSet := &mockIsValueSet{}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	require.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -254,9 +196,8 @@ func TestApplyOptimizations_MatchingMachineType(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -277,9 +218,8 @@ func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -300,11 +240,12 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
+	v := viper.New()
+	v.Set("file-system.rename-dir-limit", true)
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
+	optimizedFlags := cfg.ApplyOptimizations(v, nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -325,9 +266,8 @@ func TestApplyOptimizations_GetMachineTypeError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.Empty(t, optimizedFlags)
 	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
@@ -348,9 +288,8 @@ func TestApplyOptimizations_NoError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.NotEmpty(t, optimizedFlags)
 }
@@ -365,9 +304,8 @@ func TestApplyOptimizations_Success(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := cfg.ApplyOptimizations(isSet, nil)
+	optimizedFlags := cfg.ApplyOptimizations(viper.New(), nil)
 
 	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "write.global-max-blocks"))
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)

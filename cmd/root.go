@@ -45,42 +45,12 @@ type mountInfo struct {
 	// optimizedFlags contains the flags that were optimized
 	// based on either machine-type or profile.
 	optimizedFlags map[string]any
-	// isUserSet is used to check if a flag was explicitly set by the user.
-	// This is needed for bucket-type-based optimizations.
-	isUserSet cfg.IsValueSet
+	// userConfig is used to check if a flag was explicitly set by the user.
+	// This is used to determine if optimization rules should be applied.
+	userConfig *viper.Viper
 }
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
-
-// pflagAsIsValueSet is an adapter that makes a pflag.FlagSet satisfy the
-// cfg.isValueSet interface, allowing us to check for user-set flags reliably.
-type pflagAsIsValueSet struct {
-	fs *pflag.FlagSet
-}
-
-// IsSet correctly checks if a flag was set by the user on the command line.
-func (p *pflagAsIsValueSet) IsSet(name string) bool {
-	// The pflag.Changed method is the reliable way to check this.
-	return p.fs.Changed(name)
-}
-
-// GetString is required to satisfy the interface used by getMachineType.
-func (p *pflagAsIsValueSet) GetString(name string) string {
-	val, err := p.fs.GetString(name)
-	if err != nil {
-		return ""
-	}
-	return val
-}
-
-// GetBool is required to satisfy the interface.
-func (p *pflagAsIsValueSet) GetBool(name string) bool {
-	val, err := p.fs.GetBool(name)
-	if err != nil {
-		return false
-	}
-	return val
-}
 
 // getCliFlags returns the cli flags set by the user in map[string]string format.
 func getCliFlags(flagSet *pflag.FlagSet) map[string]string {
@@ -159,9 +129,8 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return fmt.Errorf("invalid config: %w", err)
 			}
 
-			isUserSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
-			mountInfo.isUserSet = isUserSet
-			optimizedFlags := mountInfo.config.ApplyOptimizations(isUserSet, nil)
+			mountInfo.userConfig = v
+			optimizedFlags := mountInfo.config.ApplyOptimizations(v, nil)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			if err := cfg.Rationalize(v, mountInfo.config, optimizedFlagNames); err != nil {
 				return fmt.Errorf("error rationalizing config: %w", err)
