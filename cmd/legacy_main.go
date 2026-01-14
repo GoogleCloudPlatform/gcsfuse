@@ -529,23 +529,12 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 		markSuccessfulMount()
 
-		// Apply kernel settings only when all conditions satisfy.
-		// 1. Kernel Reader is enabled.
-		// 2. It's not a dynamic mount
-		// 3. It's non GKE environment.
-		if newConfig.FileSystem.EnableKernelReader && !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) {
+		// Apply post mount kernel settings for non-GKE environments for non dynamic mounts.
+		if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) {
 			kernelConfig := kerneltuner.NewKernelParamsConfig()
-			if newConfig.FileSystem.MaxReadAheadKb > 0 {
-				kernelConfig.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
-			}
-
-			if newConfig.FileSystem.CongestionThreshold > 0 {
-				kernelConfig.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
-			}
-
-			if newConfig.FileSystem.MaxBackground > 0 {
-				kernelConfig.SetMaxBackgroundRequests(int(newConfig.FileSystem.MaxBackground))
-			}
+			kernelConfig.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
+			kernelConfig.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
+			kernelConfig.SetMaxBackgroundRequests(int(newConfig.FileSystem.MaxBackground))
 			kernelConfig.ApplyNonGKE(mountPoint)
 		}
 	}
