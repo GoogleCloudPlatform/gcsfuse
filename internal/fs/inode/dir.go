@@ -971,15 +971,24 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 	}
 	fullName := NewFileName(d.Name(), name)
 
-	// Clone over anything that might already exist for the name.
-	o, err := d.bucket.CopyObject(
-		ctx,
-		&gcs.CopyObjectRequest{
-			SrcName:                       src.Name,
-			SrcGeneration:                 src.Generation,
-			SrcMetaGenerationPrecondition: &src.MetaGeneration,
-			DstName:                       fullName.GcsObjectName(),
-		})
+	var o *gcs.Object
+	var err error
+	if IsSymlinkWithOldSemantics(src) {
+		updatedMetadata := map[string]string{
+			SymlinkMetadataKey: "true",
+		}
+		o, err = d.createNewObjectWithContent(ctx, fullName, updatedMetadata, src.Metadata[DeprecatedSymlinkMetadataKey])
+	} else {
+		// Clone over anything that might already exist for the name.
+		o, err = d.bucket.CopyObject(
+			ctx,
+			&gcs.CopyObjectRequest{
+				SrcName:                       src.Name,
+				SrcGeneration:                 src.Generation,
+				SrcMetaGenerationPrecondition: &src.MetaGeneration,
+				DstName:                       fullName.GcsObjectName(),
+			})
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -2346,7 +2346,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 	default:
 		return fmt.Errorf("child inode (id %v) is not a file or symlink inode", child.ID())
 	}
-	if fs.enableAtomicRenameObject || child.Bucket().BucketType().Zonal {
+	if (fs.enableAtomicRenameObject || child.Bucket().BucketType().Zonal) && !inode.IsSymlinkWithOldSemantics(updatedMinObject) {
 		return fs.atomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
 	return fs.nonAtomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)

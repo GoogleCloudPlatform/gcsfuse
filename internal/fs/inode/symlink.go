@@ -43,6 +43,16 @@ func IsSymlink(m *gcs.MinObject) bool {
 	return ok1 || ok2
 }
 
+func IsSymlinkWithOldSemantics(m *gcs.MinObject) bool {
+	if m == nil {
+		return false
+	}
+
+	_, ok1 := m.Metadata[DeprecatedSymlinkMetadataKey]
+	_, ok2 := m.Metadata[SymlinkMetadataKey]
+	return ok1 && !ok2
+}
+
 func resolveSymlinkTarget(ctx context.Context, bucket *gcsx.SyncerBucket, m *gcs.MinObject) (string, error) {
 	if m == nil {
 		return "", fmt.Errorf("empty object passed. Symlink target cannot be resolved...")
