@@ -140,7 +140,7 @@ func ExecuteWithRetry[T any](
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
 
 		if i == 0 {
-			logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+			logger.Tracef("Start %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
 		} else {
 			logger.Tracef("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
 		}
@@ -150,8 +150,10 @@ func ExecuteWithRetry[T any](
 		attemptCancel()
 
 		if err == nil {
+			logger.Tracef("End %s request for %q with success", operationName, reqDescription)
 			return result, nil
 		}
+		logger.Tracef("End %s request for %q with error: %v", operationName, reqDescription, err)
 
 		// If the error is not retryable, return it immediately.
 		if !ShouldRetry(err) {
