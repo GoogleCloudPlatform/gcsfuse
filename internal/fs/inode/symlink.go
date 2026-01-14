@@ -43,6 +43,8 @@ func IsSymlink(m *gcs.MinObject) bool {
 	return ok1 || ok2
 }
 
+// IsSymlinkWithOldSemantics is required for special handling required for
+// existing symlinks in mounted bucket such as in the rename flow.
 func IsSymlinkWithOldSemantics(m *gcs.MinObject) bool {
 	if m == nil {
 		return false
@@ -58,7 +60,7 @@ func resolveSymlinkTarget(ctx context.Context, bucket *gcsx.SyncerBucket, m *gcs
 		return "", fmt.Errorf("empty object passed. Symlink target cannot be resolved...")
 	}
 
-	if isSymlink, ok := m.Metadata[SymlinkMetadataKey]; ok && isSymlink == "true" {
+	if !IsSymlinkWithOldSemantics(m) {
 		rc, err := bucket.NewReaderWithReadHandle(ctx, &gcs.ReadObjectRequest{
 			Name:       m.Name,
 			Generation: m.Generation,
