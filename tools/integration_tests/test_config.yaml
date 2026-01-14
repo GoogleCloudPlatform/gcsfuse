@@ -229,9 +229,9 @@ read_cache:
     configs:
       - flags:
           - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--implicit-dirs"
-          - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,-cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE"
+          - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE"
           - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--client-protocol=grpc"
-          - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,-cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,-client-protocol=grpc,--implicit-dirs"
+          - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--client-protocol=grpc,--implicit-dirs"
         compatible:
           flat: true
           hns: true
@@ -239,11 +239,11 @@ read_cache:
         run: TestSmallCacheTTLTest
         run_on_gke: true
       - flags:
-          - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,-implicit-dirs"
+          - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--implicit-dirs"
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE"
           - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--implicit-dirs,--o=ro"
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--o=ro"
-          - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,-implicit-dirs,--client-protocol=grpc"
+          - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--implicit-dirs,--client-protocol=grpc"
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--client-protocol=grpc"
           - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--implicit-dirs,--o=ro,--client-protocol=grpc"
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=true,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--o=ro,--client-protocol=grpc"
@@ -624,7 +624,7 @@ log_rotation:
     configs:
       - flags:
           - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2,--log-rotate-backup-file-count=2,--log-rotate-compress=false,--log-severity=trace"
-          - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2 ,-log-rotate-backup-file-count=2,--log-rotate-compress=true,--log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2,--log-rotate-backup-file-count=2,--log-rotate-compress=true,--log-severity=trace"
         compatible:
           flat: true
           hns: true
