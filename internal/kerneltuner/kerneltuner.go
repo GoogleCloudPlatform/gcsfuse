@@ -158,7 +158,15 @@ func (c *KernelParamsConfig) applyDirectly(mountPoint string) {
 	}
 }
 
+// addParam adds a new parameter to the config or updates the value if the
+// parameter already exists.
 func (c *KernelParamsConfig) addParam(name ParamName, value string) {
+	for i, p := range c.Parameters {
+		if p.Name == name {
+			c.Parameters[i].Value = value
+			return
+		}
+	}
 	c.Parameters = append(c.Parameters, KernelParam{
 		Name:  name,
 		Value: value,
@@ -167,27 +175,37 @@ func (c *KernelParamsConfig) addParam(name ParamName, value string) {
 
 // SetMaxPagesLimit adds the max_pages_limit parameter to the config.
 func (c *KernelParamsConfig) SetMaxPagesLimit(limit int) {
-	c.addParam(MaxPagesLimit, fmt.Sprintf("%d", limit))
+	if limit > 0 {
+		c.addParam(MaxPagesLimit, fmt.Sprintf("%d", limit))
+	}
 }
 
 // SetTransparentHugePages adds the THP enabled mode to the config.
 func (c *KernelParamsConfig) SetTransparentHugePages(mode string) {
-	c.addParam(TransparentHugePages, mode)
+	if mode != "" {
+		c.addParam(TransparentHugePages, mode)
+	}
 }
 
 // SetReadAheadKb adds the BDI read_ahead_kb parameter to the config.
 func (c *KernelParamsConfig) SetReadAheadKb(kb int) {
-	c.addParam(ReadAheadKb, fmt.Sprintf("%d", kb))
+	if kb > 0 {
+		c.addParam(ReadAheadKb, fmt.Sprintf("%d", kb))
+	}
 }
 
 // SetMaxBackgroundRequests adds the FUSE connection max_background parameter to the config.
 func (c *KernelParamsConfig) SetMaxBackgroundRequests(limit int) {
-	c.addParam(MaxBackgroundRequests, fmt.Sprintf("%d", limit))
+	if limit > 0 {
+		c.addParam(MaxBackgroundRequests, fmt.Sprintf("%d", limit))
+	}
 }
 
 // SetCongestionWindowThreshold adds the FUSE connection congestion_threshold parameter to the config.
 func (c *KernelParamsConfig) SetCongestionWindowThreshold(threshold int) {
-	c.addParam(CongestionWindowThreshold, fmt.Sprintf("%d", threshold))
+	if threshold > 0 {
+		c.addParam(CongestionWindowThreshold, fmt.Sprintf("%d", threshold))
+	}
 }
 
 // ApplyGKE atomically writes the KernelParamsConfig to a JSON file at the specified path.
@@ -199,7 +217,7 @@ func (c *KernelParamsConfig) ApplyGKE(kernelParamsFile string) {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
 		return
 	}
-	logger.Info("Writing kernel parameters to file for GKE environment", "file", kernelParamsFile, "parameters", string(kernelConfigJson))
+	logger.Info("Writing kernel parameters to file for GKE environment", "file", kernelParamsFile, "kernel config", string(kernelConfigJson))
 	if err := atomicFileWrite(kernelParamsFile, kernelConfigJson); err != nil {
 		logger.Errorf("Failed to write kernel parameters to file %q: %v", kernelParamsFile, err)
 		return
@@ -216,6 +234,6 @@ func (c *KernelParamsConfig) ApplyNonGKE(mountPoint string) {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
 		return
 	}
-	logger.Info("Applying kernel parameters directly for non-GKE environment", "mountPoint", mountPoint, "parameters", string(kernelConfigJson))
+	logger.Info("Applying kernel parameters directly for non-GKE environment", "mountPoint", mountPoint, "kernel config", string(kernelConfigJson))
 	c.applyDirectly(mountPoint)
 }

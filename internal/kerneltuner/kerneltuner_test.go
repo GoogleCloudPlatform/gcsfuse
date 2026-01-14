@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,6 +35,29 @@ func TestAtomicFileWrite(t *testing.T) {
 	content, err := os.ReadFile(filePath)
 	assert.NoError(t, err)
 	assert.Equal(t, data, content)
+}
+
+func TestGetDeviceMajorMinor(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping test on non-linux OS")
+	}
+
+	t.Run("ValidPath", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		major, minor, err := getDeviceMajorMinor(tempDir)
+
+		assert.NoError(t, err)
+		t.Logf("Device major: %d, minor: %d for %s", major, minor, tempDir)
+	})
+
+	t.Run("NonExistentPath", func(t *testing.T) {
+		path := "/path/that/does/not/exist"
+
+		_, _, err := getDeviceMajorMinor(path)
+
+		assert.Error(t, err)
+	})
 }
 
 func TestPathForParam(t *testing.T) {
@@ -65,23 +89,89 @@ func TestPathForParam(t *testing.T) {
 	}
 }
 
-func TestKernelParamsConfig_Setters(t *testing.T) {
+func TestSetMaxPagesLimit(t *testing.T) {
+	cfg := NewKernelParamsConfig()
+
+	// Test setting a value
+	cfg.SetMaxPagesLimit(123)
+	assert.Len(t, cfg.Parameters, 1)
+	assert.Equal(t, MaxPagesLimit, cfg.Parameters[0].Name)
+	assert.Equal(t, "123", cfg.Parameters[0].Value)
+
+	// Test updating the value
+	cfg.SetMaxPagesLimit(456)
+	assert.Len(t, cfg.Parameters, 1)
+	assert.Equal(t, MaxPagesLimit, cfg.Parameters[0].Name)
+	assert.Equal(t, "456", cfg.Parameters[0].Value)
+}
+
+func TestSetTransparentHugePages(t *testing.T) {
+	cfg := NewKernelParamsConfig()
+
+	// Test setting a value
+	cfg.SetTransparentHugePages("always")
+	assert.Len(t, cfg.Parameters, 1)
+	assert.Equal(t, TransparentHugePages, cfg.Parameters[0].Name)
+	assert.Equal(t, "always", cfg.Parameters[0].Value)
+
+	// Test updating the value
+	cfg.SetTransparentHugePages("never")
+	assert.Len(t, cfg.Parameters, 1)
+	assert.Equal(t, TransparentHugePages, cfg.Parameters[0].Name)
+	assert.Equal(t, "never", cfg.Parameters[0].Value)
+}
+
+func TestSetReadAheadKb(t *testing.T) {
+	cfg := NewKernelParamsConfig()
+
+	// Test setting a value
+	cfg.SetReadAheadKb(1024)
+	assert.Len(t, cfg.Parameters, 1)
+	assert.Equal(t, ReadAheadKb, cfg.Parameters[0].Name)
+	assert.Equal(t, "1024", cfg.Parameters[0].Value)
+}
+
+func TestSetMaxBackgroundRequests(t *testing.T) {
+	cfg := NewKernelParamsConfig()
+
+	// Test setting a value
+	cfg.SetMaxBackgroundRequests(12)
+	assert.Len(t, cfg.Parameters, 1)
+	assert.Equal(t, MaxBackgroundRequests, cfg.Parameters[0].Name)
+	assert.Equal(t, "12", cfg.Parameters[0].Value)
+}
+
+func TestSetCongestionWindowThreshold(t *testing.T) {
+	cfg := NewKernelParamsConfig()
+
+	// Test setting a value
+	cfg.SetCongestionWindowThreshold(9)
+	assert.Len(t, cfg.Parameters, 1)
+	assert.Equal(t, CongestionWindowThreshold, cfg.Parameters[0].Name)
+	assert.Equal(t, "9", cfg.Parameters[0].Value)
+}
+
+func TestSetMultipleKernelParams(t *testing.T) {
 	cfg := NewKernelParamsConfig()
 
 	cfg.SetMaxPagesLimit(123)
 	cfg.SetTransparentHugePages("always")
 	cfg.SetReadAheadKb(456)
-	cfg.SetMaxBackgroundRequests(789)
-	cfg.SetCongestionWindowThreshold(101)
 
-	expected := []KernelParam{
-		{Name: MaxPagesLimit, Value: "123"},
-		{Name: TransparentHugePages, Value: "always"},
-		{Name: ReadAheadKb, Value: "456"},
-		{Name: MaxBackgroundRequests, Value: "789"},
-		{Name: CongestionWindowThreshold, Value: "101"},
+	assert.Len(t, cfg.Parameters, 3)
+
+	// Verify values
+	expected := map[ParamName]string{
+		MaxPagesLimit:        "123",
+		TransparentHugePages: "always",
+		ReadAheadKb:          "456",
 	}
-	assert.ElementsMatch(t, expected, cfg.Parameters)
+
+	for _, p := range cfg.Parameters {
+		val, ok := expected[p.Name]
+		assert.True(t, ok)
+		assert.Equal(t, val, p.Value)
+	}
 }
 
 func TestApplyGKE(t *testing.T) {
@@ -105,4 +195,60 @@ func TestApplyGKE(t *testing.T) {
 	assert.Len(t, actualCfg.Parameters, 1)
 	assert.Equal(t, ReadAheadKb, actualCfg.Parameters[0].Name)
 	assert.Equal(t, "1024", actualCfg.Parameters[0].Value)
+}
+
+func TestWriteValue_DirectWriteSuccess(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping test on non-linux OS")
+	}
+
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "test_file")
+	value := "100"
+
+	err := writeValue(path, value)
+
+	assert.NoError(t, err)
+	content, err := os.ReadFile(path)
+	assert.NoError(t, err)
+	assert.Equal(t, "100\n", string(content))
+}
+
+func TestWriteValue_DirectWriteFailure_NoSudo(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping test on non-linux OS")
+	}
+
+	// Use a path in a non-existent directory to trigger a non-permission error
+	path := filepath.Join(t.TempDir(), "missing_dir", "test_file")
+	value := "100"
+
+	err := writeValue(path, value)
+
+	assert.Error(t, err)
+	// Should not be a sudo error, but the original fs error
+	assert.NotContains(t, err.Error(), "sudo error")
+}
+
+func TestWriteValue_PermissionDenied_SudoFallback(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping test on non-linux OS")
+	}
+
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "readonly_file")
+	// Create file and make it read-only to trigger permission error
+	err := os.WriteFile(path, []byte("initial"), 0444)
+	assert.NoError(t, err)
+
+	err = writeValue(path, "new_value")
+
+	// This depends on the environment.
+	// If sudo works, err is nil. If not, err contains "sudo error".
+	if err == nil {
+		content, _ := os.ReadFile(path)
+		assert.Equal(t, "new_value\n", string(content))
+	} else {
+		assert.Contains(t, err.Error(), "sudo error")
+	}
 }
