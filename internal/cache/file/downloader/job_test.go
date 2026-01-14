@@ -35,6 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/sync/semaphore"
 )
@@ -63,7 +64,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	}
 	dt.cache = lru.NewCache(lruCacheSize)
 
-	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback, dt.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64), metrics.NewNoopMetrics())
+	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback, dt.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64), metrics.NewNoopMetrics(), tracing.NewNoopTracer())
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,

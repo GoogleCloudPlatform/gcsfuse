@@ -22,11 +22,14 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -50,17 +53,17 @@ type MrdInstance struct {
 	poolMu sync.RWMutex
 	// mrdCache is a shared cache for inactive MrdInstance objects.
 	mrdCache *lru.Cache
-	// mrdConfig holds configuration for the MRD pool.
-	mrdConfig cfg.MrdConfig
+	// holds config specified by the user using config-file flag and CLI flags.
+	config *cfg.Config
 }
 
 // NewMrdInstance creates a new MrdInstance for a given GCS object.
-func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, cfg cfg.MrdConfig) *MrdInstance {
+func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, config *cfg.Config) *MrdInstance {
 	mrdInstance := MrdInstance{
-		bucket:    bucket,
-		mrdCache:  cache,
-		inodeId:   inodeId,
-		mrdConfig: cfg,
+		bucket:   bucket,
+		mrdCache: cache,
+		inodeId:  inodeId,
+		config:   config,
 	}
 	mrdInstance.object.Store(obj)
 	return &mrdInstance
@@ -113,7 +116,7 @@ func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
 
 // Read downloads data from the GCS object into the provided buffer starting at the offset.
 // It handles the details of selecting a valid MRD entry, locking it, and waiting for the async download to complete.
-func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, error) {
+func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics metrics.MetricHandle) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -137,15 +140,25 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64) (int, e
 		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
 	}
 
+	start := time.Now()
+	defer monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
 	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
 	})
 	entry.mu.RUnlock()
 
-	select {
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	case res := <-done:
+	if !mi.config.FileSystem.IgnoreInterrupts {
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case res := <-done:
+			if res.err != nil && res.err != io.EOF {
+				return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
+			}
+			return res.bytesRead, res.err
+		}
+	} else {
+		res := <-done
 		if res.err != nil && res.err != io.EOF {
 			return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
 		}
@@ -173,7 +186,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 	}
 
 	// Creating a new pool. Not reusing any handle while creating a new pool.
-	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.mrdConfig.PoolSize), object: mi.object.Load(), bucket: mi.bucket}, nil)
+	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.config.Mrd.PoolSize), object: mi.object.Load(), bucket: mi.bucket}, nil)
 	if err != nil {
 		err = fmt.Errorf("MrdInstance::ensureMRDPool Error in creating MRDPool: %w", err)
 	}
@@ -186,7 +199,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 func (mi *MrdInstance) RecreateMRD() error {
 	// Create the new pool first to avoid a period where mrdPool is nil.
 	newPool, err := NewMRDPool(&MRDPoolConfig{
-		PoolSize: int(mi.mrdConfig.PoolSize),
+		PoolSize: int(mi.config.Mrd.PoolSize),
 		object:   mi.object.Load(),
 		bucket:   mi.bucket,
 	}, nil)
@@ -206,15 +219,37 @@ func (mi *MrdInstance) RecreateMRD() error {
 	return nil
 }
 
-// Destroy closes all MRD instances in the pool and releases associated resources.
-func (mi *MrdInstance) Destroy() {
+// closePool closes all MRD instances in the pool and releases associated resources.
+func (mi *MrdInstance) closePool() {
 	mi.poolMu.Lock()
 	defer mi.poolMu.Unlock()
 	if mi.mrdPool != nil {
-		// Delete the instance.
+		// Close the pool.
 		mi.mrdPool.Close()
 		mi.mrdPool = nil
 	}
+}
+
+// Destroy completely destroys the MrdInstance, cleaning up
+// its resources and ensuring it is removed from the cache. This should be
+// called when the owning inode is destroyed.
+func (mi *MrdInstance) Destroy() {
+	mi.refCountMu.Lock()
+	defer mi.refCountMu.Unlock()
+
+	// If it's in use, this indicates a potential lifecycle mismatch between the
+	// inode and its readers.
+	if mi.refCount > 0 {
+		logger.Warnf("MrdInstance::Destroy called on an instance with refCount %d", mi.refCount)
+	}
+
+	// Remove from cache.
+	if mi.mrdCache != nil {
+		mi.mrdCache.Erase(getKey(mi.inodeId))
+	}
+
+	// Close the pool.
+	mi.closePool()
 }
 
 // getKey generates a unique key for the MrdInstance based on its inode ID.
@@ -239,26 +274,24 @@ func (mi *MrdInstance) IncrementRefCount() {
 	}
 }
 
-// destroyEvictedCacheEntries is a helper function to destroy evicted MrdInstance objects.
-// It handles type assertion and ensures that only truly inactive instances are destroyed.
-// This function should not be called when refCountMu is held.
-func destroyEvictedCacheEntries(evictedValues []lru.ValueType) {
-	for _, instance := range evictedValues {
-		mrdInstance, ok := instance.(*MrdInstance)
-		if !ok {
-			logger.Errorf("destroyEvictedCacheEntries: Invalid value type, expected *MrdInstance, got %T", instance)
-		} else {
-			// Check if the instance was resurrected.
-			mrdInstance.refCountMu.Lock()
-			if mrdInstance.refCount > 0 {
-				mrdInstance.refCountMu.Unlock()
-				continue
-			}
-			// Safe to destroy. Hold refCountMu to prevent concurrent resurrection.
-			mrdInstance.Destroy()
-			mrdInstance.refCountMu.Unlock()
-		}
+// handleEviction handles the cleanup of the MrdInstance when it is evicted from the cache.
+// Race protection: MrdInstance could be reopened (refCount>0) or re-added to cache before eviction.
+func (mi *MrdInstance) handleEviction() {
+	mi.refCountMu.Lock()
+	defer mi.refCountMu.Unlock()
+
+	// Check if mrdInstance was reopened (refCount>0) - must skip eviction.
+	if mi.refCount > 0 {
+		return
 	}
+
+	// Check if mrdInstance was re-added to cache (refCount went 0→1→0 in between eviction and closure.)
+	// Lock order: refCountMu -> cache.mu (consistent with Increment/DecrementRefCount)
+	if mi.mrdCache != nil && mi.mrdCache.LookUpWithoutChangingOrder(getKey(mi.inodeId)) == mi {
+		return
+	}
+
+	mi.closePool()
 }
 
 // DecrementRefCount decreases the reference count. When the count drops to zero, the
@@ -287,8 +320,8 @@ func (mi *MrdInstance) DecrementRefCount() {
 	if err != nil {
 		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for object (%s) into cache, destroying immediately: %v", mi.object.Load().Name, err)
 		// The instance could not be inserted into the cache. Since the refCount is 0,
-		// we must destroy it now to prevent it from being leaked.
-		mi.Destroy()
+		// we must close it now to prevent it from being leaked.
+		mi.closePool()
 		return
 	}
 	logger.Tracef("MrdInstance::DecrementRefCount: MrdInstance for object (%s) added to cache", mi.object.Load().Name)
@@ -300,7 +333,14 @@ func (mi *MrdInstance) DecrementRefCount() {
 
 	// Evict outside all locks.
 	mi.refCountMu.Unlock()
-	destroyEvictedCacheEntries(evictedValues)
+	for _, instance := range evictedValues {
+		mrdInstance, ok := instance.(*MrdInstance)
+		if !ok {
+			logger.Errorf("MrdInstance::DecrementRefCount: Invalid value type, expected *MrdInstance, got %T", instance)
+		} else {
+			mrdInstance.handleEviction()
+		}
+	}
 	// Reacquire the lock ensuring safe defer's Unlock.
 	mi.refCountMu.Lock()
 }

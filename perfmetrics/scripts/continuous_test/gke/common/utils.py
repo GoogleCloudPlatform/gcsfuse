@@ -22,6 +22,10 @@ import sys
 
 # The Maximum Transmission Unit (MTU) for the network.
 DEFAULT_MTU = 8896
+# Default configuration for testing on TPU
+DEFAULT_PROJECT_ID = "gcs-fuse-test-ml"
+DEFAULT_ZONE = "europe-west4-a"
+DEFAULT_RESERVATION_NAME = "cloudtpu-20251107233000-76736260"
 
 
 async def run_command_async(command_list, check=True, cwd=None):
