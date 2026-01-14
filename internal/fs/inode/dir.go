@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"path"
 	"strings"
 	"sync/atomic"
@@ -541,10 +540,10 @@ func (d *dirInode) runOnDemandPrefetch(ctx context.Context, lookUpName string) {
 
 		// Calculate how many results to ask for in this batch.
 		remaining := d.maxPrefetchCount - totalPrefetched
-		batchSize := int(math.Min(float64(remaining), float64(MaxResultsForListObjectsCall)))
+		batchSize := min(remaining, MaxResultsForListObjectsCall)
 
 		// Perform network I/O without holding the inode lock.
-		cores, _, newTok, err := d.readObjectsUnlocked(ctx, continuationToken, startOffset, batchSize)
+		cores, _, newTok, err := d.readObjectsUnlocked(ctx, continuationToken, startOffset, int(batchSize))
 		if err != nil {
 			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
 			return // Abort.
