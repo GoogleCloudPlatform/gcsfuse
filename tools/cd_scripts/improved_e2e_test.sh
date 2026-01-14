@@ -17,7 +17,6 @@
 set -x
 # -e: Exit on error, -u: Exit on unset vars, -o pipefail: Pipeline error trapping
 set -euo pipefail
-IFS=$'\n\t'
 
 # Defaults
 LOCAL_RUN=false
@@ -29,6 +28,7 @@ DETAILS_FILE="$(pwd)/details.txt"
 # Determine the absolute location of THIS script to find repo root
 SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
+LOCAL_GO_VERSION=$(cat "${REPO_ROOT}/.go-version")
 
 usage() {
     echo "Usage: $0 [--local-run]"
@@ -68,14 +68,8 @@ echo "Repository Root: ${REPO_ROOT}" &>> "${LOG_FILE}"
 # ==============================================================================
 
 cleanup() {
-    echo "Cleaning up temporary files..."
-    # Clean up installation artifacts to prevent clutter
-    rm -f gcloud.tar.gz go_tar.tar.gz
-    rm -rf google-cloud-sdk
-    
-    # Clean up temp script files
+    echo "Cleaning up temporary script files..."
     rm -f /tmp/test_exit_code.txt /tmp/test_log_filename.txt /tmp/run_tests_logic.sh
-
     echo "Cleanup complete."
 }
 trap cleanup EXIT
@@ -103,15 +97,6 @@ install_system_deps() {
     
     install_packages_by_os "$os_id" "${pkgs[@]}"
 
-    # Ensure standard paths are included before checking
-    export PATH=$PATH:/usr/local/google-cloud-sdk/bin
-
-    # Optimization: For local run, if gcloud exists, DO NOT reinstall/upgrade.
-    if [ "$LOCAL_RUN" = true ] && command -v gcloud &> /dev/null; then
-        echo "Local run detected and gcloud is present. Skipping gcloud upgrade."
-        return 0
-    fi
-
     # Upgrade gcloud
     echo "Upgrading gcloud..."
     bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
@@ -121,6 +106,8 @@ install_system_deps() {
 }
 
 fetch_metadata() {
+    local os_id
+    os_id=$(get_os_id)
     if [ "$LOCAL_RUN" = true ]; then
         echo "Local run detected. Setting dummy metadata."
         ZONE="projects/12345/zones/us-west1-b"
@@ -128,12 +115,11 @@ fetch_metadata() {
         BUCKET_NAME_TO_USE="gcsfuse-release-packages"
         RUN_ON_ZB_ONLY="false"
         
-        # Create dummy details.txt if missing
-        if [ ! -f "$DETAILS_FILE" ]; then
-            echo "0.0.0" > "$DETAILS_FILE"
-            echo "local-branch" >> "$DETAILS_FILE"
-            echo "local-hash" >> "$DETAILS_FILE"
-        fi
+        # Recreate details.txt in local mode to include OS type in the instance name field
+        # Line 1: VERSION, Line 2: COMMIT_HASH, Line 3: VM_INSTANCE_NAME
+        echo "3.5.4" > "$DETAILS_FILE"
+        echo "local-commit" >> "$DETAILS_FILE"
+        echo "local-instance-${os_id}" >> "$DETAILS_FILE"
     else
         # Real Metadata Fetching
         ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
@@ -144,10 +130,9 @@ fetch_metadata() {
         
         # Fetch details.txt from bucket
         gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt" .
-        # Append instance name
-        curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
+        # Append instance name from metadata server
+        curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> "$DETAILS_FILE"
     fi
-
     echo "ZONE_NAME: $ZONE_NAME"
     echo "BUCKET_NAME_TO_USE: $BUCKET_NAME_TO_USE"
     
@@ -188,16 +173,14 @@ setup_test_user() {
 }
 
 install_go() {
-    # For local run, check if go exists first
-    if [ "$LOCAL_RUN" = true ] && command -v go &> /dev/null; then
-         echo "Local run detected and Go is present. Skipping Go installation."
-         return 0
-    fi
-
-    echo "Installing Go..."
-    bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "1.24.11"
-    export PATH="/usr/local/go/bin:$PATH"
+    # Read the Go version from the centralized .go-version file
+    local go_version=$(cat "${REPO_ROOT}/.go-version")
+    echo "Installing Go version: ${go_version}..."
+    
+    # Execute the installation script with the retrieved version
+    bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "${go_version}"
 }
+
 
 install_gcsfuse_package() {
     if grep -q ubuntu "$DETAILS_FILE" || grep -q debian "$DETAILS_FILE"; then
@@ -207,24 +190,7 @@ install_gcsfuse_package() {
         if [[ $uname == "x86_64" ]]; then architecture="amd64"; elif [[ $uname == "aarch64" ]]; then architecture="arm64"; fi
     fi
 
-    # Optimization: Only install Go if we need to build GCSFuse (Local Run or Custom Bucket)
-    # The inner script installs Go for the tests, so we don't need it here for standard runs.
-    NEEDS_BUILD=false
-    if [ "$LOCAL_RUN" = true ]; then
-        NEEDS_BUILD=true
-    elif [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
-        NEEDS_BUILD=true
-    fi
-
-    if [ "$NEEDS_BUILD" = true ]; then
-        install_go
-    fi
-
-    # In Local Run, we skip downloading the package and build from source later
-    if [ "$LOCAL_RUN" = true ]; then
-        echo "Local run: Skipping package download. GCSFuse will be built from source."
-        return 0
-    fi
+    install_go
 
     # CI/CD Logic: Download and install package if using default bucket
     if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
@@ -264,33 +230,29 @@ if [ "${LOCAL_RUN}" = "true" ]; then
     # Explicitly change to the directory where the user called the script
     echo "Local Run: Using existing repository at ${REPO_ROOT}"
     cd "${REPO_ROOT}"
-    
-    echo "Cleaning up any previous GCSFuse mounts, processes, and artifacts..."
-    # Kill any remaining gcsfuse processes
-    sudo pkill -f gcsfuse || true
-    
-    # CRITICAL: Clean up bin directories to prevent "mkdir: file exists" error from build tool
-    rm -rf bin sbin
-
-    echo "Building GCSFuse from source..."
-    go run tools/build_gcsfuse/main.go . . "${VERSION}"
-    sudo cp bin/* /usr/bin/
-    sudo cp sbin/* /usr/sbin/
 else
     # CI Mode: Clone the repo
     cd "\$HOME"
     git clone https://github.com/googlecloudplatform/gcsfuse
     cd gcsfuse
     git checkout "${COMMIT_HASH}"
-    
-    # If custom bucket (or specific testing scenario), build from source
-    if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
-        echo "Installing GCSFuse from source (Custom Bucket)..."
-        go run tools/build_gcsfuse/main.go . . "${VERSION}"
-        sudo cp bin/* /usr/bin/
-        sudo cp sbin/* /usr/sbin/
-    fi
 fi
+
+# Always perform cleanup before building or executing tests
+echo "Cleaning up any previous GCSFuse mounts, processes, and artifacts..."
+# Kill any remaining gcsfuse processes to prevent mount conflicts
+sudo pkill -f gcsfuse || true
+# CRITICAL: Clean up bin/sbin to prevent "mkdir: file exists" errors in the build tool
+rm -rf bin sbin
+
+# Build GCSFuse from source if it's a local run or requires a custom build
+if [ "${LOCAL_RUN}" = "true" ] || [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
+    echo "Building GCSFuse from source (Version: ${VERSION})..."
+    go run tools/build_gcsfuse/main.go . . "${VERSION}"
+    sudo cp bin/* /usr/bin/
+    sudo cp sbin/* /usr/sbin/
+fi
+
 
 # Determine Region
 REGION=\${ZONE_NAME%-*}
@@ -362,11 +324,11 @@ upload_logs() {
         gcloud storage cp "$LOG_FILE" "${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
         echo "Logfile for this run: ${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
         if [ "$EXIT_CODE" -eq 0 ]; then
-            touch ~/success.txt
             if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
                 touch ~/success-zonal.txt
                 gcloud storage cp ~/success-zonal.txt "${GCS_DEST}"
             else
+                touch ~/success.txt
                 gcloud storage cp ~/success.txt "${GCS_DEST}"
             fi
         else
