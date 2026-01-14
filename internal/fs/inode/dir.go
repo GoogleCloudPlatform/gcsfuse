@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -265,6 +266,9 @@ type dirInode struct {
 	prefetchCtx            context.Context
 	prefetchCancel         context.CancelFunc
 	maxPrefetchCount       int64
+	// isLargeDir indicates if the directory size exceeds maxPrefetchCount.
+	// If true, we start prefetching from the looked-up object's offset.
+	isLargeDir bool
 }
 
 var _ DirInode = &dirInode{}
@@ -506,41 +510,70 @@ func (d *dirInode) createNewObject(
 }
 
 // runOnDemandPrefetch attempts to prefetch metadata for the directory if a prefetch is due.
-// It uses an atomic prefetchState to ensure only one prefetch operation runs at a time and prevents concurrent execution.
-func (d *dirInode) runOnDemandPrefetch(ctx context.Context, startOffset string) {
+// It uses an atomic prefetchState to prevent concurrent execution.
+func (d *dirInode) runOnDemandPrefetch(ctx context.Context, lookUpName string) {
 	// Atomically swap state from Ready (0) to InProgress (1).
 	if !d.prefetchState.CompareAndSwap(prefetchReady, prefetchInProgress) {
 		// Another prefetch is already in progress. Abort.
 		return
 	}
 
-	// We are in the InProgress state while this function executes. We must reset to Ready before returning.
+	// Reset to Ready state when the worker finishes.
 	defer d.prefetchState.Store(prefetchReady)
 
-	// 2. Run the Prefetch
-	var tok string
+	var continuationToken string
 	var totalPrefetched int64 = 0
-	maxToPrefetch := d.maxPrefetchCount
-	for totalPrefetched < maxToPrefetch {
+
+	// If the directory was previously identified as 'large', we optimize by
+	// starting the listing from the current looked-up object to ensure its
+	// immediate siblings (lexicographically greater) are cached.
+	startOffset := ""
+	if d.isLargeDir {
+		startOffset = lookUpName
+	}
+
+	for totalPrefetched < d.maxPrefetchCount {
 		select {
 		case <-ctx.Done():
-			logger.Debugf("Metadata prefetch for directory inode %d aborted due to context cancellation.", d.id)
+			logger.Debugf("Metadata prefetch for directory inode %d aborted: context cancelled.", d.id)
 			return
 		default:
 		}
 
-		// Perform slow network I/O *without* holding the inode lock.
-		listResultCountRequired := int(math.Min(float64(maxToPrefetch-totalPrefetched), float64(MaxResultsForListObjectsCall)))
-		cores, _, newTok, err := d.readObjectsUnlocked(ctx, tok, startOffset, listResultCountRequired)
+		// Calculate how many results to ask for in this batch.
+		remaining := d.maxPrefetchCount - totalPrefetched
+		batchSize := int(math.Min(float64(remaining), float64(MaxResultsForListObjectsCall)))
+
+		// Perform network I/O without holding the inode lock.
+		cores, _, newTok, err := d.readObjectsUnlocked(ctx, continuationToken, startOffset, batchSize)
 		if err != nil {
 			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
 			return // Abort.
 		}
-		totalPrefetched += int64(len(cores))
-		if newTok == "" || totalPrefetched >= maxToPrefetch {
-			break // Requested sibling entries have been listed.
+
+		var keys []string
+		for _, a := range cores {
+			keys = append(keys, a.FullName.GcsObjectName())
 		}
-		tok = newTok
+		slices.Sort(keys)
+		logger.Infof("keys = %v", keys)
+
+		totalPrefetched += int64(len(cores))
+
+		// If we hit the prefetch limit but there is still more data in GCS,
+		// mark this as a large directory for future targeted prefetches.
+		if totalPrefetched >= d.maxPrefetchCount {
+			if newTok != "" {
+				d.isLargeDir = true
+			}
+			break
+		}
+
+		// End of directory reached.
+		if newTok == "" {
+			break
+		}
+		continuationToken = newTok
 	}
 }
 

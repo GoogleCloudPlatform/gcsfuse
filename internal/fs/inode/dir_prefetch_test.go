@@ -74,7 +74,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 func (t *DirPrefetchTest) SetupTest() {
 	t.in = t.setup(true, time.Minute)
 	// Setup GCS state: a directory with files.
-	files := []string{"dir/a", "dir/b", "dir/c/", "dir/d"}
+	files := []string{"dir/file0001", "dir/file0002", "dir/implicitDir0003/a", "dir/file0004"}
 	require.NoError(t.T(), storageutil.CreateEmptyObjects(t.ctx, t.bucket, files))
 }
 
@@ -93,9 +93,9 @@ func TestDirPrefetch(t *testing.T) {
 
 // Tests that LookUpChild triggers the background prefetch and populates siblings.
 func (t *DirPrefetchTest) TestPrefetch_TriggersOnUnknownType() {
-	// Trigger LookUpChild for "a" which is not in cache.
+	// Trigger LookUpChild for "implicitDir0003" which is not in cache.
 	t.in.mu.Lock()
-	_, err := t.in.LookUpChild(t.ctx, "a")
+	_, err := t.in.LookUpChild(t.ctx, "implicitDir0003")
 	t.in.mu.Unlock()
 	require.NoError(t.T(), err)
 
@@ -103,30 +103,33 @@ func (t *DirPrefetchTest) TestPrefetch_TriggersOnUnknownType() {
 	assert.Eventually(t.T(), func() bool {
 		t.in.mu.RLock()
 		defer t.in.mu.RUnlock()
-		return t.in.cache.Get(t.clock.Now(), "a") == metadata.RegularFileType &&
-			t.in.cache.Get(t.clock.Now(), "b") == metadata.RegularFileType &&
-			t.in.cache.Get(t.clock.Now(), "c") == metadata.ExplicitDirType &&
-			t.in.cache.Get(t.clock.Now(), "d") == metadata.RegularFileType
-	}, 2*time.Second, 10*time.Millisecond, "Prefetch should populate siblings in cache")
+		return t.in.cache.Get(t.clock.Now(), "file0001") == metadata.RegularFileType &&
+			t.in.cache.Get(t.clock.Now(), "file0002") == metadata.RegularFileType &&
+			t.in.cache.Get(t.clock.Now(), "implicitDir0003") == metadata.ImplicitDirType &&
+			t.in.cache.Get(t.clock.Now(), "file0004") == metadata.RegularFileType
+	}, 2*time.Second, 10*time.Millisecond, "Prefetch should populate all siblings in cache")
 }
 
-// Tests that LookUpChild triggers the background prefetch and populates siblings.
-func (t *DirPrefetchTest) TestPrefetch_CachesOnlyLexicographicallyGreaterObjects() {
-	// Trigger LookUpChild for "c" which is not in cache.
+// Tests that if the directory is marked as large, prefetch starts from the looked-up object.
+func (t *DirPrefetchTest) TestPrefetch_LargeDirUsesOffset() {
+	// Set the inode to LargeDir mode.
+	t.in.isLargeDir = true
+	// Trigger LookUpChild for "file0002" which is not in cache.
 	t.in.mu.Lock()
-	_, err := t.in.LookUpChild(t.ctx, "c")
+	_, err := t.in.LookUpChild(t.ctx, "file0002")
 	t.in.mu.Unlock()
 	require.NoError(t.T(), err)
 
 	// Wait for the background worker to populate the cache for siblings.
 	assert.Eventually(t.T(), func() bool {
-		t.in.mu.RLock()
-		defer t.in.mu.RUnlock()
-		return t.in.cache.Get(t.clock.Now(), "c") == metadata.ExplicitDirType &&
-			t.in.cache.Get(t.clock.Now(), "d") == metadata.RegularFileType
-	}, 2*time.Second, 10*time.Millisecond, "Prefetch should populate siblings in cache")
-	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "a"), "Objects before StartOffset should not be prefetched")
-	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "b"), "Objects before StartOffset should not be prefetched")
+		return t.in.prefetchState.Load() == prefetchReady
+	}, 2*time.Second, 10*time.Millisecond)
+	t.in.mu.RLock()
+	defer t.in.mu.RUnlock()
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "file0002"))
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "file0004"))
+	assert.Equal(t.T(), metadata.ImplicitDirType, t.in.cache.Get(t.clock.Now(), "implicitDir0003"))
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file0001"), "Objects before StartOffset should not be prefetched")
 }
 
 // Tests that if prefetch is disabled in config, LookUpChild doesn't trigger it.
@@ -134,7 +137,7 @@ func (t *DirPrefetchTest) TestPrefetch_Disabled() {
 	t.in = t.setup(false, time.Minute) // Prefetch OFF
 
 	t.in.mu.Lock()
-	_, err := t.in.LookUpChild(t.ctx, "a")
+	_, err := t.in.LookUpChild(t.ctx, "file0001")
 	require.NoError(t.T(), err)
 	t.in.mu.Unlock()
 
@@ -142,7 +145,7 @@ func (t *DirPrefetchTest) TestPrefetch_Disabled() {
 	time.Sleep(100 * time.Millisecond)
 	t.in.mu.RLock()
 	defer t.in.mu.RUnlock()
-	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "b"), "Sibling should not be cached when prefetch is disabled")
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file0002"), "Sibling should not be cached when prefetch is disabled")
 }
 
 // Tests that only one prefetch can run at a time using the atomic state.
@@ -151,22 +154,21 @@ func (t *DirPrefetchTest) TestPrefetch_ConcurrentSafety() {
 	t.in.prefetchState.Store(prefetchInProgress)
 
 	// 2. Call runOnDemandPrefetch. It should return immediately because of the state.
-	// If it didn't return immediately, it would try to list objects and update cache.
-	t.in.runOnDemandPrefetch(t.ctx, "a")
+	t.in.runOnDemandPrefetch(t.ctx, "file0001")
 
-	// 3. Since we are mocking the state as InProgress, the cache should remain empty
-	// because the function exited early.
+	// 3. Cache should remain empty because the function exited early.
 	t.in.mu.RLock()
 	defer t.in.mu.RUnlock()
-	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "a"))
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file0001"))
 }
 
 // Tests that the prefetcher respects the prefetchCtx and stops when Inode is destroyed.
 func (t *DirPrefetchTest) TestPrefetch_CancellationOnDestroy() {
 	// Trigger a prefetch.
 	t.in.mu.Lock()
-	_, _ = t.in.LookUpChild(t.ctx, "a")
+	_, _ = t.in.LookUpChild(t.ctx, "file0001")
 	t.in.mu.Unlock()
+
 	// Ensure it started.
 	assert.Eventually(t.T(), func() bool {
 		return t.in.prefetchState.Load() == prefetchInProgress
@@ -176,7 +178,7 @@ func (t *DirPrefetchTest) TestPrefetch_CancellationOnDestroy() {
 	err := t.in.Destroy()
 	require.NoError(t.T(), err)
 
-	// The state should eventually return to Ready because the loop checks for ctx.Done().
+	// The state should eventually return to Ready and context should be cancelled.
 	assert.Equal(t.T(), t.in.prefetchCtx.Err(), context.Canceled)
 	assert.Eventually(t.T(), func() bool {
 		return t.in.prefetchState.Load() == prefetchReady
@@ -186,23 +188,22 @@ func (t *DirPrefetchTest) TestPrefetch_CancellationOnDestroy() {
 func (t *DirPrefetchTest) TestPrefetch_RespectsMaxPrefetchCount() {
 	t.in.maxPrefetchCount = 2 // Set to a small value.
 
-	// Trigger LookUpChild for "a".
-	// This starts a prefetch from "a" lexicographically.
 	t.in.mu.Lock()
-	_, err := t.in.LookUpChild(t.ctx, "a")
+	_, err := t.in.LookUpChild(t.ctx, "file0001")
 	t.in.mu.Unlock()
 	require.NoError(t.T(), err)
-	// Wait for the prefetcher to finish.
+
 	assert.Eventually(t.T(), func() bool {
 		return t.in.prefetchState.Load() == prefetchReady
 	}, 2*time.Second, 10*time.Millisecond)
 
-	// Verify the cache.
 	t.in.mu.RLock()
 	defer t.in.mu.RUnlock()
-	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "a"))
-	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "b"))
-	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "c"), "Sibling c should NOT be cached (limit reached)")
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "file0001"))
+	assert.Equal(t.T(), metadata.RegularFileType, t.in.cache.Get(t.clock.Now(), "file0002"))
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "implicitDir003"), "Sibling implicitDir003 should NOT be cached (limit reached)")
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file0004"), "Sibling file0002 should NOT be cached (limit reached)")
+	assert.True(t.T(), t.in.isLargeDir)
 }
 
 func (t *DirPrefetchTest) TestPrefetch_HandlesMultiplePages() {
@@ -229,7 +230,9 @@ func (t *DirPrefetchTest) TestPrefetch_HandlesMultiplePages() {
 	// 4. Wait for the background worker to finish.
 	assert.Eventually(t.T(), func() bool {
 		return t.in.prefetchState.Load() == prefetchReady
-	}, 5*time.Second, 50*time.Millisecond)
+	}, 2*time.Second, 20*time.Millisecond)
+	// 5. Verify the large dir flag was set because listing wasn't finished.
+	assert.True(t.T(), t.in.isLargeDir, "Inode should be marked as large directory")
 	// 5. Verify the cache boundaries.
 	t.in.mu.RLock()
 	defer t.in.mu.RUnlock()
