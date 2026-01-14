@@ -21,7 +21,6 @@ import (
 	"io"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -42,7 +41,7 @@ type MrdInstance struct {
 	// inodeId is the ID of the file inode associated with this instance.
 	inodeId fuseops.InodeID
 	// object is the GCS object for which the downloaders are created.
-	object atomic.Pointer[gcs.MinObject]
+	object *gcs.MinObject
 	// bucket is the GCS bucket containing the object.
 	bucket gcs.Bucket
 	// refCount tracks the number of active users of this instance.
@@ -64,23 +63,60 @@ func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, ino
 		mrdCache: cache,
 		inodeId:  inodeId,
 		config:   config,
+		object:   obj,
 	}
-	mrdInstance.object.Store(obj)
 	return &mrdInstance
 }
 
 // SetMinObject sets the gcs.MinObject stored in the MrdInstance to passed value, only if it's non nil.
+// If the generation of the object has changed, it recreates the MRD pool to ensure consistency.
 func (mi *MrdInstance) SetMinObject(minObj *gcs.MinObject) error {
 	if minObj == nil {
 		return fmt.Errorf("MrdInstance::SetMinObject: Missing MinObject")
 	}
-	mi.object.Store(minObj)
+
+	mi.poolMu.Lock()
+	defer mi.poolMu.Unlock()
+
+	oldObj := mi.object
+	// If generation matches, just update the object (e.g. for size updates) and return.
+	if oldObj != nil && oldObj.Generation == minObj.Generation {
+		mi.object = minObj
+		return nil
+	}
+
+	// Generations differ, need to create and swap a new pool.
+	if err := mi.createAndSwapPool(minObj); err != nil {
+		return fmt.Errorf("MrdInstance::SetMinObject: failed to create and swap pool: %w", err)
+	}
+
+	return nil
+}
+
+// createAndSwapPool creates a new MRD pool and swaps it with the existing one.
+// It also updates the minObject with the passed object & closes the old pool.
+// LOCKS_REQUIRED(mi.poolMu).
+func (mi *MrdInstance) createAndSwapPool(obj *gcs.MinObject) error {
+	newPool, err := NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.config.Mrd.PoolSize), object: obj, bucket: mi.bucket}, nil)
+	if err != nil {
+		return err
+	}
+
+	oldPool := mi.mrdPool
+	mi.mrdPool = newPool
+	mi.object = obj
+
+	if oldPool != nil {
+		go oldPool.Close()
+	}
 	return nil
 }
 
 // GetMinObject returns the gcs.MinObject stored in MrdInstance.
 func (mi *MrdInstance) GetMinObject() *gcs.MinObject {
-	return mi.object.Load()
+	mi.poolMu.RLock()
+	defer mi.poolMu.RUnlock()
+	return mi.object
 }
 
 // getMRDEntry returns a valid MRDEntry from the pool.
@@ -186,7 +222,7 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 	}
 
 	// Creating a new pool. Not reusing any handle while creating a new pool.
-	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.config.Mrd.PoolSize), object: mi.object.Load(), bucket: mi.bucket}, nil)
+	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.config.Mrd.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
 	if err != nil {
 		err = fmt.Errorf("MrdInstance::ensureMRDPool Error in creating MRDPool: %w", err)
 	}
@@ -197,25 +233,18 @@ func (mi *MrdInstance) ensureMRDPool() (err error) {
 // file inode when the backing GCS object's generation changes, invalidating
 // all existing downloader instances.
 func (mi *MrdInstance) RecreateMRD() error {
-	// Create the new pool first to avoid a period where mrdPool is nil.
-	newPool, err := NewMRDPool(&MRDPoolConfig{
-		PoolSize: int(mi.config.Mrd.PoolSize),
-		object:   mi.object.Load(),
-		bucket:   mi.bucket,
-	}, nil)
-	if err != nil {
-		return fmt.Errorf("MrdInstance::RecreateMRD Error in recreating MRD: %w", err)
-	}
-
 	mi.poolMu.Lock()
-	oldPool := mi.mrdPool
-	mi.mrdPool = newPool
-	mi.poolMu.Unlock()
+	defer mi.poolMu.Unlock()
 
-	// Close the old pool after swapping.
-	if oldPool != nil {
-		oldPool.Close()
+	obj := mi.object
+	if obj == nil {
+		return fmt.Errorf("MrdInstance::RecreateMRD: object is nil")
 	}
+
+	if err := mi.createAndSwapPool(obj); err != nil {
+		return fmt.Errorf("MrdInstance::RecreateMRD: failed to create new pool: %w", err)
+	}
+
 	return nil
 }
 
@@ -223,10 +252,10 @@ func (mi *MrdInstance) RecreateMRD() error {
 func (mi *MrdInstance) closePool() {
 	mi.poolMu.Lock()
 	defer mi.poolMu.Unlock()
-	if mi.mrdPool != nil {
-		// Close the pool.
-		mi.mrdPool.Close()
-		mi.mrdPool = nil
+	pool := mi.mrdPool
+	mi.mrdPool = nil
+	if pool != nil {
+		go pool.Close()
 	}
 }
 
@@ -269,7 +298,7 @@ func (mi *MrdInstance) IncrementRefCount() {
 		// Remove from cache
 		deletedEntry := mi.mrdCache.Erase(getKey(mi.inodeId))
 		if deletedEntry != nil {
-			logger.Tracef("MrdInstance::IncrementRefCount: MrdInstance (%s) erased from cache", mi.object.Load().Name)
+			logger.Tracef("MrdInstance::IncrementRefCount: MrdInstance Inode (%d) erased from cache", mi.inodeId)
 		}
 	}
 }
@@ -318,13 +347,14 @@ func (mi *MrdInstance) DecrementRefCount() {
 	// This is a safe order.
 	evictedValues, err := mi.mrdCache.Insert(getKey(mi.inodeId), mi)
 	if err != nil {
-		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for object (%s) into cache, destroying immediately: %v", mi.object.Load().Name, err)
+		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for inode (%d) into cache, destroying immediately: %v", mi.inodeId, err)
 		// The instance could not be inserted into the cache. Since the refCount is 0,
 		// we must close it now to prevent it from being leaked.
 		mi.closePool()
 		return
 	}
-	logger.Tracef("MrdInstance::DecrementRefCount: MrdInstance for object (%s) added to cache", mi.object.Load().Name)
+
+	logger.Tracef("MrdInstance::DecrementRefCount: MrdInstance for inode (%d) added to cache", mi.inodeId)
 
 	// Do not proceed if no eviction happened.
 	if evictedValues == nil {
