@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math"
 	"path"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -550,13 +549,6 @@ func (d *dirInode) runOnDemandPrefetch(ctx context.Context, lookUpName string) {
 			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
 			return // Abort.
 		}
-
-		var keys []string
-		for _, a := range cores {
-			keys = append(keys, a.FullName.GcsObjectName())
-		}
-		slices.Sort(keys)
-		logger.Infof("keys = %v", keys)
 
 		totalPrefetched += int64(len(cores))
 
