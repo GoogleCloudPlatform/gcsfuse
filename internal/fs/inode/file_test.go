@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
@@ -543,6 +544,25 @@ func (t *FileTest) TestTruncateNegative() {
 
 	require.Error(t.T(), err)
 	assert.False(t.T(), gcsSynced)
+}
+
+func (t *FileTest) TestDestroy_MrdInstanceDestroyed() {
+	// Manually initialize MRD pool since FileInode.Read doesn't use it directly.
+	mi := t.in.GetMRDInstance()
+	require.NotNil(t.T(), mi)
+	// Perform a read on MrdInstance to trigger pool creation.
+	buf := make([]byte, 1)
+	_, err := mi.Read(t.ctx, buf, 0, metrics.NewNoopMetrics())
+	require.NoError(t.T(), err)
+	// Verify pool is initialized.
+	assert.Greater(t.T(), int(mi.Size()), 0)
+
+	// Destroy the inode.
+	err = t.in.Destroy()
+
+	require.NoError(t.T(), err)
+	// Verify MRD instance is destroyed (pool closed and set to nil).
+	assert.Equal(t.T(), uint64(0), mi.Size())
 }
 
 func (t *FileTest) TestWriteThenSync() {

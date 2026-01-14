@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -23,10 +24,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type MrdSimpleReaderTest struct {
@@ -35,7 +39,7 @@ type MrdSimpleReaderTest struct {
 	bucket      *storage.TestifyMockBucket
 	cache       *lru.Cache
 	inodeID     fuseops.InodeID
-	mrdConfig   cfg.MrdConfig
+	config      *cfg.Config
 	mrdInstance *MrdInstance
 	reader      *MrdSimpleReader
 }
@@ -53,10 +57,10 @@ func (t *MrdSimpleReaderTest) SetupTest() {
 	t.bucket = new(storage.TestifyMockBucket)
 	t.cache = lru.NewCache(2)
 	t.inodeID = 100
-	t.mrdConfig = cfg.MrdConfig{PoolSize: 1}
+	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 
-	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.mrdConfig)
-	t.reader = NewMrdSimpleReader(t.mrdInstance)
+	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
+	t.reader = NewMrdSimpleReader(t.mrdInstance, metrics.NewNoopMetrics())
 }
 
 func (t *MrdSimpleReaderTest) TestNewMrdSimpleReader() {
@@ -136,6 +140,58 @@ func (t *MrdSimpleReaderTest) TestReadAt_NilMrdInstance() {
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "mrdInstance is nil")
 	assert.Equal(t.T(), 0, resp.Size)
+}
+
+func (t *MrdSimpleReaderTest) TestReadAt_ShortRead_RetrySuccess() {
+	data := []byte("hello world")
+	// First MRD returns short read.
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
+	// Second MRD returns full read.
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, data)
+	// Expectation:
+	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
+	// 2. Read returns short read.
+	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD2.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	buf := make([]byte, len(data))
+	req := &ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), len(data), resp.Size)
+	assert.Equal(t.T(), string(data), string(buf))
+	// Verify refCount incremented
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *MrdSimpleReaderTest) TestReadAt_ShortRead_RetryFails_ReturnsOriginalError() {
+	data := []byte("hello world")
+	// First MRD returns short read with io.EOF.
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
+	// Second MRD returns 0 bytes and an error.
+	fakeMRD2 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, status.Error(codes.OutOfRange, "Out of range error"))
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	buf := make([]byte, len(data))
+	req := &ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.Equal(t.T(), 5, resp.Size)
+	assert.Equal(t.T(), "hello", string(buf[:5]))
+	t.bucket.AssertExpectations(t.T())
 }
 
 func (t *MrdSimpleReaderTest) TestDestroy() {

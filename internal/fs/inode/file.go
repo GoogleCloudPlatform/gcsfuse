@@ -170,7 +170,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
-		mrdInstance:             gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg.Mrd),
+		mrdInstance:             gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg),
 	}
 	var err error
 	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
@@ -516,6 +516,9 @@ func (f *FileInode) Destroy() (err error) {
 		f.contentCache.Remove(cacheObjectKey)
 	} else if f.content != nil {
 		f.content.Destroy()
+	}
+	if f.mrdInstance != nil {
+		f.mrdInstance.Destroy()
 	}
 	return
 }
