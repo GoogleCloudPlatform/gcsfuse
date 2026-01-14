@@ -15,6 +15,8 @@
 package inode
 
 import (
+	"fmt"
+	"io"
 	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -26,7 +28,9 @@ import (
 // When this custom metadata key is present in an object record, it is to be
 // treated as a symlink. For use in testing only; other users should detect
 // this with IsSymlink.
-const SymlinkMetadataKey = "gcsfuse_symlink_target"
+const DeprecatedSymlinkMetadataKey = "gcsfuse_symlink_target"
+const SymlinkMetadataKey = "goog-reserved-file-is-symlink"
+const MAX_SYMLINK_TARGET_LENGTH = 4095
 
 // IsSymlink Does the supplied object represent a symlink inode?
 func IsSymlink(m *gcs.MinObject) bool {
@@ -34,8 +38,40 @@ func IsSymlink(m *gcs.MinObject) bool {
 		return false
 	}
 
-	_, ok := m.Metadata[SymlinkMetadataKey]
-	return ok
+	_, ok1 := m.Metadata[DeprecatedSymlinkMetadataKey]
+	_, ok2 := m.Metadata[SymlinkMetadataKey]
+	return ok1 || ok2
+}
+
+func resolveSymlinkTarget(ctx context.Context, bucket *gcsx.SyncerBucket, m *gcs.MinObject) (string, error) {
+	if m == nil {
+		return "", fmt.Errorf("empty object passed. Symlink target cannot be resolved...")
+	}
+
+	if isSymlink, ok := m.Metadata[SymlinkMetadataKey]; ok && isSymlink == "true" {
+		rc, err := bucket.NewReaderWithReadHandle(ctx, &gcs.ReadObjectRequest{
+			Name:       m.Name,
+			Generation: m.Generation,
+		})
+		if err != nil {
+			return "", fmt.Errorf("NewReaderWithReadHandle: %w", err)
+		}
+		defer rc.Close()
+
+		content, err := io.ReadAll(rc)
+		if err != nil {
+			return "", fmt.Errorf("ReadAll: %w", err)
+		}
+		if len(content) > MAX_SYMLINK_TARGET_LENGTH {
+			return "", fmt.Errorf("maximum target length for a symlink reached.")
+		}
+		return string(content), nil
+
+	} else if target, ok := m.Metadata[DeprecatedSymlinkMetadataKey]; ok {
+		return target, nil
+	}
+
+	return "", fmt.Errorf("minobject does not have appropriate metadata set. Cannot resolve target...")
 }
 
 type SymlinkInode struct {
@@ -49,6 +85,7 @@ type SymlinkInode struct {
 	sourceGeneration Generation
 	attrs            fuseops.InodeAttributes
 	target           string
+	metadata         map[string]string
 
 	/////////////////////////
 	// Mutable state
@@ -66,11 +103,19 @@ var _ Inode = &SymlinkInode{}
 //
 // REQUIRES: IsSymlink(o)
 func NewSymlinkInode(
+	ctx context.Context,
 	id fuseops.InodeID,
 	name Name,
 	bucket *gcsx.SyncerBucket,
 	m *gcs.MinObject,
 	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
+	// Resolve the symlink target before returning the inode.
+	// Backing MinObject is guranteed exist at this point.
+	target, err := resolveSymlinkTarget(ctx, bucket, m)
+	if err != nil {
+		return nil
+	}
+
 	// Create the inode.
 	s = &SymlinkInode{
 		id:     id,
@@ -90,7 +135,8 @@ func NewSymlinkInode(
 			Ctime: m.Updated,
 			Mtime: m.Updated,
 		},
-		target: m.Metadata[SymlinkMetadataKey],
+		target:   target,
+		metadata: m.Metadata,
 	}
 
 	// Set up lookup counting.
@@ -176,9 +222,7 @@ func (s *SymlinkInode) Source() *gcs.MinObject {
 		Generation:     s.sourceGeneration.Object,
 		MetaGeneration: s.sourceGeneration.Metadata,
 		Size:           s.sourceGeneration.Size,
-		Metadata: map[string]string{
-			SymlinkMetadataKey: s.target,
-		},
-		Updated: s.attrs.Mtime,
+		Metadata:       s.metadata,
+		Updated:        s.attrs.Mtime,
 	}
 }

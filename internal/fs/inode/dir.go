@@ -458,17 +458,17 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 	return result, nil
 }
 
-// Fail if the name already exists. Pass on errors directly.
-func (d *dirInode) createNewObject(
+func (d *dirInode) createNewObjectWithContent(
 	ctx context.Context,
 	name Name,
-	metadata map[string]string) (o *gcs.Object, err error) {
-	// Create an empty backing object for the child, failing if it already
+	metadata map[string]string,
+	content string) (o *gcs.Object, err error) {
+	// Create a backing object for the child, failing if it already
 	// exists.
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
 		Name:                   name.GcsObjectName(),
-		Contents:               strings.NewReader(""),
+		Contents:               strings.NewReader(content),
 		GenerationPrecondition: &precond,
 		Metadata:               metadata,
 	}
@@ -479,6 +479,16 @@ func (d *dirInode) createNewObject(
 	}
 
 	return
+}
+
+// Fail if the name already exists. Pass on errors directly.
+func (d *dirInode) createNewObject(
+	ctx context.Context,
+	name Name,
+	metadata map[string]string) (o *gcs.Object, err error) {
+	// Create an empty backing object for the child, failing if it already
+	// exists.
+	return d.createNewObjectWithContent(ctx, name, metadata, "")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -990,10 +1000,10 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error) {
 	fullName := NewFileName(d.Name(), name)
 	childMetadata := map[string]string{
-		SymlinkMetadataKey: target,
+		SymlinkMetadataKey: "true",
 	}
 
-	o, err := d.createNewObject(ctx, fullName, childMetadata)
+	o, err := d.createNewObjectWithContent(ctx, fullName, childMetadata, target)
 	if err != nil {
 		return nil, err
 	}
