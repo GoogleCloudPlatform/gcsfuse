@@ -47,7 +47,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 
 	if v.IsSet(MetadataNegativeCacheTTLConfigKey) || optimizationAppliedToNegativeCacheTTL {
 		if c.NegativeTtlSecs == -1 {
-			c.NegativeTtlSecs = maxSupportedTTLInSeconds
+			c.NegativeTtlSecs = MaxSupportedTTLInSeconds
 		}
 	}
 	// Order of precedence for setting TTL seconds
@@ -57,12 +57,12 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 	optimizationAppliedToMetadataCacheTTL := isFlagPresent(optimizedFlags, MetadataCacheTTLConfigKey)
 	if v.IsSet(MetadataCacheTTLConfigKey) {
 		if c.TtlSecs == -1 {
-			c.TtlSecs = maxSupportedTTLInSeconds
+			c.TtlSecs = MaxSupportedTTLInSeconds
 		}
 	} else if (v.IsSet(MetadataCacheStatCacheTTLConfigKey) || v.IsSet(MetadataCacheTypeCacheTTLConfigKey)) || (!optimizationAppliedToMetadataCacheTTL) {
 		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
 	} else if c.TtlSecs == -1 {
-		c.TtlSecs = maxSupportedTTLInSeconds
+		c.TtlSecs = MaxSupportedTTLInSeconds
 	}
 }
 

@@ -2597,6 +2597,8 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
 				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
 			},
 		},
 		{
@@ -2607,6 +2609,8 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
 				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.Equal(t, cfg.MaxSupportedTTLInSeconds, mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
+				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
 			},
 		},
 		{
@@ -2630,6 +2634,7 @@ write:
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
 				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
 			},
 		},
 	}
@@ -2668,6 +2673,8 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect CLI value 123, not optimize to 1600")
 				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
 			},
 		},
 		{
@@ -2676,6 +2683,8 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
 				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.Equal(t, cfg.MaxSupportedTTLInSeconds, mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
+				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
 			},
 		},
 		{

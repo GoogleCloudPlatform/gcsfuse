@@ -115,7 +115,7 @@ func isTTLInSecsValid(secs int64) error {
 	if secs < -1 {
 		return fmt.Errorf("the value of ttl-secs can't be less than -1")
 	}
-	if secs > maxSupportedTTLInSeconds {
+	if secs > MaxSupportedTTLInSeconds {
 		return fmt.Errorf("the value of ttl-secs is too high to be supported. Max is 9223372036")
 	}
 	return nil
@@ -134,7 +134,7 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 		if c.TtlSecs < -1 {
 			return fmt.Errorf("the value of ttl-secs for metadata-cache can't be less than -1")
 		}
-		if c.TtlSecs > maxSupportedTTLInSeconds {
+		if c.TtlSecs > MaxSupportedTTLInSeconds {
 			return fmt.Errorf("the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036")
 		}
 	}
@@ -144,7 +144,7 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 		if c.NegativeTtlSecs < -1 {
 			return fmt.Errorf("the value of negative-ttl-secs for metadata-cache can't be less than -1")
 		}
-		if c.NegativeTtlSecs > maxSupportedTTLInSeconds {
+		if c.NegativeTtlSecs > MaxSupportedTTLInSeconds {
 			return fmt.Errorf("the value of negative-ttl-secs in metadata-cache is too high to be supported. Max is 9223372036")
 		}
 	}
@@ -222,7 +222,7 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 }
 
 func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64) error {
-	if chunkTransferTimeoutSecs < 0 || chunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
+	if chunkTransferTimeoutSecs < 0 || chunkTransferTimeoutSecs > MaxSupportedTTLInSeconds {
 		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", chunkTransferTimeoutSecs)
 	}
 	return nil

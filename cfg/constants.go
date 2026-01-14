@@ -54,9 +54,9 @@ const (
 )
 
 const (
-	// maxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
-	maxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
-	maxSupportedTTL          = time.Duration(maxSupportedTTLInSeconds * int64(time.Second))
+	// MaxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
+	MaxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
+	maxSupportedTTL          = time.Duration(MaxSupportedTTLInSeconds * int64(time.Second))
 )
 
 const (
