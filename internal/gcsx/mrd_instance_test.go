@@ -257,7 +257,7 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
-	assert.NotEqual(t.T(), pool1, t.mrdInstance.mrdPool)
+	assert.NotSame(t.T(), pool1, t.mrdInstance.mrdPool)
 }
 
 func (t *MrdInstanceTest) TestDestroy() {
@@ -565,7 +565,7 @@ func (t *MrdInstanceTest) TestCreateAndSwapPool_Success() {
 	t.mrdInstance.poolMu.Unlock()
 
 	assert.NoError(t.T(), err)
-	assert.NotEqual(t.T(), oldPool, t.mrdInstance.mrdPool)
+	assert.NotSame(t.T(), oldPool, t.mrdInstance.mrdPool)
 	assert.Equal(t.T(), newObj, t.mrdInstance.object)
 	assert.Equal(t.T(), fakeMRD2, t.mrdInstance.mrdPool.entries[0].mrd)
 }
@@ -659,7 +659,7 @@ func (t *MrdInstanceTest) TestSetMinObject_DifferentGeneration() {
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), newObj, t.mrdInstance.GetMinObject())
 	t.mrdInstance.poolMu.RLock()
-	assert.NotEqual(t.T(), initialPool, t.mrdInstance.mrdPool)
+	assert.NotSame(t.T(), initialPool, t.mrdInstance.mrdPool)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
 	t.mrdInstance.poolMu.RUnlock()
 }
