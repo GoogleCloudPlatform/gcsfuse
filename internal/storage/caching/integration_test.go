@@ -15,6 +15,8 @@
 package caching_test
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -57,7 +59,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 
 	// Set up dependencies.
 	const cacheCapacity = 100
-	lruCache := lru.NewCache(cfg.AverageSizeOfPositiveStatCacheEntry * cacheCapacity)
+	lruCache := lru.NewTrieCache(cfg.AverageSizeOfPositiveStatCacheEntry * cacheCapacity)
 	cache := metadata.NewStatCacheBucketView(lruCache, "")
 	t.wrapped = fake.NewFakeBucket(&t.clock, bucketName, gcs.BucketType{})
 
@@ -294,4 +296,38 @@ func (t *IntegrationTest) NegativeCacheExpiration() {
 	o, err := t.stat(name)
 	AssertEq(nil, err)
 	ExpectNe(nil, o)
+}
+
+func (t *IntegrationTest) TestRenameFolderInvalidatesPrefix() {
+	// 1. Create a folder "src/".
+	_, err := t.bucket.CreateFolder(t.ctx, "src/")
+	AssertEq(nil, err)
+
+	// 2. Create an object "src/obj".
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "src/obj", []byte("content"))
+	AssertEq(nil, err)
+
+	// 3. Stat "src/obj" to populate the cache.
+	_, err = t.stat("src/obj")
+	AssertEq(nil, err)
+
+	// Verify it's in cache (implicitly, by stating again and ensuring no error).
+	_, err = t.stat("src/obj")
+	AssertEq(nil, err)
+
+	// 4. Rename "src/" to "dst/".
+	_, err = t.bucket.RenameFolder(t.ctx, "src/", "dst/")
+	AssertEq(nil, err)
+
+	// 5. Stat "src/obj". Should fail with NotFound.
+	// If the cache was NOT invalidated, this would return the cached object
+	// because FastStatBucket checks cache first.
+	_, err = t.stat("src/obj")
+	AssertNe(nil, err)
+	var notFoundError *gcs.NotFoundError
+	AssertTrue(errors.As(err, &notFoundError), fmt.Sprintf("Expected NotFoundError, got: %v", err))
+
+	// 6. Verify "dst/obj" exists (optional, but good for sanity).
+	_, err = t.stat("dst/obj")
+	AssertEq(nil, err)
 }
