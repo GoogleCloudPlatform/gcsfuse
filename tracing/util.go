@@ -17,17 +17,10 @@ package tracing
 import (
 	"context"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
 
 const name = "cloud.google.com/gcsfuse"
-
-var tracer = otel.Tracer(name)
-
-func GCSFuseTracer() trace.Tracer {
-	return tracer
-}
 
 // When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
 func MaybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
