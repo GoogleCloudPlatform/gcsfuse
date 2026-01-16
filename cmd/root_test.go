@@ -2617,7 +2617,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			},
 		},
 		{
-			name: "machine_type_in_config_file_is_overridden_by_another_config_flag",
+			name: "machine_type_in_config_file_respects_other_config_file_configurations",
 			configContent: `
 machine-type: a3-highgpu-8g
 write:
