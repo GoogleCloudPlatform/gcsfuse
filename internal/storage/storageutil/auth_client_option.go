@@ -50,7 +50,8 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	retryConfig := NewRetryConfig(config, DefaultRetryDeadline, DefaultTotalRetryBudget, DefaultInitialBackoff)
 
 	apiCall := func(attemptCtx context.Context) (string, error) {
-		return cred.UniverseDomain(attemptCtx)
+		d, err := cred.UniverseDomain(attemptCtx)
+		return d, err
 	}
 
 	domain, err := ExecuteWithRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall)
@@ -59,6 +60,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		// Setting default universe domain to googleapis.com in case we are unable to fetch the domain.
 		domain = auth2.UniverseDomainDefault
 	}
+	logger.Tracef("Success in fetching cred.UniverseDomain")
 
 	// Temporary Workaround: We've created a small auth object here that omits the 'quota project ID'
 	// to bypass a known issue (b/442805436) in the current authentication library.
