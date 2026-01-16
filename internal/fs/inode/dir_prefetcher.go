@@ -42,13 +42,13 @@ type MetadataPrefetcher struct {
 	// If true, we start prefetching from the looked-up object's offset.
 	isLargeDir atomic.Bool
 
-	// hydrateCacheFunc allows the prefetcher to perform GCS List call to hydrate metadata cache.
-	hydrateCacheFunc func(ctx context.Context, tok string, startOffset string, limit int) (int, string, error)
+	// listCallFunc allows the prefetcher to perform GCS List call and hydrate metadata cache.
+	listCallFunc func(ctx context.Context, tok string, startOffset string, limit int) (map[Name]*Core, []string, string, error)
 }
 
 func NewMetadataPrefetcher(
 	cfg *cfg.Config,
-	listFunc func(context.Context, string, string, int) (int, string, error),
+	listFunc func(context.Context, string, string, int) (map[Name]*Core, []string, string, error),
 ) *MetadataPrefetcher {
 	// Initialize a new context for metadata prefetch worker so it can run in background.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -58,7 +58,7 @@ func NewMetadataPrefetcher(
 		ctx:              ctx,
 		cancel:           cancel,
 		maxPrefetchCount: MaxResultsForListObjectsCall, // TODO: make it user configurable
-		hydrateCacheFunc: listFunc,
+		listCallFunc:     listFunc,
 		// state is 0 (prefetchReady) by default.
 	}
 }
@@ -105,13 +105,13 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 			batchSize := min(remaining, MaxResultsForListObjectsCall)
 
 			// Perform network I/O without holding the inode lock.
-			count, newTok, err := p.hydrateCacheFunc(p.ctx, continuationToken, startOffset, int(batchSize))
+			cores, _, newTok, err := p.listCallFunc(p.ctx, continuationToken, startOffset, int(batchSize))
 			if err != nil {
 				logger.Warnf("Prefetch failed for %s: %v", dirName, err)
 				return // Abort.
 			}
 
-			totalPrefetched += int64(count)
+			totalPrefetched += int64(len(cores))
 
 			// If we hit the prefetch limit but there is still more data in GCS,
 			// mark this as a large directory for future targeted prefetches.

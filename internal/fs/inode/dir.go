@@ -305,13 +305,9 @@ func NewDirInode(
 		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
 	}
-	// Define the listing adapter for the prefetcher to hydrate cache.
-	listAdapter := func(ctx context.Context, tok string, startOffset string, limit int) (int, string, error) {
-		// readObjectsUnlocked handles GCS call and updates the inode's internal metadata cache (type and stat).
-		cores, _, newTok, err := typed.readObjectsUnlocked(ctx, tok, startOffset, limit)
-		return len(cores), newTok, err
-	}
-	typed.prefetcher = NewMetadataPrefetcher(cfg, listAdapter)
+	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
+	// acquiring d.mu only to update the cache.
+	typed.prefetcher = NewMetadataPrefetcher(cfg, typed.readObjectsUnlocked)
 
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
