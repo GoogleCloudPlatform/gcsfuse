@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"path"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -42,12 +41,6 @@ import (
 // By default 1000 results are returned if maxResults is not set.
 // Defining a constant to set maxResults param.
 const MaxResultsForListObjectsCall = 5000
-
-// Constants for the metadata prefetch state.
-const (
-	prefetchReady uint32 = iota
-	prefetchInProgress
-)
 
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
@@ -210,6 +203,7 @@ type dirInode struct {
 	bucket     *gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
+	prefetcher *MetadataPrefetcher
 
 	/////////////////////////
 	// Constant data
@@ -256,17 +250,6 @@ type dirInode struct {
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
-
-	// Variables for metadata prefetching.
-	enableMetadataPrefetch bool
-	metadataCacheTTL       time.Duration
-	prefetchState          atomic.Uint32 // 0=Ready, 1=InProgress
-	prefetchCtx            context.Context
-	prefetchCancel         context.CancelFunc
-	maxPrefetchCount       int64
-	// isLargeDir indicates if the directory size exceeds maxPrefetchCount.
-	// If true, we start prefetching from the looked-up object's offset.
-	isLargeDir bool
 }
 
 var _ DirInode = &dirInode{}
@@ -307,8 +290,6 @@ func NewDirInode(
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
-	// Initialize a new context for metadata prefetch worker so it can run in background.
-	prefetchCtx, prefetchCancel := context.WithCancel(context.Background())
 	typed := &dirInode{
 		bucket:                          bucket,
 		mtimeClock:                      mtimeClock,
@@ -323,13 +304,15 @@ func NewDirInode(
 		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
-		enableMetadataPrefetch:          cfg.MetadataCache.ExperimentalDirMetadataPrefetch,
-		metadataCacheTTL:                typeCacheTTL,
-		prefetchCtx:                     prefetchCtx,
-		prefetchCancel:                  prefetchCancel,
-		maxPrefetchCount:                MaxResultsForListObjectsCall, // TODO: make it user configurable
-		// prefetchState is 0 (prefetchReady) by default.
 	}
+	// Define the listing adapter for the prefetcher to hydrate cache.
+	listAdapter := func(ctx context.Context, tok string, startOffset string, limit int) (int, string, error) {
+		// readObjectsUnlocked handles GCS call and updates the inode's internal metadata cache (type and stat).
+		cores, _, newTok, err := typed.readObjectsUnlocked(ctx, tok, startOffset, limit)
+		return len(cores), newTok, err
+	}
+	typed.prefetcher = NewMetadataPrefetcher(cfg, listAdapter)
+
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
 		cache = metadata.NewTypeCache(cfg.MetadataCache.TypeCacheMaxSizeMb, typeCacheTTL)
@@ -507,67 +490,6 @@ func (d *dirInode) createNewObject(
 	return
 }
 
-// runOnDemandPrefetch attempts to prefetch metadata for the directory if a prefetch is due.
-// It uses an atomic prefetchState to prevent concurrent execution.
-func (d *dirInode) runOnDemandPrefetch(ctx context.Context, lookUpName string) {
-	// Atomically swap state from Ready (0) to InProgress (1).
-	if !d.prefetchState.CompareAndSwap(prefetchReady, prefetchInProgress) {
-		// Another prefetch is already in progress. Abort.
-		return
-	}
-
-	// Reset to Ready state when the worker finishes.
-	defer d.prefetchState.Store(prefetchReady)
-
-	var continuationToken string
-	var totalPrefetched int64 = 0
-
-	// If the directory was previously identified as 'large', we optimize by
-	// starting the listing from the current looked-up object to ensure its
-	// immediate siblings (lexicographically greater) are cached.
-	startOffset := ""
-	if d.isLargeDir {
-		startOffset = lookUpName
-	}
-
-	for totalPrefetched < d.maxPrefetchCount {
-		select {
-		case <-ctx.Done():
-			logger.Debugf("Metadata prefetch for directory inode %d aborted: context cancelled.", d.id)
-			return
-		default:
-		}
-
-		// Calculate how many results to ask for in this batch.
-		remaining := d.maxPrefetchCount - totalPrefetched
-		batchSize := min(remaining, MaxResultsForListObjectsCall)
-
-		// Perform network I/O without holding the inode lock.
-		cores, _, newTok, err := d.readObjectsUnlocked(ctx, continuationToken, startOffset, int(batchSize))
-		if err != nil {
-			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
-			return // Abort.
-		}
-
-		totalPrefetched += int64(len(cores))
-
-		// If we hit the prefetch limit but there is still more data in GCS,
-		// mark this as a large directory for future targeted prefetches.
-		if totalPrefetched >= d.maxPrefetchCount {
-			if newTok != "" {
-				d.isLargeDir = true
-			}
-			break
-		}
-
-		// End of directory reached.
-		if newTok == "" {
-			break
-		}
-		continuationToken = newTok
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -622,10 +544,7 @@ func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
-	if d.enableMetadataPrefetch && d.prefetchCancel != nil {
-		// cancel any in progress prefetch when the inode is getting destroyed.
-		d.prefetchCancel()
-	}
+	d.prefetcher.Cancel()
 	return
 }
 
@@ -712,11 +631,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		// Entry not present in cache.
-		// Check if a prefetch is due and launch the prefetch worker in the background.
-		if d.enableMetadataPrefetch && d.metadataCacheTTL != 0 && d.prefetchState.Load() == prefetchReady {
-			// Use prefetchCtx since this long-running background task should not be tied to short-lived `LookUpChild` ctx.
-			go d.runOnDemandPrefetch(d.prefetchCtx, NewFileName(d.Name(), name).GcsObjectName())
-		}
+		// Trigger prefetcher
+		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
 
 		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
