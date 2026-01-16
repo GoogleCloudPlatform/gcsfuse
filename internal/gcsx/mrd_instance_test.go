@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -257,7 +258,7 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
-	assert.NotEqual(t.T(), pool1, t.mrdInstance.mrdPool)
+	assert.NotSame(t.T(), pool1, t.mrdInstance.mrdPool)
 }
 
 func (t *MrdInstanceTest) TestDestroy() {
@@ -541,4 +542,175 @@ func (t *MrdInstanceTest) TestHandleEviction_SafeToClose() {
 	t.mrdInstance.poolMu.RLock()
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
 	t.mrdInstance.poolMu.RUnlock()
+}
+
+func (t *MrdInstanceTest) TestCreateAndSwapPool_Success() {
+	// Setup initial state
+	initialObj := &gcs.MinObject{Name: "old", Generation: 1}
+	t.mrdInstance.object = initialObj
+	// Create an initial pool
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(initialObj, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	err := t.mrdInstance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+	oldPool := t.mrdInstance.mrdPool
+	assert.NotNil(t.T(), oldPool)
+	// Prepare for new pool creation
+	newObj := &gcs.MinObject{Name: "new", Generation: 2}
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(newObj, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+
+	// Call createAndSwapPool
+	t.mrdInstance.poolMu.Lock()
+	err = t.mrdInstance.createAndSwapPool(newObj)
+	t.mrdInstance.poolMu.Unlock()
+
+	assert.NoError(t.T(), err)
+	assert.NotSame(t.T(), oldPool, t.mrdInstance.mrdPool)
+	assert.Equal(t.T(), newObj, t.mrdInstance.object)
+	assert.Equal(t.T(), fakeMRD2, t.mrdInstance.mrdPool.entries[0].mrd)
+}
+
+func (t *MrdInstanceTest) TestCreateAndSwapPool_Failure() {
+	// Setup initial state
+	initialObj := &gcs.MinObject{Name: "old", Generation: 1}
+	t.mrdInstance.object = initialObj
+	// Create an initial pool
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(initialObj, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	err := t.mrdInstance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+	oldPool := t.mrdInstance.mrdPool
+	assert.NotNil(t.T(), oldPool)
+	// Prepare for new pool creation failure
+	newObj := &gcs.MinObject{Name: "new", Generation: 2}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("creation failed")).Once()
+
+	// Call createAndSwapPool
+	t.mrdInstance.poolMu.Lock()
+	err = t.mrdInstance.createAndSwapPool(newObj)
+	t.mrdInstance.poolMu.Unlock()
+
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "creation failed")
+	// Verify state remains unchanged
+	assert.Equal(t.T(), oldPool, t.mrdInstance.mrdPool)
+	assert.Equal(t.T(), initialObj, t.mrdInstance.object)
+}
+
+func (t *MrdInstanceTest) TestSetMinObject_NilObject() {
+	err := t.mrdInstance.SetMinObject(nil)
+
+	assert.Error(t.T(), err)
+
+	assert.Contains(t.T(), err.Error(), "Missing MinObject")
+}
+
+func (t *MrdInstanceTest) TestSetMinObject_SameGeneration() {
+	// Setup
+	initialObj := t.mrdInstance.GetMinObject()
+	// Ensure pool exists.
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(initialObj, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	err := t.mrdInstance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+	t.mrdInstance.poolMu.RLock()
+	initialPool := t.mrdInstance.mrdPool
+	t.mrdInstance.poolMu.RUnlock()
+	// Same generation update (e.g. size change).
+	newObj := &gcs.MinObject{
+		Name:       initialObj.Name,
+		Generation: initialObj.Generation,
+		Size:       initialObj.Size + 100,
+	}
+
+	err = t.mrdInstance.SetMinObject(newObj)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), newObj, t.mrdInstance.GetMinObject())
+	// Pool should not change for same generation.
+	t.mrdInstance.poolMu.RLock()
+	assert.Equal(t.T(), initialPool, t.mrdInstance.mrdPool)
+	t.mrdInstance.poolMu.RUnlock()
+}
+
+func (t *MrdInstanceTest) TestSetMinObject_DifferentGeneration() {
+	// Setup
+	initialObj := t.mrdInstance.GetMinObject()
+	// Ensure pool exists.
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(initialObj, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	err := t.mrdInstance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+	t.mrdInstance.poolMu.RLock()
+	initialPool := t.mrdInstance.mrdPool
+	t.mrdInstance.poolMu.RUnlock()
+	// New generation
+	newObj := &gcs.MinObject{
+		Name:       initialObj.Name,
+		Generation: initialObj.Generation + 1,
+		Size:       initialObj.Size,
+	}
+	// Mock creation of new pool
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(newObj, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+
+	err = t.mrdInstance.SetMinObject(newObj)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), newObj, t.mrdInstance.GetMinObject())
+	t.mrdInstance.poolMu.RLock()
+	assert.NotSame(t.T(), initialPool, t.mrdInstance.mrdPool)
+	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
+	t.mrdInstance.poolMu.RUnlock()
+}
+
+func (t *MrdInstanceTest) TestGetMinObject() {
+	obj := t.mrdInstance.GetMinObject()
+
+	assert.Equal(t.T(), t.object, obj)
+}
+
+func (t *MrdInstanceTest) TestClosePoolWithTimeout_LogWarningOnTimeout() {
+	// 1. Capture logs.
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	// 2. Create a pool that blocks on Close().
+	// MRDPool.Close() waits on creationWg. We increment it to block Close().
+	pool := &MRDPool{
+		poolConfig: &MRDPoolConfig{
+			object: t.object,
+		},
+	}
+	pool.creationWg.Add(1)
+
+	// 3. Call the function.
+	closePoolWithTimeout(pool, "TestCaller", 10*time.Millisecond)
+
+	// 4. Wait enough time for timeout to trigger.
+	time.Sleep(50 * time.Millisecond)
+	// 5. Verify log.
+	assert.Contains(t.T(), buf.String(), "TestCaller: MRDPool.Close() timed out")
+	assert.Contains(t.T(), buf.String(), t.object.Name)
+	// 7. Cleanup: Unblock the pool closure to avoid goroutine leak.
+	pool.creationWg.Done()
+}
+
+// logBuffer is a thread-safe buffer for capturing logs in tests.
+type logBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *logBuffer) Write(p []byte) (n int, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *logBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }

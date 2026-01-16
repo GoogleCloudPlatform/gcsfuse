@@ -101,8 +101,9 @@ func (msr *MrdSimpleReader) Destroy() {
 	// No need to take lock as Destroy will only be called when file handle is being released
 	// and there will be no read calls at that point.
 	if msr.mrdInstance != nil {
-		msr.mrdInstanceInUse.Store(false)
-		msr.mrdInstance.DecrementRefCount()
+		if msr.mrdInstanceInUse.CompareAndSwap(true, false) {
+			msr.mrdInstance.DecrementRefCount()
+		}
 		msr.mrdInstance = nil
 	}
 }

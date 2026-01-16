@@ -499,13 +499,13 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 // LOCKS_REQUIRED(f.mu)
 // UpdateSize updates the size of the backing GCS object. It also calls
-// updateMRDWrapper to ensure that the multi-range downloader (which is used
+// updateMRD to ensure that the multi-range downloader (which is used
 // for random reads) is aware of the new size. This prevents the downloader
 // from operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
 	f.attrs.Size = size
-	f.updateMRDWrapper()
+	f.updateMRD()
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -829,7 +829,7 @@ func (f *FileInode) SetMtime(
 			minObj = *minObjPtr
 		}
 		f.src = minObj
-		f.updateMRDWrapper()
+		f.updateMRD()
 		return
 	}
 
@@ -989,7 +989,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
 		// Update MRDWrapper
-		f.updateMRDWrapper()
+		f.updateMRD()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -1001,12 +1001,15 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	}
 }
 
-// Updates the min object stored in MRDWrapper corresponding to the inode.
+// Updates the min object stored in MRDWrapper & MRDInstance corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
-func (f *FileInode) updateMRDWrapper() {
-	err := f.MRDWrapper.SetMinObject(f.Source())
-	if err != nil {
-		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
+func (f *FileInode) updateMRD() {
+	minObj := f.Source()
+	if err := f.mrdInstance.SetMinObject(minObj); err != nil {
+		logger.Errorf("FileInode::updateMRD Error in setting minObject for MrdInstance %v", err)
+	}
+	if err := f.MRDWrapper.SetMinObject(minObj); err != nil {
+		logger.Errorf("FileInode::updateMRD Error in setting minObject for MRDWrapper %v", err)
 	}
 }
 
