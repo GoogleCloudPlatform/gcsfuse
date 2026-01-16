@@ -635,6 +635,7 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 		if ok && isCompatible && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
+				flagString = strings.ReplaceAll(flagString, ",", " ")
 				dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
 			}
 		}
