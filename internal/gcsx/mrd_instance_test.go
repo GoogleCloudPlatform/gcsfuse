@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -672,7 +673,7 @@ func (t *MrdInstanceTest) TestGetMinObject() {
 
 func (t *MrdInstanceTest) TestClosePoolWithTimeout_LogWarningOnTimeout() {
 	// 1. Capture logs.
-	var buf bytes.Buffer
+	var buf logBuffer
 	logger.SetOutput(&buf)
 	defer logger.SetOutput(os.Stdout)
 	// 2. Create a pool that blocks on Close().
@@ -694,4 +695,22 @@ func (t *MrdInstanceTest) TestClosePoolWithTimeout_LogWarningOnTimeout() {
 	assert.Contains(t.T(), buf.String(), t.object.Name)
 	// 7. Cleanup: Unblock the pool closure to avoid goroutine leak.
 	pool.creationWg.Done()
+}
+
+// logBuffer is a thread-safe buffer for capturing logs in tests.
+type logBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *logBuffer) Write(p []byte) (n int, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *logBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
