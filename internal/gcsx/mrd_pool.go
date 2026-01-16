@@ -16,10 +16,12 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
@@ -84,6 +86,13 @@ func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 		ReadHandle:     handle,
 	})
 	if err != nil {
+		var notFoundError *gcs.NotFoundError
+		if errors.As(err, &notFoundError) {
+			return nil, &gcsfuse_errors.FileClobberedError{
+				Err:        fmt.Errorf("NewMRDPool: %w", err),
+				ObjectName: config.object.Name,
+			}
+		}
 		return nil, err
 	}
 	p.entries[0].mrd = mrd
