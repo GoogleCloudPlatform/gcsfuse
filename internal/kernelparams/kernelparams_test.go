@@ -205,6 +205,17 @@ func TestApplyGKE(t *testing.T) {
 	assert.Equal(t, "1024", actualCfg.Parameters[0].Value)
 }
 
+func TestApplyGKE_EmptyParams(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "kernel_params.json")
+	cfg := NewKernelParamsManager()
+
+	cfg.ApplyGKE(filePath)
+
+	_, err := os.Stat(filePath)
+	assert.True(t, os.IsNotExist(err))
+}
+
 func TestWriteValue_DirectWriteSuccess(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Skipping test on non-linux OS")
