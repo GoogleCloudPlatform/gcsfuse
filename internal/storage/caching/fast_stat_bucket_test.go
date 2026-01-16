@@ -1456,7 +1456,7 @@ func (t *NewReaderWithReadHandleTest) CallsWrappedAndInvalidatesOnNotFound() {
 	rd, err := t.bucket.NewReaderWithReadHandle(context.TODO(), req)
 
 	AssertEq(nil, rd)
-	ExpectThat(err, Error(HasSubstr("not found")))
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	AssertEq(name, wrappedReq.Name)
 }
 
@@ -1499,7 +1499,7 @@ func (t *NewMultiRangeDownloaderTest) CallsWrappedAndInvalidatesOnNotFound() {
 	mrd, err := t.bucket.NewMultiRangeDownloader(context.TODO(), req)
 
 	AssertEq(nil, mrd)
-ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	AssertEq(name, wrappedReq.Name)
 }
 
