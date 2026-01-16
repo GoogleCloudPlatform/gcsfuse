@@ -44,7 +44,6 @@ func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig,
 
 	defaultArg = append(defaultArg, "--log-severity=trace",
 		"--log-file="+config.LogFile,
-		"--enable-kernel-reader=false",
 		config.TestBucket,
 		config.GCSFuseMountedDirectory)
 
