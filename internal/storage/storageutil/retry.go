@@ -150,7 +150,7 @@ func ExecuteWithRetry[T any](
 		attemptCancel()
 
 		if err == nil {
-			logger.Tracef("Success %s request for %q with success", operationName, reqDescription)
+logger.Tracef("%s request for %q succeeded", operationName, reqDescription)
 			return result, nil
 		}
 
