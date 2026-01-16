@@ -37,7 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/kerneltuner"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -529,13 +529,13 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 		markSuccessfulMount()
 
-		// Apply post mount kernel settings for non-GKE environments for non dynamic mounts.
+		// Apply post mount kernel settings in non-GKE environments for non dynamic mounts.
 		if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) {
-			kernelConfig := kerneltuner.NewKernelParamsConfig()
-			kernelConfig.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
-			kernelConfig.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
-			kernelConfig.SetMaxBackgroundRequests(int(newConfig.FileSystem.MaxBackground))
-			kernelConfig.ApplyNonGKE(mountPoint)
+			kernelparams := kernelparams.NewKernelParamsManager()
+			kernelparams.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
+			kernelparams.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
+			kernelparams.SetMaxBackgroundRequests(int(newConfig.FileSystem.MaxBackground))
+			kernelparams.ApplyNonGKE(mountPoint)
 		}
 	}
 
