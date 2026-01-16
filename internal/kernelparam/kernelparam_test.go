@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kerneltuner
+package kernelparam
 
 import (
 	"encoding/json"
@@ -37,27 +37,27 @@ func TestAtomicFileWrite(t *testing.T) {
 	assert.Equal(t, data, content)
 }
 
-func TestGetDeviceMajorMinor(t *testing.T) {
+func TestGetDeviceMajorMinor_ValidPath(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Skipping test on non-linux OS")
 	}
+	tempDir := t.TempDir()
 
-	t.Run("ValidPath", func(t *testing.T) {
-		tempDir := t.TempDir()
+	major, minor, err := getDeviceMajorMinor(tempDir)
 
-		major, minor, err := getDeviceMajorMinor(tempDir)
+	assert.NoError(t, err)
+	t.Logf("Device major: %d, minor: %d for %s", major, minor, tempDir)
+}
 
-		assert.NoError(t, err)
-		t.Logf("Device major: %d, minor: %d for %s", major, minor, tempDir)
-	})
+func TestGetDeviceMajorMinor_NonExistentPath(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping test on non-linux OS")
+	}
+	path := "/path/that/does/not/exist"
 
-	t.Run("NonExistentPath", func(t *testing.T) {
-		path := "/path/that/does/not/exist"
+	_, _, err := getDeviceMajorMinor(path)
 
-		_, _, err := getDeviceMajorMinor(path)
-
-		assert.Error(t, err)
-	})
+	assert.Error(t, err)
 }
 
 func TestPathForParam(t *testing.T) {
@@ -78,7 +78,9 @@ func TestPathForParam(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(string(tt.name), func(t *testing.T) {
+
 			path, err := pathForParam(tt.name, tt.major, tt.minor)
+
 			if tt.expectErr {
 				assert.Error(t, err)
 			} else {
@@ -89,84 +91,92 @@ func TestPathForParam(t *testing.T) {
 	}
 }
 
-func TestSetMaxPagesLimit(t *testing.T) {
-	cfg := NewKernelParamsConfig()
+func TestSetMaxPagesLimit_NewValue(t *testing.T) {
+	cfg := NewKernelParamsManager()
 
-	// Test setting a value
 	cfg.SetMaxPagesLimit(123)
+
 	assert.Len(t, cfg.Parameters, 1)
 	assert.Equal(t, MaxPagesLimit, cfg.Parameters[0].Name)
 	assert.Equal(t, "123", cfg.Parameters[0].Value)
+}
 
-	// Test updating the value
+func TestSetMaxPagesLimit_UpdateValue(t *testing.T) {
+	cfg := NewKernelParamsManager()
+	cfg.SetMaxPagesLimit(123)
+
 	cfg.SetMaxPagesLimit(456)
+
 	assert.Len(t, cfg.Parameters, 1)
 	assert.Equal(t, MaxPagesLimit, cfg.Parameters[0].Name)
 	assert.Equal(t, "456", cfg.Parameters[0].Value)
 }
 
-func TestSetTransparentHugePages(t *testing.T) {
-	cfg := NewKernelParamsConfig()
+func TestSetTransparentHugePages_NewValue(t *testing.T) {
+	cfg := NewKernelParamsManager()
 
-	// Test setting a value
 	cfg.SetTransparentHugePages("always")
+
 	assert.Len(t, cfg.Parameters, 1)
 	assert.Equal(t, TransparentHugePages, cfg.Parameters[0].Name)
 	assert.Equal(t, "always", cfg.Parameters[0].Value)
+}
 
-	// Test updating the value
+func TestSetTransparentHugePages_UpdateValue(t *testing.T) {
+	cfg := NewKernelParamsManager()
+	cfg.SetTransparentHugePages("always")
+
 	cfg.SetTransparentHugePages("never")
+
 	assert.Len(t, cfg.Parameters, 1)
 	assert.Equal(t, TransparentHugePages, cfg.Parameters[0].Name)
 	assert.Equal(t, "never", cfg.Parameters[0].Value)
 }
 
 func TestSetReadAheadKb(t *testing.T) {
-	cfg := NewKernelParamsConfig()
+	cfg := NewKernelParamsManager()
 
-	// Test setting a value
 	cfg.SetReadAheadKb(1024)
+
 	assert.Len(t, cfg.Parameters, 1)
 	assert.Equal(t, ReadAheadKb, cfg.Parameters[0].Name)
 	assert.Equal(t, "1024", cfg.Parameters[0].Value)
 }
 
 func TestSetMaxBackgroundRequests(t *testing.T) {
-	cfg := NewKernelParamsConfig()
+	cfg := NewKernelParamsManager()
 
-	// Test setting a value
 	cfg.SetMaxBackgroundRequests(12)
+
 	assert.Len(t, cfg.Parameters, 1)
 	assert.Equal(t, MaxBackgroundRequests, cfg.Parameters[0].Name)
 	assert.Equal(t, "12", cfg.Parameters[0].Value)
 }
 
 func TestSetCongestionWindowThreshold(t *testing.T) {
-	cfg := NewKernelParamsConfig()
+	cfg := NewKernelParamsManager()
 
-	// Test setting a value
 	cfg.SetCongestionWindowThreshold(9)
+
 	assert.Len(t, cfg.Parameters, 1)
 	assert.Equal(t, CongestionWindowThreshold, cfg.Parameters[0].Name)
 	assert.Equal(t, "9", cfg.Parameters[0].Value)
 }
 
 func TestSetMultipleKernelParams(t *testing.T) {
-	cfg := NewKernelParamsConfig()
+	cfg := NewKernelParamsManager()
 
 	cfg.SetMaxPagesLimit(123)
 	cfg.SetTransparentHugePages("always")
 	cfg.SetReadAheadKb(456)
 
 	assert.Len(t, cfg.Parameters, 3)
-
 	// Verify values
 	expected := map[ParamName]string{
 		MaxPagesLimit:        "123",
 		TransparentHugePages: "always",
 		ReadAheadKb:          "456",
 	}
-
 	for _, p := range cfg.Parameters {
 		val, ok := expected[p.Name]
 		assert.True(t, ok)
@@ -177,18 +187,16 @@ func TestSetMultipleKernelParams(t *testing.T) {
 func TestApplyGKE(t *testing.T) {
 	tempDir := t.TempDir()
 	filePath := filepath.Join(tempDir, "kernel_params.json")
-	cfg := NewKernelParamsConfig()
+	cfg := NewKernelParamsManager()
 	cfg.SetReadAheadKb(1024)
 
 	cfg.ApplyGKE(filePath)
 
 	content, err := os.ReadFile(filePath)
 	assert.NoError(t, err)
-
 	var actualCfg KernelParamsConfig
 	err = json.Unmarshal(content, &actualCfg)
 	assert.NoError(t, err)
-
 	assert.Equal(t, CurrentContractVersion, actualCfg.Version)
 	assert.NotEmpty(t, actualCfg.RequestID)
 	assert.NotEmpty(t, actualCfg.Timestamp)
@@ -201,7 +209,6 @@ func TestWriteValue_DirectWriteSuccess(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Skipping test on non-linux OS")
 	}
-
 	tempDir := t.TempDir()
 	path := filepath.Join(tempDir, "test_file")
 	value := "100"
@@ -218,7 +225,6 @@ func TestWriteValue_DirectWriteFailure_NoSudo(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Skipping test on non-linux OS")
 	}
-
 	// Use a path in a non-existent directory to trigger a non-permission error
 	path := filepath.Join(t.TempDir(), "missing_dir", "test_file")
 	value := "100"
@@ -234,7 +240,6 @@ func TestWriteValue_PermissionDenied_SudoFallback(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Skipping test on non-linux OS")
 	}
-
 	tempDir := t.TempDir()
 	path := filepath.Join(tempDir, "readonly_file")
 	// Create file and make it read-only to trigger permission error

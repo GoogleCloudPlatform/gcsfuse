@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kerneltuner
+package kernelparam
 
 import (
 	"time"
@@ -65,12 +65,11 @@ type KernelParamsConfig struct {
 	Parameters []KernelParam `json:"parameters"`
 }
 
-// NewKernelParamsConfig initializes a new configuration container with an internal UUID.
-func NewKernelParamsConfig() *KernelParamsConfig {
+// newKernelParamsConfig initializes a new configuration container with a request UUID, CurrentContractVersion and Timestamp.
+func newKernelParamsConfig() *KernelParamsConfig {
 	return &KernelParamsConfig{
-		Version:    CurrentContractVersion,
-		RequestID:  uuid.NewString(),
-		Timestamp:  time.Now().Format(TimeFormat),
-		Parameters: make([]KernelParam, 0),
+		Version:   CurrentContractVersion,
+		RequestID: uuid.NewString(),
+		Timestamp: time.Now().Format(TimeFormat),
 	}
 }
