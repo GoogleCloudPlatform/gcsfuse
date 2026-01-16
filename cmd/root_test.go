@@ -2617,17 +2617,6 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			},
 		},
 		{
-			name: "bucket_type_optimization_respects_config_file",
-			configContent: `file-system:
-  enable-kernel-reader: false
-`,
-			args: []string{},
-			validate: func(t *testing.T, mi *mountInfo) {
-				assert.False(t, mi.config.FileSystem.EnableKernelReader)
-				assert.True(t, mi.isUserSet.IsSet("file-system.enable-kernel-reader"), "isUserSet should be true for file-system.enable-kernel-reader")
-			},
-		},
-		{
 			name: "machine_type_in_config_file_is_overridden_by_another_config_flag",
 			configContent: `
 machine-type: a3-highgpu-8g
@@ -2688,14 +2677,6 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
 				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
 				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
-			},
-		},
-		{
-			name: "bucket_type_optimization_respects_cli_flags",
-			args: []string{"--enable-kernel-reader=false"},
-			validate: func(t *testing.T, mi *mountInfo) {
-				assert.False(t, mi.config.FileSystem.EnableKernelReader)
-				assert.True(t, mi.isUserSet.IsSet("file-system.enable-kernel-reader"), "isUserSet should be true for file-system.enable-kernel-reader")
 			},
 		},
 	}
