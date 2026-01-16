@@ -736,3 +736,60 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 		}
 	}
 }
+
+func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
+	testCases := []struct {
+		name                string
+		isImplicitDir       bool
+		onlyDeleteFromCache bool
+	}{
+		{
+			name:                "ImplicitDir",
+			isImplicitDir:       true,
+			onlyDeleteFromCache: true,
+		},
+		{
+			name:                "ExplicitDir",
+			isImplicitDir:       false,
+			onlyDeleteFromCache: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(st *testing.T) {
+			// Enable type cache deprecation
+			config := &cfg.Config{
+				EnableTypeCacheDeprecation: true,
+			}
+			dirInode := NewDirInode(
+				dirInodeID,
+				NewDirName(NewRootName(""), dirInodeName),
+				fuseops.InodeAttributes{
+					Uid:  uid,
+					Gid:  gid,
+					Mode: dirMode,
+				},
+				true,  // implicitDirs
+				false, // enableNonexistentTypeCache
+				typeCacheTTL,
+				&t.bucket,
+				&t.fixedTime,
+				&t.fixedTime,
+				config,
+			)
+			dirName := path.Join(dirInodeName, tc.name) + "/"
+			// Expectation: DeleteObject called with OnlyDeleteFromCache
+			expectedReq := &gcs.DeleteObjectRequest{
+				Name:                dirName,
+				Generation:          0,
+				OnlyDeleteFromCache: tc.onlyDeleteFromCache,
+			}
+			t.mockBucket.On("DeleteObject", t.ctx, expectedReq).Return(nil)
+
+			err := dirInode.DeleteChildDir(t.ctx, tc.name, tc.isImplicitDir, nil)
+
+			assert.NoError(st, err)
+			t.mockBucket.AssertExpectations(st)
+		})
+	}
+}
