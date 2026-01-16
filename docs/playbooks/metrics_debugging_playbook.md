@@ -24,7 +24,7 @@ If you observe slow file operations, check `gcs/request_latency`:
     *   The following image shows an example of how to filter for `NewReader` latency in the metrics explorer.
         ![NewReader Latency](./new_reader_latency.png)
 
-    *   If `NewReader` latency is high, say higher than 300ms within the same region, it suggests a delay in establishing the connection or receiving the first byte.
+    *   If `NewReader` latency is high, say P99 is higher than 300ms within the same region, it suggests a delay in establishing the connection or receiving the first byte.
     *   **Potential Causes:**
         *   High network latency between the client and GCS.
         *   DNS resolution issues.
