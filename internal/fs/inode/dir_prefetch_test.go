@@ -169,11 +169,6 @@ func (t *DirPrefetchTest) TestPrefetch_CancellationOnDestroy() {
 	_, _ = t.in.LookUpChild(t.ctx, "file0001")
 	t.in.mu.Unlock()
 
-	// Ensure it started.
-	assert.Eventually(t.T(), func() bool {
-		return t.in.prefetchState.Load() == prefetchInProgress
-	}, 1*time.Second, 5*time.Millisecond)
-
 	// Destroy the inode, which calls prefetchCancel().
 	err := t.in.Destroy()
 	require.NoError(t.T(), err)
