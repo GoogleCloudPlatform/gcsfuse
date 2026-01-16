@@ -32,6 +32,8 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
+const mrdPoolCloseTimeout = 120 * time.Second
+
 // MrdInstance manages a pool of Multi-Range Downloader (MRD) instances for a
 // single file inode. It handles the lifecycle of the MRD pool, including
 // creation, destruction, and caching.
@@ -106,13 +108,11 @@ func (mi *MrdInstance) createAndSwapPool(obj *gcs.MinObject) error {
 	mi.mrdPool = newPool
 	mi.object = obj
 
-	if oldPool != nil {
-		go oldPool.Close()
-	}
+	closePoolWithTimeout(oldPool, "MrdInstance::createAndSwapPool", mrdPoolCloseTimeout)
 	return nil
 }
 
-// GetMinObject returns the gcs.MinObject stored in MrdInstance.
+// GetMinObject returns the gcs.MinObject stored in MrdInstance. Used only for unit testing.
 func (mi *MrdInstance) GetMinObject() *gcs.MinObject {
 	mi.poolMu.RLock()
 	defer mi.poolMu.RUnlock()
@@ -254,9 +254,33 @@ func (mi *MrdInstance) closePool() {
 	defer mi.poolMu.Unlock()
 	pool := mi.mrdPool
 	mi.mrdPool = nil
-	if pool != nil {
-		go pool.Close()
+	closePoolWithTimeout(pool, "MrdInstance::closePool", mrdPoolCloseTimeout)
+}
+
+// closePoolWithTimeout closes the given MRD pool in a separate goroutine with a timeout.
+// If closing the pool takes longer than the specified timeout, a warning is logged.
+func closePoolWithTimeout(pool *MRDPool, caller string, timeout time.Duration) {
+	if pool == nil {
+		return
 	}
+
+	go func() {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			pool.Close()
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(timeout):
+			var objectName string
+			if pool.poolConfig != nil && pool.poolConfig.object != nil {
+				objectName = pool.poolConfig.object.Name
+			}
+			logger.Warnf("%s: MRDPool.Close() timed out after %v for object %s", caller, timeout, objectName)
+		}
+	}()
 }
 
 // Destroy completely destroys the MrdInstance, cleaning up

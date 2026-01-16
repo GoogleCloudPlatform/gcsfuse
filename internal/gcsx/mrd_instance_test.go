@@ -669,3 +669,29 @@ func (t *MrdInstanceTest) TestGetMinObject() {
 
 	assert.Equal(t.T(), t.object, obj)
 }
+
+func (t *MrdInstanceTest) TestClosePoolWithTimeout_LogWarningOnTimeout() {
+	// 1. Capture logs.
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	// 2. Create a pool that blocks on Close().
+	// MRDPool.Close() waits on creationWg. We increment it to block Close().
+	pool := &MRDPool{
+		poolConfig: &MRDPoolConfig{
+			object: t.object,
+		},
+	}
+	pool.creationWg.Add(1)
+
+	// 3. Call the function.
+	closePoolWithTimeout(pool, "TestCaller", 10*time.Millisecond)
+
+	// 4. Wait enough time for timeout to trigger.
+	time.Sleep(50 * time.Millisecond)
+	// 5. Verify log.
+	assert.Contains(t.T(), buf.String(), "TestCaller: MRDPool.Close() timed out")
+	assert.Contains(t.T(), buf.String(), t.object.Name)
+	// 7. Cleanup: Unblock the pool closure to avoid goroutine leak.
+	pool.creationWg.Done()
+}
