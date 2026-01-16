@@ -1476,6 +1476,49 @@ func (t *NewReaderWithReadHandleTest) CallsWrappedAndDoesNotInvalidateOnSuccess(
 }
 
 ////////////////////////////////////////////////////////////////////////
+// NewMultiRangeDownloader
+////////////////////////////////////////////////////////////////////////
+
+type NewMultiRangeDownloaderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&NewMultiRangeDownloaderTest{}) }
+
+func (t *NewMultiRangeDownloaderTest) CallsWrappedAndInvalidatesOnNotFound() {
+	const name = "some-name"
+	// Expect: wrapped bucket returns NotFoundError
+	var wrappedReq *gcs.MultiRangeDownloaderRequest
+	ExpectCall(t.wrapped, "NewMultiRangeDownloader")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, &gcs.NotFoundError{Err: errors.New("not found")})))
+	// Expect: cache invalidate is called
+	ExpectCall(t.cache, "Erase")(name)
+
+	// Call
+	req := &gcs.MultiRangeDownloaderRequest{Name: name}
+	mrd, err := t.bucket.NewMultiRangeDownloader(context.TODO(), req)
+
+	AssertEq(nil, mrd)
+	ExpectThat(err, Error(HasSubstr("not found")))
+	AssertEq(name, wrappedReq.Name)
+}
+
+func (t *NewMultiRangeDownloaderTest) CallsWrappedAndDoesNotInvalidateOnSuccess() {
+	const name = "some-name"
+	expectedMrd := fake.NewFakeMultiRangeDownloader(&gcs.MinObject{Name: name}, nil)
+	// Expect: wrapped returns mrd, no error
+	ExpectCall(t.wrapped, "NewMultiRangeDownloader")(Any(), Any()).
+		WillOnce(Return(expectedMrd, nil))
+
+	// Call
+	req := &gcs.MultiRangeDownloaderRequest{Name: name}
+	mrd, err := t.bucket.NewMultiRangeDownloader(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(expectedMrd, mrd)
+}
+
+////////////////////////////////////////////////////////////////////////
 // GetFolder
 ////////////////////////////////////////////////////////////////////////
 
