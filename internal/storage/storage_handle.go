@@ -53,6 +53,7 @@ const (
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
 	zonalLocationType = "zone"
+	numClients        = 2
 )
 
 type StorageHandle interface {
@@ -65,10 +66,10 @@ type StorageHandle interface {
 }
 
 type storageClient struct {
-	httpClient               *storage.Client
-	grpcClient               *storage.Client
-	grpcClientWithBidiConfig *storage.Client
-	clientConfig             storageutil.StorageClientConfig
+	httpClients               []*storage.Client
+	grpcClients               []*storage.Client
+	grpcClientsWithBidiConfig []*storage.Client
+	clientConfig              storageutil.StorageClientConfig
 	// rawStorageControlClientWithoutGaxRetries is without any retries.
 	rawStorageControlClientWithoutGaxRetries *control.StorageControlClient
 	// rawStorageControlClientWithGaxRetries is with retry for Folder APIs.
@@ -369,27 +370,48 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*storage.Client, error) {
+func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) ([]*storage.Client, error) {
 	var err error
 	if isbucketZonal {
-		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true)
+		if len(sh.grpcClientsWithBidiConfig) == 0 {
+			for i := 0; i < numClients; i++ {
+				var client *storage.Client
+				client, err = createGRPCClientHandle(ctx, &sh.clientConfig, true)
+				if err != nil {
+					return nil, err
+				}
+				sh.grpcClientsWithBidiConfig = append(sh.grpcClientsWithBidiConfig, client)
+			}
 		}
-		return sh.grpcClientWithBidiConfig, err
+		return sh.grpcClientsWithBidiConfig, err
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.GRPC {
-		if sh.grpcClient == nil {
-			sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false)
+		if len(sh.grpcClients) == 0 {
+			for i := 0; i < numClients; i++ {
+				var client *storage.Client
+				client, err = createGRPCClientHandle(ctx, &sh.clientConfig, false)
+				if err != nil {
+					return nil, err
+				}
+				sh.grpcClients = append(sh.grpcClients, client)
+			}
 		}
-		return sh.grpcClient, err
+		return sh.grpcClients, err
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
-		if sh.httpClient == nil {
-			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
+		if len(sh.httpClients) == 0 {
+			for i := 0; i < numClients; i++ {
+				var client *storage.Client
+				client, err = createHTTPClientHandle(ctx, &sh.clientConfig)
+				if err != nil {
+					return nil, err
+				}
+				sh.httpClients = append(sh.httpClients, client)
+			}
 		}
-		return sh.httpClient, err
+		return sh.httpClients, err
 	}
 
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
@@ -422,13 +444,13 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 }
 
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, finalizeFileForRapid bool) (bh *bucketHandle, err error) {
-	var client *storage.Client
+	var clients []*storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
 	if err != nil {
 		return nil, fmt.Errorf("storageLayout call failed: %s", err)
 	}
 
-	client, err = sh.getClient(ctx, bucketType.Zonal)
+	clients, err = sh.getClient(ctx, bucketType.Zonal)
 	if err != nil {
 		return nil, err
 	}
@@ -444,14 +466,19 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		}
 	}
 
-	storageBucketHandle := client.Bucket(bucketName)
-	if billingProject != "" {
-		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
+	var storageBucketHandles []*storage.BucketHandle
+	for _, client := range clients {
+		storageBucketHandle := client.Bucket(bucketName)
+		if billingProject != "" {
+			storageBucketHandle = storageBucketHandle.UserProject(billingProject)
+		}
+		storageBucketHandles = append(storageBucketHandles, storageBucketHandle)
 	}
+
 	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
 
 	bh = &bucketHandle{
-		bucket:               storageBucketHandle,
+		buckets:              storageBucketHandles,
 		bucketName:           bucketName,
 		controlClient:        controlClient,
 		bucketType:           bucketType,
