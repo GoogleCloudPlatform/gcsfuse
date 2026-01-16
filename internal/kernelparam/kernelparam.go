@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kerneltuner
+package kernelparam
 
 import (
 	"bytes"
@@ -23,14 +23,28 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"golang.org/x/sys/unix"
 )
 
+// KernelParamsManager wraps KernelParamsConfig with a mutex to ensure thread safety.
+type KernelParamsManager struct {
+	*KernelParamsConfig
+	mu sync.Mutex
+}
+
+// NewKernelParamsManager creates a new thread-safe configuration manager.
+func NewKernelParamsManager() *KernelParamsManager {
+	return &KernelParamsManager{
+		KernelParamsConfig: newKernelParamsConfig(),
+	}
+}
+
 // getDeviceMajorMinor returns the major and minor device numbers
-// for the filesystem mounted at the given mountPath.
+// for the filesystem mounted at the given mountPoint.
 func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err error) {
 	if runtime.GOOS != "linux" {
 		return 0, 0, fmt.Errorf("unsupported OS: %s, device major/minor lookup is linux-specific", runtime.GOOS)
@@ -106,7 +120,8 @@ func pathForParam(name ParamName, major, minor uint32) (string, error) {
 
 // writeValue attempts to write a value to a sysfs path. It first tries a direct
 // filesystem write (effective if running as root) and falls back to 'sudo tee'
-// if a permission error occurs and sudo is available.
+// if a permission error occurs.
+// Note: Fallback attempt succeeds only if passwordless sudo is available.
 func writeValue(path, value string) error {
 	data := []byte(value + "\n")
 
@@ -136,7 +151,7 @@ func writeValue(path, value string) error {
 }
 
 // applyDirectly iterates through all parameters in the config, resolves their
-// system paths, and attempts to apply them to the current host.
+// system paths, and attempts to apply them to the current host using writeValue helper.
 func (c *KernelParamsConfig) applyDirectly(mountPoint string) {
 	major, minor, err := getDeviceMajorMinor(mountPoint)
 	if err != nil {
@@ -160,80 +175,84 @@ func (c *KernelParamsConfig) applyDirectly(mountPoint string) {
 
 // addParam adds a new parameter to the config or updates the value if the
 // parameter already exists.
-func (c *KernelParamsConfig) addParam(name ParamName, value string) {
-	for i, p := range c.Parameters {
+func (m *KernelParamsManager) addParam(name ParamName, value string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, p := range m.Parameters {
 		if p.Name == name {
-			c.Parameters[i].Value = value
+			m.Parameters[i].Value = value
 			return
 		}
 	}
-	c.Parameters = append(c.Parameters, KernelParam{
+	m.Parameters = append(m.Parameters, KernelParam{
 		Name:  name,
 		Value: value,
 	})
 }
 
 // SetMaxPagesLimit adds the max_pages_limit parameter to the config.
-func (c *KernelParamsConfig) SetMaxPagesLimit(limit int) {
+func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
 	if limit > 0 {
-		c.addParam(MaxPagesLimit, fmt.Sprintf("%d", limit))
+		m.addParam(MaxPagesLimit, fmt.Sprintf("%d", limit))
 	}
 }
 
 // SetTransparentHugePages adds the THP enabled mode to the config.
-func (c *KernelParamsConfig) SetTransparentHugePages(mode string) {
+func (m *KernelParamsManager) SetTransparentHugePages(mode string) {
 	if mode != "" {
-		c.addParam(TransparentHugePages, mode)
+		m.addParam(TransparentHugePages, mode)
 	}
 }
 
 // SetReadAheadKb adds the BDI read_ahead_kb parameter to the config.
-func (c *KernelParamsConfig) SetReadAheadKb(kb int) {
+func (m *KernelParamsManager) SetReadAheadKb(kb int) {
 	if kb > 0 {
-		c.addParam(ReadAheadKb, fmt.Sprintf("%d", kb))
+		m.addParam(ReadAheadKb, fmt.Sprintf("%d", kb))
 	}
 }
 
 // SetMaxBackgroundRequests adds the FUSE connection max_background parameter to the config.
-func (c *KernelParamsConfig) SetMaxBackgroundRequests(limit int) {
+func (m *KernelParamsManager) SetMaxBackgroundRequests(limit int) {
 	if limit > 0 {
-		c.addParam(MaxBackgroundRequests, fmt.Sprintf("%d", limit))
+		m.addParam(MaxBackgroundRequests, fmt.Sprintf("%d", limit))
 	}
 }
 
 // SetCongestionWindowThreshold adds the FUSE connection congestion_threshold parameter to the config.
-func (c *KernelParamsConfig) SetCongestionWindowThreshold(threshold int) {
+func (m *KernelParamsManager) SetCongestionWindowThreshold(threshold int) {
 	if threshold > 0 {
-		c.addParam(CongestionWindowThreshold, fmt.Sprintf("%d", threshold))
+		m.addParam(CongestionWindowThreshold, fmt.Sprintf("%d", threshold))
 	}
 }
 
 // ApplyGKE atomically writes the KernelParamsConfig to a JSON file at the specified path.
-// This is typically used in GKE environments where CSI Driver (privileged) reads the file
+// This is used in GKE environments where CSI Driver (privileged) reads the file
 // to apply settings.
-func (c *KernelParamsConfig) ApplyGKE(kernelParamsFile string) {
-	kernelConfigJson, err := json.Marshal(c)
+func (m *KernelParamsManager) ApplyGKE(kernelParamsFile string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	kernelConfigJson, err := json.Marshal(m.KernelParamsConfig)
 	if err != nil {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
 		return
 	}
 	logger.Info("Writing kernel parameters to file for GKE environment", "file", kernelParamsFile, "kernel config", string(kernelConfigJson))
 	if err := atomicFileWrite(kernelParamsFile, kernelConfigJson); err != nil {
-		logger.Errorf("Failed to write kernel parameters to file %q: %v", kernelParamsFile, err)
+		logger.Warnf("Failed to write kernel parameters to file %q: %v", kernelParamsFile, err)
 		return
 	}
 	logger.Info("Successfully wrote kernel parameters to file", "file", kernelParamsFile)
 }
 
 // ApplyNonGKE applies the kernel settings directly to the host's sysfs entries.
-// It resolves the device major/minor numbers for the mountPoint and attempts
-// to write each parameter, falling back to sudo if direct write fails.
-func (c *KernelParamsConfig) ApplyNonGKE(mountPoint string) {
-	kernelConfigJson, err := json.Marshal(c)
+func (m *KernelParamsManager) ApplyNonGKE(mountPoint string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	kernelConfigJson, err := json.Marshal(m.KernelParamsConfig)
 	if err != nil {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
 		return
 	}
 	logger.Info("Applying kernel parameters directly for non-GKE environment", "mountPoint", mountPoint, "kernel config", string(kernelConfigJson))
-	c.applyDirectly(mountPoint)
+	m.applyDirectly(mountPoint)
 }
