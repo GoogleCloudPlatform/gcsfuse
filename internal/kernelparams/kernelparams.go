@@ -97,7 +97,7 @@ func atomicFileWrite(kernelParamsFile string, data []byte) error {
 // pathForParam returns the sysfs path for a given parameter.
 func pathForParam(name ParamName, major, minor uint32) (string, error) {
 	switch name {
-	case ReadAheadKb:
+	case MaxReadAheadKb:
 		return fmt.Sprintf("/sys/class/bdi/%d:%d/read_ahead_kb", major, minor), nil
 
 	case MaxBackgroundRequests:
@@ -207,7 +207,7 @@ func (m *KernelParamsManager) SetTransparentHugePages(mode string) {
 // SetReadAheadKb adds the BDI read_ahead_kb parameter to the config.
 func (m *KernelParamsManager) SetReadAheadKb(kb int) {
 	if kb > 0 {
-		m.addParam(ReadAheadKb, fmt.Sprintf("%d", kb))
+		m.addParam(MaxReadAheadKb, fmt.Sprintf("%d", kb))
 	}
 }
 
