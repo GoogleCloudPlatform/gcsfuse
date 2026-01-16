@@ -1499,7 +1499,7 @@ func (t *NewMultiRangeDownloaderTest) CallsWrappedAndInvalidatesOnNotFound() {
 	mrd, err := t.bucket.NewMultiRangeDownloader(context.TODO(), req)
 
 	AssertEq(nil, mrd)
-	ExpectThat(err, Error(HasSubstr("not found")))
+ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	AssertEq(name, wrappedReq.Name)
 }
 
