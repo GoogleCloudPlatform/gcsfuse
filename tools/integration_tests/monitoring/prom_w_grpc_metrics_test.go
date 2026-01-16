@@ -62,7 +62,7 @@ func (p *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {
 	require.NoError(p.T(), err)
 
 	// Assert that gRPC metrics are present.
-	if(testEnv.bucketType=="zonal") {
+	if testEnv.bucketType == "zonal" {
 		assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/BidiReadObject", p.prometheusPort)
 	} else {
 		assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/ReadObject", p.prometheusPort)
@@ -76,6 +76,10 @@ func (p *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {
 
 func TestPromGrpcMetricsSuite(t *testing.T) {
 	ts := &PromGrpcMetricsTest{}
+	if testEnv.cfg.GKEMountedDirectory == "" {
+		// Skip the test if the testing environment is GCE VM.
+		t.SkipNow()
+	}
 	flagSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagSets {
 		ts.flags = flags
