@@ -28,7 +28,7 @@ func Test_DefaultMaxBackground(t *testing.T) {
 
 func Test_DefaultCongestionThreshold(t *testing.T) {
 	assert.GreaterOrEqual(t, DefaultCongestionThreshold(), 9)
-	assert.LessOrEqual(t, DefaultCongestionThreshold(), (3*maxBackgroundLimit)/4)
+	assert.LessOrEqual(t, DefaultCongestionThreshold(), 144) // 75% of maxBackgroundLimit
 }
 
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
