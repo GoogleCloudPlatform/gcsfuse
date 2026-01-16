@@ -337,9 +337,9 @@ func TestRationalizeMetadataCache(t *testing.T) {
 					StatCacheMaxSizeMb: -1,
 				},
 			},
-			expectedTTLSecs:         MaxSupportedTTLInSeconds, // Max supported ttl in seconds.
-			expectedNegativeTTLSecs: MaxSupportedTTLInSeconds, // Max supported ttl in seconds.
-			expectedStatCacheSize:   math.MaxUint64 >> 20,     // Max supported cache size in MiB.
+			expectedTTLSecs:         math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedNegativeTTLSecs: math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize:   math.MaxUint64 >> 20,               // Max supported cache size in MiB.
 		},
 	}
 
@@ -428,9 +428,9 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 					StatCacheMaxSizeMb: -1,
 				},
 			},
-			expectedTTLSecs:         MaxSupportedTTLInSeconds, // Max supported ttl in seconds.
-			expectedNegativeTTLSecs: MaxSupportedTTLInSeconds, // Max supported ttl in seconds.
-			expectedStatCacheSize:   math.MaxUint64 >> 20,     // Max supported cache size in MiB.
+			expectedTTLSecs:         math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedNegativeTTLSecs: math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize:   math.MaxUint64 >> 20,               // Max supported cache size in MiB.
 		},
 	}
 

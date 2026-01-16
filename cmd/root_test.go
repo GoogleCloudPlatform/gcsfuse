@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -29,6 +30,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testMaxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
 
 ////////////////////
 // Helpers
@@ -2609,7 +2612,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
 				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
-				assert.Equal(t, cfg.MaxSupportedTTLInSeconds, mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
+				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
 				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
 			},
 		},
@@ -2683,7 +2686,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
 				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
-				assert.Equal(t, cfg.MaxSupportedTTLInSeconds, mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
+				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
 				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
 			},
 		},

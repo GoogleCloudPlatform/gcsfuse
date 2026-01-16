@@ -17,8 +17,8 @@ package cmd
 import (
 	"math"
 	"testing"
+	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,8 +68,8 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		{
 			name:                  "ttl_and_stat_cache_size_set_to_-1",
 			args:                  []string{"--metadata-cache-ttl-secs=-1", "--stat-cache-max-size-mb=-1"},
-			expectedTTLSecs:       cfg.MaxSupportedTTLInSeconds, // Max supported ttl in seconds.
-			expectedStatCacheSize: math.MaxUint64 >> 20,         // Max supported cache size in MiB.
+			expectedTTLSecs:       math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize: math.MaxUint64 >> 20,               // Max supported cache size in MiB.
 		},
 	}
 	for _, tc := range testCases {
