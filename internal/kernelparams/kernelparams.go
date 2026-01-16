@@ -231,6 +231,9 @@ func (m *KernelParamsManager) SetCongestionWindowThreshold(threshold int) {
 func (m *KernelParamsManager) ApplyGKE(kernelParamsFile string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if len(m.Parameters) == 0 {
+		return
+	}
 	kernelConfigJson, err := json.Marshal(m.KernelParamsConfig)
 	if err != nil {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
@@ -248,6 +251,9 @@ func (m *KernelParamsManager) ApplyGKE(kernelParamsFile string) {
 func (m *KernelParamsManager) ApplyNonGKE(mountPoint string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if len(m.Parameters) == 0 {
+		return
+	}
 	kernelConfigJson, err := json.Marshal(m.KernelParamsConfig)
 	if err != nil {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
