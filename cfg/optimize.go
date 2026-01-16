@@ -19,7 +19,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
@@ -55,11 +54,6 @@ type IsValueSet interface {
 	IsSet(string) bool
 	GetString(string) string
 	GetBool(string) bool
-}
-
-// flagOverride represents a flag override with its new value.
-type flagOverride struct {
-	newValue any
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -104,20 +98,17 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 	return body, nil
 }
 
-// getMachineType fetches the machine type from the metadata server if not set in isSet, cfg.
-func getMachineType(isSet IsValueSet, cfg *Config) (string, error) {
-	// Precedence: 1. CLI flag, 2. Config file, 3. Metadata server.
-	// 1. Check if the machine-type flag is set in CLI flag.
+// getMachineType fetches the machine type, checking user-provided configuration
+// first (from CLI flags or config file), and falling back to the metadata
+func getMachineType(isSet IsValueSet) (string, error) {
+	// Precedence: CLI flag > Config file > Metadata server.
+	// 1. Check if the machine-type flag is set by the user (via CLI flag or config file).
 	if isSet.IsSet(machineTypeFlg) {
 		if currentMachineType := isSet.GetString(machineTypeFlg); currentMachineType != "" {
 			return currentMachineType, nil
 		}
 	}
-	// 2. Check if machine-type flag is set in config-file.
-	if cfg != nil && cfg.MachineType != "" {
-		return cfg.MachineType, nil
-	}
-	// 3. Get machine-type from metadata server.
+	// 2. Get machine-type from metadata server.
 	client := http.Client{Timeout: httpTimeout}
 	for range maxRetries {
 		for _, endpoint := range metadataEndpoints {
@@ -133,27 +124,6 @@ func getMachineType(isSet IsValueSet, cfg *Config) (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to get machine type from any metadata endpoint after retries")
-}
-
-// convertToCamelCase converts a string from snake-case to CamelCase.
-func convertToCamelCase(input string) string {
-	if input == "" {
-		return ""
-	}
-
-	// Split the string by hyphen.
-	parts := strings.Split(input, "-")
-
-	// Capitalize each part and join them together.
-	for i, part := range parts {
-		if len(part) > 0 {
-			runes := []rune(part)
-			runes[0] = unicode.ToUpper(runes[0])
-			parts[i] = string(runes)
-		}
-	}
-
-	return strings.Join(parts, "")
 }
 
 func isFlagPresent(flags []string, flag string) bool {
