@@ -68,7 +68,7 @@ func TestPathForParam(t *testing.T) {
 		expected  string
 		expectErr bool
 	}{
-		{ReadAheadKb, 1, 2, "/sys/class/bdi/1:2/read_ahead_kb", false},
+		{MaxReadAheadKb, 1, 2, "/sys/class/bdi/1:2/read_ahead_kb", false},
 		{MaxBackgroundRequests, 1, 2, "/sys/fs/fuse/connections/2/max_background", false},
 		{CongestionWindowThreshold, 1, 2, "/sys/fs/fuse/connections/2/congestion_threshold", false},
 		{MaxPagesLimit, 1, 2, "/sys/module/fuse/parameters/max_pages_limit", false},
@@ -139,7 +139,7 @@ func TestSetReadAheadKb(t *testing.T) {
 	cfg.SetReadAheadKb(1024)
 
 	assert.Len(t, cfg.Parameters, 1)
-	assert.Equal(t, ReadAheadKb, cfg.Parameters[0].Name)
+	assert.Equal(t, MaxReadAheadKb, cfg.Parameters[0].Name)
 	assert.Equal(t, "1024", cfg.Parameters[0].Value)
 }
 
@@ -175,7 +175,7 @@ func TestSetMultipleKernelParams(t *testing.T) {
 	expected := map[ParamName]string{
 		MaxPagesLimit:        "123",
 		TransparentHugePages: "always",
-		ReadAheadKb:          "456",
+		MaxReadAheadKb:       "456",
 	}
 	for _, p := range cfg.Parameters {
 		val, ok := expected[p.Name]
@@ -201,8 +201,19 @@ func TestApplyGKE(t *testing.T) {
 	assert.NotEmpty(t, actualCfg.RequestID)
 	assert.NotEmpty(t, actualCfg.Timestamp)
 	assert.Len(t, actualCfg.Parameters, 1)
-	assert.Equal(t, ReadAheadKb, actualCfg.Parameters[0].Name)
+	assert.Equal(t, MaxReadAheadKb, actualCfg.Parameters[0].Name)
 	assert.Equal(t, "1024", actualCfg.Parameters[0].Value)
+}
+
+func TestApplyGKE_EmptyParams(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "kernel_params.json")
+	cfg := NewKernelParamsManager()
+
+	cfg.ApplyGKE(filePath)
+
+	_, err := os.Stat(filePath)
+	assert.True(t, os.IsNotExist(err))
 }
 
 func TestWriteValue_DirectWriteSuccess(t *testing.T) {

@@ -24,13 +24,10 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -40,6 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -224,103 +222,6 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	}
 
 	return
-}
-
-// getDeviceMajorMinor returns the major and minor device numbers
-// for the filesystem mounted at the given mountPath.
-func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err error) {
-	if runtime.GOOS != "linux" {
-		return 0, 0, fmt.Errorf("unsupported OS: %s, device major/minor lookup is linux-specific", runtime.GOOS)
-	}
-
-	fileInfo, err := os.Stat(mountPoint)
-	if err != nil {
-		err = fmt.Errorf("os.Stat: %w", err)
-		return
-	}
-
-	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
-	if !ok {
-		err = fmt.Errorf("fileInfo.Sys() is not of type *syscall.Stat_t")
-		return
-	}
-
-	devID := stat.Dev
-	major = unix.Major(uint64(devID))
-	minor = unix.Minor(uint64(devID))
-	return
-}
-
-// setMaxReadAhead sets the kernel-read-ahead for the filesystem mounted at
-// the given mountPoint to readAheadKb.
-// Adds warning log if it fails and success logs otherwise.
-func setMaxReadAhead(mountPoint string, readAheadKb int) {
-	major, minor, err := getDeviceMajorMinor(mountPoint)
-	if err != nil {
-		logger.Warnf("setMaxReadAhead: getting device major/minor for mount point %s: %v", mountPoint, err)
-		return
-	}
-
-	sysPath := filepath.Join("/sys/class/bdi", fmt.Sprintf("%d:%d", major, minor), "read_ahead_kb")
-	cmd := exec.Command("sudo", "-n", "tee", sysPath)
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", readAheadKb))
-
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		logger.Warnf("Setting max read ahead %d KB on mount-path %s: %v, stderr: %s", readAheadKb, mountPoint, err, stderr.String())
-		return
-	}
-	logger.Infof("Max read-ahead set to %d KB on mount-path %s successfully.", readAheadKb, mountPoint)
-}
-
-// setCongestionThreshold sets the fuse settings `congestion-threshold` by writing over
-// `/sys/fs/fuse/connections/<minor>/congestion_threshold`.
-// Adds a warning log if it fails and success logs otherwise.
-func setCongestionThreshold(mountPoint string, congestionThreshold int) {
-	_, minor, err := getDeviceMajorMinor(mountPoint)
-	if err != nil {
-		logger.Warnf("setCongestionThreshold: getting device major/minor for mount point %s: %v", mountPoint, err)
-		return
-	}
-
-	sysPathCgTh := filepath.Join("/sys/fs/fuse/connections", fmt.Sprintf("%d", minor), "congestion_threshold")
-	cmd := exec.Command("sudo", "-n", "tee", sysPathCgTh)
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", congestionThreshold))
-
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		logger.Warnf("Setting congestion threshold %d mount-path %s: %v, stderr: %s", congestionThreshold, mountPoint, err, stderr.String())
-		return
-	}
-	logger.Infof("Congestion threshold set to %d on mount-path %s successfully.", congestionThreshold, mountPoint)
-}
-
-// setMaxBackground sets the fuse settings `max-background` by writing over
-// `/sys/fs/fuse/connections/<minor>/max_background`.
-// Adds a warning log if it fails and success logs otherwise.
-func setMaxBackground(mountPoint string, maxBackground int) {
-	_, minor, err := getDeviceMajorMinor(mountPoint)
-	if err != nil {
-		logger.Warnf("setMaxBackground: getting device major/minor for mount point %s: %v", mountPoint, err)
-		return
-	}
-
-	sysPathMxBg := filepath.Join("/sys/fs/fuse/connections", fmt.Sprintf("%d", minor), "max_background")
-	cmd := exec.Command("sudo", "-n", "tee", sysPathMxBg)
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", maxBackground))
-
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		logger.Warnf("Setting max-background %d on mount-path %s: %v, stderr: %s", maxBackground, mountPoint, err, stderr.String())
-		return
-	}
-	logger.Infof("Max-background set to %d on mount-path %s successfully.", maxBackground, mountPoint)
 }
 
 func populateArgs(args []string) (
@@ -628,19 +529,16 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 		markSuccessfulMount()
 
-		// Apply kernel settings only when kernel reader is enabled and not a dynamic mount.
-		if newConfig.FileSystem.EnableKernelReader && (!isDynamicMount(bucketName)) {
-			if newConfig.FileSystem.MaxReadAheadKb > 0 {
-				setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
+		// Apply post mount kernel settings in non-GKE environments for non dynamic mounts.
+		if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) {
+			kernelparams := kernelparams.NewKernelParamsManager()
+			kernelparams.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
+			// Set max-background and congestion window when async read is enabled via kernel reader.
+			if newConfig.FileSystem.EnableKernelReader {
+				kernelparams.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
+				kernelparams.SetMaxBackgroundRequests(int(newConfig.FileSystem.MaxBackground))
 			}
-
-			if newConfig.FileSystem.CongestionThreshold > 0 {
-				setCongestionThreshold(mountPoint, int(newConfig.FileSystem.CongestionThreshold))
-			}
-
-			if newConfig.FileSystem.MaxBackground > 0 {
-				setMaxBackground(mountPoint, int(newConfig.FileSystem.MaxBackground))
-			}
+			kernelparams.ApplyNonGKE(mountPoint)
 		}
 	}
 

@@ -97,7 +97,7 @@ func atomicFileWrite(kernelParamsFile string, data []byte) error {
 // pathForParam returns the sysfs path for a given parameter.
 func pathForParam(name ParamName, major, minor uint32) (string, error) {
 	switch name {
-	case ReadAheadKb:
+	case MaxReadAheadKb:
 		return fmt.Sprintf("/sys/class/bdi/%d:%d/read_ahead_kb", major, minor), nil
 
 	case MaxBackgroundRequests:
@@ -207,7 +207,7 @@ func (m *KernelParamsManager) SetTransparentHugePages(mode string) {
 // SetReadAheadKb adds the BDI read_ahead_kb parameter to the config.
 func (m *KernelParamsManager) SetReadAheadKb(kb int) {
 	if kb > 0 {
-		m.addParam(ReadAheadKb, fmt.Sprintf("%d", kb))
+		m.addParam(MaxReadAheadKb, fmt.Sprintf("%d", kb))
 	}
 }
 
@@ -231,12 +231,15 @@ func (m *KernelParamsManager) SetCongestionWindowThreshold(threshold int) {
 func (m *KernelParamsManager) ApplyGKE(kernelParamsFile string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if len(m.Parameters) == 0 {
+		return
+	}
 	kernelConfigJson, err := json.Marshal(m.KernelParamsConfig)
 	if err != nil {
 		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
 		return
 	}
-	logger.Info("Writing kernel parameters to file for GKE environment", "file", kernelParamsFile, "kernel config", string(kernelConfigJson))
+	logger.Info("Writing kernel parameters to file for GKE environment", "file", kernelParamsFile, "kernel config", m.KernelParamsConfig)
 	if err := atomicFileWrite(kernelParamsFile, kernelConfigJson); err != nil {
 		logger.Warnf("Failed to write kernel parameters to file %q: %v", kernelParamsFile, err)
 		return
@@ -248,11 +251,9 @@ func (m *KernelParamsManager) ApplyGKE(kernelParamsFile string) {
 func (m *KernelParamsManager) ApplyNonGKE(mountPoint string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	kernelConfigJson, err := json.Marshal(m.KernelParamsConfig)
-	if err != nil {
-		logger.Warnf("Failed to marshal kernel parameters config: %v", err)
+	if len(m.Parameters) == 0 {
 		return
 	}
-	logger.Info("Applying kernel parameters directly for non-GKE environment", "mountPoint", mountPoint, "kernel config", string(kernelConfigJson))
+	logger.Info("Applying kernel parameters directly for non-GKE environment", "mountPoint", mountPoint, "kernel config", m.KernelParamsConfig)
 	m.applyDirectly(mountPoint)
 }

@@ -44,7 +44,7 @@ type ParamName string
 const (
 	MaxPagesLimit             ParamName = "fuse-max-pages-limit"
 	TransparentHugePages      ParamName = "transparent-hugepages"
-	ReadAheadKb               ParamName = "read_ahead_kb"
+	MaxReadAheadKb            ParamName = "max-read-ahead-kb"
 	MaxBackgroundRequests     ParamName = "fuse-max-background-requests"
 	CongestionWindowThreshold ParamName = "fuse-congestion-window-threshold"
 )
