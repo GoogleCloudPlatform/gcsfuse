@@ -53,7 +53,7 @@ const (
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
 	zonalLocationType             = "zone"
-	stallTimeOutSecsForDirectPath = 60
+stallTimeoutForDirectPath = 60 * time.Second
 )
 
 type StorageHandle interface {
