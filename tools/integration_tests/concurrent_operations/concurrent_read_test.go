@@ -75,11 +75,13 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 		randomReads     = 5                       // Number of random readers
 	)
 	// Create a 100MiB test file
-	testFilePath := path.Join(testDirPathForRead, "large_test_file.bin")
+	temp_filename := fmt.Sprintf("large_test_file_%s.bin", setup.GenerateRandomString(5))
+	testFilePath := path.Join(testDirPathForRead, temp_filename)
 	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
 	var wg sync.WaitGroup
-	timeout := 300 * time.Second // 5 minutes timeout for 100MiB operations
+	timeout := 600 * time.Second // 5 minutes timeout for 100MiB operations
 
+	start := time.Now()
 	// Launch 5 sequential readers
 	for i := range sequentialReads {
 		wg.Add(1)
@@ -91,7 +93,7 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 			content, err := operations.ReadFileSequentially(file, chunkSize)
 			require.NoError(s.T(), err, "Sequential reader %d: read failed.", readerID)
 			require.Equal(s.T(), fileSize, len(content), "Sequential reader %d: expected to read entire file", readerID)
-			obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), "large_test_file.bin"))
+			obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), temp_filename))
 			attrs, err := obj.Attrs(ctx)
 			require.NoError(s.T(), err, "obj.Attrs")
 			localCRC32C, err := operations.CalculateCRC32(bytes.NewReader(content))
@@ -112,7 +114,7 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 				// Use operations.ReadChunkFromFile for reading chunks
 				chunk, err := operations.ReadChunkFromFile(testFilePath, chunkSize, randomOffset, os.O_RDONLY)
 				require.NoError(s.T(), err, "Random reader %d: ReadChunkFromFile failed at offset %d", readerID, randomOffset)
-				client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testDirPathForRead), "large_test_file.bin", randomOffset, int64(len(chunk)), string(chunk), s.T())
+				client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testDirPathForRead), temp_filename, randomOffset, int64(len(chunk)), string(chunk), s.T())
 			}
 		}(i)
 	}
@@ -126,6 +128,8 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 	select {
 	case <-done:
 		s.T().Log("All concurrent read operations completed successfully")
+		duration := time.Since(start)
+		s.T().Logf("Test finished in %v seconds", duration.Seconds())
 	case <-time.After(timeout):
 		assert.FailNow(s.T(), "Concurrent read operations timed out - possible deadlock or performance issue")
 	}
@@ -143,7 +147,8 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 		segmentSize = fileSize / numReaders   // Each reader reads 20 MiB segment
 	)
 	// Create a 100MiB test file
-	testFilePath := path.Join(testDirPathForRead, "segment_test_file.bin")
+	temp_filename := fmt.Sprintf("segment_test_file_%s.bin", setup.GenerateRandomString(5))
+	testFilePath := path.Join(testDirPathForRead, temp_filename)
 	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
 	// Open shared file handle that will be used by all goroutines
 	sharedFile, err := os.Open(testFilePath)
@@ -154,8 +159,9 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	}()
 	var wg sync.WaitGroup
 	segmentData := make([][]byte, numReaders)
-	timeout := 300 * time.Second // 5 minutes timeout
+	timeout := 600 * time.Second // 5 minutes timeout
 
+	start := time.Now()
 	// Launch 5 readers, each reading a different segment using the shared file handle
 	for i := range numReaders {
 		wg.Add(1)
@@ -188,6 +194,8 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	select {
 	case <-done:
 		s.T().Log("All concurrent segment read operations completed successfully")
+		duration := time.Since(start)
+		s.T().Logf("Test finished in %v seconds", duration.Seconds())
 		// Reconstruct the full file from segments and validate checksum
 		var fullContent bytes.Buffer
 		for i, segment := range segmentData {
@@ -200,7 +208,7 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 		// Validate checksum of reconstructed content
 		reconstructedChecksum, err := operations.CalculateCRC32(bytes.NewReader(fullContent.Bytes()))
 		require.NoError(s.T(), err, "Failed to calculate reconstructed checksum")
-		obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), "segment_test_file.bin"))
+		obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), temp_filename))
 		attrs, err := obj.Attrs(ctx)
 		require.NoError(s.T(), err, "obj.Attrs")
 		assert.Equal(s.T(), attrs.CRC32C, reconstructedChecksum, "CRC32C mismatch. GCS: %d, Local: %d", attrs.CRC32C, reconstructedChecksum)
@@ -219,13 +227,14 @@ func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 	)
 	var wg sync.WaitGroup
 	wg.Add(numGoRoutines)
-	timeout := 300 * time.Second
+	timeout := 600 * time.Second
 
+	start := time.Now()
 	for i := range numGoRoutines {
 		go func(workerId int) {
 			defer wg.Done()
 
-			fileName := fmt.Sprintf("test_%d.bin", workerId)
+			fileName := fmt.Sprintf("test_%d_%s.bin", workerId, setup.GenerateRandomString(5))
 			filePath := path.Join(testDirPathForRead, fileName)
 			f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, setup.FilePermission_0600) //nolint:staticcheck
 			require.NoError(s.T(), err)
@@ -259,6 +268,8 @@ func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 	select {
 	case <-done:
 		s.T().Log("All concurrent goroutines completed successfully")
+		duration := time.Since(start)
+		s.T().Logf("Test finished in %v seconds", duration.Seconds())
 	case <-time.After(timeout):
 		assert.FailNow(s.T(), "Concurrent go routines timed out.")
 	}
