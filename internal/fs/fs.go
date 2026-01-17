@@ -282,8 +282,11 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
-			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
-			kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
+			// Set max-background and congestion window when async read is enabled via kernel reader.
+			if serverCfg.NewConfig.FileSystem.EnableKernelReader {
+				kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
+				kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
+			}
 			kernelParams.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
 		}
 		root = makeRootForBucket(fs, syncerBucket)
