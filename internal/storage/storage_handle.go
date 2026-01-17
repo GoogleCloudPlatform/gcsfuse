@@ -87,8 +87,7 @@ type gRPCDirectPathDetector struct {
 // from the environment where the client is running. A `nil` error represents Direct Connectivity was
 // detected.
 func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) error {
-	// Create a context that dies automatically after stallTimeoutSecs seconds
-	newCtx, cancel := context.WithTimeout(ctx, time.Duration(stallTimeOutSecsForDirectPath)*time.Second)
+newCtx, cancel := context.WithTimeout(ctx, stallTimeoutForDirectPath)
 	defer cancel()
 
 	// The storage library will see the timeout in 'newCtx' and abort the request if it takes too long.
