@@ -613,6 +613,11 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 func (b *fastStatBucket) NewMultiRangeDownloader(
 	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
+
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		b.invalidate(req.Name)
+	}
 	return
 }
 
