@@ -137,7 +137,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
+	validateExtendedObjectAttributesNonEmpty(path.Join(path.Base(testDir), tempFileName), t)
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
@@ -153,7 +153,7 @@ func TestWriteAtStartOfFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 4\nline 2\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
+	validateExtendedObjectAttributesNonEmpty(path.Join(path.Base(testDir), tempFileName), t)
 }
 
 func TestWriteAtRandom(t *testing.T) {
@@ -177,7 +177,7 @@ func TestWriteAtRandom(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
+	validateExtendedObjectAttributesNonEmpty(path.Join(path.Base(testDir), tempFileName), t)
 }
 
 func TestCreateFile(t *testing.T) {
@@ -193,7 +193,7 @@ func TestCreateFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
+	validateExtendedObjectAttributesNonEmpty(path.Join(path.Base(testDir), tempFileName), t)
 }
 
 func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
@@ -202,13 +202,13 @@ func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	fileName := path.Join(testDir, tempFileName)
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
-	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
+	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(path.Base(testDir), tempFileName), t)
 	// Append to the file.
 	err := operations.WriteFileInAppendMode(fileName, appendContent)
 	if err != nil {
 		t.Errorf("Could not append to file: %v", err)
 	}
-	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
+	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(path.Base(testDir), tempFileName), t)
 
 	// Validate object attributes are as expected.
 	validateObjectAttributes(attr1, attr2, t)
@@ -220,7 +220,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	fileName := path.Join(testDir, tempFileName)
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
-	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
+	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(path.Base(testDir), tempFileName), t)
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
 	if err != nil {
@@ -228,7 +228,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	}
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, t)
 	operations.CloseFileShouldNotThrowError(t, fh)
-	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
+	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(path.Base(testDir), tempFileName), t)
 
 	// Validate object attributes are as expected.
 	validateObjectAttributes(attr1, attr2, t)
