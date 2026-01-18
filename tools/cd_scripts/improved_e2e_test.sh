@@ -38,7 +38,6 @@ usage() {
     exit 1
 }
 
-# CHANGED: Switched to while loop to handle arguments with values (like --bucket)
 while [[ $# -gt 0 ]]; do
     case $1 in
         --local-run)
@@ -48,13 +47,13 @@ while [[ $# -gt 0 ]]; do
             ARTIFACTS_DIR="$(pwd)/failure_logs"
             DETAILS_FILE="$(pwd)/details.txt"
             echo "Running on LOCAL machine. No new users created, logs won't be uploaded."
-            shift # past argument
+            shift
             ;;
-        --bucket) # <--- NEW PARAMETER LOGIC
+        --bucket)
             if [[ -n "${2:-}" ]]; then
                 CUSTOM_BUCKET="$2"
-                shift # past argument
-                shift # past value
+                shift
+                shift
             else
                 echo "ERROR: --bucket requires a non-empty value."
                 exit 1
