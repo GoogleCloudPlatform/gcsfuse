@@ -21,8 +21,15 @@ import (
 	"time"
 )
 
+const (
+	// maxBackgroundLimit configures the upper limit for max-background kernel fuse
+	// setting. This is more than sufficient to saturate the 200 Gbps network bandwidth
+	// on a single VM. Revise the numbers if you plan to support higher bandwidth VMs.
+	maxBackgroundLimit = 192
+)
+
 func DefaultMaxBackground() int {
-	return max(12, 4*runtime.NumCPU())
+	return min(max(12, 2*runtime.NumCPU()), maxBackgroundLimit)
 }
 
 func DefaultCongestionThreshold() int {
