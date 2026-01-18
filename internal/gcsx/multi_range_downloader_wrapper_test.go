@@ -24,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -382,6 +383,21 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_ForceRecreateMRD() {
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
 	assert.NotSame(t.T(), initialMRD, t.mrdWrapper.Wrapped, "A new MRD instance should have been created")
 	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_FileClobbered() {
+	t.mrdWrapper.Wrapped = nil
+	notFoundErr := &gcs.NotFoundError{Err: fmt.Errorf("not found")}
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, notFoundErr).Once()
+
+	t.mrdWrapper.mu.RLock()
+	defer t.mrdWrapper.mu.RUnlock()
+	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
+
+	assert.Error(t.T(), err)
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	assert.ErrorAs(t.T(), err, &clobberedErr)
+	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
 }
 
 // mrdWrapperCacheTest inherits from mrdWrapperTest and adds cache functionality.
