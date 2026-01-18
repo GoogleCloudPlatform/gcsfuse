@@ -27,7 +27,6 @@ import (
 const (
 	smallFileThresholdMiB  = 100
 	mediumFileThresholdMiB = 500
-	largeFileThresholdMiB  = 1500
 )
 
 // MRDEntry holds a single MultiRangeDownloader instance and a mutex to protect access to it.
@@ -68,10 +67,6 @@ func (mrdPoolConfig *MRDPoolConfig) determinePoolSize() {
 	}
 	if mrdPoolConfig.object.Size < mediumFileThresholdMiB*MiB {
 		mrdPoolConfig.PoolSize = 2
-		return
-	}
-	if mrdPoolConfig.object.Size < largeFileThresholdMiB*MiB {
-		mrdPoolConfig.PoolSize = 3
 		return
 	}
 	mrdPoolConfig.PoolSize = 4
