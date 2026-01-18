@@ -26,8 +26,8 @@ import (
 
 const (
 	smallFileThresholdMiB  = 100
-	mediumFileThresholdMiB = 1024
-	largeFileThresholdMiB  = 2 * 1024
+	mediumFileThresholdMiB = 500
+	largeFileThresholdMiB  = 1500
 )
 
 // MRDEntry holds a single MultiRangeDownloader instance and a mutex to protect access to it.
