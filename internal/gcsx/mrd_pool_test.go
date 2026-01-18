@@ -140,22 +140,70 @@ func (t *mrdPoolTest) TestDeterminePoolSize() {
 		expectedPoolSize int
 	}{
 		{
-			name:             "SmallFile",
-			objectSize:       100 * MiB,
+			name:             "TinyFile_50MiB",
+			objectSize:       50 * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 1,
 		},
 		{
-			name:             "LargeFile",
-			objectSize:       1000 * MiB,
+			name:             "SmallFile_AtThreshold_100MiB",
+			objectSize:       smallFileThresholdMiB * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 2,
+		},
+		{
+			name:             "SmallFile_JustBelowThreshold_99MiB",
+			objectSize:       (smallFileThresholdMiB - 1) * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 1,
+		},
+		{
+			name:             "MediumFile_500MiB",
+			objectSize:       500 * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 2,
+		},
+		{
+			name:             "MediumFile_AtThreshold_1024MiB",
+			objectSize:       mediumFileThresholdMiB * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 3,
+		},
+		{
+			name:             "MediumFile_JustBelowThreshold_1023MiB",
+			objectSize:       (mediumFileThresholdMiB - 1) * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 2,
+		},
+		{
+			name:             "LargeFile_1500MiB",
+			objectSize:       1500 * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 3,
+		},
+		{
+			name:             "LargeFile_AtThreshold_2048MiB",
+			objectSize:       largeFileThresholdMiB * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 4,
 		},
 		{
-			name:             "ThresholdFile",
-			objectSize:       smallFileThresholdMiB * MiB,
+			name:             "LargeFile_JustBelowThreshold_2047MiB",
+			objectSize:       (largeFileThresholdMiB - 1) * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 3,
+		},
+		{
+			name:             "VeryLargeFile_5GiB",
+			objectSize:       5 * 1024 * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 4,
+		},
+		{
+			name:             "InitialPoolSize_PreservedWhenRelevant",
+			objectSize:       3000 * MiB,
+			initialPoolSize:  8,
+			expectedPoolSize: 4, // Should be set to 4 regardless of initial value for large files
 		},
 	}
 
