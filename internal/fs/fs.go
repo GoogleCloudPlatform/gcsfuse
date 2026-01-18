@@ -137,9 +137,9 @@ type ServerConfig struct {
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
 
-	// UserConfig tracks which flags were explicitly set by the user (vs defaults)
+	// ViperConfig tracks which flags were explicitly set by the user (vs defaults)
 	// This is used to determine if optimization rules should be applied.
-	UserConfig *viper.Viper
+	ViperConfig *viper.Viper
 
 	MetricHandle metrics.MetricHandle
 
@@ -260,16 +260,16 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// bucketHandle to avoid duplicated network calls) would be needed to change this.
 		// IMPACT: Flags are used after this. Optimization/rationalization functions are called twice
 		// for non-dynamic mounts, but they are idempotent, so it's safe.
-		if serverCfg.UserConfig != nil {
+		if serverCfg.ViperConfig != nil {
 			bucketType := syncerBucket.BucketType()
 			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal)
-			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.UserConfig, &cfg.OptimizationInput{
+			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
 			if len(optimizedFlags) > 0 {
 				logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
 				optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
-				if err := cfg.Rationalize(serverCfg.UserConfig, serverCfg.NewConfig, optimizedFlagNames); err != nil {
+				if err := cfg.Rationalize(serverCfg.ViperConfig, serverCfg.NewConfig, optimizedFlagNames); err != nil {
 					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
 				}
 			}

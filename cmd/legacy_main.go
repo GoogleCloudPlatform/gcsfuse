@@ -179,7 +179,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, userConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, viperConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -215,7 +215,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 		storageHandle,
 		metricHandle,
 		traceHandle,
-		userConfig)
+		viperConfig)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)

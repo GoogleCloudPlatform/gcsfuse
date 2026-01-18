@@ -45,7 +45,7 @@ type mountInfo struct {
 	// optimizedFlags contains the flags that were optimized
 	// based on either machine-type or profile.
 	optimizedFlags map[string]any
-	// userConfig is used to check if a flag was explicitly set by the user.
+	// viperConfig is used to check if a flag was explicitly set by the user.
 	// This is used to determine if optimization rules should be applied.
 	viperConfig *viper.Viper
 }

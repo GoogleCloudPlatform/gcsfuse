@@ -46,7 +46,7 @@ func mountWithStorageHandle(
 	storageHandle storage.StorageHandle,
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
-	userConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
+	viperConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
 
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
@@ -128,7 +128,7 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		NewConfig:                  newConfig,
-		UserConfig:                 userConfig,
+		ViperConfig:                viperConfig,
 		MetricHandle:               metricHandle,
 		TraceHandle:                traceHandle,
 	}
