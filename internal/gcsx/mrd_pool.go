@@ -69,7 +69,6 @@ func (mrdPoolConfig *MRDPoolConfig) determinePoolSize() {
 		mrdPoolConfig.PoolSize = 2
 		return
 	}
-	mrdPoolConfig.PoolSize = 4
 }
 
 // NewMRDPool initializes a new MRDPool.

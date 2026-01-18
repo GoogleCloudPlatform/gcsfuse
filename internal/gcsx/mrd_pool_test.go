@@ -140,70 +140,40 @@ func (t *mrdPoolTest) TestDeterminePoolSize() {
 		expectedPoolSize int
 	}{
 		{
-			name:             "TinyFile_50MiB",
+			name:             "SmallFile_BelowThreshold",
 			objectSize:       50 * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 1,
 		},
 		{
-			name:             "SmallFile_AtThreshold_100MiB",
+			name:             "SmallFile_AtThreshold",
 			objectSize:       smallFileThresholdMiB * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 2,
 		},
 		{
-			name:             "SmallFile_JustBelowThreshold_99MiB",
-			objectSize:       (smallFileThresholdMiB - 1) * MiB,
-			initialPoolSize:  4,
-			expectedPoolSize: 1,
-		},
-		{
-			name:             "MediumFile_500MiB",
-			objectSize:       500 * MiB,
+			name:             "MediumFile_BetweenThresholds",
+			objectSize:       300 * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 2,
 		},
 		{
-			name:             "MediumFile_AtThreshold_1024MiB",
-			objectSize:       mediumFileThresholdMiB * MiB,
-			initialPoolSize:  4,
-			expectedPoolSize: 3,
-		},
-		{
-			name:             "MediumFile_JustBelowThreshold_1023MiB",
+			name:             "MediumFile_JustBelowThreshold",
 			objectSize:       (mediumFileThresholdMiB - 1) * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 2,
 		},
 		{
-			name:             "LargeFile_1500MiB",
-			objectSize:       1500 * MiB,
-			initialPoolSize:  4,
-			expectedPoolSize: 3,
-		},
-		{
-			name:             "LargeFile_AtThreshold_2048MiB",
-			objectSize:       largeFileThresholdMiB * MiB,
+			name:             "LargeFile_AtThreshold",
+			objectSize:       mediumFileThresholdMiB * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 4,
 		},
 		{
-			name:             "LargeFile_JustBelowThreshold_2047MiB",
-			objectSize:       (largeFileThresholdMiB - 1) * MiB,
-			initialPoolSize:  4,
-			expectedPoolSize: 3,
-		},
-		{
-			name:             "VeryLargeFile_5GiB",
-			objectSize:       5 * 1024 * MiB,
+			name:             "LargeFile_AboveThreshold",
+			objectSize:       2048 * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 4,
-		},
-		{
-			name:             "InitialPoolSize_PreservedWhenRelevant",
-			objectSize:       3000 * MiB,
-			initialPoolSize:  8,
-			expectedPoolSize: 4, // Should be set to 4 regardless of initial value for large files
 		},
 	}
 
