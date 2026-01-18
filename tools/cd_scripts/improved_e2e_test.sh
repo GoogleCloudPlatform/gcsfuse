@@ -20,6 +20,7 @@ set -euo pipefail
 
 # Defaults
 LOCAL_RUN=false
+CUSTOM_BUCKET=""
 LOG_FILE=$(pwd)/logs.txt
 TEST_USER="starterscriptuser"
 HOME_DIR="/home/${TEST_USER}"
@@ -31,13 +32,15 @@ REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
 LOCAL_GO_VERSION=$(cat "${REPO_ROOT}/.go-version")
 
 usage() {
-    echo "Usage: $0 [--local-run]"
-    echo "  --local-run    Skips user creation and GCS log uploads and runs this script on local machine."
+    echo "Usage: $0 [--local-run] [--bucket <bucket_name>]"
+    echo "  --local-run    Skips user creation and GCS log uploads."
+    echo "  --bucket       Sets a custom bucket name (overrides default/metadata)."
     exit 1
 }
 
-for arg in "$@"; do
-    case $arg in
+# CHANGED: Switched to while loop to handle arguments with values (like --bucket)
+while [[ $# -gt 0 ]]; do
+    case $1 in
         --local-run)
             LOCAL_RUN=true
             TEST_USER="$USER"
@@ -45,12 +48,23 @@ for arg in "$@"; do
             ARTIFACTS_DIR="$(pwd)/failure_logs"
             DETAILS_FILE="$(pwd)/details.txt"
             echo "Running on LOCAL machine. No new users created, logs won't be uploaded."
+            shift # past argument
+            ;;
+        --bucket) # <--- NEW PARAMETER LOGIC
+            if [[ -n "${2:-}" ]]; then
+                CUSTOM_BUCKET="$2"
+                shift # past argument
+                shift # past value
+            else
+                echo "ERROR: --bucket requires a non-empty value."
+                exit 1
+            fi
             ;;
         -h|--help)
             usage
             ;;
         *)
-            echo "ERROR" "Unknown argument: $arg"
+            echo "ERROR: Unknown argument: $1"
             usage
             ;;
     esac
@@ -112,7 +126,7 @@ fetch_metadata() {
         echo "Local run detected. Setting dummy metadata."
         ZONE="projects/12345/zones/us-west1-b"
         ZONE_NAME="us-west1-b"
-        BUCKET_NAME_TO_USE="gcsfuse-release-packages"
+        
         RUN_ON_ZB_ONLY="false"
         
         # Recreate details.txt in local mode to include OS type in the instance name field
@@ -126,13 +140,13 @@ fetch_metadata() {
         ZONE_NAME=$(basename "$ZONE")
         CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
         RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
-        BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
         
         # Fetch details.txt from bucket
         gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt" .
         # Append instance name from metadata server
         curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> "$DETAILS_FILE"
     fi
+    BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-local-run-cd-script"}
     echo "ZONE_NAME: $ZONE_NAME"
     echo "BUCKET_NAME_TO_USE: $BUCKET_NAME_TO_USE"
     
