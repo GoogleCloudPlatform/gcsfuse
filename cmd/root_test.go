@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -29,6 +30,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testMaxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
 
 ////////////////////
 // Helpers
@@ -2509,6 +2512,123 @@ func TestArgsParsing_DummyIOConfigFile(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedConfig.DummyIo, gotConfig.DummyIo)
+		})
+	}
+}
+
+func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
+	testCases := []struct {
+		name          string
+		configContent string
+		args          []string
+		validate      func(*testing.T, *mountInfo)
+	}{
+		{
+			name: "machine_type_optimization_respects_config_file",
+			configContent: `write:
+  global-max-blocks: 123
+`,
+			args: []string{"--machine-type=a3-highgpu-8g"},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
+				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+			},
+		},
+		{
+			name: "profile_optimization_respects_config_file",
+			configContent: `implicit-dirs: false
+`,
+			args: []string{"--profile=" + cfg.ProfileAIMLTraining},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
+				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
+				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
+			},
+		},
+		{
+			name: "machine_type_in_config_file_respects_other_config_file_configurations",
+			configContent: `
+machine-type: a3-highgpu-8g
+write:
+  global-max-blocks: 123`,
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
+				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			configFile := createTempConfigFile(t, tc.configContent)
+			defer os.Remove(configFile)
+			var capturedMountInfo *mountInfo
+			cmd, err := newRootCmd(func(mi *mountInfo, _, _ string) error {
+				capturedMountInfo = mi
+				return nil
+			})
+			require.NoError(t, err)
+			cmdArgs := append([]string{"gcsfuse", "--config-file=" + configFile}, tc.args...)
+			cmdArgs = append(cmdArgs, "bucket", "mountpoint")
+			cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			require.NotNil(t, capturedMountInfo)
+			tc.validate(t, capturedMountInfo)
+		})
+	}
+}
+
+func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		validate func(*testing.T, *mountInfo)
+	}{
+		{
+			name: "machine_type_optimization_respects_cli_flag",
+			args: []string{"--machine-type=a3-highgpu-8g", "--write-global-max-blocks=123"},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect CLI value 123, not optimize to 1600")
+				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+			},
+		},
+		{
+			name: "profile_optimization_respects_cli_flag",
+			args: []string{"--profile=" + cfg.ProfileAIMLTraining, "--implicit-dirs=false"},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
+				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
+				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedMountInfo *mountInfo
+			cmd, err := newRootCmd(func(mi *mountInfo, _, _ string) error {
+				capturedMountInfo = mi
+				return nil
+			})
+			require.NoError(t, err)
+			cmdArgs := append([]string{"gcsfuse"}, tc.args...)
+			cmdArgs = append(cmdArgs, "bucket", "mountpoint")
+			cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			require.NotNil(t, capturedMountInfo)
+			tc.validate(t, capturedMountInfo)
 		})
 	}
 }

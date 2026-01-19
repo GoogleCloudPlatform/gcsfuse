@@ -153,14 +153,6 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			expectedMachineType: "cli-machine-type",
 		},
 		{
-			name:  "Config_file_set",
-			isSet: &mockIsValueSet{},
-			config: &Config{
-				MachineType: "config-file-machine-type",
-			},
-			expectedMachineType: "config-file-machine-type",
-		},
-		{
 			name: "CLI_flag_and_Config_file_set_(CLI_priority)",
 			isSet: &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
@@ -300,7 +292,7 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
-	isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
+	isSet := &mockIsValueSet{setFlags: map[string]bool{"file-system.rename-dir-limit": true}}
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
