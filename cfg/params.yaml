@@ -477,7 +477,6 @@ params:
       Requires sudo permission to set this value, otherwise the value will be ignored
       and system default will be used.
     default: "0"
-    hide-flag: true
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal"
@@ -1198,7 +1197,6 @@ params:
     type: "bool"
     usage: "Enables streaming uploads during write file operation."
     default: true
-    hide-flag: false
 
   - config-path: "write.finalize-file-for-rapid"
     flag-name: "finalize-file-for-rapid"
@@ -1215,7 +1213,6 @@ params:
       The value should be >= 0 or -1 (for infinite blocks).
       A value of 0 disables streaming writes.
     default: 4
-    hide-flag: false
     optimizations:
       machine-based-optimization:
         - group: "high-performance"
