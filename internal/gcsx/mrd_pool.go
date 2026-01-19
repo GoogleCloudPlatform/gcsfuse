@@ -81,6 +81,7 @@ func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 		poolConfig: config,
 	}
 	p.poolConfig.determinePoolSize()
+	logger.Tracef("Initializing MRD Pool with size: %d", p.poolConfig.PoolSize)
 	p.entries = make([]MRDEntry, p.poolConfig.PoolSize)
 	p.ctx, p.cancelFunc = context.WithCancel(context.Background())
 
