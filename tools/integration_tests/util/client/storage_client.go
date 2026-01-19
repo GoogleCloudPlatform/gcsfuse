@@ -40,48 +40,19 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	storagev1 "google.golang.org/api/storage/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const maxStorageClientRetryAttempts = 10
 const networkUnreachableError = "network is unreachable"
 
 func ShouldRetryForTest(err error) (b bool) {
-	b = storage.ShouldRetry(err)
+	b = storageutil.ShouldRetry(err)
 	if b {
 		log.Printf("Retrying for the error: %v", err)
 		return
-	}
-
-	// HTTP 401 errors - Invalid Credentials
-	// This is a work-around to fix the corner case where GCSFuse checks the token
-	// as valid but GCS says invalid. This might be due to client-server timer
-	// issues. Actual fix will be refresh the token earlier than 1 hr.
-	// Changes will be done post resolution of the below issue:
-	// https://github.com/golang/oauth2/issues/623
-	// TODO: Please incorporate the correct fix post resolution of the above issue.
-	if typed, ok := err.(*googleapi.Error); ok {
-		if typed.Code == 401 {
-			b = true
-			log.Printf("Retrying for error-code 401: %v", err)
-			return
-		}
-	}
-
-	// This is the same case as above, but for gRPC UNAUTHENTICATED errors. See
-	// https://github.com/golang/oauth2/issues/623
-	// TODO: Please incorporate the correct fix post resolution of the above issue.
-	if status, ok := status.FromError(err); ok {
-		if status.Code() == codes.Unauthenticated {
-			b = true
-			log.Printf("Retrying for UNAUTHENTICATED error: %v", err)
-			return
-		}
 	}
 
 	if err != nil && strings.Contains(err.Error(), networkUnreachableError) {
