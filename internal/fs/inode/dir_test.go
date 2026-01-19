@@ -2089,6 +2089,63 @@ func (t *DirTest) Test_readObjectsUnlocked_Empty() {
 	assert.Equal(t.T(), "", newTok)
 }
 
+func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_File() {
+	t.in.Unlock()
+	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+	t.in.Lock()
+
+	const name = "file"
+	objName := path.Join(dirInodeName, name)
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("content"))
+	require.NoError(t.T(), err)
+
+	entry, err := t.in.LookUpChild(t.ctx, name)
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
+	assert.Equal(t.T(), metadata.RegularFileType, entry.Type())
+}
+
+func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_ExplicitDir() {
+	t.in.Unlock()
+	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+	t.in.Lock()
+
+	const name = "dir"
+	objName := path.Join(dirInodeName, name) + "/"
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	require.NoError(t.T(), err)
+
+	entry, err := t.in.LookUpChild(t.ctx, name)
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
+	assert.Equal(t.T(), metadata.ExplicitDirType, entry.Type())
+}
+
+func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_ImplicitDir() {
+	t.in.Unlock()
+	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+	// Enable implicit dirs
+	t.in.(*dirInode).implicitDirs = true
+	t.in.Lock()
+
+	const name = "implicit_dir"
+	// Create object that implies directory
+	objName := path.Join(dirInodeName, name, "file")
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("content"))
+	require.NoError(t.T(), err)
+
+	entry, err := t.in.LookUpChild(t.ctx, name)
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), path.Join(dirInodeName, name)+"/", entry.FullName.GcsObjectName())
+	assert.Equal(t.T(), metadata.ImplicitDirType, entry.Type())
+}
+
 func (t *DirTest) Test_IsTypeCacheDeprecated_false() {
 	dInode := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, false)
 

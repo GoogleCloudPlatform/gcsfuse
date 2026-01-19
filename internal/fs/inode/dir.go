@@ -405,7 +405,8 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 		return nil, fmt.Errorf("StatObject: %w", err)
 	}
 
-	// This will be implicit directory
+	// This should be treated as an implicit directory, as implicit objects do not possess metadata.
+	// We are setting MinObject to nil because, for implicit directories, only the object name is saved.
 	if fetchOnlyFromCache && m.Generation == 0 {
 		m = nil
 	}
