@@ -406,7 +406,7 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}
 
 	// This will be implicit directory
-	if fetchOnlyFromCache == true && m.Generation == 0 {
+	if fetchOnlyFromCache && m.Generation == 0 {
 		m = nil
 	}
 
