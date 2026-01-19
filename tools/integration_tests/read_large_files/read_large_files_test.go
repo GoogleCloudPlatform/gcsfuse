@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles = make([]test_suite.TestConfig, 1)
 		cfg.ReadLargeFiles[0].TestBucket = setup.TestBucket()
 		cfg.ReadLargeFiles[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ReadLargeFiles[0].Configs = make([]test_suite.ConfigItem, 1)
+		cfg.ReadLargeFiles[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.ReadLargeFiles[0].Configs[0].Flags = []string{
 			"--implicit-dirs",
 			"--implicit-dirs --client-protocol=grpc",
@@ -64,6 +64,10 @@ func TestMain(m *testing.M) {
 			fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --client-protocol=grpc --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4)),
 		}
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ReadLargeFiles[0].Configs[1].Flags = []string{
+			"--implicit-dirs --enable-kernel-reader=false",
+		}
+		cfg.ReadLargeFiles[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 	}
 
 	ctx = context.Background()

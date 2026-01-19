@@ -286,8 +286,12 @@ func TestConcurrentRead(t *testing.T) {
 	// Define flag sets specific for concurrent read tests
 	flagsSet := [][]string{
 		{}, // For default read path.
-		{"--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=true", cacheDirFlag}, // For file cache path
-		{"--enable-buffered-read"}, // For Buffered read enabled.
+		{"--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=true", cacheDirFlag, "--enable-kernel-reader=false"}, // For file cache path
+		{"--enable-buffered-read", "--enable-kernel-reader=false"},                                                                                   // For Buffered read enabled.
+	}
+	if setup.IsZonalBucketRun() {
+		// Zonal buckets enable the kernel reader by default. Disable it to verify the MRDWrapper flow.
+		flagsSet = append(flagsSet, []string{"--enable-kernel-reader=false"})
 	}
 
 	// Run tests with each flag set
