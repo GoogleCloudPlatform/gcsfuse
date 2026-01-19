@@ -475,6 +475,10 @@ func (b *fastStatBucket) UpdateObject(
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
+	if req.OnlyDeleteFromCache {
+		b.addNegativeEntry(req.Name)
+		return nil
+	}
 	err = b.wrapped.DeleteObject(ctx, req)
 	// In case of successful delete, add a negative entry to the cache.
 	if err == nil {
