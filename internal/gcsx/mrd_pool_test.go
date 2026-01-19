@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -104,7 +105,7 @@ func (t *mrdPoolTest) TestNewMRDPool_FileClobbered() {
 
 	pool, err := NewMRDPool(t.poolConfig, nil)
 
-	assert.Error(t.T(), err)
+	require.Error(t.T(), err)
 	assert.Nil(t.T(), pool)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	assert.ErrorAs(t.T(), err, &clobberedErr)

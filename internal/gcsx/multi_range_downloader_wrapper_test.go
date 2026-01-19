@@ -394,7 +394,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_FileClobbered() {
 	defer t.mrdWrapper.mu.RUnlock()
 	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
 
-	assert.Error(t.T(), err)
+	require.Error(t.T(), err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	assert.ErrorAs(t.T(), err, &clobberedErr)
 	assert.Nil(t.T(), t.mrdWrapper.Wrapped)

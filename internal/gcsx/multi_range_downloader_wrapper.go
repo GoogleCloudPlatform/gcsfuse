@@ -232,18 +232,18 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
 				ReadHandle:     handle,
 			})
-			if err == nil {
-				// Updating mrdWrapper.Wrapped only when MRD creation was successful.
-				mrdWrapper.Wrapped = mrd
-			} else {
+			if err != nil {
 				var notFoundError *gcs.NotFoundError
 				if errors.As(err, &notFoundError) {
-					err = &gcsfuse_errors.FileClobberedError{
+					return &gcsfuse_errors.FileClobberedError{
 						Err:        fmt.Errorf("ensureMultiRangeDownloader: %w", err),
 						ObjectName: mrdWrapper.object.Name,
 					}
 				}
+				return err
 			}
+			// Updating mrdWrapper.Wrapped only when MRD creation was successful.
+			mrdWrapper.Wrapped = mrd
 		}
 	}
 	return
