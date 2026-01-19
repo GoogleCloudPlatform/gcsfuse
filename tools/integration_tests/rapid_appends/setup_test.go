@@ -81,8 +81,12 @@ func TestMain(m *testing.M) {
 		cfg.RapidAppends[0].Configs[2].Flags = []string{
 			"--metadata-cache-ttl-secs=0",  // NoCache
 			"--metadata-cache-ttl-secs=70", // MetadataCache
-			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0",  // FileCache
-			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache", // MetadataAndFileCache
+			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0",                               // FileCache
+			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache",                              // MetadataAndFileCache
+			"--metadata-cache-ttl-secs=0 --enable-kernel-reader=false",                                                             // NoCacheWithoutKernelReader
+			"--metadata-cache-ttl-secs=70 --enable-kernel-reader=false",                                                            // MetadataCacheWithMRDWrapperWithoutKernelReader
+			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0 --enable-kernel-reader=false",  // FileCacheWithoutKernelReader
+			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --enable-kernel-reader=false", // MetadataAndFileCacheWithoutKernelReader
 		}
 		cfg.RapidAppends[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.RapidAppends[0].Configs[2].Run = "TestSingleMountReadsTestSuite"
@@ -91,8 +95,12 @@ func TestMain(m *testing.M) {
 		cfg.RapidAppends[0].Configs[3].Flags = []string{
 			"--metadata-cache-ttl-secs=70",
 			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary",
+			"--metadata-cache-ttl-secs=70 --enable-kernel-reader=false",
+			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --enable-kernel-reader=false",
 		}
 		cfg.RapidAppends[0].Configs[3].SecondaryFlags = []string{
+			"--write-block-size-mb=1",
+			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 		}
@@ -103,8 +111,12 @@ func TestMain(m *testing.M) {
 		cfg.RapidAppends[0].Configs[4].Flags = []string{
 			"--metadata-cache-ttl-secs=0",
 			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0",
+			"--metadata-cache-ttl-secs=0 --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0 --enable-kernel-reader=false",
 		}
 		cfg.RapidAppends[0].Configs[4].SecondaryFlags = []string{
+			"--write-block-size-mb=1",
+			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 		}
