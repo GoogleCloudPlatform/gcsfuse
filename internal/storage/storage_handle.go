@@ -52,7 +52,8 @@ const (
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
-	zonalLocationType = "zone"
+	zonalLocationType         = "zone"
+	stallTimeoutForDirectPath = 60 * time.Second
 )
 
 type StorageHandle interface {
@@ -86,7 +87,11 @@ type gRPCDirectPathDetector struct {
 // from the environment where the client is running. A `nil` error represents Direct Connectivity was
 // detected.
 func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) error {
-	return storage.CheckDirectConnectivitySupported(ctx, bucketName, pd.clientOptions...)
+	newCtx, cancel := context.WithTimeout(ctx, stallTimeoutForDirectPath)
+	defer cancel()
+
+	// The storage library will see the timeout in 'newCtx' and abort the request if it takes too long.
+	return storage.CheckDirectConnectivitySupported(newCtx, bucketName, pd.clientOptions...)
 }
 
 // Return clientOpts for both gRPC client and control client.
