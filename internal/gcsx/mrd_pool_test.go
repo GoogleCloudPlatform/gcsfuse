@@ -55,13 +55,13 @@ func (t *mrdPoolTest) TestNewMRDPool_SmallFile() {
 	t.object.Size = 100 * MiB
 	t.poolConfig.PoolSize = 4
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Times(2)
 
 	pool, err := NewMRDPool(t.poolConfig, nil)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 1, pool.poolConfig.PoolSize)
-	assert.Len(t.T(), pool.entries, 1)
+	assert.Equal(t.T(), 2, pool.poolConfig.PoolSize)
+	assert.Len(t.T(), pool.entries, 2)
 	assert.NotNil(t.T(), pool.entries[0].mrd)
 }
 
