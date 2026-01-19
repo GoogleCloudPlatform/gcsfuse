@@ -32,6 +32,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
