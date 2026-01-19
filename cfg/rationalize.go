@@ -40,9 +40,9 @@ func decodeURL(u string) (string, error) {
 	return decodedURL.String(), nil
 }
 
-// resolveMetadataCacheTTL calculates the ttl to be used for stat/type cache based
+// resolveMetadataCacheConfig calculates the ttl to be used for stat/type cache based
 // on the user flags/configs or machine type based optimizations.
-func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
+func resolveMetadataCacheConfig(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
 	optimizationAppliedToNegativeCacheTTL := isFlagPresent(optimizedFlags, MetadataNegativeCacheTTLConfigKey)
 
 	if v.IsSet(MetadataNegativeCacheTTLConfigKey) || optimizationAppliedToNegativeCacheTTL {
@@ -63,6 +63,14 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
 	} else if c.TtlSecs == -1 {
 		c.TtlSecs = maxSupportedTTLInSeconds
+	}
+
+	if c.ExperimentalMaxParallelPrefetches == -1 {
+		c.ExperimentalMaxParallelPrefetches = math.MaxInt64
+	}
+
+	if c.ExperimentalMetadataPrefetchLimit == -1 {
+		c.ExperimentalMetadataPrefetchLimit = math.MaxInt64
 	}
 }
 
@@ -166,7 +174,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	resolveLoggingConfig(c)
 	resolveReadConfig(&c.Read)
 	resolveStreamingWriteConfig(&c.Write)
-	resolveMetadataCacheTTL(v, &c.MetadataCache, optimizedFlags)
+	resolveMetadataCacheConfig(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)

@@ -657,6 +657,10 @@ type MetadataCacheConfig struct {
 
 	ExperimentalDirMetadataPrefetch bool `yaml:"experimental-dir-metadata-prefetch"`
 
+	ExperimentalMaxParallelPrefetches int64 `yaml:"experimental-max-parallel-prefetches"`
+
+	ExperimentalMetadataPrefetchLimit int64 `yaml:"experimental-metadata-prefetch-limit"`
+
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
 
 	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
@@ -1007,6 +1011,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
 
 	if err := flagSet.MarkHidden("experimental-local-socket-address"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("experimental-max-parallel-prefetches", "", 10, "Experimental: The maximum number of concurrent metadata prefetches that can be active at any given time.\n")
+
+	if err := flagSet.MarkHidden("experimental-max-parallel-prefetches"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("experimental-metadata-prefetch-limit", "", 5000, "Experimental: The maximum number of entries to prefetch per metadata prefetch worker.  One GCS List object call can return up to 5000 entries. Configuring a value  higher than that will lead to multiple list object calls per worker.\n")
+
+	if err := flagSet.MarkHidden("experimental-metadata-prefetch-limit"); err != nil {
 		return err
 	}
 
@@ -1550,6 +1566,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.experimental-local-socket-address", flagSet.Lookup("experimental-local-socket-address")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.experimental-max-parallel-prefetches", flagSet.Lookup("experimental-max-parallel-prefetches")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-limit", flagSet.Lookup("experimental-metadata-prefetch-limit")); err != nil {
 		return err
 	}
 

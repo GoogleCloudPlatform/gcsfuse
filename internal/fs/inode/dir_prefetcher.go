@@ -57,7 +57,7 @@ func NewMetadataPrefetcher(
 		metadataCacheTTL: time.Duration(cfg.MetadataCache.TtlSecs) * time.Second,
 		ctx:              ctx,
 		cancel:           cancel,
-		maxPrefetchCount: MaxResultsForListObjectsCall, // TODO: make it user configurable
+		maxPrefetchCount: cfg.MetadataCache.ExperimentalMetadataPrefetchLimit,
 		listCallFunc:     listFunc,
 		// state is 0 (prefetchReady) by default.
 	}

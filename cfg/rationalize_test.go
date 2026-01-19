@@ -753,3 +753,46 @@ func TestResolveLoggingConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalize_MetadataCacheConfig(t *testing.T) {
+	testCases := []struct {
+		name                                 string
+		config                               *Config
+		expectedMetadataPrefetchCount        int64
+		expectedConcurrentMetadataPrefetches int64
+	}{
+		{
+			name: "valid_config_metadata_prefetch_count_set_to_-1",
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchLimit: -1,
+					ExperimentalMaxParallelPrefetches: 5,
+				},
+			},
+			expectedMetadataPrefetchCount:        math.MaxInt64,
+			expectedConcurrentMetadataPrefetches: 5,
+		},
+		{
+			name: "valid_config_concurrent_prefetches_set_to_-1",
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchLimit: 8,
+					ExperimentalMaxParallelPrefetches: -1,
+				},
+			},
+			expectedMetadataPrefetchCount:        8,
+			expectedConcurrentMetadataPrefetches: math.MaxInt64,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
+
+			if assert.NoError(t, actualErr) {
+				assert.Equal(t, tc.expectedConcurrentMetadataPrefetches, tc.config.MetadataCache.ExperimentalMaxParallelPrefetches)
+				assert.Equal(t, tc.expectedMetadataPrefetchCount, tc.config.MetadataCache.ExperimentalMetadataPrefetchLimit)
+			}
+		})
+	}
+}

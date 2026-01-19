@@ -169,6 +169,15 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 		return fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", c.DeprecatedStatCacheCapacity)
 	}
 
+	// Validate prefetch configs.
+	if c.ExperimentalMaxParallelPrefetches < -1 {
+		return fmt.Errorf("invalid value of metadata-cache.experimental-max-parallel-prefetches: %d; should be >=0 or -1 (for infinite)", c.ExperimentalMaxParallelPrefetches)
+	}
+
+	if c.ExperimentalMetadataPrefetchLimit < -1 {
+		return fmt.Errorf("invalid value of metadata-cache.experimental-metadata-prefetch-limit: %d; should be >=0 or -1 (for infinite)", c.ExperimentalMetadataPrefetchLimit)
+	}
+
 	return nil
 }
 

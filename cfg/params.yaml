@@ -169,7 +169,7 @@ params:
   - config-path: "dummy-io.enable"
     flag-name: "enable-dummy-io"
     type: "bool"
-    usage: >- 
+    usage: >-
       Enable dummy I/O mode for testing purposes. In this mode all reads
       and writes are simulated and no actual data is transferred to or from
       Cloud Storage. All the metadata operations like object listing and stats
@@ -180,7 +180,7 @@ params:
   - config-path: "dummy-io.per-mb-latency"
     flag-name: "dummy-io-per-mb-latency"
     type: "duration"
-    usage: >- 
+    usage: >-
       Simulates reading from the reader latency in dummy I/O mode. This value
       is only used when dummy I/O mode is enabled.
     default: "0s"
@@ -189,7 +189,7 @@ params:
   - config-path: "dummy-io.reader-latency"
     flag-name: "dummy-io-reader-latency"
     type: "duration"
-    usage: >- 
+    usage: >-
       Simulates reader creation latency in dummy I/O mode. This value
       is only used when dummy I/O mode is enabled.
     default: "0s"
@@ -482,7 +482,7 @@ params:
       bucket-type-optimization:
         - bucket-type: "zonal"
           value: 16384 # 16 MiB
-  
+
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
     type: "bool"
@@ -864,6 +864,27 @@ params:
       Enables background prefetching of object metadata when a directory is first opened. 
       This reduces latency for subsequent file lookups by pre-filling the metadata cache.
     default: false
+    deprecated: false
+    hide-flag: true
+
+  - config-path: "metadata-cache.experimental-max-parallel-prefetches"
+    flag-name: "experimental-max-parallel-prefetches"
+    type: "int"
+    usage: >
+      Experimental: The maximum number of concurrent metadata prefetches that can
+      be active at any given time.
+    default: "10"
+    deprecated: false
+    hide-flag: true
+
+  - config-path: "metadata-cache.experimental-metadata-prefetch-limit"
+    flag-name: "experimental-metadata-prefetch-limit"
+    type: "int"
+    usage: >
+      Experimental: The maximum number of entries to prefetch per metadata prefetch worker. 
+      One GCS List object call can return up to 5000 entries. Configuring a value 
+      higher than that will lead to multiple list object calls per worker.
+    default: "5000"
     deprecated: false
     hide-flag: true
 
