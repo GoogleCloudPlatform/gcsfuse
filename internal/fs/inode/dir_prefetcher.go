@@ -53,11 +53,11 @@ func NewMetadataPrefetcher(
 	// Initialize a new context for metadata prefetch worker so it can run in background.
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MetadataPrefetcher{
-		enabled:          cfg.MetadataCache.ExperimentalDirMetadataPrefetch,
+		enabled:          cfg.MetadataCache.EnableMetadataPrefetch,
 		metadataCacheTTL: time.Duration(cfg.MetadataCache.TtlSecs) * time.Second,
 		ctx:              ctx,
 		cancel:           cancel,
-		maxPrefetchCount: MaxResultsForListObjectsCall, // TODO: make it user configurable
+		maxPrefetchCount: cfg.MetadataCache.MetadataPrefetchEntriesLimit,
 		listCallFunc:     listFunc,
 		// state is 0 (prefetchReady) by default.
 	}

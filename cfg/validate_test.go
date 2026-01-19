@@ -540,6 +540,30 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Invalid experimental-concurrent-metadata-prefetches",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				MetadataCache: MetadataCacheConfig{
+					MetadataPrefetchMaxWorkers: -4,
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
+		{
+			name: "Invalid experimental-metadata-prefetch-count",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				MetadataCache: MetadataCacheConfig{
+					MetadataPrefetchEntriesLimit: -2,
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

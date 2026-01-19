@@ -51,9 +51,10 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 
 	config := &cfg.Config{
 		MetadataCache: cfg.MetadataCacheConfig{
-			ExperimentalDirMetadataPrefetch: enablePrefetch,
-			TypeCacheMaxSizeMb:              400,
-			TtlSecs:                         60,
+			EnableMetadataPrefetch:       enablePrefetch,
+			TypeCacheMaxSizeMb:           400,
+			TtlSecs:                      60,
+			MetadataPrefetchEntriesLimit: 5000,
 		},
 	}
 
