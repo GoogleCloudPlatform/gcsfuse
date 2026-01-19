@@ -18,11 +18,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -97,6 +99,17 @@ func (t *mrdPoolTest) TestNewMRDPool_AsyncCreationFailure() {
 	assert.Equal(t.T(), uint64(2), pool.currentSize.Load())
 	assert.NotNil(t.T(), pool.entries[0].mrd)
 	assert.Nil(t.T(), pool.entries[1].mrd)
+}
+
+func (t *mrdPoolTest) TestNewMRDPool_FileClobbered() {
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{Err: fmt.Errorf("not found")}).Once()
+
+	pool, err := NewMRDPool(t.poolConfig, nil)
+
+	require.Error(t.T(), err)
+	assert.Nil(t.T(), pool)
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	assert.ErrorAs(t.T(), err, &clobberedErr)
 }
 
 func (t *mrdPoolTest) TestNewMRDPool_Error() {
