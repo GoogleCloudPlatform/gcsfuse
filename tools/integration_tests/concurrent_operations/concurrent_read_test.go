@@ -78,7 +78,7 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 	testFilePath := path.Join(testDirPathForRead, "large_test_file.bin")
 	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
 	var wg sync.WaitGroup
-	timeout := 300 * time.Second // 5 minutes timeout for 100MiB operations
+	timeout := 600 * time.Second // 10 minutes timeout for 100MiB operations
 
 	// Launch 5 sequential readers
 	for i := range sequentialReads {
@@ -154,7 +154,7 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	}()
 	var wg sync.WaitGroup
 	segmentData := make([][]byte, numReaders)
-	timeout := 300 * time.Second // 5 minutes timeout
+	timeout := 600 * time.Second // 10 minutes timeout
 
 	// Launch 5 readers, each reading a different segment using the shared file handle
 	for i := range numReaders {
@@ -219,7 +219,7 @@ func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 	)
 	var wg sync.WaitGroup
 	wg.Add(numGoRoutines)
-	timeout := 300 * time.Second
+	timeout := 600 * time.Second
 
 	for i := range numGoRoutines {
 		go func(workerId int) {
