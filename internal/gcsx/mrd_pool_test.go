@@ -55,6 +55,7 @@ func (t *mrdPoolTest) TestNewMRDPool_SmallFile() {
 	t.object.Size = 100 * MiB
 	t.poolConfig.PoolSize = 4
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	// Two MRD instances will be created for [100MB to 500MB) files.
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Times(2)
 
 	pool, err := NewMRDPool(t.poolConfig, nil)
