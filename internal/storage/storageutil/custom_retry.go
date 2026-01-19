@@ -17,7 +17,6 @@ package storageutil
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -26,8 +25,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-const networkUnreachableError = "network is unreachable"
 
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
@@ -61,13 +58,6 @@ func ShouldRetry(err error) (b bool) {
 			return
 		}
 	}
-
-	if err != nil && strings.Contains(err.Error(), networkUnreachableError) {
-		b = true
-		logger.Warnf("Retrying for 'network is unreachable' error: %v", err)
-		return
-	}
-
 	return
 }
 
