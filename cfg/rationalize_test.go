@@ -765,8 +765,8 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 			name: "valid_config_metadata_prefetch_count_set_to_-1",
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
-					ExperimentalMetadataPrefetchLimit: -1,
-					ExperimentalMaxParallelPrefetches: 5,
+					MetadataPrefetchEntriesLimit: -1,
+					MetadataPrefetchMaxWorkers:   5,
 				},
 			},
 			expectedMetadataPrefetchCount:        math.MaxInt64,
@@ -776,8 +776,8 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 			name: "valid_config_concurrent_prefetches_set_to_-1",
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
-					ExperimentalMetadataPrefetchLimit: 8,
-					ExperimentalMaxParallelPrefetches: -1,
+					MetadataPrefetchEntriesLimit: 8,
+					MetadataPrefetchMaxWorkers:   -1,
 				},
 			},
 			expectedMetadataPrefetchCount:        8,
@@ -790,8 +790,8 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
-				assert.Equal(t, tc.expectedConcurrentMetadataPrefetches, tc.config.MetadataCache.ExperimentalMaxParallelPrefetches)
-				assert.Equal(t, tc.expectedMetadataPrefetchCount, tc.config.MetadataCache.ExperimentalMetadataPrefetchLimit)
+				assert.Equal(t, tc.expectedConcurrentMetadataPrefetches, tc.config.MetadataCache.MetadataPrefetchMaxWorkers)
+				assert.Equal(t, tc.expectedMetadataPrefetchCount, tc.config.MetadataCache.MetadataPrefetchEntriesLimit)
 			}
 		})
 	}

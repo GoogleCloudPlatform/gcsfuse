@@ -170,12 +170,12 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 	}
 
 	// Validate prefetch configs.
-	if c.ExperimentalMaxParallelPrefetches < -1 {
-		return fmt.Errorf("invalid value of metadata-cache.experimental-max-parallel-prefetches: %d; should be >=0 or -1 (for infinite)", c.ExperimentalMaxParallelPrefetches)
+	if c.MetadataPrefetchMaxWorkers < -1 {
+		return fmt.Errorf("invalid value of metadata-cache.metadata-prefetch-max-workers: %d; should be >=0 or -1 (for infinite)", c.MetadataPrefetchMaxWorkers)
 	}
 
-	if c.ExperimentalMetadataPrefetchLimit < -1 {
-		return fmt.Errorf("invalid value of metadata-cache.experimental-metadata-prefetch-limit: %d; should be >=0 or -1 (for infinite)", c.ExperimentalMetadataPrefetchLimit)
+	if c.MetadataPrefetchEntriesLimit < -1 {
+		return fmt.Errorf("invalid value of metadata-cache.experimental-metadata-prefetch-limit: %d; should be >=0 or -1 (for infinite)", c.MetadataPrefetchEntriesLimit)
 	}
 
 	return nil

@@ -65,12 +65,12 @@ func resolveMetadataCacheConfig(v isSet, c *MetadataCacheConfig, optimizedFlags 
 		c.TtlSecs = maxSupportedTTLInSeconds
 	}
 
-	if c.ExperimentalMaxParallelPrefetches == -1 {
-		c.ExperimentalMaxParallelPrefetches = math.MaxInt64
+	if c.MetadataPrefetchMaxWorkers == -1 {
+		c.MetadataPrefetchMaxWorkers = math.MaxInt64
 	}
 
-	if c.ExperimentalMetadataPrefetchLimit == -1 {
-		c.ExperimentalMetadataPrefetchLimit = math.MaxInt64
+	if c.MetadataPrefetchEntriesLimit == -1 {
+		c.MetadataPrefetchEntriesLimit = math.MaxInt64
 	}
 }
 

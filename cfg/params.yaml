@@ -846,6 +846,16 @@ params:
       This flag has been deprecated (starting v2.0) in favor of
       metadata-cache-ttl-secs.
 
+  - config-path: "metadata-cache.enable-metadata-prefetch"
+    flag-name: "enable-metadata-prefetch"
+    type: "bool"
+    usage: >-
+      Enables background prefetching of object metadata when a directory is first opened. 
+      This reduces latency for subsequent file lookups by pre-filling the metadata cache.
+    default: false
+    deprecated: false
+    hide-flag: true
+
   - config-path: "metadata-cache.enable-nonexistent-type-cache"
     flag-name: "enable-nonexistent-type-cache"
     type: "bool"
@@ -856,37 +866,6 @@ params:
       is set, then if we create the same file/node in the meantime using the same
       mount, since we are not refreshing the cache, it will still return nil.
     default: false
-
-  - config-path: "metadata-cache.experimental-dir-metadata-prefetch"
-    flag-name: "experimental-dir-metadata-prefetch"
-    type: "bool"
-    usage: >-
-      Enables background prefetching of object metadata when a directory is first opened. 
-      This reduces latency for subsequent file lookups by pre-filling the metadata cache.
-    default: false
-    deprecated: false
-    hide-flag: true
-
-  - config-path: "metadata-cache.experimental-max-parallel-prefetches"
-    flag-name: "experimental-max-parallel-prefetches"
-    type: "int"
-    usage: >
-      Experimental: The maximum number of concurrent metadata prefetches that can
-      be active at any given time.
-    default: "10"
-    deprecated: false
-    hide-flag: true
-
-  - config-path: "metadata-cache.experimental-metadata-prefetch-limit"
-    flag-name: "experimental-metadata-prefetch-limit"
-    type: "int"
-    usage: >
-      Experimental: The maximum number of entries to prefetch per metadata prefetch worker. 
-      One GCS List object call can return up to 5000 entries. Configuring a value 
-      higher than that will lead to multiple list object calls per worker.
-    default: "5000"
-    deprecated: false
-    hide-flag: true
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
     flag-name: "experimental-metadata-prefetch-on-mount"
@@ -900,6 +879,28 @@ params:
     default: "disabled"
     deprecated: true
     deprecation-warning: "Experimental flag: could be removed even in a minor release."
+
+  - config-path: "metadata-cache.metadata-prefetch-entries-limit"
+    flag-name: "metadata-prefetch-entries-limit"
+    type: "int"
+    usage: >
+      The maximum number of metadata entries (files and directories) to prefetch 
+      into the cache upon a prefetch trigger. Since a single GCS List call is capped
+      at 5000 results, values higher than 5000 will trigger multiple sequential GCS 
+      List calls per directory.
+    default: "5000"
+    deprecated: false
+    hide-flag: true
+
+  - config-path: "metadata-cache.metadata-prefetch-max-workers"
+    flag-name: "metadata-prefetch-max-workers"
+    type: "int"
+    usage: >
+      The maximum number of concurrent goroutines (workers) allowed to perform 
+      metadata prefetching across all directories.
+    default: "10"
+    deprecated: false
+    hide-flag: true
 
   - config-path: "metadata-cache.negative-ttl-secs"
     flag-name: "metadata-cache-negative-ttl-secs"

@@ -545,7 +545,7 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			config: &Config{
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				MetadataCache: MetadataCacheConfig{
-					ExperimentalMaxParallelPrefetches: -4,
+					MetadataPrefetchMaxWorkers: -4,
 				},
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
@@ -557,7 +557,7 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			config: &Config{
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				MetadataCache: MetadataCacheConfig{
-					ExperimentalMetadataPrefetchLimit: -2,
+					MetadataPrefetchEntriesLimit: -2,
 				},
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
