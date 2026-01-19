@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path"
@@ -31,7 +32,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -203,6 +203,7 @@ type dirInode struct {
 	bucket     *gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
+	prefetcher *MetadataPrefetcher
 
 	/////////////////////////
 	// Constant data
@@ -304,6 +305,10 @@ func NewDirInode(
 		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
 	}
+	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
+	// acquiring d.mu only to update the cache.
+	typed.prefetcher = NewMetadataPrefetcher(cfg, typed.readObjectsUnlocked)
+
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
 		cache = metadata.NewTypeCache(cfg.MetadataCache.TypeCacheMaxSizeMb, typeCacheTTL)
@@ -535,7 +540,7 @@ func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
-	// Nothing interesting to do.
+	d.prefetcher.Cancel()
 	return
 }
 
@@ -621,6 +626,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
+		// Entry not present in cache.
+		// Trigger prefetcher
+		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
+
 		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
 			group.Go(lookUpHNSDir)
@@ -704,9 +713,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 }
 
 // Helper function to handle the common listing logic and GCS request preparation.
-func (d *dirInode) listObjectsAndBuildCores(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, maxListCallResults int, listStartOffset string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
 	includeTrailingDelimeter := true // Important for flat bucket to list explicit directory.
 	if d.isBucketHierarchical() {
@@ -721,11 +728,12 @@ func (d *dirInode) listObjectsAndBuildCores(
 		IncludeTrailingDelimiter: includeTrailingDelimeter,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
-		MaxResults:               MaxResultsForListObjectsCall,
+		MaxResults:               maxListCallResults,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
 		ProjectionVal:            gcs.NoAcl,
 		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+		StartOffset:              listStartOffset,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -841,7 +849,7 @@ func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
-	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, MaxResultsForListObjectsCall, "")
 	if err == nil {
 		d.insertToCache(cores)
 	}
@@ -850,11 +858,8 @@ func (d *dirInode) readObjects(
 
 // LOCK_EXCLUDED(d)
 // readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
-func (d *dirInode) readObjectsUnlocked(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
-
-	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok)
+func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOffset string, maxListCallResults int) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, maxListCallResults, startOffset)
 	if err != nil {
 		return
 	}

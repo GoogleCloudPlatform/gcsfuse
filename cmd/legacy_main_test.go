@@ -492,34 +492,3 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		assert.NotContains(t.T(), unexpectedForwardedEnvVars, name, "unexpected env var %q was forwarded", name)
 	}
 }
-
-func (t *MainTest) TestGetDeviceMajorMinor() {
-	testCases := []struct {
-		name        string
-		mountPoint  string
-		expectedErr bool
-	}{
-		{
-			name:        "Existing mount point",
-			mountPoint:  "/tmp",
-			expectedErr: false,
-		},
-		{
-			name:        "Non-existing mount point",
-			mountPoint:  "/path/to/non/existing/mountpoint",
-			expectedErr: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.T().Run(tc.name, func(t *testing.T) {
-			_, _, err := getDeviceMajorMinor(tc.mountPoint)
-
-			if tc.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}

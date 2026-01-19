@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -38,7 +39,7 @@ type MrdSimpleReaderTest struct {
 	bucket      *storage.TestifyMockBucket
 	cache       *lru.Cache
 	inodeID     fuseops.InodeID
-	mrdConfig   cfg.MrdConfig
+	config      *cfg.Config
 	mrdInstance *MrdInstance
 	reader      *MrdSimpleReader
 }
@@ -56,10 +57,10 @@ func (t *MrdSimpleReaderTest) SetupTest() {
 	t.bucket = new(storage.TestifyMockBucket)
 	t.cache = lru.NewCache(2)
 	t.inodeID = 100
-	t.mrdConfig = cfg.MrdConfig{PoolSize: 1}
+	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 
-	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.mrdConfig)
-	t.reader = NewMrdSimpleReader(t.mrdInstance)
+	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
+	t.reader = NewMrdSimpleReader(t.mrdInstance, metrics.NewNoopMetrics())
 }
 
 func (t *MrdSimpleReaderTest) TestNewMrdSimpleReader() {

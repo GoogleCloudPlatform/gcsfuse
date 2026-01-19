@@ -17,15 +17,18 @@ package tracing
 import (
 	"context"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-type otelTracer struct{}
+type otelTracer struct {
+	tracer trace.Tracer
+}
 
 func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
-	return GCSFuseTracer().Start(ctx, traceName)
+	return o.tracer.Start(ctx, traceName)
 }
 
 func (o *otelTracer) StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
@@ -37,11 +40,11 @@ func (o *otelTracer) StartSpanLink(ctx context.Context, traceName string) (conte
 			attribute.Int64("gcp.cloud_trace.link_type", 1),
 		},
 	}))
-	return GCSFuseTracer().Start(ctx, traceName, traceOpts...)
+	return o.tracer.Start(ctx, traceName, traceOpts...)
 }
 
 func (o *otelTracer) StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
-	return GCSFuseTracer().Start(ctx, traceName, trace.WithSpanKind(trace.SpanKindServer))
+	return o.tracer.Start(ctx, traceName, trace.WithSpanKind(trace.SpanKindServer))
 }
 
 func (o *otelTracer) EndSpan(span trace.Span) {
@@ -61,6 +64,7 @@ func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, by
 }
 
 func NewOTELTracer() TraceHandle {
-	var o otelTracer
-	return &o
+	return &otelTracer{
+		tracer: otel.Tracer(name),
+	}
 }

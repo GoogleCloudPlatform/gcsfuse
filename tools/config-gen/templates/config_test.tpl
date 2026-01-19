@@ -46,7 +46,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"{{$flag.FlagName}}": true,
+						"{{$flag.ConfigPath}}": true,
 						"machine-type":       true,
 					},
 					{{- if .Optimizations.MachineBasedOptimization }}
@@ -230,4 +230,3 @@ func TestApplyOptimizations(t *testing.T) {
 {{- end }}
 {{- end }}
 }
-

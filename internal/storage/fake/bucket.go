@@ -580,6 +580,9 @@ func (b *bucket) ListObjects(
 
 	// Find the range of indexes within the array to scan.
 	indexStart := b.objects.lowerBound(nameStart)
+	if req.StartOffset != "" {
+		indexStart = max(indexStart, b.objects.lowerBound(req.StartOffset))
+	}
 	prefixLimit := b.objects.prefixUpperBound(req.Prefix)
 	indexLimit := minInt(indexStart+maxResults, prefixLimit)
 

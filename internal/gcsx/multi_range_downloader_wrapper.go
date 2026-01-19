@@ -80,6 +80,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObjec
 	if minObj == nil {
 		return fmt.Errorf("MultiRangeDownloaderWrapper::SetMinObject: Missing MinObject")
 	}
+	mrdWrapper.mu.Lock()
+	defer mrdWrapper.mu.Unlock()
 	mrdWrapper.object = minObj
 	return nil
 }
@@ -93,6 +95,8 @@ func wrapperKey(wrapper *MultiRangeDownloaderWrapper) string {
 
 // GetMinObject returns the minObject stored in MultiRangeDownloaderWrapper. Used only for unit testing.
 func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject {
+	mrdWrapper.mu.RLock()
+	defer mrdWrapper.mu.RUnlock()
 	return mrdWrapper.object
 }
 

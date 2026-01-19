@@ -83,7 +83,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 	}
 
 	profileName := c.Profile
-	machineType, err := getMachineType(isSet, c)
+	machineType, err := getMachineType(isSet)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
 		machineType = ""
@@ -93,7 +93,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 	// Apply optimizations for each flag that has rules defined.
 {{- range .FlagTemplateData }}
 {{- if .Optimizations }}
-	if !isSet.IsSet("{{ .FlagName }}") {
+	if !isSet.IsSet("{{ .ConfigPath }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
 		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
