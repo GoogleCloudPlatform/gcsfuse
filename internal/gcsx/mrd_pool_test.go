@@ -55,13 +55,14 @@ func (t *mrdPoolTest) TestNewMRDPool_SmallFile() {
 	t.object.Size = 100 * MiB
 	t.poolConfig.PoolSize = 4
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	// Two MRD instances will be created for [100MB to 500MB) files.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Times(2)
 
 	pool, err := NewMRDPool(t.poolConfig, nil)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 1, pool.poolConfig.PoolSize)
-	assert.Len(t.T(), pool.entries, 1)
+	assert.Equal(t.T(), 2, pool.poolConfig.PoolSize)
+	assert.Len(t.T(), pool.entries, 2)
 	assert.NotNil(t.T(), pool.entries[0].mrd)
 }
 
@@ -140,20 +141,38 @@ func (t *mrdPoolTest) TestDeterminePoolSize() {
 		expectedPoolSize int
 	}{
 		{
-			name:             "SmallFile",
-			objectSize:       100 * MiB,
+			name:             "SmallFile_BelowThreshold",
+			objectSize:       50 * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 1,
 		},
 		{
-			name:             "LargeFile",
-			objectSize:       1000 * MiB,
+			name:             "SmallFile_AtThreshold",
+			objectSize:       smallFileThresholdMiB * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 2,
+		},
+		{
+			name:             "MediumFile_BetweenThresholds",
+			objectSize:       300 * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 2,
+		},
+		{
+			name:             "MediumFile_JustBelowThreshold",
+			objectSize:       (mediumFileThresholdMiB - 1) * MiB,
+			initialPoolSize:  4,
+			expectedPoolSize: 2,
+		},
+		{
+			name:             "LargeFile_AtThreshold",
+			objectSize:       mediumFileThresholdMiB * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 4,
 		},
 		{
-			name:             "ThresholdFile",
-			objectSize:       smallFileThresholdMiB * MiB,
+			name:             "LargeFile_AboveThreshold",
+			objectSize:       2048 * MiB,
 			initialPoolSize:  4,
 			expectedPoolSize: 4,
 		},
