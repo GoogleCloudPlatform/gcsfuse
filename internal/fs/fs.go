@@ -220,6 +220,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		isTracingEnabled:           cfg.IsTracingEnabled(serverCfg.NewConfig),
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
+		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
 	}
 
 	// Initialize MRD cache if enabled
@@ -355,6 +356,7 @@ func makeRootForBucket(
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
+		fs.globalMetadataPrefetchSem,
 		fs.newConfig,
 	)
 }
@@ -588,6 +590,10 @@ type fileSystem struct {
 	// that can be allocated for buffered read across all file-handles in the file system.
 	// This helps control the overall memory usage for buffered reads.
 	globalMaxReadBlocksSem *semaphore.Weighted
+
+	// Limits the max number of metadata prefetch background workers across file system when
+	// metadata prefetching is enabled.
+	globalMetadataPrefetchSem *semaphore.Weighted
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
@@ -837,6 +843,7 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		ic.Bucket,
 		fs.mtimeClock,
 		fs.cacheClock,
+		fs.globalMetadataPrefetchSem,
 		fs.newConfig)
 
 	return in
@@ -878,6 +885,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
+			fs.globalMetadataPrefetchSem,
 			fs.newConfig,
 		)
 

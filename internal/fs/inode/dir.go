@@ -33,6 +33,7 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 // ListObjects call supports fetching upto 5000 results when projection is noAcl
@@ -283,6 +284,7 @@ func NewDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
+	prefetchSem *semaphore.Weighted,
 	cfg *cfg.Config,
 ) (d DirInode) {
 
@@ -307,7 +309,7 @@ func NewDirInode(
 	}
 	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
 	// acquiring d.mu only to update the cache.
-	typed.prefetcher = NewMetadataPrefetcher(cfg, typed.readObjectsUnlocked)
+	typed.prefetcher = NewMetadataPrefetcher(cfg, prefetchSem, typed.readObjectsUnlocked)
 
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {

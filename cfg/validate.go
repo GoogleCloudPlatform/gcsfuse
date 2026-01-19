@@ -175,7 +175,7 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 	}
 
 	if c.MetadataPrefetchEntriesLimit < -1 {
-		return fmt.Errorf("invalid value of metadata-cache.experimental-metadata-prefetch-limit: %d; should be >=0 or -1 (for infinite)", c.MetadataPrefetchEntriesLimit)
+		return fmt.Errorf("invalid value of metadata-cache.metadata-prefetch-entries-limit: %d; should be >=0 or -1 (for infinite)", c.MetadataPrefetchEntriesLimit)
 	}
 
 	return nil

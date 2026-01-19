@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
 
 	"golang.org/x/net/context"
 
@@ -113,6 +114,7 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
+		semaphore.NewWeighted(10),
 		config,
 	)
 
@@ -152,6 +154,7 @@ func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
+		semaphore.NewWeighted(10),
 		config,
 	)
 }
@@ -775,6 +778,7 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 				&t.bucket,
 				&t.fixedTime,
 				&t.fixedTime,
+				semaphore.NewWeighted(10),
 				config,
 			)
 			dirName := path.Join(dirInodeName, tc.name) + "/"
