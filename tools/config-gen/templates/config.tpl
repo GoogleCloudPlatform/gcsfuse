@@ -63,7 +63,7 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+func (c *Config) ApplyOptimizations(isSet IsValueSet) map[string]OptimizationResult {
 	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
@@ -71,7 +71,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 
 	profileName := c.Profile
-	machineType, err := getMachineType(isSet, c)
+	machineType, err := getMachineType(isSet)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
 		machineType = ""
@@ -81,7 +81,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	// Apply optimizations for each flag that has rules defined.
 {{- range .FlagTemplateData }}
 {{- if .Optimizations }}
-	if !isSet.IsSet("{{ .FlagName }}") {
+	if !isSet.IsSet("{{ .ConfigPath }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
 		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {

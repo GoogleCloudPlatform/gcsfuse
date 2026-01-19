@@ -199,7 +199,7 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+func (c *Config) ApplyOptimizations(isSet IsValueSet) map[string]OptimizationResult {
 	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
@@ -207,7 +207,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 
 	profileName := c.Profile
-	machineType, err := getMachineType(isSet, c)
+	machineType, err := getMachineType(isSet)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
 		machineType = ""
@@ -215,7 +215,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
-	if !isSet.IsSet("file-cache-cache-file-for-range-read") {
+	if !isSet.IsSet("file-cache.cache-file-for-range-read") {
 		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
 		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
@@ -239,7 +239,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("kernel-list-cache-ttl-secs") {
+	if !isSet.IsSet("file-system.kernel-list-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
 		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
@@ -251,7 +251,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
+	if !isSet.IsSet("metadata-cache.negative-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
 		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
@@ -263,7 +263,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("metadata-cache-ttl-secs") {
+	if !isSet.IsSet("metadata-cache.ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
 		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
@@ -275,7 +275,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("rename-dir-limit") {
+	if !isSet.IsSet("file-system.rename-dir-limit") {
 		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
 		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
@@ -287,7 +287,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("stat-cache-max-size-mb") {
+	if !isSet.IsSet("metadata-cache.stat-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
 		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
@@ -299,7 +299,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("type-cache-max-size-mb") {
+	if !isSet.IsSet("metadata-cache.type-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
 		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
@@ -311,7 +311,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("write-global-max-blocks") {
+	if !isSet.IsSet("write.global-max-blocks") {
 		rules := AllFlagOptimizationRules["write.global-max-blocks"]
 		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {

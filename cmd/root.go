@@ -45,39 +45,12 @@ type mountInfo struct {
 	// optimizedFlags contains the flags that were optimized
 	// based on either machine-type or profile.
 	optimizedFlags map[string]any
+	// isUserSet is used to check if a flag was explicitly set by the user.
+	// This is needed for bucket-type-based optimizations.
+	isUserSet cfg.IsValueSet
 }
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
-
-// pflagAsIsValueSet is an adapter that makes a pflag.FlagSet satisfy the
-// cfg.isValueSet interface, allowing us to check for user-set flags reliably.
-type pflagAsIsValueSet struct {
-	fs *pflag.FlagSet
-}
-
-// IsSet correctly checks if a flag was set by the user on the command line.
-func (p *pflagAsIsValueSet) IsSet(name string) bool {
-	// The pflag.Changed method is the reliable way to check this.
-	return p.fs.Changed(name)
-}
-
-// GetString is required to satisfy the interface used by getMachineType.
-func (p *pflagAsIsValueSet) GetString(name string) string {
-	val, err := p.fs.GetString(name)
-	if err != nil {
-		return ""
-	}
-	return val
-}
-
-// GetBool is required to satisfy the interface.
-func (p *pflagAsIsValueSet) GetBool(name string) bool {
-	val, err := p.fs.GetBool(name)
-	if err != nil {
-		return false
-	}
-	return val
-}
 
 // getCliFlags returns the cli flags set by the user in map[string]string format.
 func getCliFlags(flagSet *pflag.FlagSet) map[string]string {
@@ -116,9 +89,9 @@ func getConfigFileFlags(v *viper.Viper) map[string]any {
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
 func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
-		mountInfo mountInfo
-		cfgFile   string
-		v         = viper.New()
+		mountInfo   mountInfo
+		cfgFile     string
+		viperConfig = viper.New()
 	)
 	mountInfo.config = &cfg.Config{}
 	rootCmd := &cobra.Command{
@@ -136,14 +109,14 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				if err != nil {
 					return fmt.Errorf("error while resolving config-file path[%s]: %w", cfgFile, err)
 				}
-				v.SetConfigFile(resolvedCfgFile)
-				v.SetConfigType("yaml")
-				if err := v.ReadInConfig(); err != nil {
+				viperConfig.SetConfigFile(resolvedCfgFile)
+				viperConfig.SetConfigType("yaml")
+				if err := viperConfig.ReadInConfig(); err != nil {
 					return fmt.Errorf("error while reading the config: %w", err)
 				}
 			}
 
-			if err := v.Unmarshal(mountInfo.config, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+			if err := viperConfig.Unmarshal(mountInfo.config, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 				// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 				decoderConfig.TagName = "yaml"
 				// Reject the config file if any of the fields in the YAML don't map to the struct.
@@ -152,21 +125,21 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			); err != nil {
 				return fmt.Errorf("error while unmarshalling config: %w", err)
 			}
-			if err := cfg.ValidateConfig(v, mountInfo.config); err != nil {
+			if err := cfg.ValidateConfig(viperConfig, mountInfo.config); err != nil {
 				return fmt.Errorf("invalid config: %w", err)
 			}
 
-			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
-			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
+			mountInfo.isUserSet = viperConfig
+			optimizedFlags := mountInfo.config.ApplyOptimizations(viperConfig)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			for k := range optimizedFlags {
 				optimizedFlagNames = append(optimizedFlagNames, k)
 			}
-			if err := cfg.Rationalize(v, mountInfo.config, optimizedFlagNames); err != nil {
+			if err := cfg.Rationalize(viperConfig, mountInfo.config, optimizedFlagNames); err != nil {
 				return fmt.Errorf("error rationalizing config: %w", err)
 			}
 			mountInfo.cliFlags = getCliFlags(cmd.PersistentFlags())
-			mountInfo.configFileFlags = getConfigFileFlags(v)
+			mountInfo.configFileFlags = getConfigFileFlags(viperConfig)
 			optimizedFlagsAsHierarchicalMap, err := cfg.CreateHierarchicalOptimizedFlags(optimizedFlags)
 			if err != nil {
 				logger.Errorf("GCSFuse Config: error creating hierarchical map for optimized flags: %v", err)
@@ -194,7 +167,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 	if err := cfg.BuildFlagSet(rootCmd.PersistentFlags()); err != nil {
 		return nil, fmt.Errorf("error while declaring flags: %w", err)
 	}
-	if err := cfg.BindFlags(v, rootCmd.PersistentFlags()); err != nil {
+	if err := cfg.BindFlags(viperConfig, rootCmd.PersistentFlags()); err != nil {
 		return nil, fmt.Errorf("error while binding flags: %w", err)
 	}
 	return rootCmd, nil
