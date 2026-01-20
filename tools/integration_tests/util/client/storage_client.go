@@ -32,10 +32,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"golang.org/x/oauth2"
@@ -45,6 +46,25 @@ import (
 	"google.golang.org/api/option"
 	storagev1 "google.golang.org/api/storage/v1"
 )
+
+const maxStorageClientRetryAttempts = 10
+const networkUnreachableError = "network is unreachable"
+
+func ShouldRetryForTest(err error) (b bool) {
+	b = storageutil.ShouldRetry(err)
+	if b {
+		log.Printf("Retrying for the error: %v", err)
+		return
+	}
+
+	// Convert err.Error() to lowercase to make the check case-insensitive
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), networkUnreachableError) {
+		b = true
+		log.Printf("Retrying for 'network is unreachable' error: %v", err)
+		return
+	}
+	return
+}
 
 func CreateHttp1StorageClient(ctx context.Context) (*storage.Client, error) {
 	defaultTokenSrc, err := google.DefaultTokenSource(ctx, storagev1.DevstorageFullControlScope)
@@ -98,8 +118,8 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 			Multiplier: 2,
 		}),
 		storage.WithPolicy(storage.RetryAlways),
-		storage.WithErrorFunc(storageutil.ShouldRetry),
-		storage.WithMaxAttempts(5))
+		storage.WithErrorFunc(ShouldRetryForTest),
+		storage.WithMaxAttempts(maxStorageClientRetryAttempts))
 	return client, nil
 }
 
