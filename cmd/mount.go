@@ -106,6 +106,7 @@ be interacting with the file system.`)
 		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,
 		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
 		DummyIOCfg:                         newConfig.DummyIo,
+		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 

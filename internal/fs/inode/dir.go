@@ -352,7 +352,7 @@ func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, erro
 	}
 
 	if d.implicitDirs {
-		return findDirInode(ctx, d.Bucket(), childName)
+		return findDirInode(ctx, d.Bucket(), childName, d.isEnableTypeCacheDeprecation)
 	}
 	return findExplicitInode(ctx, d.Bucket(), childName, false)
 }
@@ -449,14 +449,15 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
-func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, isTypeCacheDeprecated bool) (*Core, error) {
 	if !name.IsDir() {
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
 
 	req := &gcs.ListObjectsRequest{
-		Prefix:     name.GcsObjectName(),
-		MaxResults: 1,
+		Prefix:                name.GcsObjectName(),
+		MaxResults:            1,
+		IsTypeCacheDeprecated: isTypeCacheDeprecated,
 	}
 	listing, err := bucket.ListObjects(ctx, req)
 	if err != nil {
@@ -608,7 +609,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return
 	}
 	lookUpImplicitOrExplicitDir := func() (err error) {
-		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name), d.isEnableTypeCacheDeprecation)
 		return
 	}
 	lookUpHNSDir := func() (err error) {
@@ -730,10 +731,11 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 	descendants := make(map[Name]*Core)
 	for {
 		listing, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
-			Delimiter:         "", // recursively
-			Prefix:            d.Name().GcsObjectName(),
-			ContinuationToken: tok,
-			MaxResults:        limit + 1, // to exclude itself
+			Delimiter:             "", // recursively
+			Prefix:                d.Name().GcsObjectName(),
+			ContinuationToken:     tok,
+			MaxResults:            limit + 1, // to exclude itself
+			IsTypeCacheDeprecated: d.isEnableTypeCacheDeprecation,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("list objects: %w", err)
@@ -1259,6 +1261,7 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 			Delimiter:                "/", // Use Delimiter to separate nested folders (CollapsedRuns)
 			ContinuationToken:        tok,
 			IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+			IsTypeCacheDeprecated:    d.isEnableTypeCacheDeprecation,
 		})
 		if err != nil {
 			return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
