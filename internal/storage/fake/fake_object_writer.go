@@ -36,6 +36,7 @@ type FakeObjectWriter struct {
 	bkt    *bucket
 	req    *gcs.CreateObjectRequest
 	Object *gcs.MinObject // Object created by writer
+	append bool
 }
 
 func (w *FakeObjectWriter) Write(p []byte) (n int, err error) {
@@ -55,7 +56,7 @@ func (w *FakeObjectWriter) Close() error {
 		return err
 	}
 
-	o, err := createOrUpdateFakeObject(w.bkt, w.req, contents)
+	o, err := createOrUpdateFakeObject(w.bkt, w.req, contents, w.append)
 	if err == nil {
 		w.Object = storageutil.ConvertObjToMinObject(o)
 	}
@@ -78,7 +79,7 @@ func (w *FakeObjectWriter) Attrs() *storage.ObjectAttrs {
 	return &w.ObjectAttrs
 }
 
-func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest) (w gcs.Writer, err error) {
+func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest, append bool) (w gcs.Writer, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
 	if err != nil {
@@ -92,6 +93,7 @@ func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest) (w gcs.Writer,
 		ObjectAttrs: storage.ObjectAttrs{
 			Name: req.Name,
 		},
+		append: append,
 	}
 	wr.ContentType = req.ContentType
 
