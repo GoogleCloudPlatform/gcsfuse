@@ -344,9 +344,9 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
 	// 2. Immediate Run: Should NOT trigger another prefetch because the
 	// TTL has not passed since the last run.
 	p.Run("dir/obj2")
-	assert.Eventually(t.T(), func() bool {
-		return listCallCtr.Load() == 1
-	}, 200*time.Millisecond, 10*time.Millisecond)
+	// Wait to ensure no new prefetch is triggered.
+	time.Sleep(20 * time.Millisecond)
+	assert.Equal(t.T(), int32(1), listCallCtr.Load())
 
 	// 3. Run after TTL expiry: Should trigger a new prefetch.
 	t.clock.AdvanceTime(60 * time.Second)
@@ -363,13 +363,15 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
 		MetadataCache: cfg.MetadataCacheConfig{
 			EnableMetadataPrefetch: true,
 			StatCacheMaxSizeMb:     0,
+			TtlSecs:                60,
 		},
 	}
 	p := NewMetadataPrefetcher(config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
 
 	p.Run("dir/obj1")
 
-	assert.Eventually(t.T(), func() bool {
-		return listCallCtr.Load() == 0
-	}, 50*time.Millisecond, 10*time.Millisecond)
+	// Allow some time for any potential background work to start.
+	time.Sleep(20 * time.Millisecond)
+	// Assert that no list calls were made because stat cache size is 0.
+	assert.Equal(t.T(), int32(0), listCallCtr.Load())
 }
