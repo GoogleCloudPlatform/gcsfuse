@@ -826,6 +826,7 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_File() {
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
+		semaphore.NewWeighted(10),
 		config,
 	)
 	t.in.Lock()
@@ -874,6 +875,7 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_Folder() {
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
+		semaphore.NewWeighted(10),
 		config,
 	)
 	t.in.Lock()
@@ -920,6 +922,7 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
+		semaphore.NewWeighted(10),
 		config,
 	)
 	t.in.Lock()
@@ -990,6 +993,7 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
+		semaphore.NewWeighted(10),
 		config,
 	)
 	t.in.Lock()

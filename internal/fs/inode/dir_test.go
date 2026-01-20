@@ -2186,6 +2186,7 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
 		&syncerBucket,
 		&t.clock,
 		&t.clock,
+		semaphore.NewWeighted(10),
 		config,
 	)
 	const name = "file"
@@ -2250,6 +2251,7 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 		&syncerBucket,
 		&t.clock,
 		&t.clock,
+		semaphore.NewWeighted(10),
 		config,
 	)
 	const name = "file"
