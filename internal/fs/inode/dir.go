@@ -600,6 +600,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	var fileResult *Core
 	var dirResult *Core
+	var err error
+	var result *Core
 	lookUpFile := func() (err error) {
 		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 		return
@@ -619,8 +621,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	var cachedType metadata.Type
 	var cacheMissErr *caching.CacheMissError
-	var err error
-	var result *Core
 	if d.IsTypeCacheDeprecated() {
 		if d.metadataCacheTtlSecs != 0 {
 			fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
@@ -696,7 +696,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 	}
 
-	if err := group.Wait(); err != nil {
+	if err = group.Wait(); err != nil {
 		return nil, err
 	}
 

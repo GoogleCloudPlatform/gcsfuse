@@ -27,11 +27,14 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
@@ -2156,4 +2159,123 @@ func (t *DirTest) Test_IsTypeCacheDeprecated_true() {
 	dInode := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 
 	assert.True(t.T(), dInode.IsTypeCacheDeprecated())
+}
+
+func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
+	mockBucket := new(storagemock.TestifyMockBucket)
+	mockBucket.On("BucketType").Return(gcs.BucketType{})
+	syncerBucket := gcsx.NewSyncerBucket(1, ChunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
+	config := &cfg.Config{
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs:            60,
+			TypeCacheMaxSizeMb: 4,
+		},
+		EnableTypeCacheDeprecation: true,
+	}
+	in := NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		false, // implicitDirs
+		false, // enableNonexistentTypeCache
+		typeCacheTTL,
+		&syncerBucket,
+		&t.clock,
+		&t.clock,
+		config,
+	)
+	const name = "file"
+	objName := path.Join(dirInodeName, name)
+	dirObjName := objName + "/"
+	cacheMissErr := &caching.CacheMissError{}
+	// Expect cache lookup for file -> CacheMiss
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == objName && req.FetchOnlyFromCache == true
+	})).Return(nil, nil, cacheMissErr).Once()
+	// Expect cache lookup for dir -> CacheMiss
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == dirObjName && req.FetchOnlyFromCache == true
+	})).Return(nil, nil, cacheMissErr).Once()
+	// Expect actual lookup for file -> Success
+	minObject := &gcs.MinObject{
+		Name:           objName,
+		Generation:     1,
+		MetaGeneration: 1,
+		Size:           100,
+	}
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == objName && req.FetchOnlyFromCache == false
+	})).Return(minObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
+	// Expect actual lookup for dir -> NotFound
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == dirObjName && req.FetchOnlyFromCache == false
+	})).Return(nil, nil, &gcs.NotFoundError{}).Once()
+
+	in.Lock()
+	entry, err := in.LookUpChild(t.ctx, name)
+	in.Unlock()
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
+	mockBucket.AssertExpectations(t.T())
+}
+
+func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
+	mockBucket := new(storagemock.TestifyMockBucket)
+	mockBucket.On("BucketType").Return(gcs.BucketType{})
+	syncerBucket := gcsx.NewSyncerBucket(1, ChunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
+	config := &cfg.Config{
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs:            60,
+			TypeCacheMaxSizeMb: 4,
+		},
+		EnableTypeCacheDeprecation: true,
+	}
+	in := NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		false, // implicitDirs
+		false, // enableNonexistentTypeCache
+		typeCacheTTL,
+		&syncerBucket,
+		&t.clock,
+		&t.clock,
+		config,
+	)
+	const name = "file"
+	objName := path.Join(dirInodeName, name)
+	dirObjName := objName + "/"
+	// Expect cache lookup for file -> Success
+	minObject := &gcs.MinObject{
+		Name:           objName,
+		Generation:     1,
+		MetaGeneration: 1,
+		Size:           100,
+	}
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == objName && req.FetchOnlyFromCache == true
+	})).Return(minObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
+	// Expect cache lookup for dir -> NotFound (nil, nil)
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == dirObjName && req.FetchOnlyFromCache == true
+	})).Return(nil, nil, &gcs.NotFoundError{}).Once()
+
+	in.Lock()
+	entry, err := in.LookUpChild(t.ctx, name)
+	in.Unlock()
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
+	mockBucket.AssertExpectations(t.T())
 }
