@@ -58,6 +58,12 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+const (
+	profileAimlServing        = "aiml-serving"
+	profileAimlCheckpointing  = "aiml-checkpointing"
+	regionalBucketReadAheadKb = 1024
+)
+
 type ServerConfig struct {
 	// A clock used for cache expiration. It is *not* used for inode times, for
 	// which we use the wall clock.
@@ -271,9 +277,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			})
 			// TODO(b/477149142): Remove this once regional bucket type based optimisations are in-place.
 			if !serverCfg.IsUserSet.IsSet("file-system.max-read-ahead-kb") && !bucketType.Zonal {
-				if serverCfg.NewConfig.Profile == "aiml-serving" || serverCfg.NewConfig.Profile == "aiml-checkpointing" {
+				if serverCfg.NewConfig.Profile == profileAimlServing || serverCfg.NewConfig.Profile == profileAimlCheckpointing {
 					optimizedFlags["file-system.max-read-ahead-kb"] = cfg.OptimizationResult{
-						FinalValue:         1024,
+						FinalValue:         regionalBucketReadAheadKb,
 						OptimizationReason: fmt.Sprintf("bucket-type %q", bucketTypeEnum),
 						Optimized:          true,
 					}
