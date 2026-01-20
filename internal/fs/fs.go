@@ -253,7 +253,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		}
 
 		// TODO(b/475761213): Remove this duplication of optimization and rationalization functions
-		// when this tech debt is addressed.
+		// when the tech debt in bug is addressed.
 
 		// Optimize flags for non-dynamic mounts based on the bucket type.
 		// WHY HERE: The bucket type is required for these optimizations, and this is the
