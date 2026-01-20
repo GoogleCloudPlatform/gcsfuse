@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -56,6 +57,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 		MetadataCache: cfg.MetadataCacheConfig{
 			EnableMetadataPrefetch:       enablePrefetch,
 			TypeCacheMaxSizeMb:           400,
+			StatCacheMaxSizeMb:           400,
 			TtlSecs:                      60,
 			MetadataPrefetchEntriesLimit: 5000,
 		},
@@ -262,9 +264,9 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_ConcurrencyLimit() {
 	limit := int64(2)
 	sem := semaphore.NewWeighted(limit)
 	blockChan := make(chan struct{})
-	p1 := NewMetadataPrefetcher(t.config, sem, blockingListFunc(blockChan))
-	p2 := NewMetadataPrefetcher(t.config, sem, blockingListFunc(blockChan))
-	p3 := NewMetadataPrefetcher(t.config, sem, blockingListFunc(blockChan))
+	p1 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
+	p2 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
+	p3 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
 	// 1. Run two prefetches to fill up the limit.
 	p1.Run("dir1/obj1")
 	p2.Run("dir2/obj2")
@@ -303,13 +305,13 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_RespectsMaxParallelPrefetchesCo
 		<-blockChan
 		return nil, nil, "", nil
 	}
-	p := NewMetadataPrefetcher(t.config, sem, listFunc)
+	p := NewMetadataPrefetcher(t.config, sem, &t.clock, listFunc)
 
 	// Trigger multiple runs on the same prefetcher (simulating different objects in same dir)
 	// and different prefetchers.
 	p.Run("a/1")
 	p.Run("a/2") // Will be skipped by atomic state check anyway
-	p2 := NewMetadataPrefetcher(t.config, sem, listFunc)
+	p2 := NewMetadataPrefetcher(t.config, sem, &t.clock, listFunc)
 	p2.Run("b/1") // Should be skipped by semaphore check
 
 	time.Sleep(10 * time.Millisecond)
@@ -317,4 +319,57 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_RespectsMaxParallelPrefetchesCo
 	assert.Equal(t.T(), 1, callCount, "Expected only 1 concurrent call based on semaphore")
 	mu.Unlock()
 	close(blockChan)
+}
+
+func mockListFuncWithCtr() (*atomic.Int32, func(ctx context.Context, tok string, startOffset string, limit int) (map[Name]*Core, []string, string, error)) {
+	var listCalls atomic.Int32
+	mockListFunc := func(ctx context.Context, tok string, startOffset string, limit int) (map[Name]*Core, []string, string, error) {
+		listCalls.Add(1)
+		return make(map[Name]*Core), nil, "", nil
+	}
+	return &listCalls, mockListFunc
+}
+
+func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
+	listCallCtr, mockListFunc := mockListFuncWithCtr()
+	sem := semaphore.NewWeighted(1)
+	p := NewMetadataPrefetcher(t.config, sem, &t.clock, mockListFunc)
+
+	// 1. Initial Run: Should trigger a prefetch.
+	p.Run("dir/obj1")
+	assert.Eventually(t.T(), func() bool {
+		return listCallCtr.Load() == 1
+	}, 200*time.Millisecond, 10*time.Millisecond)
+
+	// 2. Immediate Run: Should NOT trigger another prefetch because the
+	// TTL has not passed since the last run.
+	p.Run("dir/obj2")
+	assert.Eventually(t.T(), func() bool {
+		return listCallCtr.Load() == 1
+	}, 200*time.Millisecond, 10*time.Millisecond)
+
+	// 3. Run after TTL expiry: Should trigger a new prefetch.
+	t.clock.AdvanceTime(60 * time.Second)
+	p.Run("dir/obj3")
+
+	assert.Eventually(t.T(), func() bool {
+		return listCallCtr.Load() == 2
+	}, 200*time.Millisecond, 10*time.Millisecond)
+}
+
+func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
+	listCallCtr, mockListFunc := mockListFuncWithCtr()
+	config := &cfg.Config{
+		MetadataCache: cfg.MetadataCacheConfig{
+			EnableMetadataPrefetch: true,
+			StatCacheMaxSizeMb:     0,
+		},
+	}
+	p := NewMetadataPrefetcher(config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+
+	p.Run("dir/obj1")
+
+	assert.Eventually(t.T(), func() bool {
+		return listCallCtr.Load() == 0
+	}, 50*time.Millisecond, 10*time.Millisecond)
 }

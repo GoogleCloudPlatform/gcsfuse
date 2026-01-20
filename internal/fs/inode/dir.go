@@ -309,7 +309,7 @@ func NewDirInode(
 	}
 	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
 	// acquiring d.mu only to update the cache.
-	typed.prefetcher = NewMetadataPrefetcher(cfg, prefetchSem, typed.readObjectsUnlocked)
+	typed.prefetcher = NewMetadataPrefetcher(cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked)
 
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
