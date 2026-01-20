@@ -82,7 +82,7 @@ func (mi *MrdInstance) SetMinObject(minObj *gcs.MinObject) error {
 
 	oldObj := mi.object
 	// If generation matches, just update the object (e.g. for size updates) and return.
-	if oldObj != nil && oldObj.Generation == minObj.Generation {
+	if mi.mrdPool == nil || (oldObj != nil && oldObj.Generation == minObj.Generation) {
 		mi.object = minObj
 		return nil
 	}
