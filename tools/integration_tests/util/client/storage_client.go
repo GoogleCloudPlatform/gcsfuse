@@ -57,12 +57,12 @@ func ShouldRetryForTest(err error) (b bool) {
 		return
 	}
 
-	if err != nil && strings.Contains(err.Error(), networkUnreachableError) {
+	// Convert err.Error() to lowercase to make the check case-insensitive
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), networkUnreachableError) {
 		b = true
 		log.Printf("Retrying for 'network is unreachable' error: %v", err)
 		return
 	}
-
 	return
 }
 
