@@ -291,7 +291,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 							delete(optimizedFlags, flag)
 						}
 					}
-					logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
+					if len(optimizedFlags) > 0 {
+						logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
+					}
 				}
 			}
 		} else {
