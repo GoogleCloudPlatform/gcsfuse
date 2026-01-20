@@ -252,6 +252,8 @@ type dirInode struct {
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
+
+	metadataCacheTtlSecs int64
 }
 
 var _ DirInode = &dirInode{}
@@ -307,6 +309,7 @@ func NewDirInode(
 		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
+		metadataCacheTtlSecs:            cfg.MetadataCache.TtlSecs,
 	}
 	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
 	// acquiring d.mu only to update the cache.
@@ -616,20 +619,32 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	var cachedType metadata.Type
 	var cacheMissErr *caching.CacheMissError
 	var err error
+	var result *Core
 	if d.IsTypeCacheDeprecated() {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
-		if err != nil && !errors.As(err, &cacheMissErr) {
-			return nil, err
+		if d.metadataCacheTtlSecs != 0 {
+			fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
+			if err != nil && !errors.As(err, &cacheMissErr) {
+				return nil, err
+			}
+
+			if d.Bucket().BucketType().Hierarchical {
+				dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+			} else {
+				dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+			}
+			if err != nil && !errors.As(err, &cacheMissErr) {
+				return nil, err
+			}
+			if dirResult != nil {
+				result = dirResult
+			} else if fileResult != nil {
+				result = fileResult
+			}
+			if result != nil {
+				return result, nil
+			}
 		}
 
-		if d.Bucket().BucketType().Hierarchical {
-			dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
-		} else {
-			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
-		}
-		if err != nil && !errors.As(err, &cacheMissErr) {
-			return nil, err
-		}
 		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
 
 		group.Go(lookUpFile)
@@ -684,7 +699,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, err
 	}
 
-	var result *Core
 	if dirResult != nil {
 		result = dirResult
 	} else if fileResult != nil {
@@ -771,6 +785,7 @@ func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, max
 		ProjectionVal:            gcs.NoAcl,
 		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
 		StartOffset:              listStartOffset,
+		IsTypeCacheDeprecated:    d.isEnableTypeCacheDeprecation,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
