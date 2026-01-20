@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"golang.org/x/sync/semaphore"
 )
 
 // Constants for the metadata prefetch state.
@@ -42,12 +43,16 @@ type MetadataPrefetcher struct {
 	// If true, we start prefetching from the looked-up object's offset.
 	isLargeDir atomic.Bool
 
+	// sem limits the number of concurrent prefetch goroutines.
+	sem *semaphore.Weighted
+
 	// listCallFunc allows the prefetcher to perform GCS List call and hydrate metadata cache.
 	listCallFunc func(ctx context.Context, tok string, startOffset string, limit int) (map[Name]*Core, []string, string, error)
 }
 
 func NewMetadataPrefetcher(
 	cfg *cfg.Config,
+	prefetchSem *semaphore.Weighted, // Shared semaphore across all MetadataPrefetchers.
 	listFunc func(context.Context, string, string, int) (map[Name]*Core, []string, string, error),
 ) *MetadataPrefetcher {
 	// Initialize a new context for metadata prefetch worker so it can run in background.
@@ -58,6 +63,7 @@ func NewMetadataPrefetcher(
 		ctx:              ctx,
 		cancel:           cancel,
 		maxPrefetchCount: cfg.MetadataCache.MetadataPrefetchEntriesLimit,
+		sem:              prefetchSem,
 		listCallFunc:     listFunc,
 		// state is 0 (prefetchReady) by default.
 	}
@@ -79,6 +85,13 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 	go func() {
 		// Reset to Ready state when the worker finishes.
 		defer p.state.Store(prefetchReady)
+
+		// Try to acquire a semaphore. If the semaphore is full, we skip this prefetch
+		// to avoid queuing stale background work.
+		if !p.sem.TryAcquire(1) {
+			return
+		}
+		defer p.sem.Release(1)
 
 		dirName := path.Dir(fullObjectName)
 		var continuationToken string

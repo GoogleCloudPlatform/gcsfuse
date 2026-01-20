@@ -129,6 +129,7 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		&t.bucket,
 		&t.clock,
 		&t.clock,
+		semaphore.NewWeighted(10),
 		config,
 	)
 
@@ -171,6 +172,7 @@ func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string
 		&t.bucket,
 		&t.clock,
 		&t.clock,
+		semaphore.NewWeighted(10),
 		config,
 	)
 }
