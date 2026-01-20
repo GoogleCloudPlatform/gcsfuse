@@ -399,7 +399,7 @@ func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents 
 	if existingIndex < len(b.objects) {
 		var content []byte
 		if isAppend {
-			// If the bucket type is zonal, then we will update the fake object with the appended content.
+			// If this is an append operation, then we will update the fake object with the appended content.
 			b.mu.Unlock()
 			existingContent, err := storageutil.ReadObject(context.Background(), b, req.Name)
 			b.mu.Lock()

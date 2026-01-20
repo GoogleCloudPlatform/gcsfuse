@@ -576,24 +576,25 @@ func (t *FileTest) TestTruncateNegative() {
 }
 
 func (t *FileTest) TestDestroy_MrdInstanceDestroyed() {
-	if t.in.bucket.BucketType().Zonal {
-		// Manually initialize MRD pool since FileInode.Read doesn't use it directly.
-		mi := t.in.GetMRDInstance()
-		require.NotNil(t.T(), mi)
-		// Perform a read on MrdInstance to trigger pool creation.
-		buf := make([]byte, 1)
-		_, err := mi.Read(t.ctx, buf, 0, metrics.NewNoopMetrics())
-		require.NoError(t.T(), err)
-		// Verify pool is initialized.
-		assert.Greater(t.T(), int(mi.Size()), 0)
-
-		// Destroy the inode.
-		err = t.in.Destroy()
-
-		require.NoError(t.T(), err)
-		// Verify MRD instance is destroyed (pool closed and set to nil).
-		assert.Equal(t.T(), uint64(0), mi.Size())
+	if !t.in.bucket.BucketType().Zonal {
+		return
 	}
+	// Manually initialize MRD pool since FileInode.Read doesn't use it directly.
+	mi := t.in.GetMRDInstance()
+	require.NotNil(t.T(), mi)
+	// Perform a read on MrdInstance to trigger pool creation.
+	buf := make([]byte, 1)
+	_, err := mi.Read(t.ctx, buf, 0, metrics.NewNoopMetrics())
+	require.NoError(t.T(), err)
+	// Verify pool is initialized.
+	assert.Greater(t.T(), int(mi.Size()), 0)
+
+	// Destroy the inode.
+	err = t.in.Destroy()
+
+	require.NoError(t.T(), err)
+	// Verify MRD instance is destroyed (pool closed and set to nil).
+	assert.Equal(t.T(), uint64(0), mi.Size())
 }
 
 func (t *FileTest) TestWriteThenSync() {
