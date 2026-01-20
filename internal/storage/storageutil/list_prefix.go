@@ -31,7 +31,8 @@ func ListPrefix(
 	prefix string,
 	minObjects chan<- *gcs.MinObject) (err error) {
 	req := &gcs.ListObjectsRequest{
-		Prefix: prefix,
+		Prefix:                prefix,
+		IsTypeCacheDeprecated: IsTypeCacheDeprecated,
 	}
 
 	// List until we run out.
