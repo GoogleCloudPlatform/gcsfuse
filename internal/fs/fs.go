@@ -252,6 +252,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
 
+		// TODO(b/475761213): Remove this duplication of optimization and rationalization functions
+		// when this tech debt is addressed.
+
 		// Optimize flags for non-dynamic mounts based on the bucket type.
 		// WHY HERE: The bucket type is required for these optimizations, and this is the
 		// first point it becomes available.
@@ -266,11 +269,28 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.IsUserSet, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
+			// TODO(b/477149142): Remove this once regional bucket type based optimisations are in-place.
+			if !serverCfg.IsUserSet.IsSet("file-system.max-read-ahead-kb") && !bucketType.Zonal {
+				if serverCfg.NewConfig.Profile == "aiml-serving" || serverCfg.NewConfig.Profile == "aiml-checkpointing" {
+					optimizedFlags["file-system.max-read-ahead-kb"] = cfg.OptimizationResult{
+						FinalValue:         1024,
+						OptimizationReason: fmt.Sprintf("bucket-type %q", bucketTypeEnum),
+						Optimized:          true,
+					}
+				}
+			}
 			if len(optimizedFlags) > 0 {
-				logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
 				optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 				if err := cfg.Rationalize(serverCfg.IsUserSet, serverCfg.NewConfig, optimizedFlagNames); err != nil {
 					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
+				} else {
+					// Log only bucket-type based optimisations.
+					for flag, result := range optimizedFlags {
+						if !strings.Contains(result.OptimizationReason, "bucket-type") {
+							delete(optimizedFlags, flag)
+						}
+					}
+					logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
 				}
 			}
 		} else {
