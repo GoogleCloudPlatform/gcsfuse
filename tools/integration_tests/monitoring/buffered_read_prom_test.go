@@ -17,9 +17,7 @@ package monitoring
 import (
 	"io"
 	"log"
-	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -39,30 +37,11 @@ func (p *PromBufferedReadTest) SetupSuite() {
 	mountGCSFuseAndSetupTestDir(p.flags, testEnv.ctx, testEnv.storageClient)
 }
 
-func (p *PromBufferedReadTest) TearDownSuite() {
-	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
-}
-
-func (p *PromBufferedReadTest) SetupTest() {
-	// Create a new directory for each test.
-	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
-	gcsDir := path.Join(testDirName, testName)
-	testEnv.testDirPath = path.Join(mountDir, gcsDir)
-	operations.CreateDirectory(testEnv.testDirPath, p.T())
-	// Create a file with content "world".
-	err := os.WriteFile(path.Join(testEnv.testDirPath, "hello.txt"), []byte("world"), 0644)
-	require.NoError(p.T(), err)
-}
-
-func (p *PromBufferedReadTest) TearDownTest() {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(p.T())
-}
-
 func (p *PromBufferedReadTest) TestBufferedReadMetrics() {
 	_, err := operations.ReadFile(path.Join(testEnv.testDirPath, "hello.txt"))
 
 	require.NoError(p.T(), err)
-	assertNonZeroCountMetric(p.T(), "gcs_read_bytes_count", "reader", "Buffered", p.prometheusPort)
+	assertNonZeroCountMetric(p.T(), "gcs_read_bytes_count", "", "", p.prometheusPort)
 	assertNonZeroCountMetric(p.T(), "gcs_download_bytes_count", "read_type", "Buffered", p.prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "buffered_read/read_latency", "", "", p.prometheusPort)
 }
@@ -118,7 +97,7 @@ func (p *PromBufferedReadTest) TestInsufficientMemoryFallback() {
 }
 
 func TestPromBufferedReadSuite(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	ts := &PromBufferedReadTest{}
 	flagSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagSets {

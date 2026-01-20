@@ -18,11 +18,8 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -38,23 +35,6 @@ type PromGrpcMetricsTest struct {
 func (p *PromGrpcMetricsTest) SetupSuite() {
 	setup.SetUpLogFilePath("TestPromGrpcMetricsSuite", gkeTempDir, "", testEnv.cfg)
 	mountGCSFuseAndSetupTestDir(p.flags, testEnv.ctx, testEnv.storageClient)
-}
-
-func (p *PromGrpcMetricsTest) TearDownSuite() {
-	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
-}
-
-func (p *PromGrpcMetricsTest) SetupTest() {
-	// Create a new directory for each test.
-	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
-	gcsDir := path.Join(testDirName, testName)
-	testEnv.testDirPath = path.Join(mountDir, gcsDir)
-	operations.CreateDirectory(testEnv.testDirPath, p.T())
-	client.SetupFileInTestDirectory(testEnv.ctx, testEnv.storageClient, gcsDir, "hello.txt", 10, p.T())
-}
-
-func (p *PromGrpcMetricsTest) TearDownTest() {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(p.T())
 }
 
 func (p *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {

@@ -28,7 +28,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/pkg/xattr"
@@ -63,6 +62,24 @@ var (
 // PromTestBase preserves the base struct as requested.
 type PromTestBase struct {
 	suite.Suite
+}
+
+func (p *PromTestBase) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (p *PromTestBase) SetupTest() {
+	// Create a new directory for each test.
+	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
+	gcsDir := path.Join(testDirName, testName)
+	testEnv.testDirPath = setup.SetupTestDirectory(gcsDir)
+	// Create a file with content "world".
+	err := os.WriteFile(path.Join(testEnv.testDirPath, "hello.txt"), []byte("world"), 0644)
+	require.NoError(p.T(), err)
+}
+
+func (p *PromTestBase) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(p.T())
 }
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
@@ -119,13 +136,12 @@ func TestMain(m *testing.M) {
 	defer testEnv.storageClient.Close()
 
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		mountDir = testEnv.cfg.GKEMountedDirectory
+		setup.SetMntDir(testEnv.cfg.GKEMountedDirectory)
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
-	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
@@ -144,23 +160,6 @@ type PromTest struct {
 func (p *PromTest) SetupSuite() {
 	setup.SetUpLogFilePath("TestPromOTELSuite", gkeTempDir, "", testEnv.cfg)
 	mountGCSFuseAndSetupTestDir(p.flags, testEnv.ctx, testEnv.storageClient)
-}
-
-func (p *PromTest) TearDownSuite() {
-	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
-}
-
-func (p *PromTest) SetupTest() {
-	// Create a new directory for each test.
-	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
-	gcsDir := path.Join(testDirName, testName)
-	testEnv.testDirPath = path.Join(mountDir, gcsDir)
-	operations.CreateDirectory(testEnv.testDirPath, p.T())
-	client.SetupFileInTestDirectory(testEnv.ctx, testEnv.storageClient, gcsDir, "hello.txt", 10, p.T())
-}
-
-func (p *PromTest) TearDownTest() {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(p.T())
 }
 
 func parsePromFormat(t *testing.T, prometheusPort int) (map[string]*promclient.MetricFamily, error) {
