@@ -81,6 +81,7 @@ func (mi *MrdInstance) SetMinObject(minObj *gcs.MinObject) error {
 	defer mi.poolMu.Unlock()
 
 	oldObj := mi.object
+	// No need to create a new pool if the pool does not exist.
 	// If generation matches, just update the object (e.g. for size updates) and return.
 	if mi.mrdPool == nil || (oldObj != nil && oldObj.Generation == minObj.Generation) {
 		mi.object = minObj

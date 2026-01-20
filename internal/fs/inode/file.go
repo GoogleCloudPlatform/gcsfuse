@@ -1004,6 +1004,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 // Updates the min object stored in MRDWrapper & MRDInstance corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
 func (f *FileInode) updateMRD() {
+	// updateMRD will be a noop for regional bucket.
 	if !f.bucket.BucketType().Zonal {
 		return
 	}
