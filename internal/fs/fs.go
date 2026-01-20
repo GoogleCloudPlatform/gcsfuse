@@ -284,7 +284,8 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 				if err := cfg.Rationalize(serverCfg.IsUserSet, serverCfg.NewConfig, optimizedFlagNames); err != nil {
 					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
 				} else {
-					// Log only bucket-type based optimisations.
+					// Log only bucket-type based optimisations here as machine-type and
+					// profile based optimisations are already logged during first rationlisation.
 					for flag, result := range optimizedFlags {
 						if !strings.Contains(result.OptimizationReason, "bucket-type") {
 							delete(optimizedFlags, flag)
