@@ -1,10 +1,10 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,9 +17,7 @@ package monitoring
 import (
 	"io"
 	"log"
-	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -30,32 +28,6 @@ import (
 
 type PromBufferedReadTest struct {
 	PromTestBase
-	flags          []string
-	prometheusPort int
-}
-
-func (p *PromBufferedReadTest) SetupSuite() {
-	setup.SetUpLogFilePath("TestPromBufferedReadSuite", gkeTempDir, "", testEnv.cfg)
-	mountGCSFuseAndSetupTestDir(p.flags, testEnv.ctx, testEnv.storageClient)
-}
-
-func (p *PromBufferedReadTest) TearDownSuite() {
-	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
-}
-
-func (p *PromBufferedReadTest) SetupTest() {
-	// Create a new directory for each test.
-	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
-	gcsDir := path.Join(testDirName, testName)
-	testEnv.testDirPath = path.Join(mountDir, gcsDir)
-	operations.CreateDirectory(testEnv.testDirPath, p.T())
-	// Create a file with content "world".
-	err := os.WriteFile(path.Join(testEnv.testDirPath, "hello.txt"), []byte("world"), 0644)
-	require.NoError(p.T(), err)
-}
-
-func (p *PromBufferedReadTest) TearDownTest() {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(p.T())
 }
 
 func (p *PromBufferedReadTest) TestBufferedReadMetrics() {
@@ -120,6 +92,7 @@ func (p *PromBufferedReadTest) TestInsufficientMemoryFallback() {
 func TestPromBufferedReadSuite(t *testing.T) {
 	t.SkipNow()
 	ts := &PromBufferedReadTest{}
+	ts.suiteName = "TestPromBufferedReadSuite"
 	flagSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagSets {
 		ts.flags = flags
