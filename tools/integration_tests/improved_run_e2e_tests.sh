@@ -233,7 +233,7 @@ TEST_PACKAGES_COMMON=(
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
 # Test packages for zonal buckets.
 # TODO: Add unfinalized_object once it is fixed for Kernel Reader
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
