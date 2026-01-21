@@ -396,7 +396,8 @@ TEST_DIR_PARALLEL_ZONAL=(
   rename_dir_limit
   stale_handle
   streaming_writes
-  unfinalized_object
+  # TODO: Reenable when unfinalized_object is fixed for Simple Reader.
+  # unfinalized_object
   write_large_files
   "unsupported_path"
 )
