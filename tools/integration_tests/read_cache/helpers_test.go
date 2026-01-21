@@ -92,6 +92,10 @@ func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry, is
 		t.Errorf("chunks read don't match! Expected: %d, Got from logs: %d",
 			chunkCount, len(logEntry.Chunks))
 	}
+	// If no chunks are found in logs, we can't validate further.
+	if len(logEntry.Chunks) == 0 {
+		return
+	}
 	if logEntry.Chunks[len(logEntry.Chunks)-1].StartTimeSeconds > expected.EndTimeStampSeconds {
 		t.Errorf("end time in logs more than actual end time.")
 	}
