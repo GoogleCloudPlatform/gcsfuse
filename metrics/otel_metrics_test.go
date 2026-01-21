@@ -4776,15 +4776,6 @@ func TestGcsReaderCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
-			name: "io_method_ReadHandle",
-			f: func(m *otelMetrics) {
-				m.GcsReaderCount(5, "ReadHandle")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("io_method", "ReadHandle")): 5,
-			},
-		},
-		{
 			name: "io_method_closed",
 			f: func(m *otelMetrics) {
 				m.GcsReaderCount(5, "closed")
@@ -4804,21 +4795,21 @@ func TestGcsReaderCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsReaderCount(5, "ReadHandle")
-				m.GcsReaderCount(2, "closed")
-				m.GcsReaderCount(3, "ReadHandle")
+				m.GcsReaderCount(5, "closed")
+				m.GcsReaderCount(2, "opened")
+				m.GcsReaderCount(3, "closed")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "ReadHandle")): 8,
-				attribute.NewSet(attribute.String("io_method", "closed")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "closed")): 8,
+				attribute.NewSet(attribute.String("io_method", "opened")): 2,
 			},
 		},
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsReaderCount(-5, "ReadHandle")
-				m.GcsReaderCount(2, "ReadHandle")
+				m.GcsReaderCount(-5, "closed")
+				m.GcsReaderCount(2, "closed")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "ReadHandle")): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "closed")): 2},
 		},
 	}
 
