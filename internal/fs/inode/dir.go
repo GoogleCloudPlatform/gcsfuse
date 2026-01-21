@@ -622,6 +622,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	var cachedType metadata.Type
 	var cacheMissErr *caching.CacheMissError
 	if d.IsTypeCacheDeprecated() {
+		// If metadata caching is enabled, attempt to retrieve the entry from the cache first.
+		// If a valid entry (file or directory) is found, return it immediately to avoid a GCS API call.
 		if d.metadataCacheTtlSecs != 0 {
 			fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
 			if err != nil && !errors.As(err, &cacheMissErr) {

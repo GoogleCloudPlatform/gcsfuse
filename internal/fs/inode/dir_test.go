@@ -154,8 +154,11 @@ func (t *DirTest) createDirInode(dirInodeName string) DirInode {
 
 func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string, isTypeCacheDeprecated bool) DirInode {
 	config := &cfg.Config{
-		List:                         cfg.ListConfig{EnableEmptyManagedFolders: false},
-		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
+		List: cfg.ListConfig{EnableEmptyManagedFolders: false},
+		MetadataCache: cfg.MetadataCacheConfig{
+			TypeCacheMaxSizeMb: 4,
+			TtlSecs:            60,
+		},
 		EnableHns:                    false,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
@@ -2096,7 +2099,6 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_File() {
 	t.in.Unlock()
 	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 	t.in.Lock()
-
 	const name = "file"
 	objName := path.Join(dirInodeName, name)
 	_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("content"))
@@ -2114,7 +2116,6 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_ExplicitDir() {
 	t.in.Unlock()
 	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 	t.in.Lock()
-
 	const name = "dir"
 	objName := path.Join(dirInodeName, name) + "/"
 	_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
@@ -2165,30 +2166,10 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
 	mockBucket := new(storagemock.TestifyMockBucket)
 	mockBucket.On("BucketType").Return(gcs.BucketType{})
 	syncerBucket := gcsx.NewSyncerBucket(1, ChunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
-	config := &cfg.Config{
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs:            60,
-			TypeCacheMaxSizeMb: 4,
-		},
-		EnableTypeCacheDeprecation: true,
-	}
-	in := NewDirInode(
-		dirInodeID,
-		NewDirName(NewRootName(""), dirInodeName),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
-		false, // implicitDirs
-		false, // enableNonexistentTypeCache
-		typeCacheTTL,
-		&syncerBucket,
-		&t.clock,
-		&t.clock,
-		semaphore.NewWeighted(10),
-		config,
-	)
+	oldBucket := t.bucket
+	t.bucket = syncerBucket
+	defer func() { t.bucket = oldBucket }()
+	in := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 	const name = "file"
 	objName := path.Join(dirInodeName, name)
 	dirObjName := objName + "/"
@@ -2230,30 +2211,10 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 	mockBucket := new(storagemock.TestifyMockBucket)
 	mockBucket.On("BucketType").Return(gcs.BucketType{})
 	syncerBucket := gcsx.NewSyncerBucket(1, ChunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
-	config := &cfg.Config{
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs:            60,
-			TypeCacheMaxSizeMb: 4,
-		},
-		EnableTypeCacheDeprecation: true,
-	}
-	in := NewDirInode(
-		dirInodeID,
-		NewDirName(NewRootName(""), dirInodeName),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
-		false, // implicitDirs
-		false, // enableNonexistentTypeCache
-		typeCacheTTL,
-		&syncerBucket,
-		&t.clock,
-		&t.clock,
-		semaphore.NewWeighted(10),
-		config,
-	)
+	oldBucket := t.bucket
+	t.bucket = syncerBucket
+	defer func() { t.bucket = oldBucket }()
+	in := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 	const name = "file"
 	objName := path.Join(dirInodeName, name)
 	dirObjName := objName + "/"

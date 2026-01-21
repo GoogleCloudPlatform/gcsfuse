@@ -134,12 +134,19 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 }
 
 func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
+	return t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, isTypeCacheDeprecationEnabled)
+}
+
+func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string, isTypeCacheDeprecated bool) DirInode {
 	config := &cfg.Config{
-		List:                         cfg.ListConfig{EnableEmptyManagedFolders: false},
-		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
-		EnableHns:                    false,
+		List: cfg.ListConfig{EnableEmptyManagedFolders: false},
+		MetadataCache: cfg.MetadataCacheConfig{
+			TypeCacheMaxSizeMb: 4,
+			TtlSecs:            60,
+		},
+		EnableHns:                    true,
 		EnableUnsupportedPathSupport: true,
-		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
 	}
 
 	return NewDirInode(
@@ -804,31 +811,8 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 }
 
 func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_File() {
-	config := &cfg.Config{
-		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},
-		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
-		EnableHns:                    true,
-		EnableUnsupportedPathSupport: true,
-		EnableTypeCacheDeprecation:   true,
-	}
 	t.in.Unlock()
-	t.in = NewDirInode(
-		dirInodeID,
-		NewDirName(NewRootName(""), dirInodeName),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
-		false, // implicitDirs
-		false, // enableNonexistentTypeCache
-		typeCacheTTL,
-		&t.bucket,
-		&t.fixedTime,
-		&t.fixedTime,
-		semaphore.NewWeighted(10),
-		config,
-	)
+	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 	t.in.Lock()
 	const name = "file"
 	objName := path.Join(dirInodeName, name)
@@ -853,31 +837,8 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_File() {
 }
 
 func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_Folder() {
-	config := &cfg.Config{
-		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},
-		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
-		EnableHns:                    true,
-		EnableUnsupportedPathSupport: true,
-		EnableTypeCacheDeprecation:   true,
-	}
 	t.in.Unlock()
-	t.in = NewDirInode(
-		dirInodeID,
-		NewDirName(NewRootName(""), dirInodeName),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
-		false, // implicitDirs
-		false, // enableNonexistentTypeCache
-		typeCacheTTL,
-		&t.bucket,
-		&t.fixedTime,
-		&t.fixedTime,
-		semaphore.NewWeighted(10),
-		config,
-	)
+	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 	t.in.Lock()
 	const name = "folder"
 	folderName := path.Join(dirInodeName, name) + "/"
@@ -897,52 +858,19 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_Folder() {
 }
 
 func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
-	config := &cfg.Config{
-		List: cfg.ListConfig{EnableEmptyManagedFolders: true},
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs:            60,
-			TypeCacheMaxSizeMb: 4,
-		},
-		EnableHns:                    true,
-		EnableUnsupportedPathSupport: true,
-		EnableTypeCacheDeprecation:   true,
-	}
-	t.in.Unlock()
-	t.in = NewDirInode(
-		dirInodeID,
-		NewDirName(NewRootName(""), dirInodeName),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
-		false, // implicitDirs
-		false, // enableNonexistentTypeCache
-		typeCacheTTL,
-		&t.bucket,
-		&t.fixedTime,
-		&t.fixedTime,
-		semaphore.NewWeighted(10),
-		config,
-	)
-	t.in.Lock()
-
+	in := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 	const name = "file"
 	objName := path.Join(dirInodeName, name)
 	dirObjName := objName + "/"
-
 	cacheMissErr := &caching.CacheMissError{}
-
 	// Expect cache lookup for file -> CacheMiss
 	t.mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
 		return req.Name == objName && req.FetchOnlyFromCache == true
 	})).Return(nil, nil, cacheMissErr).Once()
-
 	// Expect cache lookup for dir -> CacheMiss
 	t.mockBucket.On("GetFolder", mock.Anything, mock.MatchedBy(func(req *gcs.GetFolderRequest) bool {
 		return req.Name == dirObjName && req.FetchOnlyFromCache == true
 	})).Return(nil, cacheMissErr).Once()
-
 	// Expect actual lookup for file -> Success
 	minObject := &gcs.MinObject{
 		Name:           objName,
@@ -953,13 +881,14 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
 	t.mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
 		return req.Name == objName && req.FetchOnlyFromCache == false
 	})).Return(minObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
-
 	// Expect actual lookup for dir -> NotFound
 	t.mockBucket.On("GetFolder", mock.Anything, mock.MatchedBy(func(req *gcs.GetFolderRequest) bool {
 		return req.Name == dirObjName && req.FetchOnlyFromCache == false
 	})).Return(nil, &gcs.NotFoundError{}).Once()
 
-	entry, err := t.in.LookUpChild(t.ctx, name)
+	in.Lock()
+	entry, err := in.LookUpChild(t.ctx, name)
+	in.Unlock()
 
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), entry)
@@ -968,39 +897,10 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
 }
 
 func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
-	config := &cfg.Config{
-		List: cfg.ListConfig{EnableEmptyManagedFolders: true},
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs:            60,
-			TypeCacheMaxSizeMb: 4,
-		},
-		EnableHns:                    true,
-		EnableUnsupportedPathSupport: true,
-		EnableTypeCacheDeprecation:   true,
-	}
-	t.in.Unlock()
-	t.in = NewDirInode(
-		dirInodeID,
-		NewDirName(NewRootName(""), dirInodeName),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
-		false, // implicitDirs
-		false, // enableNonexistentTypeCache
-		typeCacheTTL,
-		&t.bucket,
-		&t.fixedTime,
-		&t.fixedTime,
-		semaphore.NewWeighted(10),
-		config,
-	)
-	t.in.Lock()
+	in := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
 	const name = "file"
 	objName := path.Join(dirInodeName, name)
 	dirObjName := objName + "/"
-
 	// Expect cache lookup for file -> Success
 	minObject := &gcs.MinObject{
 		Name:           objName,
@@ -1011,13 +911,14 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 	t.mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
 		return req.Name == objName && req.FetchOnlyFromCache == true
 	})).Return(minObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
-
 	// Expect cache lookup for dir -> NotFound (nil, nil)
 	t.mockBucket.On("GetFolder", mock.Anything, mock.MatchedBy(func(req *gcs.GetFolderRequest) bool {
 		return req.Name == dirObjName && req.FetchOnlyFromCache == true
 	})).Return(nil, &gcs.NotFoundError{}).Once()
 
-	entry, err := t.in.LookUpChild(t.ctx, name)
+	in.Lock()
+	entry, err := in.LookUpChild(t.ctx, name)
+	in.Unlock()
 
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), entry)
