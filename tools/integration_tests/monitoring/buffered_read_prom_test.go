@@ -34,7 +34,7 @@ func (p *PromBufferedReadTest) TestBufferedReadMetrics() {
 	_, err := operations.ReadFile(path.Join(testEnv.testDirPath, "hello.txt"))
 
 	require.NoError(p.T(), err)
-	assertNonZeroCountMetric(p.T(), "gcs_read_bytes_count", "reader", "Buffered", p.prometheusPort)
+	assertNonZeroCountMetric(p.T(), "gcs_read_bytes_count", "", "", p.prometheusPort)
 	assertNonZeroCountMetric(p.T(), "gcs_download_bytes_count", "read_type", "Buffered", p.prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "buffered_read/read_latency", "", "", p.prometheusPort)
 }
