@@ -521,7 +521,10 @@ Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it ap
 
 ### Unsupported Path names
 
-- GCSFuse (from v3.6.0 onwards) gracefully handles objects with names containing `//`, `/./` or `/../`, ensuring the file operations will not crash or throw errors. While listing shows only the supported objects, directory-level deletions and renames apply to all contained objects, whether supported or unsupported.
+- Due to limitations in the Linux filesystem, path segments such as `//`, `/./`, or `/../` are not supported locally, even though they are valid object names in GCS. From v3.6.0 onwards, GCSFuse handles these objects gracefully:
+
+   1. Listing: To prevent system errors or crashes, these unsupported objects are hidden from file listings.
+   2. Rename/Delete: Directory-level operations (like deletions and renames) still apply to all contained objects, ensuring that unsupported objects are not accidentally left behind.
 
 ## Memory-mapped files
 
