@@ -698,6 +698,22 @@ flag_optimizations:
           hns: false
           zonal: false
         run_on_gke: true
+      - run: TestZonalBucketOptimizations_LogVerification
+        flags:
+          - "--enable-kernel-reader=true"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestZonalBucketOptimizations_KernelParamVerification
+        flags:
+          - "--enable-kernel-reader=true"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
 
 unsupported_path:
 - mounted_directory: "${MOUNTED_DIR}"

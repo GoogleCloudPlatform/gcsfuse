@@ -106,8 +106,8 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].TestBucket = setup.TestBucket()
 		cfg.FlagOptimizations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.FlagOptimizations[0].LogFile = setup.LogFile()
-		// Initialize the slice to hold 6 specific test configurations
-		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 5)
+		// Initialize the slice to hold 7 specific test configurations
+		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 7)
 		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountFails"
 		cfg.FlagOptimizations[0].Configs[0].Flags = []string{"--profile=unknown-profile"}
 		cfg.FlagOptimizations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
@@ -140,6 +140,14 @@ func TestMain(m *testing.M) {
 		}
 		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.FlagOptimizations[0].Configs[4].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[5].Run = "TestZonalBucketOptimizations_LogVerification"
+		cfg.FlagOptimizations[0].Configs[5].Flags = []string{"--log-severity=info"}
+		cfg.FlagOptimizations[0].Configs[5].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[5].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[6].Run = "TestZonalBucketOptimizations_KernelParamVerification"
+		cfg.FlagOptimizations[0].Configs[6].Flags = []string{"--log-severity=info"}
+		cfg.FlagOptimizations[0].Configs[6].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[6].RunOnGKE = true
 	}
 
 	testEnv.ctx = context.Background()
