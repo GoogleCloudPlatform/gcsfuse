@@ -154,10 +154,10 @@ func TestMain(m *testing.M) {
 		cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.Operations[0].Configs[0].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --enable-metadata-prefetch",
 			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
 			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
-			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
+			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true --enable-metadata-prefetch",
 		}
 		cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
