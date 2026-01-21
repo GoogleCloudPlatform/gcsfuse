@@ -185,7 +185,6 @@
     values:
     - "closed"
     - "opened"
-    - "ReadHandle"
 
 - metric-name: "gcs/request_count"
   description: "The cumulative number of GCS requests processed along with the GCS method."
