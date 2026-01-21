@@ -582,7 +582,7 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	storageClient, err := storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+	storageClient, err := storage.NewGRPCClient(ctx, storage.WithDisabledClientMetrics(), experimental.WithGRPCBidiReads())
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
