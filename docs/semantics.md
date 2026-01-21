@@ -519,15 +519,9 @@ Traditional file systems do not allow multiple directory entries with the same n
 
 Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it appears in the Cloud Storage FUSE file system as if there is a directory named foo and a file or symlink named ```foo\n``` (i.e. foo followed by U+000A, line feed). This is what will appear when the parent's directory entries are read, and Cloud Storage FUSE will respond to requests to look up the inode named ```foo\n``` by returning the file inode. ```\n``` in particular is chosen because it is not legal in Cloud Storage object names, and therefore is not ambiguous.
 
-### Unsupported object names
+### Unsupported Path names
 
-- Objects in GCS with `double slashes '//'` as a name or prefix are not supported in GCSfuse. Accessing a directory with such named files will cause an 'input/output error', as the Linux filesystem does not support files or directories named with a '/'. The most common example of this is an object called, for example 'A//C.txt' where 'A' indicates a directory and 'C.txt' indicates a file, and is missing directory 'B/' between 'A/' and 'C.txt'.
-
-
-- Objects in GCS with suffix `/\n` like, `gs://gcs-bkt/a/\n`:
-Mounting bucket with such objects leads to crash `sync: unlock of unlocked mutex` or `Panic: Inode 'a/' cannot have child file`.
-`\n` in GCSFuse is used to resolve the name conflicts, in case there is a file and directory exists with the same name. Ref: [name-conflict](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#name-conflicts) section.
-
+- GCSFuse (from v3.6.0 onwards) gracefully handles objects with names containing `//`, `/./` or `/../`, ensuring the file operations will not crash or throw errors. While listing shows only the supported objects, directory-level deletions and renames apply to all contained objects, whether supported or unsupported.
 
 ## Memory-mapped files
 
