@@ -55,22 +55,6 @@ func isFlagPresentInOptimizationResults(optimizationResults map[string]Optimizat
 	return ok
 }
 
-func TestGetMachineType_Success(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a test server that returns a machine type.
-	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
-	})
-	defer closeTestServer(t, server)
-	// Override metadataEndpoints for testing.
-	metadataEndpoints = []string{server.URL}
-
-	machineType, err := getMachineType(viper.New())
-
-	require.NoError(t, err)
-	assert.Equal(t, "n1-standard-1", machineType)
-}
-
 func TestGetMachineType_Failure(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a non-200 status code.
@@ -86,20 +70,6 @@ func TestGetMachineType_Failure(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// Add a test wherein machine-type is set by the flag
-// and getMachineType returns the same value
-func TestGetMachineType_FlagIsSet(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a viper instance where machine-type is set.
-	v := viper.New()
-	v.Set("machine-type", "test-machine-type")
-
-	machineType, err := getMachineType(v)
-
-	require.NoError(t, err)
-	assert.Equal(t, "test-machine-type", machineType)
-}
-
 func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -107,21 +77,14 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 		expectedMachineType string
 	}{
 		{
-			name: "Viper_set",
+			name: "User_config_set_overrides_metadata",
 			userSetFlags: map[string]string{
 				"machine-type": "test-machine-type",
 			},
 			expectedMachineType: "test-machine-type",
 		},
 		{
-			name: "CLI_flag_and_Config_file_set_(CLI_priority)",
-			userSetFlags: map[string]string{
-				"machine-type": "cli-machine-type",
-			},
-			expectedMachineType: "cli-machine-type",
-		},
-		{
-			name:                "no_CLI_flag_or_Config_file_set",
+			name:                "User_config_not_set_falls_back_to_metadata",
 			userSetFlags:        map[string]string{},
 			expectedMachineType: "n1-standard-1",
 		},
@@ -250,7 +213,7 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	metadataEndpoints = []string{server.URL}
 	cfg := defaultConfig()
 	v := viper.New()
-	v.Set("file-system.rename-dir-limit", true)
+	v.Set("file-system.rename-dir-limit", 10000)
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 

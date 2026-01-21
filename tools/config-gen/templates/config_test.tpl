@@ -46,13 +46,18 @@ func TestApplyOptimizations(t *testing.T) {
 					{{- end }}
 				},
 				userSetFlags: map[string]any{
-					"{{$flag.ConfigPath}}": true,
+					"{{$flag.ConfigPath}}": {{- if eq $flag.GoType "int64" }} 98765,
+					{{- else if eq $flag.GoType "bool" }} {{if eq (printf "%v" $flag.DefaultValue) "true"}}false{{else}}true{{end}},
+					{{- else if eq $flag.GoType "string" }} {{$flag.DefaultValue}} + "-non-default",
+					{{- else if eq $flag.GoType "float64" }} {{$flag.DefaultValue}} + 1.23,
+					{{- else }} true,
+					{{- end }}
 					{{- if .Optimizations.MachineBasedOptimization }}
 					{{- $mbo := index .Optimizations.MachineBasedOptimization 0 }}
 					{{- $machineType := index $.MachineTypeGroups $mbo.Group 0 }}
 					"machine-type": "{{$machineType}}",
 					{{- else }}
-					"machine-type": true,
+					"machine-type": "a2-megagpu-16g",
 					{{- end }}
 				},
 				{{- if .Optimizations.BucketTypeOptimization }}
@@ -64,7 +69,7 @@ func TestApplyOptimizations(t *testing.T) {
 				expectOptimized: false,
 				expectedValue:
 				{{- if eq $flag.GoType "int64" }} int64(98765),
-				{{- else if eq $flag.GoType "bool" }} !({{$flag.DefaultValue}}),
+				{{- else if eq $flag.GoType "bool" }} {{if eq (printf "%v" $flag.DefaultValue) "true"}}false{{else}}true{{end}},
 				{{- else if eq $flag.GoType "string" }} {{$flag.DefaultValue}} + "-non-default",
 				{{- else if eq $flag.GoType "float64" }} {{$flag.DefaultValue}} + 1.23,
 				{{- else }} // compilation error: unhandled type '{{$flag.GoType}}' in test generation for {{$flag.ConfigPath}}

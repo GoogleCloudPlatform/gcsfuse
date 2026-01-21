@@ -38,8 +38,8 @@ func TestApplyOptimizations(t *testing.T) {
 				name:   "user_set",
 				config: Config{},
 				userSetFlags: map[string]any{
-					"file-system.congestion-threshold": true,
-					"machine-type":                     true,
+					"file-system.congestion-threshold": 98765,
+					"machine-type":                     "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
@@ -107,11 +107,11 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{},
 				userSetFlags: map[string]any{
 					"file-system.enable-kernel-reader": true,
-					"machine-type":                     true,
+					"machine-type":                     "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
-				expectedValue:   !(false),
+				expectedValue:   true,
 			},
 			{
 				name:   "no_optimization",
@@ -177,11 +177,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				userSetFlags: map[string]any{
 					"file-cache.cache-file-for-range-read": true,
-					"machine-type":                         true,
+					"machine-type":                         "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   !(false),
+				expectedValue:   true,
 			},
 			{
 				name:   "no_optimization",
@@ -259,7 +259,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   !(false),
+				expectedValue:   true,
 			},
 			{
 				name:   "no_optimization",
@@ -369,8 +369,8 @@ func TestApplyOptimizations(t *testing.T) {
 					Profile: "aiml-serving",
 				},
 				userSetFlags: map[string]any{
-					"file-system.kernel-list-cache-ttl-secs": true,
-					"machine-type":                           true,
+					"file-system.kernel-list-cache-ttl-secs": 98765,
+					"machine-type":                           "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -437,8 +437,8 @@ func TestApplyOptimizations(t *testing.T) {
 				name:   "user_set",
 				config: Config{},
 				userSetFlags: map[string]any{
-					"file-system.max-background": true,
-					"machine-type":               true,
+					"file-system.max-background": 98765,
+					"machine-type":               "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
@@ -505,8 +505,8 @@ func TestApplyOptimizations(t *testing.T) {
 				name:   "user_set",
 				config: Config{},
 				userSetFlags: map[string]any{
-					"file-system.max-read-ahead-kb": true,
-					"machine-type":                  true,
+					"file-system.max-read-ahead-kb": 98765,
+					"machine-type":                  "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
@@ -575,7 +575,7 @@ func TestApplyOptimizations(t *testing.T) {
 					Profile: "aiml-training",
 				},
 				userSetFlags: map[string]any{
-					"metadata-cache.negative-ttl-secs": true,
+					"metadata-cache.negative-ttl-secs": 98765,
 					"machine-type":                     "a2-megagpu-16g",
 				},
 				input:           nil,
@@ -690,7 +690,7 @@ func TestApplyOptimizations(t *testing.T) {
 					Profile: "aiml-training",
 				},
 				userSetFlags: map[string]any{
-					"metadata-cache.ttl-secs": true,
+					"metadata-cache.ttl-secs": 98765,
 					"machine-type":            "a2-megagpu-16g",
 				},
 				input:           nil,
@@ -805,7 +805,7 @@ func TestApplyOptimizations(t *testing.T) {
 					Profile: "aiml-checkpointing",
 				},
 				userSetFlags: map[string]any{
-					"file-system.rename-dir-limit": true,
+					"file-system.rename-dir-limit": 98765,
 					"machine-type":                 "a2-megagpu-16g",
 				},
 				input:           nil,
@@ -913,7 +913,7 @@ func TestApplyOptimizations(t *testing.T) {
 					Profile: "aiml-training",
 				},
 				userSetFlags: map[string]any{
-					"metadata-cache.stat-cache-max-size-mb": true,
+					"metadata-cache.stat-cache-max-size-mb": 98765,
 					"machine-type":                          "a2-megagpu-16g",
 				},
 				input:           nil,
@@ -1028,7 +1028,7 @@ func TestApplyOptimizations(t *testing.T) {
 					Profile: "aiml-training",
 				},
 				userSetFlags: map[string]any{
-					"metadata-cache.type-cache-max-size-mb": true,
+					"metadata-cache.type-cache-max-size-mb": 98765,
 					"machine-type":                          "a2-megagpu-16g",
 				},
 				input:           nil,
@@ -1141,7 +1141,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:   "user_set",
 				config: Config{},
 				userSetFlags: map[string]any{
-					"write.global-max-blocks": true,
+					"write.global-max-blocks": 98765,
 					"machine-type":            "a2-megagpu-16g",
 				},
 				input:           nil,

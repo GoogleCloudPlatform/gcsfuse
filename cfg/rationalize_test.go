@@ -264,13 +264,13 @@ func TestRationalizeMetadataCache(t *testing.T) {
 	}{
 		{
 			name:            "new_ttl_flag_set",
-			userSetFlags:    map[string]any{"metadata-cache.ttl-secs": true},
+			userSetFlags:    map[string]any{"metadata-cache.ttl-secs": 30},
 			config:          &Config{MetadataCache: MetadataCacheConfig{TtlSecs: 30}},
 			expectedTTLSecs: 30,
 		},
 		{
 			name:         "old_ttl_flags_set",
-			userSetFlags: map[string]any{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			userSetFlags: map[string]any{"metadata-cache.deprecated-stat-cache-ttl": 10 * time.Second, "metadata-cache.deprecated-type-cache-ttl": 5 * time.Second},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					DeprecatedStatCacheTtl: 10 * time.Second,
@@ -281,14 +281,14 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		},
 		{
 			name:                  "new_stat-cache-size-mb_flag_set",
-			userSetFlags:          map[string]any{"metadata-cache.stat-cache-max-size-mb": true},
+			userSetFlags:          map[string]any{"metadata-cache.stat-cache-max-size-mb": 0},
 			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 0}},
 			expectedTTLSecs:       0, // Assuming no change to TtlSecs in this function
 			expectedStatCacheSize: 0, // Should remain unchanged
 		},
 		{
 			name:                  "old_stat-cache-capacity_flag_set",
-			userSetFlags:          map[string]any{"metadata-cache.deprecated-stat-cache-capacity": true},
+			userSetFlags:          map[string]any{"metadata-cache.deprecated-stat-cache-capacity": 1000},
 			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 1000}},
 			expectedTTLSecs:       0,
 			expectedStatCacheSize: 2,
@@ -303,8 +303,8 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		{
 			name: "both_new_and_old_flags_set",
 			userSetFlags: map[string]any{
-				"metadata-cache.stat-cache-max-size-mb": true,
-				"stat-cache-capacity":                   true,
+				"metadata-cache.stat-cache-max-size-mb": 100,
+				"stat-cache-capacity":                   50,
 			},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
@@ -317,7 +317,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		},
 		{
 			name:         "ttl_and_stat_cache_size_set_to_-1",
-			userSetFlags: map[string]any{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
+			userSetFlags: map[string]any{"metadata-cache.ttl-secs": -1, "metadata-cache.stat-cache-max-size-mb": -1},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					TtlSecs:            -1,
@@ -356,19 +356,19 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 	}{
 		{
 			name:                    "negative_ttl_flag_set",
-			userSetFlags:            map[string]any{"metadata-cache.negative-ttl-secs": true},
+			userSetFlags:            map[string]any{"metadata-cache.negative-ttl-secs": 44},
 			config:                  &Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 44}},
 			expectedNegativeTTLSecs: 44,
 		},
 		{
 			name:            "new_ttl_flag_set",
-			userSetFlags:    map[string]any{"metadata-cache.ttl-secs": true},
+			userSetFlags:    map[string]any{"metadata-cache.ttl-secs": 30},
 			config:          &Config{MetadataCache: MetadataCacheConfig{TtlSecs: 30}},
 			expectedTTLSecs: 30,
 		},
 		{
 			name:         "old_ttl_flags_set",
-			userSetFlags: map[string]any{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			userSetFlags: map[string]any{"metadata-cache.deprecated-stat-cache-ttl": 10 * time.Second, "metadata-cache.deprecated-type-cache-ttl": 5 * time.Second},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					DeprecatedStatCacheTtl: 10 * time.Second,
@@ -379,7 +379,7 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 		},
 		{
 			name:         "new_and_old_ttl_flags_set",
-			userSetFlags: map[string]any{"metadata-cache.ttl-secs": true, "metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			userSetFlags: map[string]any{"metadata-cache.ttl-secs": 30, "metadata-cache.deprecated-stat-cache-ttl": 10 * time.Second, "metadata-cache.deprecated-type-cache-ttl": 5 * time.Second},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					TtlSecs:                30,
@@ -391,28 +391,28 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 		},
 		{
 			name:                  "new_stat-cache-size-mb_flag_set",
-			userSetFlags:          map[string]any{"metadata-cache.stat-cache-max-size-mb": true},
+			userSetFlags:          map[string]any{"metadata-cache.stat-cache-max-size-mb": 100},
 			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 100}},
 			expectedTTLSecs:       0, // Assuming no change to TtlSecs in this function
 			expectedStatCacheSize: 100,
 		},
 		{
 			name:                  "old_stat-cache-capacity_flag_set",
-			userSetFlags:          map[string]any{"metadata-cache.deprecated-stat-cache-capacity": true},
+			userSetFlags:          map[string]any{"metadata-cache.deprecated-stat-cache-capacity": 1000},
 			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 1000}},
 			expectedTTLSecs:       0,
 			expectedStatCacheSize: 2,
 		},
 		{
 			name:                  "new_and_old_stat-cache-capacity_flag_set",
-			userSetFlags:          map[string]any{"metadata-cache.stat-cache-max-size-mb": true, "metadata-cache.deprecated-stat-cache-capacity": true},
+			userSetFlags:          map[string]any{"metadata-cache.stat-cache-max-size-mb": 100, "metadata-cache.deprecated-stat-cache-capacity": 1000},
 			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 100, DeprecatedStatCacheCapacity: 1000}},
 			expectedTTLSecs:       0,
 			expectedStatCacheSize: 100,
 		},
 		{
 			name:         "ttl_and_stat_cache_size_set_to_-1",
-			userSetFlags: map[string]any{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
+			userSetFlags: map[string]any{"metadata-cache.ttl-secs": -1, "metadata-cache.stat-cache-max-size-mb": -1},
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					TtlSecs:            -1,
@@ -791,7 +791,7 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
+			actualErr := Rationalize(viper.New(), tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedConcurrentMetadataPrefetches, tc.config.MetadataCache.MetadataPrefetchMaxWorkers)
