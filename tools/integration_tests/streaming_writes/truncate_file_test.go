@@ -33,7 +33,7 @@ func (t *StreamingWritesSuite) TestTruncate() {
 	// Verify that GCSFuse is returning correct file size before the file is uploaded.
 	operations.VerifyStatFile(t.filePath, int64(truncateSize), FilePerms, t.T())
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, string(data[:]), t.T())
+	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, string(data[:]), t.T())
 }
 
 func (t *StreamingWritesSuite) TestTruncateNegative() {
@@ -85,7 +85,7 @@ func (t *StreamingWritesSuite) TestWriteAfterTruncate() {
 			data[tc.offset] = newData[0]
 			data[tc.offset+1] = newData[1]
 			// Close the file and validate that the file is created on GCS.
-			CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, string(data[:]), t.T())
+			CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, string(data[:]), t.T())
 		})
 	}
 
@@ -123,7 +123,7 @@ func (t *StreamingWritesSuite) TestWriteAndTruncate() {
 			require.NoError(t.T(), err)
 			operations.VerifyStatFile(t.filePath, tc.truncateSize, FilePerms, t.T())
 			// Close the file and validate that the file is created on GCS.
-			CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, tc.finalContent, t.T())
+			CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, tc.finalContent, t.T())
 		})
 	}
 }
@@ -167,7 +167,7 @@ func (t *StreamingWritesSuite) TestWriteTruncateWrite() {
 
 			operations.VerifyStatFile(t.filePath, int64(len(tc.finalContent)), FilePerms, t.T())
 			// Close the file and validate that the file is created on GCS.
-			CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, tc.finalContent, t.T())
+			CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, t.dirName, t.fileName, tc.finalContent, t.T())
 		})
 	}
 }
@@ -180,10 +180,10 @@ func (t *StreamingWritesSuite) TestTruncateDownAndDeleteFile() {
 	err := t.f1.Truncate(3)
 	require.NoError(t.T(), err)
 	operations.VerifyStatFile(t.filePath, 3, FilePerms, t.T())
-	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, "foobar", t.T())
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, t.dirName, t.fileName, "foobar", t.T())
 
 	err = os.Remove(t.filePath)
 
 	require.NoError(t.T(), err)
-	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, t.dirName, t.fileName, t.T())
 }

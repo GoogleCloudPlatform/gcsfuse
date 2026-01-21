@@ -212,8 +212,10 @@ func testdataCreateExplicitDir(t *testing.T, ctx context.Context, storageClient 
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
 
-	testDirPathOnBucket := path.Join(setup.TestBucket(), t.Name())
-	testDirPath := path.Join(setup.MntDir(), t.Name())
+	testDirSuffix := setup.GenerateRandomString(4)
+	testDir := t.Name() + testDirSuffix
+	testDirPathOnBucket := path.Join(setup.TestBucket(), testDir)
+	testDirPath := path.Join(setup.MntDir(), testDir)
 
 	err := os.MkdirAll(testDirPath, 0755)
 	if err != nil {
