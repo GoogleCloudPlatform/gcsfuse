@@ -290,7 +290,7 @@ func TestConcurrentRead(t *testing.T) {
 		{"--enable-buffered-read", "--enable-kernel-reader=false"},                                                                                   // For Buffered read enabled.
 	}
 	if setup.IsZonalBucketRun() {
-		// Zonal buckets enable the kernel reader by default. Disable it to verify the MRDWrapper flow.
+		// Zonal buckets enable the kernel reader by default. Disable it to verify the GCSReader flow.
 		flagsSet = append(flagsSet, []string{"--enable-kernel-reader=false"})
 	}
 
