@@ -79,7 +79,7 @@ func TestPathForParam(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(string(tt.name), func(t *testing.T) {
 
-			path, err := pathForParam(tt.name, tt.major, tt.minor)
+			path, err := PathForParam(tt.name, tt.major, tt.minor)
 
 			if tt.expectErr {
 				assert.Error(t, err)

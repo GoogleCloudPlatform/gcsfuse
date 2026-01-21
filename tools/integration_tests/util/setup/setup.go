@@ -827,6 +827,12 @@ func GetGCERegion(gceZone string) (string, error) {
 	return region, nil
 }
 
+// IsDynamicMount returns true if the mount is dynamic.
+// In dynamic mounts, rootDir contains all buckets, and mountDir is the specific bucket directory.
+func IsDynamicMount(mountDir, rootDir string) bool {
+	return mountDir != rootDir
+}
+
 // ExtractServiceVersionFromFlags parses the cloud-profiler-label from a slice of flag strings.
 func ExtractServiceVersionFromFlags(flags []string) string {
 	// Regex to find --cloud-profiler-label=some_value or --cloud-profiler-label some_value
