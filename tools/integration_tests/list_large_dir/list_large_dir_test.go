@@ -53,10 +53,14 @@ func TestMain(m *testing.M) {
 		cfg.ListLargeDir[0].TestBucket = setup.TestBucket()
 		cfg.ListLargeDir[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ListLargeDir[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.ListLargeDir[0].Configs[0].Flags = []string{"--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1 --enable-metadata-prefetch"}
+		cfg.ListLargeDir[0].Configs[0].Flags = []string{
+			"--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1",
+			"--enable-metadata-prefetch",
+		}
 		cfg.ListLargeDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ListLargeDir[0].Configs[1].Flags = []string{
-			"--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1 --enable-metadata-prefetch",
+			"--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1",
+			"--client-protocol=grpc --enable-metadata-prefetch",
 		}
 		cfg.ListLargeDir[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
 	}
