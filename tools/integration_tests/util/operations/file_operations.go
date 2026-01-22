@@ -115,7 +115,7 @@ func ReadFile(filePath string) (content []byte, err error) {
 	// Closing file at the end.
 	defer CloseFile(file)
 
-	content, err = os.ReadFile(file.Name())
+	content, err = io.ReadAll(file)
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
 		return

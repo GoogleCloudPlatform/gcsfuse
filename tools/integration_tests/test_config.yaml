@@ -879,3 +879,35 @@ monitoring:
           zonal: true
         run: "TestPromGrpcMetricsSuite"
         run_on_gke: true
+
+kernel_reader:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - run: TestFileCacheLogs
+        flags:
+          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--cache-dir=/gcsfuse-tmp/TestFileCacheLogs"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestKernelReaderLogs
+        flags:
+          - "--implicit-dirs,--log-severity=trace"
+          - "--implicit-dirs,--log-severity=trace,--cache-dir=/gcsfuse-tmp/TestKernelReaderLogs_FileCache"
+          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true"
+          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--cache-dir=/gcsfuse-tmp/TestKernelReaderLogs_Both"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestBufferedReaderLogs
+        flags:
+          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
