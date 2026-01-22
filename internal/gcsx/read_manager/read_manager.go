@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fuseops"
@@ -140,6 +139,10 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	}
 }
 
+func (rr *ReadManager) StructName() string {
+	return "ReadManager"
+}
+
 func (rr *ReadManager) Object() *gcs.MinObject {
 	return rr.object
 }
@@ -171,7 +174,7 @@ func (rr *ReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.
 
 	var err error
 	for _, r := range rr.readers {
-		ctx, span := rr.traceHandle.StartSpan(ctx, reflect.TypeOf(r).String())
+		ctx, span := rr.traceHandle.StartSpan(ctx, r.StructName())
 		readResponse, err = r.ReadAt(ctx, req)
 		rr.traceHandle.EndSpan(span)
 		if err == nil {

@@ -94,6 +94,9 @@ type Reader interface {
 	// If an error occurs, the size in ReadResponse will be zero.
 	ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error)
 
+	// Return a constant structName associated with the specific reader implementation
+	StructName() string
+
 	// Destroy is called to release any resources held by the reader.
 	Destroy()
 }

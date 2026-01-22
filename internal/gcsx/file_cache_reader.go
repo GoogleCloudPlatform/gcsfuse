@@ -84,6 +84,10 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 	}
 }
 
+func (fc *FileCacheReader) StructName() string {
+	return "FileCacheReader"
+}
+
 // tryReadingFromFileCache creates the cache handle first if it doesn't exist already
 // and then use that handle to read object's content which is cached in local file.
 // For the successful read, it returns number of bytes read, and a boolean representing

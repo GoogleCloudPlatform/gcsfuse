@@ -172,6 +172,10 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	return reader, nil
 }
 
+func (p *BufferedReader) StructName() string {
+	return "BufferedReader"
+}
+
 // handleRandomRead detects and handles random read patterns. A read is considered
 // random if the requested offset is outside the currently prefetched window.
 // If the number of detected random reads exceeds a configured threshold, it
