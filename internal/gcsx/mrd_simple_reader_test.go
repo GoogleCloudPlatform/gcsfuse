@@ -16,6 +16,8 @@ package gcsx
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"testing"
 
@@ -172,12 +174,13 @@ func (t *MrdSimpleReaderTest) TestReadAt_ShortRead_RetrySuccess() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *MrdSimpleReaderTest) TestReadAt_ShortRead_RetryFails_ReturnsOriginalError() {
+func (t *MrdSimpleReaderTest) TestReadAt_ShortRead_RetryFails() {
 	data := []byte("hello world")
 	// First MRD returns short read with io.EOF.
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
 	// Second MRD returns 0 bytes and an error.
-	fakeMRD2 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, status.Error(codes.OutOfRange, "Out of range error"))
+	retryErr := status.Error(codes.Internal, "Internal error")
+	fakeMRD2 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, retryErr)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 	buf := make([]byte, len(data))
@@ -188,10 +191,147 @@ func (t *MrdSimpleReaderTest) TestReadAt_ShortRead_RetryFails_ReturnsOriginalErr
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
-	assert.ErrorIs(t.T(), err, io.EOF)
+	// ReadAt returns the error from the last attempt (the retry).
+	assert.ErrorIs(t.T(), err, retryErr)
 	assert.Equal(t.T(), 5, resp.Size)
 	assert.Equal(t.T(), "hello", string(buf[:5]))
 	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *MrdSimpleReaderTest) TestReadAt_OutOfRange_TriggersRetry() {
+	data := []byte("hello world")
+	// First MRD returns OutOfRange error.
+	outOfRangeErr := status.Error(codes.OutOfRange, "Out of range")
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, outOfRangeErr)
+	// Second MRD returns full read.
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, data)
+	// Expectation:
+	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
+	// 2. Read returns OutOfRange. isShortRead detects this as recoverable.
+	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD2.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	// Create the ReadRequest.
+	buf := make([]byte, len(data))
+	req := &ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), len(data), resp.Size)
+	assert.Equal(t.T(), string(data), string(buf))
+	// Verify refCount incremented
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *MrdSimpleReaderTest) TestReadAt_OutOfRange_RetryFails() {
+	// First MRD returns OutOfRange error.
+	outOfRangeErr := status.Error(codes.OutOfRange, "Out of range")
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, outOfRangeErr)
+	// Second MRD returns Internal error.
+	retryErr := status.Error(codes.Internal, "Internal error")
+	fakeMRD2 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, retryErr)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	// Create the ReadRequest.
+	buf := make([]byte, 10)
+	req := &ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	// Should return the error from the retry.
+	assert.ErrorIs(t.T(), err, retryErr)
+	assert.Equal(t.T(), 0, resp.Size)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func TestIsShortRead(t *testing.T) {
+	testCases := []struct {
+		name       string
+		bytesRead  int
+		bufferSize int
+		err        error
+		expected   bool
+	}{
+		{
+			name:       "Full read, no error",
+			bytesRead:  10,
+			bufferSize: 10,
+			err:        nil,
+			expected:   false,
+		},
+		{
+			name:       "Full read, EOF",
+			bytesRead:  10,
+			bufferSize: 10,
+			err:        io.EOF,
+			expected:   false,
+		},
+		{
+			name:       "Short read, no error",
+			bytesRead:  5,
+			bufferSize: 10,
+			err:        nil,
+			expected:   true,
+		},
+		{
+			name:       "Short read, EOF",
+			bytesRead:  5,
+			bufferSize: 10,
+			err:        io.EOF,
+			expected:   true,
+		},
+		{
+			name:       "Short read, UnexpectedEOF",
+			bytesRead:  5,
+			bufferSize: 10,
+			err:        io.ErrUnexpectedEOF,
+			expected:   true,
+		},
+		{
+			name:       "Short read, OutOfRange",
+			bytesRead:  0,
+			bufferSize: 10,
+			err:        status.Error(codes.OutOfRange, "out of range"),
+			expected:   true,
+		},
+		{
+			name:       "Short read, Wrapped OutOfRange",
+			bytesRead:  0,
+			bufferSize: 10,
+			err:        fmt.Errorf("wrapped: %w", status.Error(codes.OutOfRange, "out of range")),
+			expected:   true,
+		},
+		{
+			name:       "Short read, Internal error",
+			bytesRead:  5,
+			bufferSize: 10,
+			err:        status.Error(codes.Internal, "internal error"),
+			expected:   false,
+		},
+		{
+			name:       "Short read, Generic error",
+			bytesRead:  5,
+			bufferSize: 10,
+			err:        errors.New("generic error"),
+			expected:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, isShortRead(tc.bytesRead, tc.bufferSize, tc.err))
+		})
+	}
 }
 
 func (t *MrdSimpleReaderTest) TestDestroy() {
