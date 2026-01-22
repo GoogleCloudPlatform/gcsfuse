@@ -212,6 +212,7 @@ func TestApplyOptimizations(t *testing.T) {
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
 				}
+
 				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {

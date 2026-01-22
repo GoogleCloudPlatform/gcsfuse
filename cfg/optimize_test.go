@@ -100,11 +100,11 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			defer closeTestServer(t, server)
 			// Override metadataEndpoints for testing.
 			metadataEndpoints = []string{server.URL}
-
 			v := viper.New()
 			for key, val := range tc.userSetFlags {
 				v.Set(key, val)
 			}
+
 			machineType, err := getMachineType(v)
 
 			require.NoError(t, err)

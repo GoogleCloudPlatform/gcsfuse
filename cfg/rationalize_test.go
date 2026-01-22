@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
@@ -57,9 +58,8 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualErr := Rationalize(viper.New(), tc.config, []string{})
 
-			if assert.NoError(t, actualErr) {
-				assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
-			}
+			require.NoError(t, actualErr)
+			assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
 		})
 	}
 }
@@ -94,9 +94,8 @@ func TestRationalize_ReadConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := Rationalize(viper.New(), tc.config, []string{})
 
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedGlobalMaxBlocks, tc.config.Read.GlobalMaxBlocks)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedGlobalMaxBlocks, tc.config.Read.GlobalMaxBlocks)
 		})
 	}
 }
@@ -188,9 +187,8 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 
 		err := Rationalize(viper.New(), &c, []string{})
 
-		if assert.NoError(t, err) {
-			assert.Equal(t, tc.expected, c.Logging.Severity)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, tc.expected, c.Logging.Severity)
 	}
 }
 
@@ -224,9 +222,8 @@ func TestRationalize_TokenURLSuccessful(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualErr := Rationalize(viper.New(), tc.config, []string{})
 
-			if assert.NoError(t, actualErr) {
-				assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
-			}
+			require.NoError(t, actualErr)
+			assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
 		})
 	}
 }
@@ -337,10 +334,12 @@ func TestRationalizeMetadataCache(t *testing.T) {
 			for key, val := range tc.userSetFlags {
 				v.Set(key, val)
 			}
-			if assert.NoError(t, Rationalize(v, tc.config, []string{})) {
-				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
-				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
-			}
+
+			err := Rationalize(v, tc.config, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
+			assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
 		})
 	}
 }
@@ -432,11 +431,13 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 			for key, val := range tc.userSetFlags {
 				v.Set(key, val)
 			}
-			if assert.NoError(t, Rationalize(v, tc.config, []string{"metadata-cache.negative-ttl-secs", "metadata-cache.ttl-secs", "metadata-cache.stat-cache-max-size-mb", "metadata-cache.deprecated-stat-cache-capacity", "metadata-cache.deprecated-stat-cache-ttl", "metadata-cache.deprecated-type-cache-ttl"})) {
-				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
-				assert.Equal(t, tc.expectedNegativeTTLSecs, tc.config.MetadataCache.NegativeTtlSecs)
-				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
-			}
+
+			err := Rationalize(v, tc.config, []string{"metadata-cache.negative-ttl-secs", "metadata-cache.ttl-secs", "metadata-cache.stat-cache-max-size-mb", "metadata-cache.deprecated-stat-cache-capacity", "metadata-cache.deprecated-stat-cache-ttl", "metadata-cache.deprecated-type-cache-ttl"})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
+			assert.Equal(t, tc.expectedNegativeTTLSecs, tc.config.MetadataCache.NegativeTtlSecs)
+			assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
 		})
 	}
 }
@@ -500,11 +501,10 @@ func TestRationalize_WriteConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualErr := Rationalize(viper.New(), tc.config, []string{})
 
-			if assert.NoError(t, actualErr) {
-				assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
-				assert.Equal(t, tc.expectedMaxBlocksPerFile, tc.config.Write.MaxBlocksPerFile)
-				assert.Equal(t, tc.expectedBlockSizeMB, tc.config.Write.BlockSizeMb)
-			}
+			require.NoError(t, actualErr)
+			assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
+			assert.Equal(t, tc.expectedMaxBlocksPerFile, tc.config.Write.MaxBlocksPerFile)
+			assert.Equal(t, tc.expectedBlockSizeMB, tc.config.Write.BlockSizeMb)
 		})
 	}
 }
@@ -552,9 +552,10 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if assert.NoError(t, Rationalize(viper.New(), tc.config, []string{})) {
-				assert.Equal(t, tc.expected, tc.config.Metrics.CloudMetricsExportIntervalSecs)
-			}
+			err := Rationalize(viper.New(), tc.config, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, tc.config.Metrics.CloudMetricsExportIntervalSecs)
 		})
 	}
 }
@@ -611,11 +612,11 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 			for key, val := range tc.userSetFlags {
 				v.Set(key, val)
 			}
+
 			err := Rationalize(v, tc.config, []string{})
 
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
 		})
 	}
 }
@@ -690,16 +691,16 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 			for key, val := range tc.userSetFlags {
 				v.Set(key, val)
 			}
+
 			err := Rationalize(v, tc.config, []string{})
 
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedEnableBufferedRead, tc.config.Read.EnableBufferedRead)
-				logOutput := buf.String()
-				if tc.expectWarning {
-					assert.True(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
-				} else {
-					assert.False(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
-				}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedEnableBufferedRead, tc.config.Read.EnableBufferedRead)
+			logOutput := buf.String()
+			if tc.expectWarning {
+				assert.True(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
+			} else {
+				assert.False(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
 			}
 		})
 	}
@@ -793,10 +794,9 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualErr := Rationalize(viper.New(), tc.config, []string{})
 
-			if assert.NoError(t, actualErr) {
-				assert.Equal(t, tc.expectedConcurrentMetadataPrefetches, tc.config.MetadataCache.MetadataPrefetchMaxWorkers)
-				assert.Equal(t, tc.expectedMetadataPrefetchCount, tc.config.MetadataCache.MetadataPrefetchEntriesLimit)
-			}
+			require.NoError(t, actualErr)
+			assert.Equal(t, tc.expectedConcurrentMetadataPrefetches, tc.config.MetadataCache.MetadataPrefetchMaxWorkers)
+			assert.Equal(t, tc.expectedMetadataPrefetchCount, tc.config.MetadataCache.MetadataPrefetchEntriesLimit)
 		})
 	}
 }
