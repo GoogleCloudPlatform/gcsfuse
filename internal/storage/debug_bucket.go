@@ -257,7 +257,7 @@ func (b *debugBucket) StatObject(
 func (b *debugBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
-	id, desc, start := b.startRequest("ListObjects(%q, StartOffset='%s', MaxResults=%d)", req.Prefix, req.StartOffset, req.MaxResults)
+	id, desc, start := b.startRequest("ListObjects(Prefix=%q, StartOffset=%q, MaxResults=%d)", req.Prefix, req.StartOffset, req.MaxResults)
 	defer b.finishRequest(id, desc, start, &err)
 
 	listing, err = b.wrapped.ListObjects(ctx, req)
