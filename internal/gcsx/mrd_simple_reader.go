@@ -61,9 +61,7 @@ func isShortRead(bytesRead int, bufferSize int, err error) bool {
 	// Check for gRPC OutOfRange error, handling wrapped errors.
 	var se interface{ GRPCStatus() *status.Status }
 	if errors.As(err, &se) {
-		if se.GRPCStatus().Code() == codes.OutOfRange {
-			return true
-		}
+		return se.GRPCStatus().Code() == codes.OutOfRange
 	}
 
 	return false
