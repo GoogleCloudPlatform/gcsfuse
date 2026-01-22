@@ -653,11 +653,15 @@ type MetadataCacheConfig struct {
 
 	DeprecatedTypeCacheTtl time.Duration `yaml:"deprecated-type-cache-ttl"`
 
+	EnableMetadataPrefetch bool `yaml:"enable-metadata-prefetch"`
+
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
 
-	ExperimentalDirMetadataPrefetch bool `yaml:"experimental-dir-metadata-prefetch"`
-
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
+
+	MetadataPrefetchEntriesLimit int64 `yaml:"metadata-prefetch-entries-limit"`
+
+	MetadataPrefetchMaxWorkers int64 `yaml:"metadata-prefetch-max-workers"`
 
 	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
 
@@ -938,6 +942,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+
+	if err := flagSet.MarkHidden("enable-metadata-prefetch"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
 	if err := flagSet.MarkHidden("enable-new-reader"); err != nil {
@@ -965,12 +975,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-unsupported-path-support", "", true, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
 	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("experimental-dir-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
-
-	if err := flagSet.MarkHidden("experimental-dir-metadata-prefetch"); err != nil {
 		return err
 	}
 
@@ -1154,10 +1158,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
 
-	if err := flagSet.MarkHidden("max-read-ahead-kb"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
 
 	flagSet.DurationP("max-retry-duration", "", 0*time.Nanosecond, "This is currently unused.")
@@ -1171,6 +1171,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("metadata-cache-negative-ttl-secs", "", 5, "The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled negative entries in metadata-cache. Any value set below -1 will throw an error.")
 
 	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
+
+	flagSet.IntP("metadata-prefetch-entries-limit", "", 5000, "The maximum number of metadata entries (files and directories) to prefetch  into the cache upon a prefetch trigger. Since a single GCS List call is capped at 5000 results, values higher than 5000 will trigger multiple sequential GCS  List calls per directory.\n")
+
+	if err := flagSet.MarkHidden("metadata-prefetch-entries-limit"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("metadata-prefetch-max-workers", "", 10, "The maximum number of concurrent goroutines (workers) allowed to perform  metadata prefetching across all directories.\n")
+
+	if err := flagSet.MarkHidden("metadata-prefetch-max-workers"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("metrics-buffer-size", "", 256, "The maximum number of histogram metric updates in the queue.")
 
@@ -1497,6 +1509,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("metadata-cache.enable-metadata-prefetch", flagSet.Lookup("enable-metadata-prefetch")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-new-reader", flagSet.Lookup("enable-new-reader")); err != nil {
 		return err
 	}
@@ -1522,10 +1538,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("metadata-cache.experimental-dir-metadata-prefetch", flagSet.Lookup("experimental-dir-metadata-prefetch")); err != nil {
 		return err
 	}
 
@@ -1734,6 +1746,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.metadata-prefetch-entries-limit", flagSet.Lookup("metadata-prefetch-entries-limit")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.metadata-prefetch-max-workers", flagSet.Lookup("metadata-prefetch-max-workers")); err != nil {
 		return err
 	}
 

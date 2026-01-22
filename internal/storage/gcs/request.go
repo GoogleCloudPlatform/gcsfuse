@@ -450,6 +450,12 @@ type DeleteObjectRequest struct {
 	// with the given name (and optionally generation), and its meta-generation
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
+
+	// OnlyDeleteFromCache controls whether the deletion is restricted to the local cache.
+	//
+	// If true, it updates the cache with a negative entry and skips the GCS call.
+	// If false, it proceeds with the standard GCS deletion and updates the cache on success.
+	OnlyDeleteFromCache bool
 }
 
 // MoveObjectRequest represents a request to move or rename an object.

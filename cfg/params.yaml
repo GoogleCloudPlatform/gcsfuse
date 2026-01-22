@@ -169,7 +169,7 @@ params:
   - config-path: "dummy-io.enable"
     flag-name: "enable-dummy-io"
     type: "bool"
-    usage: >- 
+    usage: >-
       Enable dummy I/O mode for testing purposes. In this mode all reads
       and writes are simulated and no actual data is transferred to or from
       Cloud Storage. All the metadata operations like object listing and stats
@@ -180,7 +180,7 @@ params:
   - config-path: "dummy-io.per-mb-latency"
     flag-name: "dummy-io-per-mb-latency"
     type: "duration"
-    usage: >- 
+    usage: >-
       Simulates reading from the reader latency in dummy I/O mode. This value
       is only used when dummy I/O mode is enabled.
     default: "0s"
@@ -189,7 +189,7 @@ params:
   - config-path: "dummy-io.reader-latency"
     flag-name: "dummy-io-reader-latency"
     type: "duration"
-    usage: >- 
+    usage: >-
       Simulates reader creation latency in dummy I/O mode. This value
       is only used when dummy I/O mode is enabled.
     default: "0s"
@@ -477,12 +477,11 @@ params:
       Requires sudo permission to set this value, otherwise the value will be ignored
       and system default will be used.
     default: "0"
-    hide-flag: true
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal"
           value: 16384 # 16 MiB
-  
+
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
     type: "bool"
@@ -846,6 +845,16 @@ params:
       This flag has been deprecated (starting v2.0) in favor of
       metadata-cache-ttl-secs.
 
+  - config-path: "metadata-cache.enable-metadata-prefetch"
+    flag-name: "enable-metadata-prefetch"
+    type: "bool"
+    usage: >-
+      Enables background prefetching of object metadata when a directory is first opened. 
+      This reduces latency for subsequent file lookups by pre-filling the metadata cache.
+    default: false
+    deprecated: false
+    hide-flag: true
+
   - config-path: "metadata-cache.enable-nonexistent-type-cache"
     flag-name: "enable-nonexistent-type-cache"
     type: "bool"
@@ -856,16 +865,6 @@ params:
       is set, then if we create the same file/node in the meantime using the same
       mount, since we are not refreshing the cache, it will still return nil.
     default: false
-
-  - config-path: "metadata-cache.experimental-dir-metadata-prefetch"
-    flag-name: "experimental-dir-metadata-prefetch"
-    type: "bool"
-    usage: >-
-      Enables background prefetching of object metadata when a directory is first opened. 
-      This reduces latency for subsequent file lookups by pre-filling the metadata cache.
-    default: false
-    deprecated: false
-    hide-flag: true
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
     flag-name: "experimental-metadata-prefetch-on-mount"
@@ -879,6 +878,28 @@ params:
     default: "disabled"
     deprecated: true
     deprecation-warning: "Experimental flag: could be removed even in a minor release."
+
+  - config-path: "metadata-cache.metadata-prefetch-entries-limit"
+    flag-name: "metadata-prefetch-entries-limit"
+    type: "int"
+    usage: >
+      The maximum number of metadata entries (files and directories) to prefetch 
+      into the cache upon a prefetch trigger. Since a single GCS List call is capped
+      at 5000 results, values higher than 5000 will trigger multiple sequential GCS 
+      List calls per directory.
+    default: "5000"
+    deprecated: false
+    hide-flag: true
+
+  - config-path: "metadata-cache.metadata-prefetch-max-workers"
+    flag-name: "metadata-prefetch-max-workers"
+    type: "int"
+    usage: >
+      The maximum number of concurrent goroutines (workers) allowed to perform 
+      metadata prefetching across all directories.
+    default: "10"
+    deprecated: false
+    hide-flag: true
 
   - config-path: "metadata-cache.negative-ttl-secs"
     flag-name: "metadata-cache-negative-ttl-secs"
@@ -1176,7 +1197,6 @@ params:
     type: "bool"
     usage: "Enables streaming uploads during write file operation."
     default: true
-    hide-flag: false
 
   - config-path: "write.finalize-file-for-rapid"
     flag-name: "finalize-file-for-rapid"
@@ -1193,7 +1213,6 @@ params:
       The value should be >= 0 or -1 (for infinite blocks).
       A value of 0 disables streaming writes.
     default: 4
-    hide-flag: false
     optimizations:
       machine-based-optimization:
         - group: "high-performance"

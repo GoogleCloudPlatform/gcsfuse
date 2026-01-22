@@ -16,15 +16,20 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-const smallFileThresholdMiB = 500
+const (
+	smallFileThresholdMiB  = 100
+	mediumFileThresholdMiB = 500
+)
 
 // MRDEntry holds a single MultiRangeDownloader instance and a mutex to protect access to it.
 type MRDEntry struct {
@@ -60,6 +65,11 @@ type MRDPool struct {
 func (mrdPoolConfig *MRDPoolConfig) determinePoolSize() {
 	if mrdPoolConfig.object.Size < smallFileThresholdMiB*MiB {
 		mrdPoolConfig.PoolSize = 1
+		return
+	}
+	if mrdPoolConfig.object.Size < mediumFileThresholdMiB*MiB {
+		mrdPoolConfig.PoolSize = 2
+		return
 	}
 }
 
@@ -73,6 +83,7 @@ func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 		poolConfig: config,
 	}
 	p.poolConfig.determinePoolSize()
+	logger.Tracef("Initializing MRD Pool with size: %d", p.poolConfig.PoolSize)
 	p.entries = make([]MRDEntry, p.poolConfig.PoolSize)
 	p.ctx, p.cancelFunc = context.WithCancel(context.Background())
 
@@ -84,6 +95,13 @@ func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 		ReadHandle:     handle,
 	})
 	if err != nil {
+		var notFoundError *gcs.NotFoundError
+		if errors.As(err, &notFoundError) {
+			return nil, &gcsfuse_errors.FileClobberedError{
+				Err:        fmt.Errorf("NewMRDPool: %w", err),
+				ObjectName: config.object.Name,
+			}
+		}
 		return nil, err
 	}
 	p.entries[0].mrd = mrd

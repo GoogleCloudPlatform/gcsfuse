@@ -33,6 +33,7 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 // ListObjects call supports fetching upto 5000 results when projection is noAcl
@@ -283,6 +284,7 @@ func NewDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
+	prefetchSem *semaphore.Weighted,
 	cfg *cfg.Config,
 ) (d DirInode) {
 
@@ -307,7 +309,7 @@ func NewDirInode(
 	}
 	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
 	// acquiring d.mu only to update the cache.
-	typed.prefetcher = NewMetadataPrefetcher(cfg, typed.readObjectsUnlocked)
+	typed.prefetcher = NewMetadataPrefetcher(cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked)
 
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
@@ -1097,48 +1099,48 @@ func (d *dirInode) DeleteChildDir(
 		d.cache.Erase(name)
 	}
 
-	// If the directory is an implicit directory, then no backing object
-	// exists in the gcs bucket, so returning from here.
-	// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
-	if isImplicitDir {
+	childName := NewDirName(d.Name(), name)
+	req := &gcs.DeleteObjectRequest{
+		Name:       childName.GcsObjectName(),
+		Generation: 0, // Delete the latest version.
+	}
+
+	// Hierarchical Namespace (HNS) Buckets
+	if d.isBucketHierarchical() {
+		// Ignoring delete object error here, as in case of hns there is no way of knowing
+		// if underlying placeholder object exists or not in Hierarchical bucket.
+		// The DeleteFolder operation handles removing empty folders.
+		_ = d.bucket.DeleteObject(ctx, req)
+
+		if err := d.bucket.DeleteFolder(ctx, req.Name); err != nil {
+			return fmt.Errorf("DeleteFolder: %w", err)
+		}
+
+		if dirInode != nil {
+			dirInode.Unlink()
+		}
+
 		return nil
 	}
 
-	childName := NewDirName(d.Name(), name)
+	if isImplicitDir {
+		if !d.IsTypeCacheDeprecated() {
+			// If the directory is an implicit directory, then no backing object
+			// exists in the gcs bucket, so returning from here.
+			// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
+			return nil
+		}
+		// Implicit directories do not have a backing object in GCS.
+		// Set this flag to skip the GCS network call and only invalidate the local cache.
+		req.OnlyDeleteFromCache = true
+	}
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
-	err := d.bucket.DeleteObject(
-		ctx,
-		&gcs.DeleteObjectRequest{
-			Name:       childName.GcsObjectName(),
-			Generation: 0, // Delete the latest version of object named after dir.
-		})
-
-	if !d.isBucketHierarchical() {
-		if err != nil {
-			return fmt.Errorf("DeleteObject: %w", err)
-		}
-		if !d.IsTypeCacheDeprecated() {
-			d.cache.Erase(name)
-		}
-		return nil
+	if err := d.bucket.DeleteObject(ctx, req); err != nil {
+		return fmt.Errorf("DeleteObject: %w", err)
 	}
 
-	// Ignoring delete object error here, as in case of hns there is no way of knowing
-	// if underlying placeholder object exists or not in Hierarchical bucket.
-	// The DeleteFolder operation handles removing empty folders.
-	if err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName()); err != nil {
-		return fmt.Errorf("DeleteFolder: %w", err)
-	}
-
-	if d.isBucketHierarchical() {
-		dirInode.Unlink()
-	}
-
-	if !d.IsTypeCacheDeprecated() {
-		d.cache.Erase(name)
-	}
 	return nil
 }
 

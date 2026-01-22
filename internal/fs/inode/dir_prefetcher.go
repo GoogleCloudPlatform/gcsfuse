@@ -22,6 +22,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/jacobsa/timeutil"
+	"golang.org/x/sync/semaphore"
 )
 
 // Constants for the metadata prefetch state.
@@ -34,13 +36,19 @@ type MetadataPrefetcher struct {
 	// Variables for metadata prefetching.
 	enabled          bool
 	metadataCacheTTL time.Duration
+	statCacheSize    int64
 	state            atomic.Uint32 // 0=Ready, 1=InProgress
 	ctx              context.Context
 	cancel           context.CancelFunc
 	maxPrefetchCount int64
+	cacheClock       timeutil.Clock
+	lastPrefetchTime atomic.Pointer[time.Time]
 	// isLargeDir indicates if the directory size exceeds maxPrefetchCount.
 	// If true, we start prefetching from the looked-up object's offset.
 	isLargeDir atomic.Bool
+
+	// sem limits the number of concurrent prefetch goroutines.
+	sem *semaphore.Weighted
 
 	// listCallFunc allows the prefetcher to perform GCS List call and hydrate metadata cache.
 	listCallFunc func(ctx context.Context, tok string, startOffset string, limit int) (map[Name]*Core, []string, string, error)
@@ -48,16 +56,21 @@ type MetadataPrefetcher struct {
 
 func NewMetadataPrefetcher(
 	cfg *cfg.Config,
+	prefetchSem *semaphore.Weighted, // Shared semaphore across all MetadataPrefetchers.
+	cacheClock timeutil.Clock,
 	listFunc func(context.Context, string, string, int) (map[Name]*Core, []string, string, error),
 ) *MetadataPrefetcher {
 	// Initialize a new context for metadata prefetch worker so it can run in background.
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MetadataPrefetcher{
-		enabled:          cfg.MetadataCache.ExperimentalDirMetadataPrefetch,
+		enabled:          cfg.MetadataCache.EnableMetadataPrefetch,
 		metadataCacheTTL: time.Duration(cfg.MetadataCache.TtlSecs) * time.Second,
+		statCacheSize:    cfg.MetadataCache.StatCacheMaxSizeMb,
 		ctx:              ctx,
 		cancel:           cancel,
-		maxPrefetchCount: MaxResultsForListObjectsCall, // TODO: make it user configurable
+		maxPrefetchCount: cfg.MetadataCache.MetadataPrefetchEntriesLimit,
+		cacheClock:       cacheClock,
+		sem:              prefetchSem,
 		listCallFunc:     listFunc,
 		// state is 0 (prefetchReady) by default.
 	}
@@ -69,9 +82,20 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 	// Do not trigger prefetching if:
 	// 1. metadata prefetch config is disabled.
 	// 2. metadata cache ttl is 0 (disabled).
-	// 3. prefetch state is in progress already.
-	if !p.enabled || p.metadataCacheTTL == 0 || !p.state.CompareAndSwap(prefetchReady, prefetchInProgress) {
-		// Another prefetch is already in progress. Abort.
+	// 3. stat cache size is 0.
+	if !p.enabled || p.metadataCacheTTL == 0 || p.statCacheSize == 0 {
+		return
+	}
+
+	// 4. Trigger prefetch only if last prefetch time was before metadata cache ttl expiry.
+	lastPrefetchTime := p.lastPrefetchTime.Load()
+	now := p.cacheClock.Now()
+	if lastPrefetchTime != nil && now.Sub(*lastPrefetchTime) < p.metadataCacheTTL {
+		return
+	}
+
+	// 5. Ensure only one prefetch runs at a time for this directory.
+	if !p.state.CompareAndSwap(prefetchReady, prefetchInProgress) {
 		return
 	}
 
@@ -79,6 +103,13 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 	go func() {
 		// Reset to Ready state when the worker finishes.
 		defer p.state.Store(prefetchReady)
+
+		// Try to acquire a semaphore. If the semaphore is full, we skip this prefetch
+		// to avoid queuing stale background work.
+		if !p.sem.TryAcquire(1) {
+			return
+		}
+		defer p.sem.Release(1)
 
 		dirName := path.Dir(fullObjectName)
 		var continuationToken string
@@ -128,6 +159,9 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 			}
 			continuationToken = newTok
 		}
+		// Update lastPrefetchTime on successful completion.
+		now := p.cacheClock.Now()
+		p.lastPrefetchTime.Store(&now)
 	}()
 }
 

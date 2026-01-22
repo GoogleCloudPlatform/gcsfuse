@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -234,10 +236,18 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
 				ReadHandle:     handle,
 			})
-			if err == nil {
-				// Updating mrdWrapper.Wrapped only when MRD creation was successful.
-				mrdWrapper.Wrapped = mrd
+			if err != nil {
+				var notFoundError *gcs.NotFoundError
+				if errors.As(err, &notFoundError) {
+					return &gcsfuse_errors.FileClobberedError{
+						Err:        fmt.Errorf("ensureMultiRangeDownloader: %w", err),
+						ObjectName: mrdWrapper.object.Name,
+					}
+				}
+				return err
 			}
+			// Updating mrdWrapper.Wrapped only when MRD creation was successful.
+			mrdWrapper.Wrapped = mrd
 		}
 	}
 	return

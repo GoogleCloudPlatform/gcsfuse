@@ -110,7 +110,7 @@ Fuse package is not installed. It may throw this error. Run the following comman
 ### Encountered unsupported prefixes during listing, or ls: reading directory \<mountpath>/\<path>:  Input/output error
 Unable to list unsupported objects in a mounted bucket, i.e. objects which have names with `//` in them or have names starting with `/` e.g. `gs://<bucket>//A` or `gs://<bucket>/A//B` etc. Such objects can be listed by the following command: `gcloud storage ls gs://<bucket>/**//**`.
 
-This error can be mitigated in one of the following two ways.
+The `Input/output error` has been suppressed from v3.6.0 onwards. In older versions, this error can be mitigated in one of the following two ways.
 
 * Move/Rename such objects e.g. for objects of names like `A//B`, use `gcloud storage mv gs://<bucket>/A//* gs://<bucket>/A/`), Or
 * Delete such objects e.g. for objects of names like `A//B`, use `gcloud storage rm gs://<bucket>/A//**`.

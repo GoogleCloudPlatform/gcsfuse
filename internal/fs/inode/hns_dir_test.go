@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
 
 	"golang.org/x/net/context"
 
@@ -113,6 +114,7 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
+		semaphore.NewWeighted(10),
 		config,
 	)
 
@@ -152,6 +154,7 @@ func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 		&t.bucket,
 		&t.fixedTime,
 		&t.fixedTime,
+		semaphore.NewWeighted(10),
 		config,
 	)
 }
@@ -734,5 +737,63 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 				assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file3))
 			}
 		}
+	}
+}
+
+func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
+	testCases := []struct {
+		name                string
+		isImplicitDir       bool
+		onlyDeleteFromCache bool
+	}{
+		{
+			name:                "ImplicitDir",
+			isImplicitDir:       true,
+			onlyDeleteFromCache: true,
+		},
+		{
+			name:                "ExplicitDir",
+			isImplicitDir:       false,
+			onlyDeleteFromCache: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(st *testing.T) {
+			// Enable type cache deprecation
+			config := &cfg.Config{
+				EnableTypeCacheDeprecation: true,
+			}
+			dirInode := NewDirInode(
+				dirInodeID,
+				NewDirName(NewRootName(""), dirInodeName),
+				fuseops.InodeAttributes{
+					Uid:  uid,
+					Gid:  gid,
+					Mode: dirMode,
+				},
+				true,  // implicitDirs
+				false, // enableNonexistentTypeCache
+				typeCacheTTL,
+				&t.bucket,
+				&t.fixedTime,
+				&t.fixedTime,
+				semaphore.NewWeighted(10),
+				config,
+			)
+			dirName := path.Join(dirInodeName, tc.name) + "/"
+			// Expectation: DeleteObject called with OnlyDeleteFromCache
+			expectedReq := &gcs.DeleteObjectRequest{
+				Name:                dirName,
+				Generation:          0,
+				OnlyDeleteFromCache: tc.onlyDeleteFromCache,
+			}
+			t.mockBucket.On("DeleteObject", t.ctx, expectedReq).Return(nil)
+
+			err := dirInode.DeleteChildDir(t.ctx, tc.name, tc.isImplicitDir, nil)
+
+			assert.NoError(st, err)
+			t.mockBucket.AssertExpectations(st)
+		})
 	}
 }
