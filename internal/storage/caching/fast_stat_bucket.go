@@ -318,7 +318,7 @@ func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *
 
 func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
 	o, err := b.wrapped.FinalizeUpload(ctx, writer)
-	// Throw away any existing record for this object.
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
 	name := writer.ObjectName()
 	b.invalidate(name)
 	// Record the new object only if err is nil.
@@ -450,7 +450,7 @@ func (b *fastStatBucket) UpdateObject(
 	ctx context.Context,
 	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	o, err = b.wrapped.UpdateObject(ctx, req)
-	// Throw away any existing record for the destination name even if there was an error but do it after the API call.
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
 	b.invalidate(req.Name)
 	if err != nil {
 		return
