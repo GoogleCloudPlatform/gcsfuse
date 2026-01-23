@@ -133,66 +133,66 @@ func TestMain(m *testing.M) {
 		// Initialize the slice to hold 15 specific test configurations
 		cfg.ReadCache[0].Configs = make([]test_suite.ConfigItem, 17)
 		cfg.ReadCache[0].Configs[0].Flags = []string{
-			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --implicit-dirs",
-			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE",
-			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc",
-			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE -client-protocol=grpc --implicit-dirs",
+			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --implicit-dirs --enable-kernel-reader=false",
+			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE -client-protocol=grpc --implicit-dirs --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[0].Run = "TestSmallCacheTTLTest"
 
 		cfg.ReadCache[0].Configs[1].Flags = []string{
-			"--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false -implicit-dirs",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false --implicit-dirs --o=ro",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --o=ro",
-			"--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false -implicit-dirs --client-protocol=grpc",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --client-protocol=grpc",
-			"--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false --implicit-dirs --o=ro --client-protocol=grpc",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --o=ro --client-protocol=grpc",
+			"--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false -implicit-dirs --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false --implicit-dirs --o=ro --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --o=ro --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false -implicit-dirs --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --file-cache-enable-parallel-downloads=false --implicit-dirs --o=ro --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestReadOnlyTest --log-file=/gcsfuse-tmp/TestReadOnlyTest.log --log-severity=TRACE --o=ro --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[1].Run = "TestReadOnlyTest"
 
 		cfg.ReadCache[0].Configs[2].Flags = []string{
-			"--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRangeReadTest --log-file=/gcsfuse-tmp/TestRangeReadTest.log --log-severity=TRACE",
-			"--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRangeReadTest --log-file=/gcsfuse-tmp/TestRangeReadTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRangeReadTest --log-file=/gcsfuse-tmp/TestRangeReadTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRangeReadTest --log-file=/gcsfuse-tmp/TestRangeReadTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[2].Run = "TestRangeReadTest"
 
 		cfg.ReadCache[0].Configs[3].Flags = []string{
-			"--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest --log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log --log-severity=TRACE",
-			"--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest --log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest --log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--implicit-dirs --file-cache-max-size-mb=15 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest --log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[3].Run = "TestRangeReadWithParallelDownloadsTest"
 
 		cfg.ReadCache[0].Configs[4].Flags = []string{
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --implicit-dirs",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --implicit-dirs --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[4].Run = "TestLocalModificationTest"
 
 		cfg.ReadCache[0].Configs[5].Flags = []string{
-			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --implicit-dirs",
-			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE",
-			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc",
-			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --implicit-dirs --enable-kernel-reader=false",
+			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc --enable-kernel-reader=false",
+			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[5].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[5].Run = "TestDisabledCacheTTLTest"
 
 		cfg.ReadCache[0].Configs[6].Flags = []string{
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --implicit-dirs",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --file-cache-enable-o-direct=true",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc",
+			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --implicit-dirs --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --file-cache-enable-o-direct=true --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[6].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[6].Run = "TestCacheFileForRangeReadTrueTest"
@@ -209,8 +209,8 @@ func TestMain(m *testing.M) {
 		//cfg.ReadCache[0].Configs[7].Run = "TestCacheFileForRangeReadTrueWithRamCache"
 
 		cfg.ReadCache[0].Configs[8].Flags = []string{
-			"--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE",
-			"--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[8].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[8].Run = "TestCacheFileForRangeReadFalseTest"
@@ -223,10 +223,10 @@ func TestMain(m *testing.M) {
 		//cfg.ReadCache[0].Configs[9].Run = "TestCacheFileForRangeReadFalseWithRamCache"
 
 		cfg.ReadCache[0].Configs[10].Flags = []string{
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --file-cache-enable-o-direct=true",
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc",
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc",
+			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --file-cache-enable-o-direct=true --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[10].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[10].Run = "TestCacheFileForRangeReadFalseWithParallelDownloads"
@@ -241,67 +241,67 @@ func TestMain(m *testing.M) {
 		//cfg.ReadCache[0].Configs[11].Run = "TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache"
 
 		cfg.ReadCache[0].Configs[12].Flags = []string{
-			"--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[12].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[12].Run = "TestJobChunkTest"
 
 		cfg.ReadCache[0].Configs[13].Flags = []string{
 			//with unlimited max parallel downloads.
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 			//with go-routines not limited by max parallel downloads.
 			//maxParallelDownloads > parallelDownloadsPerFile * number of files being accessed concurrently.
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 			//with go-routines limited by max parallel downloads.
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[13].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[13].Run = "TestJobChunkTestWithParallelDownloads"
 
 		cfg.ReadCache[0].Configs[13].Flags = []string{
 			//with unlimited max parallel downloads.
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=-1 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 			//with go-routines not limited by max parallel downloads.
 			//maxParallelDownloads > parallelDownloadsPerFile * number of files being accessed concurrently.
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=9 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 			//with go-routines limited by max parallel downloads.
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=48 --file-cache-enable-parallel-downloads=true --file-cache-parallel-downloads-per-file=4 --file-cache-max-parallel-downloads=2 --file-cache-download-chunk-size-mb=4 --file-cache-enable-crc=true --cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads --log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[13].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[13].Run = "TestJobChunkTestWithParallelDownloads"
 
 		cfg.ReadCache[0].Configs[14].Flags = []string{
-			"--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE",
-			"--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE",
-			"--file-cache-exclude-regex=^" + setup.TestBucket() + "/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE",
-			"--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc",
-			"--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc",
-			"--file-cache-exclude-regex=^" + setup.TestBucket() + "/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-exclude-regex=^" + setup.TestBucket() + "/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-exclude-regex=^" + setup.TestBucket() + "/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[14].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[14].Run = "TestCacheFileForExcludeRegexTest"
 
 		cfg.ReadCache[0].Configs[15].Flags = []string{
-			"--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE",
-			"--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE",
-			"--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --client-protocol=grpc",
-			"--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--implicit-dirs --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[15].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[15].Run = "TestRemountTest"
 
 		cfg.ReadCache[0].Configs[16].Flags = []string{
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[16].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[16].Run = "TestCacheFileForIncludeRegexTest"

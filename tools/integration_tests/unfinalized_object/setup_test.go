@@ -61,16 +61,19 @@ func TestMain(m *testing.M) {
 		cfg.UnfinalizedObject[0].Configs = make([]test_suite.ConfigItem, 3)
 		cfg.UnfinalizedObject[0].Configs[0].Flags = []string{
 			"--metadata-cache-ttl-secs=-1",
+			"--metadata-cache-ttl-secs=-1 --enable-kernel-reader=false",
 		}
 		cfg.UnfinalizedObject[0].Configs[0].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.UnfinalizedObject[0].Configs[0].Run = "TestUnfinalizedObjectReadTest"
 		cfg.UnfinalizedObject[0].Configs[1].Flags = []string{
 			"--metadata-cache-ttl-secs=0",
+			"--metadata-cache-ttl-secs=0 --enable-kernel-reader=false",
 		}
 		cfg.UnfinalizedObject[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.UnfinalizedObject[0].Configs[1].Run = "TestUnfinalizedObjectOperationTest"
 		cfg.UnfinalizedObject[0].Configs[2].Flags = []string{
 			"--metadata-cache-ttl-secs=2",
+			"--metadata-cache-ttl-secs=2 --enable-kernel-reader=false",
 		}
 		cfg.UnfinalizedObject[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.UnfinalizedObject[0].Configs[2].Run = "TestUnfinalizedObjectTailingReadTest"
