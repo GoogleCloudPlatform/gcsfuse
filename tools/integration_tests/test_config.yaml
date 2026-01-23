@@ -50,21 +50,22 @@ list_large_dir:
     configs:
       - flags:
           - "--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
-          - "--enable-metadata-prefetch"
+          - "--client-protocol=grpc,--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
         compatible:
           flat: true
           hns: true
           zonal: true
         run_on_gke: true
+        run: TestListLargeDirWithKernelListCache
       - flags:
-          - "--client-protocol=grpc,--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
-          - "--client-protocol=grpc,--enable-metadata-prefetch"
+          - "--enable-metadata-prefetch,-implicit-dirs=true"
+          - "--client-protocol=grpc,--enable-metadata-prefetch,-implicit-dirs=true"
         compatible:
           flat: true
           hns: true
-          zonal: false
+          zonal: true
         run_on_gke: true
-
+        run: TestListLargeDirWithoutKernelListCache
 operations:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"

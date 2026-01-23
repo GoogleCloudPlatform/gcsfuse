@@ -17,6 +17,7 @@ package list_large_dir
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -43,12 +44,26 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type listLargeDir struct {
+	flags                    []string
+	isKernelListCacheEnabled bool
 	suite.Suite
 }
 
 func (t *listLargeDir) TearDownSuite() {
-	err := DeleteAllObjectsWithPrefix(ctx, storageClient, t.T().Name())
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (t *listLargeDir) SetupSuite() {
+	err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name())
 	assert.NoError(t.T(), err)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, t.flags, mountFunc)
+}
+
+func (t *listLargeDir) SetupTest() {
+}
+
+func (t *listLargeDir) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -122,7 +137,7 @@ func createFilesAndUpload(t *testing.T, dirPath string) {
 	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
 	defer os.RemoveAll(localDirPath)
 
-	testdataUploadFilesToBucket(ctx, t, storageClient, dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
+	testdataUploadFilesToBucket(testEnv.ctx, t, testEnv.storageClient, dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
 }
 
 // listDirTime measures the time taken to list a directory with and without cache.
@@ -212,7 +227,7 @@ func testdataCreateExplicitDir(t *testing.T, ctx context.Context, storageClient 
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
 
-	testDirPathOnBucket := path.Join(setup.TestBucket(), t.Name())
+	testDirPathOnBucket := path.Join(testEnv.cfg.TestBucket, t.Name())
 	testDirPath := path.Join(setup.MntDir(), t.Name())
 
 	err := os.MkdirAll(testDirPath, 0755)
@@ -223,11 +238,11 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 	createFilesAndUpload(t, testDirPathOnBucket)
 
 	if withExplicitDirs {
-		testdataCreateExplicitDir(t, ctx, storageClient, testDirPathOnBucket)
+		testdataCreateExplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
 	}
 
 	if withImplicitDirs {
-		testdataCreateImplicitDir(t, ctx, storageClient, testDirPathOnBucket)
+		testdataCreateImplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
 	}
 
 	return testDirPath
@@ -242,8 +257,10 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFiles() {
 
 	firstListTime, secondListTime := listDirTime(t.T(), dirPath, false, false)
 
-	assert.Less(t.T(), secondListTime, firstListTime)
-	assert.Less(t.T(), 2*secondListTime, firstListTime)
+	if t.isKernelListCacheEnabled {
+		assert.Less(t.T(), secondListTime, firstListTime)
+		assert.Less(t.T(), 2*secondListTime, firstListTime)
+	}
 }
 
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir() {
@@ -251,8 +268,10 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplici
 
 	firstListTime, secondListTime := listDirTime(t.T(), dirPath, true, false)
 
-	assert.Less(t.T(), secondListTime, firstListTime)
-	assert.Less(t.T(), 2*secondListTime, firstListTime)
+	if t.isKernelListCacheEnabled {
+		assert.Less(t.T(), secondListTime, firstListTime)
+		assert.Less(t.T(), 2*secondListTime, firstListTime)
+	}
 }
 
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir() {
@@ -263,14 +282,36 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplici
 
 	firstListTime, secondListTime := listDirTime(t.T(), dirPath, true, true)
 
-	assert.Less(t.T(), secondListTime, firstListTime)
-	assert.Less(t.T(), 2*secondListTime, firstListTime)
+	if t.isKernelListCacheEnabled {
+		assert.Less(t.T(), secondListTime, firstListTime)
+		assert.Less(t.T(), 2*secondListTime, firstListTime)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Suite Function
 ////////////////////////////////////////////////////////////////////////
 
-func TestListLargeDir(t *testing.T) {
-	suite.Run(t, new(listLargeDir))
+func (ts *listLargeDir) runTests(t *testing.T) {
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
+		return
+	}
+
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
+	}
+}
+func TestListLargeDirWithKernelListCache(t *testing.T) {
+	ts := &listLargeDir{isKernelListCacheEnabled: true}
+	ts.runTests(t)
+}
+
+func TestListLargeDirWithoutKernelListCache(t *testing.T) {
+	ts := &listLargeDir{isKernelListCacheEnabled: false}
+	ts.runTests(t)
 }
