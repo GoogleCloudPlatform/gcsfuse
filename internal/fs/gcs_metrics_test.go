@@ -404,4 +404,10 @@ func TestGCSMetrics_ParallelDownloads(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count",
 		attribute.NewSet(attribute.String("read_type", "Parallel")),
 		5)
+	// Verify request count for NewReader (which corresponds to GetObject requests).
+	// Parallel downloads trigger multiple NewReader calls (one per chunk).
+	// We observe 6 calls  (likely 5 chunks + 1 initial/metadata read),
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "NewReader")),
+		6)
 }
