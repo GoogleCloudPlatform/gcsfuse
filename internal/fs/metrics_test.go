@@ -53,9 +53,12 @@ type serverConfigParams struct {
 
 func defaultServerConfigParams() *serverConfigParams {
 	return &serverConfigParams{
-		enableBufferedRead: false,
-		enableNewReader:    true,
-		enableFileCache:    false,
+		enableBufferedRead:          false,
+		enableNewReader:             true,
+		enableFileCache:             false,
+		enableFileCacheForRangeRead: true,
+		enableKernelReader:          false,
+		enableParallelDownloads:     false,
 	}
 }
 
