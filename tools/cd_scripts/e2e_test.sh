@@ -396,10 +396,10 @@ TEST_DIR_PARALLEL_ZONAL=(
   rename_dir_limit
   stale_handle
   streaming_writes
-  # TODO: Reenable when unfinalized_object is fixed for Kernel Reader.
-  # unfinalized_object
+  unfinalized_object
   write_large_files
-  "unsupported_path"
+  unsupported_path
+  kernel_reader
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.

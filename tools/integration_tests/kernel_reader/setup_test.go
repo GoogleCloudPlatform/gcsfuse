@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -101,7 +101,7 @@ func TestMain(m *testing.M) {
 		cfg.KernelReader[0].Configs[0].Run = "TestFileCacheLogs"
 		cfg.KernelReader[0].Configs[0].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --cache-dir=/gcsfuse-tmp/TestFileCacheLogs"}
 		cfg.KernelReader[0].Configs[0].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.KernelReader[0].Configs[0].RunOnGKE = true
+		cfg.KernelReader[0].Configs[0].RunOnGKE = false
 
 		cfg.KernelReader[0].Configs[1].Run = "TestKernelReaderLogs"
 		cfg.KernelReader[0].Configs[1].Flags = []string{
@@ -111,12 +111,12 @@ func TestMain(m *testing.M) {
 			"--implicit-dirs --log-severity=trace --enable-buffered-read=true --cache-dir=/gcsfuse-tmp/TestKernelReaderLogs_Both",
 		}
 		cfg.KernelReader[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.KernelReader[0].Configs[1].RunOnGKE = true
+		cfg.KernelReader[0].Configs[1].RunOnGKE = false
 
 		cfg.KernelReader[0].Configs[2].Run = "TestBufferedReaderLogs"
 		cfg.KernelReader[0].Configs[2].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --enable-buffered-read"}
 		cfg.KernelReader[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.KernelReader[0].Configs[2].RunOnGKE = true
+		cfg.KernelReader[0].Configs[2].RunOnGKE = false
 	}
 
 	testEnv.ctx = context.Background()

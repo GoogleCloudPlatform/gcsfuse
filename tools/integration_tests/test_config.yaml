@@ -891,7 +891,7 @@ kernel_reader:
           flat: false
           hns: false
           zonal: true
-        run_on_gke: true
+        run_on_gke: false
       - run: TestKernelReaderLogs
         flags:
           - "--implicit-dirs,--log-severity=trace"
@@ -902,7 +902,7 @@ kernel_reader:
           flat: false
           hns: false
           zonal: true
-        run_on_gke: true
+        run_on_gke: false
       - run: TestBufferedReaderLogs
         flags:
           - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read"
@@ -910,4 +910,4 @@ kernel_reader:
           flat: false
           hns: false
           zonal: true
-        run_on_gke: true
+        run_on_gke: false
