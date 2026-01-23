@@ -143,11 +143,11 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].Configs[5].Run = "TestZonalBucketOptimizations_LogVerification"
 		cfg.FlagOptimizations[0].Configs[5].Flags = []string{"--log-severity=trace"}
 		cfg.FlagOptimizations[0].Configs[5].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[5].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[5].RunOnGKE = false
 		cfg.FlagOptimizations[0].Configs[6].Run = "TestZonalBucketOptimizations_KernelParamVerification"
 		cfg.FlagOptimizations[0].Configs[6].Flags = []string{"--log-severity=trace"}
 		cfg.FlagOptimizations[0].Configs[6].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[6].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[6].RunOnGKE = false
 	}
 
 	testEnv.ctx = context.Background()
