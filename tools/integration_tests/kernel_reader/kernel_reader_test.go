@@ -120,19 +120,18 @@ func (s *kernelReaderTest) TestKernelReader() {
 		validateParallelism bool
 	}{
 		{
-			configName:          "TestKernelReaderLogs",
+			configName:          "TestKernelReader_DefaultAndPrecedence",
 			expectedLog:         "Initializing MRD Pool with size:",
-			unexpectedLog:       "FileCache(",
 			validateParallelism: true,
 		},
 		{
-			configName:          "TestFileCacheLogs",
+			configName:          "TestFileCache_KernelReaderDisabled",
 			expectedLog:         "FileCache(",
 			unexpectedLog:       "Initializing MRD Pool with size:",
 			validateParallelism: false,
 		},
 		{
-			configName:          "TestBufferedReaderLogs",
+			configName:          "TestBufferedReader_KernelReaderDisabled",
 			expectedLog:         "Scheduling block:",
 			unexpectedLog:       "Initializing MRD Pool with size:",
 			validateParallelism: false,

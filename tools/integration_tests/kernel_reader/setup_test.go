@@ -98,22 +98,22 @@ func TestMain(m *testing.M) {
 		// Initialize the slice to hold 3 specific test configurations
 		cfg.KernelReader[0].Configs = make([]test_suite.ConfigItem, 3)
 
-		cfg.KernelReader[0].Configs[0].Run = "TestFileCacheLogs"
-		cfg.KernelReader[0].Configs[0].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --cache-dir=/gcsfuse-tmp/TestFileCacheLogs"}
+		cfg.KernelReader[0].Configs[0].Run = "TestFileCache_KernelReaderDisabled"
+		cfg.KernelReader[0].Configs[0].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"}
 		cfg.KernelReader[0].Configs[0].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.KernelReader[0].Configs[0].RunOnGKE = false
 
-		cfg.KernelReader[0].Configs[1].Run = "TestKernelReaderLogs"
+		cfg.KernelReader[0].Configs[1].Run = "TestKernelReader_DefaultAndPrecedence"
 		cfg.KernelReader[0].Configs[1].Flags = []string{
 			"--implicit-dirs --log-severity=trace",
-			"--implicit-dirs --log-severity=trace --cache-dir=/gcsfuse-tmp/TestKernelReaderLogs_FileCache",
+			"--implicit-dirs --log-severity=trace --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache",
 			"--implicit-dirs --log-severity=trace --enable-buffered-read=true",
-			"--implicit-dirs --log-severity=trace --enable-buffered-read=true --cache-dir=/gcsfuse-tmp/TestKernelReaderLogs_Both",
+			"--implicit-dirs --log-severity=trace --enable-buffered-read=true --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both",
 		}
 		cfg.KernelReader[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.KernelReader[0].Configs[1].RunOnGKE = false
 
-		cfg.KernelReader[0].Configs[2].Run = "TestBufferedReaderLogs"
+		cfg.KernelReader[0].Configs[2].Run = "TestBufferedReader_KernelReaderDisabled"
 		cfg.KernelReader[0].Configs[2].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --enable-buffered-read"}
 		cfg.KernelReader[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.KernelReader[0].Configs[2].RunOnGKE = false

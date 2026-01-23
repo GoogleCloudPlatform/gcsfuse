@@ -884,26 +884,26 @@ kernel_reader:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     configs:
-      - run: TestFileCacheLogs
+      - run: TestFileCache_KernelReaderDisabled
         flags:
-          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--cache-dir=/gcsfuse-tmp/TestFileCacheLogs"
+          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"
         compatible:
           flat: false
           hns: false
           zonal: true
         run_on_gke: false
-      - run: TestKernelReaderLogs
+      - run: TestKernelReader_DefaultAndPrecedence
         flags:
           - "--implicit-dirs,--log-severity=trace"
-          - "--implicit-dirs,--log-severity=trace,--cache-dir=/gcsfuse-tmp/TestKernelReaderLogs_FileCache"
+          - "--implicit-dirs,--log-severity=trace,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache"
           - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true"
-          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--cache-dir=/gcsfuse-tmp/TestKernelReaderLogs_Both"
+          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both"
         compatible:
           flat: false
           hns: false
           zonal: true
         run_on_gke: false
-      - run: TestBufferedReaderLogs
+      - run: TestBufferedReader_KernelReaderDisabled
         flags:
           - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read"
         compatible:
