@@ -120,19 +120,17 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 // TestGCSMetrics_RequestCount_StatObject validates the "gcs/request_count" metric for StatObject calls.
 //
 // Expected Behavior:
-//   - LookUpInode typically fails to find the inode in the memory cache initially.
-//   - It then queries GCS to check if the object exists.
-//   - The current implementation invokes StatObject multiple times (3 times) during LookUp:
-//     1. Lookup File: Check if the object itself exists.
-//     2. Lookup Directory: Check if the object is a directory (to rule out an explicit directory).
-//     3. Clobber Check: Fetch fresh attributes for the object to ensure the inode is valid and not clobbered.
-//   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 3.
+//   - LookUpInode invokes StatObject 3 times in this test scenario:
+//     1. Lookup Directory: Check if the object is a directory.
+//     2. Lookup File: Check if the object itself exists.
+//     3. Attribute Refresh: Fetch fresh attributes to ensure validity for the new inode.
+//   - GetInodeAttributes invokes StatObject 1 time to refresh attributes.
+//   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 4.
 func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 	ctx := context.Background()
 	bucket, server, _, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
 	fileName := "test.txt"
 	createWithContents(ctx, t, bucket, fileName, "test")
-
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   fileName,
@@ -140,12 +138,20 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	err := server.LookUpInode(ctx, lookupOp)
 	require.NoError(t, err)
-
 	waitForMetricsProcessing()
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		3)
+	3)
+
+	// Trigger another StatObject via GetInodeAttributes to verify stat count increments. 
+	err = server.GetInodeAttributes(ctx, &fuseops.GetInodeAttributesOp{Inode: lookupOp.Entry.Child})
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
+	4)	// Previously 3, now incremented by 1
 }
 
 // TestGCSMetrics_RequestCount_CreateObject validates the "gcs/request_count" metric for CreateObject calls.
@@ -166,10 +172,8 @@ func TestGCSMetrics_RequestCount_CreateObject(t *testing.T) {
 		Name:   fileName,
 		Mode:   0644,
 	}
-
 	err := server.CreateFile(ctx, createOp)
 	require.NoError(t, err)
-
 	// Sync or Close to trigger upload to GCS
 	syncOp := &fuseops.SyncFileOp{
 		Inode:  createOp.Entry.Child,
@@ -177,7 +181,6 @@ func TestGCSMetrics_RequestCount_CreateObject(t *testing.T) {
 	}
 	err = server.SyncFile(ctx, syncOp)
 	require.NoError(t, err)
-
 	waitForMetricsProcessing()
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
@@ -197,7 +200,6 @@ func TestGCSMetrics_RequestLatencies(t *testing.T) {
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test.txt"
 	createWithContents(ctx, t, bucket, fileName, "test")
-
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   fileName,
@@ -205,7 +207,6 @@ func TestGCSMetrics_RequestLatencies(t *testing.T) {
 
 	err := server.LookUpInode(ctx, lookupOp)
 	require.NoError(t, err)
-
 	waitForMetricsProcessing()
 
 	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies",
@@ -229,8 +230,7 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test.txt"
 	content := "1234567890"
-	createWithContents(ctx, t, bucket, fileName, content)
-
+	createWithContents(ctx, t, bucket, fileName, content)\
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   fileName,
@@ -252,17 +252,14 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 
 	err = server.ReadFile(ctx, readOp)
 	require.NoError(t, err)
-
 	waitForMetricsProcessing()
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
 		attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))),
 		int64(len(content)))
-
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "opened")),
 		1)
-
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
@@ -286,25 +283,22 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	params := defaultServerConfigParams()
 	params.enableFileCache = true
 	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, params)
-	server = wrappers.WithMonitoring(server, mh)
-
+	server = wrappers.WithMonitoring(server, mh)\
 	fileName := "file_cache_miss.txt"
 	content := "file_cache_content"
 	createWithContents(ctx, t, bucket, fileName, content)
-
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   fileName,
 	}
+
 	err := server.LookUpInode(ctx, lookupOp)
 	require.NoError(t, err)
-
 	openOp := &fuseops.OpenFileOp{
 		Inode: lookupOp.Entry.Child,
 	}
 	err = server.OpenFile(ctx, openOp)
 	require.NoError(t, err)
-
 	readOp := &fuseops.ReadFileOp{
 		Inode:  lookupOp.Entry.Child,
 		Handle: openOp.Handle,
@@ -313,24 +307,20 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	}
 	err = server.ReadFile(ctx, readOp)
 	require.NoError(t, err)
-
 	waitForMetricsProcessing()
 
 	// Expect download bytes from GCS
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")), // File cache uses sequential read
 		int64(len(content)))
-
 	// gcs/read_count - Sequential
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		1)
-
 	// gcs/reader_count - opened
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "opened")),
 		1)
-
 	// gcs/reader_count - closed
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
@@ -345,22 +335,18 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	}
 	err = server.ReadFile(ctx, readOp2)
 	require.NoError(t, err)
-
 	waitForMetricsProcessing()
 
 	// Count should still be the same (no new GCS downloads)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		int64(len(content)))
-
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		1)
-
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "opened")),
 		1)
-
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
