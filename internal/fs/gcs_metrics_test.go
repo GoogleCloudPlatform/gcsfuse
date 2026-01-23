@@ -142,16 +142,16 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-	3)
+		3)
 
-	// Trigger another StatObject via GetInodeAttributes to verify stat count increments. 
+	// Trigger another StatObject via GetInodeAttributes to verify stat count increments.
 	err = server.GetInodeAttributes(ctx, &fuseops.GetInodeAttributesOp{Inode: lookupOp.Entry.Child})
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-	4)	// Previously 3, now incremented by 1
+		4) // Previously 3, now incremented by 1
 }
 
 // TestGCSMetrics_RequestCount_CreateObject validates the "gcs/request_count" metric for CreateObject calls.
@@ -283,7 +283,7 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	params := defaultServerConfigParams()
 	params.enableFileCache = true
 	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, params)
-	server = wrappers.WithMonitoring(server, mh)\
+	server = wrappers.WithMonitoring(server, mh)
 	fileName := "file_cache_miss.txt"
 	content := "file_cache_content"
 	createWithContents(ctx, t, bucket, fileName, content)
