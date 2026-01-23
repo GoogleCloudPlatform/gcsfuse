@@ -700,7 +700,7 @@ flag_optimizations:
         run_on_gke: true
       - run: TestZonalBucketOptimizations_LogVerification
         flags:
-          - "--enable-kernel-reader=true"
+          - "--log-severity=trace"
         compatible:
           flat: false
           hns: false
@@ -708,7 +708,7 @@ flag_optimizations:
         run_on_gke: true
       - run: TestZonalBucketOptimizations_KernelParamVerification
         flags:
-          - "--enable-kernel-reader=true"
+          - "--log-severity=trace"
         compatible:
           flat: false
           hns: false
