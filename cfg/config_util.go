@@ -21,6 +21,22 @@ import (
 	"time"
 )
 
+const (
+	// maxBackgroundLimit configures the upper limit for max-background kernel fuse
+	// setting. This is more than sufficient to saturate the 200 Gbps network bandwidth
+	// on a single VM. Revise the numbers if you plan to support higher bandwidth VMs.
+	maxBackgroundLimit = 192
+)
+
+func DefaultMaxBackground() int {
+	return min(max(12, 2*runtime.NumCPU()), maxBackgroundLimit)
+}
+
+func DefaultCongestionThreshold() int {
+	// 75 % of DefaultMaxBackground
+	return (3 * DefaultMaxBackground()) / 4
+}
+
 func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
 }
@@ -60,4 +76,18 @@ func IsMetricsEnabled(c *MetricsConfig) bool {
 // IsGKEEnvironment returns true for /dev/fd/N mountpoints.
 func IsGKEEnvironment(mountPoint string) bool {
 	return strings.HasPrefix(mountPoint, "/dev/fd/")
+}
+
+// GetBucketType converts BucketType boolean flags to a BucketType enum.
+// The priority order is: Zonal > Hierarchical > Flat.
+// This is used to determine bucket-specific optimizations for kernel configs.
+// TODO (b/472597952): Make BucketType in bucket_handle.go as enum
+func GetBucketType(hierarchical, zonal bool) BucketType {
+	if zonal {
+		return BucketTypeZonal
+	}
+	if hierarchical {
+		return BucketTypeHierarchical
+	}
+	return BucketTypeFlat
 }

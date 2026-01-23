@@ -24,21 +24,20 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sys/unix"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -166,7 +165,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		TracingEnabled:             cfg.IsTracingEnabled(newConfig),
 		EnableHTTPDNSCache:         newConfig.GcsConnection.EnableHttpDnsCache,
 		LocalSocketAddress:         newConfig.GcsConnection.ExperimentalLocalSocketAddress,
-		EnableGrpcMetrics:          newConfig.Metrics.EnableGrpcMetrics,
+		EnableGrpcMetrics:          newConfig.Metrics.ExperimentalEnableGrpcMetrics,
 		IsGKE:                      isGKE,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
@@ -179,7 +178,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, isSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -213,7 +212,9 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 		mountPoint,
 		newConfig,
 		storageHandle,
-		metricHandle)
+		metricHandle,
+		traceHandle,
+		isSet)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
@@ -221,53 +222,6 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	}
 
 	return
-}
-
-// getDeviceMajorMinor returns the major and minor device numbers
-// for the filesystem mounted at the given mountPath.
-func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err error) {
-	if runtime.GOOS != "linux" {
-		return 0, 0, fmt.Errorf("unsupported OS: %s, device major/minor lookup is linux-specific", runtime.GOOS)
-	}
-
-	fileInfo, err := os.Stat(mountPoint)
-	if err != nil {
-		err = fmt.Errorf("os.Stat: %w", err)
-		return
-	}
-
-	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
-	if !ok {
-		err = fmt.Errorf("fileInfo.Sys() is not of type *syscall.Stat_t")
-		return
-	}
-
-	devID := stat.Dev
-	major = unix.Major(uint64(devID))
-	minor = unix.Minor(uint64(devID))
-	return
-}
-
-// setMaxReadAhead sets the kernel-read-ahead for the filesystem mounted at
-// the given mountPoint to readAheadKb.
-func setMaxReadAhead(mountPoint string, readAheadKb int) error {
-	major, minor, err := getDeviceMajorMinor(mountPoint)
-	if err != nil {
-		return fmt.Errorf("getting device major/minor for mount point %s: %v", mountPoint, err)
-	}
-
-	sysPath := filepath.Join("/sys/class/bdi", fmt.Sprintf("%d:%d", major, minor), "read_ahead_kb")
-	cmd := exec.Command("sudo", "-n", "tee", sysPath)
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", readAheadKb))
-
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		err = fmt.Errorf("setting the read ahead on mount-path %s: %v, stderr: %s", mountPoint, err, stderr.String())
-		return err
-	}
-	return nil
 }
 
 func populateArgs(args []string) (
@@ -507,6 +461,11 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
+	traceHandle := tracing.NewNoopTracer()
+	if cfg.IsTracingEnabled(newConfig) {
+		traceHandle = tracing.NewOTELTracer()
+	}
+
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// No-op if profiler is disabled.
@@ -519,7 +478,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		startTime := time.Now()
-		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
+		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle, traceHandle, mountInfo.isUserSet)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply
@@ -570,15 +529,17 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 		markSuccessfulMount()
 
-		if newConfig.FileSystem.MaxReadAheadKb != 0 {
-			err = setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
-			if err != nil {
-				logger.Infof("Failed to set the max read ahead: %v", err)
-			} else {
-				logger.Infof("Max read-ahead set to %d KB successfully.", newConfig.FileSystem.MaxReadAheadKb)
+		// Apply post mount kernel settings in non-GKE environments for non dynamic mounts.
+		if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) {
+			kernelparams := kernelparams.NewKernelParamsManager()
+			kernelparams.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
+			// Set max-background and congestion window when async read is enabled via kernel reader.
+			if newConfig.FileSystem.EnableKernelReader {
+				kernelparams.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
+				kernelparams.SetMaxBackgroundRequests(int(newConfig.FileSystem.MaxBackground))
 			}
+			kernelparams.ApplyNonGKE(mountPoint)
 		}
-
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).

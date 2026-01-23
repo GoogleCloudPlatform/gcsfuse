@@ -140,7 +140,7 @@ func ExecuteWithRetry[T any](
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
 
 		if i == 0 {
-			logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+			logger.Tracef("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
 		} else {
 			logger.Tracef("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
 		}

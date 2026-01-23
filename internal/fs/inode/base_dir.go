@@ -63,6 +63,8 @@ type baseDirInode struct {
 	buckets map[string]gcsx.SyncerBucket
 
 	metricHandle metrics.MetricHandle
+
+	isEnableTypeCacheDeprecation bool
 }
 
 // NewBaseDirInode returns a baseDirInode that acts as the directory of
@@ -72,14 +74,16 @@ func NewBaseDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	bm gcsx.BucketManager,
-	metricHandle metrics.MetricHandle) (d DirInode) {
+	metricHandle metrics.MetricHandle,
+	isEnableTypeCacheDeprecation bool) (d DirInode) {
 	typed := &baseDirInode{
-		id:            id,
-		name:          NewRootName(""),
-		attrs:         attrs,
-		bucketManager: bm,
-		buckets:       make(map[string]gcsx.SyncerBucket),
-		metricHandle:  metricHandle,
+		id:                           id,
+		name:                         NewRootName(""),
+		attrs:                        attrs,
+		bucketManager:                bm,
+		buckets:                      make(map[string]gcsx.SyncerBucket),
+		metricHandle:                 metricHandle,
+		isEnableTypeCacheDeprecation: isEnableTypeCacheDeprecation,
 	}
 	typed.lc.Init(id)
 	typed.mu = locker.NewRW("BaseDirInode"+name.GcsObjectName(), func() {})
@@ -153,6 +157,10 @@ func (d *baseDirInode) Attributes(
 	attrs.Nlink = 1
 
 	return
+}
+
+func (d *baseDirInode) UpdateSize(size uint64) {
+	// No-op for directories.
 }
 
 // LOCKS_REQUIRED(d)
@@ -286,4 +294,8 @@ func (d *baseDirInode) IsUnlinked() bool {
 }
 
 func (d *baseDirInode) Unlink() {
+}
+
+func (d *baseDirInode) IsTypeCacheDeprecated() bool {
+	return d.isEnableTypeCacheDeprecation
 }

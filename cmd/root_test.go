@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -29,6 +30,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testMaxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
 
 ////////////////////
 // Helpers
@@ -933,6 +936,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		Gid:                           -1,
 		IgnoreInterrupts:              true,
 		KernelListCacheTtlSecs:        0,
+		InactiveMrdCacheSize:          0,
 		RenameDirLimit:                0,
 		TempDir:                       "",
 		PreconditionErrors:            true,
@@ -965,6 +969,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           7,
 					IgnoreInterrupts:              false,
 					KernelListCacheTtlSecs:        300,
+					InactiveMrdCacheSize:          0,
 					RenameDirLimit:                10,
 					TempDir:                       cfg.ResolvedPath(path.Join(hd, "temp")),
 					PreconditionErrors:            false,
@@ -987,6 +992,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           -1,
 					IgnoreInterrupts:              true,
 					KernelListCacheTtlSecs:        0,
+					InactiveMrdCacheSize:          0,
 					RenameDirLimit:                0,
 					TempDir:                       "",
 					PreconditionErrors:            true,
@@ -1009,6 +1015,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           -1,
 					IgnoreInterrupts:              true,
 					KernelListCacheTtlSecs:        0,
+					InactiveMrdCacheSize:          0,
 					RenameDirLimit:                200000,
 					TempDir:                       "",
 					PreconditionErrors:            true,
@@ -1033,6 +1040,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           -1,
 					IgnoreInterrupts:              true,
 					KernelListCacheTtlSecs:        0,
+					InactiveMrdCacheSize:          0,
 					RenameDirLimit:                0,
 					TempDir:                       "",
 					PreconditionErrors:            true,
@@ -1057,6 +1065,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           -1,
 					IgnoreInterrupts:              true,
 					KernelListCacheTtlSecs:        0,
+					InactiveMrdCacheSize:          0,
 					RenameDirLimit:                15000,
 					TempDir:                       "",
 					PreconditionErrors:            true,
@@ -1127,20 +1136,56 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--experimental-o-direct", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: true,
-					PreconditionErrors:  true,
-					Uid:                 -1,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 0,
+					ExperimentalODirect:  true,
+					PreconditionErrors:   true,
+					Uid:                  -1,
 				},
 			},
 		},
 		{
 			name: "Test file system max-read-ahead-kb flag enabled.",
 			args: []string{"gcsfuse", "--max-read-ahead-kb=1024", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 0,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					MaxReadAheadKb:       1024,
+				},
+			},
+		},
+		{
+			name: "Test file system max-read-ahead-kb flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 0,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					MaxReadAheadKb:       0,
+				},
+			},
+		},
+		{
+			name: "Test file system max-background flag enabled.",
+			args: []string{"gcsfuse", "--max-background=512", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:             0755,
@@ -1151,23 +1196,126 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					ExperimentalODirect: false,
 					PreconditionErrors:  true,
 					Uid:                 -1,
-					MaxReadAheadKb:      1024,
+					MaxBackground:       512,
 				},
 			},
 		},
 		{
-			name: "Test file system max-read-ahead-kb flag disabled.",
+			name: "Test file system max-background flag disabled.",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:            0755,
-					FileMode:           0644,
-					FuseOptions:        []string{},
-					Gid:                -1,
-					IgnoreInterrupts:   true,
-					PreconditionErrors: true,
-					Uid:                -1,
-					MaxReadAheadKb:     0,
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					MaxBackground:       0,
+				},
+			},
+		},
+		{
+			name: "Test file system congestion-threshold flag enabled.",
+			args: []string{"gcsfuse", "--congestion-threshold=256", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					CongestionThreshold: 256,
+				},
+			},
+		},
+		{
+			name: "Test file system congestion-threshold flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					CongestionThreshold: 0,
+				},
+			},
+		},
+		{
+			name: "Test file system enable-kernel-reader flag enabled.",
+			args: []string{"gcsfuse", "--enable-kernel-reader", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					EnableKernelReader:  true,
+				},
+			},
+		},
+		{
+			name: "Test file system enable-kernel-reader flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					EnableKernelReader:  false,
+				},
+			},
+		},
+		{
+			name: "Test file system kernel-params-file flag.",
+			args: []string{"gcsfuse", "--kernel-params-file=/tmp/params", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					KernelParamsFile:    "/tmp/params",
+				},
+			},
+		},
+		{
+			name: "Test file system kernel-params-file from config file.",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  kernel-params-file: /tmp/config_params"), "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:             0755,
+					FileMode:            0644,
+					FuseOptions:         []string{},
+					Gid:                 -1,
+					IgnoreInterrupts:    true,
+					ExperimentalODirect: false,
+					PreconditionErrors:  true,
+					Uid:                 -1,
+					KernelParamsFile:    "/tmp/config_params",
 				},
 			},
 		},
@@ -1340,6 +1488,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableTypeCacheDeprecationFlags(t *testing.T) {
+	tests := []struct {
+		name                               string
+		args                               []string
+		expectedEnableTypeCacheDeprecation bool
+	}{
+		{
+			name:                               "normal",
+			args:                               []string{"gcsfuse", "--enable-type-cache-deprecation=true", "abc", "pqr"},
+			expectedEnableTypeCacheDeprecation: true,
+		},
+		{
+			name:                               "default",
+			args:                               []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableTypeCacheDeprecation: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableTypeCacheDeprecation bool
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableTypeCacheDeprecation = mountInfo.config.EnableTypeCacheDeprecation
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableTypeCacheDeprecation, gotEnableTypeCacheDeprecation)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 	tests := []struct {
 		name                           string
@@ -1451,6 +1636,43 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_DisableListAccessCheckFlag(t *testing.T) {
+	tests := []struct {
+		name                           string
+		args                           []string
+		expectedDisableListAccessCheck bool
+	}{
+		{
+			name:                           "default",
+			args:                           []string{"gcsfuse", "abc", "pqr"},
+			expectedDisableListAccessCheck: true,
+		},
+		{
+			name:                           "normal",
+			args:                           []string{"gcsfuse", "--disable-list-access-check=false", "abc", "pqr"},
+			expectedDisableListAccessCheck: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotDisableListAccessCheck bool
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotDisableListAccessCheck = mountInfo.config.DisableListAccessCheck
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedDisableListAccessCheck, gotDisableListAccessCheck)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 	tests := []struct {
 		name                    string
@@ -1539,11 +1761,11 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		},
 		{
 			name: "enable_grpc_metrics_non_default",
-			args: []string{"gcsfuse", "--enable-grpc-metrics=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--experimental-enable-grpc-metrics=false", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				Workers:           3,
-				BufferSize:        256,
-				EnableGrpcMetrics: false,
+				Workers:                       3,
+				BufferSize:                    256,
+				ExperimentalEnableGrpcMetrics: false,
 			},
 		},
 	}
@@ -1620,13 +1842,16 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--metadata-prefetch-max-workers=3", "--enable-metadata-prefetch=true", "--metadata-prefetch-entries-limit=500", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         2000,
 					DeprecatedStatCacheTtl:              2 * time.Minute,
 					DeprecatedTypeCacheTtl:              80 * time.Second,
 					EnableNonexistentTypeCache:          true,
+					MetadataPrefetchMaxWorkers:          3,
+					EnableMetadataPrefetch:              true,
+					MetadataPrefetchEntriesLimit:        500,
 					ExperimentalMetadataPrefetchOnMount: "async",
 					StatCacheMaxSizeMb:                  15,
 					TtlSecs:                             25,
@@ -1645,6 +1870,9 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
+					MetadataPrefetchMaxWorkers:          10,
+					EnableMetadataPrefetch:              false,
+					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
@@ -1662,6 +1890,9 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
+					MetadataPrefetchMaxWorkers:          10,
+					EnableMetadataPrefetch:              false,
+					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
@@ -1679,6 +1910,9 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
+					MetadataPrefetchMaxWorkers:          10,
+					EnableMetadataPrefetch:              false,
+					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  1024,
 					TtlSecs:                             9223372036,
 					NegativeTtlSecs:                     0,
@@ -1688,13 +1922,16 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 		},
 		{
 			name: "high_performance_default_config_values_obey_customer_flags",
-			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--enable-metadata-prefetch", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         2000,
 					DeprecatedStatCacheTtl:              2 * time.Minute,
 					DeprecatedTypeCacheTtl:              80 * time.Second,
 					EnableNonexistentTypeCache:          true,
+					MetadataPrefetchMaxWorkers:          10,
+					EnableMetadataPrefetch:              true,
+					MetadataPrefetchEntriesLimit:        5000,
 					ExperimentalMetadataPrefetchOnMount: "async",
 					StatCacheMaxSizeMb:                  15,
 					TtlSecs:                             25,
@@ -1713,6 +1950,9 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              4 * time.Minute,
 					EnableNonexistentTypeCache:          true,
 					ExperimentalMetadataPrefetchOnMount: "async",
+					MetadataPrefetchMaxWorkers:          10,
+					EnableMetadataPrefetch:              false,
+					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  4,
 					TtlSecs:                             120,
 					NegativeTtlSecs:                     20,
@@ -2352,6 +2592,123 @@ func TestArgsParsing_DummyIOConfigFile(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedConfig.DummyIo, gotConfig.DummyIo)
+		})
+	}
+}
+
+func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
+	testCases := []struct {
+		name          string
+		configContent string
+		args          []string
+		validate      func(*testing.T, *mountInfo)
+	}{
+		{
+			name: "machine_type_optimization_respects_config_file",
+			configContent: `write:
+  global-max-blocks: 123
+`,
+			args: []string{"--machine-type=a3-highgpu-8g"},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
+				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+			},
+		},
+		{
+			name: "profile_optimization_respects_config_file",
+			configContent: `implicit-dirs: false
+`,
+			args: []string{"--profile=" + cfg.ProfileAIMLTraining},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
+				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
+				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
+			},
+		},
+		{
+			name: "machine_type_in_config_file_respects_other_config_file_configurations",
+			configContent: `
+machine-type: a3-highgpu-8g
+write:
+  global-max-blocks: 123`,
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
+				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			configFile := createTempConfigFile(t, tc.configContent)
+			defer os.Remove(configFile)
+			var capturedMountInfo *mountInfo
+			cmd, err := newRootCmd(func(mi *mountInfo, _, _ string) error {
+				capturedMountInfo = mi
+				return nil
+			})
+			require.NoError(t, err)
+			cmdArgs := append([]string{"gcsfuse", "--config-file=" + configFile}, tc.args...)
+			cmdArgs = append(cmdArgs, "bucket", "mountpoint")
+			cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			require.NotNil(t, capturedMountInfo)
+			tc.validate(t, capturedMountInfo)
+		})
+	}
+}
+
+func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		validate func(*testing.T, *mountInfo)
+	}{
+		{
+			name: "machine_type_optimization_respects_cli_flag",
+			args: []string{"--machine-type=a3-highgpu-8g", "--write-global-max-blocks=123"},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect CLI value 123, not optimize to 1600")
+				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
+				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+			},
+		},
+		{
+			name: "profile_optimization_respects_cli_flag",
+			args: []string{"--profile=" + cfg.ProfileAIMLTraining, "--implicit-dirs=false"},
+			validate: func(t *testing.T, mi *mountInfo) {
+				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
+				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
+				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedMountInfo *mountInfo
+			cmd, err := newRootCmd(func(mi *mountInfo, _, _ string) error {
+				capturedMountInfo = mi
+				return nil
+			})
+			require.NoError(t, err)
+			cmdArgs := append([]string{"gcsfuse"}, tc.args...)
+			cmdArgs = append(cmdArgs, "bucket", "mountpoint")
+			cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			require.NotNil(t, capturedMountInfo)
+			tc.validate(t, capturedMountInfo)
 		})
 	}
 }

@@ -906,6 +906,115 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// ListObjectsTest_InsertListing
+////////////////////////////////////////////////////////////////////////
+
+type ListObjectsTest_InsertListing struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&ListObjectsTest_InsertListing{}) }
+
+func (t *ListObjectsTest_InsertListing) callAndVerify(listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject) {
+	// Wrapped
+	ExpectCall(t.wrapped, "BucketType")().
+		WillOnce(Return(gcs.BucketType{Hierarchical: false}))
+	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
+		WillOnce(Return(listing, nil))
+	// Register expectations.
+	for _, obj := range expectedInserts {
+		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
+	}
+
+	// Call
+	gotListing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{Prefix: prefix, IsTypeCacheDeprecated: true})
+
+	AssertEq(nil, err)
+	AssertEq(listing, gotListing)
+}
+
+func (t *ListObjectsTest_InsertListing) EmptyListing() {
+	listing := &gcs.Listing{}
+	expectedInserts := []*gcs.MinObject{}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+			{Name: "dir/b", Size: 2},
+		},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
+		{Name: "dir/b", Size: 2},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) CollapsedRunsOnly() {
+	listing := &gcs.Listing{
+		CollapsedRuns: []string{"dir/a/", "dir/b/"},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a/"},
+		{Name: "dir/b/"},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectsAndCollapsedRuns() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+		},
+		CollapsedRuns: []string{"dir/b/"},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
+		{Name: "dir/b/"},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ImplicitDir() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+		},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a", Size: 1},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a/", Size: 0},
+		},
+		CollapsedRuns: []string{"dir/a/"},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/"},
+		{Name: "dir/a/", Size: 0},
+	}
+
+	t.callAndVerify(listing, "dir/", expectedInserts)
+}
+
+////////////////////////////////////////////////////////////////////////
 // UpdateObject
 ////////////////////////////////////////////////////////////////////////
 
@@ -994,11 +1103,8 @@ func (t *DeleteObjectTest) deleteObject(name string) (err error) {
 	return
 }
 
-func (t *DeleteObjectTest) CallsEraseAndWrapped() {
+func (t *DeleteObjectTest) CallsWrapped() {
 	const name = "taco"
-
-	// Erase
-	ExpectCall(t.cache, "Erase")(name)
 
 	// Wrapped
 	var wrappedReq *gcs.DeleteObjectRequest
@@ -1012,12 +1118,9 @@ func (t *DeleteObjectTest) CallsEraseAndWrapped() {
 	ExpectEq(name, wrappedReq.Name)
 }
 
-func (t *DeleteObjectTest) WrappedFails() {
+func (t *DeleteObjectTest) WrappedFails_GenericError() {
 	const name = ""
 	var err error
-
-	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
 	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
@@ -1029,7 +1132,35 @@ func (t *DeleteObjectTest) WrappedFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *DeleteObjectTest) WrappedSucceeds() {
+func (t *DeleteObjectTest) WrappedReturnsPreconditionError() {
+	const name = "taco"
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
+		WillOnce(Return(&gcs.PreconditionError{Err: errors.New("precondition failed")}))
+
+	// Call.
+	err := t.deleteObject(name)
+
+	ExpectThat(err, Error(HasSubstr("precondition failed")))
+}
+
+func (t *DeleteObjectTest) WrappedReturnsNotFoundError() {
+	const name = "taco"
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
+		WillOnce(Return(&gcs.NotFoundError{Err: errors.New("object not found")}))
+
+	// Call.
+	err := t.deleteObject(name)
+
+	ExpectThat(err, Error(HasSubstr("object not found")))
+}
+
+func (t *DeleteObjectTest) WrappedSucceeds_AddsNegativeEntry() {
 	const name = ""
 	var err error
 
@@ -1045,6 +1176,22 @@ func (t *DeleteObjectTest) WrappedSucceeds() {
 	AssertEq(nil, err)
 }
 
+func (t *DeleteObjectTest) OnlyDeleteFromCache() {
+	const name = "taco"
+	req := &gcs.DeleteObjectRequest{
+		Name:                name,
+		OnlyDeleteFromCache: true,
+	}
+	// Expect AddNegativeEntry call.
+	ExpectCall(t.cache, "AddNegativeEntry")(
+		name,
+		timeutil.TimeEq(t.clock.Now().Add(negativeCacheTTL)))
+
+	err := t.bucket.DeleteObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+}
+
 func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
 	const name = "some-name"
 	folder := &gcs.Folder{
@@ -1053,7 +1200,7 @@ func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, folder))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1065,7 +1212,7 @@ func (t *StatObjectTest) TestShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(true, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	AssertEq(nil, result)
@@ -1076,15 +1223,16 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 	folder := &gcs.Folder{
 		Name: name,
 	}
+	getFolderReq := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
 		WillOnce(Return())
-	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), getFolderReq).
 		WillOnce(Return(folder, nil))
 
-	result, err := t.bucket.GetFolder(context.TODO(), name)
+	result, err := t.bucket.GetFolder(context.TODO(), getFolderReq)
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
@@ -1093,13 +1241,14 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 func (t *StatObjectTest) TestShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
 	const name = "some-name"
 	error := errors.New("connection error")
+	getFolderReq := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
-	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+	ExpectCall(t.wrapped, "GetFolder")(Any(), getFolderReq).
 		WillOnce(Return(nil, error))
 
-	folder, result := t.bucket.GetFolder(context.TODO(), name)
+	folder, result := t.bucket.GetFolder(context.TODO(), getFolderReq)
 
 	AssertEq(nil, folder)
 	AssertEq(error, result)
@@ -1120,6 +1269,71 @@ func (t *StatObjectTest) TestRenameFolder() {
 
 	AssertEq(nil, err)
 	ExpectEq(result, folder)
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheFalse() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: false,
+	}
+	// We expect a call to GCS, so we mock the wrapped bucket.
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(false, nil))
+
+	minObj := &gcs.MinObject{Name: name}
+	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
+		WillOnce(Return(minObj, nil, nil))
+	ExpectCall(t.cache, "Insert")(Any(), Any())
+
+	m, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(minObj, m)
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	minObj := &gcs.MinObject{Name: name}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(true, minObj))
+
+	m, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(minObj, m)
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(true, nil))
+
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheMiss() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(false, nil))
+
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
 }
 
 type DeleteFolderTest struct {
@@ -1258,7 +1472,7 @@ func (t *NewReaderWithReadHandleTest) CallsWrappedAndInvalidatesOnNotFound() {
 	rd, err := t.bucket.NewReaderWithReadHandle(context.TODO(), req)
 
 	AssertEq(nil, rd)
-	ExpectThat(err, Error(HasSubstr("not found")))
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	AssertEq(name, wrappedReq.Name)
 }
 
@@ -1275,4 +1489,120 @@ func (t *NewReaderWithReadHandleTest) CallsWrappedAndDoesNotInvalidateOnSuccess(
 
 	AssertEq(nil, err)
 	ExpectEq(expectedReader, rd)
+}
+
+////////////////////////////////////////////////////////////////////////
+// NewMultiRangeDownloader
+////////////////////////////////////////////////////////////////////////
+
+type NewMultiRangeDownloaderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&NewMultiRangeDownloaderTest{}) }
+
+func (t *NewMultiRangeDownloaderTest) CallsWrappedAndInvalidatesOnNotFound() {
+	const name = "some-name"
+	// Expect: wrapped bucket returns NotFoundError
+	var wrappedReq *gcs.MultiRangeDownloaderRequest
+	ExpectCall(t.wrapped, "NewMultiRangeDownloader")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, &gcs.NotFoundError{Err: errors.New("not found")})))
+	// Expect: cache invalidate is called
+	ExpectCall(t.cache, "Erase")(name)
+
+	// Call
+	req := &gcs.MultiRangeDownloaderRequest{Name: name}
+	mrd, err := t.bucket.NewMultiRangeDownloader(context.TODO(), req)
+
+	AssertEq(nil, mrd)
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertEq(name, wrappedReq.Name)
+}
+
+func (t *NewMultiRangeDownloaderTest) CallsWrappedAndDoesNotInvalidateOnSuccess() {
+	const name = "some-name"
+	expectedMrd := fake.NewFakeMultiRangeDownloader(&gcs.MinObject{Name: name}, nil)
+	// Expect: wrapped returns mrd, no error
+	ExpectCall(t.wrapped, "NewMultiRangeDownloader")(Any(), Any()).
+		WillOnce(Return(expectedMrd, nil))
+
+	// Call
+	req := &gcs.MultiRangeDownloaderRequest{Name: name}
+	mrd, err := t.bucket.NewMultiRangeDownloader(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(expectedMrd, mrd)
+}
+
+////////////////////////////////////////////////////////////////////////
+// GetFolder
+////////////////////////////////////////////////////////////////////////
+
+type GetFolderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&GetFolderTest{}) }
+
+func (t *GetFolderTest) FetchOnlyFromCacheFalse() {
+	const name = "taco/"
+	req := &gcs.GetFolderRequest{
+		Name:               name,
+		FetchOnlyFromCache: false,
+	}
+	folder := &gcs.Folder{Name: name}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(false, nil))
+	ExpectCall(t.wrapped, "GetFolder")(Any(), Any()).
+		WillOnce(Return(folder, nil))
+	ExpectCall(t.cache, "InsertFolder")(Any(), Any())
+
+	f, err := t.bucket.GetFolder(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(folder, f)
+}
+
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
+	const name = "taco/"
+	req := &gcs.GetFolderRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	folder := &gcs.Folder{Name: name}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(true, folder))
+
+	f, err := t.bucket.GetFolder(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(folder, f)
+}
+
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
+	const name = "taco/"
+	req := &gcs.GetFolderRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(true, nil))
+
+	_, err := t.bucket.GetFolder(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheMiss() {
+	const name = "taco/"
+	req := &gcs.GetFolderRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(false, nil))
+
+	_, err := t.bucket.GetFolder(context.TODO(), req)
+
+	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
 }

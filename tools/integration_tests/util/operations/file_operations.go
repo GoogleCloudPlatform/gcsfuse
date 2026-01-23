@@ -855,3 +855,14 @@ func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, f
 		t.Errorf("Error in copying file:%v", err)
 	}
 }
+
+// StatFileOrFatal stats the given file path and returns the syscall.Stat_t struct.
+// It fails the test if os.Stat or the type assertion fails.
+func StatFileOrFatal(filePath string, t *testing.T) *syscall.Stat_t {
+	t.Helper()
+	fi, err := os.Stat(filePath)
+	require.NoError(t, err)
+	stat, ok := fi.Sys().(*syscall.Stat_t)
+	require.True(t, ok)
+	return stat
+}

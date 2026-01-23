@@ -392,14 +392,14 @@ func preconditionChecks(b *bucket, req *gcs.CreateObjectRequest, contents []byte
 	return
 }
 
-func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents []byte) (o *gcs.Object, err error) {
+func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents []byte, isAppend bool) (o *gcs.Object, err error) {
 	var fo fakeObject
 	// Replace an entry in or add an entry to our list of objects.
 	existingIndex := b.objects.find(req.Name)
 	if existingIndex < len(b.objects) {
 		var content []byte
-		if b.bucketType.Zonal {
-			// If the bucket type is zonal, then we will update the fake object with the appended content.
+		if isAppend {
+			// If this is an append operation, then we will update the fake object with the appended content.
 			b.mu.Unlock()
 			existingContent, err := storageutil.ReadObject(context.Background(), b, req.Name)
 			b.mu.Lock()
@@ -444,7 +444,7 @@ func (b *bucket) createObjectLocked(
 	if err != nil {
 		return nil, err
 	}
-	return createOrUpdateFakeObject(b, req, contents)
+	return createOrUpdateFakeObject(b, req, contents, false)
 }
 
 // Create a reader based on the supplied request, also returning the index
@@ -580,6 +580,9 @@ func (b *bucket) ListObjects(
 
 	// Find the range of indexes within the array to scan.
 	indexStart := b.objects.lowerBound(nameStart)
+	if req.StartOffset != "" {
+		indexStart = max(indexStart, b.objects.lowerBound(req.StartOffset))
+	}
 	prefixLimit := b.objects.prefixUpperBound(req.Prefix)
 	indexLimit := minInt(indexStart+maxResults, prefixLimit)
 
@@ -702,7 +705,7 @@ func (b *bucket) CreateObject(
 }
 
 func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, _ int, _ func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	return NewFakeObjectWriter(b, req)
+	return NewFakeObjectWriter(b, req, false)
 }
 
 func (b *bucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
@@ -713,7 +716,7 @@ func (b *bucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.Crea
 			return nil, fmt.Errorf("storage: ObjectHandle.Generation must be set to use NewWriterFromAppendableObject")
 		}
 	}
-	return NewFakeObjectWriter(b, &req.CreateObjectRequest)
+	return NewFakeObjectWriter(b, &req.CreateObjectRequest, true)
 }
 
 func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
@@ -1139,20 +1142,20 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	return
 }
 
-func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder, error) {
+func (b *bucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Does the folder exist?
-	index := b.folders.find(foldername)
+	index := b.folders.find(req.Name)
 	if index == len(b.folders) {
 		err := &gcs.NotFoundError{
-			Err: fmt.Errorf("object %s not found", foldername),
+			Err: fmt.Errorf("object %s not found", req.Name),
 		}
 		return nil, err
 	}
 
-	return &gcs.Folder{Name: foldername}, nil
+	return &gcs.Folder{Name: req.Name}, nil
 }
 
 func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {

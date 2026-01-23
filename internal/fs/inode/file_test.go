@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
@@ -71,10 +72,17 @@ type FileTest struct {
 	backingObj      *gcs.MinObject
 
 	in *FileInode
+
+	bucketType gcs.BucketType
 }
 
 func TestFileTestSuite(t *testing.T) {
-	suite.Run(t, new(FileTest))
+	t.Run("NonZonal", func(t *testing.T) {
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: false}})
+	})
+	t.Run("Zonal", func(t *testing.T) {
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
+	})
 }
 
 func (t *FileTest) SetupSubTest() {
@@ -86,7 +94,7 @@ func (t *FileTest) SetupTest() {
 	syncutil.EnableInvariantChecking()
 	t.ctx = context.Background()
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", t.bucketType)
 
 	// Set up the backing object.
 	var err error
@@ -155,7 +163,8 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		&t.clock,
 		local,
 		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64))
+		semaphore.NewWeighted(math.MaxInt64),
+		nil)
 
 	t.in.Lock()
 }
@@ -167,6 +176,28 @@ func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool, openMode ut
 	assert.Equal(t.T(), shouldInitialize, initialized)
 	if shouldInitialize {
 		assert.NotNil(t.T(), t.in.bwh)
+	}
+}
+
+func (t *FileTest) validateMrdInstanceMinObject() {
+	t.T().Helper()
+	// Validate only for zonal buckets
+	if t.in.bucket.BucketType().Zonal {
+		// Validate MinObject in inode and MRDInstance points to different copy of MinObject.
+		assert.NotSame(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
+		// Validate MinObject in MRDInstance is equal to the MinObject in inode.
+		assert.Equal(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
+	}
+}
+
+func (t *FileTest) validateMrdWrapperMinObject() {
+	t.T().Helper()
+	// Validate only for zonal buckets
+	if t.in.bucket.BucketType().Zonal {
+		// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
+		assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+		// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
+		assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
 	}
 }
 
@@ -544,6 +575,28 @@ func (t *FileTest) TestTruncateNegative() {
 	assert.False(t.T(), gcsSynced)
 }
 
+func (t *FileTest) TestDestroy_MrdInstanceDestroyed() {
+	if !t.in.bucket.BucketType().Zonal {
+		return
+	}
+	// Manually initialize MRD pool since FileInode.Read doesn't use it directly.
+	mi := t.in.GetMRDInstance()
+	require.NotNil(t.T(), mi)
+	// Perform a read on MrdInstance to trigger pool creation.
+	buf := make([]byte, 1)
+	_, err := mi.Read(t.ctx, buf, 0, metrics.NewNoopMetrics())
+	require.NoError(t.T(), err)
+	// Verify pool is initialized.
+	assert.Greater(t.T(), int(mi.Size()), 0)
+
+	// Destroy the inode.
+	err = t.in.Destroy()
+
+	require.NoError(t.T(), err)
+	// Verify MRD instance is destroyed (pool closed and set to nil).
+	assert.Equal(t.T(), uint64(0), mi.Size())
+}
+
 func (t *FileTest) TestWriteThenSync() {
 	testcases := []struct {
 		name     string
@@ -588,10 +641,8 @@ func (t *FileTest) TestWriteThenSync() {
 			// The generation should have advanced.
 			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
-			// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-			assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-			// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-			assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+			t.validateMrdWrapperMinObject()
+			t.validateMrdInstanceMinObject()
 
 			// Stat the current object in the bucket.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -678,10 +729,8 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 			assert.Equal(t.T(),
 				writeTime.UTC().Format(time.RFC3339Nano),
 				m.Metadata["gcsfuse_mtime"])
-			// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-			assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-			// Validate MinObject in MRDWrapper is same as the MinObject in inode.
-			assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+			t.validateMrdWrapperMinObject()
+			t.validateMrdInstanceMinObject()
 			// Read the object's contents.
 			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 			require.NoError(t.T(), err)
@@ -741,10 +790,8 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(0), m.Size)
-			// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-			assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-			// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-			assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+			t.validateMrdWrapperMinObject()
+			t.validateMrdInstanceMinObject()
 			// Validate the mtime.
 			mtimeInBucket, ok := m.Metadata["gcsfuse_mtime"]
 			assert.True(t.T(), ok)
@@ -819,10 +866,8 @@ func (t *FileTest) TestAppendThenSync() {
 			assert.Equal(t.T(),
 				writeTime.UTC().Format(time.RFC3339Nano),
 				m.Metadata["gcsfuse_mtime"])
-			// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-			assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-			// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-			assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+			t.validateMrdWrapperMinObject()
+			t.validateMrdInstanceMinObject()
 
 			// Read the object's contents.
 			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
@@ -915,10 +960,8 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 			// The generation should have advanced.
 			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
-			// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-			assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-			// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-			assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+			t.validateMrdWrapperMinObject()
+			t.validateMrdInstanceMinObject()
 
 			// Stat the current object in the bucket.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -988,10 +1031,8 @@ func (t *FileTest) TestTruncateUpwardThenFlush() {
 			// The generation should have advanced.
 			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
-			// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-			assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-			// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-			assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+			t.validateMrdWrapperMinObject()
+			t.validateMrdInstanceMinObject()
 
 			// Stat the current object in the bucket.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -1288,10 +1329,8 @@ func (t *FileTest) TestSyncFlush_Clobbered() {
 				err = t.in.Flush(t.ctx)
 			}
 
-			// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-			assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-			// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-			assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+			t.validateMrdWrapperMinObject()
+			t.validateMrdInstanceMinObject()
 
 			// Check if the error is a FileClobberedError
 			var fcErr *gcsfuse_errors.FileClobberedError
@@ -1420,10 +1459,8 @@ func (t *FileTest) TestSetMtime_ContentDirty() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-	assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-	// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-	assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+	t.validateMrdWrapperMinObject()
+	t.validateMrdInstanceMinObject()
 
 	require.NoError(t.T(), err)
 	assert.NotNil(t.T(), m)
@@ -1852,6 +1889,24 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEn
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 	assert.Equal(t.T(), attrs.Ctime, mtime)
 	assert.Equal(t.T(), attrs.Atime, mtime)
+}
+
+func (t *FileTest) TestUpdateSize() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	// Check initial size.
+	attrs, err = t.in.Attributes(t.ctx, true)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), uint64(len(t.initialContents)), attrs.Size)
+
+	// Update size.
+	newSize := uint64(100)
+	t.in.UpdateSize(newSize)
+
+	// Check new size.
+	attrs, err = t.in.Attributes(t.ctx, true)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), newSize, attrs.Size)
 }
 
 func (t *FileTest) TestRegisterFileHandle() {

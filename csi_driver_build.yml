@@ -13,7 +13,7 @@
 # limitations under the License.
 
 substitutions:
-  _GOLANG_VERSION: '1.24.11'
+  _GOLANG_VERSION: '0.0.0' #Makefile will pass _GOLANG_VERSION parameter to override this value.
   _GCSFUSE_VERSION: 'v4'
   _CSI_VERSION: 'main'
   _BUILD_ARM: 'false'
@@ -63,7 +63,9 @@ steps:
   args:
   - '-c'
   - |
-    BUCKET_NAME="gs://${PROJECT_ID}-csibuild-${BUILD_ID}"
+    set -e
+    BUILD_ID_VAL="${BUILD_ID}"
+    BUCKET_NAME="gs://${PROJECT_ID}-csi-$${BUILD_ID_VAL:0:8}"
     gcloud storage buckets create $$BUCKET_NAME
     echo $$BUCKET_NAME > /workspace/bucket_name
 
@@ -75,6 +77,7 @@ steps:
   args:
   - '-c'
   - |
+    set -e
     BUCKET_NAME=$$(cat /workspace/bucket_name)
     gcloud storage cp -r /workspace/gcsfuse-artifacts/* $$BUCKET_NAME/
 
@@ -123,6 +126,8 @@ steps:
   - |
     BUCKET_NAME=$$(cat /workspace/bucket_name)
     gcloud storage rm --recursive $$BUCKET_NAME
+    rm /workspace/bucket_name
+
 
 options:
   # Using a more powerful machine is recommended for multi-platform builds.

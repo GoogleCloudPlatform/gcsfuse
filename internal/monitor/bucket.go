@@ -182,9 +182,9 @@ func (mb *monitoringBucket) DeleteFolder(ctx context.Context, folderName string)
 	return err
 }
 
-func (mb *monitoringBucket) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
+func (mb *monitoringBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
 	startTime := time.Now()
-	folder, err := mb.wrapped.GetFolder(ctx, folderName)
+	folder, err := mb.wrapped.GetFolder(ctx, req)
 	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodGetFolderAttr, startTime)
 	return folder, err
 }
@@ -240,7 +240,7 @@ type monitoringReadCloser struct {
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
-	mrc.metricHandle.GcsReadBytesCount(int64(n), metrics.ReaderOthersAttr)
+	mrc.metricHandle.GcsReadBytesCount(int64(n))
 	return
 }
 
@@ -254,7 +254,5 @@ func (mrc *monitoringReadCloser) Close() (err error) {
 }
 
 func (mrc *monitoringReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
-	rh = mrc.wrapped.ReadHandle()
-	recordReader(mrc.metricHandle, metrics.IoMethodReadHandleAttr)
-	return
+	return mrc.wrapped.ReadHandle()
 }

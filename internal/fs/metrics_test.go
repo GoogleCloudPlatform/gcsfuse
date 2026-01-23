@@ -62,7 +62,7 @@ func defaultServerConfigParams() *serverConfigParams {
 	}
 }
 
-func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *serverConfigParams) (gcs.Bucket, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
+func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *serverConfigParams, isZonalBucket bool) (gcs.Bucket, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
 	t.Helper()
 	origProvider := otel.GetMeterProvider()
 	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
@@ -73,7 +73,11 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
 	require.NoError(t, err, "metrics.NewOTelMetrics")
 	bucketName := "test-bucket"
-	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
+	bucketType := gcs.BucketType{Hierarchical: false}
+	if isZonalBucket {
+		bucketType = gcs.BucketType{Zonal: true}
+	}
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, bucketType)
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{
 			Write: cfg.WriteConfig{
@@ -86,6 +90,9 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 				MaxBlocksPerHandle: 10,
 			},
 			EnableNewReader: params.enableNewReader,
+			FileSystem: cfg.FileSystemConfig{
+				EnableKernelReader: params.enableKernelReader,
+			},
 		},
 		MetricHandle: mh,
 		CacheClock:   &timeutil.SimulatedClock{},
@@ -106,7 +113,7 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 		serverCfg.NewConfig.CacheDir = cfg.ResolvedPath(cacheDir)
 		serverCfg.NewConfig.FileCache = cfg.FileCacheConfig{
 			MaxSizeMb:                    100,
-			CacheFileForRangeRead:        true,
+			CacheFileForRangeRead:        params.enableFileCacheForRangeRead,
 			ExperimentalEnableChunkCache: params.enableSparseFileCache,
 			DownloadChunkSizeMb:          1, // 1MB chunks for testing
 			EnableParallelDownloads:      params.enableParallelDownloads,
@@ -152,7 +159,7 @@ func TestLookUpInode_Metrics(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 			content := "test"
 			if tc.createFile {
 				createWithContents(ctx, t, bucket, tc.fileName, content)
@@ -178,7 +185,7 @@ func TestReadFile_BufferedReadMetrics(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableBufferedRead = true
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test.txt"
 	content := "test content"
@@ -206,7 +213,7 @@ func TestReadFile_BufferedReadMetrics(t *testing.T) {
 
 	require.NoError(t, err, "ReadFile")
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))), int64(len(content)))
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(attribute.String("reader", string(metrics.ReaderBufferedAttr))), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
 	metrics.VerifyHistogramMetric(t, ctx, reader, "buffered_read/read_latency", attribute.NewSet(), uint64(1))
 }
 
@@ -214,7 +221,7 @@ func TestSequentialReadFile_FileCacheMetrics(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableFileCache = true
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test.txt"
 	content := "test content"
@@ -281,11 +288,85 @@ func TestSequentialReadFile_FileCacheMetrics(t *testing.T) {
 	)
 }
 
+func TestSequentialReadFile_FileCacheMetrics_DisabledFileCacheForRangeRead(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableFileCache = true
+	params.enableFileCacheForRangeRead = false
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	fileSize := 100
+	content := string(make([]byte, fileSize))
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, fileSize/2),
+	}
+
+	// First read should be a cache miss.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	// first read is a miss.
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_count",
+		attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))),
+		int64(1),
+	)
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_bytes_count",
+		attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))),
+		int64(fileSize/2),
+	)
+	metrics.VerifyHistogramMetric(
+		t, ctx, reader, "file_cache/read_latencies",
+		attribute.NewSet(attribute.Bool("cache_hit", false)),
+		uint64(1),
+	)
+
+	// Subsequent read should be a cache hit as sequential reads are always cached.
+	readOp.Offset = int64(fileSize / 2)
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_count",
+		attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))),
+		int64(1),
+	)
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_bytes_count",
+		attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))),
+		int64(fileSize),
+	)
+	metrics.VerifyHistogramMetric(
+		t, ctx, reader, "file_cache/read_latencies",
+		attribute.NewSet(attribute.Bool("cache_hit", true)),
+		uint64(1),
+	)
+}
+
 func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableFileCache = true
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test.txt"
 	content := "test content"
@@ -346,7 +427,6 @@ func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 		uint64(1),
 	)
 
-	// TODO(b/463220507): Add metrics for File cache miss with disabled range read.
 	// Read at a different offset should be a cache hit since file is downloaded in FileCache.
 	readOp.Offset = 8
 	err = server.ReadFile(ctx, readOp)
@@ -370,11 +450,72 @@ func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 	)
 }
 
+func TestRandomReadFile_FileCacheMetrics_DisabledFileCacheOnRangedRead(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableFileCache = true
+	params.enableFileCacheForRangeRead = false
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 3,
+		Dst:    make([]byte, 2),
+	}
+
+	// This read should be a cache miss as cacheFileForRangeRead is false and it is a random read.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_count",
+		attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(metrics.ReadTypeRandomAttr))),
+		int64(1),
+	)
+	metrics.VerifyHistogramMetric(
+		t, ctx, reader, "file_cache/read_latencies",
+		attribute.NewSet(attribute.Bool("cache_hit", false)),
+		uint64(1),
+	)
+
+	// Subsequent read should also be a cache miss as range read is disabled.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_count",
+		attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(metrics.ReadTypeRandomAttr))),
+		int64(2),
+	)
+	metrics.VerifyHistogramMetric(
+		t, ctx, reader, "file_cache/read_latencies",
+		attribute.NewSet(attribute.Bool("cache_hit", false)),
+		uint64(2),
+	)
+}
+
 func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableSparseFileCache = true
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "sparse_test.txt"
 	// Create a file larger than the chunk size (1MB) to test sparse behavior.
@@ -416,6 +557,44 @@ func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(chunkSize))
 }
 
+func TestReadFile_MrdSimpleReaderMetrics(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableKernelReader = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, true)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, len(content)),
+	}
+
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	require.NoError(t, err, "ReadFile")
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(1))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), int64(1))
+	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), uint64(1))
+}
+
 func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
 	testCases := []struct {
 		name            string
@@ -430,7 +609,7 @@ func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
 			ctx := context.Background()
 			params := defaultServerConfigParams()
 			params.enableNewReader = tc.enableNewReader
-			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 			server = wrappers.WithMonitoring(server, mh)
 			fileName := "test.txt"
 			content := "test content"
@@ -477,7 +656,7 @@ func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
 			ctx := context.Background()
 			params := defaultServerConfigParams()
 			params.enableNewReader = tc.enableNewReader
-			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params)
+			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 			server = wrappers.WithMonitoring(server, mh)
 			fileName := "test.txt"
 			content := "test content"
@@ -524,7 +703,7 @@ func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
 
 func TestGetInodeAttributes_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	op := &fuseops.GetInodeAttributesOp{
 		Inode: fuseops.RootInodeID,
@@ -541,7 +720,7 @@ func TestGetInodeAttributes_Metrics(t *testing.T) {
 
 func TestRemoveXattr_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -568,7 +747,7 @@ func TestRemoveXattr_Metrics(t *testing.T) {
 
 func TestListXattr_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -594,7 +773,7 @@ func TestListXattr_Metrics(t *testing.T) {
 
 func TestSetXattr_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -622,7 +801,7 @@ func TestSetXattr_Metrics(t *testing.T) {
 
 func TestGetXattr_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -649,7 +828,7 @@ func TestGetXattr_Metrics(t *testing.T) {
 
 func TestFallocate_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -684,7 +863,7 @@ func TestFallocate_Metrics(t *testing.T) {
 
 func TestCreateLink_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -712,7 +891,7 @@ func TestCreateLink_Metrics(t *testing.T) {
 
 func TestStatFS_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	op := &fuseops.StatFSOp{}
 
@@ -727,7 +906,7 @@ func TestStatFS_Metrics(t *testing.T) {
 
 func TestReleaseFileHandle_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "")
@@ -757,7 +936,7 @@ func TestReleaseFileHandle_Metrics(t *testing.T) {
 
 func TestFlushFile_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "")
@@ -788,7 +967,7 @@ func TestFlushFile_Metrics(t *testing.T) {
 
 func TestSyncFile_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "")
@@ -813,7 +992,7 @@ func TestSyncFile_Metrics(t *testing.T) {
 
 func TestWriteFile_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "")
@@ -846,7 +1025,7 @@ func TestWriteFile_Metrics(t *testing.T) {
 
 func TestReadSymlink_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	symlinkName := "test"
 	target := "target"
@@ -872,7 +1051,7 @@ func TestReadSymlink_Metrics(t *testing.T) {
 
 func TestReadFile_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	content := "test content"
@@ -906,7 +1085,7 @@ func TestReadFile_Metrics(t *testing.T) {
 
 func TestOpenFile_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -931,7 +1110,7 @@ func TestOpenFile_Metrics(t *testing.T) {
 
 func TestReleaseDirHandle_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	openOp := &fuseops.OpenDirOp{
 		Inode: fuseops.RootInodeID,
@@ -953,7 +1132,7 @@ func TestReleaseDirHandle_Metrics(t *testing.T) {
 
 func TestReadDirPlus_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	openOp := &fuseops.OpenDirOp{
 		Inode: fuseops.RootInodeID,
@@ -980,7 +1159,7 @@ func TestReadDirPlus_Metrics(t *testing.T) {
 
 func TestReadDir_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	openOp := &fuseops.OpenDirOp{
 		Inode: fuseops.RootInodeID,
@@ -1005,7 +1184,7 @@ func TestReadDir_Metrics(t *testing.T) {
 
 func TestOpenDir_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	op := &fuseops.OpenDirOp{
 		Inode: fuseops.RootInodeID,
@@ -1022,7 +1201,7 @@ func TestOpenDir_Metrics(t *testing.T) {
 
 func TestForgetInode_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -1048,7 +1227,7 @@ func TestForgetInode_Metrics(t *testing.T) {
 
 func TestRename_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	oldName := "old"
 	newName := "new"
@@ -1071,7 +1250,7 @@ func TestRename_Metrics(t *testing.T) {
 
 func TestUnlink_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")
@@ -1091,7 +1270,7 @@ func TestUnlink_Metrics(t *testing.T) {
 
 func TestRmDir_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	dirName := "test"
 	mkDirOp := &fuseops.MkDirOp{
@@ -1116,7 +1295,7 @@ func TestRmDir_Metrics(t *testing.T) {
 
 func TestCreateSymlink_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	op := &fuseops.CreateSymlinkOp{
 		Parent: fuseops.RootInodeID,
@@ -1135,7 +1314,7 @@ func TestCreateSymlink_Metrics(t *testing.T) {
 
 func TestCreateFile_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	op := &fuseops.CreateFileOp{
 		Parent: fuseops.RootInodeID,
@@ -1153,7 +1332,7 @@ func TestCreateFile_Metrics(t *testing.T) {
 
 func TestMkNode_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	op := &fuseops.MkNodeOp{
 		Parent: fuseops.RootInodeID,
@@ -1171,7 +1350,7 @@ func TestMkNode_Metrics(t *testing.T) {
 
 func TestMkDir_Metrics(t *testing.T) {
 	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	op := &fuseops.MkDirOp{
 		Parent: fuseops.RootInodeID,
@@ -1189,7 +1368,7 @@ func TestMkDir_Metrics(t *testing.T) {
 
 func TestSetInodeAttributes_Metrics(t *testing.T) {
 	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams())
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, defaultServerConfigParams(), false)
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test"
 	createWithContents(ctx, t, bucket, fileName, "test")

@@ -180,7 +180,7 @@ func GetCRCFromGCS(objectPath string, ctx context.Context, storageClient *storag
 // and performs a flush with Zonal Bucket Flush API for content to be available for read
 // and returns the writer.
 func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.Client, object, content string) *storage.Writer {
-	writer, err := AppendableWriter(ctx, client, object, storage.Conditions{})
+	writer, err := NewWriterWithPreconditionsSet(ctx, client, object, storage.Conditions{})
 	require.NoError(t, err)
 
 	bytesWritten, err := writer.Write([]byte(content))

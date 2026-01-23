@@ -20,22 +20,24 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"maps"
 	"math"
 	"os"
 	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 
 	"golang.org/x/sync/semaphore"
-
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -134,7 +136,14 @@ type ServerConfig struct {
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
 
+	// IsUserSet tracks which flags were explicitly set by the user (vs defaults)
+	// This is used for bucket-type-based optimizations once bucket-type is known
+	// during the RootDirInode creation.
+	IsUserSet cfg.IsValueSet
+
 	MetricHandle metrics.MetricHandle
+
+	TraceHandle tracing.TraceHandle
 
 	// Notifier allows the file system to send invalidation messages to the FUSE
 	// kernel module. This enables proactive cache invalidation (e.g., for dentries)
@@ -206,11 +215,20 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		metricHandle:               serverCfg.MetricHandle,
+		traceHandle:                serverCfg.TraceHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		isTracingEnabled:           cfg.IsTracingEnabled(serverCfg.NewConfig),
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
+		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
 	}
+
+	// Initialize MRD cache if enabled
+	if serverCfg.NewConfig.FileSystem.InactiveMrdCacheSize > 0 {
+		fs.mrdCache = lru.NewCache(uint64(serverCfg.NewConfig.FileSystem.InactiveMrdCacheSize))
+		logger.Infof("MRD cache (LRU-based) enabled with maxSize=%d (pools closed-file MRDs)", serverCfg.NewConfig.FileSystem.InactiveMrdCacheSize)
+	}
+
 	if serverCfg.Notifier != nil {
 		fs.notifier = serverCfg.Notifier
 	}
@@ -233,6 +251,44 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, serverCfg.BucketName, false, fs.metricHandle)
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
+		}
+
+		// Optimize flags for non-dynamic mounts based on the bucket type.
+		// WHY HERE: The bucket type is required for these optimizations, and this is the
+		// first point it becomes available.
+		// WHY NOT EARLIER: Although ideal to do this during cobra init in root.go,
+		// the bucket type isn't known then. A major refactor (involving creation and caching of
+		// bucketHandle to avoid duplicated network calls) would be needed to change this.
+		// IMPACT: Flags are used after this. Optimization/rationalization functions are called twice
+		// for non-dynamic mounts, but they are idempotent, so it's safe.
+		if serverCfg.IsUserSet != nil {
+			bucketType := syncerBucket.BucketType()
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal)
+			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.IsUserSet, &cfg.OptimizationInput{
+				BucketType: bucketTypeEnum,
+			})
+			if len(optimizedFlags) > 0 {
+				logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
+				optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
+				if err := cfg.Rationalize(serverCfg.IsUserSet, serverCfg.NewConfig, optimizedFlagNames); err != nil {
+					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
+				}
+			}
+		} else {
+			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
+		}
+		// Write post mount kernel settings in GKE environments for non dynamic mounts before user space mounting in GCSFuse.
+		// Mounting in GKE is already done at this point but writing kernel settings early ensures the asynchronous
+		// application of these settings happens as early as possible in GKE.
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" {
+			kernelParams := kernelparams.NewKernelParamsManager()
+			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
+			// Set max-background and congestion window when async read is enabled via kernel reader.
+			if serverCfg.NewConfig.FileSystem.EnableKernelReader {
+				kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
+				kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
+			}
+			kernelParams.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
 		}
 		root = makeRootForBucket(fs, syncerBucket)
 	}
@@ -273,7 +329,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache)
 	return
 }
@@ -295,15 +351,13 @@ func makeRootForBucket(
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
-		fs.newConfig.List.EnableEmptyManagedFolders,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
-		fs.newConfig.EnableHns,
-		fs.newConfig.EnableUnsupportedPathSupport,
+		fs.globalMetadataPrefetchSem,
+		fs.newConfig,
 	)
 }
 
@@ -323,6 +377,7 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 		},
 		fs.bucketManager,
 		fs.metricHandle,
+		fs.newConfig.EnableTypeCacheDeprecation,
 	)
 }
 
@@ -512,6 +567,8 @@ type fileSystem struct {
 
 	metricHandle metrics.MetricHandle
 
+	traceHandle tracing.TraceHandle
+
 	enableAtomicRenameObject bool
 
 	isTracingEnabled bool
@@ -533,6 +590,13 @@ type fileSystem struct {
 	// that can be allocated for buffered read across all file-handles in the file system.
 	// This helps control the overall memory usage for buffered reads.
 	globalMaxReadBlocksSem *semaphore.Weighted
+
+	// Limits the max number of metadata prefetch background workers across file system when
+	// metadata prefetching is enabled.
+	globalMetadataPrefetchSem *semaphore.Weighted
+
+	// mrdCache manages the cache of inactive MultiRangeDownloaders.
+	mrdCache *lru.Cache
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -774,15 +838,13 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
-		fs.newConfig.List.EnableEmptyManagedFolders,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
 		ic.Bucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
-		fs.newConfig.EnableHns,
-		fs.newConfig.EnableUnsupportedPathSupport)
+		fs.globalMetadataPrefetchSem,
+		fs.newConfig)
 
 	return in
 }
@@ -818,15 +880,13 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
-			fs.newConfig.List.EnableEmptyManagedFolders,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
-			fs.newConfig.EnableHns,
-			fs.newConfig.EnableUnsupportedPathSupport,
+			fs.globalMetadataPrefetchSem,
+			fs.newConfig,
 		)
 
 	case inode.IsSymlink(ic.MinObject):
@@ -857,7 +917,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.mtimeClock,
 			ic.Local,
 			fs.newConfig,
-			fs.globalMaxWriteBlocksSem)
+			fs.globalMaxWriteBlocksSem,
+			fs.mrdCache)
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -982,6 +1043,15 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// Have we found the correct inode?
 		cmp := oGen.Compare(existingInode.SourceGeneration())
 		if cmp == 0 {
+			in = existingInode
+			return
+		}
+
+		// The existing inode has the same generation but a different size.
+		// Update the size and return the existing inode.
+		if cmp == 2 {
+			logger.Warnf("The size of object has changed remotely at the same generation. Updating the existing inode to reflect the size change.\n")
+			existingInode.UpdateSize(oGen.Size)
 			in = existingInode
 			return
 		}
@@ -1679,16 +1749,6 @@ func (fs *fileSystem) StatFS(
 	return
 }
 
-// When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
-func maybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
-	if !isTracingEnabled {
-		return newCtx
-	}
-
-	span := trace.SpanFromContext(oldCtx)
-	return trace.ContextWithSpan(newCtx, span)
-}
-
 // getInterruptlessContext returns a new context that is not cancellable by the
 // parent context if the ignore-interrupts flag is set. Otherwise, it returns
 // the original context.
@@ -1697,7 +1757,7 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		newCtx := context.Background()
-		return maybePropagateTraceContext(newCtx, ctx, fs.isTracingEnabled)
+		return tracing.MaybePropagateTraceContext(newCtx, ctx, fs.isTracingEnabled)
 	}
 
 	return ctx
@@ -2043,7 +2103,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, fs.traceHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
 
 	fs.mu.Unlock()
 
@@ -2374,24 +2434,32 @@ func (fs *fileSystem) nonAtomicRename(
 	// Delete behind. Make sure to delete exactly the generation we cloned, in
 	// case the referent of the name has changed in the meantime.
 	oldParent.Lock()
-	err = oldParent.DeleteChildFile(
+	defer oldParent.Unlock()
+
+	deleteErr := oldParent.DeleteChildFile(
 		ctx,
 		oldName,
 		oldObject.Generation,
 		&oldObject.MetaGeneration)
 
-	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
-		return fmt.Errorf("nonAtomicRename: while invalidating cache for delete file: %w", err)
+	// In case the delete is successful or a precondition error is encountered,
+	// then file cache becomes unusable, thus, should be invalidated.
+	// File cache must not be invalidated in case of any other errors encountered
+	// while deletion.
+	if deleteErr == nil {
+		if invErr := fs.invalidateChildFileCacheIfExist(oldParent, oldName); invErr != nil {
+			logger.Warnf("File cache eviction failed after successful delete on GCS: %v", invErr)
+		}
+		return nil
 	}
 
-	oldParent.Unlock()
-
-	if err != nil {
-		err = fmt.Errorf("DeleteChildFile: %w", err)
-		return err
+	var precondErr *gcs.PreconditionError
+	if errors.As(deleteErr, &precondErr) {
+		if invErr := fs.invalidateChildFileCacheIfExist(oldParent, oldName); invErr != nil {
+			logger.Warnf("File cache eviction failed after precondition error during delete: %v", invErr)
+		}
 	}
-
-	return nil
+	return fmt.Errorf("DeleteChildFile: %w", deleteErr)
 }
 
 func (fs *fileSystem) releaseInodes(inodes *[]inode.DirInode) {
@@ -2655,12 +2723,18 @@ func (fs *fileSystem) Unlink(
 		0,   // Latest generation
 		nil) // No meta-generation precondition
 
-	if err != nil {
-		err = fmt.Errorf("DeleteChildFile: %w", err)
-		return err
+	var preconditionErr *gcs.PreconditionError
+	// Do not invalidate the file cache in case of error while deleting file
+	// which is not precondition error.
+	if err != nil && !errors.As(err, &preconditionErr) {
+		return fmt.Errorf("DeleteChildFile: %w", err)
 	}
 
+	// In case of successful delete or precondition error, we should invalidate
+	// the file cache as it is no longer usable.
 	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
+		// In case of file cache invalidation error, we should return the error,
+		// but still consider the unlink operation successful.
 		return fmt.Errorf("unlink: while invalidating cache for delete file: %w", err)
 	}
 
@@ -2817,7 +2891,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, fs.traceHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
@@ -2863,7 +2937,17 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
-	if fs.newConfig.EnableNewReader {
+	if fs.newConfig.FileSystem.EnableKernelReader {
+		var resp gcsx.ReadResponse
+		req := &gcsx.ReadRequest{
+			Buffer: op.Dst,
+			Offset: op.Offset,
+		}
+		resp, err = fh.ReadWithMrdSimpleReader(ctx, req)
+		op.BytesRead = resp.Size
+		op.Data = resp.Data
+		op.Callback = resp.Callback
+	} else if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
 		req := &gcsx.ReadRequest{
 			Buffer: op.Dst,

@@ -169,6 +169,15 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 		return fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", c.DeprecatedStatCacheCapacity)
 	}
 
+	// Validate prefetch configs.
+	if c.MetadataPrefetchMaxWorkers < -1 {
+		return fmt.Errorf("invalid value of metadata-cache.metadata-prefetch-max-workers: %d; should be >=0 or -1 (for infinite)", c.MetadataPrefetchMaxWorkers)
+	}
+
+	if c.MetadataPrefetchEntriesLimit < -1 {
+		return fmt.Errorf("invalid value of metadata-cache.metadata-prefetch-entries-limit: %d; should be >=0 or -1 (for infinite)", c.MetadataPrefetchEntriesLimit)
+	}
+
 	return nil
 }
 
@@ -256,6 +265,13 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 	return nil
 }
 
+func isValidMRDConfig(mrdConfig *MrdConfig) error {
+	if mrdConfig.PoolSize < 1 {
+		return fmt.Errorf("invalid value of mrd-pool-size: %d; should be >=1", mrdConfig.PoolSize)
+	}
+	return nil
+}
+
 func isValidOptimizationProfile(config *Config) error {
 	if config.Profile == "" {
 		return nil
@@ -329,6 +345,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidBufferedReadConfig(&config.Read); err != nil {
 		return fmt.Errorf("error parsing buffered read config: %w", err)
+	}
+
+	if err = isValidMRDConfig(&config.Mrd); err != nil {
+		return fmt.Errorf("error parsing mrd config: %w", err)
 	}
 
 	if err = isValidOptimizationProfile(config); err != nil {

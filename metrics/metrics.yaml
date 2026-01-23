@@ -167,12 +167,6 @@
   description: "The cumulative number of bytes read from GCS objects."
   unit: "By"
   type: "int_counter"
-  attributes:
-  - attribute-name: reader
-    attribute-type: string
-    values: &reader_types_list
-    - "Buffered"
-    - "Others"
 
 - metric-name: "gcs/read_count"
   description: "Specifies the number of gcs reads made along with type - Sequential/Random"
@@ -191,7 +185,6 @@
     values:
     - "closed"
     - "opened"
-    - "ReadHandle"
 
 - metric-name: "gcs/request_count"
   description: "The cumulative number of GCS requests processed along with the GCS method."

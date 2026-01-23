@@ -25,7 +25,21 @@ import (
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
-var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.cache-file-for-range-read": {
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(DefaultCongestionThreshold()),
+		},
+	},
+}, "file-system.enable-kernel-reader": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      bool(true),
+		},
+	},
+}, "file-cache.cache-file-for-range-read": {
 	Profiles: []shared.ProfileOptimization{
 		{
 			Name:  "aiml-serving",
@@ -62,6 +76,20 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.c
 		{
 			Name:  "aiml-serving",
 			Value: int64(-1),
+		},
+	},
+}, "file-system.max-background": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(DefaultMaxBackground()),
+		},
+	},
+}, "file-system.max-read-ahead-kb": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(16384),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
@@ -199,7 +227,9 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+// input parameter is optional and provides runtime context for optimizations
+// such as bucket type. Pass nil if not available.
+func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) map[string]OptimizationResult {
 	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
@@ -207,7 +237,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 
 	profileName := c.Profile
-	machineType, err := getMachineType(isSet, c)
+	machineType, err := getMachineType(isSet)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
 		machineType = ""
@@ -215,9 +245,33 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
-	if !isSet.IsSet("file-cache-cache-file-for-range-read") {
+	if !isSet.IsSet("file-system.congestion-threshold") {
+		rules := AllFlagOptimizationRules["file-system.congestion-threshold"]
+		result := getOptimizedValue(&rules, c.FileSystem.CongestionThreshold, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.CongestionThreshold != val {
+					c.FileSystem.CongestionThreshold = val
+					optimizedFlags["file-system.congestion-threshold"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("file-system.enable-kernel-reader") {
+		rules := AllFlagOptimizationRules["file-system.enable-kernel-reader"]
+		result := getOptimizedValue(&rules, c.FileSystem.EnableKernelReader, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.FileSystem.EnableKernelReader != val {
+					c.FileSystem.EnableKernelReader = val
+					optimizedFlags["file-system.enable-kernel-reader"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("file-cache.cache-file-for-range-read") {
 		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
-		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
@@ -229,7 +283,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 	if !isSet.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
-		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
@@ -239,9 +293,9 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("kernel-list-cache-ttl-secs") {
+	if !isSet.IsSet("file-system.kernel-list-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
-		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
@@ -251,9 +305,33 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
+	if !isSet.IsSet("file-system.max-background") {
+		rules := AllFlagOptimizationRules["file-system.max-background"]
+		result := getOptimizedValue(&rules, c.FileSystem.MaxBackground, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.MaxBackground != val {
+					c.FileSystem.MaxBackground = val
+					optimizedFlags["file-system.max-background"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("file-system.max-read-ahead-kb") {
+		rules := AllFlagOptimizationRules["file-system.max-read-ahead-kb"]
+		result := getOptimizedValue(&rules, c.FileSystem.MaxReadAheadKb, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.MaxReadAheadKb != val {
+					c.FileSystem.MaxReadAheadKb = val
+					optimizedFlags["file-system.max-read-ahead-kb"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("metadata-cache.negative-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
@@ -263,9 +341,9 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("metadata-cache-ttl-secs") {
+	if !isSet.IsSet("metadata-cache.ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
@@ -275,9 +353,9 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("rename-dir-limit") {
+	if !isSet.IsSet("file-system.rename-dir-limit") {
 		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
-		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
@@ -287,9 +365,9 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("stat-cache-max-size-mb") {
+	if !isSet.IsSet("metadata-cache.stat-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
@@ -299,9 +377,9 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("type-cache-max-size-mb") {
+	if !isSet.IsSet("metadata-cache.type-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
@@ -311,9 +389,9 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 			}
 		}
 	}
-	if !isSet.IsSet("write-global-max-blocks") {
+	if !isSet.IsSet("write.global-max-blocks") {
 		rules := AllFlagOptimizationRules["write.global-max-blocks"]
-		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
@@ -353,6 +431,8 @@ type Config struct {
 
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
+	DisableListAccessCheck bool `yaml:"disable-list-access-check"`
+
 	DummyIo DummyIoConfig `yaml:"dummy-io"`
 
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
@@ -362,6 +442,8 @@ type Config struct {
 	EnableHns bool `yaml:"enable-hns"`
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
+
+	EnableTypeCacheDeprecation bool `yaml:"enable-type-cache-deprecation"`
 
 	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
 
@@ -390,6 +472,8 @@ type Config struct {
 	Metrics MetricsConfig `yaml:"metrics"`
 
 	Monitoring MonitoringConfig `yaml:"monitoring"`
+
+	Mrd MrdConfig `yaml:"mrd"`
 
 	OnlyDir string `yaml:"only-dir"`
 
@@ -449,9 +533,13 @@ type FileCacheConfig struct {
 }
 
 type FileSystemConfig struct {
+	CongestionThreshold int64 `yaml:"congestion-threshold"`
+
 	DirMode Octal `yaml:"dir-mode"`
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
+
+	EnableKernelReader bool `yaml:"enable-kernel-reader"`
 
 	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
 
@@ -467,7 +555,13 @@ type FileSystemConfig struct {
 
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
+	InactiveMrdCacheSize int64 `yaml:"inactive-mrd-cache-size"`
+
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
+
+	KernelParamsFile ResolvedPath `yaml:"kernel-params-file"`
+
+	MaxBackground int64 `yaml:"max-background"`
 
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
 
@@ -559,9 +653,15 @@ type MetadataCacheConfig struct {
 
 	DeprecatedTypeCacheTtl time.Duration `yaml:"deprecated-type-cache-ttl"`
 
+	EnableMetadataPrefetch bool `yaml:"enable-metadata-prefetch"`
+
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
 
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
+
+	MetadataPrefetchEntriesLimit int64 `yaml:"metadata-prefetch-entries-limit"`
+
+	MetadataPrefetchMaxWorkers int64 `yaml:"metadata-prefetch-max-workers"`
 
 	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
 
@@ -577,7 +677,7 @@ type MetricsConfig struct {
 
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
-	EnableGrpcMetrics bool `yaml:"enable-grpc-metrics"`
+	ExperimentalEnableGrpcMetrics bool `yaml:"experimental-enable-grpc-metrics"`
 
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
@@ -594,6 +694,10 @@ type MonitoringConfig struct {
 	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
+}
+
+type MrdConfig struct {
+	PoolSize int64 `yaml:"pool-size"`
 }
 
 type ReadConfig struct {
@@ -708,6 +812,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("congestion-threshold", "", 0, "Sets the congestion threshold for background requests. When the number of outstanding requests exceeds this threshold, the kernel may start blocking new requests. 0 means system default (typically 75% of max-background; 9).")
+
+	if err := flagSet.MarkHidden("congestion-threshold"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
 
 	if err := flagSet.MarkHidden("create-empty-file"); err != nil {
@@ -755,6 +865,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("disable-autoconfig", "", false, "Disable optimizing configuration automatically for a machine")
 
 	if err := flagSet.MarkHidden("disable-autoconfig"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("disable-list-access-check", "", true, "Disables the list object based access check during mount operation")
+
+	if err := flagSet.MarkHidden("disable-list-access-check"); err != nil {
 		return err
 	}
 
@@ -808,8 +924,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-grpc-metrics", "", false, "Enables support for gRPC metrics")
-
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
@@ -819,6 +933,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-http-dns-cache", "", true, "Enables DNS cache for HTTP/1 connections")
 
 	if err := flagSet.MarkHidden("enable-http-dns-cache"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-kernel-reader", "", false, "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache.")
+
+	if err := flagSet.MarkHidden("enable-kernel-reader"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+
+	if err := flagSet.MarkHidden("enable-metadata-prefetch"); err != nil {
 		return err
 	}
 
@@ -840,6 +966,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
+	flagSet.BoolP("enable-type-cache-deprecation", "", false, "Enables support to deprecate type cache.")
+
+	if err := flagSet.MarkHidden("enable-type-cache-deprecation"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-unsupported-path-support", "", true, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
 	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
@@ -849,6 +981,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
 	if err := flagSet.MarkHidden("experimental-enable-dentry-cache"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-grpc-metrics", "", false, "Enables support for gRPC metrics")
+
+	if err := flagSet.MarkHidden("experimental-enable-grpc-metrics"); err != nil {
 		return err
 	}
 
@@ -970,7 +1108,19 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
+	flagSet.IntP("inactive-mrd-cache-size", "", 0, "Sets the cache-size of inactive (no open file) MRD instances. When this limit is exceeded, the least recently inactive MRD instances will be closed. Set to 0 to disable the cache, which will keep all the inactive MRD instances open forever.")
+
+	if err := flagSet.MarkHidden("inactive-mrd-cache-size"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
+
+	flagSet.StringP("kernel-params-file", "", "", "File path used to communicate various kernel parameters to CSI Driver in GKE environment.")
+
+	if err := flagSet.MarkHidden("kernel-params-file"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used.")
 
@@ -993,6 +1143,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("machine-type", "", "", "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g")
 
 	if err := flagSet.MarkHidden("machine-type"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("max-background", "", 0, "Sets the maximum number of outstanding background requests (e.g., request corresponding to  kernel readahead, writeback cache etc.) that the kernel will send to the FUSE daemon. 0 means system default  (typically 12).")
+
+	if err := flagSet.MarkHidden("max-background"); err != nil {
 		return err
 	}
 
@@ -1020,6 +1176,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
 
+	flagSet.IntP("metadata-prefetch-entries-limit", "", 5000, "The maximum number of metadata entries (files and directories) to prefetch  into the cache upon a prefetch trigger. Since a single GCS List call is capped at 5000 results, values higher than 5000 will trigger multiple sequential GCS  List calls per directory.\n")
+
+	if err := flagSet.MarkHidden("metadata-prefetch-entries-limit"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("metadata-prefetch-max-workers", "", 10, "The maximum number of concurrent goroutines (workers) allowed to perform  metadata prefetching across all directories.\n")
+
+	if err := flagSet.MarkHidden("metadata-prefetch-max-workers"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("metrics-buffer-size", "", 256, "The maximum number of histogram metric updates in the queue.")
 
 	if err := flagSet.MarkHidden("metrics-buffer-size"); err != nil {
@@ -1035,6 +1203,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("metrics-workers", "", 3, "The number of workers that update histogram metrics concurrently.")
 
 	if err := flagSet.MarkHidden("metrics-workers"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("mrd-pool-size", "", 4, "Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.")
+
+	if err := flagSet.MarkHidden("mrd-pool-size"); err != nil {
 		return err
 	}
 
@@ -1251,6 +1425,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.congestion-threshold", flagSet.Lookup("congestion-threshold")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("write.create-empty-file", flagSet.Lookup("create-empty-file")); err != nil {
 		return err
 	}
@@ -1280,6 +1458,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("disable-autoconfig", flagSet.Lookup("disable-autoconfig")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("disable-list-access-check", flagSet.Lookup("disable-list-access-check")); err != nil {
 		return err
 	}
 
@@ -1319,15 +1501,19 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("metrics.enable-grpc-metrics", flagSet.Lookup("enable-grpc-metrics")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
 		return err
 	}
 
 	if err := v.BindPFlag("gcs-connection.enable-http-dns-cache", flagSet.Lookup("enable-http-dns-cache")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.enable-kernel-reader", flagSet.Lookup("enable-kernel-reader")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.enable-metadata-prefetch", flagSet.Lookup("enable-metadata-prefetch")); err != nil {
 		return err
 	}
 
@@ -1351,11 +1537,19 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("enable-type-cache-deprecation", flagSet.Lookup("enable-type-cache-deprecation")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
 		return err
 	}
 
 	if err := v.BindPFlag("file-system.experimental-enable-dentry-cache", flagSet.Lookup("experimental-enable-dentry-cache")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.experimental-enable-grpc-metrics", flagSet.Lookup("experimental-enable-grpc-metrics")); err != nil {
 		return err
 	}
 
@@ -1475,7 +1669,15 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.inactive-mrd-cache-size", flagSet.Lookup("inactive-mrd-cache-size")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.kernel-params-file", flagSet.Lookup("kernel-params-file")); err != nil {
 		return err
 	}
 
@@ -1519,6 +1721,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.max-background", flagSet.Lookup("max-background")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-connection.max-conns-per-host", flagSet.Lookup("max-conns-per-host")); err != nil {
 		return err
 	}
@@ -1547,6 +1753,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("metadata-cache.metadata-prefetch-entries-limit", flagSet.Lookup("metadata-prefetch-entries-limit")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.metadata-prefetch-max-workers", flagSet.Lookup("metadata-prefetch-max-workers")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("metrics.buffer-size", flagSet.Lookup("metrics-buffer-size")); err != nil {
 		return err
 	}
@@ -1556,6 +1770,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.workers", flagSet.Lookup("metrics-workers")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("mrd.pool-size", flagSet.Lookup("mrd-pool-size")); err != nil {
 		return err
 	}
 

@@ -117,3 +117,20 @@ func (t *SymlinkTest) TestAttributes() {
 		ExpectEq(attrs.Mode, extracted.Mode)
 	}
 }
+
+func (t *SymlinkTest) TestUpdateSize() {
+	m := &gcs.MinObject{
+		Name:           "test",
+		Generation:     1,
+		MetaGeneration: 2,
+		Size:           100,
+		Metadata:       map[string]string{inode.SymlinkMetadataKey: "target"},
+	}
+	attrs := fuseops.InodeAttributes{}
+	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
+	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
+
+	s.UpdateSize(200)
+
+	AssertEq(uint64(200), s.SourceGeneration().Size)
+}

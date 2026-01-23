@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
@@ -42,7 +43,10 @@ func mountWithStorageHandle(
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
-	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+	metricHandle metrics.MetricHandle,
+	traceHandle tracing.TraceHandle,
+	isUserSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
+
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -100,6 +104,7 @@ be interacting with the file system.`)
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,
+		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
 		DummyIOCfg:                         newConfig.DummyIo,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
@@ -122,7 +127,9 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		NewConfig:                  newConfig,
+		IsUserSet:                  isUserSet,
 		MetricHandle:               metricHandle,
+		TraceHandle:                traceHandle,
 	}
 	if serverCfg.NewConfig.FileSystem.ExperimentalEnableDentryCache {
 		serverCfg.Notifier = fuse.NewNotifier()
@@ -176,6 +183,8 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
 		// attributes in a single operation.
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
+		// Enable async reads if enable-kernel-reader flag is set to true.
+		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
 	// GCSFuse to Jacobsa Fuse Log Level mapping:

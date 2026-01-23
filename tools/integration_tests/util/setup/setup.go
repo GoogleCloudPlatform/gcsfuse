@@ -582,7 +582,7 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	storageClient, err := storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+	storageClient, err := storage.NewGRPCClient(ctx, storage.WithDisabledClientMetrics(), experimental.WithGRPCBidiReads())
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
@@ -635,6 +635,7 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 		if ok && isCompatible && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
+				flagString = strings.ReplaceAll(flagString, ",", " ")
 				dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
 			}
 		}
@@ -847,6 +848,10 @@ func OverrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath str
 		for i := range flags.Flags {
 			// Iterate over the indices of the flags slice
 			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
+		}
+		for i := range flags.SecondaryFlags {
+			// Iterate over the indices of the secondary flags slice
+			flags.SecondaryFlags[i] = strings.ReplaceAll(flags.SecondaryFlags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
 		}
 	}
 }

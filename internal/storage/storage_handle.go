@@ -52,7 +52,8 @@ const (
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
-	zonalLocationType = "zone"
+	zonalLocationType         = "zone"
+	stallTimeoutForDirectPath = 60 * time.Second
 )
 
 type StorageHandle interface {
@@ -86,7 +87,11 @@ type gRPCDirectPathDetector struct {
 // from the environment where the client is running. A `nil` error represents Direct Connectivity was
 // detected.
 func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) error {
-	return storage.CheckDirectConnectivitySupported(ctx, bucketName, pd.clientOptions...)
+	newCtx, cancel := context.WithTimeout(ctx, stallTimeoutForDirectPath)
+	defer cancel()
+
+	// The storage library will see the timeout in 'newCtx' and abort the request if it takes too long.
+	return storage.CheckDirectConnectivitySupported(newCtx, bucketName, pd.clientOptions...)
 }
 
 // Return clientOpts for both gRPC client and control client.
@@ -145,16 +150,15 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 
-	if clientConfig.EnableGrpcMetrics {
+	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
 		// Pass the OpenTelemetry MeterProvider to the Go storage client,
 		// using the new WithMeterProvider client option.
-		// TODO - Gracefully handle gRPC metrics outside of GKE.
 		mp := otel.GetMeterProvider()
 		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
 			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
 			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
 		}
-	} else {
+	} else if !clientConfig.EnableGrpcMetrics {
 		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
 
@@ -435,6 +439,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 
 	if bucketType.Zonal || sh.clientConfig.ClientProtocol == cfg.GRPC {
 		if sh.directPathDetector != nil {
+			logger.Infof("Checking for DirectPath connectivity for bucket %q", bucketName)
 			if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
 				logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)
 			} else {

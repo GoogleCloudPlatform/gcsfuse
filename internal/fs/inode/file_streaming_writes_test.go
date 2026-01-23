@@ -150,7 +150,8 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		&t.clock,
 		isLocal,
 		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64))
+		semaphore.NewWeighted(math.MaxInt64),
+		nil)
 
 	// Set buffered write config for created inode.
 	t.in.config = &cfg.Config{Write: cfg.WriteConfig{

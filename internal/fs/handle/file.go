@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
@@ -56,6 +57,9 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	readManager gcsx.ReadManager
 
+	// A mrdSimpleReader is a new reader based on MRD and reads whatever is
+	// requested using MrdInstance.
+	mrdSimpleReader *gcsx.MrdSimpleReader
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
 	fileCacheHandler *file.CacheHandler
@@ -64,6 +68,8 @@ type FileHandle struct {
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
 	metricHandle          metrics.MetricHandle
+	traceHandle           tracing.TraceHandle
+
 	// openMode is used to store the mode in which the file is opened.
 	openMode util.OpenMode
 
@@ -82,17 +88,22 @@ type FileHandle struct {
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted, handleID fuseops.HandleID) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted, handleID fuseops.HandleID) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                  inode,
 		fileCacheHandler:       fileCacheHandler,
 		cacheFileForRangeRead:  cacheFileForRangeRead,
 		metricHandle:           metricHandle,
+		traceHandle:            traceHandle,
 		openMode:               openMode,
 		config:                 c,
 		bufferedReadWorkerPool: bufferedReadWorkerPool,
 		globalMaxReadBlocksSem: globalMaxReadBlocksSem,
 		handleID:               handleID,
+	}
+
+	if c.FileSystem.EnableKernelReader {
+		fh.mrdSimpleReader = gcsx.NewMrdSimpleReader(inode.GetMRDInstance(), metricHandle)
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
@@ -116,6 +127,10 @@ func (fh *FileHandle) Destroy() {
 	}
 	if fh.readManager != nil {
 		fh.readManager.Destroy()
+	}
+	if fh.mrdSimpleReader != nil {
+		fh.mrdSimpleReader.Destroy()
+		fh.mrdSimpleReader = nil
 	}
 }
 
@@ -191,7 +206,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	} else {
 		minObj := fh.inode.Source()
 		bucket := fh.inode.Bucket()
-		mrdWrapper := &fh.inode.MRDWrapper
+		mrdWrapper := fh.inode.MRDWrapper
 
 		// Acquire a RWLock on file handle as we will update readManager
 		fh.unlockHandleAndInode(true)
@@ -204,6 +219,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 			FileCacheHandler:      fh.fileCacheHandler,
 			CacheFileForRangeRead: fh.cacheFileForRangeRead,
 			MetricHandle:          fh.metricHandle,
+			TraceHandle:           fh.traceHandle,
 			MrdWrapper:            mrdWrapper,
 			Config:                fh.config,
 			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
@@ -246,6 +262,29 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	return readResponse, nil
 }
 
+// ReadWithMrdSimpleReader reads data at the given offset using the mrd simple reader.
+//
+// LOCKS_REQUIRED(fh.inode.mu)
+// UNLOCK_FUNCTION(fh.inode.mu)
+func (fh *FileHandle) ReadWithMrdSimpleReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	if !fh.inode.SourceGenerationIsAuthoritative() {
+		// Read from inode if source generation is not authoritative.
+		defer fh.inode.Unlock()
+		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
+		return gcsx.ReadResponse{Size: n}, err
+	}
+	fh.inode.Unlock()
+
+	fh.mu.RLock()
+	defer fh.mu.RUnlock()
+
+	if fh.mrdSimpleReader == nil {
+		return gcsx.ReadResponse{}, errors.New("mrdSimpleReader is not initialized")
+	}
+
+	return fh.mrdSimpleReader.ReadAt(ctx, req)
+}
+
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
 // more efficient.
 //
@@ -276,7 +315,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	} else {
 		minObj := fh.inode.Source()
 		bucket := fh.inode.Bucket()
-		mrdWrapper := &fh.inode.MRDWrapper
+		mrdWrapper := fh.inode.MRDWrapper
 
 		// Acquire a RWLock on file handle as we will update reader
 		fh.unlockHandleAndInode(true)
@@ -284,7 +323,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 		fh.destroyReader()
 		// Attempt to create an appropriate reader.
-		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config, fh.handleID)
+		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, fh.traceHandle, mrdWrapper, fh.config, fh.handleID)
 
 		// Release RWLock and take RLock on file handle again
 		fh.mu.Unlock()

@@ -333,20 +333,17 @@ func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReque
 }
 
 func getProjectionValue(req gcs.Projection) storage.Projection {
-	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
-	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
-	switch int(req) {
-	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
-	case 0:
-		convertedProjection = storage.Projection(1)
-	// Projection Value 1 in jacobsa/gcloud maps to Projection Value 2 in Go Client API, that is for "noAcl".
-	case 1:
-		convertedProjection = storage.Projection(2)
-	// Default Projection value in jacobsa/gcloud library is 0 that maps to 1 in Go Client API interface, and that is for "full".
+	// Map gcs.Projection enum to storage.Projection enum.
+	// The two libraries use different enum values for the same concepts.
+	switch req {
+	case gcs.Full:
+		return storage.ProjectionFull
+	case gcs.NoAcl:
+		return storage.ProjectionNoACL
 	default:
-		convertedProjection = storage.Projection(1)
+		// Default to Full projection for any unknown values
+		return storage.ProjectionFull
 	}
-	return convertedProjection
 }
 
 func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
@@ -361,6 +358,7 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		Projection:               getProjectionValue(req.ProjectionVal),
 		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
+		StartOffset:              req.StartOffset,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
 	minObjAttrs := []string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"}
@@ -604,7 +602,7 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	return
 }
 
-func (bh *bucketHandle) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+func (bh *bucketHandle) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (folder *gcs.Folder, err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
@@ -612,11 +610,11 @@ func (bh *bucketHandle) GetFolder(ctx context.Context, folderName string) (folde
 	var callOptions []gax.CallOption
 	var clientFolder *controlpb.Folder
 	clientFolder, err = bh.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
+		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, req.Name),
 	}, callOptions...)
 
 	if err != nil {
-		err = fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err)
+		err = fmt.Errorf("error getting metadata for folder: %s, %w", req.Name, err)
 		return
 	}
 

@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -106,7 +107,7 @@ type FileInode struct {
 	// creates a cyclic dependency.
 	// Todo: Investigate if cyclic dependency can be removed by removing some unused
 	// code.
-	MRDWrapper gcsx.MultiRangeDownloaderWrapper
+	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
 	bwh    bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
@@ -123,6 +124,9 @@ type FileInode struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	// mrdInstance manages the MultiRangeDownloader instances for this inode.
+	mrdInstance *gcsx.MrdInstance
 }
 
 var _ Inode = &FileInode{}
@@ -146,7 +150,8 @@ func NewFileInode(
 	mtimeClock timeutil.Clock,
 	localFile bool,
 	cfg *cfg.Config,
-	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
+	globalMaxBlocksSem *semaphore.Weighted,
+	mrdCache *lru.Cache) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -166,10 +171,14 @@ func NewFileInode(
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
-	var err error
-	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg)
-	if err != nil {
-		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
+
+	if f.bucket.BucketType().Zonal {
+		var err error
+		f.mrdInstance = gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg)
+		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
+		if err != nil {
+			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
+		}
 	}
 
 	f.lc.Init(id)
@@ -211,6 +220,22 @@ func (f *FileInode) checkInvariants() {
 	}
 }
 
+// clobbered checks if the FileInode's corresponding GCS object has been
+// unexpectedly modified or deleted.
+//
+// It compares the GCS object's metadata (generation, size, meta-generation)
+// against the inode's expected f.SourceGeneration().
+//
+// Return Values (object *gcs.Object, isClobbered bool, err error):
+//
+// | Condition                                    | oGen.Compare | GCS Error | Returns (*gcs.Object, bool, error)          |
+// |----------------------------------------------|--------------|-----------|---------------------------------------------|
+// | Generations Match                            | 0            | nil       | (latestObject, false, nil)                  |
+// | GCS Object Size Greater at same generation   | 2            | nil       | (latestObject, true, nil)                   |
+// | GCS Object Older/Divergent                   | -1 or 1      | nil       | (nil, true, nil)                            |
+// | Object Not Found                             | N/A          | NotFound  | (nil, true(false if local), nil)            |
+// | Other GCS Stat Error                         | N/A          | Other     | (nil, false, <GCS Error>)                   |
+//
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
@@ -247,9 +272,21 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 
 	// We are clobbered iff the generation doesn't match our source generation.
 	oGen := Generation{o.Generation, o.MetaGeneration, o.Size}
-	b = oGen.Compare(f.SourceGeneration()) != 0
-
-	return
+	cmp := oGen.Compare(f.SourceGeneration())
+	switch cmp {
+	case 0:
+		// Generations and size match: Not clobbered. Return the fetched object.
+		return o, false, nil
+	case 2:
+		// The latest GCS object has greater size at the same generation. Return
+		// the fetched object. We also return isClobbered true to indicate the
+		// remote size change.
+		return o, true, nil
+	default: // -1 (GCS is older) or 1 (GCS has different gen/metagen)
+		// GCS object is older, or generation/metageneration mismatch: Clobbered.
+		// Return nil for the object as it's not the version we might want to use.
+		return nil, true, nil
+	}
 }
 
 // Open a reader for the generation of object we care about.
@@ -384,6 +421,11 @@ func (f *FileInode) Source() *gcs.MinObject {
 	return &o
 }
 
+// Returns MrdInstace for this inode.
+func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
+	return f.mrdInstance
+}
+
 // If true, it is safe to serve reads directly from the object given by
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
@@ -459,6 +501,17 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 }
 
 // LOCKS_REQUIRED(f.mu)
+// UpdateSize updates the size of the backing GCS object. It also calls
+// updateMRD to ensure that the multi-range downloader (which is used
+// for random reads) is aware of the new size. This prevents the downloader
+// from operating on stale object information.
+func (f *FileInode) UpdateSize(size uint64) {
+	f.src.Size = size
+	f.attrs.Size = size
+	f.updateMRD()
+}
+
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 	if f.localFileCache {
@@ -466,6 +519,9 @@ func (f *FileInode) Destroy() (err error) {
 		f.contentCache.Remove(cacheObjectKey)
 	} else if f.content != nil {
 		f.content.Destroy()
+	}
+	if f.mrdInstance != nil {
+		f.mrdInstance.Destroy()
 	}
 	return
 }
@@ -525,12 +581,25 @@ func (f *FileInode) Attributes(
 		// If the object has been clobbered, we reflect that as the inode being
 		// unlinked.
 		var clobbered bool
-		_, clobbered, err = f.clobbered(ctx, false, false)
+		var o *gcs.Object
+		o, clobbered, err = f.clobbered(ctx, false, false)
 		if err != nil {
 			err = fmt.Errorf("clobbered: %w", err)
 			return
 		}
 		if clobbered {
+			// If clobbered check is true but the minObject returned is not nil, it means the clobber
+			// was due to update in object size remotely (appends case). In this scenario, we will update
+			// the inode attributes to reflect latest size.
+			if o != nil {
+				f.UpdateSize(o.Size)
+				attrs = f.attrs
+				attrs.Nlink = 1
+				return
+
+			}
+			// If the minObj is nil, it means that file has been clobbered genuinely due to generation
+			// or metageneration changes.
 			attrs.Nlink = 0
 			return
 		}
@@ -763,7 +832,7 @@ func (f *FileInode) SetMtime(
 			minObj = *minObjPtr
 		}
 		f.src = minObj
-		f.updateMRDWrapper()
+		f.updateMRD()
 		return
 	}
 
@@ -801,8 +870,14 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 		return nil, err
 	}
 	if isClobbered {
+		var err error
+		if latestGcsObj != nil {
+			err = fmt.Errorf("file was clobbered due to increase in size at same generation(remote appends)")
+		} else {
+			err = fmt.Errorf("file was clobbered due to generation/metageneration mismatch")
+		}
 		return nil, &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("file was clobbered"),
+			Err:        err,
 			ObjectName: f.src.Name,
 		}
 	}
@@ -917,7 +992,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
 		// Update MRDWrapper
-		f.updateMRDWrapper()
+		f.updateMRD()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -929,12 +1004,19 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	}
 }
 
-// Updates the min object stored in MRDWrapper corresponding to the inode.
+// Updates the min object stored in MRDWrapper & MRDInstance corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
-func (f *FileInode) updateMRDWrapper() {
-	err := f.MRDWrapper.SetMinObject(f.Source())
-	if err != nil {
-		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
+func (f *FileInode) updateMRD() {
+	// updateMRD will be a noop for regional bucket.
+	if !f.bucket.BucketType().Zonal {
+		return
+	}
+	minObj := f.Source()
+	if err := f.mrdInstance.SetMinObject(minObj); err != nil {
+		logger.Errorf("FileInode::updateMRD Error in setting minObject for MrdInstance %v", err)
+	}
+	if err := f.MRDWrapper.SetMinObject(minObj); err != nil {
+		logger.Errorf("FileInode::updateMRD Error in setting minObject for MRDWrapper %v", err)
 	}
 }
 

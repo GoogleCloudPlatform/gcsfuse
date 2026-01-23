@@ -15,12 +15,14 @@
 package inode
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
@@ -30,8 +32,8 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 // ListObjects call supports fetching upto 5000 results when projection is noAcl
@@ -184,6 +186,8 @@ type DirInode interface {
 	IsUnlinked() bool
 
 	Unlink()
+
+	IsTypeCacheDeprecated() bool
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -200,6 +204,7 @@ type dirInode struct {
 	bucket     *gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
+	prefetcher *MetadataPrefetcher
 
 	/////////////////////////
 	// Constant data
@@ -241,6 +246,8 @@ type dirInode struct {
 
 	isUnsupportedPathSupportEnabled bool
 
+	isEnableTypeCacheDeprecation bool
+
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
@@ -272,15 +279,13 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
-	includeFoldersAsPrefixes bool,
 	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int64,
-	isHNSEnabled bool,
-	isUnsupportedPathSupportEnabled bool,
+	prefetchSem *semaphore.Weighted,
+	cfg *cfg.Config,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -293,14 +298,23 @@ func NewDirInode(
 		cacheClock:                      cacheClock,
 		id:                              id,
 		implicitDirs:                    implicitDirs,
-		includeFoldersAsPrefixes:        includeFoldersAsPrefixes,
+		includeFoldersAsPrefixes:        cfg.List.EnableEmptyManagedFolders,
 		enableNonexistentTypeCache:      enableNonexistentTypeCache,
 		name:                            name,
 		attrs:                           attrs,
-		cache:                           metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		isHNSEnabled:                    isHNSEnabled,
-		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
+		isHNSEnabled:                    cfg.EnableHns,
+		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
+		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
+	}
+	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
+	// acquiring d.mu only to update the cache.
+	typed.prefetcher = NewMetadataPrefetcher(cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked)
+
+	var cache metadata.TypeCache
+	if !cfg.EnableTypeCacheDeprecation {
+		cache = metadata.NewTypeCache(cfg.MetadataCache.TypeCacheMaxSizeMb, typeCacheTTL)
+		typed.cache = cache
 	}
 
 	typed.lc.Init(id)
@@ -397,7 +411,11 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 }
 
 func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
-	folder, err := bucket.GetFolder(ctx, name.GcsObjectName())
+	// Call the bucket.
+	req := &gcs.GetFolderRequest{
+		Name: name.GcsObjectName(),
+	}
+	folder, err := bucket.GetFolder(ctx, req)
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError
@@ -524,8 +542,16 @@ func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
-	// Nothing interesting to do.
+	d.prefetcher.Cancel()
 	return
+}
+
+// UpdateSize is a no-op for implicit directories. These directories are not
+// backed by a real GCS object but are inferred from the presence of other
+// objects (e.g., the directory "foo/" is implied by the object "foo/bar.txt").
+// Since there is no backing object, there is no size attribute to update.
+func (d *dirInode) UpdateSize(size uint64) {
+	// No-op for directories.
 }
 
 // LOCKS_REQUIRED(d)
@@ -577,8 +603,13 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
-
-	cachedType := d.cache.Get(d.cacheClock.Now(), name)
+	var cachedType metadata.Type
+	if d.IsTypeCacheDeprecated() {
+		// TODO: Add deprecation logic.
+		cachedType = metadata.UnknownType
+	} else {
+		cachedType = d.cache.Get(d.cacheClock.Now(), name)
+	}
 	switch cachedType {
 	case metadata.ImplicitDirType:
 		dirResult = &Core{
@@ -597,6 +628,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
+		// Entry not present in cache.
+		// Trigger prefetcher
+		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
+
 		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
 			group.Go(lookUpHNSDir)
@@ -621,10 +656,12 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		result = fileResult
 	}
 
-	if result != nil {
-		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+	if !d.IsTypeCacheDeprecated() {
+		if result != nil {
+			d.cache.Insert(d.cacheClock.Now(), name, result.Type())
+		} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
+			d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+		}
 	}
 
 	return result, nil
@@ -677,10 +714,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
-// LOCKS_REQUIRED(d)
-func (d *dirInode) readObjects(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+// Helper function to handle the common listing logic and GCS request preparation.
+func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, maxListCallResults int, listStartOffset string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
 	includeTrailingDelimeter := true // Important for flat bucket to list explicit directory.
 	if d.isBucketHierarchical() {
@@ -695,11 +730,12 @@ func (d *dirInode) readObjects(
 		IncludeTrailingDelimiter: includeTrailingDelimeter,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
-		MaxResults:               MaxResultsForListObjectsCall,
+		MaxResults:               maxListCallResults,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
 		ProjectionVal:            gcs.NoAcl,
 		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+		StartOffset:              listStartOffset,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -709,13 +745,6 @@ func (d *dirInode) readObjects(
 	}
 
 	cores = make(map[Name]*Core)
-	defer func() {
-		now := d.cacheClock.Now()
-		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
-		}
-	}()
-
 	for _, o := range listing.MinObjects {
 		if storageutil.IsUnsupportedPath(o.Name) {
 			unsupportedPaths = append(unsupportedPaths, o.Name)
@@ -807,6 +836,43 @@ func (d *dirInode) readObjects(
 	return
 }
 
+func (d *dirInode) insertToCache(cores map[Name]*Core) {
+	if d.IsTypeCacheDeprecated() {
+		return
+	}
+	now := d.cacheClock.Now()
+	for fullName, c := range cores {
+		d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+	}
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) readObjects(
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, MaxResultsForListObjectsCall, "")
+	if err == nil {
+		d.insertToCache(cores)
+	}
+	return
+}
+
+// LOCK_EXCLUDED(d)
+// readObjectsUnlocked performs GCS I/O without the lock, acquiring d.mu only to update the cache.
+func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOffset string, maxListCallResults int) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+	cores, unsupportedPaths, newTok, err = d.listObjectsAndBuildCores(ctx, tok, maxListCallResults, startOffset)
+	if err != nil {
+		return
+	}
+
+	d.mu.Lock()
+	d.insertToCache(cores)
+	d.mu.Unlock()
+
+	return
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
@@ -861,7 +927,9 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}
 	m := storageutil.ConvertObjToMinObject(o)
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	}
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
@@ -880,18 +948,24 @@ func (d *dirInode) CreateLocalChildFileCore(name string) (Core, error) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) InsertFileIntoTypeCache(name string) {
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	}
 }
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) EraseFromTypeCache(name string) {
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
+	}
 }
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
-	// Erase any existing type information for this name.
-	d.cache.Erase(name)
+	if !d.IsTypeCacheDeprecated() {
+		// Erase any existing type information for this name.
+		d.cache.Erase(name)
+	}
 	fullName := NewFileName(d.Name(), name)
 
 	// Clone over anything that might already exist for the name.
@@ -913,7 +987,9 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 		FullName:  fullName,
 		MinObject: m,
 	}
-	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	}
 	return c, nil
 }
 
@@ -930,7 +1006,9 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 	}
 	m := storageutil.ConvertObjToMinObject(o)
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
+	}
 
 	return &Core{
 		Bucket:    d.Bucket(),
@@ -966,7 +1044,9 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	}
 
 	// Insert the new directory into the type cache.
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
+	}
 
 	return &Core{
 		Bucket:    d.Bucket(),
@@ -982,7 +1062,6 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
-	d.cache.Erase(name)
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -993,13 +1072,21 @@ func (d *dirInode) DeleteChildFile(
 			MetaGenerationPrecondition: metaGeneration,
 		})
 
-	if err != nil {
-		err = fmt.Errorf("DeleteObject: %w", err)
+	if err == nil {
+		if !d.IsTypeCacheDeprecated() {
+			d.cache.Erase(name)
+		}
 		return
 	}
-	d.cache.Erase(name)
-
-	return
+	var notFoundError *gcs.NotFoundError
+	// DeleteObject returns notFoundError when the type has been modified remotely.
+	// So, evict from type-cache in such cases.
+	if errors.As(err, &notFoundError) {
+		if !d.IsTypeCacheDeprecated() {
+			d.cache.Erase(name)
+		}
+	}
+	return fmt.Errorf("DeleteObject: %w", err)
 }
 
 // LOCKS_REQUIRED(d)
@@ -1008,46 +1095,52 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool,
 	dirInode DirInode) error {
-	d.cache.Erase(name)
-
-	// If the directory is an implicit directory, then no backing object
-	// exists in the gcs bucket, so returning from here.
-	// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
-	if isImplicitDir {
-		return nil
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(name)
 	}
 
 	childName := NewDirName(d.Name(), name)
+	req := &gcs.DeleteObjectRequest{
+		Name:       childName.GcsObjectName(),
+		Generation: 0, // Delete the latest version.
+	}
 
-	// Delete the backing object. Unfortunately we have no way to precondition
-	// this on the directory being empty.
-	err := d.bucket.DeleteObject(
-		ctx,
-		&gcs.DeleteObjectRequest{
-			Name:       childName.GcsObjectName(),
-			Generation: 0, // Delete the latest version of object named after dir.
-		})
+	// Hierarchical Namespace (HNS) Buckets
+	if d.isBucketHierarchical() {
+		// Ignoring delete object error here, as in case of hns there is no way of knowing
+		// if underlying placeholder object exists or not in Hierarchical bucket.
+		// The DeleteFolder operation handles removing empty folders.
+		_ = d.bucket.DeleteObject(ctx, req)
 
-	if !d.isBucketHierarchical() {
-		if err != nil {
-			return fmt.Errorf("DeleteObject: %w", err)
+		if err := d.bucket.DeleteFolder(ctx, req.Name); err != nil {
+			return fmt.Errorf("DeleteFolder: %w", err)
 		}
-		d.cache.Erase(name)
+
+		if dirInode != nil {
+			dirInode.Unlink()
+		}
+
 		return nil
 	}
 
-	// Ignoring delete object error here, as in case of hns there is no way of knowing
-	// if underlying placeholder object exists or not in Hierarchical bucket.
-	// The DeleteFolder operation handles removing empty folders.
-	if err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName()); err != nil {
-		return fmt.Errorf("DeleteFolder: %w", err)
+	if isImplicitDir {
+		if !d.IsTypeCacheDeprecated() {
+			// If the directory is an implicit directory, then no backing object
+			// exists in the gcs bucket, so returning from here.
+			// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
+			return nil
+		}
+		// Implicit directories do not have a backing object in GCS.
+		// Set this flag to skip the GCS network call and only invalidate the local cache.
+		req.OnlyDeleteFromCache = true
 	}
 
-	if d.isBucketHierarchical() {
-		dirInode.Unlink()
+	// Delete the backing object. Unfortunately we have no way to precondition
+	// this on the directory being empty.
+	if err := d.bucket.DeleteObject(ctx, req); err != nil {
+		return fmt.Errorf("DeleteObject: %w", err)
 	}
 
-	d.cache.Erase(name)
 	return nil
 }
 
@@ -1203,7 +1296,9 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 	o, err := d.bucket.MoveObject(ctx, req)
 
 	// Invalidate the cache entry for the old object name.
-	d.cache.Erase(fileToRename.Name)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(fileToRename.Name)
+	}
 
 	return o, err
 }
@@ -1216,7 +1311,9 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 
 	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
 	// Remove old entry from type cache.
-	d.cache.Erase(folderName)
+	if !d.IsTypeCacheDeprecated() {
+		d.cache.Erase(folderName)
+	}
 
 	return folder, nil
 }
@@ -1231,4 +1328,8 @@ func (d *dirInode) isBucketHierarchical() bool {
 		return true
 	}
 	return false
+}
+
+func (d *dirInode) IsTypeCacheDeprecated() bool {
+	return d.isEnableTypeCacheDeprecation
 }

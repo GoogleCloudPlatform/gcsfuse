@@ -80,6 +80,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					Workers:    3,
 					BufferSize: 256,
 				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
 			},
 		},
 		{
@@ -98,6 +101,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					Workers:    3,
 					BufferSize: 256,
 				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
 			},
 		},
 		{
@@ -114,6 +120,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				Metrics: MetricsConfig{
 					Workers:    3,
 					BufferSize: 256,
+				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
 				},
 			},
 		},
@@ -132,6 +141,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					Workers:    3,
 					BufferSize: 256,
 				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
 			},
 		},
 		{
@@ -149,22 +161,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					Workers:    3,
 					BufferSize: 256,
 				},
-			},
-		},
-		{
-			name: "Valid Sequential read size MB",
-			config: &Config{
-				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: validFileCacheConfig(t),
-				GcsConnection: GcsConnectionConfig{
-					SequentialReadSizeMb: 10,
-				},
-				MetadataCache: MetadataCacheConfig{
-					ExperimentalMetadataPrefetchOnMount: "sync",
-				},
-				Metrics: MetricsConfig{
-					Workers:    3,
-					BufferSize: 256,
+				Mrd: MrdConfig{
+					PoolSize: 4,
 				},
 			},
 		},
@@ -182,6 +180,29 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				Metrics: MetricsConfig{
 					Workers:    3,
 					BufferSize: 256,
+				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
+			},
+		},
+		{
+			name: "Valid Sequential read size MB",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
 				},
 			},
 		},
@@ -201,6 +222,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					BufferSize: 256,
 				},
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
 			},
 		},
 		{
@@ -227,6 +251,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					Workers:    3,
 					BufferSize: 256,
 				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
 			},
 		},
 		{
@@ -245,6 +272,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				Metrics: MetricsConfig{
 					Workers:    3,
 					BufferSize: 256,
+				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
 				},
 			},
 		},
@@ -265,6 +295,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					Workers:    3,
 					BufferSize: 256,
 				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
 			},
 		},
 		{
@@ -284,6 +317,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
 				GcsRetries: GcsRetriesConfig{ChunkTransferTimeoutSecs: 15},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
 			},
 		},
 	}
@@ -504,6 +540,30 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Invalid experimental-concurrent-metadata-prefetches",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				MetadataCache: MetadataCacheConfig{
+					MetadataPrefetchMaxWorkers: -4,
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
+		{
+			name: "Invalid experimental-metadata-prefetch-count",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				MetadataCache: MetadataCacheConfig{
+					MetadataPrefetchEntriesLimit: -2,
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -665,6 +725,47 @@ func Test_isValidBufferedReadConfig_ErrorScenarios(t *testing.T) {
 	}
 }
 
+func Test_isValidMRDConfig(t *testing.T) {
+	testCases := []struct {
+		name      string
+		mrdConfig MrdConfig
+		wantErr   bool
+	}{
+		{
+			name: "valid_pool_size",
+			mrdConfig: MrdConfig{
+				PoolSize: 10,
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid_pool_size_zero",
+			mrdConfig: MrdConfig{
+				PoolSize: 0,
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid_pool_size_negative",
+			mrdConfig: MrdConfig{
+				PoolSize: -1,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMRDConfig(&tc.mrdConfig)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func Test_isValidBufferedReadConfig_ValidScenarios(t *testing.T) {
 	var testCases = []struct {
 		testName string
@@ -795,6 +896,9 @@ func validConfig(t *testing.T) Config {
 		Metrics: MetricsConfig{
 			Workers:    1,
 			BufferSize: 1,
+		},
+		Mrd: MrdConfig{
+			PoolSize: 4,
 		},
 	}
 }

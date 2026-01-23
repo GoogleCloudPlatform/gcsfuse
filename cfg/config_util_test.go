@@ -21,6 +21,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_DefaultMaxBackground(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultMaxBackground(), 12)
+	assert.LessOrEqual(t, DefaultMaxBackground(), maxBackgroundLimit)
+}
+
+func Test_DefaultCongestionThreshold(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultCongestionThreshold(), 9)
+	assert.LessOrEqual(t, DefaultCongestionThreshold(), 144) // 75% of maxBackgroundLimit
+}
+
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
 	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
 }
@@ -219,6 +229,44 @@ func TestIsGKEEnvironment(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, tc.expected, IsGKEEnvironment(tc.mountPoint))
+		})
+	}
+}
+
+func TestGetBucketType(t *testing.T) {
+	tests := []struct {
+		name         string
+		hierarchical bool
+		zonal        bool
+		expected     BucketType
+	}{
+		{
+			name:         "Zonal and Hierarchical (zonal takes priority)",
+			hierarchical: true,
+			zonal:        true,
+			expected:     BucketTypeZonal,
+		},
+		{
+			name:         "Hierarchical bucket",
+			hierarchical: true,
+			zonal:        false,
+			expected:     BucketTypeHierarchical,
+		},
+		{
+			name:         "Flat bucket",
+			hierarchical: false,
+			zonal:        false,
+			expected:     BucketTypeFlat,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetBucketType(tt.hierarchical, tt.zonal)
+			if result != tt.expected {
+				t.Errorf("GetBucketType(%v, %v) = %v; want %v",
+					tt.hierarchical, tt.zonal, result, tt.expected)
+			}
 		})
 	}
 }

@@ -68,11 +68,15 @@ list:
   enable-empty-managed-folders: true
 enable-hns: false
 enable-atomic-rename-object: false
+disable-list-access-check: false
 metadata-cache:
   deprecated-stat-cache-capacity: 200
   deprecated-stat-cache-ttl: 30s
   deprecated-type-cache-ttl: 20s
   enable-nonexistent-type-cache: true
+  metadata-prefetch-max-workers: 5
+  enable-metadata-prefetch: true
+  metadata-prefetch-entries-limit: 50
   experimental-metadata-prefetch-on-mount: sync
   stat-cache-max-size-mb: 40
   ttl-secs: 100

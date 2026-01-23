@@ -40,6 +40,16 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 			{{- end }}
 		},
 		{{- end }}
+		{{- if .Optimizations.BucketTypeOptimization }}
+		BucketTypeOptimization: []shared.BucketTypeOptimization{
+			{{- range .Optimizations.BucketTypeOptimization }}
+			{
+				BucketType: "{{ .BucketType }}",
+				Value:      {{$goType}}({{ formatValue .Value }}),
+			},
+			{{- end }}
+		},
+		{{- end }}
 		{{- if .Optimizations.Profiles }}
 		Profiles: []shared.ProfileOptimization{
 			{{- range .Optimizations.Profiles }}
@@ -63,7 +73,9 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+// input parameter is optional and provides runtime context for optimizations
+// such as bucket type. Pass nil if not available.
+func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) map[string]OptimizationResult {
 	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
@@ -71,7 +83,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	}
 
 	profileName := c.Profile
-	machineType, err := getMachineType(isSet, c)
+	machineType, err := getMachineType(isSet)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
 		machineType = ""
@@ -81,9 +93,9 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationRes
 	// Apply optimizations for each flag that has rules defined.
 {{- range .FlagTemplateData }}
 {{- if .Optimizations }}
-	if !isSet.IsSet("{{ .FlagName }}") {
+	if !isSet.IsSet("{{ .ConfigPath }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
-		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {

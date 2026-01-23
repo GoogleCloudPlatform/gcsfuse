@@ -159,10 +159,17 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "disable-list-access-check"
+    flag-name: "disable-list-access-check"
+    type: "bool"
+    usage: "Disables the list object based access check during mount operation"
+    default: true
+    hide-flag: true
+
   - config-path: "dummy-io.enable"
     flag-name: "enable-dummy-io"
     type: "bool"
-    usage: >- 
+    usage: >-
       Enable dummy I/O mode for testing purposes. In this mode all reads
       and writes are simulated and no actual data is transferred to or from
       Cloud Storage. All the metadata operations like object listing and stats
@@ -173,7 +180,7 @@ params:
   - config-path: "dummy-io.per-mb-latency"
     flag-name: "dummy-io-per-mb-latency"
     type: "duration"
-    usage: >- 
+    usage: >-
       Simulates reading from the reader latency in dummy I/O mode. This value
       is only used when dummy I/O mode is enabled.
     default: "0s"
@@ -182,7 +189,7 @@ params:
   - config-path: "dummy-io.reader-latency"
     flag-name: "dummy-io-reader-latency"
     type: "duration"
-    usage: >- 
+    usage: >-
       Simulates reader creation latency in dummy I/O mode. This value
       is only used when dummy I/O mode is enabled.
     default: "0s"
@@ -216,6 +223,13 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "enable-type-cache-deprecation"
+    flag-name: "enable-type-cache-deprecation"
+    type: "bool"
+    usage: "Enables support to deprecate type cache."
+    default: false
+    hide-flag: true
+
   - config-path: "enable-unsupported-path-support"
     flag-name: "enable-unsupported-path-support"
     type: "bool"
@@ -225,6 +239,8 @@ params:
       For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.
     default: true
     hide-flag: true
+
+
 
   - config-path: "file-cache.cache-file-for-range-read"
     flag-name: "file-cache-cache-file-for-range-read"
@@ -289,7 +305,7 @@ params:
     type: "string"
     usage: "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching."
     default: ""
- 
+
   - config-path: "file-cache.max-parallel-downloads"
     flag-name: "file-cache-max-parallel-downloads"
     type: "int"
@@ -315,6 +331,20 @@ params:
     default: "4194304" # 4MiB
     hide-flag: true
 
+  - config-path: "file-system.congestion-threshold"
+    flag-name: "congestion-threshold"
+    type: "int"
+    usage: >-
+      Sets the congestion threshold for background requests. When the number of
+      outstanding requests exceeds this threshold, the kernel may start blocking
+      new requests. 0 means system default (typically 75% of max-background; 9).
+    default: "0"
+    hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: "DefaultCongestionThreshold()"
+
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
     type: "octal"
@@ -327,6 +357,17 @@ params:
     usage: "Specifies whether to allow parallel dir operations (lookups and readers)"
     default: false
     hide-flag: true
+
+  - config-path: "file-system.enable-kernel-reader"
+    flag-name: "enable-kernel-reader"
+    type: "bool"
+    usage: "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache."
+    default: false
+    hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: true
 
   - config-path: "file-system.experimental-enable-dentry-cache"
     flag-name: "experimental-enable-dentry-cache"
@@ -380,6 +421,16 @@ params:
       inflight operations.
     default: true
 
+  - config-path: "file-system.inactive-mrd-cache-size"
+    flag-name: "inactive-mrd-cache-size"
+    type: "int"
+    usage: >-
+      Sets the cache-size of inactive (no open file) MRD instances. When this limit
+      is exceeded, the least recently inactive MRD instances will be closed. Set to
+      0 to disable the cache, which will keep all the inactive MRD instances open forever.
+    default: "0"
+    hide-flag: true
+
   - config-path: "file-system.kernel-list-cache-ttl-secs"
     flag-name: "kernel-list-cache-ttl-secs"
     type: "int"
@@ -396,6 +447,28 @@ params:
         - name: "aiml-serving"
           value: -1
 
+  - config-path: "file-system.kernel-params-file"
+    flag-name: "kernel-params-file"
+    type: "resolvedPath"
+    usage: >-
+      File path used to communicate various kernel parameters to CSI Driver in GKE environment.
+    hide-flag: true
+
+  - config-path: "file-system.max-background"
+    flag-name: "max-background"
+    type: "int"
+    usage: >-
+      Sets the maximum number of outstanding background requests (e.g., request corresponding to 
+      kernel readahead, writeback cache etc.) that the kernel will send to the FUSE daemon. 0 means
+      system default 
+      (typically 12).
+    default: "0"
+    hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: "DefaultMaxBackground()"
+
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
     type: "int"
@@ -405,7 +478,11 @@ params:
       and system default will be used.
     default: "0"
     hide-flag: true
-  
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: 16384 # 16 MiB
+
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
     type: "bool"
@@ -769,6 +846,16 @@ params:
       This flag has been deprecated (starting v2.0) in favor of
       metadata-cache-ttl-secs.
 
+  - config-path: "metadata-cache.enable-metadata-prefetch"
+    flag-name: "enable-metadata-prefetch"
+    type: "bool"
+    usage: >-
+      Enables background prefetching of object metadata when a directory is first opened. 
+      This reduces latency for subsequent file lookups by pre-filling the metadata cache.
+    default: false
+    deprecated: false
+    hide-flag: true
+
   - config-path: "metadata-cache.enable-nonexistent-type-cache"
     flag-name: "enable-nonexistent-type-cache"
     type: "bool"
@@ -792,6 +879,28 @@ params:
     default: "disabled"
     deprecated: true
     deprecation-warning: "Experimental flag: could be removed even in a minor release."
+
+  - config-path: "metadata-cache.metadata-prefetch-entries-limit"
+    flag-name: "metadata-prefetch-entries-limit"
+    type: "int"
+    usage: >
+      The maximum number of metadata entries (files and directories) to prefetch 
+      into the cache upon a prefetch trigger. Since a single GCS List call is capped
+      at 5000 results, values higher than 5000 will trigger multiple sequential GCS 
+      List calls per directory.
+    default: "5000"
+    deprecated: false
+    hide-flag: true
+
+  - config-path: "metadata-cache.metadata-prefetch-max-workers"
+    flag-name: "metadata-prefetch-max-workers"
+    type: "int"
+    usage: >
+      The maximum number of concurrent goroutines (workers) allowed to perform 
+      metadata prefetching across all directories.
+    default: "10"
+    deprecated: false
+    hide-flag: true
 
   - config-path: "metadata-cache.negative-ttl-secs"
     flag-name: "metadata-cache-negative-ttl-secs"
@@ -882,11 +991,12 @@ params:
     usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
     default: 0
 
-  - config-path: "metrics.enable-grpc-metrics"
-    flag-name: "enable-grpc-metrics"
+  - config-path: "metrics.experimental-enable-grpc-metrics"
+    flag-name: "experimental-enable-grpc-metrics"
     type: "bool"
     usage: "Enables support for gRPC metrics"
     default: false
+    hide-flag: true
 
   - config-path: "metrics.prometheus-port"
     flag-name: "prometheus-port"
@@ -937,6 +1047,14 @@ params:
     type: "float64"
     usage: "Experimental: Trace sampling ratio"
     default: 0
+    hide-flag: true
+
+  - config-path: "mrd.pool-size"
+    flag-name: "mrd-pool-size"
+    type: "int"
+    usage: >-
+      Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.
+    default: "4"
     hide-flag: true
 
   - config-path: "only-dir"
@@ -1080,7 +1198,6 @@ params:
     type: "bool"
     usage: "Enables streaming uploads during write file operation."
     default: true
-    hide-flag: false
 
   - config-path: "write.finalize-file-for-rapid"
     flag-name: "finalize-file-for-rapid"
@@ -1097,7 +1214,6 @@ params:
       The value should be >= 0 or -1 (for infinite blocks).
       A value of 0 disables streaming writes.
     default: 4
-    hide-flag: false
     optimizations:
       machine-based-optimization:
         - group: "high-performance"

@@ -102,9 +102,8 @@ const (
 type IoMethod string
 
 const (
-	IoMethodReadHandleAttr IoMethod = "ReadHandle"
-	IoMethodClosedAttr     IoMethod = "closed"
-	IoMethodOpenedAttr     IoMethod = "opened"
+	IoMethodClosedAttr IoMethod = "closed"
+	IoMethodOpenedAttr IoMethod = "opened"
 )
 
 // ReadType is a custom type for the read_type attribute.
@@ -116,14 +115,6 @@ const (
 	ReadTypeRandomAttr     ReadType = "Random"
 	ReadTypeSequentialAttr ReadType = "Sequential"
 	ReadTypeUnknownAttr    ReadType = "Unknown"
-)
-
-// Reader is a custom type for the reader attribute.
-type Reader string
-
-const (
-	ReaderBufferedAttr Reader = "Buffered"
-	ReaderOthersAttr   Reader = "Others"
 )
 
 // Reason is a custom type for the reason attribute.
@@ -182,7 +173,7 @@ type MetricHandle interface {
 	GcsDownloadBytesCount(inc int64, readType ReadType)
 
 	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
-	GcsReadBytesCount(inc int64, reader Reader)
+	GcsReadBytesCount(inc int64)
 
 	// GcsReadCount - Specifies the number of gcs reads made along with type - Sequential/Random
 	GcsReadCount(inc int64, readType ReadType)

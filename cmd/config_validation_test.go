@@ -588,6 +588,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					Gid:                    -1,
 					IgnoreInterrupts:       true,
 					KernelListCacheTtlSecs: 0,
+					InactiveMrdCacheSize:   0,
 					RenameDirLimit:         0,
 					TempDir:                "",
 					PreconditionErrors:     true,
@@ -608,6 +609,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					Gid:                    -1,
 					IgnoreInterrupts:       true,
 					KernelListCacheTtlSecs: 0,
+					InactiveMrdCacheSize:   0,
 					RenameDirLimit:         0,
 					TempDir:                "",
 					PreconditionErrors:     true,
@@ -628,6 +630,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					Gid:                    7,
 					IgnoreInterrupts:       false,
 					KernelListCacheTtlSecs: 300,
+					InactiveMrdCacheSize:   0,
 					RenameDirLimit:         10,
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
 					PreconditionErrors:     false,
@@ -720,6 +723,40 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 	}
 }
 
+func TestValidateConfigFile_DisableListAccessCheckSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			// Test default values.
+			name:       "empty_config_file",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				DisableListAccessCheck: true,
+			},
+		},
+		{
+			name:       "valid_config_file",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				DisableListAccessCheck: false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.DisableListAccessCheck, gotConfig.DisableListAccessCheck)
+			}
+		})
+	}
+}
+
 func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -736,6 +773,9 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					DeprecatedStatCacheTtl:              60 * time.Second,
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
+					MetadataPrefetchEntriesLimit:        5000,
+					MetadataPrefetchMaxWorkers:          10,
+					EnableMetadataPrefetch:              false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
@@ -753,6 +793,9 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					DeprecatedStatCacheTtl:              30 * time.Second,
 					DeprecatedTypeCacheTtl:              20 * time.Second,
 					EnableNonexistentTypeCache:          true,
+					EnableMetadataPrefetch:              true,
+					MetadataPrefetchMaxWorkers:          5,
+					MetadataPrefetchEntriesLimit:        50,
 					ExperimentalMetadataPrefetchOnMount: "sync",
 					StatCacheMaxSizeMb:                  40,
 					TtlSecs:                             100,

@@ -15,9 +15,12 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -178,11 +181,11 @@ func TestDummyIOBucket_GetFolder(t *testing.T) {
 	ctx := context.Background()
 	folderName := "test-folder"
 	expectedFolder := &gcs.Folder{Name: folderName}
-	mockBucket.On("GetFolder", ctx, folderName).Return(expectedFolder, nil)
+	mockBucket.On("GetFolder", ctx, &gcs.GetFolderRequest{Name: folderName}).Return(expectedFolder, nil)
 	dummyBucket := NewDummyIOBucket(mockBucket, DummyIOBucketParams{})
 	require.NotNil(t, dummyBucket)
 
-	folder, err := dummyBucket.GetFolder(ctx, folderName)
+	folder, err := dummyBucket.GetFolder(ctx, &gcs.GetFolderRequest{Name: folderName})
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedFolder, folder)
@@ -326,6 +329,64 @@ func TestDummyIOBucket_NewReaderWithReadHandle_WithLatency(t *testing.T) {
 	assert.Equal(t, uint64(0), reader.(*dummyReader).bytesRead)
 }
 
+////////////////////////////////////////////////////////////////////////
+// Test for calculateLatency
+////////////////////////////////////////////////////////////////////////
+
+func TestCalculateLatency(t *testing.T) {
+	const MB = 1024 * 1024
+	testCases := []struct {
+		name         string
+		bytes        int64
+		perMBLatency time.Duration
+		expected     time.Duration
+	}{
+		{
+			name:         "ZeroLatency",
+			bytes:        MB,
+			perMBLatency: 0,
+			expected:     0,
+		},
+		{
+			name:         "NegativeLatency",
+			bytes:        MB,
+			perMBLatency: -10 * time.Millisecond,
+			expected:     0,
+		},
+		{
+			name:         "ZeroBytes",
+			bytes:        0,
+			perMBLatency: 100 * time.Millisecond,
+			expected:     0,
+		},
+		{
+			name:         "OneMB",
+			bytes:        MB,
+			perMBLatency: 100 * time.Millisecond,
+			expected:     100 * time.Millisecond,
+		},
+		{
+			name:         "MultipleMBs",
+			bytes:        5 * MB,
+			perMBLatency: 100 * time.Millisecond,
+			expected:     500 * time.Millisecond,
+		},
+		{
+			name:         "FractionOfMB",
+			bytes:        MB / 2,
+			perMBLatency: 100 * time.Millisecond,
+			expected:     50 * time.Millisecond,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := calculateLatency(tc.bytes, tc.perMBLatency)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
 // //////////////////////////////////////////////////////////////////////
 // Test for dummyReader
 // //////////////////////////////////////////////////////////////////////
@@ -407,4 +468,187 @@ func TestDummyReader_ReadWithLatency(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 512*1024, n)
 	assert.GreaterOrEqual(t, elapsed, 5*time.Millisecond)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Test for dummyMultiRangeDownloader
+////////////////////////////////////////////////////////////////////////
+
+func TestDummyIOBucket_NewMultiRangeDownloader(t *testing.T) {
+	latency := 5 * time.Millisecond
+	params := DummyIOBucketParams{
+		PerMBLatency: latency,
+	}
+	dummyBucket := NewDummyIOBucket(&TestifyMockBucket{}, params)
+
+	mrd, err := dummyBucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{})
+	dmrd, ok := mrd.(*dummyMultiRangeDownloader)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, mrd)
+	assert.True(t, ok)
+	assert.Equal(t, latency, dmrd.perMBLatency)
+}
+
+func TestDummyMultiRangeDownloader_Add_Single(t *testing.T) {
+	mrd := &dummyMultiRangeDownloader{}
+	var output bytes.Buffer
+	length := int64(100)
+	offset := int64(50)
+	var cbOffset, cbBytesWritten int64
+	var cbErr error
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	mrd.Add(&output, offset, length, func(o, bw int64, e error) {
+		cbOffset = o
+		cbBytesWritten = bw
+		cbErr = e
+		wg.Done()
+	})
+	wg.Wait() // Wait for callback to be called
+
+	assert.NoError(t, cbErr)
+	assert.Equal(t, offset, cbOffset)
+	assert.Equal(t, length, cbBytesWritten)
+	assert.Equal(t, int(length), output.Len())
+	assert.Equal(t, make([]byte, length), output.Bytes())
+}
+
+func TestDummyMultiRangeDownloader_Add_ZeroLength(t *testing.T) {
+	mrd := &dummyMultiRangeDownloader{}
+	var output bytes.Buffer
+	length := int64(0)
+	offset := int64(50)
+	var cbOffset, cbBytesWritten int64
+	var cbErr error
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	mrd.Add(&output, offset, length, func(o, bw int64, e error) {
+		cbOffset = o
+		cbBytesWritten = bw
+		cbErr = e
+		wg.Done()
+	})
+	wg.Wait() // Wait for callback to be called
+
+	assert.NoError(t, cbErr)
+	assert.Equal(t, offset, cbOffset)
+	assert.Equal(t, length, cbBytesWritten)
+	assert.Equal(t, int(length), output.Len())
+}
+
+func TestDummyMultiRangeDownloader_Add_MultipleConcurrent(t *testing.T) {
+	mrd := &dummyMultiRangeDownloader{}
+	numAdds := 5
+	errChan := make(chan error, numAdds)
+
+	for i := 0; i < numAdds; i++ {
+		go func(i int) {
+			var output bytes.Buffer
+			length := int64(100 + i*10)
+			offset := int64(50 + i*100)
+			mrd.Add(&output, offset, length, func(o, bw int64, e error) {
+				if e != nil {
+					errChan <- fmt.Errorf("callback error: %w", e)
+					return
+				}
+				if o != offset {
+					errChan <- fmt.Errorf("offset mismatch: got %d, want %d", o, offset)
+					return
+				}
+				if bw != length {
+					errChan <- fmt.Errorf("bytesWritten mismatch: got %d, want %d", bw, length)
+					return
+				}
+				if int64(output.Len()) != length {
+					errChan <- fmt.Errorf("output length mismatch: got %d, want %d", output.Len(), length)
+					return
+				}
+				if !bytes.Equal(make([]byte, length), output.Bytes()) {
+					errChan <- fmt.Errorf("output content mismatch")
+					return
+				}
+				errChan <- nil
+			})
+		}(i)
+	}
+	mrd.Wait() // Wait for all Add goroutines to finish writing
+
+	for i := 0; i < numAdds; i++ {
+		err := <-errChan
+		assert.NoError(t, err)
+	}
+}
+
+func TestDummyMultiRangeDownloader_Add_ValidateContent(t *testing.T) {
+	mrd := &dummyMultiRangeDownloader{}
+	var output bytes.Buffer
+	length := int64(5)
+	offset := int64(0)
+
+	mrd.Add(&output, offset, length, nil)
+	mrd.Wait()
+
+	// Check content
+	result := output.Bytes()
+	assert.Equal(t, int(length), len(result))
+	// Verify the returned data is zeros
+	assert.Equal(t, make([]byte, length), result[:])
+}
+
+func TestDummyMultiRangeDownloader_Close(t *testing.T) {
+	mrd := &dummyMultiRangeDownloader{}
+	var output bytes.Buffer
+	length := int64(100)
+	callbackDone := make(chan bool, 1)
+
+	mrd.Add(&output, 0, length, func(o, bw int64, e error) {
+		time.Sleep(10 * time.Millisecond) // Simulate some work in callback
+		callbackDone <- true
+	})
+	err := mrd.Close() // Close should wait for the Add to complete.
+
+	assert.NoError(t, err)
+	select {
+	case <-callbackDone:
+		// success
+	default:
+		t.Fatal("callback was not called after Close")
+	}
+}
+
+func TestDummyMultiRangeDownloader_Latency(t *testing.T) {
+	perMBLatency := 100 * time.Millisecond
+	mrd := &dummyMultiRangeDownloader{perMBLatency: perMBLatency}
+	var output bytes.Buffer
+	length := int64(MB / 2) // 0.5 MB
+	expectedLatencyNs := float64(length) * float64(perMBLatency.Nanoseconds()) / float64(MB)
+	expectedLatency := time.Duration(expectedLatencyNs)
+
+	start := time.Now()
+	mrd.Add(&output, 0, length, nil)
+	mrd.Wait()
+	elapsed := time.Since(start)
+
+	// Allow some tolerance for scheduling delays
+	assert.GreaterOrEqual(t, elapsed, expectedLatency)
+	assert.Less(t, elapsed, expectedLatency*2, "Latency was too high")
+}
+
+func TestDummyMultiRangeDownloader_GetHandle(t *testing.T) {
+	mrd := &dummyMultiRangeDownloader{}
+
+	handle := mrd.GetHandle()
+
+	assert.Equal(t, []byte("dummy-handle"), handle)
+}
+
+func TestDummyMultiRangeDownloader_Error(t *testing.T) {
+	mrd := &dummyMultiRangeDownloader{}
+
+	err := mrd.Error()
+
+	assert.NoError(t, err)
 }

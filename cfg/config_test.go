@@ -23,26 +23,95 @@ import (
 )
 
 func TestApplyOptimizations(t *testing.T) {
-	// Tests for file-cache.cache-file-for-range-read
-	t.Run("file-cache.cache-file-for-range-read", func(t *testing.T) {
+	// Tests for file-system.congestion-threshold
+	t.Run("file-system.congestion-threshold", func(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
 			{
-				name: "user_set",
-				config: Config{
-					Profile: "aiml-serving",
-				},
+				name:   "user_set",
+				config: Config{},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"file-cache-cache-file-for-range-read": true,
-						"machine-type":                         true,
+						"file-system.congestion-threshold": true,
+						"machine-type":                     true,
 					},
 				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   0,
+			},
+			{
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   DefaultCongestionThreshold(),
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.CongestionThreshold = tc.expectedValue.(int64)
+				} else {
+					c.FileSystem.CongestionThreshold = 0
+				}
+
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.congestion-threshold")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.congestion-threshold")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.CongestionThreshold)
+			})
+		}
+	})
+	// Tests for file-system.enable-kernel-reader
+	t.Run("file-system.enable-kernel-reader", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			isSet           *mockIsValueSet
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{
+						"file-system.enable-kernel-reader": true,
+						"machine-type":                     true,
+					},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
 				expectedValue:   !(false),
 			},
@@ -53,6 +122,78 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   false,
+			},
+			{
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   true,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.EnableKernelReader = tc.expectedValue.(bool)
+				} else {
+					c.FileSystem.EnableKernelReader = false
+				}
+
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.enable-kernel-reader")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.enable-kernel-reader")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.EnableKernelReader)
+			})
+		}
+	})
+	// Tests for file-cache.cache-file-for-range-read
+	t.Run("file-cache.cache-file-for-range-read", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			isSet           *mockIsValueSet
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name: "user_set",
+				config: Config{
+					Profile: "aiml-serving",
+				},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{
+						"file-cache.cache-file-for-range-read": true,
+						"machine-type":                         true,
+					},
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   !(false),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   false,
 			},
@@ -60,6 +201,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
 			},
@@ -67,6 +209,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
 			},
@@ -83,7 +226,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileCache.CacheFileForRangeRead = false
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-cache.cache-file-for-range-read")
@@ -101,6 +244,7 @@ func TestApplyOptimizations(t *testing.T) {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
@@ -118,6 +262,7 @@ func TestApplyOptimizations(t *testing.T) {
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   !(false),
 			},
@@ -128,6 +273,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   false,
 			},
@@ -135,6 +281,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
 			},
@@ -142,6 +289,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
 			},
@@ -149,6 +297,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
 			},
@@ -159,6 +308,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
 			},
@@ -169,6 +319,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
 			}, {
@@ -178,6 +329,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
 			},
@@ -194,7 +346,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.ImplicitDirs = false
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "implicit-dirs")
@@ -212,6 +364,7 @@ func TestApplyOptimizations(t *testing.T) {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
@@ -222,10 +375,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"kernel-list-cache-ttl-secs": true,
-						"machine-type":               true,
+						"file-system.kernel-list-cache-ttl-secs": true,
+						"machine-type":                           true,
 					},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   int64(98765),
 			},
@@ -236,6 +390,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
@@ -243,6 +398,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -259,7 +415,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.KernelListCacheTtlSecs = 0
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
@@ -271,29 +427,26 @@ func TestApplyOptimizations(t *testing.T) {
 			})
 		}
 	})
-	// Tests for metadata-cache.negative-ttl-secs
-	t.Run("metadata-cache.negative-ttl-secs", func(t *testing.T) {
+	// Tests for file-system.max-background
+	t.Run("file-system.max-background", func(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
 			{
-				name: "user_set",
-				config: Config{
-					Profile: "aiml-training",
-				},
+				name:   "user_set",
+				config: Config{},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"metadata-cache-negative-ttl-secs": true,
-						"machine-type":                     true,
-					},
-					stringFlags: map[string]string{
-						"machine-type": "a2-megagpu-16g",
+						"file-system.max-background": true,
+						"machine-type":               true,
 					},
 				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
 				expectedValue:   int64(98765),
 			},
@@ -304,6 +457,150 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   0,
+			},
+			{
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   DefaultMaxBackground(),
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.MaxBackground = tc.expectedValue.(int64)
+				} else {
+					c.FileSystem.MaxBackground = 0
+				}
+
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.max-background")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.max-background")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.MaxBackground)
+			})
+		}
+	})
+	// Tests for file-system.max-read-ahead-kb
+	t.Run("file-system.max-read-ahead-kb", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			isSet           *mockIsValueSet
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{
+						"file-system.max-read-ahead-kb": true,
+						"machine-type":                  true,
+					},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   0,
+			},
+			{
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{},
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   16384,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.MaxReadAheadKb = tc.expectedValue.(int64)
+				} else {
+					c.FileSystem.MaxReadAheadKb = 0
+				}
+
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.max-read-ahead-kb")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.max-read-ahead-kb")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.MaxReadAheadKb)
+			})
+		}
+	})
+	// Tests for metadata-cache.negative-ttl-secs
+	t.Run("metadata-cache.negative-ttl-secs", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			isSet           *mockIsValueSet
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name: "user_set",
+				config: Config{
+					Profile: "aiml-training",
+				},
+				isSet: &mockIsValueSet{
+					setFlags: map[string]bool{
+						"metadata-cache.negative-ttl-secs": true,
+						"machine-type":                     true,
+					},
+					stringFlags: map[string]string{
+						"machine-type": "a2-megagpu-16g",
+					},
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				isSet: &mockIsValueSet{
+					setFlags:    map[string]bool{"machine-type": true},
+					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   5,
 			},
@@ -311,6 +608,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
 			},
@@ -318,6 +616,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
 			},
@@ -325,6 +624,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
 			},
@@ -335,6 +635,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
 			},
@@ -345,6 +646,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
 			}, {
@@ -354,6 +656,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
 			},
@@ -370,7 +673,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.NegativeTtlSecs = 5
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "metadata-cache.negative-ttl-secs")
@@ -388,6 +691,7 @@ func TestApplyOptimizations(t *testing.T) {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
@@ -398,13 +702,14 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"metadata-cache-ttl-secs": true,
+						"metadata-cache.ttl-secs": true,
 						"machine-type":            true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   int64(98765),
 			},
@@ -415,6 +720,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   60,
 			},
@@ -422,6 +728,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -429,6 +736,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -436,6 +744,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -446,6 +755,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -456,6 +766,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			}, {
@@ -465,6 +776,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -481,7 +793,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.TtlSecs = 60
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "metadata-cache.ttl-secs")
@@ -499,6 +811,7 @@ func TestApplyOptimizations(t *testing.T) {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
@@ -509,13 +822,14 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"rename-dir-limit": true,
-						"machine-type":     true,
+						"file-system.rename-dir-limit": true,
+						"machine-type":                 true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   int64(98765),
 			},
@@ -526,6 +840,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
@@ -533,6 +848,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   200000,
 			},
@@ -543,6 +859,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   200000,
 			},
@@ -553,6 +870,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   200000,
 			}, {
@@ -562,6 +880,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   200000,
 			}, {
@@ -571,6 +890,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   200000,
 			},
@@ -587,7 +907,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.RenameDirLimit = 0
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-system.rename-dir-limit")
@@ -605,6 +925,7 @@ func TestApplyOptimizations(t *testing.T) {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
@@ -615,13 +936,14 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"stat-cache-max-size-mb": true,
-						"machine-type":           true,
+						"metadata-cache.stat-cache-max-size-mb": true,
+						"machine-type":                          true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   int64(98765),
 			},
@@ -632,6 +954,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   33,
 			},
@@ -639,6 +962,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -646,6 +970,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -653,6 +978,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -663,6 +989,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   1024,
 			},
@@ -673,6 +1000,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			}, {
@@ -682,6 +1010,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   1024,
 			},
@@ -698,7 +1027,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.StatCacheMaxSizeMb = 33
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
@@ -716,6 +1045,7 @@ func TestApplyOptimizations(t *testing.T) {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
@@ -726,13 +1056,14 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"type-cache-max-size-mb": true,
-						"machine-type":           true,
+						"metadata-cache.type-cache-max-size-mb": true,
+						"machine-type":                          true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   int64(98765),
 			},
@@ -743,6 +1074,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   4,
 			},
@@ -750,6 +1082,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -757,6 +1090,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -764,6 +1098,7 @@ func TestApplyOptimizations(t *testing.T) {
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
 				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
@@ -774,6 +1109,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   128,
 			},
@@ -784,6 +1120,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
 			}, {
@@ -793,6 +1130,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   128,
 			},
@@ -809,7 +1147,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.TypeCacheMaxSizeMb = 4
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "metadata-cache.type-cache-max-size-mb")
@@ -827,6 +1165,7 @@ func TestApplyOptimizations(t *testing.T) {
 			name            string
 			config          Config
 			isSet           *mockIsValueSet
+			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
 		}{
@@ -835,13 +1174,14 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{},
 				isSet: &mockIsValueSet{
 					setFlags: map[string]bool{
-						"write-global-max-blocks": true,
+						"write.global-max-blocks": true,
 						"machine-type":            true,
 					},
 					stringFlags: map[string]string{
 						"machine-type": "a2-megagpu-16g",
 					},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   int64(98765),
 			},
@@ -852,6 +1192,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "low-end-machine"},
 				},
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   4,
 			},
@@ -862,6 +1203,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   1600,
 			}, {
@@ -871,6 +1213,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   1600,
 			}, {
@@ -880,6 +1223,7 @@ func TestApplyOptimizations(t *testing.T) {
 					setFlags:    map[string]bool{"machine-type": true},
 					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
 				},
+				input:           nil,
 				expectOptimized: true,
 				expectedValue:   1600,
 			},
@@ -896,7 +1240,7 @@ func TestApplyOptimizations(t *testing.T) {
 					c.Write.GlobalMaxBlocks = 4
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "write.global-max-blocks")

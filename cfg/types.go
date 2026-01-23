@@ -114,3 +114,31 @@ func (p *ResolvedPath) UnmarshalText(text []byte) error {
 	*p = ResolvedPath(path)
 	return nil
 }
+
+// OptimizationInput provides runtime context for applying optimizations.
+// This struct can be extended in the future to support additional optimization
+// dimensions such as region, storage class, or project-specific settings.
+type OptimizationInput struct {
+	// BucketType specifies the GCS bucket type.
+	// An empty string means no bucket-type-based optimization should be applied.
+	BucketType BucketType
+}
+
+// BucketType represents the type of GCS bucket.
+type BucketType string
+
+const (
+	// BucketTypeZonal represents a zonal bucket with single-zone storage.
+	BucketTypeZonal BucketType = "zonal"
+
+	// BucketTypeHierarchical represents a bucket with hierarchical namespace enabled.
+	BucketTypeHierarchical BucketType = "hierarchical"
+
+	// BucketTypeFlat represents a flat (regional or multi-regional) bucket.
+	BucketTypeFlat BucketType = "flat"
+)
+
+// IsValid returns true if the BucketType is one of the defined valid types.
+func (bt BucketType) IsValid() bool {
+	return bt == BucketTypeZonal || bt == BucketTypeHierarchical || bt == BucketTypeFlat
+}

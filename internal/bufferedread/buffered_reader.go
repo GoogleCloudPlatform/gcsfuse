@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/sync/semaphore"
 )
@@ -71,6 +72,8 @@ type BufferedReader struct {
 	numPrefetchBlocks int64
 
 	metricHandle metrics.MetricHandle
+
+	traceHandle tracing.TraceHandle
 
 	// handleID is the file handle id, used for logging.
 	handleID fuseops.HandleID
@@ -123,6 +126,7 @@ type BufferedReaderOptions struct {
 	GlobalMaxBlocksSem *semaphore.Weighted
 	WorkerPool         workerpool.WorkerPool
 	MetricHandle       metrics.MetricHandle
+	TraceHandle        tracing.TraceHandle
 	ReadTypeClassifier *gcsx.ReadTypeClassifier
 	HandleID           fuseops.HandleID
 }
@@ -155,6 +159,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		blockPool:                blockpool,
 		workerPool:               opts.WorkerPool,
 		metricHandle:             opts.MetricHandle,
+		traceHandle:              opts.TraceHandle,
 		handleID:                 opts.HandleID,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
@@ -303,7 +308,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	defer func() {
 		dur := time.Since(start)
 		p.metricHandle.BufferedReadReadLatency(ctx, dur)
-		p.metricHandle.GcsReadBytesCount(int64(bytesRead), metrics.ReaderBufferedAttr)
+		p.metricHandle.GcsReadBytesCount(int64(bytesRead))
 		if err == nil || errors.Is(err, io.EOF) {
 			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
 		}

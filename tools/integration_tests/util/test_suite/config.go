@@ -31,20 +31,23 @@ type BucketType struct {
 
 // TestConfig represents the common configuration for test packages.
 type TestConfig struct {
-	GKEMountedDirectory     string `yaml:"mounted_directory"`
-	GCSFuseMountedDirectory string
-	TestBucket              string `yaml:"test_bucket"`
-	LogFile                 string
-	Configs                 []ConfigItem `yaml:"configs"`
-	OnlyDir                 string       `yaml:"only_dir,omitempty"`
+	GKEMountedDirectory              string `yaml:"mounted_directory"`
+	GKEMountedDirectorySecondary     string `yaml:"mounted_directory_secondary"`
+	GCSFuseMountedDirectory          string
+	GCSFuseMountedDirectorySecondary string
+	TestBucket                       string `yaml:"test_bucket"`
+	LogFile                          string
+	Configs                          []ConfigItem `yaml:"configs"`
+	OnlyDir                          string       `yaml:"only_dir,omitempty"`
 }
 
 // ConfigItem defines the variable parts of each test run.
 type ConfigItem struct {
-	Flags      []string        `yaml:"flags"`
-	Compatible map[string]bool `yaml:"compatible"`
-	Run        string          `yaml:"run,omitempty"`
-	RunOnGKE   bool            `yaml:"run_on_gke"`
+	Flags          []string        `yaml:"flags"`
+	SecondaryFlags []string        `yaml:"secondary_flags"`
+	Compatible     map[string]bool `yaml:"compatible"`
+	Run            string          `yaml:"run,omitempty"`
+	RunOnGKE       bool            `yaml:"run_on_gke"`
 }
 
 // Config holds all test configurations parsed from the YAML file.

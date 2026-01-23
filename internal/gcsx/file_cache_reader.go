@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -66,16 +67,19 @@ type FileCacheReader struct {
 
 	metricHandle metrics.MetricHandle
 
+	traceHandle tracing.TraceHandle
+
 	handleID fuseops.HandleID
 }
 
-func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, handleID fuseops.HandleID) *FileCacheReader {
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, handleID fuseops.HandleID) *FileCacheReader {
 	return &FileCacheReader{
 		object:                o,
 		bucket:                bucket,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
+		traceHandle:           traceHandle,
 		handleID:              handleID,
 	}
 }

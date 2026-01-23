@@ -16,11 +16,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"slices"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
@@ -50,15 +48,12 @@ type OptimizationResult struct {
 	Optimized bool `yaml:"-" json:"-"` // Field hidden from YAML and JSON to avoid it in logs.
 }
 
-type isValueSet interface {
+// IsValueSet interface allows checking if a flag was explicitly set by the user.
+// This is used to determine whether to apply optimization rules or respect user choices.
+type IsValueSet interface {
 	IsSet(string) bool
 	GetString(string) string
 	GetBool(string) bool
-}
-
-// flagOverride represents a flag override with its new value.
-type flagOverride struct {
-	newValue any
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -103,20 +98,17 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 	return body, nil
 }
 
-// getMachineType fetches the machine type from the metadata server if not set in isSet, cfg.
-func getMachineType(isSet isValueSet, cfg *Config) (string, error) {
-	// Precedence: 1. CLI flag, 2. Config file, 3. Metadata server.
-	// 1. Check if the machine-type flag is set in CLI flag.
+// getMachineType fetches the machine type, checking user-provided configuration
+// first (from CLI flags or config file), and falling back to the metadata
+func getMachineType(isSet IsValueSet) (string, error) {
+	// Precedence: CLI flag > Config file > Metadata server.
+	// 1. Check if the machine-type flag is set by the user (via CLI flag or config file).
 	if isSet.IsSet(machineTypeFlg) {
 		if currentMachineType := isSet.GetString(machineTypeFlg); currentMachineType != "" {
 			return currentMachineType, nil
 		}
 	}
-	// 2. Check if machine-type flag is set in config-file.
-	if cfg != nil && cfg.MachineType != "" {
-		return cfg.MachineType, nil
-	}
-	// 3. Get machine-type from metadata server.
+	// 2. Get machine-type from metadata server.
 	client := http.Client{Timeout: httpTimeout}
 	for range maxRetries {
 		for _, endpoint := range metadataEndpoints {
@@ -134,91 +126,6 @@ func getMachineType(isSet isValueSet, cfg *Config) (string, error) {
 	return "", fmt.Errorf("failed to get machine type from any metadata endpoint after retries")
 }
 
-// convertToCamelCase converts a string from snake-case to CamelCase.
-func convertToCamelCase(input string) string {
-	if input == "" {
-		return ""
-	}
-
-	// Split the string by hyphen.
-	parts := strings.Split(input, "-")
-
-	// Capitalize each part and join them together.
-	for i, part := range parts {
-		if len(part) > 0 {
-			runes := []rune(part)
-			runes[0] = unicode.ToUpper(runes[0])
-			parts[i] = string(runes)
-		}
-	}
-
-	return strings.Join(parts, "")
-}
-
-// setFlagValue uses reflection to set the value of a flag in ServerConfig.
-func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValueSet) error {
-	// Split the flag name into parts to traverse nested structs.
-	parts := strings.Split(flag, ".")
-	if len(parts) == 0 {
-		return fmt.Errorf("invalid flag name: %s", flag)
-	}
-
-	// Start with the Config.
-	v := reflect.ValueOf(cfg).Elem()
-	var field reflect.Value
-	// Traverse nested structs.
-	for _, part := range parts {
-		field = v.FieldByName(convertToCamelCase(part))
-		if !field.IsValid() {
-			return fmt.Errorf("invalid flag name: %s", flag)
-		}
-		v = field
-	}
-
-	// Check if the field exists.
-	if !field.IsValid() {
-		return fmt.Errorf("invalid flag name: %s", flag)
-	}
-
-	// Check if the field is settable.
-	if !field.CanSet() {
-		return fmt.Errorf("cannot set flag: %s", flag)
-	}
-
-	// Construct the full flag name for IsSet check.
-	fullFlagName := strings.ToLower(flag)
-
-	// Only override if the user hasn't set it.
-	if !isSet.IsSet(fullFlagName) {
-		// Set the value based on the field type.
-
-		switch field.Kind() {
-		case reflect.Bool:
-			boolValue, ok := override.newValue.(bool)
-			if !ok {
-				return fmt.Errorf("invalid boolean value for flag %s: %v", flag, override.newValue)
-			}
-			field.SetBool(boolValue)
-		case reflect.Int, reflect.Int64:
-			intValue, ok := override.newValue.(int)
-			if !ok {
-				return fmt.Errorf("invalid integer value for flag %s: %v", flag, override.newValue)
-			}
-			field.SetInt(int64(intValue))
-		case reflect.String:
-			stringValue, ok := override.newValue.(string)
-			if !ok {
-				return fmt.Errorf("invalid string value for flag %s: %v", flag, override.newValue)
-			}
-			field.SetString(stringValue)
-		default:
-			return fmt.Errorf("unsupported flag type for flag %s", flag)
-		}
-	}
-
-	return nil
-}
-
 func isFlagPresent(flags []string, flag string) bool {
 	return slices.Contains(flags, flag)
 }
@@ -229,9 +136,12 @@ func getOptimizedValue(
 	currentValue any,
 	profileName string,
 	machineType string,
+	input *OptimizationInput,
 	machineTypeToGroupMap map[string]string,
 ) OptimizationResult {
-	// Precedence: Profile -> Machine -> Default
+	// Precedence: Profile -> Machine-type -> Bucket-type -> Default
+	// Assuming Machine and Bucket optimizations are applied on mutually exclusive flags, so
+	// precedence doesn't matter between them.
 
 	// 1. If a profile with the given name is active and has optimization defined for it, then it takes precedence.
 	for _, p := range rules.Profiles {
@@ -257,7 +167,20 @@ func getOptimizedValue(
 		}
 	}
 
-	// 3. If no optimization is found, return the original value.
+	// 3. If no profile is set, and no machine-type optimization applies, then check for bucket-type optimization.
+	if input != nil && input.BucketType.IsValid() {
+		for _, bto := range rules.BucketTypeOptimization {
+			if BucketType(bto.BucketType) == input.BucketType {
+				return OptimizationResult{
+					FinalValue:         bto.Value,
+					OptimizationReason: fmt.Sprintf("bucket-type %q", input.BucketType),
+					Optimized:          true,
+				}
+			}
+		}
+	}
+
+	// 4. If no optimization is found, return the original value.
 	return OptimizationResult{
 		FinalValue: currentValue,
 		Optimized:  false,

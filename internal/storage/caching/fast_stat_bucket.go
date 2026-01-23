@@ -30,6 +30,16 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+// A *CacheMissError value is an error that indicates an object name or a
+// particular generation for that name were not found from cache.
+type CacheMissError struct {
+	Err error
+}
+
+func (cme *CacheMissError) Error() string {
+	return fmt.Sprintf("CacheMissError: %v", cme.Err)
+}
+
 // Create a bucket that caches object records returned by the supplied wrapped
 // bucket. Records are invalidated when modifications are made through this
 // bucket, and after the supplied TTL.
@@ -87,6 +97,63 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 	for _, o := range objs {
 		m := storageutil.ConvertObjToMinObject(o)
+		b.cache.Insert(m, expiration)
+	}
+}
+
+// LOCKS_EXCLUDED(b.mu)
+// insertListing caches all objects and sub-directories discovered during a GCS listing.
+// It explicitly handles the "implicit directory" edge case where a directory exists
+// only as a prefix to other objects.
+func (b *fastStatBucket) insertListing(listing *gcs.Listing, dirName string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.primaryCacheTTL)
+
+	// Track object names to avoid redundant caching of prefixes
+	// that already exist as explicit objects.
+	minObjectNames := make(map[string]struct{})
+
+	// 1. Parent Directory Inference (Implicit Check)
+	// If the listing contains objects or sub-directories but the directory itself
+	// is not returned as an explicit object, we infer and cache it as an
+	// implicit directory.
+	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
+	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
+	if dirHasContents && !isDirInListing {
+		m := &gcs.MinObject{
+			Name: dirName,
+		}
+		b.cache.Insert(m, expiration)
+	}
+
+	// 2. Cache Explicit Objects
+	for _, o := range listing.MinObjects {
+		b.cache.Insert(o, expiration)
+		minObjectNames[o.Name] = struct{}{}
+	}
+
+	// 3. Cache Sub-directories (Collapsed Runs)
+	// These represent folders discovered via prefixes in the ListObjects response.
+	for _, p := range listing.CollapsedRuns {
+		// Skip if this name was already cached as an explicit object.
+		if _, exists := minObjectNames[p]; exists {
+			continue
+		}
+
+		// Ensure the prefix follows directory naming conventions (trailing slash).
+		// Although 'collapsedRuns' is expected to contain only directories, we perform
+		// this defensive check to prevent processing malformed prefixes.
+		if !strings.HasSuffix(p, "/") {
+			logger.Errorf("fastStatBucket: ignoring malformed prefix name: %s", p)
+			continue
+		}
+
+		// Cache the prefix as a minimal object (implicit directory marker).
+		m := &gcs.MinObject{
+			Name: p,
+		}
 		b.cache.Insert(m, expiration)
 	}
 }
@@ -227,11 +294,10 @@ func (b *fastStatBucket) NewReaderWithReadHandle(
 func (b *fastStatBucket) CreateObject(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for this object.
-	b.invalidate(req.Name)
-
 	// TODO: create object to be replaced with create folder api once integrated
 	o, err = b.wrapped.CreateObject(ctx, req)
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
+	b.invalidate(req.Name)
 	if err != nil {
 		return
 	}
@@ -251,13 +317,11 @@ func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *
 }
 
 func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
-	name := writer.ObjectName()
-	// Throw away any existing record for this object.
-	b.invalidate(name)
-
 	o, err := b.wrapped.FinalizeUpload(ctx, writer)
-
-	// Record the new object if err is nil.
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
+	name := writer.ObjectName()
+	b.invalidate(name)
+	// Record the new object only if err is nil.
 	if err == nil {
 		b.insertMinObject(o)
 	}
@@ -266,11 +330,11 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 }
 
 func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
-	name := writer.ObjectName()
-	// Throw away any existing record for this object.
-	b.invalidate(name)
-
 	o, err := b.wrapped.FlushPendingWrites(ctx, writer)
+
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
+	name := writer.ObjectName()
+	b.invalidate(name)
 
 	// Record the new object if err is nil.
 	if err == nil {
@@ -283,11 +347,9 @@ func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writ
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for the destination name.
-	b.invalidate(req.DstName)
-
-	// Copy the object.
 	o, err = b.wrapped.CopyObject(ctx, req)
+	// Throw away any existing record for the destination name even if there was an error but do it after the API call.
+	b.invalidate(req.DstName)
 	if err != nil {
 		return
 	}
@@ -302,11 +364,9 @@ func (b *fastStatBucket) CopyObject(
 func (b *fastStatBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for the destination name.
-	b.invalidate(req.DstName)
-
-	// Copy the object.
 	o, err = b.wrapped.ComposeObjects(ctx, req)
+	// Throw away any existing record for the destination name even if there was an error but do it after the API call.
+	b.invalidate(req.DstName)
 	if err != nil {
 		return
 	}
@@ -350,6 +410,14 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
+	// Cache Miss Handling
+	if req.FetchOnlyFromCache {
+		return nil, nil, &CacheMissError{
+			Err: fmt.Errorf("cache miss for %q", req.Name),
+		}
+	}
+
+	// Standard fallback to GCS.
 	return b.StatObjectFromGcs(ctx, req)
 }
 
@@ -368,8 +436,12 @@ func (b *fastStatBucket) ListObjects(
 		return
 	}
 
-	// note anything we found.
-	b.insertMultipleMinObjects(listing.MinObjects)
+	if req.IsTypeCacheDeprecated {
+		b.insertListing(listing, req.Prefix)
+	} else {
+		// note anything we found.
+		b.insertMultipleMinObjects(listing.MinObjects)
+	}
 	return
 }
 
@@ -377,11 +449,9 @@ func (b *fastStatBucket) ListObjects(
 func (b *fastStatBucket) UpdateObject(
 	ctx context.Context,
 	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for this object.
-	b.invalidate(req.Name)
-
-	// Update the object.
 	o, err = b.wrapped.UpdateObject(ctx, req)
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
+	b.invalidate(req.Name)
 	if err != nil {
 		return
 	}
@@ -396,22 +466,33 @@ func (b *fastStatBucket) UpdateObject(
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
-	err = b.wrapped.DeleteObject(ctx, req)
-	if err != nil {
-		b.invalidate(req.Name)
-	} else {
+	if req.OnlyDeleteFromCache {
 		b.addNegativeEntry(req.Name)
+		return nil
+	}
+	err = b.wrapped.DeleteObject(ctx, req)
+	// In case of successful delete, add a negative entry to the cache.
+	if err == nil {
+		b.addNegativeEntry(req.Name)
+		return
+	}
+	// If the delete failed due to a precondition error or not found error,
+	// invalidate the cache entry as the object's state is uncertain.
+	// For other errors, we don't touch the cache because the object likely
+	// still exists.
+	var preconditionErr *gcs.PreconditionError
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
+		b.invalidate(req.Name)
 	}
 	return
 }
 
 func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	// Throw away any existing record for the source and destination name.
+	o, err := b.wrapped.MoveObject(ctx, req)
+	// Throw away any existing record for the source and destination name even if there was an error but do it after the API call.
 	b.invalidate(req.SrcName)
 	b.invalidate(req.DstName)
-
-	// Move the object.
-	o, err := b.wrapped.MoveObject(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -453,12 +534,13 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	return
 }
 
-func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Folder, error) {
-	if hit, entry := b.lookUpFolder(prefix); hit {
+func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	// Cache Lookup
+	if hit, entry := b.lookUpFolder(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err := &gcs.NotFoundError{
-				Err: fmt.Errorf("negative cache entry for folder %v", prefix),
+				Err: fmt.Errorf("negative cache entry for folder %q", req.Name),
 			}
 
 			return nil, err
@@ -467,12 +549,18 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Fol
 		return entry, nil
 	}
 
+	if req.FetchOnlyFromCache {
+		return nil, &CacheMissError{
+			Err: fmt.Errorf("cache miss for %q", req.Name),
+		}
+	}
+
 	// Fetch the Folder from GCS
-	return b.getFolderFromGCS(ctx, prefix)
+	return b.getFolderFromGCS(ctx, req)
 }
 
-func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, prefix string) (*gcs.Folder, error) {
-	f, err := b.wrapped.GetFolder(ctx, prefix)
+func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	f, err := b.wrapped.GetFolder(ctx, req)
 
 	if err == nil {
 		b.insertFolder(f)
@@ -481,16 +569,15 @@ func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, prefix string) (*
 
 	// Special case: NotFoundError -> negative entry.
 	if _, ok := err.(*gcs.NotFoundError); ok {
-		b.addNegativeEntryForFolder(prefix)
+		b.addNegativeEntryForFolder(req.Name)
 	}
 	return nil, err
 }
 
 func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f *gcs.Folder, err error) {
-	// Throw away any existing record for this folder.
-	b.invalidate(folderName)
-
 	f, err = b.wrapped.CreateFolder(ctx, folderName)
+	// Throw away any existing record for this folder even if there was an error but do it after the API call.
+	b.invalidate(folderName)
 	if err != nil {
 		return
 	}
@@ -518,6 +605,11 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 func (b *fastStatBucket) NewMultiRangeDownloader(
 	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
+
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		b.invalidate(req.Name)
+	}
 	return
 }
 

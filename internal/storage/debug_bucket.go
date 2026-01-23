@@ -257,7 +257,7 @@ func (b *debugBucket) StatObject(
 func (b *debugBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
-	id, desc, start := b.startRequest("ListObjects(%q)", req.Prefix)
+	id, desc, start := b.startRequest("ListObjects(Prefix=%q, StartOffset=%q, MaxResults=%d)", req.Prefix, req.StartOffset, req.MaxResults)
 	defer b.finishRequest(id, desc, start, &err)
 
 	listing, err = b.wrapped.ListObjects(ctx, req)
@@ -303,11 +303,11 @@ func (b *debugBucket) DeleteFolder(ctx context.Context, folderName string) (err 
 	return err
 }
 
-func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
-	id, desc, start := b.startRequest("GetFolder(%q)", folderName)
+func (b *debugBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (folder *gcs.Folder, err error) {
+	id, desc, start := b.startRequest("GetFolder(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
-	folder, err = b.wrapped.GetFolder(ctx, folderName)
+	folder, err = b.wrapped.GetFolder(ctx, req)
 	return
 }
 
@@ -381,7 +381,6 @@ func (b *debugBucket) NewMultiRangeDownloader(
 	// Call through.
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
 	if err != nil {
-		b.finishRequest(id, desc, start, &err)
 		return
 	}
 
