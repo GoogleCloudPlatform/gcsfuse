@@ -109,6 +109,8 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 			CacheFileForRangeRead:        true,
 			ExperimentalEnableChunkCache: params.enableSparseFileCache,
 			DownloadChunkSizeMb:          1, // 1MB chunks for testing
+			EnableParallelDownloads:      params.enableParallelDownloads,
+			ParallelDownloadsPerFile:     16,
 		}
 	}
 
@@ -350,4 +352,56 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
+}
+
+// TestGCSMetrics_ParallelDownloads validates GCS metrics when parallel downloads are enabled.
+//
+// Expected Behavior:
+//   - With parallel downloads enabled, large files are downloaded in chunks in parallel.
+//   - We verify that "gcs/download_bytes_count" matches the file size.
+//   - We verify that "gcs/read_count" reflects the number of chunks downloaded (since each chunk triggers a GCS read).
+func TestGCSMetrics_ParallelDownloads(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableFileCache = true
+	params.enableParallelDownloads = true
+	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, params)
+	server = wrappers.WithMonitoring(server, mh)
+	// Create a file larger than the chunk size (1MB) to trigger parallel downloads.
+	// 5MB file, 1MB chunks -> 5 chunks.
+	fileSize := 5 * 1024 * 1024
+	fileName := "parallel_download.txt"
+	content := string(make([]byte, fileSize))
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err)
+
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, fileSize),
+	}
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Verify download bytes count
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
+		attribute.NewSet(attribute.String("read_type", "Parallel")),
+		int64(fileSize))
+	// Verify read count.
+	// With parallel downloads and 1MB chunks, a 5MB file should trigger 5 GCS reads (one per chunk).
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count",
+		attribute.NewSet(attribute.String("read_type", "Parallel")),
+		5)
 }

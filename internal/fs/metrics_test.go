@@ -44,6 +44,7 @@ type serverConfigParams struct {
 	enableNewReader       bool
 	enableFileCache       bool
 	enableSparseFileCache bool
+	enableParallelDownloads bool
 }
 
 func defaultServerConfigParams() *serverConfigParams {
@@ -101,6 +102,8 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 			CacheFileForRangeRead:        true,
 			ExperimentalEnableChunkCache: params.enableSparseFileCache,
 			DownloadChunkSizeMb:          1, // 1MB chunks for testing
+			EnableParallelDownloads:      params.enableParallelDownloads,
+			ParallelDownloadsPerFile:     16,
 		}
 	}
 
