@@ -40,10 +40,14 @@ import (
 
 // serverConfigParams holds parameters for creating a test file system.
 type serverConfigParams struct {
-	enableBufferedRead      bool
-	enableNewReader         bool
-	enableFileCache         bool
-	enableSparseFileCache   bool
+	enableBufferedRead    bool
+	enableNewReader       bool
+	enableFileCache       bool
+	enableSparseFileCache bool
+	// enableFileCacheForRangeRead controls if the file cache is used for random reads.
+	enableFileCacheForRangeRead bool
+	// enableKernelReader controls if the mrd_simple_reader is enabled.
+	enableKernelReader      bool
 	enableParallelDownloads bool
 }
 
