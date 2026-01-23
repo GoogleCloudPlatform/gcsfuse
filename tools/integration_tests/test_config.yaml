@@ -50,28 +50,31 @@ list_large_dir:
     configs:
       - flags:
           - "--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
+          - "--client-protocol=grpc,--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
         compatible:
           flat: true
           hns: true
           zonal: true
         run_on_gke: true
+        run: TestListLargeDirWithKernelListCache
       - flags:
-          - "--client-protocol=grpc,--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
+          - "--enable-metadata-prefetch,-implicit-dirs=true"
+          - "--client-protocol=grpc,--enable-metadata-prefetch,-implicit-dirs=true"
         compatible:
           flat: true
           hns: true
-          zonal: false
+          zonal: true
         run_on_gke: true
-
+        run: TestListLargeDirWithoutKernelListCache
 operations:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
         - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
-        - "--kernel-list-cache-ttl-secs=-1,--implicit-dirs=true"
+        - "--kernel-list-cache-ttl-secs=-1,--implicit-dirs=true,--enable-metadata-prefetch"
         - "--experimental-enable-json-read=true,--enable-atomic-rename-object=true"
-        - "--client-protocol=grpc,--implicit-dirs=true,--enable-atomic-rename-object=true"
+        - "--client-protocol=grpc,--implicit-dirs=true,--enable-atomic-rename-object=true,--enable-metadata-prefetch"
         compatible:
           flat: true
           hns: true

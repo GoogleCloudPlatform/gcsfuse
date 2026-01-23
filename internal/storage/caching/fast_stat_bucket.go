@@ -294,11 +294,10 @@ func (b *fastStatBucket) NewReaderWithReadHandle(
 func (b *fastStatBucket) CreateObject(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for this object.
-	b.invalidate(req.Name)
-
 	// TODO: create object to be replaced with create folder api once integrated
 	o, err = b.wrapped.CreateObject(ctx, req)
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
+	b.invalidate(req.Name)
 	if err != nil {
 		return
 	}
@@ -318,13 +317,11 @@ func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *
 }
 
 func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
-	name := writer.ObjectName()
-	// Throw away any existing record for this object.
-	b.invalidate(name)
-
 	o, err := b.wrapped.FinalizeUpload(ctx, writer)
-
-	// Record the new object if err is nil.
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
+	name := writer.ObjectName()
+	b.invalidate(name)
+	// Record the new object only if err is nil.
 	if err == nil {
 		b.insertMinObject(o)
 	}
@@ -333,11 +330,11 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 }
 
 func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
-	name := writer.ObjectName()
-	// Throw away any existing record for this object.
-	b.invalidate(name)
-
 	o, err := b.wrapped.FlushPendingWrites(ctx, writer)
+
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
+	name := writer.ObjectName()
+	b.invalidate(name)
 
 	// Record the new object if err is nil.
 	if err == nil {
@@ -350,11 +347,9 @@ func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writ
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for the destination name.
-	b.invalidate(req.DstName)
-
-	// Copy the object.
 	o, err = b.wrapped.CopyObject(ctx, req)
+	// Throw away any existing record for the destination name even if there was an error but do it after the API call.
+	b.invalidate(req.DstName)
 	if err != nil {
 		return
 	}
@@ -369,11 +364,9 @@ func (b *fastStatBucket) CopyObject(
 func (b *fastStatBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for the destination name.
-	b.invalidate(req.DstName)
-
-	// Copy the object.
 	o, err = b.wrapped.ComposeObjects(ctx, req)
+	// Throw away any existing record for the destination name even if there was an error but do it after the API call.
+	b.invalidate(req.DstName)
 	if err != nil {
 		return
 	}
@@ -456,11 +449,9 @@ func (b *fastStatBucket) ListObjects(
 func (b *fastStatBucket) UpdateObject(
 	ctx context.Context,
 	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for this object.
-	b.invalidate(req.Name)
-
-	// Update the object.
 	o, err = b.wrapped.UpdateObject(ctx, req)
+	// Throw away any existing record for this object even if there was an error but do it after the API call.
+	b.invalidate(req.Name)
 	if err != nil {
 		return
 	}
@@ -498,12 +489,10 @@ func (b *fastStatBucket) DeleteObject(
 }
 
 func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	// Throw away any existing record for the source and destination name.
+	o, err := b.wrapped.MoveObject(ctx, req)
+	// Throw away any existing record for the source and destination name even if there was an error but do it after the API call.
 	b.invalidate(req.SrcName)
 	b.invalidate(req.DstName)
-
-	// Move the object.
-	o, err := b.wrapped.MoveObject(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -586,10 +575,9 @@ func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, req *gcs.GetFolde
 }
 
 func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f *gcs.Folder, err error) {
-	// Throw away any existing record for this folder.
-	b.invalidate(folderName)
-
 	f, err = b.wrapped.CreateFolder(ctx, folderName)
+	// Throw away any existing record for this folder even if there was an error but do it after the API call.
+	b.invalidate(folderName)
 	if err != nil {
 		return
 	}

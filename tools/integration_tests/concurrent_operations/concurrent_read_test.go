@@ -287,7 +287,7 @@ func TestConcurrentRead(t *testing.T) {
 	flagsSet := [][]string{
 		{}, // For default read path.
 		{"--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=true", cacheDirFlag, "--enable-kernel-reader=false"}, // For file cache path
-		{"--enable-buffered-read", "--enable-kernel-reader=false"},                                                                                   // For Buffered read enabled.
+		{"--enable-buffered-read", "--enable-kernel-reader=false", "--enable-metadata-prefetch"},                                                     // For Buffered read enabled.
 	}
 	if setup.IsZonalBucketRun() {
 		// Zonal buckets enable the kernel reader by default. Disable it to verify the GCSReader flow.

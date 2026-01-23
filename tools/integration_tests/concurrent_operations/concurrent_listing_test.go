@@ -689,7 +689,7 @@ func TestConcurrentListing(t *testing.T) {
 	}
 
 	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=0"}, {"--kernel-list-cache-ttl-secs=-1"},
+		{"--kernel-list-cache-ttl-secs=0", "--enable-metadata-prefetch"}, {"--kernel-list-cache-ttl-secs=-1"},
 	}
 
 	if !testing.Short() {
