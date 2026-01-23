@@ -230,7 +230,7 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 	server = wrappers.WithMonitoring(server, mh)
 	fileName := "test.txt"
 	content := "1234567890"
-	createWithContents(ctx, t, bucket, fileName, content)\
+	createWithContents(ctx, t, bucket, fileName, content)
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   fileName,
