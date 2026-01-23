@@ -832,7 +832,7 @@ monitoring:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-        - "--prometheus-port=9190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--log-file=/gcsfuse-tmp/monitoring.log"
+        - "--prometheus-port=9190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--log-file=/gcsfuse-tmp/monitoring.log,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: false
@@ -840,7 +840,7 @@ monitoring:
         run: "TestPromOTELSuite"
         run_on_gke: true
       - flags:
-        - "--prometheus-port=10190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--log-file=/gcsfuse-tmp/monitoring_hns.log"
+        - "--prometheus-port=10190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--log-file=/gcsfuse-tmp/monitoring_hns.log,--enable-kernel-reader=false"
         compatible:
           flat: false
           hns: true
@@ -848,7 +848,7 @@ monitoring:
         run: "TestPromOTELSuite"
         run_on_gke: true
       - flags:
-        - "--prometheus-port=9191,--enable-buffered-read,--read-block-size-mb=4,--read-random-seek-threshold=2,--read-global-max-blocks=5,--read-min-blocks-per-handle=2,--read-start-blocks-per-handle=2,--log-file=/gcsfuse-tmp/prom_buffered_read.log"
+        - "--prometheus-port=9191,--enable-buffered-read,--read-block-size-mb=4,--read-random-seek-threshold=2,--read-global-max-blocks=5,--read-min-blocks-per-handle=2,--read-start-blocks-per-handle=2,--log-file=/gcsfuse-tmp/prom_buffered_read.log,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: false
@@ -856,7 +856,7 @@ monitoring:
         run: "TestPromBufferedReadSuite"
         run_on_gke: true
       - flags:
-        - "--prometheus-port=10191,--enable-buffered-read,--read-block-size-mb=4,--read-random-seek-threshold=2,--read-global-max-blocks=5,--read-min-blocks-per-handle=2,--read-start-blocks-per-handle=2,--log-file=/gcsfuse-tmp/prom_buffered_read_hns.log"
+        - "--prometheus-port=10191,--enable-buffered-read,--read-block-size-mb=4,--read-random-seek-threshold=2,--read-global-max-blocks=5,--read-min-blocks-per-handle=2,--read-start-blocks-per-handle=2,--log-file=/gcsfuse-tmp/prom_buffered_read_hns.log,--enable-kernel-reader=false"
         compatible:
           flat: false
           hns: true
@@ -864,7 +864,7 @@ monitoring:
         run: "TestPromBufferedReadSuite"
         run_on_gke: true
       - flags:
-        - "--client-protocol=grpc,--experimental-enable-grpc-metrics=true,--prometheus-port=9192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--log-file=/gcsfuse-tmp/prom_grpc_metrics.log"
+        - "--client-protocol=grpc,--experimental-enable-grpc-metrics=true,--prometheus-port=9192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--log-file=/gcsfuse-tmp/prom_grpc_metrics.log,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: false
@@ -872,7 +872,7 @@ monitoring:
         run: "TestPromGrpcMetricsSuite"
         run_on_gke: true
       - flags:
-        - "--client-protocol=grpc,--experimental-enable-grpc-metrics=true,--prometheus-port=10192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log"
+        - "--client-protocol=grpc,--experimental-enable-grpc-metrics=true,--prometheus-port=10192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log,--enable-kernel-reader=false"
         compatible:
           flat: false
           hns: true
