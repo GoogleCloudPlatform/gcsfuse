@@ -176,7 +176,7 @@ func TestMain(m *testing.M) {
 		testEnv.cfg.LogFile = setup.LogFile()
 		testEnv.cfg.GKEMountedDirectory = setup.MountedDirectory()
 
-		testEnv.cfg.Configs = make([]test_suite.ConfigItem, 6)
+		testEnv.cfg.Configs = make([]test_suite.ConfigItem, 7)
 		testEnv.cfg.Configs[0].Flags = []string{"--prometheus-port=9190 --cache-dir=/gcsfuse-tmp/PromOTELSuite --log-file=/gcsfuse-tmp/monitoring.log --enable-kernel-reader=false"}
 		testEnv.cfg.Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		testEnv.cfg.Configs[0].Run = "TestPromOTELSuite"
@@ -197,6 +197,10 @@ func TestMain(m *testing.M) {
 		testEnv.cfg.Configs[5].Flags = []string{"--client-protocol=grpc --experimental-enable-grpc-metrics=true --prometheus-port=10192 --cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite --log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log --enable-kernel-reader=false"}
 		testEnv.cfg.Configs[5].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 		testEnv.cfg.Configs[5].Run = "TestPromGrpcMetricsSuite"
+
+		testEnv.cfg.Configs[6].Flags = []string{"--prometheus-port=9193 --log-file=/gcsfuse-tmp/prom_kernel_reader.log"}
+		testEnv.cfg.Configs[6].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		testEnv.cfg.Configs[6].Run = "TestPromKernelReaderSuite"
 	}
 	testEnv.cfg = &configFile.Monitoring[0]
 	testEnv.ctx = context.Background()
