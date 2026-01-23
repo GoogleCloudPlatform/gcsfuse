@@ -477,6 +477,7 @@ params:
       Requires sudo permission to set this value, otherwise the value will be ignored
       and system default will be used.
     default: "0"
+    hide-flag: true
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal"
