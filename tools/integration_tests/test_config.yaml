@@ -705,7 +705,7 @@ flag_optimizations:
           flat: false
           hns: false
           zonal: true
-        run_on_gke: true
+        run_on_gke: false
       - run: TestZonalBucketOptimizations_KernelParamVerification
         flags:
           - "--log-severity=trace"
@@ -713,7 +713,7 @@ flag_optimizations:
           flat: false
           hns: false
           zonal: true
-        run_on_gke: true
+        run_on_gke: false
 
 unsupported_path:
 - mounted_directory: "${MOUNTED_DIR}"

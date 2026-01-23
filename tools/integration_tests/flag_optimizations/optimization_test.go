@@ -50,7 +50,6 @@ func validateConfigValues(t *testing.T, logFile string, requiredLogKey string, e
 	file, err := os.Open(logFile)
 	require.NoError(t, err)
 	defer file.Close()
-
 	var configFound bool
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -71,6 +70,7 @@ func validateConfigValues(t *testing.T, logFile string, requiredLogKey string, e
 				if valMap, ok := fullConfigMap[key].(map[string]interface{}); ok {
 					actualVal = valMap["final_value"]
 				}
+
 				assert.EqualValues(t, expectedVal, actualVal, "Config %q mismatch", key)
 			}
 			break
@@ -112,19 +112,18 @@ func TestZonalBucketOptimizations_LogVerification(t *testing.T) {
 	if setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
 		t.Skip("Skipping test for dynamic mounting")
 	}
-
 	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
 			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
 			defer tearDownOptimizationTest(t)
-
 			expectedConfig := map[string]interface{}{
 				"file-system.enable-kernel-reader": true,
 				"file-system.max-read-ahead-kb":    16384,
 				"file-system.max-background":       cfg.DefaultMaxBackground(),
 				"file-system.congestion-threshold": cfg.DefaultCongestionThreshold(),
 			}
+
 			validateConfigValues(t, testEnv.cfg.LogFile, "Applied optimizations for bucket-type: ", expectedConfig)
 		})
 	}
@@ -134,13 +133,11 @@ func TestZonalBucketOptimizations_KernelParamVerification(t *testing.T) {
 	if setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
 		t.Skip("Skipping test for dynamic mounting")
 	}
-
 	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
 			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
 			defer tearDownOptimizationTest(t)
-
 			// Verify kernel parameters in /sys
 			var stat unix.Stat_t
 			err := unix.Stat(setup.MntDir(), &stat)
