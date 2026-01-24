@@ -27,19 +27,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// MrdSimpleReader is a reader that uses an MRD Instance to read data from a GCS object.
-// This reader is simpler than the GCSReader as it doesn't have complex logic
+// MrdKernelReader is a reader that uses an MRD Instance to read data from a GCS object.
+// This reader is kernel-optimized compared to the GCSReader as it doesn't have complex logic
 // to switch between sequential and random read strategies.
-type MrdSimpleReader struct {
+type MrdKernelReader struct {
 	mrdInstanceInUse atomic.Bool
 	mrdInstance      *MrdInstance
 	metrics          metrics.MetricHandle
 }
 
-// NewMrdSimpleReader creates a new MrdSimpleReader that uses the provided
+// NewMrdKernelReader creates a new MrdKernelReader that uses the provided
 // MrdInstance to manage MRD connections.
-func NewMrdSimpleReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *MrdSimpleReader {
-	return &MrdSimpleReader{
+func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *MrdKernelReader {
+	return &MrdKernelReader{
 		mrdInstance: mrdInstance,
 		metrics:     metricsHandle,
 	}
@@ -70,7 +70,7 @@ func isShortRead(bytesRead int, bufferSize int, err error) bool {
 // ReadAt reads data into the provided request buffer starting at the specified
 // offset. It retrieves an available MRD entry and uses it to download the
 // requested byte range.
-func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
+func (mkr *MrdKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
 	// If the destination buffer is empty, there's nothing to read.
 	if len(req.Buffer) == 0 {
 		return ReadResponse{}, nil
@@ -78,39 +78,39 @@ func (msr *MrdSimpleReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 
 	// mrdInstance is set to nil in Destroy which will be called only after all active Read operations
 	// have finished. Hence, not taking RLock to access it.
-	if msr.mrdInstance == nil {
-		return ReadResponse{}, fmt.Errorf("MrdSimpleReader: mrdInstance is nil")
+	if mkr.mrdInstance == nil {
+		return ReadResponse{}, fmt.Errorf("MrdKernelReader: mrdInstance is nil")
 	}
 
-	if msr.mrdInstanceInUse.CompareAndSwap(false, true) {
-		msr.mrdInstance.IncrementRefCount()
+	if mkr.mrdInstanceInUse.CompareAndSwap(false, true) {
+		mkr.mrdInstance.IncrementRefCount()
 	}
 
-	bytesRead, err := msr.mrdInstance.Read(ctx, req.Buffer, req.Offset, msr.metrics)
+	bytesRead, err := mkr.mrdInstance.Read(ctx, req.Buffer, req.Offset, mkr.metrics)
 	if isShortRead(bytesRead, len(req.Buffer), err) {
-		if err = msr.mrdInstance.RecreateMRD(); err != nil {
+		if err = mkr.mrdInstance.RecreateMRD(); err != nil {
 			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
 		}
 		retryOffset := req.Offset + int64(bytesRead)
 		retryBuffer := req.Buffer[bytesRead:]
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = msr.mrdInstance.Read(ctx, retryBuffer, retryOffset, msr.metrics)
+		bytesReadOnRetry, err = mkr.mrdInstance.Read(ctx, retryBuffer, retryOffset, mkr.metrics)
 		bytesRead += bytesReadOnRetry
 	}
-	metrics.CaptureGCSReadMetrics(msr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
+	metrics.CaptureGCSReadMetrics(mkr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
 	return ReadResponse{Size: bytesRead}, err
 }
 
 // Destroy cleans up the resources used by the reader, primarily by destroying
 // the associated MrdInstance. This should be called when the reader is no
 // longer needed.
-func (msr *MrdSimpleReader) Destroy() {
+func (mkr *MrdKernelReader) Destroy() {
 	// No need to take lock as Destroy will only be called when file handle is being released
 	// and there will be no read calls at that point.
-	if msr.mrdInstance != nil {
-		if msr.mrdInstanceInUse.CompareAndSwap(true, false) {
-			msr.mrdInstance.DecrementRefCount()
+	if mkr.mrdInstance != nil {
+		if mkr.mrdInstanceInUse.CompareAndSwap(true, false) {
+			mkr.mrdInstance.DecrementRefCount()
 		}
-		msr.mrdInstance = nil
+		mkr.mrdInstance = nil
 	}
 }
