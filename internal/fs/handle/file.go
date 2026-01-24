@@ -57,8 +57,8 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	readManager gcsx.ReadManager
 
-	// A mrdKernelReader is a new reader based on MRD and reads whatever is
-	// requested using MrdInstance.
+	// MrdKernelReader is a reader that uses an MRD instance to read data from a GCS
+	// object. This reader is kernel-optimized & reads whatever is requested as is.
 	mrdKernelReader *gcsx.MrdKernelReader
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
