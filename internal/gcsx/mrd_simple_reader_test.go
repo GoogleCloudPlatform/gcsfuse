@@ -359,7 +359,6 @@ func (t *MrdSimpleReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	data := []byte("hello world")
 	// First MRD returns short read.
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
-
 	// Expectation:
 	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
 	// 2. Read returns short read.
@@ -367,7 +366,6 @@ func (t *MrdSimpleReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	// 4. ReadAt logs warning and retries with existing pool (fakeMRD1).
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, errors.New("recreate failed")).Once()
-
 	buf := make([]byte, len(data))
 	req := &ReadRequest{
 		Buffer: buf,
@@ -383,7 +381,6 @@ func (t *MrdSimpleReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	}
 	// We expect some data to be read (from first attempt + potentially second attempt).
 	assert.Greater(t.T(), resp.Size, 0)
-
 	t.bucket.AssertExpectations(t.T())
 }
 

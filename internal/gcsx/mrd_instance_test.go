@@ -897,7 +897,6 @@ func (t *MrdInstanceTest) Test_Cache_EvictionRaceWithRepool() {
 	assert.NoError(t.T(), err)
 	t.mrdInstance.IncrementRefCount()
 	t.mrdInstance.DecrementRefCount()
-	assert.NoError(t.T(), err)
 	for i := 0; i < 2; i++ {
 		obj := &gcs.MinObject{
 			Name:       fmt.Sprintf("file%d", i),
