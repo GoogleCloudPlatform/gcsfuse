@@ -106,8 +106,8 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].TestBucket = setup.TestBucket()
 		cfg.FlagOptimizations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.FlagOptimizations[0].LogFile = setup.LogFile()
-		// Initialize the slice to hold 7 specific test configurations
-		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 7)
+		// Initialize the slice to hold 11 specific test configurations
+		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 12)
 		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountFails"
 		cfg.FlagOptimizations[0].Configs[0].Flags = []string{"--profile=unknown-profile"}
 		cfg.FlagOptimizations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
@@ -140,14 +140,46 @@ func TestMain(m *testing.M) {
 		}
 		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.FlagOptimizations[0].Configs[4].RunOnGKE = true
-		cfg.FlagOptimizations[0].Configs[5].Run = "TestZonalBucketOptimizations_LogVerification"
+
+		cfg.FlagOptimizations[0].Configs[5].Run = "TestZonalBucketOptimizations"
 		cfg.FlagOptimizations[0].Configs[5].Flags = []string{"--log-severity=trace"}
 		cfg.FlagOptimizations[0].Configs[5].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[5].RunOnGKE = false
-		cfg.FlagOptimizations[0].Configs[6].Run = "TestZonalBucketOptimizations_KernelParamVerification"
-		cfg.FlagOptimizations[0].Configs[6].Flags = []string{"--log-severity=trace"}
+
+		cfg.FlagOptimizations[0].Configs[6].Run = "TestZonalBucketOptimizations_ExplicitOverrides"
+		cfg.FlagOptimizations[0].Configs[6].Flags = []string{"--implicit-dirs --max-read-ahead-kb=2048 --max-background=50 --congestion-threshold=30 --log-severity=trace"}
 		cfg.FlagOptimizations[0].Configs[6].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[6].RunOnGKE = false
+
+		cfg.FlagOptimizations[0].Configs[7].Run = "TestZonalBucketOptimizations_Dynamic"
+		cfg.FlagOptimizations[0].Configs[7].Flags = []string{"--log-severity=trace"}
+		cfg.FlagOptimizations[0].Configs[7].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[7].RunOnGKE = false
+
+		cfg.FlagOptimizations[0].Configs[8].Run = "TestKernelReader_DefaultAndPrecedence"
+		cfg.FlagOptimizations[0].Configs[8].Flags = []string{
+			"--implicit-dirs --log-severity=trace",
+			"--implicit-dirs --log-severity=trace --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache",
+			"--implicit-dirs --log-severity=trace --enable-buffered-read=true",
+			"--implicit-dirs --log-severity=trace --enable-buffered-read=true --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both",
+		}
+		cfg.FlagOptimizations[0].Configs[8].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[8].RunOnGKE = false
+
+		cfg.FlagOptimizations[0].Configs[9].Run = "TestFileCache_KernelReaderDisabled"
+		cfg.FlagOptimizations[0].Configs[9].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"}
+		cfg.FlagOptimizations[0].Configs[9].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[9].RunOnGKE = false
+
+		cfg.FlagOptimizations[0].Configs[10].Run = "TestBufferedReader_KernelReaderDisabled"
+		cfg.FlagOptimizations[0].Configs[10].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --enable-buffered-read"}
+		cfg.FlagOptimizations[0].Configs[10].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[10].RunOnGKE = false
+
+		cfg.FlagOptimizations[0].Configs[11].Run = "TestKernelReader_Dynamic"
+		cfg.FlagOptimizations[0].Configs[11].Flags = []string{"--implicit-dirs --log-severity=trace"}
+		cfg.FlagOptimizations[0].Configs[11].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[11].RunOnGKE = false
 	}
 
 	testEnv.ctx = context.Background()
