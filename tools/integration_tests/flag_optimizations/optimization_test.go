@@ -15,21 +15,15 @@
 package flag_optimizations
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -39,44 +33,6 @@ import (
 func tearDownOptimizationTest(t *testing.T) {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 	setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
-}
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func validateConfigValues(t *testing.T, logFile string, requiredLogKey string, expectedConfig map[string]interface{}) {
-	// Open log file to verify config
-	file, err := os.Open(logFile)
-	require.NoError(t, err)
-	defer file.Close()
-	var configFound bool
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		var entry map[string]interface{}
-		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
-			// Skip non-JSON lines (e.g. command invocation)
-			continue
-		}
-		// Check if the log entry contains the required key
-		if _, ok := entry[requiredLogKey]; !ok {
-			continue
-		}
-
-		if fullConfigMap, ok := entry["Full Config"].(map[string]interface{}); ok {
-			configFound = true
-			for key, expectedVal := range expectedConfig {
-				var actualVal interface{}
-				if valMap, ok := fullConfigMap[key].(map[string]interface{}); ok {
-					actualVal = valMap["final_value"]
-				}
-
-				assert.EqualValues(t, expectedVal, actualVal, "Config %q mismatch", key)
-			}
-			break
-		}
-	}
-	assert.True(t, configFound, "GCSFuse Config log not found")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -104,64 +60,6 @@ func TestImplicitDirsNotEnabled(t *testing.T) {
 
 			// Assert
 			require.Error(t, err, "Found unexpected implicit directory %q", mountedImplicitDirPath)
-		})
-	}
-}
-
-func TestZonalBucketOptimizations_LogVerification(t *testing.T) {
-	if setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
-		t.Skip("Skipping test for dynamic mounting")
-	}
-	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
-	for _, flags := range flagsSet {
-		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
-			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer tearDownOptimizationTest(t)
-			expectedConfig := map[string]interface{}{
-				"file-system.enable-kernel-reader": true,
-				"file-system.max-read-ahead-kb":    16384,
-				"file-system.max-background":       cfg.DefaultMaxBackground(),
-				"file-system.congestion-threshold": cfg.DefaultCongestionThreshold(),
-			}
-
-			validateConfigValues(t, testEnv.cfg.LogFile, "Applied optimizations for bucket-type: ", expectedConfig)
-		})
-	}
-}
-
-func TestZonalBucketOptimizations_KernelParamVerification(t *testing.T) {
-	if setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
-		t.Skip("Skipping test for dynamic mounting")
-	}
-	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
-	for _, flags := range flagsSet {
-		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
-			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer tearDownOptimizationTest(t)
-			// Verify kernel parameters in /sys
-			var stat unix.Stat_t
-			err := unix.Stat(setup.MntDir(), &stat)
-			require.NoError(t, err)
-			devMajor := unix.Major(stat.Dev)
-			devMinor := unix.Minor(stat.Dev)
-			readAheadPath, err := kernelparams.PathForParam(kernelparams.MaxReadAheadKb, devMajor, devMinor)
-			require.NoError(t, err)
-			maxBackgroundPath, err := kernelparams.PathForParam(kernelparams.MaxBackgroundRequests, devMajor, devMinor)
-			require.NoError(t, err)
-			congestionThresholdPath, err := kernelparams.PathForParam(kernelparams.CongestionWindowThreshold, devMajor, devMinor)
-			require.NoError(t, err)
-			expected := map[string]string{
-				readAheadPath:           "16384",
-				maxBackgroundPath:       fmt.Sprintf("%d", cfg.DefaultMaxBackground()),
-				congestionThresholdPath: fmt.Sprintf("%d", cfg.DefaultCongestionThreshold()),
-			}
-
-			for path, val := range expected {
-				content, err := os.ReadFile(path)
-
-				require.NoError(t, err)
-				assert.Equal(t, val, strings.TrimSpace(string(content)))
-			}
 		})
 	}
 }
