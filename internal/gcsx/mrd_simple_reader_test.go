@@ -15,14 +15,18 @@
 package gcsx
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -349,4 +353,70 @@ func (t *MrdSimpleReaderTest) TestDestroy() {
 	t.mrdInstance.refCountMu.Unlock()
 	// Verify that calling Destroy again doesn't panic
 	t.reader.Destroy()
+}
+
+func (t *MrdSimpleReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
+	data := []byte("hello world")
+	// First MRD returns short read.
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
+	// Expectation:
+	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
+	// 2. Read returns short read.
+	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns ERROR.
+	// 4. ReadAt logs warning and retries with existing pool (fakeMRD1).
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, errors.New("recreate failed")).Once()
+	buf := make([]byte, len(data))
+	req := &ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	// Assert
+	// We verify that we didn't get the "recreate failed" error.
+	if err != nil {
+		assert.NotEqual(t.T(), "recreate failed", err.Error())
+	}
+	// We expect some data to be read (from first attempt + potentially second attempt).
+	assert.Greater(t.T(), resp.Size, 0)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *MrdSimpleReaderTest) TestDestroy_NoReadAt() {
+	// Check initial refCount
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
+	// Capture logs
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+
+	// Act
+	t.reader.Destroy()
+
+	// Assert
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
+	assert.NotContains(t.T(), buf.String(), "MrdInstance::DecrementRefCount: Refcount cannot be negative")
+}
+
+func (t *MrdSimpleReaderTest) TestReadAt_ContextCanceled() {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := &ReadRequest{
+		Buffer: make([]byte, 10),
+		Offset: 0,
+	}
+	// Use sleep to ensure context cancellation is detected before read completes
+	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleep(t.object, []byte("data"), 100*time.Millisecond)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	resp, err := t.reader.ReadAt(ctx, req)
+
+	assert.ErrorIs(t.T(), err, context.Canceled)
+	assert.Equal(t.T(), 0, resp.Size)
 }
