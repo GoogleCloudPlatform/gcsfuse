@@ -714,3 +714,260 @@ func (b *logBuffer) String() string {
 	defer b.mu.Unlock()
 	return b.buf.String()
 }
+
+func (t *MrdInstanceTest) Test_Cache_AddAndRemove() {
+	key := getKey(t.inodeID)
+	// Setup: Ensure pool is created
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	err := t.mrdInstance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+
+	// Act: Open, close, and reopen file
+	t.mrdInstance.IncrementRefCount()
+	t.mrdInstance.DecrementRefCount()
+	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Instance should be in cache.")
+	t.mrdInstance.IncrementRefCount()
+
+	// Assert: Instance reused and removed from cache on reopen
+	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
+	assert.Nil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Instance should be removed from cache")
+	t.mrdInstance.poolMu.RLock()
+	assert.NotNil(t.T(), t.mrdInstance.mrdPool, "MRD Pool should still exist (reused)")
+	t.mrdInstance.poolMu.RUnlock()
+}
+
+func (t *MrdInstanceTest) Test_DecrementRefCount_ParallelUpdates() {
+	// Arrange
+	const finalRefCount int64 = 0
+	maxRefCount := 10
+	wg := sync.WaitGroup{}
+	key := getKey(t.inodeID)
+	// Ensure pool exists so it can be cached
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	err := t.mrdInstance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+
+	// Act: Increment refcount in parallel
+	for i := 0; i < maxRefCount; i++ {
+		wg.Add(1)
+		go func() {
+			t.mrdInstance.IncrementRefCount()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	// Act: Decrement refcount in parallel
+	for i := 0; i < maxRefCount; i++ {
+		wg.Add(1)
+		go func() {
+			t.mrdInstance.DecrementRefCount()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	// Assert: Final state is refCount=0, MRD pooled in cache
+	assert.Equal(t.T(), finalRefCount, t.mrdInstance.refCount)
+	t.mrdInstance.poolMu.RLock()
+	assert.NotNil(t.T(), t.mrdInstance.mrdPool, "MRD Pool should be pooled in cache")
+	t.mrdInstance.poolMu.RUnlock()
+	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Instance should be in cache")
+}
+
+func (t *MrdInstanceTest) Test_Cache_EvictionOnOverflow() {
+	// Arrange: Create 3 instances (cache max is 2)
+	instances := make([]*MrdInstance, 3)
+	for i := 0; i < 3; i++ {
+		obj := &gcs.MinObject{
+			Name:       fmt.Sprintf("file%d", i),
+			Size:       100,
+			Generation: int64(1000 + i),
+		}
+		instance := NewMrdInstance(obj, t.bucket, t.cache, fuseops.InodeID(100+i), t.config)
+
+		// Setup mock for pool creation
+		fakeMRD := fake.NewFakeMultiRangeDownloader(obj, nil)
+		t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+		err := instance.ensureMRDPool()
+		assert.NoError(t.T(), err)
+
+		instances[i] = instance
+	}
+
+	// Act: Open and close all 3 instances (triggers eviction on 3rd)
+	for i := 0; i < 3; i++ {
+		instances[i].IncrementRefCount()
+		instances[i].DecrementRefCount()
+	}
+
+	// Assert: First instance evicted (LRU), last 2 remain in cache
+	instances[0].poolMu.RLock()
+	assert.Nil(t.T(), instances[0].mrdPool, "First instance's MRD Pool should be closed (evicted)")
+	instances[0].poolMu.RUnlock()
+	for i := 1; i < 3; i++ {
+		key := getKey(instances[i].inodeId)
+		assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(key), "Instance %d should be in cache", i)
+		instances[i].poolMu.RLock()
+		assert.NotNil(t.T(), instances[i].mrdPool, "Instance %d MRD Pool should exist (pooled)", i)
+		instances[i].poolMu.RUnlock()
+	}
+}
+
+func (t *MrdInstanceTest) Test_Cache_DeletedIfReopened() {
+	// Arrange: Create 2 instances and fill cache (size 2)
+	instances := make([]*MrdInstance, 2)
+	for i := 0; i < 2; i++ {
+		obj := &gcs.MinObject{
+			Name:       fmt.Sprintf("file%d", i),
+			Size:       100,
+			Generation: int64(1000 + i),
+		}
+		instance := NewMrdInstance(obj, t.bucket, t.cache, fuseops.InodeID(100+i), t.config)
+
+		fakeMRD := fake.NewFakeMultiRangeDownloader(obj, nil)
+		t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+		err := instance.ensureMRDPool()
+		assert.NoError(t.T(), err)
+
+		instance.IncrementRefCount()
+		instance.DecrementRefCount()
+		instances[i] = instance
+	}
+
+	// Act: Reopen instance 0 -> should remove it from cache
+	instances[0].IncrementRefCount()
+
+	// Assert: instance 0 will be deleted from cache.
+	assert.Nil(t.T(), t.cache.LookUpWithoutChangingOrder(getKey(instances[0].inodeId)), "Instance 0 should not be in cache")
+}
+
+func (t *MrdInstanceTest) Test_Cache_ConcurrentAddRemove() {
+	// Arrange
+	const numGoroutines = 10
+	const numIterations = 100
+	wg := sync.WaitGroup{}
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	err := t.mrdInstance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+
+	// Act: Concurrent open/close cycles from multiple goroutines
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numIterations; j++ {
+				t.mrdInstance.IncrementRefCount()
+				t.mrdInstance.DecrementRefCount()
+			}
+		}()
+	}
+	wg.Wait()
+
+	// Assert: Final state is refCount=0 (no deadlocks or panics)
+	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount, "RefCount should be 0 after all operations")
+	assert.NotNil(t.T(), t.cache.LookUpWithoutChangingOrder(getKey(t.inodeID)), "Instance should be in cache")
+}
+
+func (t *MrdInstanceTest) Test_Cache_Disabled() {
+	// Arrange: Create instance with nil cache (disabled)
+	instance := NewMrdInstance(t.object, t.bucket, nil, t.inodeID, t.config)
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	err := instance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+
+	// Act: Open and close file
+	instance.IncrementRefCount()
+	instance.DecrementRefCount()
+
+	// Assert: MRD Pool should be open forever since cache is disabled.
+	instance.poolMu.RLock()
+	assert.NotNil(t.T(), instance.mrdPool, "MRD Pool should be open when cache disabled")
+	instance.poolMu.RUnlock()
+}
+
+func (t *MrdInstanceTest) Test_Cache_EvictionRaceWithRepool() {
+	// Arrange: Add instance to cache then fill with 2 more to trigger eviction (cache size 2)
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	err := t.mrdInstance.ensureMRDPool()
+	assert.NoError(t.T(), err)
+	t.mrdInstance.IncrementRefCount()
+	t.mrdInstance.DecrementRefCount()
+	for i := 0; i < 2; i++ {
+		obj := &gcs.MinObject{
+			Name:       fmt.Sprintf("file%d", i),
+			Size:       100,
+			Generation: int64(1000 + i),
+		}
+		instance := NewMrdInstance(obj, t.bucket, t.cache, fuseops.InodeID(200+i), t.config)
+
+		fakeMRD := fake.NewFakeMultiRangeDownloader(obj, nil)
+		t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+		err := instance.ensureMRDPool()
+		assert.NoError(t.T(), err)
+
+		instance.IncrementRefCount()
+		instance.DecrementRefCount()
+	}
+	// Verify it was evicted
+	t.mrdInstance.poolMu.RLock()
+	assert.Nil(t.T(), t.mrdInstance.mrdPool)
+	t.mrdInstance.poolMu.RUnlock()
+	buf := make([]byte, 10)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(
+		fake.NewFakeMultiRangeDownloader(t.object, nil),
+		nil,
+	).Once()
+
+	// Act: Access evicted instance (should recreate MRD Pool). Read should recreate it
+	_, err = t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
+
+	// Assert: MRD Pool recreated successfully after eviction
+	assert.NoError(t.T(), err)
+	t.mrdInstance.poolMu.RLock()
+	assert.NotNil(t.T(), t.mrdInstance.mrdPool, "MRD Pool should be recreated after eviction")
+	t.mrdInstance.poolMu.RUnlock()
+}
+
+func (t *MrdInstanceTest) Test_Cache_MultipleEvictions() {
+	// Arrange: Create small cache (size 2) and 5 instances
+	smallCache := lru.NewCache(2)
+	instances := make([]*MrdInstance, 5)
+	for i := 0; i < 5; i++ {
+		obj := &gcs.MinObject{
+			Name:       fmt.Sprintf("file%d", i),
+			Size:       100,
+			Generation: int64(1000 + i),
+		}
+		instance := NewMrdInstance(obj, t.bucket, smallCache, fuseops.InodeID(300+i), t.config)
+
+		fakeMRD := fake.NewFakeMultiRangeDownloader(obj, nil)
+		t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+		err := instance.ensureMRDPool()
+		assert.NoError(t.T(), err)
+
+		instances[i] = instance
+	}
+
+	// Act: Add all 5 instances (triggers batch eviction of 3)
+	for i := 0; i < 5; i++ {
+		instances[i].IncrementRefCount()
+		instances[i].DecrementRefCount()
+	}
+
+	// Assert: First 3 evicted, last 2 remain in cache
+	for i := 0; i < 3; i++ {
+		instances[i].poolMu.RLock()
+		assert.Nil(t.T(), instances[i].mrdPool, "Instance %d should be evicted", i)
+		instances[i].poolMu.RUnlock()
+	}
+	for i := 3; i < 5; i++ {
+		instances[i].poolMu.RLock()
+		assert.NotNil(t.T(), instances[i].mrdPool, "Instance %d should be in cache", i)
+		instances[i].poolMu.RUnlock()
+	}
+}

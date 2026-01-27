@@ -49,6 +49,7 @@ import (
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
+	"github.com/spf13/viper"
 	"golang.org/x/net/context"
 )
 
@@ -178,7 +179,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, isSet cfg.IsValueSet) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, viperConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -214,7 +215,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 		storageHandle,
 		metricHandle,
 		traceHandle,
-		isSet)
+		viperConfig)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
@@ -478,7 +479,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		startTime := time.Now()
-		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle, traceHandle, mountInfo.isUserSet)
+		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle, traceHandle, mountInfo.viperConfig)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply
