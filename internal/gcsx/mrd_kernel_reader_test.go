@@ -355,7 +355,7 @@ func (t *MrdKernelReaderTest) TestDestroy() {
 	t.reader.Destroy()
 }
 
-func (t *MrdSimpleReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
+func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	data := []byte("hello world")
 	// First MRD returns short read.
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
@@ -384,7 +384,7 @@ func (t *MrdSimpleReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *MrdSimpleReaderTest) TestDestroy_NoReadAt() {
+func (t *MrdKernelReaderTest) TestDestroy_NoReadAt() {
 	// Check initial refCount
 	t.mrdInstance.refCountMu.Lock()
 	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
@@ -404,7 +404,7 @@ func (t *MrdSimpleReaderTest) TestDestroy_NoReadAt() {
 	assert.NotContains(t.T(), buf.String(), "MrdInstance::DecrementRefCount: Refcount cannot be negative")
 }
 
-func (t *MrdSimpleReaderTest) TestReadAt_ContextCanceled() {
+func (t *MrdKernelReaderTest) TestReadAt_ContextCanceled() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	req := &ReadRequest{
