@@ -98,6 +98,10 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 	return true
 }
 
+func (gr *GCSReader) StructName() string {
+	return "GCSReader"
+}
+
 func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {
 
 	if readRequest.Offset >= int64(gr.object.Size) && !readRequest.SkipSizeChecks {

@@ -140,7 +140,9 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// the file, capped by the configured minimum.
 	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
 	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
+	_, span := opts.TraceHandle.StartSpan(context.Background(), tracing.ReadPrefetchBlockPoolGen)
 	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
+	opts.TraceHandle.EndSpan(span)
 	if err != nil {
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
@@ -168,6 +170,10 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
+}
+
+func (p *BufferedReader) StructName() string {
+	return "BufferedReader"
 }
 
 // handleRandomRead detects and handles random read patterns. A read is considered
@@ -337,7 +343,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		entry := p.blockQueue.Peek()
 		blk := entry.block
 
-		status, waitErr := blk.AwaitReady(ctx)
+		fetchCtx, span := p.traceHandle.StartSpan(ctx, tracing.WaitForPrefetchBlock)
+		status, waitErr := blk.AwaitReady(fetchCtx)
+		p.traceHandle.EndSpan(span)
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
@@ -359,7 +367,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 		relOff := readOffset - blk.AbsStartOff()
 		bytesToRead := len(req.Buffer) - bytesRead
+		_, span = p.traceHandle.StartSpan(ctx, tracing.ReadFromPrefetchBlock)
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
+		p.traceHandle.EndSpan(span)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen
 		readOffset += int64(sliceLen)
@@ -526,6 +536,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 		block:        b,
 		readHandle:   p.readHandle,
 		metricHandle: p.metricHandle,
+		traceHandle:  p.traceHandle,
 	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)

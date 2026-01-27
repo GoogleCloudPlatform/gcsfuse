@@ -84,6 +84,10 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 	}
 }
 
+func (fc *FileCacheReader) StructName() string {
+	return "FileCacheReader"
+}
+
 // tryReadingFromFileCache creates the cache handle first if it doesn't exist already
 // and then use that handle to read object's content which is cached in local file.
 // For the successful read, it returns number of bytes read, and a boolean representing
@@ -216,8 +220,12 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadRe
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
+	ctx, span := fc.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
+	defer fc.traceHandle.EndSpan(span)
 	bytesRead, cacheHit, err := fc.tryReadingFromFileCache(ctx, req.Buffer, req.Offset)
+	fc.traceHandle.SetCacheReadAttributes(span, cacheHit, bytesRead)
 	if err != nil {
+		fc.traceHandle.RecordError(span, err)
 		return readResponse, fmt.Errorf("ReadAt: while reading from cache: %w", err)
 	}
 	// Data was served from cache.
