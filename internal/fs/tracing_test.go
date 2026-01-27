@@ -83,6 +83,7 @@ func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInt
 			},
 		},
 		SequentialReadSizeMb: 200,
+		TraceHandle:          tracing.NewOTELTracer(),
 	}
 	server, err := fs.NewFileSystem(ctx, serverCfg)
 	require.NoError(t, err, "NewFileSystem")
