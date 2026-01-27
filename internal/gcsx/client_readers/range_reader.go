@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 )
 
 const (
@@ -63,13 +64,15 @@ type RangeReader struct {
 
 	config       *cfg.Config
 	metricHandle metrics.MetricHandle
+	traceHandle  tracing.TraceHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle) *RangeReader {
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,
 		metricHandle: metricHandle,
+		traceHandle:  traceHandle,
 		config:       config,
 		start:        -1,
 		limit:        -1,
@@ -139,7 +142,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
-		err = rr.startRead(offset, end, readType)
+		err = rr.startRead(ctx, offset, end, readType)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return 0, err
@@ -228,8 +231,8 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by SequentialReadSizeMb flag to serve future read requests.
-func (rr *RangeReader) startRead(start int64, end int64, readType int64) error {
-	ctx, cancel := context.WithCancel(context.Background())
+func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, readType int64) error {
+	ctx, cancel := context.WithCancel(rr.traceHandle.PropagateTraceContext(context.Background(), ctx))
 	var err error
 
 	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {

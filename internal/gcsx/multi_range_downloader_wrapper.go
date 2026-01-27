@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/net/context"
 )
 
@@ -200,7 +201,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) CloseMRDForEviction() {
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
 // LOCK_REQUIRED(mrdWrapper.mu.RLock)
-func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceRecreateMRD bool) (err error) {
+func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(ctx context.Context, traceHandle tracing.TraceHandle, forceRecreateMRD bool) (err error) {
+	ctx = traceHandle.PropagateTraceContext(context.Background(), ctx)
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
@@ -230,7 +232,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 					handle = mrdWrapper.handle
 				}
 			}
-			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(ctx, &gcs.MultiRangeDownloaderRequest{
 				Name:           mrdWrapper.object.Name,
 				Generation:     mrdWrapper.object.Generation,
 				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
@@ -254,7 +256,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 }
 
 // Reads the data using MultiRangeDownloader.
-func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle, forceCreateMRD bool) (bytesRead int, err error) {
+func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, forceCreateMRD bool) (bytesRead int, err error) {
 	// Bidi Api with 0 as read_limit means no limit whereas we do not want to read anything with empty buffer.
 	// Hence, handling it separately.
 	if len(buf) == 0 {
@@ -262,7 +264,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	}
 
 	mrdWrapper.mu.RLock()
-	err = mrdWrapper.ensureMultiRangeDownloader(forceCreateMRD)
+	err = mrdWrapper.ensureMultiRangeDownloader(ctx, traceHandle, forceCreateMRD)
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
 		mrdWrapper.mu.RUnlock()

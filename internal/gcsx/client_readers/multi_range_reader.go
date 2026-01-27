@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 )
 
 type MultiRangeReader struct {
@@ -38,12 +39,15 @@ type MultiRangeReader struct {
 	isMRDInUse atomic.Bool
 
 	metricHandle metrics.MetricHandle
+
+	traceHandle tracing.TraceHandle
 }
 
-func NewMultiRangeReader(object *gcs.MinObject, metricHandle metrics.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *MultiRangeReader {
+func NewMultiRangeReader(object *gcs.MinObject, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *MultiRangeReader {
 	return &MultiRangeReader{
 		object:       object,
 		metricHandle: metricHandle,
+		traceHandle:  traceHandle,
 		mrdWrapper:   mrdWrapper,
 	}
 }
@@ -72,7 +76,7 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 		mrd.mrdWrapper.IncrementRefCount()
 	}
 
-	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle, forceCreateMRD)
+	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle, mrd.traceHandle, forceCreateMRD)
 }
 
 func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
