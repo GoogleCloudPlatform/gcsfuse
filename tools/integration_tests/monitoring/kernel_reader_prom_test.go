@@ -41,19 +41,17 @@ func (p *PromKernelReaderTest) TestKernelReaderMetrics() {
 
 	// Read file to trigger metrics
 	_, err := os.ReadFile(path.Join(testEnv.testDirPath, fileName))
-	require.NoError(p.T(), err)
 
-	// Verify metrics
+	require.NoError(p.T(), err)
 	assertNonZeroCountMetric(p.T(), "gcs_read_bytes_count", "read_type", "Parallel", p.prometheusPort)
 	assertNonZeroCountMetric(p.T(), "gcs_download_bytes_count", "", "", p.prometheusPort)
-
-	// MRD metrics
 	assertNonZeroCountMetric(p.T(), "gcs_request_count", "gcs_method", "MultiRangeDownloader::Add", p.prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "gcs_request_latencies", "gcs_method", "MultiRangeDownloader::Add", p.prometheusPort)
 }
 
 func (p *PromKernelReaderTest) TestStatMetrics() {
 	prometheusPort := p.prometheusPort
+
 	_, err := os.Stat(path.Join(testEnv.testDirPath, "hello.txt"))
 
 	require.NoError(p.T(), err)
@@ -65,15 +63,17 @@ func (p *PromKernelReaderTest) TestStatMetrics() {
 
 func (p *PromKernelReaderTest) TestFsOpsErrorMetrics() {
 	prometheusPort := p.prometheusPort
-	_, err := os.Stat(path.Join(testEnv.testDirPath, "non_existent_path.txt"))
-	require.Error(p.T(), err)
 
+	_, err := os.Stat(path.Join(testEnv.testDirPath, "non_existent_path.txt"))
+
+	require.Error(p.T(), err)
 	assertNonZeroCountMetric(p.T(), "fs_ops_error_count", "fs_op", "LookUpInode", prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "fs_ops_latency", "fs_op", "LookUpInode", prometheusPort)
 }
 
 func (p *PromKernelReaderTest) TestListMetrics() {
 	prometheusPort := p.prometheusPort
+
 	_, err := os.ReadDir(testEnv.testDirPath)
 
 	require.NoError(p.T(), err)
@@ -85,6 +85,7 @@ func (p *PromKernelReaderTest) TestListMetrics() {
 
 func (p *PromKernelReaderTest) TestSetXAttrMetrics() {
 	prometheusPort := p.prometheusPort
+
 	err := xattr.Set(path.Join(testEnv.testDirPath, "hello.txt"), "alpha", []byte("beta"))
 
 	require.Error(p.T(), err)
