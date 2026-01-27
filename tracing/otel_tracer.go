@@ -43,6 +43,11 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.SetStatus(codes.Error, err.Error())
 }
 
+func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
+	span := trace.SpanFromContext(oldCtx)
+	return trace.ContextWithSpan(newCtx, span)
+}
+
 func NewOTELTracer() TraceHandle {
 	return &otelTracer{
 		tracer: otel.Tracer(name),

@@ -64,13 +64,15 @@ type RangeReader struct {
 
 	config       *cfg.Config
 	metricHandle metrics.MetricHandle
+	traceHandle  tracing.TraceHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle) *RangeReader {
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,
 		metricHandle: metricHandle,
+		traceHandle:  traceHandle,
 		config:       config,
 		start:        -1,
 		limit:        -1,
@@ -230,7 +232,7 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by SequentialReadSizeMb flag to serve future read requests.
 func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, readType int64) error {
-	ctx, cancel := context.WithCancel(tracing.MaybePropagateTraceContext(context.Background(), ctx))
+	ctx, cancel := context.WithCancel(rr.traceHandle.PropagateTraceContext(context.Background(), ctx))
 	var err error
 
 	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {

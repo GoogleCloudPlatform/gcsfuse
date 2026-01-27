@@ -1757,7 +1757,7 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		newCtx := context.Background()
-		return tracing.MaybePropagateTraceContext(newCtx, ctx)
+		return fs.traceHandle.PropagateTraceContext(newCtx, ctx)
 	}
 
 	return ctx

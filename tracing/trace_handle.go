@@ -33,4 +33,7 @@ type TraceHandle interface {
 
 	// Record an error on the span for export in case of failure
 	RecordError(span trace.Span, err error)
+
+	// A handle interface method to retain relevant span data in new context from the older context
+	PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context
 }

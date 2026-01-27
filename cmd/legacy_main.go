@@ -464,7 +464,6 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	traceHandle := tracing.NewNoopTracer()
 	if cfg.IsTracingEnabled(newConfig) {
 		traceHandle = tracing.NewOTELTracer()
-		tracing.EnableTracing()
 	}
 
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
