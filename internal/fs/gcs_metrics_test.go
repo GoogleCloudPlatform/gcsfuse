@@ -105,12 +105,13 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 		})
 		serverCfg.NewConfig.CacheDir = cfg.ResolvedPath(cacheDir)
 		serverCfg.NewConfig.FileCache = cfg.FileCacheConfig{
-			MaxSizeMb:                    100,
-			CacheFileForRangeRead:        true,
-			ExperimentalEnableChunkCache: params.enableSparseFileCache,
-			DownloadChunkSizeMb:          1, // 1MB chunks for testing
-			EnableParallelDownloads:      params.enableParallelDownloads,
-			ParallelDownloadsPerFile:     16,
+			MaxSizeMb:                              100,
+			CacheFileForRangeRead:                  true,
+			ExperimentalEnableChunkCache:           params.enableSparseFileCache,
+			DownloadChunkSizeMb:                    1, // 1MB chunks for testing
+			EnableParallelDownloads:                params.enableParallelDownloads,
+			ExperimentalParallelDownloadsDefaultOn: params.enableParallelDownloadsBlocking,
+			ParallelDownloadsPerFile:               16,
 		}
 	}
 
@@ -327,6 +328,10 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
+	// gcs/read_bytes_count - 0 attributes
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
+		attribute.NewSet(),
+		int64(len(content)))
 
 	// Second Read - Should hit cache
 	readOp2 := &fuseops.ReadFileOp{
@@ -352,6 +357,9 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
+		attribute.NewSet(),
+		int64(len(content)))
 }
 
 // TestGCSMetrics_ParallelDownloads validates GCS metrics when parallel downloads are enabled.
@@ -365,6 +373,10 @@ func TestGCSMetrics_ParallelDownloads(t *testing.T) {
 	params := defaultServerConfigParams()
 	params.enableFileCache = true
 	params.enableParallelDownloads = true
+	// Enable blocking for parallel downloads to prevent fallback to GCS.
+	// Without this, the read operation might not wait for the async download to complete,
+	// triggering a redundant sequential GCS read and doubling the read metrics.
+	params.enableParallelDownloadsBlocking = true
 	bucket, server, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, params)
 	server = wrappers.WithMonitoring(server, mh)
 	// Create a file larger than the chunk size (1MB) to trigger parallel downloads.
@@ -406,8 +418,11 @@ func TestGCSMetrics_ParallelDownloads(t *testing.T) {
 		5)
 	// Verify request count for NewReader (which corresponds to GetObject requests).
 	// Parallel downloads trigger multiple NewReader calls (one per chunk).
-	// We observe 6 calls  (likely 5 chunks + 1 initial/metadata read),
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "NewReader")),
-		6)
+		5)
+	// Verify read bytes count
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
+		attribute.NewSet(),
+		int64(fileSize))
 }

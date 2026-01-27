@@ -47,18 +47,20 @@ type serverConfigParams struct {
 	// enableFileCacheForRangeRead controls if the file cache is used for random reads.
 	enableFileCacheForRangeRead bool
 	// enableKernelReader controls if the mrd_simple_reader is enabled.
-	enableKernelReader      bool
-	enableParallelDownloads bool
+	enableKernelReader              bool
+	enableParallelDownloads         bool
+	enableParallelDownloadsBlocking bool
 }
 
 func defaultServerConfigParams() *serverConfigParams {
 	return &serverConfigParams{
-		enableBufferedRead:          false,
-		enableNewReader:             true,
-		enableFileCache:             false,
-		enableFileCacheForRangeRead: true,
-		enableKernelReader:          false,
-		enableParallelDownloads:     false,
+		enableBufferedRead:              false,
+		enableNewReader:                 true,
+		enableFileCache:                 false,
+		enableFileCacheForRangeRead:     true,
+		enableKernelReader:              false,
+		enableParallelDownloads:         false,
+		enableParallelDownloadsBlocking: false,
 	}
 }
 
@@ -112,12 +114,13 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 		})
 		serverCfg.NewConfig.CacheDir = cfg.ResolvedPath(cacheDir)
 		serverCfg.NewConfig.FileCache = cfg.FileCacheConfig{
-			MaxSizeMb:                    100,
-			CacheFileForRangeRead:        params.enableFileCacheForRangeRead,
-			ExperimentalEnableChunkCache: params.enableSparseFileCache,
-			DownloadChunkSizeMb:          1, // 1MB chunks for testing
-			EnableParallelDownloads:      params.enableParallelDownloads,
-			ParallelDownloadsPerFile:     16,
+			MaxSizeMb:                              100,
+			CacheFileForRangeRead:                  params.enableFileCacheForRangeRead,
+			ExperimentalEnableChunkCache:           params.enableSparseFileCache,
+			DownloadChunkSizeMb:                    1, // 1MB chunks for testing
+			EnableParallelDownloads:                params.enableParallelDownloads,
+			ParallelDownloadsPerFile:               16,
+			ExperimentalParallelDownloadsDefaultOn: params.enableParallelDownloadsBlocking,
 		}
 	}
 
