@@ -277,17 +277,14 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
 		}
-		// Write post mount kernel settings for Zonal Buckets in GKE environments for non dynamic mounts before user space mounting in GCSFuse.
-		// Mounting in GKE is already done at this point but writing kernel settings early ensures the asynchronous
-		// application of these settings happens as early as possible in GKE.
-		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal {
+		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
+		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
+		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
-			// Set max-background and congestion window when async read is enabled via kernel reader.
-			if serverCfg.NewConfig.FileSystem.EnableKernelReader {
-				kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
-				kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
-			}
+			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
+			kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
 			kernelParams.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
 		}
 		root = makeRootForBucket(fs, syncerBucket)
