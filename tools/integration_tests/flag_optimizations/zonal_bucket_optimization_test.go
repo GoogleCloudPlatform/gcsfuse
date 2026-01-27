@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"strings"
 	"testing"
 
@@ -33,17 +32,17 @@ import (
 )
 
 const (
-	// mrdPoolInitMsg indicates the MRD (Memory Resource Director) pool initialization.
-	// This confirms that the kernel reader is enabled and initializing.
-	mrdPoolInitMsg = "Initializing MRD Pool with size:"
+	// kernelReaderInitMsg indicates the MRD pool initialization.
+	// MRD pool is used only by kernel reader. This confirms that the kernel reader is enabled and initializing.
+	kernelReaderInitMsg = "Initializing MRD Pool with size:"
 
-	// fileCacheMsg indicates a file cache hit or interaction.
+	// fileCacheMsg indicates that the file cache is being used.
 	fileCacheMsg = "FileCache("
 
 	// bufferedReaderSchedMsg indicates the buffered reader is scheduling a block download.
 	bufferedReaderSchedMsg = "Scheduling block:"
 
-	// readFileStartMsg indicates the start of a ReadFile operation (FUSE op).
+	// readFileStartMsg indicates the start of a ReadFile operation.
 	readFileStartMsg = "<- ReadFile"
 
 	// readFileEndMsg indicates the completion of a ReadFile operation.
@@ -54,7 +53,7 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (s *zonalBucketOptimizationsSuite) verifyKernelParam(path string, expectedVal string, optimizedVal string) {
+func (s *KernelReaderParamsSuite) verifyKernelParam(path string, expectedVal string, optimizedVal string) {
 	s.T().Helper()
 	content, err := os.ReadFile(path)
 	require.NoError(s.T(), err)
@@ -62,14 +61,14 @@ func (s *zonalBucketOptimizationsSuite) verifyKernelParam(path string, expectedV
 
 	if expectedVal != "" {
 		assert.Equal(s.T(), expectedVal, val, "Param %s mismatch", path)
-	} else if !setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
-		assert.Equal(s.T(), optimizedVal, val, "Param %s should match optimized default", path)
+	} else if setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
+		assert.NotEqual(s.T(), optimizedVal, val, "Param %s should NOT match optimized default for dynamic mount", path)
 	} else {
-		assert.NotEqual(s.T(), optimizedVal, val, "Param %s should NOT match optimized default", path)
+		assert.Equal(s.T(), optimizedVal, val, "Param %s should NOT match optimized default", path)
 	}
 }
 
-func (s *kernelReaderSuite) validateParallelReads(logContent string) {
+func (s *ReadStrategySuite) validateParallelReads(logContent string) {
 	s.T().Helper()
 	lines := strings.Split(logContent, "\n")
 	currentParallelism := 0
@@ -96,7 +95,6 @@ func createAndReadFile(t *testing.T, testName string) {
 	testName = strings.ReplaceAll(testName, "/", "_")
 	fileName := testEnv.testDirPath + "/" + testName + "_test_file.txt"
 	// Use operations.CreateFileOfSize which uses O_DIRECT to avoid polluting page cache during write.
-	// 10MB is large enough to trigger chunked downloads/buffering.
 	operations.CreateFileOfSize(10*1024*1024, fileName, t)
 	require.NoError(t, os.Truncate(setup.LogFile(), 0), "Failed to truncate log file")
 
@@ -110,9 +108,9 @@ func createAndReadFile(t *testing.T, testName string) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-// zonalBucketOptimizationsSuite tests the behavior of zonal bucket optimizations,
-// specifically verifying kernel parameters and kernel reader initialization.
-type zonalBucketOptimizationsSuite struct {
+// KernelParamsSuite tests the behavior of zonal bucket optimizations,
+// specifically verifying kernel parameters.
+type KernelReaderParamsSuite struct {
 	suite.Suite
 	flags                       []string
 	expectedReadAhead           string
@@ -120,35 +118,19 @@ type zonalBucketOptimizationsSuite struct {
 	expectedCongestionThreshold string
 }
 
-func (s *zonalBucketOptimizationsSuite) SetupSuite() {
+func (s *KernelReaderParamsSuite) SetupSuite() {
 	mustMountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 }
 
-func (s *zonalBucketOptimizationsSuite) TearDownSuite() {
+func (s *KernelReaderParamsSuite) TearDownSuite() {
 	tearDownOptimizationTest(s.T())
-}
-
-// TestKernelReaderStatus checks the kernel reader enablement status based on
-// mount type (enabled for static, disabled for dynamic).
-func (s *zonalBucketOptimizationsSuite) TestKernelReaderStatus() {
-	createAndReadFile(s.T(), s.T().Name())
-
-	// Verify log
-	content, err := os.ReadFile(testEnv.cfg.LogFile)
-	require.NoError(s.T(), err)
-	if setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
-		assert.NotContains(s.T(), string(content), mrdPoolInitMsg, "Kernel reader should NOT be enabled for dynamic mount")
-	} else {
-		assert.Contains(s.T(), string(content), mrdPoolInitMsg, "Kernel reader should be enabled for static mount")
-	}
 }
 
 // TestKernelParamVerification verifies the values of max_read_ahead_kb,
 // max_background, and congestion_threshold for Zonal Buckets.
-// They should not be changed automatically for dynamic mounts.
-// For static ZB mounts, they should be updated to the optimized values
+// For non dynamic ZB mounts, they should be updated to the optimized values
 // (unless explicitly changed via config or CLI).
-func (s *zonalBucketOptimizationsSuite) TestKernelParamVerification() {
+func (s *KernelReaderParamsSuite) TestKernelParamVerification() {
 	// Verify kernel parameters in /sys
 	var stat unix.Stat_t
 	err := unix.Stat(setup.MntDir(), &stat)
@@ -179,7 +161,7 @@ func TestZonalBucketOptimizations(t *testing.T) {
 	for _, flags := range flagsSet {
 		t.Run("", func(t *testing.T) {
 			log.Printf("Running tests with flags: %s", flags)
-			s := &zonalBucketOptimizationsSuite{
+			s := &KernelReaderParamsSuite{
 				flags: flags,
 			}
 			suite.Run(t, s)
@@ -195,7 +177,7 @@ func TestZonalBucketOptimizations_ExplicitOverrides(t *testing.T) {
 	for _, flags := range flagsSet {
 		t.Run("", func(t *testing.T) {
 			log.Printf("Running tests with flags: %s", flags)
-			s := &zonalBucketOptimizationsSuite{
+			s := &KernelReaderParamsSuite{
 				flags:                       flags,
 				expectedReadAhead:           "2048",
 				expectedMaxBackground:       "50",
@@ -211,15 +193,16 @@ func TestZonalBucketOptimizations_Dynamic(t *testing.T) {
 		t.Skip("Skipping test for non dynamic mounting")
 	}
 	flags := []string{"--log-severity=trace"}
-	s := &zonalBucketOptimizationsSuite{
+	log.Printf("Running tests with flags: %s", flags)
+	s := &KernelReaderParamsSuite{
 		flags: flags,
 	}
 	suite.Run(t, s)
 }
 
-// kernelReaderSuite tests the behavior of the kernel reader under different configurations,
+// ReadStrategySuite tests the behavior of the kernel reader under different configurations,
 // verifying log output and read parallelism.
-type kernelReaderSuite struct {
+type ReadStrategySuite struct {
 	suite.Suite
 	flags               []string
 	expectedLog         string
@@ -227,18 +210,12 @@ type kernelReaderSuite struct {
 	validateParallelism bool
 }
 
-func (s *kernelReaderSuite) SetupSuite() {
-	// The flags use /gcsfuse-tmp/TestName.log, which is mapped to setup.TestDir()/gcsfuse-tmp/TestName.log
-	logDir := path.Join(setup.TestDir(), "gcsfuse-tmp")
-	require.NoError(s.T(), os.MkdirAll(logDir, 0755), "Failed to create log directory")
-	logFileName := strings.ReplaceAll(s.T().Name(), "/", "_")
-	setup.SetLogFile(path.Join(logDir, logFileName+".log"))
-	testEnv.cfg.LogFile = setup.LogFile()
+func (s *ReadStrategySuite) SetupSuite() {
 	err := mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 	require.NoError(s.T(), err)
 }
 
-func (s *kernelReaderSuite) TearDownSuite() {
+func (s *ReadStrategySuite) TearDownSuite() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
 }
@@ -247,7 +224,7 @@ func (s *kernelReaderSuite) TearDownSuite() {
 // Specifically for Zonal Buckets, it checks that if not explicitly disabled,
 // Kernel Reader is used (taking precedence) even if Buffered Read or File Cache
 // are enabled.
-func (s *kernelReaderSuite) TestKernelReaderBehavior() {
+func (s *ReadStrategySuite) TestKernelReaderBehavior() {
 	createAndReadFile(s.T(), s.T().Name())
 
 	logContent, err := os.ReadFile(setup.LogFile())
@@ -276,19 +253,19 @@ func TestKernelReader(t *testing.T) {
 	}{
 		{
 			configName:          "TestKernelReader_DefaultAndPrecedence",
-			expectedLog:         mrdPoolInitMsg,
+			expectedLog:         kernelReaderInitMsg,
 			validateParallelism: true,
 		},
 		{
 			configName:          "TestFileCache_KernelReaderDisabled",
 			expectedLog:         fileCacheMsg,
-			unexpectedLog:       mrdPoolInitMsg,
+			unexpectedLog:       kernelReaderInitMsg,
 			validateParallelism: false,
 		},
 		{
 			configName:          "TestBufferedReader_KernelReaderDisabled",
 			expectedLog:         bufferedReaderSchedMsg,
-			unexpectedLog:       mrdPoolInitMsg,
+			unexpectedLog:       kernelReaderInitMsg,
 			validateParallelism: false,
 		},
 	}
@@ -298,7 +275,7 @@ func TestKernelReader(t *testing.T) {
 		for _, flags := range flagsSet {
 			t.Run(tc.configName, func(t *testing.T) {
 				log.Printf("Running tests with flags: %s", flags)
-				s := &kernelReaderSuite{
+				s := &ReadStrategySuite{
 					flags:               flags,
 					expectedLog:         tc.expectedLog,
 					unexpectedLog:       tc.unexpectedLog,
@@ -319,9 +296,9 @@ func TestKernelReader_Dynamic(t *testing.T) {
 	for _, flags := range flagsSet {
 		t.Run(configName, func(t *testing.T) {
 			log.Printf("Running tests with flags: %s", flags)
-			s := &kernelReaderSuite{
+			s := &ReadStrategySuite{
 				flags:               flags,
-				unexpectedLog:       mrdPoolInitMsg,
+				unexpectedLog:       kernelReaderInitMsg,
 				validateParallelism: false,
 			}
 			suite.Run(t, s)
