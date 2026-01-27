@@ -433,7 +433,7 @@ func TestGCSMetrics_ParallelDownloads(t *testing.T) {
 func TestGCSMetrics_RetryCount(t *testing.T) {
 	ctx := context.Background()
 	_, _, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
-	
+
 	// Simulate a retryable error (e.g. 429)
 	var err error = &googleapi.Error{Code: 429}
 	shouldRetry := storageutil.ShouldRetryWithMonitoring(ctx, err, mh)
