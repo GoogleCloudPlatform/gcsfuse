@@ -428,7 +428,7 @@ params:
       Sets the cache-size of inactive (no open file) MRD instances. When this limit
       is exceeded, the least recently inactive MRD instances will be closed. Set to
       0 to disable the cache, which will keep all the inactive MRD instances open forever.
-    default: "0"
+    default: "1000"
     hide-flag: true
 
   - config-path: "file-system.kernel-list-cache-ttl-secs"
