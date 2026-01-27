@@ -94,8 +94,8 @@ func atomicFileWrite(kernelParamsFile string, data []byte) error {
 	return os.Rename(tempFile.Name(), kernelParamsFile)
 }
 
-// pathForParam returns the sysfs path for a given parameter.
-func pathForParam(name ParamName, major, minor uint32) (string, error) {
+// PathForParam returns the sysfs path for a given parameter.
+func PathForParam(name ParamName, major, minor uint32) (string, error) {
 	switch name {
 	case MaxReadAheadKb:
 		return fmt.Sprintf("/sys/class/bdi/%d:%d/read_ahead_kb", major, minor), nil
@@ -159,7 +159,7 @@ func (c *KernelParamsConfig) applyDirectly(mountPoint string) {
 		return
 	}
 	for _, p := range c.Parameters {
-		path, err := pathForParam(p.Name, major, minor)
+		path, err := PathForParam(p.Name, major, minor)
 		if err != nil {
 			logger.Warnf("Unable to update setting %q to value %q for the mount point %q due to err: %v", p.Name, p.Value, mountPoint, err)
 			continue

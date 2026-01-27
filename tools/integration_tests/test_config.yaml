@@ -698,6 +698,57 @@ flag_optimizations:
           hns: false
           zonal: false
         run_on_gke: true
+      - run: TestZonalBucketOptimizations
+        flags:
+          - "--log-severity=trace"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
+      - run: TestZonalBucketOptimizations_ExplicitOverrides
+        flags:
+          - "--implicit-dirs,--max-read-ahead-kb=2048,--max-background=50,--congestion-threshold=30,--log-severity=trace"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
+      - run: TestKernelReader_DefaultAndPrecedence
+        flags:
+          - "--implicit-dirs,--log-severity=trace"
+          - "--implicit-dirs,--log-severity=trace,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache"
+          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true"
+          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
+      - run: TestFileCache_KernelReaderDisabled
+        flags:
+          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
+      - run: TestBufferedReader_KernelReaderDisabled
+        flags:
+          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
+      - run: TestKernelReader_Dynamic
+        flags:
+          - "--implicit-dirs,--log-severity=trace"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
 
 unsupported_path:
 - mounted_directory: "${MOUNTED_DIR}"
@@ -882,3 +933,43 @@ monitoring:
           zonal: true
         run: "TestPromGrpcMetricsSuite"
         run_on_gke: true
+
+kernel_reader:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - run: TestFileCache_KernelReaderDisabled
+        flags:
+          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
+      - run: TestZonalBucketOptimizations_Dynamic
+        flags:
+          - "--log-severity=trace"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
+      - run: TestKernelReader_DefaultAndPrecedence
+        flags:
+          - "--implicit-dirs,--log-severity=trace"
+          - "--implicit-dirs,--log-severity=trace,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache"
+          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true"
+          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
+      - run: TestBufferedReader_KernelReaderDisabled
+        flags:
+          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
