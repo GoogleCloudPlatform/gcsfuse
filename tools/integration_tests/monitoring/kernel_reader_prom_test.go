@@ -37,14 +37,15 @@ func (p *PromKernelReaderTest) TestKernelReaderMetrics() {
 	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
 	gcsDir := path.Join(testDirName, testName)
 	fileName := "mrd_test_file.txt"
-	client.SetupFileInTestDirectory(testEnv.ctx, testEnv.storageClient, gcsDir, fileName, 1024*1024, p.T())
+	client.SetupFileInTestDirectory(testEnv.ctx, testEnv.storageClient, gcsDir, fileName, 10*1024*1024, p.T())
 
 	// Read file to trigger metrics
 	_, err := os.ReadFile(path.Join(testEnv.testDirPath, fileName))
 
 	require.NoError(p.T(), err)
-	assertNonZeroCountMetric(p.T(), "gcs_read_bytes_count", "read_type", "Parallel", p.prometheusPort)
-	assertNonZeroCountMetric(p.T(), "gcs_download_bytes_count", "", "", p.prometheusPort)
+	assertNonZeroCountMetric(p.T(), "fs_ops_count", "fs_op", "ReadFile", p.prometheusPort)
+	assertNonZeroCountMetric(p.T(), "gcs_download_bytes_count", "read_type", "Parallel", p.prometheusPort)
+	assertNonZeroCountMetric(p.T(), "gcs_read_count", "read_type", "Parallel", p.prometheusPort)
 	assertNonZeroCountMetric(p.T(), "gcs_request_count", "gcs_method", "MultiRangeDownloader::Add", p.prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "gcs_request_latencies", "gcs_method", "MultiRangeDownloader::Add", p.prometheusPort)
 }
