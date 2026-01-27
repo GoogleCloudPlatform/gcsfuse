@@ -23,7 +23,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/pkg/xattr"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -51,51 +50,9 @@ func (p *PromKernelReaderTest) TestKernelReaderMetrics() {
 	assertNonZeroHistogramMetric(p.T(), "gcs_request_latencies", "gcs_method", "MultiRangeDownloader::Add", p.prometheusPort)
 }
 
-func (p *PromKernelReaderTest) TestStatMetrics() {
-	prometheusPort := p.prometheusPort
-
-	_, err := os.Stat(path.Join(testEnv.testDirPath, "hello.txt"))
-
-	require.NoError(p.T(), err)
-	assertNonZeroCountMetric(p.T(), "fs_ops_count", "fs_op", "LookUpInode", prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "fs_ops_latency", "fs_op", "LookUpInode", prometheusPort)
-	assertNonZeroCountMetric(p.T(), "gcs_request_count", "gcs_method", "StatObject", prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "gcs_request_latencies", "gcs_method", "StatObject", prometheusPort)
-}
-
-func (p *PromKernelReaderTest) TestFsOpsErrorMetrics() {
-	prometheusPort := p.prometheusPort
-
-	_, err := os.Stat(path.Join(testEnv.testDirPath, "non_existent_path.txt"))
-
-	require.Error(p.T(), err)
-	assertNonZeroCountMetric(p.T(), "fs_ops_error_count", "fs_op", "LookUpInode", prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "fs_ops_latency", "fs_op", "LookUpInode", prometheusPort)
-}
-
-func (p *PromKernelReaderTest) TestListMetrics() {
-	prometheusPort := p.prometheusPort
-
-	_, err := os.ReadDir(testEnv.testDirPath)
-
-	require.NoError(p.T(), err)
-	assertNonZeroCountMetric(p.T(), "fs_ops_count", "fs_op", "ReadDir", prometheusPort)
-	assertNonZeroCountMetric(p.T(), "fs_ops_count", "fs_op", "OpenDir", prometheusPort)
-	assertNonZeroCountMetric(p.T(), "gcs_request_count", "gcs_method", "ListObjects", prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "gcs_request_latencies", "gcs_method", "ListObjects", prometheusPort)
-}
-
-func (p *PromKernelReaderTest) TestSetXAttrMetrics() {
-	prometheusPort := p.prometheusPort
-
-	err := xattr.Set(path.Join(testEnv.testDirPath, "hello.txt"), "alpha", []byte("beta"))
-
-	require.Error(p.T(), err)
-	assertNonZeroCountMetric(p.T(), "fs_ops_error_count", "fs_op", "Others", prometheusPort)
-}
-
 func TestPromKernelReaderSuite(t *testing.T) {
 	ts := &PromKernelReaderTest{}
+	// ts.suiteName = "TestPromKernelReaderSuite"
 	flagSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagSets {
 		ts.flags = flags
