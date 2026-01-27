@@ -83,6 +83,7 @@ type Config struct {
 	Monitoring            []TestConfig `yaml:"monitoring"`
 	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`
 	UnsupportedPath       []TestConfig `yaml:"unsupported_path"`
+	KernelReader          []TestConfig `yaml:"kernel_reader"`
 }
 
 func processTestConfigs(configs []TestConfig) {

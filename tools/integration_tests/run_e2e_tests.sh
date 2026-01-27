@@ -164,6 +164,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "dentry_cache"
   "flag_optimizations"
   "unsupported_path"
+  "kernel_reader"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
