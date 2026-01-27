@@ -35,6 +35,7 @@ func (*noopTracer) EndSpan(span trace.Span) {}
 
 func (*noopTracer) RecordError(span trace.Span, err error) {}
 
+// Return the new context as it is as this is a no-op implementation
 func (*noopTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
 	return newCtx
 }
