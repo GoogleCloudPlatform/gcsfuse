@@ -882,3 +882,11 @@ monitoring:
           zonal: true
         run: "TestPromGrpcMetricsSuite"
         run_on_gke: true
+      - flags:
+        - "--prometheus-port=9193 --log-file=/gcsfuse-tmp/prom_kernel_reader.log"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run: "TestPromKernelReaderSuite"
+        run_on_gke: false

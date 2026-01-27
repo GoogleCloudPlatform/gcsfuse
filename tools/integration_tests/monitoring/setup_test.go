@@ -198,7 +198,7 @@ func TestMain(m *testing.M) {
 		testEnv.cfg.Configs[5].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 		testEnv.cfg.Configs[5].Run = "TestPromGrpcMetricsSuite"
 
-		testEnv.cfg.Configs[6].Flags = []string{"--prometheus-port=9193 --log-file=/gcsfuse-tmp/prom_kernel_reader.log --enable-kernel-reader=true"}
+		testEnv.cfg.Configs[6].Flags = []string{"--prometheus-port=9193 --log-file=/gcsfuse-tmp/prom_kernel_reader.log"}
 		testEnv.cfg.Configs[6].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		testEnv.cfg.Configs[6].Run = "TestPromKernelReaderSuite"
 	}
