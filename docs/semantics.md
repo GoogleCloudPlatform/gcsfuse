@@ -519,15 +519,12 @@ Traditional file systems do not allow multiple directory entries with the same n
 
 Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it appears in the Cloud Storage FUSE file system as if there is a directory named foo and a file or symlink named ```foo\n``` (i.e. foo followed by U+000A, line feed). This is what will appear when the parent's directory entries are read, and Cloud Storage FUSE will respond to requests to look up the inode named ```foo\n``` by returning the file inode. ```\n``` in particular is chosen because it is not legal in Cloud Storage object names, and therefore is not ambiguous.
 
-### Unsupported object names
+### Unsupported Path names
 
-- Objects in GCS with `double slashes '//'` as a name or prefix are not supported in GCSfuse. Accessing a directory with such named files will cause an 'input/output error', as the Linux filesystem does not support files or directories named with a '/'. The most common example of this is an object called, for example 'A//C.txt' where 'A' indicates a directory and 'C.txt' indicates a file, and is missing directory 'B/' between 'A/' and 'C.txt'.
+- Due to limitations in the Linux filesystem, path segments such as `//`, `/./`, or `/../` are not supported locally, even though they are valid object names in GCS. From v3.6.0 onwards, GCSFuse handles these objects gracefully:
 
-
-- Objects in GCS with suffix `/\n` like, `gs://gcs-bkt/a/\n`:
-Mounting bucket with such objects leads to crash `sync: unlock of unlocked mutex` or `Panic: Inode 'a/' cannot have child file`.
-`\n` in GCSFuse is used to resolve the name conflicts, in case there is a file and directory exists with the same name. Ref: [name-conflict](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#name-conflicts) section.
-
+   1. Listing: To prevent system errors or crashes, these unsupported objects are hidden from file listings.
+   2. Rename/Delete: Directory-level operations still apply to all contained objects, ensuring that unsupported objects are not accidentally left behind.
 
 ## Memory-mapped files
 

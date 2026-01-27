@@ -72,10 +72,17 @@ type FileTest struct {
 	backingObj      *gcs.MinObject
 
 	in *FileInode
+
+	bucketType gcs.BucketType
 }
 
 func TestFileTestSuite(t *testing.T) {
-	suite.Run(t, new(FileTest))
+	t.Run("NonZonal", func(t *testing.T) {
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: false}})
+	})
+	t.Run("Zonal", func(t *testing.T) {
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
+	})
 }
 
 func (t *FileTest) SetupSubTest() {
@@ -87,7 +94,7 @@ func (t *FileTest) SetupTest() {
 	syncutil.EnableInvariantChecking()
 	t.ctx = context.Background()
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", t.bucketType)
 
 	// Set up the backing object.
 	var err error
@@ -174,18 +181,24 @@ func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool, openMode ut
 
 func (t *FileTest) validateMrdInstanceMinObject() {
 	t.T().Helper()
-	// Validate MinObject in inode and MRDInstance points to different copy of MinObject.
-	assert.NotSame(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
-	// Validate MinObject in MRDInstance is equal to the MinObject in inode.
-	assert.Equal(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
+	// Validate only for zonal buckets
+	if t.in.bucket.BucketType().Zonal {
+		// Validate MinObject in inode and MRDInstance points to different copy of MinObject.
+		assert.NotSame(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
+		// Validate MinObject in MRDInstance is equal to the MinObject in inode.
+		assert.Equal(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
+	}
 }
 
 func (t *FileTest) validateMrdWrapperMinObject() {
 	t.T().Helper()
-	// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-	assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
-	// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-	assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+	// Validate only for zonal buckets
+	if t.in.bucket.BucketType().Zonal {
+		// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
+		assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+		// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
+		assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -563,6 +576,9 @@ func (t *FileTest) TestTruncateNegative() {
 }
 
 func (t *FileTest) TestDestroy_MrdInstanceDestroyed() {
+	if !t.in.bucket.BucketType().Zonal {
+		return
+	}
 	// Manually initialize MRD pool since FileInode.Read doesn't use it directly.
 	mi := t.in.GetMRDInstance()
 	require.NotNil(t.T(), mi)

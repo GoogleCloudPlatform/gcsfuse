@@ -17,6 +17,8 @@ package inode
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -31,6 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
 )
 
 type DirPrefetchTest struct {
@@ -39,6 +42,7 @@ type DirPrefetchTest struct {
 	fake   gcs.Bucket
 	clock  timeutil.SimulatedClock
 	in     *dirInode
+	config *cfg.Config
 	suite.Suite
 }
 
@@ -49,10 +53,11 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 	t.fake = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
 	t.bucket = gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", t.fake)
 
-	config := &cfg.Config{
+	t.config = &cfg.Config{
 		MetadataCache: cfg.MetadataCacheConfig{
 			EnableMetadataPrefetch:       enablePrefetch,
 			TypeCacheMaxSizeMb:           400,
+			StatCacheMaxSizeMb:           400,
 			TtlSecs:                      60,
 			MetadataPrefetchEntriesLimit: 5000,
 		},
@@ -68,7 +73,8 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		config,
+		semaphore.NewWeighted(10),
+		t.config,
 	)
 	return in.(*dirInode)
 }
@@ -242,4 +248,130 @@ func (t *DirPrefetchTest) TestPrefetch_HandlesMultiplePages() {
 	// Check the first item that SHOULD NOT be cached (5500).
 	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file5500"),
 		"Should have stopped prefetching after 5500 items")
+}
+
+// mockListFunc returns a function that blocks until the provided channel is closed.
+// This allows us to simulate long-running GCS calls to test concurrency limits.
+func blockingListFunc(blockChan chan struct{}) func(context.Context, string, string, int) (map[Name]*Core, []string, string, error) {
+	return func(ctx context.Context, tok string, start string, limit int) (map[Name]*Core, []string, string, error) {
+		<-blockChan
+		return make(map[Name]*Core), nil, "", nil
+	}
+}
+
+func (t *DirPrefetchTest) TestMetadataPrefetcher_ConcurrencyLimit() {
+	// Setup: Semaphore with a limit of 2 workers.
+	limit := int64(2)
+	sem := semaphore.NewWeighted(limit)
+	blockChan := make(chan struct{})
+	p1 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
+	p2 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
+	p3 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
+	// 1. Run two prefetches to fill up the limit.
+	p1.Run("dir1/obj1")
+	p2.Run("dir2/obj2")
+	// 2. Wait until the semaphore is fully occupied.
+	time.Sleep(10 * time.Millisecond)
+	assert.False(t.T(), sem.TryAcquire(1), "Expected semaphore to be full")
+
+	// 3. Trigger a third prefetch.
+	// Because TryAcquire(1) is used in Run(), it should skip immediately if full.
+	p3.Run("dir3/obj3")
+
+	// 4. Release the blocked workers.
+	close(blockChan)
+	// 5. Use Eventually to wait until all permits are released.
+	t.Eventually(func() bool {
+		// Attempt to acquire the full weight. If successful, workers have finished.
+		if sem.TryAcquire(limit) {
+			sem.Release(limit)
+			return true
+		}
+		return false
+	}, 50*time.Millisecond, 5*time.Millisecond, "Expected all workers to release permits")
+}
+
+func (t *DirPrefetchTest) TestMetadataPrefetcher_RespectsMaxParallelPrefetchesConfig() {
+	// User configures max 1 parallel prefetch.
+	sem := semaphore.NewWeighted(1)
+	blockChan := make(chan struct{})
+	// Track how many times listFunc was actually entered.
+	var callCount int
+	var mu sync.Mutex
+	listFunc := func(ctx context.Context, tok string, start string, limit int) (map[Name]*Core, []string, string, error) {
+		mu.Lock()
+		callCount++
+		mu.Unlock()
+		<-blockChan
+		return nil, nil, "", nil
+	}
+	p := NewMetadataPrefetcher(t.config, sem, &t.clock, listFunc)
+
+	// Trigger multiple runs on the same prefetcher (simulating different objects in same dir)
+	// and different prefetchers.
+	p.Run("a/1")
+	p.Run("a/2") // Will be skipped by atomic state check anyway
+	p2 := NewMetadataPrefetcher(t.config, sem, &t.clock, listFunc)
+	p2.Run("b/1") // Should be skipped by semaphore check
+
+	time.Sleep(10 * time.Millisecond)
+	mu.Lock()
+	assert.Equal(t.T(), 1, callCount, "Expected only 1 concurrent call based on semaphore")
+	mu.Unlock()
+	close(blockChan)
+}
+
+func mockListFuncWithCtr() (*atomic.Int32, func(ctx context.Context, tok string, startOffset string, limit int) (map[Name]*Core, []string, string, error)) {
+	var listCalls atomic.Int32
+	mockListFunc := func(ctx context.Context, tok string, startOffset string, limit int) (map[Name]*Core, []string, string, error) {
+		listCalls.Add(1)
+		return make(map[Name]*Core), nil, "", nil
+	}
+	return &listCalls, mockListFunc
+}
+
+func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
+	listCallCtr, mockListFunc := mockListFuncWithCtr()
+	sem := semaphore.NewWeighted(1)
+	p := NewMetadataPrefetcher(t.config, sem, &t.clock, mockListFunc)
+
+	// 1. Initial Run: Should trigger a prefetch.
+	p.Run("dir/obj1")
+	assert.Eventually(t.T(), func() bool {
+		return listCallCtr.Load() == 1
+	}, 200*time.Millisecond, 10*time.Millisecond)
+
+	// 2. Immediate Run: Should NOT trigger another prefetch because the
+	// TTL has not passed since the last run.
+	p.Run("dir/obj2")
+	// Wait to ensure no new prefetch is triggered.
+	time.Sleep(20 * time.Millisecond)
+	assert.Equal(t.T(), int32(1), listCallCtr.Load())
+
+	// 3. Run after TTL expiry: Should trigger a new prefetch.
+	t.clock.AdvanceTime(60 * time.Second)
+	p.Run("dir/obj3")
+
+	assert.Eventually(t.T(), func() bool {
+		return listCallCtr.Load() == 2
+	}, 200*time.Millisecond, 10*time.Millisecond)
+}
+
+func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
+	listCallCtr, mockListFunc := mockListFuncWithCtr()
+	config := &cfg.Config{
+		MetadataCache: cfg.MetadataCacheConfig{
+			EnableMetadataPrefetch: true,
+			StatCacheMaxSizeMb:     0,
+			TtlSecs:                60,
+		},
+	}
+	p := NewMetadataPrefetcher(config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+
+	p.Run("dir/obj1")
+
+	// Allow some time for any potential background work to start.
+	time.Sleep(20 * time.Millisecond)
+	// Assert that no list calls were made because stat cache size is 0.
+	assert.Equal(t.T(), int32(0), listCallCtr.Load())
 }

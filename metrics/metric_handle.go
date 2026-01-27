@@ -102,9 +102,8 @@ const (
 type IoMethod string
 
 const (
-	IoMethodReadHandleAttr IoMethod = "ReadHandle"
-	IoMethodClosedAttr     IoMethod = "closed"
-	IoMethodOpenedAttr     IoMethod = "opened"
+	IoMethodClosedAttr IoMethod = "closed"
+	IoMethodOpenedAttr IoMethod = "opened"
 )
 
 // ReadType is a custom type for the read_type attribute.

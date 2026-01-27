@@ -22,6 +22,7 @@ import (
 
 	cfg2 "github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -90,6 +91,7 @@ func (t *DirHandleTest) resetDirHandle() {
 		&t.bucket,
 		&t.clock,
 		&t.clock,
+		semaphore.NewWeighted(10),
 		cfg)
 
 	t.dh = NewDirHandle(

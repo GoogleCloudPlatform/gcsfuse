@@ -21,6 +21,7 @@ import (
 	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -128,7 +129,7 @@ func isValidKernelListCacheTTL(TTLSecs int64) error {
 	return nil
 }
 
-func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
+func isValidMetadataCache(v *viper.Viper, c *MetadataCacheConfig) error {
 	// Validate ttl-secs.
 	if v.IsSet(MetadataCacheTTLConfigKey) {
 		if c.TtlSecs < -1 {
@@ -175,7 +176,7 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 	}
 
 	if c.MetadataPrefetchEntriesLimit < -1 {
-		return fmt.Errorf("invalid value of metadata-cache.experimental-metadata-prefetch-limit: %d; should be >=0 or -1 (for infinite)", c.MetadataPrefetchEntriesLimit)
+		return fmt.Errorf("invalid value of metadata-cache.metadata-prefetch-entries-limit: %d; should be >=0 or -1 (for infinite)", c.MetadataPrefetchEntriesLimit)
 	}
 
 	return nil
@@ -288,7 +289,7 @@ func isValidOptimizationProfile(config *Config) error {
 }
 
 // ValidateConfig returns a non-nil error if the config is invalid.
-func ValidateConfig(v isSet, config *Config) error {
+func ValidateConfig(v *viper.Viper, config *Config) error {
 	var err error
 
 	if err = isValidLogRotateConfig(&config.Logging.LogRotate); err != nil {

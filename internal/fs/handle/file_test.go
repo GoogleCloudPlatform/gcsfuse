@@ -109,6 +109,7 @@ func createDirInode(
 		bucket,
 		clock,
 		clock,
+		semaphore.NewWeighted(10),
 		config,
 	)
 }

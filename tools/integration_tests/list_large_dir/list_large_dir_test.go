@@ -28,18 +28,28 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
-const prefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
-const prefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
-const prefixImplicitDirInLargeDirListTest = "implicitDirInLargeDirListTest"
-const numberOfFilesInDirectoryWithTwelveThousandFiles = 12000
-const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
-const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
+const (
+	prefixFileInDirectoryWithTwelveThousandFiles           = "fileInDirectoryWithTwelveThousandFiles"
+	prefixExplicitDirInLargeDirListTest                    = "explicitDirInLargeDirListTest"
+	prefixImplicitDirInLargeDirListTest                    = "implicitDirInLargeDirListTest"
+	numberOfFilesInDirectoryWithTwelveThousandFiles        = 12000
+	numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
+	numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
+)
 
 var (
 	directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
-	storageClient                    *storage.Client
-	ctx                              context.Context
+	mountFunc                        func(*test_suite.TestConfig, []string) error
 )
+
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	bucketType    string
+	cfg           *test_suite.TestConfig
+}
+
+var testEnv env
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -53,18 +63,25 @@ func TestMain(m *testing.M) {
 		cfg.ListLargeDir[0].TestBucket = setup.TestBucket()
 		cfg.ListLargeDir[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ListLargeDir[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.ListLargeDir[0].Configs[0].Flags = []string{"--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"}
-		cfg.ListLargeDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ListLargeDir[0].Configs[1].Flags = []string{
-			"--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1",
+		cfg.ListLargeDir[0].Configs[0].Flags = []string{
+			"--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1",
+			"--client-protocol=grpc,--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1",
 		}
-		cfg.ListLargeDir[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+		cfg.ListLargeDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ListLargeDir[0].Configs[0].Run = "TestListLargeDirWithKernelListCache"
+		cfg.ListLargeDir[0].Configs[1].Flags = []string{
+			"--enable-metadata-prefetch --implicit-dirs=true",
+			"--client-protocol=grpc --enable-metadata-prefetch --implicit-dirs=true",
+		}
+		cfg.ListLargeDir[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ListLargeDir[0].Configs[1].Run = "TestListLargeDirWithoutKernelListCache"
 	}
 
 	// 2. Create storage client before running tests.
-	ctx = context.Background()
-	bucketType := setup.TestEnvironment(ctx, &cfg.ListLargeDir[0])
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	testEnv.ctx = context.Background()
+	testEnv.cfg = &cfg.ListLargeDir[0]
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.ListLargeDir[0])
+	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
@@ -80,11 +97,10 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ListLargeDir[0], bucketType, "")
-
 	setup.SetUpTestDirForTestBucket(&cfg.ListLargeDir[0])
-
-	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ListLargeDir[0], flags, m)
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
+	successCode := m.Run()
 
 	os.Exit(successCode)
 }

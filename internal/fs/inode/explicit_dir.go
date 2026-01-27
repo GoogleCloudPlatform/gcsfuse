@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/sync/semaphore"
 )
 
 // An inode representing a directory backed by an object in GCS with a specific
@@ -44,6 +45,7 @@ func NewExplicitDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
+	prefetchSem *semaphore.Weighted,
 	cfg *cfg.Config) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
@@ -55,6 +57,7 @@ func NewExplicitDirInode(
 		bucket,
 		mtimeClock,
 		cacheClock,
+		prefetchSem,
 		cfg)
 
 	dirInode := &explicitDirInode{

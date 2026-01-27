@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -110,6 +111,14 @@ func (t *mrdPoolTest) TestNewMRDPool_FileClobbered() {
 	assert.Nil(t.T(), pool)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	assert.ErrorAs(t.T(), err, &clobberedErr)
+}
+
+func (t *mrdPoolTest) TestNewMRDPool_NilConfig() {
+	pool, err := NewMRDPool(nil, nil)
+
+	assert.ErrorContains(t.T(), err, "config cannot be nil")
+
+	assert.Nil(t.T(), pool)
 }
 
 func (t *mrdPoolTest) TestNewMRDPool_Error() {
@@ -220,6 +229,60 @@ func (t *mrdPoolTest) TestRecreateMRD() {
 	assert.NotSame(t.T(), oldMRD, entry.mrd)
 }
 
+func (t *mrdPoolTest) TestRecreateMRD_UsesFallbackHandle() {
+	t.poolConfig.PoolSize = 1
+	// Initial creation
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	pool, err := NewMRDPool(t.poolConfig, nil)
+	require.NoError(t.T(), err)
+	entry := pool.Next()
+	// Simulate invalid entry
+	entry.mu.Lock()
+	entry.mrd = nil
+	entry.mu.Unlock()
+	fallbackHandle := []byte("fallback")
+	// Expectation: Recreate uses fallback handle
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return string(req.ReadHandle) == "fallback"
+	})).Return(fakeMRD, nil).Once()
+
+	err = pool.RecreateMRD(entry, fallbackHandle)
+
+	assert.NoError(t.T(), err)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *mrdPoolTest) TestRecreateMRD_UsesPeerHandle() {
+	t.poolConfig.PoolSize = 2
+	// Initial creation
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Times(2)
+	pool, err := NewMRDPool(t.poolConfig, nil)
+	require.NoError(t.T(), err)
+	pool.creationWg.Wait()
+	// Inject a mock MRD into entry 0 that returns a specific handle
+	peerHandle := []byte("peer_handle")
+	mockMRD := fake.NewFakeMultiRangeDownloaderWithHandle(t.object, nil, peerHandle)
+	pool.entries[0].mu.Lock()
+	pool.entries[0].mrd = mockMRD
+	pool.entries[0].mu.Unlock()
+	// Entry 1 is the one we want to recreate
+	entryToRecreate := &pool.entries[1]
+	entryToRecreate.mu.Lock()
+	entryToRecreate.mrd = nil
+	entryToRecreate.mu.Unlock()
+	// Expectation: Recreate uses peer handle from entry 0
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return string(req.ReadHandle) == "peer_handle"
+	})).Return(fakeMRD, nil).Once()
+
+	err = pool.RecreateMRD(entryToRecreate, nil)
+
+	assert.NoError(t.T(), err)
+	t.bucket.AssertExpectations(t.T())
+}
+
 func (t *mrdPoolTest) TestRecreateMRD_Error() {
 	t.poolConfig.PoolSize = 1
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
@@ -249,4 +312,41 @@ func (t *mrdPoolTest) TestClose() {
 	for i := 0; i < len(pool.entries); i++ {
 		assert.Nil(t.T(), pool.entries[i].mrd)
 	}
+}
+
+func (t *mrdPoolTest) TestClose_ReturnsHandle() {
+	t.poolConfig.PoolSize = 1
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	pool, err := NewMRDPool(t.poolConfig, nil)
+	require.NoError(t.T(), err)
+	// Inject mock to return handle on Close/GetHandle check
+	expectedHandle := []byte("handle")
+	mockMRD := fake.NewFakeMultiRangeDownloaderWithHandle(t.object, nil, expectedHandle)
+	pool.entries[0].mu.Lock()
+	pool.entries[0].mrd = mockMRD
+	pool.entries[0].mu.Unlock()
+
+	handle := pool.Close()
+
+	assert.Equal(t.T(), expectedHandle, handle)
+}
+
+func (t *mrdPoolTest) TestCloseDoesNotCancelDownloaderContext() {
+	t.poolConfig.PoolSize = 1
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	ctxCh := make(chan context.Context, 1)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		ctxCh <- args.Get(0).(context.Context)
+	}).Return(fakeMRD, nil).Once()
+	pool, err := NewMRDPool(t.poolConfig, nil)
+	require.NoError(t.T(), err)
+	capturedCtx := <-ctxCh
+
+	pool.Close()
+
+	// context.Background() never gets canceled and has no Done channel
+	require.NotNil(t.T(), capturedCtx)
+	assert.Nil(t.T(), capturedCtx.Done())
+	assert.NoError(t.T(), capturedCtx.Err())
 }

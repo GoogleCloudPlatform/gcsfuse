@@ -307,6 +307,7 @@ go version |& tee -a ${LOG_FILE}
 
 # Install latest gcloud.
 bash ./perfmetrics/scripts/install_latest_gcloud.sh
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 
 # Installation of crcmod is working through pip only on rhel and centos.
 # For debian and ubuntu, we are installing through sudo apt.
