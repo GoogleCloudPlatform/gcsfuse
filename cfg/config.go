@@ -942,7 +942,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+	flagSet.BoolP("enable-metadata-prefetch", "", true, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
 	if err := flagSet.MarkHidden("enable-metadata-prefetch"); err != nil {
 		return err
