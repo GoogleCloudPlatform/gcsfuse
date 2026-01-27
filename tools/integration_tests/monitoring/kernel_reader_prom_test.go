@@ -32,7 +32,6 @@ type PromKernelReaderTest struct {
 }
 
 func (p *PromKernelReaderTest) TestKernelReaderMetrics() {
-	// Create a larger file to ensure MRD is exercised
 	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
 	gcsDir := path.Join(testDirName, testName)
 	fileName := "mrd_test_file.txt"
@@ -52,7 +51,6 @@ func (p *PromKernelReaderTest) TestKernelReaderMetrics() {
 
 func TestPromKernelReaderSuite(t *testing.T) {
 	ts := &PromKernelReaderTest{}
-	// ts.suiteName = "TestPromKernelReaderSuite"
 	flagSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagSets {
 		ts.flags = flags
