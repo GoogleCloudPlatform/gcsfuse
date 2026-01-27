@@ -1108,7 +1108,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
-	flagSet.IntP("inactive-mrd-cache-size", "", 0, "Sets the cache-size of inactive (no open file) MRD instances. When this limit is exceeded, the least recently inactive MRD instances will be closed. Set to 0 to disable the cache, which will keep all the inactive MRD instances open forever.")
+	flagSet.IntP("inactive-mrd-cache-size", "", 1000, "Sets the cache-size of inactive (no open file) MRD instances. When this limit is exceeded, the least recently inactive MRD instances will be closed. Set to 0 to disable the cache, which will keep all the inactive MRD instances open forever.")
 
 	if err := flagSet.MarkHidden("inactive-mrd-cache-size"); err != nil {
 		return err
