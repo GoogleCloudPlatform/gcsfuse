@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -35,6 +36,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"google.golang.org/api/googleapi"
 )
 
 type fakeBucketManagerWithMetrics struct {
@@ -425,4 +427,34 @@ func TestGCSMetrics_ParallelDownloads(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
 		attribute.NewSet(),
 		int64(fileSize))
+}
+
+// TestGCSMetrics_RetryCount validates the "gcs/retry_count" metric.
+func TestGCSMetrics_RetryCount(t *testing.T) {
+	ctx := context.Background()
+	_, _, mh, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
+	
+	// Simulate a retryable error (e.g. 429)
+	var err error = &googleapi.Error{Code: 429}
+	shouldRetry := storageutil.ShouldRetryWithMonitoring(ctx, err, mh)
+	require.True(t, shouldRetry)
+
+	waitForMetricsProcessing()
+
+	// Verify gcs/retry_count with retry_error_category="OTHER_ERRORS"
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/retry_count",
+		attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")),
+		1)
+
+	// Simulate a DeadlineExceeded error (Stalled Read)
+	err = context.DeadlineExceeded
+	shouldRetry = storageutil.ShouldRetryWithMonitoring(ctx, err, mh)
+	require.True(t, shouldRetry)
+
+	waitForMetricsProcessing()
+
+	// Verify gcs/retry_count with retry_error_category="STALLED_READ_REQUEST"
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/retry_count",
+		attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")),
+		1)
 }
