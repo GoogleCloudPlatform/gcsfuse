@@ -310,7 +310,7 @@ func (t *MrdInstanceTest) TestDecrementRefCount() {
 
 func (t *MrdInstanceTest) TestDecrementRefCount_Eviction() {
 	// Fill cache with other items
-	localMrdInstance := &MrdInstance{mrdPool: &MRDPool{poolConfig: &MRDPoolConfig{PoolSize: 1}}}
+	localMrdInstance := &MrdInstance{mrdPool: &MRDPool{poolConfig: &MRDPoolConfig{PoolSize: 1}, stopCreation: make(chan struct{})}}
 	_, err := t.cache.Insert("other1", localMrdInstance)
 	assert.NoError(t.T(), err)
 	_, err = t.cache.Insert("other2", localMrdInstance)
@@ -682,6 +682,7 @@ func (t *MrdInstanceTest) TestClosePoolWithTimeout_LogWarningOnTimeout() {
 		poolConfig: &MRDPoolConfig{
 			object: t.object,
 		},
+		stopCreation: make(chan struct{}),
 	}
 	pool.creationWg.Add(1)
 
