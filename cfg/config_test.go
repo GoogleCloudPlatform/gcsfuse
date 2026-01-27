@@ -19,6 +19,7 @@ package cfg
 import (
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,7 +29,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -36,11 +37,9 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "user_set",
 				config: Config{},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"file-system.congestion-threshold": true,
-						"machine-type":                     true,
-					},
+				userSetFlags: map[string]any{
+					"file-system.congestion-threshold": 98765,
+					"machine-type":                     "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
@@ -49,20 +48,17 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
 			{
-				name:   "bucket_type_zonal",
-				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{},
-				},
+				name:            "bucket_type_zonal",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   DefaultCongestionThreshold(),
@@ -80,7 +76,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.CongestionThreshold = 0
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-system.congestion-threshold")
@@ -97,7 +98,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -105,33 +106,28 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "user_set",
 				config: Config{},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"file-system.enable-kernel-reader": true,
-						"machine-type":                     true,
-					},
+				userSetFlags: map[string]any{
+					"file-system.enable-kernel-reader": true,
+					"machine-type":                     "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
-				expectedValue:   !(false),
+				expectedValue:   true,
 			},
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
 				expectedValue:   false,
 			},
 			{
-				name:   "bucket_type_zonal",
-				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{},
-				},
+				name:            "bucket_type_zonal",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   true,
@@ -149,7 +145,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.EnableKernelReader = false
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-system.enable-kernel-reader")
@@ -166,7 +167,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -176,22 +177,19 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{
 					Profile: "aiml-serving",
 				},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"file-cache.cache-file-for-range-read": true,
-						"machine-type":                         true,
-					},
+				userSetFlags: map[string]any{
+					"file-cache.cache-file-for-range-read": true,
+					"machine-type":                         "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   !(false),
+				expectedValue:   true,
 			},
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -200,7 +198,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
@@ -208,7 +206,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
@@ -226,7 +224,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileCache.CacheFileForRangeRead = false
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-cache.cache-file-for-range-read")
@@ -243,7 +246,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -253,25 +256,19 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{
 					Profile: "aiml-training",
 				},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"implicit-dirs": true,
-						"machine-type":  true,
-					},
-					stringFlags: map[string]string{
-						"machine-type": "a2-megagpu-16g",
-					},
+				userSetFlags: map[string]any{
+					"implicit-dirs": true,
+					"machine-type":  "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   !(false),
+				expectedValue:   true,
 			},
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -280,7 +277,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
@@ -288,7 +285,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
@@ -296,7 +293,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
@@ -304,9 +301,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "machine_group_high-performance",
 				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -315,9 +311,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "profile_overrides_machine_type",
 				config: Config{Profile: "aiml-training"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -325,9 +320,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -346,7 +340,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.ImplicitDirs = false
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "implicit-dirs")
@@ -363,7 +362,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -373,11 +372,9 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{
 					Profile: "aiml-serving",
 				},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"file-system.kernel-list-cache-ttl-secs": true,
-						"machine-type":                           true,
-					},
+				userSetFlags: map[string]any{
+					"file-system.kernel-list-cache-ttl-secs": 98765,
+					"machine-type":                           "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -386,9 +383,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -397,7 +393,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -415,7 +411,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.KernelListCacheTtlSecs = 0
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
@@ -432,7 +433,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -440,11 +441,9 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "user_set",
 				config: Config{},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"file-system.max-background": true,
-						"machine-type":               true,
-					},
+				userSetFlags: map[string]any{
+					"file-system.max-background": 98765,
+					"machine-type":               "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
@@ -453,20 +452,17 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
 			{
-				name:   "bucket_type_zonal",
-				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{},
-				},
+				name:            "bucket_type_zonal",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   DefaultMaxBackground(),
@@ -484,7 +480,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.MaxBackground = 0
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-system.max-background")
@@ -501,7 +502,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -509,11 +510,9 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "user_set",
 				config: Config{},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"file-system.max-read-ahead-kb": true,
-						"machine-type":                  true,
-					},
+				userSetFlags: map[string]any{
+					"file-system.max-read-ahead-kb": 98765,
+					"machine-type":                  "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
@@ -522,20 +521,17 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
 			{
-				name:   "bucket_type_zonal",
-				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{},
-				},
+				name:            "bucket_type_zonal",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   16384,
@@ -553,7 +549,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.MaxReadAheadKb = 0
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-system.max-read-ahead-kb")
@@ -570,7 +571,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -580,14 +581,9 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{
 					Profile: "aiml-training",
 				},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"metadata-cache.negative-ttl-secs": true,
-						"machine-type":                     true,
-					},
-					stringFlags: map[string]string{
-						"machine-type": "a2-megagpu-16g",
-					},
+				userSetFlags: map[string]any{
+					"metadata-cache.negative-ttl-secs": 98765,
+					"machine-type":                     "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -596,9 +592,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -607,7 +602,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
@@ -615,7 +610,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
@@ -623,7 +618,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
@@ -631,9 +626,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "machine_group_high-performance",
 				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -642,9 +636,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "profile_overrides_machine_type",
 				config: Config{Profile: "aiml-training"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -652,9 +645,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -673,7 +665,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.NegativeTtlSecs = 5
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "metadata-cache.negative-ttl-secs")
@@ -690,7 +687,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -700,14 +697,9 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{
 					Profile: "aiml-training",
 				},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"metadata-cache.ttl-secs": true,
-						"machine-type":            true,
-					},
-					stringFlags: map[string]string{
-						"machine-type": "a2-megagpu-16g",
-					},
+				userSetFlags: map[string]any{
+					"metadata-cache.ttl-secs": 98765,
+					"machine-type":            "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -716,9 +708,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -727,7 +718,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -735,7 +726,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -743,7 +734,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -751,9 +742,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "machine_group_high-performance",
 				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -762,9 +752,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "profile_overrides_machine_type",
 				config: Config{Profile: "aiml-training"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -772,9 +761,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -793,7 +781,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.TtlSecs = 60
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "metadata-cache.ttl-secs")
@@ -810,7 +803,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -820,14 +813,9 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{
 					Profile: "aiml-checkpointing",
 				},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"file-system.rename-dir-limit": true,
-						"machine-type":                 true,
-					},
-					stringFlags: map[string]string{
-						"machine-type": "a2-megagpu-16g",
-					},
+				userSetFlags: map[string]any{
+					"file-system.rename-dir-limit": 98765,
+					"machine-type":                 "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -836,9 +824,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -847,7 +834,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   200000,
@@ -855,9 +842,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "machine_group_high-performance",
 				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -866,9 +852,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "profile_overrides_machine_type",
 				config: Config{Profile: "aiml-checkpointing"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -876,9 +861,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -886,9 +870,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_when_aiml-training_is_unrelated",
 				config: Config{Profile: "aiml-training"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -907,7 +890,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.RenameDirLimit = 0
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "file-system.rename-dir-limit")
@@ -924,7 +912,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -934,14 +922,9 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{
 					Profile: "aiml-training",
 				},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"metadata-cache.stat-cache-max-size-mb": true,
-						"machine-type":                          true,
-					},
-					stringFlags: map[string]string{
-						"machine-type": "a2-megagpu-16g",
-					},
+				userSetFlags: map[string]any{
+					"metadata-cache.stat-cache-max-size-mb": 98765,
+					"machine-type":                          "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -950,9 +933,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -961,7 +943,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -969,7 +951,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -977,7 +959,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -985,9 +967,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "machine_group_high-performance",
 				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -996,9 +977,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "profile_overrides_machine_type",
 				config: Config{Profile: "aiml-training"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -1006,9 +986,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -1027,7 +1006,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.StatCacheMaxSizeMb = 33
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
@@ -1044,7 +1028,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -1054,14 +1038,9 @@ func TestApplyOptimizations(t *testing.T) {
 				config: Config{
 					Profile: "aiml-training",
 				},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"metadata-cache.type-cache-max-size-mb": true,
-						"machine-type":                          true,
-					},
-					stringFlags: map[string]string{
-						"machine-type": "a2-megagpu-16g",
-					},
+				userSetFlags: map[string]any{
+					"metadata-cache.type-cache-max-size-mb": 98765,
+					"machine-type":                          "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -1070,9 +1049,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -1081,7 +1059,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-training",
 				config:          Config{Profile: "aiml-training"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -1089,7 +1067,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-serving",
 				config:          Config{Profile: "aiml-serving"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -1097,7 +1075,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:            "profile_aiml-checkpointing",
 				config:          Config{Profile: "aiml-checkpointing"},
-				isSet:           &mockIsValueSet{setFlags: map[string]bool{}},
+				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
@@ -1105,9 +1083,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "machine_group_high-performance",
 				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -1116,9 +1093,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "profile_overrides_machine_type",
 				config: Config{Profile: "aiml-training"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -1126,9 +1102,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -1147,7 +1122,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.TypeCacheMaxSizeMb = 4
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "metadata-cache.type-cache-max-size-mb")
@@ -1164,7 +1144,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
-			isSet           *mockIsValueSet
+			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
 			expectedValue   any
@@ -1172,14 +1152,9 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "user_set",
 				config: Config{},
-				isSet: &mockIsValueSet{
-					setFlags: map[string]bool{
-						"write.global-max-blocks": true,
-						"machine-type":            true,
-					},
-					stringFlags: map[string]string{
-						"machine-type": "a2-megagpu-16g",
-					},
+				userSetFlags: map[string]any{
+					"write.global-max-blocks": 98765,
+					"machine-type":            "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -1188,9 +1163,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "no_optimization",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "low-end-machine"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
 				},
 				input:           nil,
 				expectOptimized: false,
@@ -1199,9 +1173,8 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "machine_group_high-performance",
 				config: Config{Profile: ""},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -1209,9 +1182,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -1219,9 +1191,8 @@ func TestApplyOptimizations(t *testing.T) {
 			}, {
 				name:   "fallback_to_machine_type_when_aiml-training_is_unrelated",
 				config: Config{Profile: "aiml-training"},
-				isSet: &mockIsValueSet{
-					setFlags:    map[string]bool{"machine-type": true},
-					stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: true,
@@ -1240,7 +1211,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.Write.GlobalMaxBlocks = 4
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet, tc.input)
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
 					assert.Contains(t, optimizedFlags, "write.global-max-blocks")
