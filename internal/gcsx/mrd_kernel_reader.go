@@ -86,7 +86,14 @@ func (mkr *MrdKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		mkr.mrdInstance.IncrementRefCount()
 	}
 
-	bytesRead, err := mkr.mrdInstance.Read(ctx, req.Buffer, req.Offset, mkr.metrics)
+	var bytesRead int
+	defer func() {
+		metrics.CaptureGCSReadMetrics(mkr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
+		mkr.metrics.GcsReadBytesCount(int64(bytesRead))
+	}()
+
+	var err error
+	bytesRead, err = mkr.mrdInstance.Read(ctx, req.Buffer, req.Offset, mkr.metrics)
 	if isShortRead(bytesRead, len(req.Buffer), err) {
 		if err = mkr.mrdInstance.RecreateMRD(); err != nil {
 			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
@@ -97,7 +104,6 @@ func (mkr *MrdKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		bytesReadOnRetry, err = mkr.mrdInstance.Read(ctx, retryBuffer, retryOffset, mkr.metrics)
 		bytesRead += bytesReadOnRetry
 	}
-	metrics.CaptureGCSReadMetrics(mkr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
 	return ReadResponse{Size: bytesRead}, err
 }
 
