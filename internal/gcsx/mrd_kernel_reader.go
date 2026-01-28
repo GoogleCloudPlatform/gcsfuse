@@ -95,6 +95,7 @@ func (mkr *MrdKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 	var err error
 	bytesRead, err = mkr.mrdInstance.Read(ctx, req.Buffer, req.Offset, mkr.metrics)
 	if isShortRead(bytesRead, len(req.Buffer), err) {
+		logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, len(req.Buffer))
 		if err = mkr.mrdInstance.RecreateMRD(); err != nil {
 			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
 		}
