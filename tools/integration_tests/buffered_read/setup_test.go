@@ -93,6 +93,9 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 	if flags.clientProtocol != "" {
 		mountConfig["gcs-connection"] = map[string]any{"client-protocol": flags.clientProtocol}
 	}
+	// By default, kernel reader is enabled for zonal buckets. We need to disable it
+	// explicitly to ensure buffered reads are used.
+	mountConfig["file-system"] = map[string]any{"enable-kernel-reader": false}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	return filePath
 }

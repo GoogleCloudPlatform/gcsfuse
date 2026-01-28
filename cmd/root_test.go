@@ -936,7 +936,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		Gid:                           -1,
 		IgnoreInterrupts:              true,
 		KernelListCacheTtlSecs:        0,
-		InactiveMrdCacheSize:          0,
+		InactiveMrdCacheSize:          1000,
 		RenameDirLimit:                0,
 		TempDir:                       "",
 		PreconditionErrors:            true,
@@ -969,7 +969,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           7,
 					IgnoreInterrupts:              false,
 					KernelListCacheTtlSecs:        300,
-					InactiveMrdCacheSize:          0,
+					InactiveMrdCacheSize:          1000,
 					RenameDirLimit:                10,
 					TempDir:                       cfg.ResolvedPath(path.Join(hd, "temp")),
 					PreconditionErrors:            false,
@@ -992,7 +992,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           -1,
 					IgnoreInterrupts:              true,
 					KernelListCacheTtlSecs:        0,
-					InactiveMrdCacheSize:          0,
+					InactiveMrdCacheSize:          1000,
 					RenameDirLimit:                0,
 					TempDir:                       "",
 					PreconditionErrors:            true,
@@ -1015,7 +1015,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           -1,
 					IgnoreInterrupts:              true,
 					KernelListCacheTtlSecs:        0,
-					InactiveMrdCacheSize:          0,
+					InactiveMrdCacheSize:          1000,
 					RenameDirLimit:                200000,
 					TempDir:                       "",
 					PreconditionErrors:            true,
@@ -1040,7 +1040,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           -1,
 					IgnoreInterrupts:              true,
 					KernelListCacheTtlSecs:        0,
-					InactiveMrdCacheSize:          0,
+					InactiveMrdCacheSize:          1000,
 					RenameDirLimit:                0,
 					TempDir:                       "",
 					PreconditionErrors:            true,
@@ -1065,7 +1065,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                           -1,
 					IgnoreInterrupts:              true,
 					KernelListCacheTtlSecs:        0,
-					InactiveMrdCacheSize:          0,
+					InactiveMrdCacheSize:          1000,
 					RenameDirLimit:                15000,
 					TempDir:                       "",
 					PreconditionErrors:            true,
@@ -1141,7 +1141,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					FuseOptions:          []string{},
 					Gid:                  -1,
 					IgnoreInterrupts:     true,
-					InactiveMrdCacheSize: 0,
+					InactiveMrdCacheSize: 1000,
 					ExperimentalODirect:  true,
 					PreconditionErrors:   true,
 					Uid:                  -1,
@@ -1158,7 +1158,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					FuseOptions:          []string{},
 					Gid:                  -1,
 					IgnoreInterrupts:     true,
-					InactiveMrdCacheSize: 0,
+					InactiveMrdCacheSize: 1000,
 					ExperimentalODirect:  false,
 					PreconditionErrors:   true,
 					Uid:                  -1,
@@ -1176,7 +1176,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					FuseOptions:          []string{},
 					Gid:                  -1,
 					IgnoreInterrupts:     true,
-					InactiveMrdCacheSize: 0,
+					InactiveMrdCacheSize: 1000,
 					PreconditionErrors:   true,
 					Uid:                  -1,
 					MaxReadAheadKb:       0,
@@ -1188,15 +1188,16 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--max-background=512", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: false,
-					PreconditionErrors:  true,
-					Uid:                 -1,
-					MaxBackground:       512,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					MaxBackground:        512,
 				},
 			},
 		},
@@ -1205,15 +1206,16 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: false,
-					PreconditionErrors:  true,
-					Uid:                 -1,
-					MaxBackground:       0,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					MaxBackground:        0,
 				},
 			},
 		},
@@ -1222,15 +1224,16 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--congestion-threshold=256", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: false,
-					PreconditionErrors:  true,
-					Uid:                 -1,
-					CongestionThreshold: 256,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					CongestionThreshold:  256,
 				},
 			},
 		},
@@ -1239,15 +1242,16 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: false,
-					PreconditionErrors:  true,
-					Uid:                 -1,
-					CongestionThreshold: 0,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					CongestionThreshold:  0,
 				},
 			},
 		},
@@ -1256,15 +1260,16 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--enable-kernel-reader", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: false,
-					PreconditionErrors:  true,
-					Uid:                 -1,
-					EnableKernelReader:  true,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					EnableKernelReader:   true,
 				},
 			},
 		},
@@ -1273,15 +1278,16 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: false,
-					PreconditionErrors:  true,
-					Uid:                 -1,
-					EnableKernelReader:  false,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					EnableKernelReader:   false,
 				},
 			},
 		},
@@ -1290,15 +1296,16 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--kernel-params-file=/tmp/params", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: false,
-					PreconditionErrors:  true,
-					Uid:                 -1,
-					KernelParamsFile:    "/tmp/params",
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					KernelParamsFile:     "/tmp/params",
 				},
 			},
 		},
@@ -1307,15 +1314,16 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  kernel-params-file: /tmp/config_params"), "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:             0755,
-					FileMode:            0644,
-					FuseOptions:         []string{},
-					Gid:                 -1,
-					IgnoreInterrupts:    true,
-					ExperimentalODirect: false,
-					PreconditionErrors:  true,
-					Uid:                 -1,
-					KernelParamsFile:    "/tmp/config_params",
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					PreconditionErrors:   true,
+					Uid:                  -1,
+					KernelParamsFile:     "/tmp/config_params",
 				},
 			},
 		},
@@ -2611,9 +2619,9 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--machine-type=a3-highgpu-8g"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
-				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
-				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
 		},
 		{
@@ -2623,9 +2631,9 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
-				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
 				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
-				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
+				assert.False(t, mi.viperConfig.IsSet("metadata-cache.ttl-secs"))
 			},
 		},
 		{
@@ -2636,9 +2644,9 @@ write:
   global-max-blocks: 123`,
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
-				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
-				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
 		},
 	}
@@ -2676,9 +2684,9 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--machine-type=a3-highgpu-8g", "--write-global-max-blocks=123"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect CLI value 123, not optimize to 1600")
-				assert.True(t, mi.isUserSet.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
-				assert.False(t, mi.isUserSet.IsSet("implicit-dirs"))
+				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
 		},
 		{
@@ -2686,9 +2694,9 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining, "--implicit-dirs=false"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
-				assert.True(t, mi.isUserSet.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
 				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
-				assert.False(t, mi.isUserSet.IsSet("metadata-cache.ttl-secs"))
+				assert.False(t, mi.viperConfig.IsSet("metadata-cache.ttl-secs"))
 			},
 		},
 	}

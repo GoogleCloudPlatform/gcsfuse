@@ -41,6 +41,11 @@ func (*noopTracer) RecordError(span trace.Span, err error) {}
 
 func (o *noopTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {}
 
+// Return the new context as it is as this is a no-op implementation
+func (*noopTracer) PropagateTraceContext(newCtx context.Context, _ context.Context) context.Context {
+	return newCtx
+}
+
 func NewNoopTracer() TraceHandle {
 	return new(noopTracer)
 }

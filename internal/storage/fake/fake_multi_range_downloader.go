@@ -34,6 +34,7 @@ type fakeMultiRangeDownloader struct {
 	statusErr  error
 	sleepTime  time.Duration // Sleep time to simulate real-world.
 	shortRead  bool
+	handle     []byte
 }
 
 func createFakeObject(obj *gcs.MinObject, data []byte) fakeObject {
@@ -46,6 +47,14 @@ func createFakeObject(obj *gcs.MinObject, data []byte) fakeObject {
 
 func NewFakeMultiRangeDownloader(obj *gcs.MinObject, data []byte) gcs.MultiRangeDownloader {
 	return NewFakeMultiRangeDownloaderWithSleepAndDefaultError(obj, data, time.Millisecond, nil)
+}
+
+func NewFakeMultiRangeDownloaderWithHandle(obj *gcs.MinObject, data []byte, handle []byte) gcs.MultiRangeDownloader {
+	mrd := NewFakeMultiRangeDownloader(obj, data)
+	if fmrd, ok := mrd.(*fakeMultiRangeDownloader); ok {
+		fmrd.handle = handle
+	}
+	return mrd
 }
 
 func NewFakeMultiRangeDownloaderWithShortRead(obj *gcs.MinObject, data []byte) gcs.MultiRangeDownloader {
@@ -158,5 +167,5 @@ func (fmrd *fakeMultiRangeDownloader) Error() error {
 }
 
 func (fmrd *fakeMultiRangeDownloader) GetHandle() []byte {
-	return nil
+	return fmrd.handle
 }

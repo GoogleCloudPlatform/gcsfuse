@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -326,7 +327,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := ValidateConfig(&mockIsSet{}, tc.config)
+			actualErr := ValidateConfig(viper.New(), tc.config)
 
 			assert.NoError(t, actualErr)
 		})
@@ -568,7 +569,7 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, ValidateConfig(&mockIsSet{}, tc.config))
+			assert.Error(t, ValidateConfig(viper.New(), tc.config))
 		})
 	}
 }
@@ -1009,7 +1010,7 @@ func TestValidateMetrics(t *testing.T) {
 			c := validConfig(t)
 			c.Metrics = tc.metricsConfig
 
-			err := ValidateConfig(&mockIsSet{}, &c)
+			err := ValidateConfig(viper.New(), &c)
 
 			if tc.wantErr {
 				assert.Error(t, err)
@@ -1117,7 +1118,7 @@ func TestValidateProfile(t *testing.T) {
 			c := validConfig(t)
 			c.Profile = tc.profile
 
-			err := ValidateConfig(&mockIsSet{}, &c)
+			err := ValidateConfig(viper.New(), &c)
 
 			if tc.wantErr {
 				assert.Error(t, err)

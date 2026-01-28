@@ -63,6 +63,11 @@ func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, by
 	)
 }
 
+func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
+	span := trace.SpanFromContext(oldCtx)
+	return trace.ContextWithSpan(newCtx, span)
+}
+
 func NewOTELTracer() TraceHandle {
 	return &otelTracer{
 		tracer: otel.Tracer(name),

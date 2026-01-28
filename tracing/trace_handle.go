@@ -20,6 +20,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+const name = "cloud.google.com/gcsfuse"
+
 // TraceHandle provides an interface for recording traces, trace links and everything related to tracing. This allows easier switching between various trace-implementations, especially with a custom no-op tracer.
 type TraceHandle interface {
 	// Start a span with a given name & context
@@ -38,4 +40,7 @@ type TraceHandle interface {
 
 	// A handle interface method to set attributes for file cache read
 	SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int)
+
+	// A handle interface method to retain relevant span data in new context from the older context
+	PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context
 }
