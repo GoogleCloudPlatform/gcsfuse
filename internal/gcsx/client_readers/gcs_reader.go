@@ -69,8 +69,8 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 	return &GCSReader{
 		object:             obj,
 		bucket:             bucket,
-		rangeReader:        NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
-		mrr:                NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
+		rangeReader:        NewRangeReader(obj, bucket, config.Config, config.MetricHandle, config.TraceHandle),
+		mrr:                NewMultiRangeReader(obj, config.MetricHandle, config.TraceHandle, config.MrdWrapper),
 		readTypeClassifier: config.ReadTypeClassifier,
 	}
 }
