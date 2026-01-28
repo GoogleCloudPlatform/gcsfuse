@@ -16,6 +16,7 @@ package monitor
 
 import (
 	"context"
+	"strings"
 
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -42,28 +43,58 @@ func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.Shu
 	return nil
 }
 
+type ExporterFactory func() (sdktrace.SpanExporter, error)
+
 func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace.TracerProvider, common.ShutdownFn, error) {
-	switch c.Monitoring.ExperimentalTracingMode {
-	case "stdout":
-		return newStdoutTraceProvider()
-	case "gcptrace":
-		return newGCPCloudTraceExporter(ctx, c, mountID)
-	default:
-		return nil, nil, nil
+	var opts []sdktrace.TracerProviderOption
+	exporterNames := strings.Split(c.Monitoring.ExperimentalTracingMode, ",")
+
+	exporterRegistry := map[string]ExporterFactory{
+		"stdout": func() (sdktrace.SpanExporter, error) {
+			return newStdoutTraceExporter()
+		},
+		"gcptrace": func() (sdktrace.SpanExporter, error) {
+			return newGCPCloudTraceExporter(c)
+		},
 	}
-}
-func newStdoutTraceProvider() (trace.TracerProvider, common.ShutdownFn, error) {
-	exporter, err := stdouttrace.New(
-		stdouttrace.WithPrettyPrint())
+
+	for _, name := range exporterNames {
+		if exporterFactory, ok := exporterRegistry[name]; ok {
+			exporter, err := exporterFactory()
+
+			if err != nil {
+				logger.Errorf("failed to init %s exporter: %w", name, err)
+				return nil, nil, err
+			}
+
+			opts = append(opts, sdktrace.WithBatcher(exporter))
+		}
+	}
+
+	res, err := getResource(ctx, mountID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+	opts = append(opts, sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Monitoring.ExperimentalTracingSamplingRatio)))
+
+	tp := sdktrace.NewTracerProvider(opts...)
+
 	return tp, tp.Shutdown, nil
 }
 
-func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config, mountID string) (*sdktrace.TracerProvider, common.ShutdownFn, error) {
+func newStdoutTraceExporter() (sdktrace.SpanExporter, error) {
+	exporter, err := stdouttrace.New(
+		stdouttrace.WithPrettyPrint())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return exporter, nil
+}
+
+func newGCPCloudTraceExporter(c *cfg.Config) (sdktrace.SpanExporter, error) {
 	var traceOptions []cloudtrace.Option
 
 	if c.Monitoring.ExperimentalTracingProjectId != "" {
@@ -73,14 +104,8 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config, mountID string
 	exporter, err := cloudtrace.New(traceOptions...)
 
 	if err != nil {
-		return nil, nil, err
-	}
-	res, err := getResource(ctx, mountID)
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Monitoring.ExperimentalTracingSamplingRatio)))
-
-	return tp, tp.Shutdown, nil
+	return exporter, nil
 }
