@@ -107,7 +107,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			brm := NewByteRangeMap(DefaultChunkSize)
+			brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 			// Add initial ranges
 			for _, r := range tt.initialRanges {
 				brm.AddRange(r[0], r[1])
@@ -124,7 +124,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 }
 
 func TestByteRangeMap_ContainsRange(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 	brm.AddRange(0, MB)      // chunk 0
 	brm.AddRange(2*MB, 3*MB) // chunk 2
 	brm.AddRange(5*MB, 6*MB) // chunk 5
@@ -154,7 +154,7 @@ func TestByteRangeMap_ContainsRange(t *testing.T) {
 }
 
 func TestByteRangeMap_GetMissingRanges(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 	brm.AddRange(0, MB)      // chunk 0
 	brm.AddRange(2*MB, 3*MB) // chunk 2
 	brm.AddRange(5*MB, 6*MB) // chunk 5
@@ -222,7 +222,7 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 }
 
 func TestByteRangeMap_TotalBytes(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 
 	assert.Equal(t, uint64(0), brm.TotalBytes(), "empty map should have 0 bytes")
 
@@ -236,8 +236,18 @@ func TestByteRangeMap_TotalBytes(t *testing.T) {
 	assert.Equal(t, uint64(4*MB), brm.TotalBytes()) // 4 contiguous chunks
 }
 
+func TestByteRangeMap_TotalBytes_PartialLastChunk(t *testing.T) {
+	// Test partial last chunk
+	// File size 100 bytes, Chunk size 1024 bytes
+	brmSmall := NewByteRangeMap(1024, 100)
+	brmSmall.AddRange(0, 100)
+
+	// Should be 100 bytes, not 1024
+	assert.Equal(t, uint64(100), brmSmall.TotalBytes(), "partial last chunk size mismatch")
+}
+
 func TestByteRangeMap_Clear(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 	brm.AddRange(0, MB)
 	brm.AddRange(2*MB, 3*MB)
 
@@ -250,7 +260,7 @@ func TestByteRangeMap_Clear(t *testing.T) {
 }
 
 func TestByteRangeMap_ConcurrentAccess(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 
 	// This test just ensures no race conditions occur
 	// Run with -race flag to detect issues
@@ -279,7 +289,7 @@ func TestByteRangeMap_ConcurrentAccess(t *testing.T) {
 }
 
 func TestByteRangeMap_ChunkAlignment(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 
 	// Test that partial byte ranges get tracked as full chunks
 	brm.AddRange(100, 200)

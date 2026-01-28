@@ -32,17 +32,19 @@ type ByteRange struct {
 type ByteRangeMap struct {
 	mu        sync.RWMutex
 	chunkSize uint64
+	fileSize  uint64          // Total size of the file
 	chunks    map[uint64]bool // chunk ID -> downloaded
 }
 
-// NewByteRangeMap creates a new empty ByteRangeMap with the specified chunk size.
+// NewByteRangeMap creates a new empty ByteRangeMap with the specified chunk size and file size.
 // The chunkSize should match the download chunk size (e.g., DownloadChunkSizeMb * 1MB).
-func NewByteRangeMap(chunkSize uint64) *ByteRangeMap {
+func NewByteRangeMap(chunkSize, fileSize uint64) *ByteRangeMap {
 	if chunkSize == 0 {
 		chunkSize = DefaultChunkSize
 	}
 	return &ByteRangeMap{
 		chunkSize: chunkSize,
+		fileSize:  fileSize,
 		chunks:    make(map[uint64]bool),
 	}
 }
@@ -52,8 +54,21 @@ func (brm *ByteRangeMap) chunkID(offset uint64) uint64 {
 	return offset / brm.chunkSize
 }
 
+// chunkSizeOf returns the size of a specific chunk, handling the last chunk which might be smaller.
+func (brm *ByteRangeMap) chunkSizeOf(chunkID uint64) uint64 {
+	chunkStart := chunkID * brm.chunkSize
+	if chunkStart >= brm.fileSize {
+		return 0
+	}
+	chunkEnd := chunkStart + brm.chunkSize
+	if chunkEnd > brm.fileSize {
+		return brm.fileSize - chunkStart
+	}
+	return brm.chunkSize
+}
+
 // AddRange marks all chunks in the range [start, end) as downloaded.
-// Returns the total number of new bytes added (chunks * chunkSize).
+// Returns the total number of new bytes added (chunks * chunkSize, adjusted for file size).
 func (brm *ByteRangeMap) AddRange(start, end uint64) uint64 {
 	brm.mu.Lock()
 	defer brm.mu.Unlock()
@@ -69,7 +84,7 @@ func (brm *ByteRangeMap) AddRange(start, end uint64) uint64 {
 	for chunkID := startChunk; chunkID <= endChunk; chunkID++ {
 		if !brm.chunks[chunkID] {
 			brm.chunks[chunkID] = true
-			bytesAdded += brm.chunkSize
+			bytesAdded += brm.chunkSizeOf(chunkID)
 		}
 	}
 
@@ -97,7 +112,7 @@ func (brm *ByteRangeMap) ContainsRange(start, end uint64) bool {
 }
 
 // GetMissingRanges returns chunk-aligned ranges that haven't been downloaded.
-// Each returned range will be exactly chunkSize bytes.
+// Adjacent missing chunks are merged into single ByteRange segments.
 func (brm *ByteRangeMap) GetMissingRanges(start, end uint64) []ByteRange {
 	brm.mu.RLock()
 	defer brm.mu.RUnlock()
@@ -110,25 +125,45 @@ func (brm *ByteRangeMap) GetMissingRanges(start, end uint64) []ByteRange {
 	startChunk := brm.chunkID(start)
 	endChunk := brm.chunkID(end - 1)
 
+	var currentStart uint64 = ^uint64(0) // Sentinel value
+
 	for chunkID := startChunk; chunkID <= endChunk; chunkID++ {
 		if !brm.chunks[chunkID] {
-			chunkStart := chunkID * brm.chunkSize
-			chunkEnd := chunkStart + brm.chunkSize
-			missing = append(missing, ByteRange{
-				Start: chunkStart,
-				End:   chunkEnd,
-			})
+			if currentStart == ^uint64(0) {
+				currentStart = chunkID * brm.chunkSize
+			}
+		} else {
+			if currentStart != ^uint64(0) {
+				// End of a missing segment
+				chunkEnd := chunkID * brm.chunkSize
+				missing = append(missing, ByteRange{Start: currentStart, End: chunkEnd})
+				currentStart = ^uint64(0)
+			}
 		}
+	}
+
+	// Handle the last segment if it extends to the end of the requested range
+	if currentStart != ^uint64(0) {
+		lastChunkEnd := (endChunk + 1) * brm.chunkSize
+		if lastChunkEnd > brm.fileSize {
+			lastChunkEnd = brm.fileSize
+		}
+		missing = append(missing, ByteRange{Start: currentStart, End: lastChunkEnd})
 	}
 
 	return missing
 }
 
-// TotalBytes returns the total number of bytes downloaded (number of chunks * chunk size)
+// TotalBytes returns the total number of bytes downloaded (sum of chunk sizes)
 func (brm *ByteRangeMap) TotalBytes() uint64 {
 	brm.mu.RLock()
 	defer brm.mu.RUnlock()
-	return uint64(len(brm.chunks)) * brm.chunkSize
+
+	total := uint64(0)
+	for chunkID := range brm.chunks {
+		total += brm.chunkSizeOf(chunkID)
+	}
+	return total
 }
 
 // Clear removes all chunk records
@@ -164,9 +199,13 @@ func (brm *ByteRangeMap) Ranges() []ByteRange {
 	for i := 1; i < len(chunkIDs); i++ {
 		if chunkIDs[i] != prev+1 {
 			// Gap found, emit current range
+			end := (prev + 1) * brm.chunkSize
+			if end > brm.fileSize {
+				end = brm.fileSize
+			}
 			ranges = append(ranges, ByteRange{
 				Start: start * brm.chunkSize,
-				End:   (prev + 1) * brm.chunkSize,
+				End:   end,
 			})
 			start = chunkIDs[i]
 		}
@@ -174,9 +213,13 @@ func (brm *ByteRangeMap) Ranges() []ByteRange {
 	}
 
 	// Emit final range
+	end := (prev + 1) * brm.chunkSize
+	if end > brm.fileSize {
+		end = brm.fileSize
+	}
 	ranges = append(ranges, ByteRange{
 		Start: start * brm.chunkSize,
-		End:   (prev + 1) * brm.chunkSize,
+		End:   end,
 	})
 
 	return ranges

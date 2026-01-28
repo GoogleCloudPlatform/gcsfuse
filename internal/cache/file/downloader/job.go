@@ -101,6 +101,11 @@ type Job struct {
 	metricsHandle metrics.MetricHandle
 
 	traceHandle tracing.TraceHandle
+
+	// inflightChunks tracks chunks currently being downloaded to prevent redundant requests.
+	// Map key is chunkID. Value is a channel that closes when download completes.
+	// This is used for sparse files.
+	inflightChunks map[uint64]chan struct{}
 }
 
 // JobStatus represents the status of job.
@@ -164,6 +169,7 @@ func (job *Job) init() {
 	job.status = JobStatus{NotStarted, nil, 0}
 	job.subscribers = list.List{}
 	job.doneCh = make(chan struct{})
+	job.inflightChunks = make(map[uint64]chan struct{})
 }
 
 // cancel is helper function to cancel the in-progress job.downloadAsync goroutine.

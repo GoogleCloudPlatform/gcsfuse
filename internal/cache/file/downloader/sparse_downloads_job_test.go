@@ -50,15 +50,14 @@ func (dt *sparseDownloaderTest) SetUp(*TestInfo) {
 	dt.setupHelper()
 }
 
-func (dt *sparseDownloaderTest) Test_calculateSparseChunkBoundaries() {
+func (dt *sparseDownloaderTest) Test_getRangesToDownload() {
 	tests := []struct {
 		name           string
 		offset         int64
 		requiredOffset int64
 		chunkSizeMb    int64
 		objectSize     uint64
-		expectedStart  uint64
-		expectedEnd    uint64
+		expectedRanges []data.ByteRange
 		expectError    bool
 	}{
 		{
@@ -67,8 +66,7 @@ func (dt *sparseDownloaderTest) Test_calculateSparseChunkBoundaries() {
 			requiredOffset: 10 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedStart:  0,
-			expectedEnd:    20 * util.MiB,
+			expectedRanges: []data.ByteRange{{Start: 0, End: 20 * util.MiB}},
 			expectError:    false,
 		},
 		{
@@ -77,8 +75,7 @@ func (dt *sparseDownloaderTest) Test_calculateSparseChunkBoundaries() {
 			requiredOffset: 10 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedStart:  0, // rounds down to chunk boundary
-			expectedEnd:    20 * util.MiB,
+			expectedRanges: []data.ByteRange{{Start: 0, End: 20 * util.MiB}},
 			expectError:    false,
 		},
 		{
@@ -87,8 +84,7 @@ func (dt *sparseDownloaderTest) Test_calculateSparseChunkBoundaries() {
 			requiredOffset: 25 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedStart:  0,
-			expectedEnd:    40 * util.MiB, // rounds up to chunk boundary
+			expectedRanges: []data.ByteRange{{Start: 0, End: 40 * util.MiB}},
 			expectError:    false,
 		},
 		{
@@ -97,8 +93,7 @@ func (dt *sparseDownloaderTest) Test_calculateSparseChunkBoundaries() {
 			requiredOffset: 95 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedStart:  80 * util.MiB,
-			expectedEnd:    100 * util.MiB, // capped at object size, not 120MB
+			expectedRanges: []data.ByteRange{{Start: 80 * util.MiB, End: 100 * util.MiB}},
 			expectError:    false,
 		},
 		{
@@ -121,20 +116,94 @@ func (dt *sparseDownloaderTest) Test_calculateSparseChunkBoundaries() {
 
 	for _, tt := range tests {
 		objectName := "test/sparse_chunk_boundaries.txt"
-		objectContent := testutil.GenerateRandomBytes(int(tt.objectSize))
-		dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, tt.objectSize, func() {})
+		// We don't need actual content for this test, just the FileInfo state.
+		// Passing nil content avoids large memory allocation and upload overhead.
+		dt.initJobTest(objectName, nil, DefaultSequentialReadSizeMb, tt.objectSize, func() {})
 		dt.job.fileCacheConfig.DownloadChunkSizeMb = tt.chunkSizeMb
+		// Manually insert FileInfo with DownloadedRanges
+		fileInfoKey := data.FileInfoKey{
+			BucketName: dt.job.bucket.Name(),
+			ObjectName: dt.job.object.Name,
+		}
+		chunkSizeBytes := uint64(tt.chunkSizeMb) * 1024 * 1024
+		fileInfo := data.FileInfo{
+			Key:              fileInfoKey,
+			ObjectGeneration: dt.job.object.Generation,
+			Offset:           ^uint64(0),
+			FileSize:         tt.objectSize,
+			SparseMode:       true,
+			DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes, tt.objectSize),
+		}
 
-		chunkStart, chunkEnd, err := dt.job.calculateSparseChunkBoundaries(tt.offset, tt.requiredOffset)
+		ranges, _, err := dt.job.getRangesToDownload(fileInfo, tt.offset, tt.requiredOffset)
 
 		if tt.expectError {
 			AssertNe(nil, err, fmt.Sprintf("Test case %q: expected error but got none", tt.name))
 		} else {
 			AssertEq(nil, err, fmt.Sprintf("Test case %q: unexpected error: %v", tt.name, err))
-			AssertEq(tt.expectedStart, chunkStart, fmt.Sprintf("Test case %q: chunkStart mismatch", tt.name))
-			AssertEq(tt.expectedEnd, chunkEnd, fmt.Sprintf("Test case %q: chunkEnd mismatch", tt.name))
+			AssertEq(len(tt.expectedRanges), len(ranges), fmt.Sprintf("Test case %q: ranges count mismatch", tt.name))
+			for i, r := range ranges {
+				AssertEq(tt.expectedRanges[i].Start, r.Start, fmt.Sprintf("Test case %q: range %d start mismatch", tt.name, i))
+				AssertEq(tt.expectedRanges[i].End, r.End, fmt.Sprintf("Test case %q: range %d end mismatch", tt.name, i))
+			}
 		}
 	}
+}
+
+func (dt *sparseDownloaderTest) Test_getRangesToDownload_WithInflight() {
+	objectName := "test/sparse_inflight.txt"
+	objectSize := 100 * util.MiB
+	dt.initJobTest(objectName, nil, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
+	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20 // 20MB chunks
+	// Scenario: Request [0, 60MB) -> Chunks 0, 1, 2.
+	// Chunk 1 (20MB-40MB) is already in-flight.
+	// Expected: Download Chunk 0 and Chunk 2. Wait for Chunk 1.
+	inflightCh := make(chan struct{})
+	dt.job.mu.Lock()
+	dt.job.inflightChunks[1] = inflightCh // Chunk 1 is in-flight
+	dt.job.mu.Unlock()
+	// Manually insert FileInfo with DownloadedRanges
+	fileInfoKey := data.FileInfoKey{
+		BucketName: dt.job.bucket.Name(),
+		ObjectName: dt.job.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	chunkSizeBytes := uint64(20) * 1024 * 1024
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: dt.job.object.Generation,
+		Offset:           ^uint64(0),
+		FileSize:         uint64(objectSize),
+		SparseMode:       true,
+		DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)),
+	}
+	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+	fileInfo, err = dt.job.getFileInfo()
+	AssertEq(nil, err)
+
+	ranges, waitChans, err := dt.job.getRangesToDownload(fileInfo, 0, 60*util.MiB)
+
+	AssertEq(nil, err)
+	// Should have 2 ranges to download: Chunk 0 and Chunk 2
+	AssertEq(2, len(ranges))
+	AssertEq(uint64(0), ranges[0].Start)
+	AssertEq(uint64(20*util.MiB), ranges[0].End) // Chunk 0
+	AssertEq(uint64(40*util.MiB), ranges[1].Start)
+	AssertEq(uint64(60*util.MiB), ranges[1].End) // Chunk 2
+	// Should have 1 wait channel
+	AssertEq(1, len(waitChans))
+	AssertEq(inflightCh, waitChans[0])
+	// Verify inflightChunks map was updated
+	dt.job.mu.Lock()
+	_, ok0 := dt.job.inflightChunks[0]
+	_, ok1 := dt.job.inflightChunks[1]
+	_, ok2 := dt.job.inflightChunks[2]
+	dt.job.mu.Unlock()
+	AssertTrue(ok0, "Chunk 0 should be marked inflight")
+	AssertTrue(ok1, "Chunk 1 should remain inflight")
+	AssertTrue(ok2, "Chunk 2 should be marked inflight")
 }
 
 func (dt *sparseDownloaderTest) Test_DownloadRange() {
@@ -173,7 +242,7 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 		Offset:           ^uint64(0), // MaxUint64 for sparse mode
 		FileSize:         uint64(objectSize),
 		SparseMode:       true,
-		DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes),
+		DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)),
 	}
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
@@ -217,7 +286,7 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_AlreadyDownloaded() {
 	AssertEq(nil, err)
 
 	chunkSizeBytes := uint64(20) * 1024 * 1024
-	downloadedRanges := data.NewByteRangeMap(chunkSizeBytes)
+	downloadedRanges := data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize))
 	downloadedRanges.AddRange(0, 40*util.MiB) // Mark first 40MB as downloaded
 
 	fileInfo := data.FileInfo{
@@ -273,7 +342,7 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 		Offset:           ^uint64(0),
 		FileSize:         uint64(objectSize),
 		SparseMode:       true,
-		DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes),
+		DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)),
 	}
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
