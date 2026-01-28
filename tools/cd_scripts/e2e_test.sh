@@ -34,11 +34,11 @@ echo "Upgrade gcloud version"
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 
-# Conditionally install python3.11 and run gcloud installer with it for RHEL 8 and Rocky 8
+# Conditionally install python3.11 and run gcloud installer with it for all variants of RHEL, Rocky and CENTOS.
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [[ ($ID == "rhel" || $ID == "rocky") ]]; then
+    if [[ ($ID == "rhel" || $ID == "rocky" || $ID == "centos") ]]; then
         sudo yum install -y python311
         export CLOUDSDK_PYTHON=/usr/bin/python3.11
         INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
