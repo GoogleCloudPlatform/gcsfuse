@@ -38,7 +38,7 @@ sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm 
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [[ ($ID == "rhel" || $ID == "rocky") ]]; then
+    if [[ ($ID == "rhel" || $ID == "rocky" || $ID == "centos") ]]; then
         sudo yum install -y python311
         export CLOUDSDK_PYTHON=/usr/bin/python3.11
         INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
