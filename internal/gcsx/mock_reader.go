@@ -24,7 +24,7 @@ type MockReader struct {
 	mock.Mock
 }
 
-func (m *MockReader) StructName() string {
+func (m *MockReader) ReaderName() string {
 	return "MockReader"
 }
 

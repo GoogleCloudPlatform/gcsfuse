@@ -95,7 +95,7 @@ type Reader interface {
 	ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error)
 
 	// Return a constant structName associated with the specific reader implementation
-	StructName() string
+	ReaderName() string
 
 	// Destroy is called to release any resources held by the reader.
 	Destroy()

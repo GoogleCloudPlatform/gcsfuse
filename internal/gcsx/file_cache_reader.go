@@ -84,7 +84,7 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 	}
 }
 
-func (fc *FileCacheReader) StructName() string {
+func (fc *FileCacheReader) ReaderName() string {
 	return "FileCacheReader"
 }
 

@@ -27,7 +27,7 @@ type MockReadManager struct {
 	mock.Mock
 }
 
-func (m *MockReadManager) StructName() string {
+func (m *MockReadManager) ReaderName() string {
 	return "MockReadManager"
 }
 

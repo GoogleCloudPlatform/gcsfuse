@@ -98,7 +98,7 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 	return true
 }
 
-func (gr *GCSReader) StructName() string {
+func (gr *GCSReader) ReaderName() string {
 	return "GCSReader"
 }
 

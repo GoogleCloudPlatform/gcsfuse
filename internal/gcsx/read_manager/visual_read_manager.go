@@ -64,7 +64,7 @@ func NewVisualReadManager(wrapped gcsx.ReadManager, ioRenderer *workloadinsight.
 	}
 }
 
-func (vrm *VisualReadManager) StructName() string {
+func (vrm *VisualReadManager) ReaderName() string {
 	return "VisualReadManager"
 }
 
