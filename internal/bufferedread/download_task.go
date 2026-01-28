@@ -63,8 +63,12 @@ func (p *downloadTask) Execute() {
 	var err error
 	var n int64
 	var span trace.Span
-	p.ctx, span = p.traceHandle.StartSpanLink(p.ctx, tracing.DownloadPrefetchBlock)
-	defer p.traceHandle.EndSpan(span)
+	p.ctx, span = p.traceHandle.StartSpan(p.ctx, tracing.DownloadPrefetchBlock)
+	logger.Info("Start span has been successfully triggerd")
+	defer func() {
+		p.traceHandle.EndSpan(span)
+		logger.Info("End span has been successfully triggerd")
+	}()
 
 	defer func() {
 		dur := time.Since(stime)

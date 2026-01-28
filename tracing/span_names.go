@@ -28,6 +28,7 @@ const (
 	DownloadPrefetchBlock    = "DownloadPrefetchBlock"
 	WaitForPrefetchBlock     = "WaitForPrefetchBlock"
 	ReadFromPrefetchBlock    = "ReadFromPrefetchBlock"
+	ScheduleBlockForDownload = "ScheduleBlockForDownload"
 	StatFS                   = "StatFS"
 	LookUpInode              = "LookUpInode"
 	GetInodeAttributes       = "GetInodeAttributes"
