@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -329,4 +330,23 @@ func (t *mrdPoolTest) TestClose_ReturnsHandle() {
 	handle := pool.Close()
 
 	assert.Equal(t.T(), expectedHandle, handle)
+}
+
+func (t *mrdPoolTest) TestCloseDoesNotCancelDownloaderContext() {
+	t.poolConfig.PoolSize = 1
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	ctxCh := make(chan context.Context, 1)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		ctxCh <- args.Get(0).(context.Context)
+	}).Return(fakeMRD, nil).Once()
+	pool, err := NewMRDPool(t.poolConfig, nil)
+	require.NoError(t.T(), err)
+	capturedCtx := <-ctxCh
+
+	pool.Close()
+
+	// context.Background() never gets canceled and has no Done channel
+	require.NotNil(t.T(), capturedCtx)
+	assert.Nil(t.T(), capturedCtx.Done())
+	assert.NoError(t.T(), capturedCtx.Err())
 }
