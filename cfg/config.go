@@ -229,7 +229,7 @@ var machineTypeToGroupMap = map[string]string{
 // ApplyOptimizations modifies the config in-place with optimized values.
 // input parameter is optional and provides runtime context for optimizations
 // such as bucket type. Pass nil if not available.
-func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) map[string]OptimizationResult {
+func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) map[string]OptimizationResult {
 	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
@@ -237,7 +237,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 	}
 
 	profileName := c.Profile
-	machineType, err := getMachineType(isSet)
+	machineType, err := getMachineType(v)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
 		machineType = ""
@@ -245,7 +245,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
-	if !isSet.IsSet("file-system.congestion-threshold") {
+	if !v.IsSet("file-system.congestion-threshold") {
 		rules := AllFlagOptimizationRules["file-system.congestion-threshold"]
 		result := getOptimizedValue(&rules, c.FileSystem.CongestionThreshold, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -257,7 +257,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("file-system.enable-kernel-reader") {
+	if !v.IsSet("file-system.enable-kernel-reader") {
 		rules := AllFlagOptimizationRules["file-system.enable-kernel-reader"]
 		result := getOptimizedValue(&rules, c.FileSystem.EnableKernelReader, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -269,7 +269,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("file-cache.cache-file-for-range-read") {
+	if !v.IsSet("file-cache.cache-file-for-range-read") {
 		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
 		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -281,7 +281,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("implicit-dirs") {
+	if !v.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
 		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -293,7 +293,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("file-system.kernel-list-cache-ttl-secs") {
+	if !v.IsSet("file-system.kernel-list-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
 		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -305,7 +305,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("file-system.max-background") {
+	if !v.IsSet("file-system.max-background") {
 		rules := AllFlagOptimizationRules["file-system.max-background"]
 		result := getOptimizedValue(&rules, c.FileSystem.MaxBackground, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -317,7 +317,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("file-system.max-read-ahead-kb") {
+	if !v.IsSet("file-system.max-read-ahead-kb") {
 		rules := AllFlagOptimizationRules["file-system.max-read-ahead-kb"]
 		result := getOptimizedValue(&rules, c.FileSystem.MaxReadAheadKb, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -329,7 +329,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("metadata-cache.negative-ttl-secs") {
+	if !v.IsSet("metadata-cache.negative-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
 		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -341,7 +341,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("metadata-cache.ttl-secs") {
+	if !v.IsSet("metadata-cache.ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
 		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -353,7 +353,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("file-system.rename-dir-limit") {
+	if !v.IsSet("file-system.rename-dir-limit") {
 		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
 		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -365,7 +365,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("metadata-cache.stat-cache-max-size-mb") {
+	if !v.IsSet("metadata-cache.stat-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
 		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -377,7 +377,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("metadata-cache.type-cache-max-size-mb") {
+	if !v.IsSet("metadata-cache.type-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
 		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -389,7 +389,7 @@ func (c *Config) ApplyOptimizations(isSet IsValueSet, input *OptimizationInput) 
 			}
 		}
 	}
-	if !isSet.IsSet("write.global-max-blocks") {
+	if !v.IsSet("write.global-max-blocks") {
 		rules := AllFlagOptimizationRules["write.global-max-blocks"]
 		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
@@ -1108,7 +1108,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
-	flagSet.IntP("inactive-mrd-cache-size", "", 0, "Sets the cache-size of inactive (no open file) MRD instances. When this limit is exceeded, the least recently inactive MRD instances will be closed. Set to 0 to disable the cache, which will keep all the inactive MRD instances open forever.")
+	flagSet.IntP("inactive-mrd-cache-size", "", 1000, "Sets the cache-size of inactive (no open file) MRD instances. When this limit is exceeded, the least recently inactive MRD instances will be closed. Set to 0 to disable the cache, which will keep all the inactive MRD instances open forever.")
 
 	if err := flagSet.MarkHidden("inactive-mrd-cache-size"); err != nil {
 		return err

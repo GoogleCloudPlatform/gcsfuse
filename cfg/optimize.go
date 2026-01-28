@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/spf13/viper"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -46,14 +47,6 @@ type OptimizationResult struct {
 	OptimizationReason string `yaml:"optimization_reason" json:"optimization_reason"`
 	// Optimized true indicates that the value was changed by optimization (either machine-type based, or profile-based).
 	Optimized bool `yaml:"-" json:"-"` // Field hidden from YAML and JSON to avoid it in logs.
-}
-
-// IsValueSet interface allows checking if a flag was explicitly set by the user.
-// This is used to determine whether to apply optimization rules or respect user choices.
-type IsValueSet interface {
-	IsSet(string) bool
-	GetString(string) string
-	GetBool(string) bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -99,12 +92,12 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 }
 
 // getMachineType fetches the machine type, checking user-provided configuration
-// first (from CLI flags or config file), and falling back to the metadata
-func getMachineType(isSet IsValueSet) (string, error) {
+// first (from CLI flags or config file), and falling back to the metadata server.
+func getMachineType(v *viper.Viper) (string, error) {
 	// Precedence: CLI flag > Config file > Metadata server.
 	// 1. Check if the machine-type flag is set by the user (via CLI flag or config file).
-	if isSet.IsSet(machineTypeFlg) {
-		if currentMachineType := isSet.GetString(machineTypeFlg); currentMachineType != "" {
+	if v.IsSet(machineTypeFlg) {
+		if currentMachineType := v.GetString(machineTypeFlg); currentMachineType != "" {
 			return currentMachineType, nil
 		}
 	}

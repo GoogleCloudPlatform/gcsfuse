@@ -54,8 +54,9 @@ type MRDPool struct {
 	current     atomic.Uint64
 	currentSize atomic.Uint64
 	ctx         context.Context
-	// cancelFunc is used to cancel the background creation of MRDs.
-	cancelFunc context.CancelFunc
+	// stopCreation is used to signal background creation goroutine to stop without
+	// canceling the context, enabling graceful shutdown.
+	stopCreation chan struct{}
 	// creationWg is used to wait for the background creation of MRDs to finish.
 	creationWg sync.WaitGroup
 }
@@ -80,12 +81,13 @@ func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 		return nil, fmt.Errorf("config cannot be nil")
 	}
 	p := &MRDPool{
-		poolConfig: config,
+		poolConfig:   config,
+		ctx:          context.Background(),
+		stopCreation: make(chan struct{}),
 	}
 	p.poolConfig.determinePoolSize()
 	logger.Tracef("Initializing MRD Pool with size: %d", p.poolConfig.PoolSize)
 	p.entries = make([]MRDEntry, p.poolConfig.PoolSize)
-	p.ctx, p.cancelFunc = context.WithCancel(context.Background())
 
 	// Create the first MRD synchronously.
 	mrd, err := config.bucket.NewMultiRangeDownloader(p.ctx, &gcs.MultiRangeDownloaderRequest{
@@ -124,8 +126,11 @@ func NewMRDPool(config *MRDPoolConfig, handle []byte) (*MRDPool, error) {
 // It populates the pool entries and increments the currentSize counter.
 func (p *MRDPool) createRemainingMRDs(handle []byte) {
 	for i := 1; i < p.poolConfig.PoolSize; i++ {
-		if p.ctx.Err() != nil {
+		// Check if we should stop creating MRDs (graceful shutdown initiated)
+		select {
+		case <-p.stopCreation:
 			return
+		default:
 		}
 		mrd, err := p.poolConfig.bucket.NewMultiRangeDownloader(p.ctx, &gcs.MultiRangeDownloaderRequest{
 			Name:           p.poolConfig.object.Name,
@@ -181,7 +186,7 @@ func (p *MRDPool) RecreateMRD(entry *MRDEntry, fallbackHandle []byte) error {
 		}
 	}
 
-	mrd, err := p.poolConfig.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+	mrd, err := p.poolConfig.bucket.NewMultiRangeDownloader(p.ctx, &gcs.MultiRangeDownloaderRequest{
 		Name:           p.poolConfig.object.Name,
 		Generation:     p.poolConfig.object.Generation,
 		ReadCompressed: p.poolConfig.object.HasContentEncodingGzip(),
@@ -196,19 +201,24 @@ func (p *MRDPool) RecreateMRD(entry *MRDEntry, fallbackHandle []byte) error {
 	return nil
 }
 
-// Close shuts down the MRDPool.
-// It cancels any ongoing background creation, waits for pending creations to finish, waits for active downloads on existing MRDs to complete, and then closes all MRDs.
+// Close shuts down the MRDPool gracefully.
+// It signals background creation to stop, waits for pending creations to finish,
+// waits for active downloads on existing MRDs to complete, and then closes all MRDs.
+// The context used for MRD creation is never canceled, ensuring in-flight range
+// requests complete without interruption.
 // It returns a handle from one of the closed MRDs for potential future use.
 func (p *MRDPool) Close() (handle []byte) {
-	if p.cancelFunc != nil {
-		p.cancelFunc()
-	}
+	// Signal background creation to stop
+	close(p.stopCreation)
+	// Wait for background creation to finish
 	p.creationWg.Wait()
 
+	// Wait for all MRDs to complete their work and close them
 	for i := range p.entries {
 		entry := &p.entries[i]
 		entry.mu.Lock()
 		if entry.mrd != nil {
+			// Wait for in-flight downloads to complete
 			entry.mrd.Wait()
 			if handle == nil {
 				handle = entry.mrd.GetHandle()
