@@ -48,15 +48,48 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 		return true, nil
 	}
 
-	// Calculate the chunk boundaries to download
-	chunkStart, chunkEnd, err := job.calculateSparseChunkBoundaries(startOffset, endOffset)
+	// Calculate the missing ranges to download and filter out in-flight chunks
+	rangesToDownload, waitChans, err := job.getRangesToDownload(fileInfo, startOffset, endOffset)
 	if err != nil {
-		return false, fmt.Errorf("HandleSparseRead: error calculating chunk boundaries: %w", err)
+		return false, fmt.Errorf("HandleSparseRead: error calculating ranges: %w", err)
 	}
 
-	// Download the chunk
-	if err := job.downloadSparseRange(ctx, chunkStart, chunkEnd); err != nil {
-		return false, fmt.Errorf("download failed for range [%d, %d): %w", chunkStart, chunkEnd, err)
+	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
+
+	// Download chunks sequentially
+	var downloadErr error
+
+	for _, r := range rangesToDownload {
+		if downloadErr == nil {
+			if err := job.downloadSparseRange(ctx, r.Start, r.End); err != nil {
+				downloadErr = err
+			}
+		}
+
+		// Cleanup inflight chunks for this range
+		job.mu.Lock()
+		startC := r.Start / chunkSize
+		endC := (r.End - 1) / chunkSize
+		for c := startC; c <= endC; c++ {
+			if ch, ok := job.inflightChunks[c]; ok {
+				close(ch)
+				delete(job.inflightChunks, c)
+			}
+		}
+		job.mu.Unlock()
+	}
+
+	// Wait for other inflight chunks
+	for _, ch := range waitChans {
+		select {
+		case <-ch:
+		case <-ctx.Done():
+			return false, ctx.Err()
+		}
+	}
+
+	if downloadErr != nil {
+		return false, fmt.Errorf("parallel download failed: %w", downloadErr)
 	}
 
 	// Verify the download was successful
@@ -70,6 +103,57 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 	}
 
 	return true, nil
+}
+
+// getRangesToDownload calculates the missing ranges that need to be downloaded
+// and filters out chunks that are already in-flight.
+// It marks new chunks as in-flight.
+func (job *Job) getRangesToDownload(fileInfo data.FileInfo, startOffset, endOffset int64) ([]data.ByteRange, []chan struct{}, error) {
+	if startOffset < 0 || endOffset < 0 || startOffset >= endOffset {
+		return nil, nil, fmt.Errorf("invalid offset range: [%d, %d)", startOffset, endOffset)
+	}
+
+	// Get missing ranges from ByteRangeMap
+	missingRanges := fileInfo.DownloadedRanges.GetMissingRanges(uint64(startOffset), uint64(endOffset))
+
+	var rangesToDownload []data.ByteRange
+	var waitChans []chan struct{}
+	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
+
+	job.mu.Lock()
+	defer job.mu.Unlock()
+
+	for _, rng := range missingRanges {
+		startChunk := rng.Start / chunkSize
+		endChunk := (rng.End - 1) / chunkSize
+
+		var downloadStart uint64 = ^uint64(0)
+
+		for chunkID := startChunk; chunkID <= endChunk; chunkID++ {
+			if ch, ok := job.inflightChunks[chunkID]; ok {
+				// Chunk is inflight, wait for it
+				if downloadStart != ^uint64(0) {
+					// Commit the range we were building up to this chunk
+					rangesToDownload = append(rangesToDownload, data.ByteRange{Start: downloadStart, End: chunkID * chunkSize})
+					downloadStart = ^uint64(0)
+				}
+				waitChans = append(waitChans, ch)
+			} else {
+				// Chunk is not inflight, mark it and add to download list
+				ch := make(chan struct{})
+				job.inflightChunks[chunkID] = ch
+
+				if downloadStart == ^uint64(0) {
+					downloadStart = chunkID * chunkSize
+				}
+			}
+		}
+		// If we have an open range at the end of the loop, close it using rng.End
+		if downloadStart != ^uint64(0) {
+			rangesToDownload = append(rangesToDownload, data.ByteRange{Start: downloadStart, End: rng.End})
+		}
+	}
+	return rangesToDownload, waitChans, nil
 }
 
 // getFileInfo retrieves the FileInfo from cache for this job's object.
@@ -94,38 +178,6 @@ func (job *Job) getFileInfo() (data.FileInfo, error) {
 	}
 
 	return fileInfo, nil
-}
-
-// calculateSparseChunkBoundaries calculates the aligned chunk boundaries
-// for a sparse file download based on the configured chunk size.
-//
-// The chunk boundaries are aligned to ensure efficient downloads:
-// - chunkStart is rounded down to the nearest chunk boundary
-// - chunkEnd is rounded up to the nearest chunk boundary
-// - chunkEnd is capped at the object size
-//
-// Uses DownloadChunkSizeMb from fileCacheConfig (default 200MB) for chunk size.
-func (job *Job) calculateSparseChunkBoundaries(startOffset, endOffset int64) (chunkStart, chunkEnd uint64, err error) {
-	if startOffset < 0 || endOffset < 0 || startOffset >= endOffset {
-		return 0, 0, fmt.Errorf("invalid offset range: [%d, %d)", startOffset, endOffset)
-	}
-
-	// Get the configured chunk size from fileCacheConfig
-	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
-
-	// Align chunk start and end to chunk boundaries
-	// Start: round down to chunk boundary
-	chunkStart = (uint64(startOffset) / chunkSize) * chunkSize
-
-	// End: round up endOffset to chunk boundary to ensure full coverage
-	chunkEnd = ((uint64(endOffset) + chunkSize - 1) / chunkSize) * chunkSize
-
-	// Cap at object size
-	if chunkEnd > job.object.Size {
-		chunkEnd = job.object.Size
-	}
-
-	return chunkStart, chunkEnd, nil
 }
 
 // verifySparseRangeDownloaded verifies that the requested range has been

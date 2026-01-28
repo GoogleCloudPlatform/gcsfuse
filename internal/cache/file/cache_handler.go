@@ -206,7 +206,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			newFileInfo.Offset = ^uint64(0) // math.MaxUint64
 			// Use download chunk size for ByteRangeMap tracking granularity
 			chunkSizeBytes := uint64(chr.jobManager.DownloadChunkSizeMb()) * 1024 * 1024
-			newFileInfo.DownloadedRanges = data.NewByteRangeMap(chunkSizeBytes)
+			newFileInfo.DownloadedRanges = data.NewByteRangeMap(chunkSizeBytes, object.Size)
 		}
 
 		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, newFileInfo)
