@@ -2894,7 +2894,8 @@ func (fs *fileSystem) OpenFile(
 	// new inode IDs. So for a given inode, all modifications go through the
 	// kernel. Therefore it's safe to tell the kernel to keep the page cache from
 	// open to open for a given inode.
-	op.KeepPageCache = true
+	op.KeepPageCache = false
+	op.UseDirectIO = true
 
 	return
 }
