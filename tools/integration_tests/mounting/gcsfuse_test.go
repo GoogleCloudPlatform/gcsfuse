@@ -214,7 +214,7 @@ func (t *GcsfuseTest) KeyFile() {
 		cmd := t.gcsfuseCommand(args, tc.env)
 
 		output, err := cmd.CombinedOutput()
-		util.Unmount(t.dir)
+		defer util.Unmount(t.dir)
 
 		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
 		ExpectThat(string(output), HasSubstr(nonexistent), "case %d", i)
