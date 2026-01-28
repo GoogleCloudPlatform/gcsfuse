@@ -241,7 +241,8 @@ func (bm *bucketManager) SetUpBucket(
 			statCache,
 			timeutil.RealClock(),
 			b,
-			bm.config.NegativeStatCacheTTL)
+			bm.config.NegativeStatCacheTTL,
+			bm.config.IsTypeCacheDeprecated)
 	}
 
 	// Enable content type awareness
@@ -265,7 +266,7 @@ func (bm *bucketManager) SetUpBucket(
 	if !bm.config.DisableListAccessCheck {
 		// Check whether this bucket works, giving the user a warning early if there
 		// is some problem.
-		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1, IncludeFoldersAsPrefixes: true, Delimiter: "/", IsTypeCacheDeprecated: bm.config.IsTypeCacheDeprecated})
+		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1, IncludeFoldersAsPrefixes: true, Delimiter: "/"})
 		if err != nil {
 			return
 		}

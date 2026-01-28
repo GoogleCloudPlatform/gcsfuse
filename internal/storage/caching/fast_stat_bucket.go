@@ -49,13 +49,15 @@ func NewFastStatBucket(
 	clock timeutil.Clock,
 	wrapped gcs.Bucket,
 	negativeCacheTTL time.Duration,
+	isTypeCacheDeprecated bool,
 ) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
-		cache:            cache,
-		clock:            clock,
-		wrapped:          wrapped,
-		primaryCacheTTL:  primaryCacheTTL,
-		negativeCacheTTL: negativeCacheTTL,
+		cache:                 cache,
+		clock:                 clock,
+		wrapped:               wrapped,
+		primaryCacheTTL:       primaryCacheTTL,
+		negativeCacheTTL:      negativeCacheTTL,
+		isTypeCacheDeprecated: isTypeCacheDeprecated,
 	}
 
 	b = fsb
@@ -83,6 +85,9 @@ type fastStatBucket struct {
 	primaryCacheTTL time.Duration
 	// TTL for entries for non-existing files and folders in the cache.
 	negativeCacheTTL time.Duration
+
+	// Flag to enable deprecation logic of Type cache.
+	isTypeCacheDeprecated bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -443,7 +448,7 @@ func (b *fastStatBucket) ListObjects(
 		return
 	}
 
-	if req.IsTypeCacheDeprecated {
+	if b.isTypeCacheDeprecated {
 		b.insertListing(listing, req.Prefix)
 	} else {
 		// note anything we found.

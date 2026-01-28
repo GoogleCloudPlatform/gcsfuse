@@ -341,9 +341,6 @@ type ListObjectsRequest struct {
 	// using this param.
 	ProjectionVal Projection
 
-	// Flag to enable deprecation logic of Type cache.
-	IsTypeCacheDeprecated bool
-
 	// FetchOnlyFromCache determines if the request should be served exclusively from the stat cache.
 	//
 	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError

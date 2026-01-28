@@ -638,7 +638,6 @@ func (t *HNSDirTest) TestDeleteObjects() {
 		Delimiter:                "/",
 		ContinuationToken:        "",
 		IncludeFoldersAsPrefixes: true,
-		IsTypeCacheDeprecated:    t.in.IsTypeCacheDeprecated(),
 	}
 	listResp := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
@@ -655,7 +654,6 @@ func (t *HNSDirTest) TestDeleteObjects() {
 		Delimiter:                "/",
 		ContinuationToken:        "",
 		IncludeFoldersAsPrefixes: true,
-		IsTypeCacheDeprecated:    t.in.IsTypeCacheDeprecated(),
 	}
 	listRespSubdir := &gcs.Listing{}
 	t.mockBucket.On("ListObjects", mock.Anything, listReqSubdir).Return(listRespSubdir, nil)
@@ -701,7 +699,6 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 		IncludeTrailingDelimiter: false,
 		MaxResults:               5000,
 		ProjectionVal:            gcs.NoAcl,
-		IsTypeCacheDeprecated:    t.in.IsTypeCacheDeprecated(),
 	}
 	t.mockBucket.On("ListObjects", t.ctx, &listObjectReq).Return(&listing, nil)
 
