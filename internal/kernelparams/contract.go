@@ -20,23 +20,30 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	// CurrentContractVersion helps detect if the producer and consumer are out of sync.
-	//
-	// BREAKING CHANGES (Increment this version):
-	// 1. Renaming any JSON tag (e.g., changing `json:"request_id"` to `json:"id"`).
-	// 2. Removing an existing field from a struct.
-	// 3. Changing the data type of a field (e.g., string to int).
-	// 4. Changing the string value of an existing ParamName constant.
-	//
-	// NON-BREAKING CHANGES:
-	// 1. Adding a new field with a new JSON tag.
-	// 2. Adding a new ParamName constant.
-	// Follow this guide to make any changes to this contract: TODO(mohit)
-	CurrentContractVersion = "1.0.0"
-	// TimeFormat is the rigid layout for parsing.
-	TimeFormat = time.RFC3339Nano
-)
+// Package kernelparams defines the strict schema and contract used for inter-process
+// communication between the GCSFuse Sidecar and the GKE GCSFuse CSI Driver.
+//
+// Purpose:
+// This package facilitates the "Zero Configuration" feature where GCSFuse automatically
+// determines optimal kernel settings (e.g., for Zonal Buckets) and communicates them
+// to the CSI Driver for enforcement.
+//
+//
+// CRITICAL:
+// This file acts as a shared contract. Any changes here must be compatible with
+// both the producer (GCSFuse) and the consumer (CSI Driver).
+//
+// BREAKING CHANGES:
+// 1. Renaming any JSON tag (e.g., changing `json:"request_id"` to `json:"id"`).
+// 2. Removing an existing field from a struct.
+// 3. Changing the data type of a field (e.g., string to int).
+// 4. Changing the string value of an existing ParamName constant.
+//
+// NON-BREAKING CHANGES:
+// 1. Adding a new field with a new JSON tag.
+// 2. Adding a new ParamName constant.
+// Follow this guide to make any changes to this contract: TODO(mohit)
+// TimeFormat is the rigid layout for parsing.
 
 // ParamName acts as an Enum for the parameter keys to ensure contract safety from typo errors.
 type ParamName string
@@ -57,9 +64,6 @@ type KernelParam struct {
 
 // KernelParamsConfig acts as the primary container for kernel settings.
 type KernelParamsConfig struct {
-	// Version is mandatory for cross-repo synchronization.
-	// The consumer MUST validate this version before processing.
-	Version    string        `json:"version"`
 	RequestID  string        `json:"request_id"`
 	Timestamp  string        `json:"timestamp"` // Format: 2026-01-12T16:23:05.636831Z
 	Parameters []KernelParam `json:"parameters"`
@@ -68,8 +72,7 @@ type KernelParamsConfig struct {
 // newKernelParamsConfig initializes a new configuration container with a request UUID, CurrentContractVersion and Timestamp.
 func newKernelParamsConfig() *KernelParamsConfig {
 	return &KernelParamsConfig{
-		Version:   CurrentContractVersion,
 		RequestID: uuid.NewString(),
-		Timestamp: time.Now().Format(TimeFormat),
+		Timestamp: time.Now().Format(time.RFC3339Nano),
 	}
 }
