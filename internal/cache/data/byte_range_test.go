@@ -180,11 +180,9 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 		{
 			name:  "multiple missing chunks",
 			start: 0,
-			end:   6 * MB,
-			expected: []ByteRange{
-				{MB, 2 * MB},     // chunk 1
-				{3 * MB, 4 * MB}, // chunk 3
-				{4 * MB, 5 * MB}, // chunk 4
+			end:   6 * MB, // Chunks 3 and 4 should be merged
+			expected: []ByteRange{{MB, 2 * MB}, // chunk 1
+				{3 * MB, 5 * MB}, // chunks 3 and 4
 			},
 		},
 		{

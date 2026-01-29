@@ -167,8 +167,6 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload_WithInflight() {
 		BucketName: dt.job.bucket.Name(),
 		ObjectName: dt.job.object.Name,
 	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
 	chunkSizeBytes := uint64(20) * 1024 * 1024
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
@@ -178,10 +176,6 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload_WithInflight() {
 		SparseMode:       true,
 		DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)),
 	}
-	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
-	AssertEq(nil, err)
-	fileInfo, err = dt.job.getFileInfo()
-	AssertEq(nil, err)
 
 	ranges, waitChans, err := dt.job.getRangesToDownload(fileInfo, 0, 60*util.MiB)
 
