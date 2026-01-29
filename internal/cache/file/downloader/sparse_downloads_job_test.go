@@ -50,14 +50,14 @@ func (dt *sparseDownloaderTest) SetUp(*TestInfo) {
 	dt.setupHelper()
 }
 
-func (dt *sparseDownloaderTest) Test_getRangesToDownload() {
+func (dt *sparseDownloaderTest) Test_getChunksToDownload() {
 	tests := []struct {
 		name           string
 		offset         int64
 		requiredOffset int64
 		chunkSizeMb    int64
 		objectSize     uint64
-		expectedRanges []data.ByteRange
+		expectedChunks []uint64
 		expectError    bool
 	}{
 		{
@@ -66,7 +66,7 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload() {
 			requiredOffset: 10 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedRanges: []data.ByteRange{{Start: 0, End: 20 * util.MiB}},
+			expectedChunks: []uint64{0},
 			expectError:    false,
 		},
 		{
@@ -75,7 +75,7 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload() {
 			requiredOffset: 10 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedRanges: []data.ByteRange{{Start: 0, End: 20 * util.MiB}},
+			expectedChunks: []uint64{0},
 			expectError:    false,
 		},
 		{
@@ -84,11 +84,8 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload() {
 			requiredOffset: 25 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedRanges: []data.ByteRange{
-				{Start: 0, End: 20 * util.MiB},
-				{Start: 20 * util.MiB, End: 40 * util.MiB},
-			},
-			expectError: false,
+			expectedChunks: []uint64{0, 1},
+			expectError:    false,
 		},
 		{
 			name:           "chunk end capped at object size",
@@ -96,7 +93,7 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload() {
 			requiredOffset: 95 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedRanges: []data.ByteRange{{Start: 80 * util.MiB, End: 100 * util.MiB}},
+			expectedChunks: []uint64{4},
 			expectError:    false,
 		},
 		{
@@ -138,22 +135,21 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload() {
 			DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes, tt.objectSize),
 		}
 
-		ranges, _, err := dt.job.getRangesToDownload(fileInfo, tt.offset, tt.requiredOffset)
+		chunks, _, err := dt.job.getChunksToDownload(fileInfo, tt.offset, tt.requiredOffset)
 
 		if tt.expectError {
 			AssertNe(nil, err, fmt.Sprintf("Test case %q: expected error but got none", tt.name))
 		} else {
 			AssertEq(nil, err, fmt.Sprintf("Test case %q: unexpected error: %v", tt.name, err))
-			AssertEq(len(tt.expectedRanges), len(ranges), fmt.Sprintf("Test case %q: ranges count mismatch", tt.name))
-			for i, r := range ranges {
-				AssertEq(tt.expectedRanges[i].Start, r.Start, fmt.Sprintf("Test case %q: range %d start mismatch", tt.name, i))
-				AssertEq(tt.expectedRanges[i].End, r.End, fmt.Sprintf("Test case %q: range %d end mismatch", tt.name, i))
+			AssertEq(len(tt.expectedChunks), len(chunks), fmt.Sprintf("Test case %q: chunks count mismatch", tt.name))
+			for i, chunkID := range chunks {
+				AssertEq(tt.expectedChunks[i], chunkID, fmt.Sprintf("Test case %q: chunk %d mismatch", tt.name, i))
 			}
 		}
 	}
 }
 
-func (dt *sparseDownloaderTest) Test_getRangesToDownload_WithInflight() {
+func (dt *sparseDownloaderTest) Test_getChunksToDownload_WithInflight() {
 	objectName := "test/sparse_inflight.txt"
 	objectSize := 100 * util.MiB
 	dt.initJobTest(objectName, nil, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
@@ -180,15 +176,13 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload_WithInflight() {
 		DownloadedRanges: data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)),
 	}
 
-	ranges, waitChans, err := dt.job.getRangesToDownload(fileInfo, 0, 60*util.MiB)
+	chunks, waitChans, err := dt.job.getChunksToDownload(fileInfo, 0, 60*util.MiB)
 
 	AssertEq(nil, err)
 	// Should have 2 ranges to download: Chunk 0 and Chunk 2
-	AssertEq(2, len(ranges))
-	AssertEq(uint64(0), ranges[0].Start)
-	AssertEq(uint64(20*util.MiB), ranges[0].End) // Chunk 0
-	AssertEq(uint64(40*util.MiB), ranges[1].Start)
-	AssertEq(uint64(60*util.MiB), ranges[1].End) // Chunk 2
+	AssertEq(2, len(chunks))
+	AssertEq(uint64(0), chunks[0]) // Chunk 0
+	AssertEq(uint64(2), chunks[1]) // Chunk 2
 	// Should have 1 wait channel
 	AssertEq(1, len(waitChans))
 	AssertEq(inflightCh, waitChans[0])

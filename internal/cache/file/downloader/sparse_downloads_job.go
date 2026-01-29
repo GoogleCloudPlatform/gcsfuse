@@ -50,34 +50,33 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 	}
 
 	// Calculate the missing ranges to download and filter out in-flight chunks
-	rangesToDownload, waitChans, err := job.getRangesToDownload(fileInfo, startOffset, endOffset)
+	chunksToDownload, waitChans, err := job.getChunksToDownload(fileInfo, startOffset, endOffset)
 	if err != nil {
 		return false, fmt.Errorf("HandleSparseRead: error calculating ranges: %w", err)
 	}
 
 	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(ctx)
+	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
 
 	// Download missing chunks in parallel
-	for _, r := range rangesToDownload {
-		rangeToDownload := r // capture loop variable
+	for _, chunkID := range chunksToDownload {
 		downloadErrGroup.Go(func() error {
 			// Acquire semaphore to limit concurrency across all jobs
 			if err := job.maxParallelismSem.Acquire(downloadErrGroupCtx, 1); err != nil {
 				return err
 			}
 			defer job.maxParallelismSem.Release(1)
-
-			return job.downloadSparseRange(downloadErrGroupCtx, rangeToDownload.Start, rangeToDownload.End)
+			start := chunkID * chunkSize
+			end := start + chunkSize
+			return job.downloadSparseRange(downloadErrGroupCtx, start, end)
 		})
 	}
 
 	downloadErr := downloadErrGroup.Wait()
 
 	// Cleanup inflight chunks for all download attempts.
-	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
 	job.mu.Lock()
-	for _, r := range rangesToDownload {
-		chunkID := r.Start / chunkSize
+	for _, chunkID := range chunksToDownload {
 		if ch, ok := job.inflightChunks[chunkID]; ok {
 			close(ch)
 			delete(job.inflightChunks, chunkID)
@@ -111,10 +110,10 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 	return true, nil
 }
 
-// getRangesToDownload calculates the missing ranges that need to be downloaded
+// getChunksToDownload calculates the missing chunks that need to be downloaded
 // and filters out chunks that are already in-flight. It returns a list of
 // individual chunks to download and marks them as in-flight.
-func (job *Job) getRangesToDownload(fileInfo data.FileInfo, startOffset, endOffset int64) ([]data.ByteRange, []chan struct{}, error) {
+func (job *Job) getChunksToDownload(fileInfo data.FileInfo, startOffset, endOffset int64) ([]uint64, []chan struct{}, error) {
 	if startOffset < 0 || endOffset < 0 || startOffset >= endOffset {
 		return nil, nil, fmt.Errorf("invalid offset range: [%d, %d)", startOffset, endOffset)
 	}
@@ -122,9 +121,8 @@ func (job *Job) getRangesToDownload(fileInfo data.FileInfo, startOffset, endOffs
 	// Get missing ranges from ByteRangeMap
 	missingChunks := fileInfo.DownloadedRanges.GetMissingChunks(uint64(startOffset), uint64(endOffset))
 
-	var rangesToDownload []data.ByteRange
+	var chunksToDownload []uint64
 	var waitChans []chan struct{}
-	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
 
 	job.mu.Lock()
 	defer job.mu.Unlock()
@@ -138,16 +136,10 @@ func (job *Job) getRangesToDownload(fileInfo data.FileInfo, startOffset, endOffs
 			ch := make(chan struct{})
 			job.inflightChunks[chunkID] = ch
 
-			chunkStart := chunkID * chunkSize
-			chunkEnd := chunkStart + chunkSize
-			if chunkEnd > fileInfo.FileSize {
-				chunkEnd = fileInfo.FileSize
-			}
-
-			rangesToDownload = append(rangesToDownload, data.ByteRange{Start: chunkStart, End: chunkEnd})
+			chunksToDownload = append(chunksToDownload, chunkID)
 		}
 	}
-	return rangesToDownload, waitChans, nil
+	return chunksToDownload, waitChans, nil
 }
 
 // getFileInfo retrieves the FileInfo from cache for this job's object.

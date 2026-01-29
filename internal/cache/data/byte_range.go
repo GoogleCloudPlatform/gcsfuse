@@ -15,17 +15,11 @@
 package data
 
 import (
-	"sort"
+	"slices"
 	"sync"
 )
 
 const DefaultChunkSize = 1024 * 1024 // 1MB
-
-// ByteRange represents a contiguous range of bytes [Start, End)
-type ByteRange struct {
-	Start uint64
-	End   uint64 // exclusive
-}
 
 // ByteRangeMap tracks which chunk-aligned byte ranges have been downloaded in a sparse file.
 // The chunk size should match the actual download chunk size for efficient tracking.
@@ -113,8 +107,6 @@ func (brm *ByteRangeMap) ContainsRange(start, end uint64) bool {
 	return true
 }
 
-// GetMissingRanges returns chunk-aligned ranges that haven't been downloaded.
-// It returns individual chunks instead of merging contiguous segments.
 // GetMissingChunks returns the IDs of chunks that haven't been downloaded.
 func (brm *ByteRangeMap) GetMissingChunks(start, end uint64) []uint64 {
 	brm.mu.RLock()
@@ -152,54 +144,15 @@ func (brm *ByteRangeMap) Clear() {
 	brm.totalBytes = 0
 }
 
-// Ranges returns all downloaded ranges as chunk-aligned ByteRanges (for debugging/testing)
-func (brm *ByteRangeMap) Ranges() []ByteRange {
+// Chunks returns a sorted list of all downloaded chunk IDs. (for debugging/testing)
+func (brm *ByteRangeMap) Chunks() []uint64 {
 	brm.mu.RLock()
 	defer brm.mu.RUnlock()
 
-	if len(brm.chunks) == 0 {
-		return nil
-	}
-
-	// Collect and sort chunk IDs
-	chunkIDs := make([]uint64, 0, len(brm.chunks))
+	chunks := make([]uint64, 0, len(brm.chunks))
 	for id := range brm.chunks {
-		chunkIDs = append(chunkIDs, id)
+		chunks = append(chunks, id)
 	}
-	sort.Slice(chunkIDs, func(i, j int) bool {
-		return chunkIDs[i] < chunkIDs[j]
-	})
-
-	// Build ranges by merging consecutive chunks
-	var ranges []ByteRange
-	start := chunkIDs[0]
-	prev := start
-
-	for i := 1; i < len(chunkIDs); i++ {
-		if chunkIDs[i] != prev+1 {
-			// Gap found, emit current range
-			end := (prev + 1) * brm.chunkSize
-			if end > brm.fileSize {
-				end = brm.fileSize
-			}
-			ranges = append(ranges, ByteRange{
-				Start: start * brm.chunkSize,
-				End:   end,
-			})
-			start = chunkIDs[i]
-		}
-		prev = chunkIDs[i]
-	}
-
-	// Emit final range
-	end := (prev + 1) * brm.chunkSize
-	if end > brm.fileSize {
-		end = brm.fileSize
-	}
-	ranges = append(ranges, ByteRange{
-		Start: start * brm.chunkSize,
-		End:   end,
-	})
-
-	return ranges
+	slices.Sort(chunks)
+	return chunks
 }
