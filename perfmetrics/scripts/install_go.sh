@@ -26,7 +26,6 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-
 # Source common utilities for OS and Arch detection
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 if [ -f "${SCRIPT_DIR}/os_utils.sh" ]; then
