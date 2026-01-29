@@ -93,8 +93,7 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 	// Cleanup inflight chunks for all download attempts.
 	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
 	job.mu.Lock()
-	for _, r := range rangesToDownload {
-		chunkID := r.Start / chunkSize
+	for _, chunkID := range chunksToDownload {
 		if ch, ok := job.inflightChunks[chunkID]; ok {
 			close(ch)
 			delete(job.inflightChunks, chunkID)
