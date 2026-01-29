@@ -74,7 +74,7 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 			exporter, err := exporterFactory()
 
 			if err != nil {
-				logger.Errorf("failed to init %s exporter: %w", name, err)
+				logger.Errorf("failed to init %s exporter: %s", name, err)
 				return nil, nil, err
 			}
 
