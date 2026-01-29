@@ -24,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/jacobsa/fuse/fuseops"
@@ -31,6 +32,7 @@ import (
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 
@@ -132,12 +134,19 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 }
 
 func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
+	return t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, isTypeCacheDeprecationEnabled)
+}
+
+func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string, isTypeCacheDeprecated bool) DirInode {
 	config := &cfg.Config{
-		List:                         cfg.ListConfig{EnableEmptyManagedFolders: false},
-		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
-		EnableHns:                    false,
+		List: cfg.ListConfig{EnableEmptyManagedFolders: false},
+		MetadataCache: cfg.MetadataCacheConfig{
+			TypeCacheMaxSizeMb: 4,
+			TtlSecs:            60,
+		},
+		EnableHns:                    true,
 		EnableUnsupportedPathSupport: true,
-		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
 	}
 
 	return NewDirInode(
@@ -176,7 +185,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 
 	// Look up with the name.
-	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name))
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name), false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
@@ -190,7 +199,7 @@ func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(nil, notFoundErr)
 
 	// Look up with the name.
-	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"))
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"), false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
@@ -796,4 +805,120 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 			t.mockBucket.AssertExpectations(st)
 		})
 	}
+}
+
+func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_File() {
+	t.in.Unlock()
+	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+	t.in.Lock()
+	const name = "file"
+	objName := path.Join(dirInodeName, name)
+	minObject := &gcs.MinObject{
+		Name:           objName,
+		MetaGeneration: int64(1),
+		Generation:     int64(2),
+	}
+	attrs := &gcs.ExtendedObjectAttributes{}
+	// Mock StatObject for file lookup
+	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
+	// Mock GetFolder for dir lookup (should return not found or nil)
+	notFoundErr := &gcs.NotFoundError{Err: errors.New("not found")}
+	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(nil, notFoundErr)
+
+	entry, err := t.in.LookUpChild(t.ctx, name)
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
+	assert.Equal(t.T(), metadata.RegularFileType, entry.Type())
+}
+
+func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_Folder() {
+	t.in.Unlock()
+	t.in = t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+	t.in.Lock()
+	const name = "folder"
+	folderName := path.Join(dirInodeName, name) + "/"
+	folder := &gcs.Folder{Name: folderName}
+	// Mock GetFolder for dir lookup
+	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
+	// Mock StatObject for file lookup (should return not found)
+	notFoundErr := &gcs.NotFoundError{Err: errors.New("not found")}
+	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
+
+	entry, err := t.in.LookUpChild(t.ctx, name)
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), folderName, entry.FullName.GcsObjectName())
+	assert.Equal(t.T(), metadata.ExplicitDirType, entry.Type())
+}
+
+func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
+	in := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+	const name = "file"
+	objName := path.Join(dirInodeName, name)
+	dirObjName := objName + "/"
+	cacheMissErr := &caching.CacheMissError{}
+	// Expect cache lookup for file -> CacheMiss
+	t.mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == objName && req.FetchOnlyFromCache == true
+	})).Return(nil, nil, cacheMissErr).Once()
+	// Expect cache lookup for dir -> CacheMiss
+	t.mockBucket.On("GetFolder", mock.Anything, mock.MatchedBy(func(req *gcs.GetFolderRequest) bool {
+		return req.Name == dirObjName && req.FetchOnlyFromCache == true
+	})).Return(nil, cacheMissErr).Once()
+	// Expect actual lookup for file -> Success
+	minObject := &gcs.MinObject{
+		Name:           objName,
+		Generation:     1,
+		MetaGeneration: 1,
+		Size:           100,
+	}
+	t.mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == objName && req.FetchOnlyFromCache == false
+	})).Return(minObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
+	// Expect actual lookup for dir -> NotFound
+	t.mockBucket.On("GetFolder", mock.Anything, mock.MatchedBy(func(req *gcs.GetFolderRequest) bool {
+		return req.Name == dirObjName && req.FetchOnlyFromCache == false
+	})).Return(nil, &gcs.NotFoundError{}).Once()
+
+	in.Lock()
+	entry, err := in.LookUpChild(t.ctx, name)
+	in.Unlock()
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
+	in := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+	const name = "file"
+	objName := path.Join(dirInodeName, name)
+	dirObjName := objName + "/"
+	// Expect cache lookup for file -> Success
+	minObject := &gcs.MinObject{
+		Name:           objName,
+		Generation:     1,
+		MetaGeneration: 1,
+		Size:           100,
+	}
+	t.mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == objName && req.FetchOnlyFromCache == true
+	})).Return(minObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
+	// Expect cache lookup for dir -> NotFound (nil, nil)
+	t.mockBucket.On("GetFolder", mock.Anything, mock.MatchedBy(func(req *gcs.GetFolderRequest) bool {
+		return req.Name == dirObjName && req.FetchOnlyFromCache == true
+	})).Return(nil, &gcs.NotFoundError{}).Once()
+
+	in.Lock()
+	entry, err := in.LookUpChild(t.ctx, name)
+	in.Unlock()
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
+	t.mockBucket.AssertExpectations(t.T())
 }

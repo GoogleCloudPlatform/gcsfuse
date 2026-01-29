@@ -48,6 +48,7 @@ type dirEntry struct {
 
 const file1Content = "abcdef"
 const file2Content = "file2"
+const IsTypeCacheDeprecated = false
 
 var expectedFooDirEntries = []dirEntry{
 	{name: "test", isDir: true},
@@ -166,7 +167,8 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 		statCache,
 		&cacheClock,
 		uncachedHNSBucket,
-		negativeCacheTTL)
+		negativeCacheTTL,
+		IsTypeCacheDeprecated)
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl

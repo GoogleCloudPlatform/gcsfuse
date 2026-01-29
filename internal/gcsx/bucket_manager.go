@@ -78,6 +78,8 @@ type BucketConfig struct {
 	// any data read from GCS.
 	// All the metadata operations like object listing and stats are real.
 	DummyIOCfg cfg.DummyIoConfig
+
+	IsTypeCacheDeprecated bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -239,7 +241,8 @@ func (bm *bucketManager) SetUpBucket(
 			statCache,
 			timeutil.RealClock(),
 			b,
-			bm.config.NegativeStatCacheTTL)
+			bm.config.NegativeStatCacheTTL,
+			bm.config.IsTypeCacheDeprecated)
 	}
 
 	// Enable content type awareness
