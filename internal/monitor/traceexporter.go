@@ -23,7 +23,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -56,9 +55,6 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 		},
 		"gcptrace": func() (sdktrace.SpanExporter, error) {
 			return newGCPCloudTraceExporter(c)
-		},
-		"otlp": func() (sdktrace.SpanExporter, error) {
-			return otlptracegrpc.New(ctx)
 		},
 	}
 
