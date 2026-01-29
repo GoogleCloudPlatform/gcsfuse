@@ -120,21 +120,10 @@ func (brm *ByteRangeMap) GetMissingChunks(start, end uint64) []uint64 {
 	startChunk := brm.chunkID(start)
 	endChunk := brm.chunkID(end - 1)
 
-	var currentStart uint64 = ^uint64(0) // Sentinel value
-
 	for chunkID := startChunk; chunkID <= endChunk; chunkID++ {
 		if !brm.chunks[chunkID] {
 			missing = append(missing, chunkID)
 		}
-	}
-
-	// Handle the last segment if it extends to the end of the requested range
-	if currentStart != ^uint64(0) {
-		lastChunkEnd := (endChunk + 1) * brm.chunkSize
-		if lastChunkEnd > brm.fileSize {
-			lastChunkEnd = brm.fileSize
-		}
-		missing = append(missing, ByteRange{Start: currentStart, End: lastChunkEnd})
 	}
 
 	return missing
