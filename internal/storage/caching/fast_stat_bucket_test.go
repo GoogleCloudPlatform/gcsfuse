@@ -43,6 +43,7 @@ func TestFastStatBucket(t *testing.T) { RunTests(t) }
 
 const primaryCacheTTL = time.Second
 const negativeCacheTTL = time.Second * 5
+const isTypeCacheDeprecated = false
 
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
@@ -65,7 +66,8 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 		t.cache,
 		&t.clock,
 		t.wrapped,
-		negativeCacheTTL)
+		negativeCacheTTL,
+		isTypeCacheDeprecated)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -915,6 +917,17 @@ type ListObjectsTest_InsertListing struct {
 
 func init() { RegisterTestSuite(&ListObjectsTest_InsertListing{}) }
 
+func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
+	t.fastStatBucketTest.SetUp(ti)
+	t.bucket = caching.NewFastStatBucket(
+		primaryCacheTTL,
+		t.cache,
+		&t.clock,
+		t.wrapped,
+		negativeCacheTTL,
+		true)
+}
+
 func (t *ListObjectsTest_InsertListing) callAndVerify(listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject) {
 	// Wrapped
 	ExpectCall(t.wrapped, "BucketType")().
@@ -927,7 +940,7 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(listing *gcs.Listing, pref
 	}
 
 	// Call
-	gotListing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{Prefix: prefix, IsTypeCacheDeprecated: true})
+	gotListing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{Prefix: prefix})
 
 	AssertEq(nil, err)
 	AssertEq(listing, gotListing)
