@@ -172,7 +172,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	return reader, nil
 }
 
-func (p *BufferedReader) StructName() string {
+func (p *BufferedReader) ReaderName() string {
 	return "BufferedReader"
 }
 
