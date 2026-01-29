@@ -27,6 +27,8 @@ type TraceHandle interface {
 	// Start a span with a given name & context
 	StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span)
 
+	StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span)
+
 	// Start a span of span kind server given name & context
 	StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span)
 
@@ -35,6 +37,9 @@ type TraceHandle interface {
 
 	// Record an error on the span for export in case of failure
 	RecordError(span trace.Span, err error)
+
+	// A handle interface method to set attributes for file cache read
+	SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int)
 
 	// A handle interface method to retain relevant span data in new context from the older context
 	PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context

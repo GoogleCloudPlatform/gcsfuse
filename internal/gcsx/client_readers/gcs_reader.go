@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 )
 
 // ReaderType represents different types of go-sdk gcs readers.
@@ -58,6 +59,7 @@ type GCSReader struct {
 
 type GCSReaderConfig struct {
 	MetricHandle       metrics.MetricHandle
+	TraceHandle        tracing.TraceHandle
 	MrdWrapper         *gcsx.MultiRangeDownloaderWrapper
 	Config             *cfg.Config
 	ReadTypeClassifier *gcsx.ReadTypeClassifier
@@ -67,8 +69,8 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 	return &GCSReader{
 		object:             obj,
 		bucket:             bucket,
-		rangeReader:        NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
-		mrr:                NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
+		rangeReader:        NewRangeReader(obj, bucket, config.Config, config.MetricHandle, config.TraceHandle),
+		mrr:                NewMultiRangeReader(obj, config.MetricHandle, config.TraceHandle, config.MrdWrapper),
 		readTypeClassifier: config.ReadTypeClassifier,
 	}
 }
@@ -94,6 +96,10 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 	}
 
 	return true
+}
+
+func (gr *GCSReader) ReaderName() string {
+	return "GCSReader"
 }
 
 func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {
