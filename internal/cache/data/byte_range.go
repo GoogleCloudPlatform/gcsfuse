@@ -21,7 +21,7 @@ import (
 
 const DefaultChunkSize = 1024 * 1024 // 1MB
 
-// ByteRangeMap tracks which chunk-aligned byte ranges have been downloaded in a sparse file.
+// ByteRangeMap tracks which chunks have been downloaded in a sparse file.
 // The chunk size should match the actual download chunk size for efficient tracking.
 type ByteRangeMap struct {
 	mu         sync.RWMutex
@@ -63,7 +63,7 @@ func (brm *ByteRangeMap) chunkSizeOf(chunkID uint64) uint64 {
 }
 
 // AddRange marks all chunks in the range [start, end) as downloaded.
-// Returns the total number of new bytes added (chunks * chunkSize, adjusted for file size).
+// Returns the total number of new bytes added.
 func (brm *ByteRangeMap) AddRange(start, end uint64) uint64 {
 	brm.mu.Lock()
 	defer brm.mu.Unlock()

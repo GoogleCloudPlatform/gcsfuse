@@ -44,7 +44,7 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 	}
 
 	// Check if the requested range is already downloaded
-	if fileInfo.DownloadedRanges.ContainsRange(uint64(startOffset), uint64(endOffset)) {
+	if fileInfo.DownloadedChunks.ContainsRange(uint64(startOffset), uint64(endOffset)) {
 		// Range already downloaded, return cache hit
 		return true, nil
 	}
@@ -84,6 +84,10 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 	}
 	job.mu.Unlock()
 
+	if downloadErr != nil {
+		return false, fmt.Errorf("sparse download failed: %w", downloadErr)
+	}
+
 	// Wait for other inflight chunks
 	for _, ch := range waitChans {
 		select {
@@ -91,10 +95,6 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 		case <-ctx.Done():
 			return false, ctx.Err()
 		}
-	}
-
-	if downloadErr != nil {
-		return false, fmt.Errorf("sparse download failed: %w", downloadErr)
 	}
 
 	// Verify the download was successful
@@ -118,8 +118,8 @@ func (job *Job) getChunksToDownload(fileInfo data.FileInfo, startOffset, endOffs
 		return nil, nil, fmt.Errorf("invalid offset range: [%d, %d)", startOffset, endOffset)
 	}
 
-	// Get missing ranges from ByteRangeMap
-	missingChunks := fileInfo.DownloadedRanges.GetMissingChunks(uint64(startOffset), uint64(endOffset))
+	// Get missing chunks from ByteRangeMap
+	missingChunks := fileInfo.DownloadedChunks.GetMissingChunks(uint64(startOffset), uint64(endOffset))
 
 	var chunksToDownload []uint64
 	var waitChans []chan struct{}
@@ -180,10 +180,10 @@ func (job *Job) verifySparseRangeDownloaded(startOffset, endOffset int64) (cache
 	}
 
 	// Check if the range is downloaded
-	cacheHit = fileInfo.DownloadedRanges != nil && fileInfo.DownloadedRanges.ContainsRange(uint64(startOffset), uint64(endOffset))
+	cacheHit = fileInfo.DownloadedChunks != nil && fileInfo.DownloadedChunks.ContainsRange(uint64(startOffset), uint64(endOffset))
 
 	logger.Tracef("Sparse file cache hit check: startOffset=%d, endOffset=%d, DownloadedRanges=%v, cacheHit=%t",
-		startOffset, endOffset, fileInfo.DownloadedRanges != nil, cacheHit)
+		startOffset, endOffset, fileInfo.DownloadedChunks != nil, cacheHit)
 
 	return cacheHit, nil
 }
@@ -247,7 +247,7 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	}
 
 	// Add the downloaded range
-	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
+	bytesAdded := fileInfo.DownloadedChunks.AddRange(start, start+uint64(bytesWritten))
 
 	// Update LRU cache size accounting
 	fileInfoKey := data.FileInfoKey{
