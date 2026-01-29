@@ -30,10 +30,11 @@ type ByteRange struct {
 // ByteRangeMap tracks which chunk-aligned byte ranges have been downloaded in a sparse file.
 // The chunk size should match the actual download chunk size for efficient tracking.
 type ByteRangeMap struct {
-	mu        sync.RWMutex
-	chunkSize uint64
-	fileSize  uint64          // Total size of the file
-	chunks    map[uint64]bool // chunk ID -> downloaded
+	mu         sync.RWMutex
+	chunkSize  uint64
+	fileSize   uint64          // Total size of the file
+	chunks     map[uint64]bool // chunk ID -> downloaded
+	totalBytes uint64          // Total bytes downloaded
 }
 
 // NewByteRangeMap creates a new empty ByteRangeMap with the specified chunk size and file size.
@@ -88,6 +89,7 @@ func (brm *ByteRangeMap) AddRange(start, end uint64) uint64 {
 		}
 	}
 
+	brm.totalBytes += bytesAdded
 	return bytesAdded
 }
 
@@ -158,12 +160,7 @@ func (brm *ByteRangeMap) GetMissingRanges(start, end uint64) []ByteRange {
 func (brm *ByteRangeMap) TotalBytes() uint64 {
 	brm.mu.RLock()
 	defer brm.mu.RUnlock()
-
-	total := uint64(0)
-	for chunkID := range brm.chunks {
-		total += brm.chunkSizeOf(chunkID)
-	}
-	return total
+	return brm.totalBytes
 }
 
 // Clear removes all chunk records
@@ -171,6 +168,7 @@ func (brm *ByteRangeMap) Clear() {
 	brm.mu.Lock()
 	defer brm.mu.Unlock()
 	brm.chunks = make(map[uint64]bool)
+	brm.totalBytes = 0
 }
 
 // Ranges returns all downloaded ranges as chunk-aligned ByteRanges (for debugging/testing)
