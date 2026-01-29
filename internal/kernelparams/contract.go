@@ -43,7 +43,6 @@ import (
 // 1. Adding a new field with a new JSON tag.
 // 2. Adding a new ParamName constant.
 // Follow this guide to make any changes to this contract: TODO(mohit)
-// TimeFormat is the rigid layout for parsing.
 
 // ParamName acts as an Enum for the parameter keys to ensure contract safety from typo errors.
 type ParamName string
