@@ -67,6 +67,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 		&t.clock,
 		t.wrapped,
 		negativeCacheTTL,
+		isTypeCacheDeprecated,
 	)
 }
 
