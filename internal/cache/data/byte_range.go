@@ -114,8 +114,9 @@ func (brm *ByteRangeMap) ContainsRange(start, end uint64) bool {
 }
 
 // GetMissingRanges returns chunk-aligned ranges that haven't been downloaded.
-// Adjacent missing chunks are merged into single ByteRange segments.
-func (brm *ByteRangeMap) GetMissingRanges(start, end uint64) []ByteRange {
+// It returns individual chunks instead of merging contiguous segments.
+// GetMissingChunks returns the IDs of chunks that haven't been downloaded.
+func (brm *ByteRangeMap) GetMissingChunks(start, end uint64) []uint64 {
 	brm.mu.RLock()
 	defer brm.mu.RUnlock()
 
@@ -123,34 +124,14 @@ func (brm *ByteRangeMap) GetMissingRanges(start, end uint64) []ByteRange {
 		return nil
 	}
 
-	var missing []ByteRange
+	var missing []uint64
 	startChunk := brm.chunkID(start)
 	endChunk := brm.chunkID(end - 1)
 
-	var currentStart uint64 = ^uint64(0) // Sentinel value
-
 	for chunkID := startChunk; chunkID <= endChunk; chunkID++ {
 		if !brm.chunks[chunkID] {
-			if currentStart == ^uint64(0) {
-				currentStart = chunkID * brm.chunkSize
-			}
-		} else {
-			if currentStart != ^uint64(0) {
-				// End of a missing segment
-				chunkEnd := chunkID * brm.chunkSize
-				missing = append(missing, ByteRange{Start: currentStart, End: chunkEnd})
-				currentStart = ^uint64(0)
-			}
+			missing = append(missing, chunkID)
 		}
-	}
-
-	// Handle the last segment if it extends to the end of the requested range
-	if currentStart != ^uint64(0) {
-		lastChunkEnd := (endChunk + 1) * brm.chunkSize
-		if lastChunkEnd > brm.fileSize {
-			lastChunkEnd = brm.fileSize
-		}
-		missing = append(missing, ByteRange{Start: currentStart, End: lastChunkEnd})
 	}
 
 	return missing

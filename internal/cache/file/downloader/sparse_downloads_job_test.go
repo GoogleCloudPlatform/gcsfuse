@@ -84,8 +84,11 @@ func (dt *sparseDownloaderTest) Test_getRangesToDownload() {
 			requiredOffset: 25 * util.MiB,
 			chunkSizeMb:    20,
 			objectSize:     100 * util.MiB,
-			expectedRanges: []data.ByteRange{{Start: 0, End: 40 * util.MiB}},
-			expectError:    false,
+			expectedRanges: []data.ByteRange{
+				{Start: 0, End: 20 * util.MiB},
+				{Start: 20 * util.MiB, End: 40 * util.MiB},
+			},
+			expectError: false,
 		},
 		{
 			name:           "chunk end capped at object size",

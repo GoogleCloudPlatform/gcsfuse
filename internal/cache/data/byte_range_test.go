@@ -153,7 +153,7 @@ func TestByteRangeMap_ContainsRange(t *testing.T) {
 	}
 }
 
-func TestByteRangeMap_GetMissingRanges(t *testing.T) {
+func TestByteRangeMap_GetMissingChunks(t *testing.T) {
 	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 	brm.AddRange(0, MB)      // chunk 0
 	brm.AddRange(2*MB, 3*MB) // chunk 2
@@ -163,7 +163,7 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 		name     string
 		start    uint64
 		end      uint64
-		expected []ByteRange
+		expected []uint64
 	}{
 		{
 			name:     "fully covered range",
@@ -175,27 +175,25 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 			name:     "single missing chunk",
 			start:    MB,
 			end:      2 * MB,
-			expected: []ByteRange{{MB, 2 * MB}},
+			expected: []uint64{1},
 		},
 		{
-			name:  "multiple missing chunks",
-			start: 0,
-			end:   6 * MB, // Chunks 3 and 4 should be merged
-			expected: []ByteRange{{MB, 2 * MB}, // chunk 1
-				{3 * MB, 5 * MB}, // chunks 3 and 4
-			},
+			name:     "multiple missing chunks",
+			start:    0,
+			end:      6 * MB, // Chunks 3 and 4 should be merged
+			expected: []uint64{1, 3, 4},
 		},
 		{
 			name:     "completely missing range",
 			start:    10 * MB,
 			end:      11 * MB,
-			expected: []ByteRange{{10 * MB, 11 * MB}},
+			expected: []uint64{10},
 		},
 		{
 			name:     "partial chunk request - missing",
 			start:    MB + 100,
 			end:      MB + 200,
-			expected: []ByteRange{{MB, 2 * MB}}, // returns full chunk
+			expected: []uint64{1},
 		},
 		{
 			name:     "partial chunk request - present",
@@ -213,7 +211,7 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := brm.GetMissingRanges(tt.start, tt.end)
+			result := brm.GetMissingChunks(tt.start, tt.end)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -276,7 +274,7 @@ func TestByteRangeMap_ConcurrentAccess(t *testing.T) {
 	go func() {
 		for i := uint64(0); i < 10; i++ {
 			brm.ContainsRange(i*MB, (i+1)*MB)
-			brm.GetMissingRanges(i*MB, (i+2)*MB)
+			brm.GetMissingChunks(i*MB, (i+2)*MB)
 			brm.TotalBytes()
 		}
 		done <- true
