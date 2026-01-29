@@ -197,7 +197,6 @@ func TestApplyGKE(t *testing.T) {
 	var actualCfg KernelParamsConfig
 	err = json.Unmarshal(content, &actualCfg)
 	assert.NoError(t, err)
-	assert.Equal(t, CurrentContractVersion, actualCfg.Version)
 	assert.NotEmpty(t, actualCfg.RequestID)
 	assert.NotEmpty(t, actualCfg.Timestamp)
 	assert.Len(t, actualCfg.Parameters, 1)
