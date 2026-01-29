@@ -212,6 +212,7 @@ var machineTypeToGroupMap = map[string]string{
 	"a4-highgpu-8g-nolssd":  "high-performance",
 	"a4x-highgpu-4g":        "high-performance",
 	"a4x-highgpu-4g-nolssd": "high-performance",
+	"c4-standard-192":       "high-performance",
 	"ct5l-hightpu-8t":       "high-performance",
 	"ct5lp-hightpu-8t":      "high-performance",
 	"ct5p-hightpu-4t":       "high-performance",

@@ -46,6 +46,7 @@ machine-type-groups:
     - "a4-highgpu-8g-nolssd"
     - "a4x-highgpu-4g"
     - "a4x-highgpu-4g-nolssd"
+    - "c4-standard-192"
     - "ct5l-hightpu-8t"
     - "ct5lp-hightpu-8t"
     - "ct5p-hightpu-4t"
