@@ -78,6 +78,8 @@ type BucketConfig struct {
 	// any data read from GCS.
 	// All the metadata operations like object listing and stats are real.
 	DummyIOCfg cfg.DummyIoConfig
+
+	IsTypeCacheDeprecated bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -263,7 +265,7 @@ func (bm *bucketManager) SetUpBucket(
 	if !bm.config.DisableListAccessCheck {
 		// Check whether this bucket works, giving the user a warning early if there
 		// is some problem.
-		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1, IncludeFoldersAsPrefixes: true, Delimiter: "/"})
+		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1, IncludeFoldersAsPrefixes: true, Delimiter: "/", IsTypeCacheDeprecated: bm.config.IsTypeCacheDeprecated})
 		if err != nil {
 			return
 		}

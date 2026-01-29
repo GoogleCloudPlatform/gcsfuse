@@ -227,7 +227,7 @@ params:
     flag-name: "enable-type-cache-deprecation"
     type: "bool"
     usage: "Enables support to deprecate type cache."
-    default: false
+    default: true
     hide-flag: true
 
   - config-path: "enable-unsupported-path-support"
