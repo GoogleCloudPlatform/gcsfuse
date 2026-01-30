@@ -310,3 +310,25 @@ func TestByteRangeMap_Chunks(t *testing.T) {
 	expected := []uint64{0, 2, 5}
 	assert.Equal(t, expected, brm.Chunks())
 }
+
+func TestByteRangeMap_chunkSizeOf(t *testing.T) {
+	chunkSize := uint64(100)
+	fileSize := uint64(150)
+	brm := NewByteRangeMap(chunkSize, fileSize)
+
+	tests := []struct {
+		name     string
+		chunkID  uint64
+		expected uint64
+	}{
+		{"chunk 0 (full)", 0, 100},
+		{"chunk 1 (partial)", 1, 50},
+		{"chunk 2 (out of bounds)", 2, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, brm.chunkSizeOf(tt.chunkID))
+		})
+	}
+}
