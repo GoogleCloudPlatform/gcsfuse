@@ -689,7 +689,7 @@ type MetricsConfig struct {
 }
 
 type MonitoringConfig struct {
-	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
+	ExperimentalTracingMode []string `yaml:"experimental-tracing-mode"`
 
 	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
 

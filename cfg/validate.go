@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/spf13/viper"
@@ -231,6 +233,23 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	return nil
 }
 
+func isValidMonitoringConfig(m *MonitoringConfig) error {
+	validExporters := []string{"stdout", "gcptrace"}
+	if len(m.ExperimentalTracingMode) > 0 {
+		for _, e := range m.ExperimentalTracingMode {
+			if !slices.Contains(validExporters, strings.TrimSpace(strings.ToLower(e))) {
+				return fmt.Errorf("Encountered invalid/unsupported tracing mode: %s", e)
+			}
+		}
+	}
+
+	if m.ExperimentalTracingSamplingRatio > 1 || m.ExperimentalTracingSamplingRatio < 0 {
+		return fmt.Errorf("invalid tracing sampling ratio: %f", m.ExperimentalTracingSamplingRatio)
+	}
+
+	return nil
+}
+
 func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64) error {
 	if chunkTransferTimeoutSecs < 0 || chunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
 		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", chunkTransferTimeoutSecs)
@@ -338,6 +357,10 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 
 	if err = isValidMetricsConfig(&config.Metrics); err != nil {
 		return fmt.Errorf("error parsing metrics config: %w", err)
+	}
+
+	if err = isValidMonitoringConfig(&config.Monitoring); err != nil {
+		return fmt.Errorf("error parsing monitoring config: %w", err)
 	}
 
 	if err = isValidParallelDownloadConfig(config); err != nil {

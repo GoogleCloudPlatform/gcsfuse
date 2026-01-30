@@ -16,7 +16,6 @@ package monitor
 
 import (
 	"context"
-	"strings"
 
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -47,7 +46,7 @@ type ExporterFactory func() (sdktrace.SpanExporter, error)
 
 func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace.TracerProvider, common.ShutdownFn, error) {
 	var opts []sdktrace.TracerProviderOption
-	exporterNames := strings.Split(c.Monitoring.ExperimentalTracingMode, ",")
+	exporterNames := c.Monitoring.ExperimentalTracingMode
 
 	exporterRegistry := map[string]ExporterFactory{
 		"stdout": func() (sdktrace.SpanExporter, error) {
@@ -58,14 +57,7 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 		},
 	}
 
-	var anyExportersConfigured bool
-
 	for _, name := range exporterNames {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
-
 		if exporterFactory, ok := exporterRegistry[name]; ok {
 			exporter, err := exporterFactory()
 
@@ -75,12 +67,7 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 			}
 
 			opts = append(opts, sdktrace.WithBatcher(exporter))
-			anyExportersConfigured = true
 		}
-	}
-
-	if !anyExportersConfigured {
-		return nil, nil, nil
 	}
 
 	res, err := getResource(ctx, mountID)

@@ -1021,6 +1021,71 @@ func TestValidateMetrics(t *testing.T) {
 	}
 }
 
+func TestValidateMonitoring(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name             string
+		MonitoringConfig MonitoringConfig
+		wantErr          bool
+	}{
+
+		{
+			name: "",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode: []string{"stdout", "  gcptrace"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode: []string{"STDout", "  Gcptrace"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode: []string{"stdout", "  random_export"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode:          []string{},
+				ExperimentalTracingProjectId:     "test-gcloud-project",
+				ExperimentalTracingSamplingRatio: 0.3,
+			},
+			wantErr: false,
+		},
+		{
+			name: "",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode:          []string{},
+				ExperimentalTracingProjectId:     "test-gcloud-project",
+				ExperimentalTracingSamplingRatio: 1.4,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := validConfig(t)
+			c.Monitoring = tc.MonitoringConfig
+
+			err := ValidateConfig(viper.New(), &c)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateLogSeverityRanks(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {

@@ -154,6 +154,12 @@ func resolveLoggingConfig(config *Config) {
 	}
 }
 
+func resolveMonitoringConfig(m *MonitoringConfig) {
+	for i, s := range m.ExperimentalTracingMode {
+		m.ExperimentalTracingMode[i] = strings.ToLower(strings.TrimSpace(s))
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -166,6 +172,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	}
 
 	resolveLoggingConfig(c)
+	resolveMonitoringConfig(&c.Monitoring)
 	resolveReadConfig(&c.Read)
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheConfig(v, &c.MetadataCache, optimizedFlags)

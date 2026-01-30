@@ -1030,7 +1030,7 @@ params:
 
   - config-path: "monitoring.experimental-tracing-mode"
     flag-name: "experimental-tracing-mode"
-    type: "string"
+    type: "[]string"
     usage: "Experimental: specify comma separated value of tracing modes"
     default: ""
     hide-flag: true
