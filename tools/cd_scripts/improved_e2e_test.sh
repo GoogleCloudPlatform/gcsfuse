@@ -18,6 +18,11 @@ set -x
 # -e: Exit on error, -u: Exit on unset vars, -o pipefail: Pipeline error trapping
 set -euo pipefail
 
+# FIX: Startup scripts run in a minimal environment where USER and HOSTNAME are often unset.
+# We define them explicitly here to prevent 'unbound variable' errors from 'set -u'.
+export USER=$(whoami)
+export HOSTNAME=$(hostname)
+
 # Defaults
 LOCAL_RUN=false
 CUSTOM_BUCKET=""
@@ -29,7 +34,10 @@ DETAILS_FILE="$(pwd)/details.txt"
 # Determine the absolute location of THIS script to find repo root
 SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
-LOCAL_GO_VERSION=$(cat "${REPO_ROOT}/.go-version")
+if [[ ! -f "${REPO_ROOT}/.go-version" ]]; then
+    REPO_ROOT="/tmp/gcsfuse_bootstrap"
+    mkdir -p "$REPO_ROOT"
+fi
 
 usage() {
     echo "Usage: $0 [--local-run] [--bucket <bucket_name>]"
@@ -82,7 +90,7 @@ echo "Repository Root: ${REPO_ROOT}" &>> "${LOG_FILE}"
 
 cleanup() {
     echo "Cleaning up temporary script files..."
-    rm -f /tmp/test_exit_code.txt /tmp/test_log_filename.txt /tmp/run_tests_logic.sh
+    sudo rm -f /tmp/test_exit_code.txt /tmp/test_log_filename.txt /tmp/run_tests_logic.sh
     echo "Cleanup complete."
 }
 trap cleanup EXIT
@@ -90,6 +98,12 @@ trap cleanup EXIT
 install_system_deps() {
     echo "Installing system dependencies..."
     
+    # Download os_utils.sh if missing
+    if [ ! -f "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh" ]; then
+        mkdir -p "${REPO_ROOT}/perfmetrics/scripts"
+        curl -sSL -o "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh" "https://raw.githubusercontent.com/googlecloudplatform/gcsfuse/${COMMIT_HASH}/perfmetrics/scripts/os_utils.sh"
+    fi
+
     # Source os_utils.sh
     if [ -f "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh" ]; then
         source "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh"
@@ -112,21 +126,28 @@ install_system_deps() {
 
     # Upgrade gcloud
     echo "Upgrading gcloud..."
+    if [ ! -f "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh" ]; then
+        mkdir -p "${REPO_ROOT}/perfmetrics/scripts"
+        curl -sSL -o "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh" "https://raw.githubusercontent.com/googlecloudplatform/gcsfuse/${COMMIT_HASH}/perfmetrics/scripts/install_latest_gcloud.sh"
+    fi
     bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
     export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
-    export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
-    export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+        export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+        export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
 }
 
 fetch_metadata() {
-    local os_id
-    os_id=$(get_os_id)
+    local os_id="unknown"
+    if [ -f /etc/os-release ]; then
+        os_id=$(. /etc/os-release && echo "$ID")
+    fi
+
     if [ "$LOCAL_RUN" = true ]; then
         echo "Local run detected. Setting dummy metadata."
         ZONE="projects/12345/zones/us-west1-b"
         ZONE_NAME="us-west1-b"
-        
         RUN_ON_ZB_ONLY="false"
+        BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-local-run-cd-script"}
         
         # Recreate details.txt in local mode to include OS type in the instance name field
         # Line 1: VERSION, Line 2: COMMIT_HASH, Line 3: VM_INSTANCE_NAME
@@ -140,12 +161,13 @@ fetch_metadata() {
         CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
         RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
         
+        BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-local-run-cd-script"}
         # Fetch details.txt from bucket
         gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt" .
         # Append instance name from metadata server
         curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> "$DETAILS_FILE"
     fi
-    BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-local-run-cd-script"}
+    
     echo "ZONE_NAME: $ZONE_NAME"
     echo "BUCKET_NAME_TO_USE: $BUCKET_NAME_TO_USE"
     
@@ -187,10 +209,17 @@ setup_test_user() {
 
 install_go() {
     # Read the Go version from the centralized .go-version file
+    if [ ! -f "${REPO_ROOT}/.go-version" ]; then
+         curl -sSL -o "${REPO_ROOT}/.go-version" "https://raw.githubusercontent.com/googlecloudplatform/gcsfuse/${COMMIT_HASH}/.go-version"
+    fi
     local go_version=$(cat "${REPO_ROOT}/.go-version")
     echo "Installing Go version: ${go_version}..."
     
     # Execute the installation script with the retrieved version
+    if [ ! -f "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" ]; then
+         mkdir -p "${REPO_ROOT}/perfmetrics/scripts"
+         curl -sSL -o "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "https://raw.githubusercontent.com/googlecloudplatform/gcsfuse/${COMMIT_HASH}/perfmetrics/scripts/install_go.sh"
+    fi
     bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "${go_version}"
 }
 
@@ -355,8 +384,8 @@ upload_logs() {
 # 2. MAIN EXECUTION FLOW
 # ==============================================================================
 
-install_system_deps
 fetch_metadata
+install_system_deps
 setup_test_user "$TEST_USER" "$HOME_DIR" "$DETAILS_FILE"
 install_gcsfuse_package
 run_tests
