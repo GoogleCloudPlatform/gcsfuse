@@ -257,6 +257,13 @@ else
     # Set CLOUDSDK_PYTHON to python3.11 for gcloud commands to work.
     export CLOUDSDK_PYTHON=/usr/bin/python3.11
 
+    if [ -f /etc/os-release ]; then
+      . /etc/os-release
+      if [[ "$ID" == "rocky" && "$VERSION_ID" == 9* ]]; then
+        sudo dnf update openssl -y
+      fi
+    fi
+
     # uname can be aarch or x86_64
     uname=$(uname -m)
 
