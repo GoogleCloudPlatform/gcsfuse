@@ -103,6 +103,7 @@ be interacting with the file system.`)
 		LogSeverity:                        newConfig.Logging.Severity,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
+		ChunkRetryDeadlineSecs:             newConfig.GcsRetries.ChunkRetryDeadlineSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,
 		DisableListAccessCheck:             newConfig.DisableListAccessCheck,

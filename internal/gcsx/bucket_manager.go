@@ -67,6 +67,7 @@ type BucketConfig struct {
 	// periodically garbage collected.
 	AppendThreshold          int64
 	ChunkTransferTimeoutSecs int64
+	ChunkRetryDeadlineSecs   int64
 	TmpObjectPrefix          string
 	// Used in Zonal buckets to determine if objects should be finalized or not.
 	FinalizeFileForRapid bool
@@ -253,6 +254,7 @@ func (bm *bucketManager) SetUpBucket(
 	sb = NewSyncerBucket(
 		bm.config.AppendThreshold,
 		bm.config.ChunkTransferTimeoutSecs,
+		bm.config.ChunkRetryDeadlineSecs,
 		bm.config.TmpObjectPrefix,
 		b)
 

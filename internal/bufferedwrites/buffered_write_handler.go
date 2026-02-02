@@ -97,6 +97,7 @@ type CreateBWHandlerRequest struct {
 	MaxBlocksPerFile         int64
 	GlobalMaxBlocksSem       *semaphore.Weighted
 	ChunkTransferTimeoutSecs int64
+	ChunkRetryDeadlineSecs   int64
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
@@ -121,6 +122,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			MaxBlocksPerFile:         req.MaxBlocksPerFile,
 			BlockSize:                req.BlockSize,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+			ChunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 		}),
 		totalSize:     size,
 		mtime:         time.Now(),

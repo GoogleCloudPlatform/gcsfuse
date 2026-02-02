@@ -94,6 +94,7 @@ func (t *ComposeObjectCreatorTest) call() (o *gcs.Object, err error) {
 		&t.srcObject,
 		&t.mtime,
 		chunkTransferTimeoutSecs,
+		0,
 		strings.NewReader(t.srcContents))
 
 	return

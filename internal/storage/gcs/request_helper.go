@@ -24,7 +24,7 @@ import (
 // by time.RFC3339Nano.
 const MtimeMetadataKey = "gcsfuse_mtime"
 
-func NewCreateObjectRequest(srcObject *Object, objectName string, mtime *time.Time, chunkTransferTimeoutSecs int64) *CreateObjectRequest {
+func NewCreateObjectRequest(srcObject *Object, objectName string, mtime *time.Time, chunkTransferTimeoutSecs int64, chunkRetryDeadlineSecs int64) *CreateObjectRequest {
 	metadataMap := make(map[string]string)
 	var req *CreateObjectRequest
 	if srcObject == nil {
@@ -34,6 +34,7 @@ func NewCreateObjectRequest(srcObject *Object, objectName string, mtime *time.Ti
 			GenerationPrecondition:   &preCond,
 			Metadata:                 metadataMap,
 			ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+			ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		}
 	} else {
 		maps.Copy(metadataMap, srcObject.Metadata)
@@ -51,6 +52,7 @@ func NewCreateObjectRequest(srcObject *Object, objectName string, mtime *time.Ti
 			EventBasedHold:             srcObject.EventBasedHold,
 			StorageClass:               srcObject.StorageClass,
 			ChunkTransferTimeoutSecs:   chunkTransferTimeoutSecs,
+			ChunkRetryDeadlineSecs:     chunkRetryDeadlineSecs,
 		}
 	}
 

@@ -645,6 +645,16 @@ params:
     usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported"
     default: "200"
 
+  - config-path: "gcs-retries.chunk-retry-deadline-secs"
+    flag-name: "chunk-retry-deadline-secs"
+    type: "int"
+    usage: >-
+      Per-chunk retry deadline for multi-chunk resumable uploads.
+      If a single chunk has been attempting to upload for longer than this deadline and the request fails,
+      it will no longer be retried.
+    default: "32"
+    hide-flag: true
+
   - config-path: "gcs-retries.chunk-transfer-timeout-secs"
     flag-name: "chunk-transfer-timeout-secs"
     type: "int"

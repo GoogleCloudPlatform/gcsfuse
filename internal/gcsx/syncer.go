@@ -51,6 +51,7 @@ type Syncer interface {
 func NewSyncer(
 	composeThreshold int64,
 	chunkTransferTimeoutSecs int64,
+	chunkRetryDeadlineSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket) (os Syncer) {
 	// Create the object creators.
@@ -68,7 +69,7 @@ func NewSyncer(
 	}
 
 	// And the syncer.
-	os = newSyncer(composeThreshold, chunkTransferTimeoutSecs, fullCreator, composeCreator)
+	os = newSyncer(composeThreshold, chunkTransferTimeoutSecs, chunkRetryDeadlineSecs, fullCreator, composeCreator)
 
 	return
 }
@@ -87,8 +88,9 @@ func (oc *fullObjectCreator) Create(
 	srcObject *gcs.Object,
 	mtime *time.Time,
 	chunkTransferTimeoutSecs int64,
+	chunkRetryDeadlineSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
-	req := gcs.NewCreateObjectRequest(srcObject, objectName, mtime, chunkTransferTimeoutSecs)
+	req := gcs.NewCreateObjectRequest(srcObject, objectName, mtime, chunkTransferTimeoutSecs, chunkRetryDeadlineSecs)
 	req.Contents = r
 	o, err = oc.bucket.CreateObject(ctx, req)
 	if err != nil {
@@ -111,6 +113,7 @@ type objectCreator interface {
 		srcObject *gcs.Object,
 		mtime *time.Time,
 		chunkTransferTimeoutSecs int64,
+		chunkRetryDeadlineSecs int64,
 		r io.Reader) (o *gcs.Object, err error)
 }
 
@@ -130,11 +133,13 @@ type objectCreator interface {
 func newSyncer(
 	composeThreshold int64,
 	chunkTransferTimeoutSecs int64,
+	chunkRetryDeadlineSecs int64,
 	fullCreator objectCreator,
 	composeCreator objectCreator) (os Syncer) {
 	os = &syncer{
 		composeThreshold:         composeThreshold,
 		chunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		chunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		fullCreator:              fullCreator,
 		composeCreator:           composeCreator,
 	}
@@ -145,6 +150,7 @@ func newSyncer(
 type syncer struct {
 	composeThreshold         int64
 	chunkTransferTimeoutSecs int64
+	chunkRetryDeadlineSecs   int64
 	fullCreator              objectCreator
 	composeCreator           objectCreator
 }
@@ -171,7 +177,7 @@ func (os *syncer) SyncObject(
 			err = fmt.Errorf("error in seeking: %w", err)
 			return
 		}
-		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
+		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, os.chunkRetryDeadlineSecs, content)
 	}
 
 	// Make sure the dirty threshold makes sense.
@@ -211,7 +217,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.composeCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
+		o, err = os.composeCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, os.chunkRetryDeadlineSecs, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
@@ -219,7 +225,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
+		o, err = os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, os.chunkRetryDeadlineSecs, content)
 	}
 
 	// Deal with errors.

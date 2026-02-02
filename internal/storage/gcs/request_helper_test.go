@@ -97,7 +97,7 @@ func TestCreateObjectRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := NewCreateObjectRequest(tt.srcObject, tt.objectName, tt.mtime, tt.chunkTransferTimeoutSecs)
+			req := NewCreateObjectRequest(tt.srcObject, tt.objectName, tt.mtime, tt.chunkTransferTimeoutSecs, 0)
 
 			assert.Equal(t, tt.expectedRequest, req)
 		})

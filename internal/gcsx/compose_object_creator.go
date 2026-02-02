@@ -88,6 +88,7 @@ func (oc *composeObjectCreator) Create(
 	srcObject *gcs.Object,
 	mtime *time.Time,
 	chunkTransferTimeoutSecs int64,
+	chunkRetryDeadlineSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()
@@ -97,7 +98,7 @@ func (oc *composeObjectCreator) Create(
 	}
 
 	// Create a temporary object containing the additional contents.
-	req := gcs.NewCreateObjectRequest(nil, tmpName, nil, chunkTransferTimeoutSecs)
+	req := gcs.NewCreateObjectRequest(nil, tmpName, nil, chunkTransferTimeoutSecs, chunkRetryDeadlineSecs)
 	req.Contents = r
 	tmp, err := oc.bucket.CreateObject(ctx, req)
 	if err != nil {

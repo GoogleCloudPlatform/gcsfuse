@@ -68,6 +68,7 @@ func (t *FullObjectCreatorTest) call() (o *gcs.Object, err error) {
 		&t.srcObject,
 		&t.mtime,
 		chunkTransferTimeoutSecs,
+		0,
 		strings.NewReader(t.srcContents))
 
 	return
@@ -177,6 +178,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectIsNil() {
 		nil,
 		&t.mtime,
 		chunkTransferTimeoutSecs,
+		0,
 		strings.NewReader(t.srcContents))
 
 	t.validateEmptyProperties(req)
@@ -197,6 +199,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectAndMtimeAreNil() {
 		nil,
 		nil,
 		chunkTransferTimeoutSecs,
+		0,
 		strings.NewReader(t.srcContents))
 
 	t.validateEmptyProperties(req)
@@ -247,6 +250,7 @@ func (oc *fakeObjectCreator) Create(
 	srcObject *gcs.Object,
 	mtime *time.Time,
 	chunkTransferTimeoutSecs int64,
+	chunkRetryDeadlineSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Have we been called more than once?
 	AssertFalse(oc.called)
@@ -300,6 +304,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.syncer = newSyncer(
 		appendThreshold,
 		chunkTransferTimeoutSecs,
+		0,
 		&t.fullCreator,
 		&t.appendCreator)
 
@@ -420,6 +425,7 @@ func (t *SyncerTest) SourceTooShortForAppend() {
 	t.syncer = newSyncer(
 		int64(len(srcObjectContents)+1),
 		chunkTransferTimeoutSecs,
+		0,
 		&t.fullCreator,
 		&t.appendCreator)
 

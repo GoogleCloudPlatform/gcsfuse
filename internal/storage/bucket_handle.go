@@ -194,6 +194,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
+	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
 	wc.ProgressFunc = req.CallBack
 	// All objects in zonal buckets must be appendable.
@@ -229,6 +230,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ChunkSize = chunkSize
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
+	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal

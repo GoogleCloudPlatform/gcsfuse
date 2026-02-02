@@ -1135,6 +1135,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+			ChunkRetryDeadlineSecs:   f.config.GcsRetries.ChunkRetryDeadlineSecs,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Warnf("File %s will use legacy staged writes because concurrent streaming write "+

@@ -64,6 +64,20 @@ type CreateObjectRequest struct {
 	// The default value is 10 seconds.
 	ChunkTransferTimeoutSecs int64
 
+	// ChunkRetryDeadline sets a per-chunk retry deadline for multi-chunk
+	// resumable uploads.
+	//
+	// For uploads of larger files, the Writer will attempt to retry if the
+	// request to upload a particular chunk fails with a transient error.
+	// If a single chunk has been attempting to upload for longer than this
+	// deadline and the request fails, it will no longer be retried, and the
+	// error will be returned to the caller. This is only applicable for files
+	// which are large enough to require a multi-chunk resumable upload. The
+	// default value is 32s. Users may want to pick a longer deadline if they
+	// are using larger values for ChunkSize or if they expect to have a slow or
+	// unreliable internet connection.
+	ChunkRetryDeadlineSecs int64
+
 	// A reader from which to obtain the contents of the object. Must be non-nil.
 	Contents io.Reader
 
