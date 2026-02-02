@@ -22,6 +22,8 @@ set -euo pipefail
 # We define them explicitly here to prevent 'unbound variable' errors from 'set -u'.
 export USER=$(whoami)
 export HOSTNAME=$(hostname)
+# FIX: HOME is sometimes unset in startup scripts or set to / which can confuse installers.
+export HOME=${HOME:-/root}
 
 # Defaults
 LOCAL_RUN=false
@@ -130,10 +132,25 @@ install_system_deps() {
         mkdir -p "${REPO_ROOT}/perfmetrics/scripts"
         curl -sSL -o "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh" "https://raw.githubusercontent.com/googlecloudplatform/gcsfuse/${COMMIT_HASH}/perfmetrics/scripts/install_latest_gcloud.sh"
     fi
+
+    # Download upgrade_python3.sh which is required by install_latest_gcloud.sh
+    if [ ! -f "${REPO_ROOT}/perfmetrics/scripts/upgrade_python3.sh" ]; then
+        curl -sSL -o "${REPO_ROOT}/perfmetrics/scripts/upgrade_python3.sh" "https://raw.githubusercontent.com/googlecloudplatform/gcsfuse/${COMMIT_HASH}/perfmetrics/scripts/upgrade_python3.sh"
+        chmod +x "${REPO_ROOT}/perfmetrics/scripts/upgrade_python3.sh"
+    fi
+
+    # Patch scripts to install Python globally to /usr/local/python-3.11.9 to avoid permission issues
+    sed -i 's|INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"|INSTALL_PREFIX="/usr/local/python-$PYTHON_VERSION"|g' "${REPO_ROOT}/perfmetrics/scripts/upgrade_python3.sh"
+    sed -i 's|export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"|export CLOUDSDK_PYTHON="/usr/local/python-3.11.9/bin/python3.11"|g' "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
+
     bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
     export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
-        export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
-        export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+    
+    # Ensure python path is correct based on what install_latest_gcloud does
+    if [[ -x "/usr/local/python-3.11.9/bin/python3.11" ]]; then
+        export CLOUDSDK_PYTHON="/usr/local/python-3.11.9/bin/python3.11"
+        export PATH="/usr/local/python-3.11.9/bin:$PATH"
+    fi
 }
 
 fetch_metadata() {
@@ -278,6 +295,11 @@ else
     git clone https://github.com/googlecloudplatform/gcsfuse
     cd gcsfuse
     git checkout "${COMMIT_HASH}"
+
+    # Patch child scripts to use the global Python installed by the parent script
+    sed -i 's|export CLOUDSDK_PYTHON="\$HOME/.local/python-3.11.9/bin/python3.11"|export CLOUDSDK_PYTHON="/usr/local/python-3.11.9/bin/python3.11"|g' tools/integration_tests/improved_run_e2e_tests.sh
+    sed -i 's|export CLOUDSDK_PYTHON="\$HOME/.local/python-3.11.9/bin/python3.11"|export CLOUDSDK_PYTHON="/usr/local/python-3.11.9/bin/python3.11"|g' perfmetrics/scripts/install_latest_gcloud.sh
+    sed -i '/^set -x/a if [ -x "/usr/local/python-3.11.9/bin/python3.11" ]; then echo "Global Python found, skipping build."; exit 0; fi' perfmetrics/scripts/upgrade_python3.sh
 fi
 
 # Always perform cleanup before building or executing tests
