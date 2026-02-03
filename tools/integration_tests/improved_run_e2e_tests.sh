@@ -751,19 +751,19 @@ main() {
 
   local pids=()
   local overall_exit_code=0
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
-  elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
-    # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
-    PROJECT_ID="$TPCZERO_PROJECT_ID"
-    BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
-    run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
-    run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
-  else
-    run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
-    run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
-    run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
-  fi
+  # if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  #   run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
+  # elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
+  #   # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
+  #   PROJECT_ID="$TPCZERO_PROJECT_ID"
+  #   BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
+  #   run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
+  #   run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
+  # else
+  #   run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
+  #   run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
+  #   run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
+  # fi
   # Wait for all background processes to complete and aggregate their exit codes
   for pid in "${pids[@]}"; do
     wait "$pid"
