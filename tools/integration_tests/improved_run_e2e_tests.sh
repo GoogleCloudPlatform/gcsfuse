@@ -741,13 +741,13 @@ main() {
   # Reset SECONDS to 0
   SECONDS=0
 
-  if ${TRACK_RESOURCE_USAGE}; then
-    # Start collecting system resource usage in background.
-    log_info "Starting resource usage collection process."
-    ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
-    RESOURCE_USAGE_PID=$!
-    log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
-  fi
+  # if ${TRACK_RESOURCE_USAGE}; then
+  #   # Start collecting system resource usage in background.
+  #   log_info "Starting resource usage collection process."
+  #   ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
+  #   RESOURCE_USAGE_PID=$!
+  #   log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
+  # fi
 
   local pids=()
   local overall_exit_code=0
@@ -776,16 +776,16 @@ main() {
   # Print package runtime stats table.
   ./tools/integration_tests/create_package_runtime_table.sh "$PACKAGE_RUNTIME_STATS"
 
-  if ${TRACK_RESOURCE_USAGE}; then
-    # Kill resource usage background PID and print resource usage.
-    log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
-    if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
-      log_info "Resource usage collection process stopped."
-      ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
-    else
-      log_error "Failed to stop resource usage collection process (or it's already stopped)"
-    fi
-  fi
+  # if ${TRACK_RESOURCE_USAGE}; then
+  #   # Kill resource usage background PID and print resource usage.
+  #   log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
+  #   if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+  #     log_info "Resource usage collection process stopped."
+  #     ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
+  #   else
+  #     log_error "Failed to stop resource usage collection process (or it's already stopped)"
+  #   fi
+  # fi
   exit $overall_exit_code
 }
 
