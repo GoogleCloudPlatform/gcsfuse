@@ -353,7 +353,7 @@ cleanup_expired_buckets() {
     log_info "Attempting to delete ${#bucket_uris[@]} expired buckets."
     local bucket_deletion_logs
     bucket_deletion_logs=$(mktemp "/tmp/${TMP_PREFIX}_bucket_deletion_log.XXXXXX")
-    if ! gcloud -q storage rm -r "${bucket_uris[@]}" > "$bucket_deletion_logs" 2>&1; then
+    if ! gcloud -q storage rm -r "${bucket_uris[@]}" --no-user-output-enabled --verbosity=error > "$bucket_deletion_logs" 2>&1; then
         log_error "Failed to delete one or more expired buckets. See logs for details:"
         cat "$bucket_deletion_logs"
     fi
