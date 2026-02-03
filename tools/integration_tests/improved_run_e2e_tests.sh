@@ -328,7 +328,9 @@ create_bucket() {
   done
   echo "$bucket_name"
   # Append to created buckets list file for cleanup
+  acquire_lock "$LOG_LOCK_FILE"
   echo "$bucket_name" >> "$CREATED_BUCKETS_LIST_FILE"
+  release_lock "$LOG_LOCK_FILE"
   rm -rf "$bucket_cmd_log"
   return 0
 }
