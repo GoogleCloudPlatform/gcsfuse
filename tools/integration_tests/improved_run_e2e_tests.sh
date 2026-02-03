@@ -69,6 +69,10 @@ readonly DELAY_BETWEEN_BUCKET_CREATION=6
 readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
+# Max number of batches of buckets to delete in a single run.
+readonly MAX_BUCKET_DELETION_BATCHES=50
+# Number of buckets to delete in a single batch.
+readonly BUCKET_DELETION_BATCH_SIZE=10
 
 # Set default project id for tests.
 PROJECT_ID="${DEFAULT_PROJECT_ID}"
@@ -350,13 +354,41 @@ cleanup_expired_buckets() {
     local -a bucket_uris
     mapfile -t bucket_uris <<< "$bucket_list_output"
 
-    log_info "Attempting to delete ${#bucket_uris[@]} expired buckets."
-    local bucket_deletion_logs
-    bucket_deletion_logs=$(mktemp "/tmp/${TMP_PREFIX}_bucket_deletion_log.XXXXXX")
-    if ! gcloud -q storage rm -r "${bucket_uris[@]}" --no-user-output-enabled --verbosity=error > "$bucket_deletion_logs" 2>&1; then
-        log_error "Failed to delete one or more expired buckets. See logs for details:"
-        cat "$bucket_deletion_logs"
-    fi
+    log_info "Found ${#bucket_uris[@]} expired buckets. Will attempt to delete at the most $(( MAX_BUCKET_DELETION_BATCHES * BUCKET_DELETION_BATCH_SIZE )) buckets."
+
+    local batch_count=0
+    local start_index=0
+    local total_buckets=${#bucket_uris[@]}
+
+    while [[ $start_index -lt $total_buckets ]]; do
+        if [[ $batch_count -ge $MAX_BUCKET_DELETION_BATCHES ]]; then
+            log_info "Reached maximum batch limit ($MAX_BUCKET_DELETION_BATCHES). Stopping cleanup."
+            break
+        fi
+
+        # Calculate end index for the current batch
+        local end_index=$((start_index + BUCKET_DELETION_BATCH_SIZE))
+        if [[ $end_index -gt $total_buckets ]]; then
+            end_index=$total_buckets
+        fi
+
+        # Extract batch slice
+        # Note: Bash array slicing syntax is ${array[@]:start:length}
+        local length=$((end_index - start_index))
+        local batch=("${bucket_uris[@]:$start_index:$length}")
+
+        batch_count=$((batch_count + 1))
+        log_info "Deleting batch $batch_count (buckets $((start_index + 1)) to $end_index)..."
+
+        # Delete batch
+        if ! gcloud storage rm -r "${batch[@]}" --no-user-output-enabled --verbosity=error; then
+            log_error "Failed to delete batch $batch_count. Aborting cleanup."
+            return 1
+        fi
+
+        start_index=$end_index
+    done
+
     log_info "Bucket cleanup complete."
 }
 
