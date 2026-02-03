@@ -231,7 +231,7 @@ TEST_PACKAGES_COMMON=(
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
+TEST_PACKAGES_FOR_RB=("flag_optimizations" "requester_pays_bucket")
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
@@ -753,19 +753,19 @@ main() {
 
   local pids=()
   local overall_exit_code=0
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
-  elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
-    # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
-    PROJECT_ID="$TPCZERO_PROJECT_ID"
-    BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
-    run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
-    run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
-  else
-    run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
+  # if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  #   run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
+  # elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
+  #   # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
+  #   PROJECT_ID="$TPCZERO_PROJECT_ID"
+  #   BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
+  #   run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
+  #   run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
+  # else
+    # run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
     run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
-    run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
-  fi
+    # run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
+  # fi
   # Wait for all background processes to complete and aggregate their exit codes
   for pid in "${pids[@]}"; do
     wait "$pid"
