@@ -79,6 +79,7 @@ LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error 
 BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX") || { log_error "Unable to create bucket creation lock file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
+CREATED_BUCKETS_LIST_FILE=$(mktemp "/tmp/${TMP_PREFIX}_created_buckets.XXXXXX") || { log_error "Unable to create created buckets list file"; exit 1; }
 
 KOKORO_DIR_AVAILABLE=false
 if [[ -n "$KOKORO_ARTIFACTS_DIR" ]]; then
@@ -326,37 +327,70 @@ create_bucket() {
     fi
   done
   echo "$bucket_name"
+  # Append to created buckets list file for cleanup
+  echo "$bucket_name" >> "$CREATED_BUCKETS_LIST_FILE"
   rm -rf "$bucket_cmd_log"
   return 0
 }
 
-# Helper method to cleanup expired buckets.
-cleanup_expired_buckets() {
-    log_info "Deleting buckets older than ${BUCKET_RETENTION_PERIOD_DAYS} days having prefix ${BUCKET_PREFIX}."
-    local bucket_list_output
-    bucket_list_output=$(gcloud storage buckets list --project=${PROJECT_ID} "gs://${BUCKET_PREFIX}*" \
-        --filter="creation_time < -P${BUCKET_RETENTION_PERIOD_DAYS}D" \
-        --format="value(storage_url)")
-    if [[ $? -ne 0 ]]; then
-        log_error "Failed to list expired buckets. Cleanup of expired buckets is skipped."
-        return 1
-    fi
-
-    if [[ -z "$bucket_list_output" ]]; then
-        log_info "No expired buckets found matching the criteria."
+# Helper method to cleanup buckets created during this run.
+cleanup_created_buckets() {
+    if [ ! -f "$CREATED_BUCKETS_LIST_FILE" ]; then
         return 0
     fi
 
     local -a bucket_uris
-    mapfile -t bucket_uris <<< "$bucket_list_output"
+    mapfile -t bucket_uris < "$CREATED_BUCKETS_LIST_FILE"
 
-    log_info "Attempting to delete ${#bucket_uris[@]} expired buckets."
-    local bucket_deletion_logs
-    bucket_deletion_logs=$(mktemp "/tmp/${TMP_PREFIX}_bucket_deletion_log.XXXXXX")
-    if ! gcloud -q storage rm -r "${bucket_uris[@]}" --no-user-output-enabled --verbosity=error > "$bucket_deletion_logs" 2>&1; then
-        log_error "Failed to delete one or more expired buckets. See logs for details:"
-        cat "$bucket_deletion_logs"
+    if [ ${#bucket_uris[@]} -eq 0 ]; then
+        log_info "No buckets were created to cleanup."
+        return 0
     fi
+
+    log_info "Found ${#bucket_uris[@]} buckets created during run to cleanup."
+
+    local batch_count=0
+    local start_index=0
+    local total_buckets=${#bucket_uris[@]}
+    # Number of buckets to delete in a single batch.
+    local readonly bucket_deletion_batch_size=10
+
+    while [ "$start_index" -lt "$total_buckets" ]; do
+        # Calculate end index for the current batch
+        local end_index=$((start_index + bucket_deletion_batch_size))
+        if [ "$end_index" -gt "$total_buckets" ]; then
+            end_index=$total_buckets
+        fi
+
+        # Extract batch slice
+        local length=$((end_index - start_index))
+        local batch=("${bucket_uris[@]:$start_index:$length}")
+        
+        # Add gs:// prefix if missing (bucket names are stored as name only)
+        local batch_uris=()
+        local batch_names_str=""
+        for b in "${batch[@]}"; do
+            batch_uris+=("gs://$b")
+            if [ -z "$batch_names_str" ]; then
+                batch_names_str="$b"
+            else
+                batch_names_str="$batch_names_str, $b"
+            fi
+        done
+
+        batch_count=$((batch_count + 1))
+        log_info "Deleting bucket batch $batch_count: $batch_names_str"
+
+        # Delete batch
+        if ! gcloud storage rm -r "${batch_uris[@]}" --no-user-output-enabled --verbosity=error; then
+            log_error "Failed to delete batch $batch_count. Continuing cleanup..."
+            # We continue here to try deleting other batches if one fails
+        fi
+
+        start_index=$end_index
+    done
+    
+    rm -f "$CREATED_BUCKETS_LIST_FILE"
     log_info "Bucket cleanup complete."
 }
 
@@ -386,7 +420,7 @@ clean_up() {
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
     rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   fi
-  cleanup_expired_buckets
+  cleanup_created_buckets
   if ! rm -rf /tmp/"${TMP_PREFIX}"*; then 
     log_error "Failed to delete temporary files"
   else 
