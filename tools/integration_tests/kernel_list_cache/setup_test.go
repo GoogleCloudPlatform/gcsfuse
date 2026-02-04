@@ -38,7 +38,6 @@ const (
 	GKETempDir        = "/gcsfuse-tmp"
 )
 
-// You would need to add imports for "fmt" and "os"
 var testDirName = fmt.Sprintf("%s-%d-%s", testDirNamePrefix, os.Getpid(), setup.GenerateRandomString(5))
 
 var (
