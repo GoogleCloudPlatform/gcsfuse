@@ -49,7 +49,7 @@ func (s *infiniteKernelListCacheTest) TearDownSuite() {
 }
 
 func (s *infiniteKernelListCacheTest) SetupTest() {
-	testDirNameWithRandomSuffix := fmt.Sprintf("%s-%d-%s", testDirName, os.Getpid())
+	testDirNameWithRandomSuffix := fmt.Sprintf("%s-%d-%s", testDirName, os.Getpid(), setup.GenerateRandomString(5))
 	testEnv.testDirPath = setup.SetupTestDirectory(testDirNameWithRandomSuffix)
 }
 
