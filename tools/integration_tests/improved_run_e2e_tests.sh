@@ -328,9 +328,9 @@ create_bucket() {
   done
   echo "$bucket_name"
   # Append to created buckets list file for cleanup
-  acquire_lock "$LOG_LOCK_FILE"
+  acquire_lock "$BUCKET_CREATION_LOCK_FILE"
   echo "$bucket_name" >> "$CREATED_BUCKETS_LIST_FILE"
-  release_lock "$LOG_LOCK_FILE"
+  release_lock "$BUCKET_CREATION_LOCK_FILE"
   rm -rf "$bucket_cmd_log"
   return 0
 }
@@ -381,11 +381,11 @@ cleanup_created_buckets() {
         done
 
         batch_count=$((batch_count + 1))
-        log_info "Deleting bucket batch $batch_count: $batch_names_str"
+        log_info "Deleting bucket batch: $batch_count ..."
 
         # Delete batch
         if ! gcloud storage rm -r "${batch_uris[@]}" --no-user-output-enabled --verbosity=error; then
-            log_error "Failed to delete batch $batch_count. Continuing cleanup..."
+            log_error "Failed to delete one or more buckets in batch: $batch_count. These buckets would be cleaned up by the periodic cleanup job."
             # We continue here to try deleting other batches if one fails
         fi
 
