@@ -15,6 +15,7 @@
 package kernel_list_cache
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -47,6 +48,7 @@ func (s *disabledKernelListCacheTest) TearDownSuite() {
 }
 
 func (s *disabledKernelListCacheTest) SetupTest() {
+	var testDirName = fmt.Sprintf("%s-%d-%s", testDirNamePrefix, os.Getpid(), setup.GenerateRandomString(5))
 	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
 }
 

@@ -15,6 +15,7 @@
 package kernel_list_cache
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -48,7 +49,8 @@ func (s *infiniteKernelListCacheTest) TearDownSuite() {
 }
 
 func (s *infiniteKernelListCacheTest) SetupTest() {
-	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
+	testDirNameWithRandomSuffix := fmt.Sprintf("%s-%d-%s", testDirName, os.Getpid())
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirNameWithRandomSuffix)
 }
 
 func (s *infiniteKernelListCacheTest) TearDownTest() {
