@@ -178,9 +178,10 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	// Create file cache handler if cache is enabled by user. Cache is considered
 	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
 	var fileCacheHandler *file.CacheHandler
+	var sharedChunkCacheManager *file.SharedChunkCacheManager
 	if cfg.IsFileCacheEnabled(serverCfg.NewConfig) {
 		var err error
-		fileCacheHandler, err = createFileCacheHandler(serverCfg)
+		fileCacheHandler, sharedChunkCacheManager, err = createFileCacheHandler(serverCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -213,6 +214,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		handles:                    make(map[fuseops.HandleID]any),
 		newConfig:                  serverCfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
+		sharedChunkCacheManager:    sharedChunkCacheManager,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		metricHandle:               serverCfg.MetricHandle,
 		traceHandle:                serverCfg.TraceHandle,
@@ -301,17 +303,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	return fs, nil
 }
 
-func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.CacheHandler, err error) {
-	var sizeInBytes uint64
-	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
-	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
-	if serverCfg.NewConfig.FileCache.MaxSizeMb == -1 {
-		sizeInBytes = math.MaxUint64
-	} else {
-		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
-	}
-	fileInfoCache := lru.NewCache(sizeInBytes)
-
+func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.CacheHandler, sharedChunkCacheManager *file.SharedChunkCacheManager, err error) {
 	cacheDir := string(serverCfg.NewConfig.CacheDir)
 	// Adding a new directory inside cacheDir to keep file-cache separate from
 	// metadata cache if and when we support storing metadata cache on disk in
@@ -323,12 +315,40 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 
 	cacheDirErr := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
 	if cacheDirErr != nil {
-		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
+		return nil, nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
+
+	// Shared cache with external LRU cache eviction.
+	if serverCfg.NewConfig.FileCache.EnableExperimentalSharedFileCache {
+		sharedCacheManager, sharedErr := file.NewSharedChunkCacheManager(
+			cacheDir,
+			filePerm,
+			dirPerm,
+			&serverCfg.NewConfig.FileCache,
+		)
+		if sharedErr != nil {
+			return nil, nil, fmt.Errorf("createFileCacheHandler: while creating shared chunk cache manager: %w", sharedErr)
+		}
+		logger.Infof("File Cache: Shared chunk cache created successfully")
+		return nil, sharedCacheManager, nil
+	}
+
+	// Regular gcsfuse file-cache with memory based LRU cache.
+	var sizeInBytes uint64
+	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
+	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
+	if serverCfg.NewConfig.FileCache.MaxSizeMb == -1 {
+		sizeInBytes = math.MaxUint64
+		logger.Infof("File Cache: Regular cache size: UNLIMITED")
+	} else {
+		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
+		logger.Infof("File Cache: Regular cache size: %d MB (%d bytes)", serverCfg.NewConfig.FileCache.MaxSizeMb, sizeInBytes)
+	}
+	fileInfoCache := lru.NewCache(sizeInBytes)
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache)
-	return
+	return fileCacheHandler, nil, nil
 }
 
 func makeRootForBucket(
@@ -557,6 +577,11 @@ type fileSystem struct {
 	// fileCacheHandler manages read only file cache. It is non-nil only when
 	// file cache is enabled at the time of mounting.
 	fileCacheHandler *file.CacheHandler
+
+	// sharedChunkCacheManager manages the shared chunk cache enable with
+	// enable-experimental-shared-cache.
+	// Non-nil only when file cache is enabled with enable-experimental-shared-cache flag.
+	sharedChunkCacheManager *file.SharedChunkCacheManager
 
 	// cacheFileForRangeRead when true downloads file into cache even for
 	// random file access.
@@ -1531,20 +1556,22 @@ func (fs *fileSystem) symlinkInodeOrDie(
 // invalidateChildFileCacheIfExist invalidates the file in read cache. This is used to
 // invalidate the file in read cache after deletion of original file.
 func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode, objectGCSName string) (err error) {
-	if fs.fileCacheHandler != nil {
-		if bucketOwnedDirInode, ok := parentInode.(inode.BucketOwnedDirInode); ok {
-			bucketName := bucketOwnedDirInode.Bucket().Name()
-			// Invalidate the file cache entry if it exists.
-			err := fs.fileCacheHandler.InvalidateCache(objectGCSName, bucketName)
+	if bucketOwnedDirInode, ok := parentInode.(inode.BucketOwnedDirInode); ok {
+		bucketName := bucketOwnedDirInode.Bucket().Name()
+		// Invalidate the file cache entry if it exists.
+		if fs.fileCacheHandler != nil {
+			err = fs.fileCacheHandler.InvalidateCache(objectGCSName, bucketName)
 			if err != nil {
 				return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating the file cache: %w", err)
+			} else if fs.sharedChunkCacheManager != nil {
+				return fmt.Errorf("sharedChunkCache is being used for object modify flow, and may serve stale data.")
 			}
-		} else {
-			// The parentInode is not owned by any bucket, which means it's the base
-			// directory that holds all the buckets' root directories. So, this op
-			// is to delete a bucket, which is not supported.
-			return fmt.Errorf("invalidateChildFileCacheIfExist: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
 		}
+	} else {
+		// The parentInode is not owned by any bucket, which means it's the base
+		// directory that holds all the buckets' root directories. So, this op
+		// is to delete a bucket, which is not supported.
+		return fmt.Errorf("invalidateChildFileCacheIfExist: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
 	}
 
 	return nil
@@ -2100,7 +2127,19 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, fs.traceHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(
+		child.(*inode.FileInode),
+		fs.fileCacheHandler,
+		fs.sharedChunkCacheManager,
+		fs.cacheFileForRangeRead,
+		fs.metricHandle,
+		fs.traceHandle,
+		openMode,
+		fs.newConfig,
+		fs.bufferedReadWorkerPool,
+		fs.globalMaxReadBlocksSem,
+		op.Handle,
+	)
 
 	fs.mu.Unlock()
 
@@ -2888,7 +2927,19 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, fs.traceHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(
+		in,
+		fs.fileCacheHandler,
+		fs.sharedChunkCacheManager,
+		fs.cacheFileForRangeRead,
+		fs.metricHandle,
+		fs.traceHandle,
+		openMode,
+		fs.newConfig,
+		fs.bufferedReadWorkerPool,
+		fs.globalMaxReadBlocksSem,
+		op.Handle,
+	)
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
