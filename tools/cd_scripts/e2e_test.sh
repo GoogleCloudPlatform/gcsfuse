@@ -34,6 +34,7 @@ echo "Upgrade gcloud version"
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 
+VERSION_ID=$(sed -n 1p ~/details.txt)
 # Conditionally install python3 and run gcloud installer with it for all variants of RHEL, Rocky and CENTOS.
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
