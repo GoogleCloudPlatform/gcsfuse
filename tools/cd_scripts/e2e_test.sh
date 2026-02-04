@@ -39,9 +39,20 @@ INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [[ ($ID == "rhel" || $ID == "rocky" || $ID == "centos") ]]; then
-        sudo yum install -y python3
-        export CLOUDSDK_PYTHON=/usr/bin/python3
-        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3 /usr/local/google-cloud-sdk/install.sh --quiet"
+        
+        # Check if we are on version 8 to install 3.11
+        if [[ $VERSION_ID =~ ^8 ]]; then
+            echo "Detected version 8. Installing Python 3.11..."
+            sudo yum install -y python311
+            PYTHON_BIN="/usr/bin/python3.11"
+        else
+            # Default behavior for other versions
+            sudo yum install -y python3
+            PYTHON_BIN="/usr/bin/python3"
+        fi
+
+        export CLOUDSDK_PYTHON=$PYTHON_BIN
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=$PYTHON_BIN /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
 fi
 $INSTALL_COMMAND
