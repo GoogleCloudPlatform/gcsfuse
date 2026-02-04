@@ -34,6 +34,12 @@ echo "Upgrade gcloud version"
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 
+#details.txt file contains the release version and commit hash of the current release.
+# Using dynamic bucket.
+gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
+# Writing VM instance name to details.txt (Format: release-test-<os-name>)
+curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
+
 VERSION_ID=$(sed -n 1p ~/details.txt)
 # Conditionally install python3 and run gcloud installer with it for all variants of RHEL, Rocky and CENTOS.
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
@@ -99,12 +105,6 @@ fi
 if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
 	echo "Running light tests only..."
 fi
-
-#details.txt file contains the release version and commit hash of the current release.
-# Using dynamic bucket.
-gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
-# Writing VM instance name to details.txt (Format: release-test-<os-name>)
-curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
 # Function to create the local user
 create_user() {
