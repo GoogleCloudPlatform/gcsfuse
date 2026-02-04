@@ -27,7 +27,7 @@ ZONAL_BUCKET_ARG=
 if [ $# -gt 2 ] ; then
   if [ "$3" = "true" ]; then
     ZONAL_BUCKET_ARG="--zonal=true"
-  else if [ "$3" != "false" ]; then
+  elif [ "$3" != "false" ]; then
     >&2 echo "Unexpected value of RUN_ZONAL_BUCKET: $3. Expected: true or false."
     exit 1
   fi
@@ -274,13 +274,18 @@ gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
+# Run tests with static mounting. (flags: --implicit-dirs, --enable-kernel-reader=false)
+gcsfuse --implicit-dirs --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
+sudo umount $MOUNT_DIR
+
 # Run tests with config "file-cache: max-size-mb, cache-file-for-range-read".
 echo "file-cache:
        max-size-mb: 700
        cache-file-for-range-read: true
 cache-dir: /tmp/cache-dir-read-large-files-hns-false
        " > /tmp/gcsfuse_config.yaml
-gcsfuse --config-file /tmp/gcsfuse_config.yaml --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse --config-file /tmp/gcsfuse_config.yaml --implicit-dirs=true --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
@@ -290,7 +295,7 @@ echo "file-cache:
        cache-file-for-range-read: false
 cache-dir: /tmp/cache-dir-read-large-files-hns-false
        " > /tmp/gcsfuse_config.yaml
-gcsfuse --config-file /tmp/gcsfuse_config.yaml --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse --config-file /tmp/gcsfuse_config.yaml --implicit-dirs=true --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
@@ -370,9 +375,9 @@ function run_read_cache_test() {
     local optional_flags=$2
 
     if [ -n "$optional_flags" ]; then
-      gcsfuse "$optional_flags" --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+      gcsfuse "$optional_flags" --enable-kernel-reader=false --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
     else
-      gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+      gcsfuse --enable-kernel-reader=false --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
     fi
     GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
     sudo umount "$MOUNT_DIR"
@@ -519,13 +524,13 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Test package: concurrent_operations
-# Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
-gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+# Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true, --enable-kernel-reader=false)
+gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
-# Run test with persistent mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1
+# Run test with persistent mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true, --enable-kernel-reader=false)
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1,--enable-kernel-reader=false
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
@@ -701,7 +706,7 @@ log_file="$log_dir/log.json"
 
 # Run TestSequentialReadSuite
 sequential_read_test_case="TestSequentialReadSuite"
-gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 \
+gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --enable-kernel-reader=false \
 --read-min-blocks-per-handle=2 --log-file=$log_file $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/buffered_read/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR \
 --testbucket=$TEST_BUCKET_NAME -run ${sequential_read_test_case} ${ZONAL_BUCKET_ARG}
@@ -712,7 +717,7 @@ random_read_fallback_test_cases=(
   "TestFallbackSuites/TestRandomRead_LargeFile_Fallback"
   "TestFallbackSuites/TestRandomRead_SmallFile_NoFallback"
 )
-gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 \
+gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --enable-kernel-reader=false \
 --read-min-blocks-per-handle=2 --log-file=$log_file $TEST_BUCKET_NAME $MOUNT_DIR
 for test_case in "${random_read_fallback_test_cases[@]}"; do
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/buffered_read/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR \
@@ -722,7 +727,7 @@ sudo umount $MOUNT_DIR
 
 # Run test for fallback when the global block pool is insufficient for buffered reader creation.
 insufficient_pool_test_case="TestFallbackSuites/TestNewBufferedReader_InsufficientGlobalPool_NoReaderAdded"
-gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 \
+gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false \
 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --log-file=$log_file $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/buffered_read/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR \
 --testbucket=$TEST_BUCKET_NAME -run ${insufficient_pool_test_case} ${ZONAL_BUCKET_ARG}
