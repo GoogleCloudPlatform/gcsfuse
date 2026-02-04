@@ -34,39 +34,6 @@ echo "Upgrade gcloud version"
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 
-#details.txt file contains the release version and commit hash of the current release.
-# Using dynamic bucket.
-gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
-# Writing VM instance name to details.txt (Format: release-test-<os-name>)
-curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
-
-VERSION_ID=$(sed -n 1p ~/details.txt)
-# Conditionally install python3 and run gcloud installer with it for all variants of RHEL, Rocky and CENTOS.
-INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    if [[ ($ID == "rhel" || $ID == "rocky" || $ID == "centos") ]]; then
-        
-        # Check if we are on version 8 to install 3.11
-        if [[ $VERSION_ID =~ ^8 ]]; then
-            echo "Detected version 8. Installing Python 3.11..."
-            sudo yum install -y python311
-            PYTHON_BIN="/usr/bin/python3.11"
-        else
-            # Default behavior for other versions
-            sudo yum install -y python3
-            PYTHON_BIN="/usr/bin/python3"
-        fi
-
-        export CLOUDSDK_PYTHON=$PYTHON_BIN
-        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=$PYTHON_BIN /usr/local/google-cloud-sdk/install.sh --quiet"
-    fi
-fi
-$INSTALL_COMMAND
-
-export PATH=/usr/local/google-cloud-sdk/bin:$PATH
-gcloud version && rm gcloud.tar.gz
-
 # Extract the metadata parameters passed, for which we need the zone of the GCE VM
 # on which the tests are supposed to run.
 ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
@@ -88,6 +55,37 @@ echo "BUCKET_NAME_TO_USE set to: \"${BUCKET_NAME_TO_USE}\""
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
 echo "RUN_LIGHT_TEST flag set to : \"${RUN_LIGHT_TEST}\""
+
+# Using dynamic bucket.
+gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
+# Writing VM instance name to details.txt (Format: release-test-<os-name>)
+curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
+VERSION=$(sed -n 1p ~/details.txt)
+# Conditionally install python3 and run gcloud installer with it for all variants of RHEL, Rocky and CENTOS.
+INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ ($ID == "rhel" || $ID == "rocky" || $ID == "centos") ]]; then
+        
+        # Check if we are on version 8 to install 3.11
+        if [[ $VERSION =~ ^8 ]]; then
+            echo "Detected version 8. Installing Python 3.11..."
+            sudo yum install -y python311
+            PYTHON_BIN="/usr/bin/python3.11"
+        else
+            # Default behavior for other versions
+            sudo yum install -y python3
+            PYTHON_BIN="/usr/bin/python3"
+        fi
+
+        export CLOUDSDK_PYTHON=$PYTHON_BIN
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=$PYTHON_BIN /usr/local/google-cloud-sdk/install.sh --quiet"
+    fi
+fi
+$INSTALL_COMMAND
+
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
+gcloud version && rm gcloud.tar.gz
 
 # Logging the tests being run on the active GCE VM
 if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
