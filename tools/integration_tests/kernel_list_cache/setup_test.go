@@ -16,6 +16,7 @@ package kernel_list_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -32,10 +33,13 @@ import (
 )
 
 const (
-	testDirName    = "KernelListCacheTest"
-	onlyDirMounted = "OnlyDirMountKernelListCache"
-	GKETempDir     = "/gcsfuse-tmp"
+	testDirNamePrefix = "KernelListCacheTest"
+	onlyDirMounted    = "OnlyDirMountKernelListCache"
+	GKETempDir        = "/gcsfuse-tmp"
 )
+
+// You would need to add imports for "fmt" and "os"
+var testDirName = fmt.Sprintf("%s-%d-%s", testDirNamePrefix, os.Getpid(), setup.GenerateRandomString(5))
 
 var (
 	mountFunc func(*test_suite.TestConfig, []string) error
