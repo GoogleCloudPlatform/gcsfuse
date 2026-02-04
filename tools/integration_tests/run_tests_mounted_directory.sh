@@ -529,8 +529,13 @@ gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 --enable-kernel-rea
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
+# Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
+gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
+sudo umount $MOUNT_DIR
+
 # Run test with persistent mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true, --enable-kernel-reader=false)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1,--enable-kernel-reader=false
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1,enable-kernel-reader=false
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
