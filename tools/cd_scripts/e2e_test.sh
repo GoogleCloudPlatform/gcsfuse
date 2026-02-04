@@ -60,7 +60,7 @@ echo "RUN_LIGHT_TEST flag set to : \"${RUN_LIGHT_TEST}\""
 gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
-VERSION=$(sed -n 1p ~/details.txt)
+VERSION=$(sed -n 1p details.txt)
 # Conditionally install python3 and run gcloud installer with it for all variants of RHEL, Rocky and CENTOS.
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
