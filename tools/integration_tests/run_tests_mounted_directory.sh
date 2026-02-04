@@ -274,10 +274,12 @@ gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
-# Run tests with static mounting. (flags: --implicit-dirs, --enable-kernel-reader=false)
-gcsfuse --implicit-dirs --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
-sudo umount $MOUNT_DIR
+if [ -n "${ZONAL_BUCKET_ARG}" ]; then
+  # Run tests with static mounting. (flags: --implicit-dirs, --enable-kernel-reader=false)
+  gcsfuse --implicit-dirs --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
+  sudo umount $MOUNT_DIR
+fi
 
 # Run tests with config "file-cache: max-size-mb, cache-file-for-range-read".
 echo "file-cache:
@@ -525,9 +527,11 @@ sudo umount $MOUNT_DIR
 
 # Test package: concurrent_operations
 # Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true, --enable-kernel-reader=false)
-gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
-sudo umount $MOUNT_DIR
+if [ -n "${ZONAL_BUCKET_ARG}" ]; then
+  gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
+  sudo umount $MOUNT_DIR
+fi
 
 # Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
 gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
