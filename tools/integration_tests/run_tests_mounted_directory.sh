@@ -526,8 +526,8 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Test package: concurrent_operations
-# Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true, --enable-kernel-reader=false)
 if [ -n "${ZONAL_BUCKET_ARG}" ]; then
+# Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true, --enable-kernel-reader=false)
   gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 --enable-kernel-reader=false $TEST_BUCKET_NAME $MOUNT_DIR
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
   sudo umount $MOUNT_DIR
