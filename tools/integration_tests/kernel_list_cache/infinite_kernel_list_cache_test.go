@@ -15,7 +15,6 @@
 package kernel_list_cache
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -49,8 +48,7 @@ func (s *infiniteKernelListCacheTest) TearDownSuite() {
 }
 
 func (s *infiniteKernelListCacheTest) SetupTest() {
-	testDirNameWithRandomSuffix := fmt.Sprintf("%s-%d-%s", testDirName, os.Getpid(), setup.GenerateRandomString(5))
-	testEnv.testDirPath = setup.SetupTestDirectory(testDirNameWithRandomSuffix)
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (s *infiniteKernelListCacheTest) TearDownTest() {
@@ -62,7 +60,8 @@ func (s *infiniteKernelListCacheTest) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit() {
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
+	explicit_dir := "explicit_dir" + setup.GenerateRandomString(5)
+	targetDir := path.Join(testEnv.testDirPath, explicit_dir)
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -85,7 +84,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit() {
 	require.NoError(s.T(), err)
 
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join(explicit_dir, "file3.txt"), "", s.T())
 	// Waiting for 5 seconds to see if the kernel cache expires.
 	time.Sleep(5 * time.Second)
 
@@ -104,7 +103,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit() {
 // (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
 // addition of new file.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfFile() {
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
+	explicit_dir := "explicit_dir" + setup.GenerateRandomString(5)
+	targetDir := path.Join(testEnv.testDirPath, explicit_dir)
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -127,7 +127,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfF
 	require.NoError(s.T(), err)
 
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join(explicit_dir, "file3.txt"), "", s.T())
 
 	// Ideally no invalidation since infinite ttl, but creation of a new file inside
 	// directory evicts the list cache for that directory.
@@ -139,7 +139,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfF
 		assert.NoError(s.T(), os.Remove(path.Join(targetDir, "file4.txt")))
 	}()
 
-	f, err = os.Open(path.Join(testEnv.testDirPath, "explicit_dir"))
+	f, err = os.Open(path.Join(testEnv.testDirPath, explicit_dir))
 	assert.NoError(s.T(), err)
 	names2, err := f.Readdirnames(-1)
 
@@ -155,7 +155,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfF
 // (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
 // deletion of new file.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfFile() {
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
+	explicit_dir := "explicit_dir" + setup.GenerateRandomString(5)
+	targetDir := path.Join(testEnv.testDirPath, explicit_dir)
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -178,7 +179,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 	assert.NoError(s.T(), err)
 
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join(explicit_dir, "file3.txt"), "", s.T())
 
 	// Ideally no invalidation since infinite ttl, but deletion of file inside
 	// directory evicts the list cache for that directory.
@@ -199,7 +200,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 // (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
 // file rename.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename() {
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
+	explicit_dir := "explicit_dir" + setup.GenerateRandomString(5)
+	targetDir := path.Join(testEnv.testDirPath, explicit_dir)
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -222,7 +224,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 	assert.NoError(s.T(), err)
 
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join(explicit_dir, "file3.txt"), "", s.T())
 
 	// Ideally no invalidation since infinite ttl, but rename of a file inside
 	// directory evicts the list cache for that directory.
@@ -263,7 +265,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 // ls explicit_dir/sub_dir
 // file2.txt, file3.txt, file4.txt, file5.txt
 func (s *infiniteKernelListCacheTest) TestKernelListCache_EvictCacheEntryOfOnlyDirectParent() {
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
+	explicit_dir := "explicit_dir" + setup.GenerateRandomString(5)
+	targetDir := path.Join(testEnv.testDirPath, explicit_dir)
 	operations.CreateDirectory(targetDir, s.T())
 	subDir := path.Join(targetDir, "sub_dir")
 	operations.CreateDirectory(subDir, s.T())
@@ -297,11 +300,11 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_EvictCacheEntryOfOnlyD
 	require.NoError(s.T(), err)
 	require.NoError(s.T(), fNew.Close())
 	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName,
-		path.Join("explicit_dir", "sub_dir", "file5.txt"), "", s.T())
+		path.Join(explicit_dir, "sub_dir", "file5.txt"), "", s.T())
 	// Add a new file to the parent directory through the client to verify that the
 	// cache is not invalidated in the case of the parent.
 	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName,
-		path.Join("explicit_dir", "file6.txt"), "", s.T())
+		path.Join(explicit_dir, "file6.txt"), "", s.T())
 
 	// Re-read parent directory (should still use the cache and NOT show the change in the sub-dir)
 	f1, err = os.Open(targetDir)
@@ -332,7 +335,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_EvictCacheEntryOfOnlyD
 // (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
 // addition of new directory.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfDirectory() {
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
+	explicit_dir := "explicit_dir" + setup.GenerateRandomString(5)
+	targetDir := path.Join(testEnv.testDirPath, explicit_dir)
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -353,7 +357,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfD
 	err = f.Close()
 	require.NoError(s.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join(explicit_dir, "file3.txt"), "", s.T())
 	// Ideally no invalidation since infinite ttl, but creation of a new directory inside
 	// directory evicts the list cache for that directory.
 	err = os.Mkdir(path.Join(targetDir, "sub_dir"), setup.DirPermission_0755)
@@ -375,7 +379,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfD
 // (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
 // deletion of directory.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfDirectory() {
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
+	explicit_dir := "explicit_dir" + setup.GenerateRandomString(5)
+	targetDir := path.Join(testEnv.testDirPath, explicit_dir)
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -399,7 +404,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfD
 	err = f.Close()
 	require.NoError(s.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join(explicit_dir, "file3.txt"), "", s.T())
 	// Ideally no invalidation since infinite ttl, but creation of a new file inside
 	// directory evicts the list cache for that directory.
 	err = os.Remove(path.Join(targetDir, "sub_dir"))
@@ -420,7 +425,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfD
 // (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
 // directory rename.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDirectoryRename() {
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
+	explicit_dir := "explicit_dir" + setup.GenerateRandomString(5)
+	targetDir := path.Join(testEnv.testDirPath, explicit_dir)
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -444,7 +450,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDirectoryRe
 	err = f.Close()
 	require.NoError(s.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join(explicit_dir, "file3.txt"), "", s.T())
 	// Ideally no invalidation since infinite ttl, but creation of a new file inside
 	// directory evicts the list cache for that directory.
 	err = os.Rename(path.Join(targetDir, "sub_dir"), path.Join(targetDir, "renamed_sub_dir"))
