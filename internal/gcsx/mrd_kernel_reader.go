@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -48,17 +47,17 @@ func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHa
 	}
 }
 
-// isShortRead checks if the read operation returned fewer bytes than requested
-// without encountering a fatal error.
-// It returns true if bytesRead < bufferSize and err is either nil, io.EOF, io.ErrUnexpectedEOF,
-// or a gRPC OutOfRange error.
+// isShortRead determines what constitutes a short read for retry purposes.
+// It returns true if bytesRead < bufferSize and:
+// 1. The file was opened in O_DIRECT mode and err is nil.
+// 2. The error is a gRPC OutOfRange error (regardless of open mode).
 func isShortRead(bytesRead int, bufferSize int, err error, openMode util.OpenMode) bool {
 	if bytesRead >= bufferSize {
 		return false
 	}
 
-	// Retrying for EOF & 0 byte response only if the file was opened in O_DIRECT mode.
-	if openMode.IsDirect() && (err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)) {
+	// Short read detected if the file was opened in O_DIRECT mode and there was no error.
+	if openMode.IsDirect() && err == nil {
 		return true
 	}
 

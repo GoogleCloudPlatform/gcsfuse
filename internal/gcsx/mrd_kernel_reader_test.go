@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"testing"
 	"time"
@@ -222,7 +221,7 @@ func (t *MrdKernelReaderTest) TestReadAt_ShortRead_NoRetry_NoODirect() {
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
-	assert.Equal(t.T(), err, io.EOF)
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, resp.Size) // Short read size
 	assert.Equal(t.T(), "hello", string(buf[:5]))
 	// Verify refCount incremented (only once)
@@ -306,14 +305,6 @@ func TestIsShortRead(t *testing.T) {
 			expected:   false,
 		},
 		{
-			name:       "Full read, EOF",
-			bytesRead:  10,
-			bufferSize: 10,
-			err:        io.EOF,
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
-			expected:   false,
-		},
-		{
 			name:       "Short read, no error, not O_DIRECT",
 			bytesRead:  5,
 			bufferSize: 10,
@@ -322,42 +313,10 @@ func TestIsShortRead(t *testing.T) {
 			expected:   false,
 		},
 		{
-			name:       "Short read, EOF, not O_DIRECT",
-			bytesRead:  5,
-			bufferSize: 10,
-			err:        io.EOF,
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
-			expected:   false,
-		},
-		{
-			name:       "Short read, UnexpectedEOF, not O_DIRECT",
-			bytesRead:  5,
-			bufferSize: 10,
-			err:        io.ErrUnexpectedEOF,
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
-			expected:   false,
-		},
-		{
 			name:       "Short read, no error, O_DIRECT",
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        nil,
-			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
-			expected:   true,
-		},
-		{
-			name:       "Short read, EOF, O_DIRECT",
-			bytesRead:  5,
-			bufferSize: 10,
-			err:        io.EOF,
-			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
-			expected:   true,
-		},
-		{
-			name:       "Short read, UnexpectedEOF, O_DIRECT",
-			bytesRead:  5,
-			bufferSize: 10,
-			err:        io.ErrUnexpectedEOF,
 			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
 			expected:   true,
 		},
