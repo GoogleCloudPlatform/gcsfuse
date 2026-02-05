@@ -13,18 +13,9 @@
   unit: "us"
   type: "int_histogram"
   boundaries: &common_boundaries
-  - 1
-  - 2
-  - 3
-  - 4
-  - 5
-  - 6
-  - 8
   - 10
-  - 13
   - 16
-  - 20
-  - 25
+  - 24
   - 30
   - 40
   - 50
@@ -47,6 +38,15 @@
   - 20000
   - 50000
   - 100000
+  - 200000
+  - 500000
+  - 1000000
+  - 2000000
+  - 5000000
+  - 10000000
+  - 50000000
+  - 100000000
+
 
 - metric-name: "file_cache/read_bytes_count"
   description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random"
