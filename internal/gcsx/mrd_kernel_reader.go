@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,14 +35,16 @@ type MrdKernelReader struct {
 	mrdInstanceInUse atomic.Bool
 	mrdInstance      *MrdInstance
 	metrics          metrics.MetricHandle
+	openMode         util.OpenMode
 }
 
 // NewMrdKernelReader creates a new MrdKernelReader that uses the provided
 // MrdInstance to manage MRD connections.
-func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *MrdKernelReader {
+func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle, openMode util.OpenMode) *MrdKernelReader {
 	return &MrdKernelReader{
 		mrdInstance: mrdInstance,
 		metrics:     metricsHandle,
+		openMode:    openMode,
 	}
 }
 
@@ -49,14 +52,21 @@ func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHa
 // without encountering a fatal error.
 // It returns true if bytesRead < bufferSize and err is either nil, io.EOF, io.ErrUnexpectedEOF,
 // or a gRPC OutOfRange error.
-func isShortRead(bytesRead int, bufferSize int, err error) bool {
+func isShortRead(bytesRead int, bufferSize int, err error, openMode util.OpenMode) bool {
 	if bytesRead >= bufferSize {
 		return false
 	}
 
-	if err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+	// Retrying for EOF & 0 byte response only if the file was opened in O_DIRECT mode.
+	if openMode.IsDirect() && (err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)) {
 		return true
 	}
+
+	// Even without O_DIRECT, OutOfRange errors can occur during appends from the same mount.
+	// The kernel tracks the updated file size and allows reads, but the active MRD connection might
+	// still reference the old object size. We update the local object in the MrdInstance without
+	// recreating the MRD connection. Reads beyond the old size thus return OutOfRange, which
+	// we handle as a short read to trigger MRD recreation and retry.
 
 	// Check for gRPC OutOfRange error, handling wrapped errors.
 	var se interface{ GRPCStatus() *status.Status }
@@ -94,7 +104,7 @@ func (mkr *MrdKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 
 	var err error
 	bytesRead, err = mkr.mrdInstance.Read(ctx, req.Buffer, req.Offset, mkr.metrics)
-	if isShortRead(bytesRead, len(req.Buffer), err) {
+	if isShortRead(bytesRead, len(req.Buffer), err, mkr.openMode) {
 		logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, len(req.Buffer))
 		if err = mkr.mrdInstance.RecreateMRD(); err != nil {
 			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)

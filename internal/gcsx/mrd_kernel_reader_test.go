@@ -30,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
@@ -66,7 +67,7 @@ func (t *MrdKernelReaderTest) SetupTest() {
 	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 
 	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
-	t.reader = NewMrdKernelReader(t.mrdInstance, metrics.NewNoopMetrics())
+	t.reader = NewMrdKernelReader(t.mrdInstance, metrics.NewNoopMetrics(), util.NewOpenMode(util.ReadWrite, 0))
 }
 
 func (t *MrdKernelReaderTest) TestNewMrdKernelReader() {
@@ -148,7 +149,8 @@ func (t *MrdKernelReaderTest) TestReadAt_NilMrdInstance() {
 	assert.Equal(t.T(), 0, resp.Size)
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetrySuccess() {
+func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetrySuccess_ODirect() {
+	t.reader.openMode = util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
 	data := []byte("hello world")
 	// First MRD returns short read.
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
@@ -178,7 +180,8 @@ func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetrySuccess() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetryFails() {
+func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetryFails_ODirect() {
+	t.reader.openMode = util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
 	data := []byte("hello world")
 	// First MRD returns short read with io.EOF.
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
@@ -199,6 +202,33 @@ func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetryFails() {
 	assert.ErrorIs(t.T(), err, retryErr)
 	assert.Equal(t.T(), 5, resp.Size)
 	assert.Equal(t.T(), "hello", string(buf[:5]))
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *MrdKernelReaderTest) TestReadAt_ShortRead_NoRetry_NoODirect() {
+	// Ensure O_DIRECT is not set (default in SetupTest is 0).
+	t.reader.openMode = util.NewOpenMode(util.ReadOnly, 0)
+	data := []byte("hello world")
+	// MRD returns short read.
+	fakeMRD := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
+	// Expectation:
+	// 1. Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD.
+	// 2. Read returns short read.
+	// 3. isShortRead returns false because it's not O_DIRECT.
+	// 4. ReadAt returns the short read without retrying.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+	buf := make([]byte, len(data))
+	req := &ReadRequest{Buffer: buf, Offset: 0}
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	assert.Equal(t.T(), err, io.EOF)
+	assert.Equal(t.T(), 5, resp.Size) // Short read size
+	assert.Equal(t.T(), "hello", string(buf[:5]))
+	// Verify refCount incremented (only once)
+	t.mrdInstance.refCountMu.Lock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
+	t.mrdInstance.refCountMu.Unlock()
 	t.bucket.AssertExpectations(t.T())
 }
 
@@ -264,6 +294,7 @@ func TestIsShortRead(t *testing.T) {
 		bytesRead  int
 		bufferSize int
 		err        error
+		openMode   util.OpenMode
 		expected   bool
 	}{
 		{
@@ -271,6 +302,7 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  10,
 			bufferSize: 10,
 			err:        nil,
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   false,
 		},
 		{
@@ -278,34 +310,71 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  10,
 			bufferSize: 10,
 			err:        io.EOF,
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   false,
 		},
 		{
-			name:       "Short read, no error",
+			name:       "Short read, no error, not O_DIRECT",
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        nil,
-			expected:   true,
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
+			expected:   false,
 		},
 		{
-			name:       "Short read, EOF",
+			name:       "Short read, EOF, not O_DIRECT",
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        io.EOF,
-			expected:   true,
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
+			expected:   false,
 		},
 		{
-			name:       "Short read, UnexpectedEOF",
+			name:       "Short read, UnexpectedEOF, not O_DIRECT",
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        io.ErrUnexpectedEOF,
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
+			expected:   false,
+		},
+		{
+			name:       "Short read, no error, O_DIRECT",
+			bytesRead:  5,
+			bufferSize: 10,
+			err:        nil,
+			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
 			expected:   true,
 		},
 		{
-			name:       "Short read, OutOfRange",
+			name:       "Short read, EOF, O_DIRECT",
+			bytesRead:  5,
+			bufferSize: 10,
+			err:        io.EOF,
+			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
+			expected:   true,
+		},
+		{
+			name:       "Short read, UnexpectedEOF, O_DIRECT",
+			bytesRead:  5,
+			bufferSize: 10,
+			err:        io.ErrUnexpectedEOF,
+			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
+			expected:   true,
+		},
+		{
+			name:       "Short read, OutOfRange, not O_DIRECT",
 			bytesRead:  0,
 			bufferSize: 10,
 			err:        status.Error(codes.OutOfRange, "out of range"),
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
+			expected:   true,
+		},
+		{
+			name:       "Short read, OutOfRange, O_DIRECT",
+			bytesRead:  0,
+			bufferSize: 10,
+			err:        status.Error(codes.OutOfRange, "out of range"),
+			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
 			expected:   true,
 		},
 		{
@@ -313,6 +382,7 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  0,
 			bufferSize: 10,
 			err:        fmt.Errorf("wrapped: %w", status.Error(codes.OutOfRange, "out of range")),
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   true,
 		},
 		{
@@ -320,6 +390,7 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        status.Error(codes.Internal, "internal error"),
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   false,
 		},
 		{
@@ -327,13 +398,14 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        errors.New("generic error"),
+			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, isShortRead(tc.bytesRead, tc.bufferSize, tc.err))
+			assert.Equal(t, tc.expected, isShortRead(tc.bytesRead, tc.bufferSize, tc.err, tc.openMode))
 		})
 	}
 }
@@ -356,6 +428,7 @@ func (t *MrdKernelReaderTest) TestDestroy() {
 }
 
 func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
+	t.reader.openMode = util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
 	data := []byte("hello world")
 	// First MRD returns short read.
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
