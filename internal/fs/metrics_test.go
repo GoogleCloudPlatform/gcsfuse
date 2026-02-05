@@ -46,7 +46,7 @@ type serverConfigParams struct {
 	enableSparseFileCache bool
 	// enableFileCacheForRangeRead controls if the file cache is used for random reads.
 	enableFileCacheForRangeRead bool
-	// enableKernelReader controls if the mrd_simple_reader is enabled.
+	// enableKernelReader controls if the MrdKernelReader is enabled.
 	enableKernelReader              bool
 	enableParallelDownloads         bool
 	enableParallelDownloadsBlocking bool
@@ -560,7 +560,7 @@ func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(chunkSize))
 }
 
-func TestReadFile_MrdSimpleReaderMetrics(t *testing.T) {
+func TestReadFile_MrdKernelReaderMetrics(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableKernelReader = true

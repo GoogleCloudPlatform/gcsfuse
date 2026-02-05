@@ -2940,7 +2940,7 @@ func (fs *fileSystem) ReadFile(
 			Buffer: op.Dst,
 			Offset: op.Offset,
 		}
-		resp, err = fh.ReadWithMrdSimpleReader(ctx, req)
+		resp, err = fh.ReadWithMrdKernelReader(ctx, req)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback

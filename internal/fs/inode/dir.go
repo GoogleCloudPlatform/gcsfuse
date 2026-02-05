@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -251,6 +252,8 @@ type dirInode struct {
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
+
+	metadataCacheTtlSecs int64
 }
 
 var _ DirInode = &dirInode{}
@@ -306,6 +309,7 @@ func NewDirInode(
 		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
+		metadataCacheTtlSecs:            cfg.MetadataCache.TtlSecs,
 	}
 	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
 	// acquiring d.mu only to update the cache.
@@ -338,19 +342,19 @@ func (d *dirInode) checkInvariants() {
 }
 
 func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
-	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 }
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
 	if d.isBucketHierarchical() {
-		return findExplicitFolder(ctx, d.Bucket(), childName)
+		return findExplicitFolder(ctx, d.Bucket(), childName, false)
 	}
 
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}
-	return findExplicitInode(ctx, d.Bucket(), childName)
+	return findExplicitInode(ctx, d.Bucket(), childName, false)
 }
 
 // Look up the file for a (file, dir) pair with conflicting names, overriding
@@ -384,10 +388,11 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
-func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
-		Name: name.GcsObjectName(),
+		Name:               name.GcsObjectName(),
+		FetchOnlyFromCache: fetchOnlyFromCache,
 	}
 
 	m, _, err := bucket.StatObject(ctx, req)
@@ -403,6 +408,13 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 		return nil, fmt.Errorf("StatObject: %w", err)
 	}
 
+	// Treat this as an implicit directory. Since implicit objects lack metadata
+	// (only the name is preserved), we set MinObject to nil. This ensures the
+	// inode is correctly assigned the ImplicitDir Core Type.
+	if fetchOnlyFromCache && m.Generation == 0 {
+		m = nil
+	}
+
 	return &Core{
 		Bucket:    bucket,
 		FullName:  name,
@@ -410,10 +422,11 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
-func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.GetFolderRequest{
-		Name: name.GcsObjectName(),
+		Name:               name.GcsObjectName(),
+		FetchOnlyFromCache: fetchOnlyFromCache,
 	}
 	folder, err := bucket.GetFolder(ctx, req)
 
@@ -583,16 +596,80 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return d.lookUpConflicting(ctx, name)
 	}
 
+	cachedType := metadata.UnknownType
+
+	// 1. Optimization: If Type Cache is deprecated, attempt a lookup via the Stat Cache first.
+	// We skip this if the metadata cache TTL is 0, as the cache layer is inactive.
+	if d.IsTypeCacheDeprecated() && d.metadataCacheTtlSecs != 0 {
+		var cacheMissErr *caching.CacheMissError
+
+		// 1. Try Directory FIRST (since it's the preferred return type)
+		var dirResult *Core
+		var err error
+		if d.Bucket().BucketType().Hierarchical {
+			dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+		} else {
+			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+		}
+
+		// If we found a directory, we're done. Return it now.
+		if dirResult != nil {
+			return dirResult, nil
+		}
+		// If we hit a real error (not a cache miss), exit early.
+		if err != nil && !errors.As(err, &cacheMissErr) {
+			return nil, err
+		}
+
+		// 2. Try File ONLY if directory wasn't found
+		fileResult, err := findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
+		if err != nil && !errors.As(err, &cacheMissErr) {
+			return nil, err
+		}
+
+		if fileResult != nil {
+			return fileResult, nil
+		}
+	}
+
+	// 2. Legacy: If Type Cache is NOT deprecated, fetch the type hint.
+	if !d.IsTypeCacheDeprecated() {
+		cachedType = d.cache.Get(d.cacheClock.Now(), name)
+	}
+
+	// 3. Main Lookup Logic (Unified)
+	result, err := d.fetchCoreEntity(ctx, name, cachedType)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Legacy: Update Type Cache if needed.
+	if !d.IsTypeCacheDeprecated() {
+		if result != nil {
+			d.cache.Insert(d.cacheClock.Now(), name, result.Type())
+		} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
+			d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+		}
+	}
+
+	return result, nil
+}
+
+// fetchCoreEntity contains all the existing logic for looking up children
+// without worrying about the isTypeCacheDeprecated flag.
+func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType metadata.Type) (*Core, error) {
 	group, ctx := errgroup.WithContext(ctx)
 
 	var fileResult *Core
 	var dirResult *Core
+	var err error
+
 	lookUpFile := func() (err error) {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 		return
 	}
 	lookUpExplicitDir := func() (err error) {
-		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 		return
 	}
 	lookUpImplicitOrExplicitDir := func() (err error) {
@@ -600,23 +677,17 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return
 	}
 	lookUpHNSDir := func() (err error) {
-		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 		return
 	}
-	var cachedType metadata.Type
-	if d.IsTypeCacheDeprecated() {
-		// TODO: Add deprecation logic.
-		cachedType = metadata.UnknownType
-	} else {
-		cachedType = d.cache.Get(d.cacheClock.Now(), name)
-	}
+
 	switch cachedType {
 	case metadata.ImplicitDirType:
-		dirResult = &Core{
+		return &Core{
 			Bucket:    d.Bucket(),
 			FullName:  NewDirName(d.Name(), name),
 			MinObject: nil,
-		}
+		}, nil
 	case metadata.ExplicitDirType:
 		if d.isBucketHierarchical() {
 			group.Go(lookUpHNSDir)
@@ -625,6 +696,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 	case metadata.RegularFileType, metadata.SymlinkType:
 		group.Go(lookUpFile)
+
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
@@ -642,29 +714,16 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 				group.Go(lookUpExplicitDir)
 			}
 		}
-
 	}
 
-	if err := group.Wait(); err != nil {
+	if err = group.Wait(); err != nil {
 		return nil, err
 	}
 
-	var result *Core
 	if dirResult != nil {
-		result = dirResult
-	} else if fileResult != nil {
-		result = fileResult
+		return dirResult, nil
 	}
-
-	if !d.IsTypeCacheDeprecated() {
-		if result != nil {
-			d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-		} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
-			d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
-		}
-	}
-
-	return result, nil
+	return fileResult, nil
 }
 
 func (d *dirInode) IsUnlinked() bool {

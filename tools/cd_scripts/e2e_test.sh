@@ -34,14 +34,25 @@ echo "Upgrade gcloud version"
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 
-# Conditionally install python3.11 and run gcloud installer with it for RHEL 8 and Rocky 8
+# Conditionally install python3 and run gcloud installer with it for all variants of RHEL, Rocky and CENTOS.
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [[ ($ID == "rhel" || $ID == "rocky") ]]; then
-        sudo yum install -y python311
-        export CLOUDSDK_PYTHON=/usr/bin/python3.11
-        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
+    if [[ ($ID == "rhel" || $ID == "rocky" || $ID == "centos") ]]; then
+        
+        # Check if we are on version 8 to install 3.11
+        if [[ $VERSION_ID =~ ^8 ]]; then
+            echo "Detected version 8. Installing Python 3.11..."
+            sudo yum install -y python311
+            PYTHON_BIN="/usr/bin/python3.11"
+        else
+            # Default behavior for other versions
+            sudo yum install -y python3
+            PYTHON_BIN="/usr/bin/python3"
+        fi
+
+        export CLOUDSDK_PYTHON=$PYTHON_BIN
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=$PYTHON_BIN /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
 fi
 $INSTALL_COMMAND
@@ -254,8 +265,8 @@ then
     sudo apt install -y build-essential
 else
     # For rhel and centos
-    # Set CLOUDSDK_PYTHON to python3.11 for gcloud commands to work.
-    export CLOUDSDK_PYTHON=/usr/bin/python3.11
+    # Set CLOUDSDK_PYTHON to python3 for gcloud commands to work.
+    export CLOUDSDK_PYTHON=/usr/bin/python3
 
     # uname can be aarch or x86_64
     uname=$(uname -m)

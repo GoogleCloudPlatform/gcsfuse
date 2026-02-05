@@ -21,6 +21,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+const IsTypeCacheDeprecated = false
+
 // List objects in the supplied bucket whose name starts with the given prefix.
 // Write them into the supplied channel in an undefined order.
 func ListPrefix(
