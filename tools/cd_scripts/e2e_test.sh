@@ -265,9 +265,16 @@ then
     sudo apt install -y build-essential
 else
     # For rhel and centos
-    # Set CLOUDSDK_PYTHON to python3 for gcloud commands to work.
-    export CLOUDSDK_PYTHON=/usr/bin/python3
-
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        
+        # If version starts with 8, use python3; otherwise, use 3.11
+        if [[ "$VERSION_ID" =~ ^8 ]]; then
+            export CLOUDSDK_PYTHON="/usr/bin/python3"
+        else
+            export CLOUDSDK_PYTHON="/usr/bin/python3.11"
+        fi
+    fi
     # uname can be aarch or x86_64
     uname=$(uname -m)
 
