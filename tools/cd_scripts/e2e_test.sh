@@ -41,7 +41,7 @@ if [ -f /etc/os-release ]; then
     if [[ ($ID == "rhel" || $ID == "rocky" || $ID == "centos") ]]; then
         
         # Check if we are on version 8 to install 3.11
-        if [[ $VERSION_ID =~ ^8 ]]; then
+        if [[ $VERSION =~ ^8 ]]; then
             echo "Detected version 8. Installing Python 3.11..."
             sudo yum install -y python311
             PYTHON_BIN="/usr/bin/python3.11"
