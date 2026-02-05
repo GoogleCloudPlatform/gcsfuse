@@ -280,9 +280,8 @@ func validateMetric(m Metric) error {
 	}
 
 	if m.Type == "int_histogram" {
-		if len(m.Boundaries) == 0 {
-			return fmt.Errorf("boundaries are required for histogram metric %q", m.Name)
-		}
+		// Boundaries are optional for histograms. If not provided,
+		// we assume Exponential Histogram aggregation will be configured.
 	} else { // int_counter
 		if len(m.Boundaries) > 0 {
 			return fmt.Errorf("boundaries should not be present for counter metric %q", m.Name)

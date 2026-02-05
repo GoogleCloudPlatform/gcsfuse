@@ -75,10 +75,17 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 }
 
 // dropUnwantedMetricsView is an OTel View that drops the metrics that don't match the allowed prefixes.
+// It also configures histograms to use Base2 Exponential Bucket Histograms.
 func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
 	s := metric.Stream{Name: i.Name, Description: i.Description, Unit: i.Unit}
 	for _, prefix := range allowedMetricPrefixes {
 		if strings.HasPrefix(i.Name, prefix) {
+			if i.Kind == metric.InstrumentKindHistogram {
+				s.Aggregation = metric.AggregationBase2ExponentialHistogram{
+					MaxSize:  160,
+					MaxScale: 20,
+				}
+			}
 			return s, true
 		}
 	}
