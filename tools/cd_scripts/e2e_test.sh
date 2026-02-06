@@ -267,20 +267,16 @@ else
     # For rhel and centos
     # Set CLOUDSDK_PYTHON to python3 for gcloud commands to work.
 
-    if [ -f /etc/os-release ]; then
-        # Extract VERSION_ID safely without complex regex
-        # This reads the file, finds the line, and strips quotes/labels
-        V_ID=$(awk -F= '/^VERSION_ID=/{print $2}' /etc/os-release | tr -d '"')
+    if [[ -f /etc/os-release ]]; then
+        # Extract VERSION_ID using double quotes only
+        V_ID=$(awk -F= "/^VERSION_ID=/{print \$2}" /etc/os-release | tr -d "\"")
 
         # Check if the version starts with 8
-        case "$V_ID" in
-            8*)
-                export CLOUDSDK_PYTHON="/usr/bin/python3.11"
-                ;;
-            *)
-                export CLOUDSDK_PYTHON="/usr/bin/python3"
-                ;;
-        esac
+        if [[ "$V_ID" == 8* ]]; then
+            export CLOUDSDK_PYTHON="/usr/bin/python3.11"
+        else
+            export CLOUDSDK_PYTHON="/usr/bin/python3"
+        fi
     fi
 
     # uname can be aarch or x86_64
