@@ -103,7 +103,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 	}
 
 	if c.FileSystem.EnableKernelReader {
-		fh.mrdKernelReader = gcsx.NewMrdKernelReader(inode.GetMRDInstance(), metricHandle, fh.openMode)
+		fh.mrdKernelReader = gcsx.NewMrdKernelReader(inode.GetMRDInstance(), metricHandle)
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)

@@ -29,7 +29,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
@@ -66,7 +65,7 @@ func (t *MrdKernelReaderTest) SetupTest() {
 	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 
 	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
-	t.reader = NewMrdKernelReader(t.mrdInstance, metrics.NewNoopMetrics(), util.NewOpenMode(util.ReadWrite, 0))
+	t.reader = NewMrdKernelReader(t.mrdInstance, metrics.NewNoopMetrics())
 }
 
 func (t *MrdKernelReaderTest) TestNewMrdKernelReader() {
@@ -148,72 +147,14 @@ func (t *MrdKernelReaderTest) TestReadAt_NilMrdInstance() {
 	assert.Equal(t.T(), 0, resp.Size)
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetrySuccess_ODirect() {
-	t.reader.openMode = util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
-	data := []byte("hello world")
-	// First MRD returns short read.
-	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
-	// Second MRD returns full read.
-	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, data)
-	// Expectation:
-	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
-	// 2. Read returns short read.
-	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD2.
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	buf := make([]byte, len(data))
-	req := &ReadRequest{
-		Buffer: buf,
-		Offset: 0,
-	}
-
-	resp, err := t.reader.ReadAt(context.Background(), req)
-
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), len(data), resp.Size)
-	assert.Equal(t.T(), string(data), string(buf))
-	// Verify refCount incremented
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
-	t.bucket.AssertExpectations(t.T())
-}
-
-func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetryFails_ODirect() {
-	t.reader.openMode = util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
-	data := []byte("hello world")
-	// First MRD returns short read with io.EOF.
-	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
-	// Second MRD returns 0 bytes and an error.
-	retryErr := status.Error(codes.Internal, "Internal error")
-	fakeMRD2 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, retryErr)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	buf := make([]byte, len(data))
-	req := &ReadRequest{
-		Buffer: buf,
-		Offset: 0,
-	}
-
-	resp, err := t.reader.ReadAt(context.Background(), req)
-
-	// ReadAt returns the error from the last attempt (the retry).
-	assert.ErrorIs(t.T(), err, retryErr)
-	assert.Equal(t.T(), 5, resp.Size)
-	assert.Equal(t.T(), "hello", string(buf[:5]))
-	t.bucket.AssertExpectations(t.T())
-}
-
-func (t *MrdKernelReaderTest) TestReadAt_ShortRead_NoRetry_NoODirect() {
-	// Ensure O_DIRECT is not set (default in SetupTest is 0).
-	t.reader.openMode = util.NewOpenMode(util.ReadOnly, 0)
+func (t *MrdKernelReaderTest) TestReadAt_ShortRead_NoRetry() {
 	data := []byte("hello world")
 	// MRD returns short read.
 	fakeMRD := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
 	// Expectation:
 	// 1. Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD.
 	// 2. Read returns short read.
-	// 3. isShortRead returns false because it's not O_DIRECT.
+	// 3. isShortRead returns false because err is nil.
 	// 4. ReadAt returns the short read without retrying.
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, len(data))
@@ -293,7 +234,6 @@ func TestIsShortRead(t *testing.T) {
 		bytesRead  int
 		bufferSize int
 		err        error
-		openMode   util.OpenMode
 		expected   bool
 	}{
 		{
@@ -301,39 +241,27 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  10,
 			bufferSize: 10,
 			err:        nil,
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   false,
 		},
 		{
-			name:       "Short read, no error, not O_DIRECT",
-			bytesRead:  5,
+			name:       "Full read, error",
+			bytesRead:  10,
 			bufferSize: 10,
-			err:        nil,
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
+			err:        errors.New("error"),
 			expected:   false,
 		},
 		{
-			name:       "Short read, no error, O_DIRECT",
+			name:       "Short read, no error",
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        nil,
-			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
-			expected:   true,
+			expected:   false,
 		},
 		{
-			name:       "Short read, OutOfRange, not O_DIRECT",
+			name:       "Short read, OutOfRange",
 			bytesRead:  0,
 			bufferSize: 10,
 			err:        status.Error(codes.OutOfRange, "out of range"),
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
-			expected:   true,
-		},
-		{
-			name:       "Short read, OutOfRange, O_DIRECT",
-			bytesRead:  0,
-			bufferSize: 10,
-			err:        status.Error(codes.OutOfRange, "out of range"),
-			openMode:   util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
 			expected:   true,
 		},
 		{
@@ -341,7 +269,6 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  0,
 			bufferSize: 10,
 			err:        fmt.Errorf("wrapped: %w", status.Error(codes.OutOfRange, "out of range")),
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   true,
 		},
 		{
@@ -349,7 +276,6 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        status.Error(codes.Internal, "internal error"),
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   false,
 		},
 		{
@@ -357,14 +283,13 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        errors.New("generic error"),
-			openMode:   util.NewOpenMode(util.ReadOnly, 0),
 			expected:   false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, isShortRead(tc.bytesRead, tc.bufferSize, tc.err, tc.openMode))
+			assert.Equal(t, tc.expected, isShortRead(tc.bytesRead, tc.bufferSize, tc.err))
 		})
 	}
 }
@@ -387,18 +312,17 @@ func (t *MrdKernelReaderTest) TestDestroy() {
 }
 
 func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
-	t.reader.openMode = util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
-	data := []byte("hello world")
-	// First MRD returns short read.
-	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
+	// First MRD returns OutOfRange error.
+	outOfRangeErr := status.Error(codes.OutOfRange, "Out of range")
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, outOfRangeErr)
 	// Expectation:
 	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
-	// 2. Read returns short read.
+	// 2. Read returns OutOfRange.
 	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns ERROR.
 	// 4. ReadAt logs warning and retries with existing pool (fakeMRD1).
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, errors.New("recreate failed")).Once()
-	buf := make([]byte, len(data))
+	buf := make([]byte, 10)
 	req := &ReadRequest{
 		Buffer: buf,
 		Offset: 0,
@@ -408,11 +332,10 @@ func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 
 	// Assert
 	// We verify that we didn't get the "recreate failed" error.
-	if err != nil {
-		assert.NotEqual(t.T(), "recreate failed", err.Error())
-	}
-	// We expect some data to be read (from first attempt + potentially second attempt).
-	assert.Greater(t.T(), resp.Size, 0)
+	assert.ErrorIs(t.T(), err, outOfRangeErr)
+	assert.NotEqual(t.T(), "recreate failed", err.Error())
+	// We expect 0 bytes to be read as OutOfRange returns 0 bytes.
+	assert.Equal(t.T(), 0, resp.Size)
 	t.bucket.AssertExpectations(t.T())
 }
 

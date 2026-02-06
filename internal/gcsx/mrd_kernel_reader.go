@@ -21,7 +21,6 @@ import (
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,31 +33,22 @@ type MrdKernelReader struct {
 	mrdInstanceInUse atomic.Bool
 	mrdInstance      *MrdInstance
 	metrics          metrics.MetricHandle
-	openMode         util.OpenMode
 }
 
 // NewMrdKernelReader creates a new MrdKernelReader that uses the provided
 // MrdInstance to manage MRD connections.
-func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle, openMode util.OpenMode) *MrdKernelReader {
+func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *MrdKernelReader {
 	return &MrdKernelReader{
 		mrdInstance: mrdInstance,
 		metrics:     metricsHandle,
-		openMode:    openMode,
 	}
 }
 
 // isShortRead determines what constitutes a short read for retry purposes.
-// It returns true if bytesRead < bufferSize and:
-// 1. The file was opened in O_DIRECT mode and err is nil.
-// 2. The error is a gRPC OutOfRange error (regardless of open mode).
-func isShortRead(bytesRead int, bufferSize int, err error, openMode util.OpenMode) bool {
+// It returns true if bytesRead < bufferSize and the error is a gRPC OutOfRange error.
+func isShortRead(bytesRead int, bufferSize int, err error) bool {
 	if bytesRead >= bufferSize {
 		return false
-	}
-
-	// Short read detected if the file was opened in O_DIRECT mode and there was no error.
-	if openMode.IsDirect() && err == nil {
-		return true
 	}
 
 	// Even without O_DIRECT, OutOfRange errors can occur during appends from the same mount.
@@ -103,7 +93,7 @@ func (mkr *MrdKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 
 	var err error
 	bytesRead, err = mkr.mrdInstance.Read(ctx, req.Buffer, req.Offset, mkr.metrics)
-	if isShortRead(bytesRead, len(req.Buffer), err, mkr.openMode) {
+	if isShortRead(bytesRead, len(req.Buffer), err) {
 		logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, len(req.Buffer))
 		if err = mkr.mrdInstance.RecreateMRD(); err != nil {
 			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
