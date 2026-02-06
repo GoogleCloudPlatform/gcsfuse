@@ -88,19 +88,6 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 		return false, fmt.Errorf("sparse download failed: %w", downloadErr)
 	}
 
-	downloadErr := downloadErrGroup.Wait()
-
-	// Cleanup inflight chunks for all download attempts.
-	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
-	job.mu.Lock()
-	for _, chunkID := range chunksToDownload {
-		if ch, ok := job.inflightChunks[chunkID]; ok {
-			close(ch)
-			delete(job.inflightChunks, chunkID)
-		}
-	}
-	job.mu.Unlock()
-
 	// Wait for other inflight chunks
 	for _, ch := range waitChans {
 		select {

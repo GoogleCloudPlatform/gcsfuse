@@ -434,6 +434,30 @@ read_cache:
           zonal: true
         run: TestCacheFileForIncludeRegexTest
         run_on_gke: true
+      - flags:
+          - "--file-cache-experimental-enable-chunk-cache=true,--file-cache-download-chunk-size-mb=10,--cache-dir=/gcsfuse-tmp/TestChunkCacheTest,--log-file=/gcsfuse-tmp/TestChunkCacheTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestChunkCacheTest
+        run_on_gke: true
+      - flags:
+          - "--file-cache-experimental-enable-chunk-cache=false,--cache-dir=/gcsfuse-tmp/TestChunkCacheDisabledTest,--log-file=/gcsfuse-tmp/TestChunkCacheDisabledTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestChunkCacheDisabledTest
+        run_on_gke: true
+      - flags:
+          - "--file-cache-experimental-enable-chunk-cache=true,--file-cache-download-chunk-size-mb=10,--file-cache-max-size-mb=15,--cache-dir=/gcsfuse-tmp/TestChunkCacheEviction,--log-file=/gcsfuse-tmp/TestChunkCacheEviction.log,--log-severity=TRACE,--enable-kernel-reader=false"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestChunkCacheEviction
+        run_on_gke: true
 
 stale_handle:
   - mounted_directory: "${MOUNTED_DIR}"
