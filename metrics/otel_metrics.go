@@ -3452,7 +3452,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	gcsRequestLatencies, err13 := meter.Int64Histogram("gcs/request_latencies",
 		metric.WithDescription("The cumulative distribution of the GCS request latencies."),
 		metric.WithUnit("ms"),
-		metric.WithExplicitBucketBoundaries(50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
+		metric.WithExplicitBucketBoundaries(50, 100, 150, 200, 300, 400, 500, 700, 1000, 2000, 5000, 7000, 10000, 20000, 50000, 100000, 200000, 500000))
 
 	_, err14 := meter.Int64ObservableCounter("gcs/retry_count",
 		metric.WithDescription("The cumulative number of retry requests made to GCS."),

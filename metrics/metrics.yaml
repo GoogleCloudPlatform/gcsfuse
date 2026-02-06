@@ -12,7 +12,7 @@
   description: "The cumulative distribution of latencies for ReadAt calls served by the buffered reader."
   unit: "us"
   type: "int_histogram"
-  boundaries: &common_boundaries
+  boundaries: &microseconds_boundaries
   - 50
   - 100
   - 200
@@ -64,7 +64,7 @@
   description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false."
   type: "int_histogram"
   unit: "us"
-  boundaries: *common_boundaries
+  boundaries: *microseconds_boundaries
   attributes:
   - attribute-name: cache_hit
     attribute-type: bool
@@ -133,7 +133,7 @@
   description: "The cumulative distribution of file system operation latencies"
   type: "int_histogram"
   unit: "us"
-  boundaries: *common_boundaries
+  boundaries: *microseconds_boundaries
   attributes:
   - attribute-name: fs_op
     attribute-type: string
@@ -206,7 +206,25 @@
   description: "The cumulative distribution of the GCS request latencies."
   type: "int_histogram"
   unit: "ms"
-  boundaries: *common_boundaries
+  boundaries: &millisecond_boundaries
+  - 50
+  - 100
+  - 150
+  - 200
+  - 300
+  - 400
+  - 500
+  - 700
+  - 1000
+  - 2000
+  - 5000
+  - 7000
+  - 10000
+  - 20000
+  - 50000
+  - 100000
+  - 200000
+  - 500000
   attributes:
   - attribute-name: gcs_method
     attribute-type: string
