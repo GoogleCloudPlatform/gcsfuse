@@ -189,6 +189,40 @@ sudo -u starterscriptuser bash -c '
 set -e
 # Print commands and their arguments as they are executed.
 
+# Function to log test results and upload them to GCS based on exit status.
+# Arguments: $1 = name of the associative array containing testcase exit statuses.
+function log_based_on_exit_status() {
+  if [[ "$#" -ne 1 ]]; then
+    echo "Incorrect number of arguments passed, Expecting <EXIT_STATUS_ARRAY_NAME>"
+    exit 1
+  fi
+  gather_test_logs
+  local -n exit_status_array=$1
+
+  for testcase in "${!exit_status_array[@]}"
+    do
+        local logfile=""
+        local successfile=""
+        if [[ "$testcase" == "flat" ]]; then
+          logfile="$HOME/logs.txt"
+          successfile="$HOME/success.txt"
+        else
+          logfile="$HOME/logs-$testcase.txt"
+          successfile="$HOME/success-$testcase.txt"
+        fi
+        if [[ "${exit_status_array["$testcase"]}" != 0 ]];
+        then
+            echo "Test failures detected in $testcase bucket." &>> $logfile
+        else
+            touch $successfile
+            gcloud storage cp $successfile gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
+        fi
+    gcloud storage cp $logfile gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
+    done
+
+    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
+}
+
 function cleanup() {
     echo "Performing cleanup..."
     #Log results based on the collected exit statuses.
@@ -592,40 +626,6 @@ function gather_test_logs() {
       echo "=========================================" >> "$output_file"
     fi
   done
-}
-
-# Function to log test results and upload them to GCS based on exit status.
-# Arguments: $1 = name of the associative array containing testcase exit statuses.
-function log_based_on_exit_status() {
-  if [[ "$#" -ne 1 ]]; then
-    echo "Incorrect number of arguments passed, Expecting <EXIT_STATUS_ARRAY_NAME>"
-    exit 1
-  fi
-  gather_test_logs
-  local -n exit_status_array=$1
-
-  for testcase in "${!exit_status_array[@]}"
-    do
-        local logfile=""
-        local successfile=""
-        if [[ "$testcase" == "flat" ]]; then
-          logfile="$HOME/logs.txt"
-          successfile="$HOME/success.txt"
-        else
-          logfile="$HOME/logs-$testcase.txt"
-          successfile="$HOME/success-$testcase.txt"
-        fi
-        if [[ "${exit_status_array["$testcase"]}" != 0 ]];
-        then
-            echo "Test failures detected in $testcase bucket." &>> $logfile
-        else
-            touch $successfile
-            gcloud storage cp $successfile gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
-        fi
-    gcloud storage cp $logfile gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
-    done
-
-    gcloud storage cp -R "$KOKORO_ARTIFACTS_DIR" gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/
 }
 
 # Function to run emulator-based E2E tests and log results.
