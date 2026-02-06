@@ -270,9 +270,9 @@ else
         . /etc/os-release
         # If version starts with 8, use python3; otherwise, use 3.11
         if [[ "$VERSION_ID" =~ ^8 ]]; then
-            export CLOUDSDK_PYTHON="/usr/bin/python3"
-        else
             export CLOUDSDK_PYTHON="/usr/bin/python3.11"
+        else
+            export CLOUDSDK_PYTHON="/usr/bin/python3"
         fi
     fi
 
