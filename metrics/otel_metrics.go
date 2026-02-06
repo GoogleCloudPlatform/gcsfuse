@@ -2907,7 +2907,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	bufferedReadReadLatency, err1 := meter.Int64Histogram("buffered_read/read_latency",
 		metric.WithDescription("The cumulative distribution of latencies for ReadAt calls served by the buffered reader."),
 		metric.WithUnit("us"),
-		metric.WithExplicitBucketBoundaries(10, 30, 50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
+		metric.WithExplicitBucketBoundaries(50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
 
 	_, err2 := meter.Int64ObservableCounter("file_cache/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
@@ -2938,7 +2938,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	fileCacheReadLatencies, err4 := meter.Int64Histogram("file_cache/read_latencies",
 		metric.WithDescription("The cumulative distribution of the file cache read latencies along with cache hit - true/false."),
 		metric.WithUnit("us"),
-		metric.WithExplicitBucketBoundaries(10, 30, 50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
+		metric.WithExplicitBucketBoundaries(50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
 
 	_, err5 := meter.Int64ObservableCounter("fs/ops_count",
 		metric.WithDescription("The cumulative number of ops processed by the file system."),
@@ -3382,7 +3382,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	fsOpsLatency, err7 := meter.Int64Histogram("fs/ops_latency",
 		metric.WithDescription("The cumulative distribution of file system operation latencies"),
 		metric.WithUnit("us"),
-		metric.WithExplicitBucketBoundaries(10, 30, 50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
+		metric.WithExplicitBucketBoundaries(50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
 
 	_, err8 := meter.Int64ObservableCounter("gcs/download_bytes_count",
 		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
@@ -3452,7 +3452,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	gcsRequestLatencies, err13 := meter.Int64Histogram("gcs/request_latencies",
 		metric.WithDescription("The cumulative distribution of the GCS request latencies."),
 		metric.WithUnit("ms"),
-		metric.WithExplicitBucketBoundaries(10, 30, 50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
+		metric.WithExplicitBucketBoundaries(50, 100, 200, 400, 800, 1200, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 50000000, 100000000, 300000000, 500000000))
 
 	_, err14 := meter.Int64ObservableCounter("gcs/retry_count",
 		metric.WithDescription("The cumulative number of retry requests made to GCS."),
