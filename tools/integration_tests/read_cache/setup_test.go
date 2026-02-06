@@ -131,7 +131,7 @@ func TestMain(m *testing.M) {
 		cfg.ReadCache[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ReadCache[0].LogFile = setup.LogFile()
 		// Initialize the slice to hold 15 specific test configurations
-		cfg.ReadCache[0].Configs = make([]test_suite.ConfigItem, 17)
+		cfg.ReadCache[0].Configs = make([]test_suite.ConfigItem, 20)
 		cfg.ReadCache[0].Configs[0].Flags = []string{
 			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --implicit-dirs --enable-kernel-reader=false",
 			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --enable-kernel-reader=false",
@@ -305,6 +305,24 @@ func TestMain(m *testing.M) {
 		}
 		cfg.ReadCache[0].Configs[16].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[16].Run = "TestCacheFileForIncludeRegexTest"
+
+		cfg.ReadCache[0].Configs[17].Flags = []string{
+			"--file-cache-experimental-enable-chunk-cache=true --file-cache-download-chunk-size-mb=10 --cache-dir=/gcsfuse-tmp/TestChunkCacheTest --log-file=/gcsfuse-tmp/TestChunkCacheTest.log --log-severity=TRACE --enable-kernel-reader=false",
+		}
+		cfg.ReadCache[0].Configs[17].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ReadCache[0].Configs[17].Run = "TestChunkCacheTest"
+
+		cfg.ReadCache[0].Configs[18].Flags = []string{
+			"--file-cache-experimental-enable-chunk-cache=false --cache-dir=/gcsfuse-tmp/TestChunkCacheDisabledTest --log-file=/gcsfuse-tmp/TestChunkCacheDisabledTest.log --log-severity=TRACE --enable-kernel-reader=false",
+		}
+		cfg.ReadCache[0].Configs[18].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ReadCache[0].Configs[18].Run = "TestChunkCacheDisabledTest"
+
+		cfg.ReadCache[0].Configs[19].Flags = []string{
+			"--file-cache-experimental-enable-chunk-cache=true --file-cache-download-chunk-size-mb=10 --file-cache-max-size-mb=15 --cache-dir=/gcsfuse-tmp/TestChunkCacheEviction --log-file=/gcsfuse-tmp/TestChunkCacheEviction.log --log-severity=TRACE --enable-kernel-reader=false",
+		}
+		cfg.ReadCache[0].Configs[19].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ReadCache[0].Configs[19].Run = "TestChunkCacheEviction"
 	}
 
 	testEnv.ctx = context.Background()

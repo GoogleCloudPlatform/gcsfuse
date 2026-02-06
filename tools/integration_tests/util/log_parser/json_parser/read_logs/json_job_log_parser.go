@@ -66,6 +66,10 @@ func filterAndParseJobLogLine(logLine string, structuredLogs map[string]*Job) er
 		if err := parseJobFileLog(timestampSeconds, timestampNanos, logMessage, structuredLogs); err != nil {
 			return fmt.Errorf("parseJobFileLog failed: %v", err)
 		}
+	case strings.Contains(logMessage, "downloaded range"):
+		if err := parseChunkDownloadLog(timestampSeconds, timestampNanos, logMessage, structuredLogs); err != nil {
+			return fmt.Errorf("parseChunkDownloadLog failed: %v", err)
+		}
 	}
 	return nil
 }
