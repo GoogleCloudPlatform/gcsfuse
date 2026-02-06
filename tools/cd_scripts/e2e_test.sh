@@ -267,12 +267,11 @@ else
     # For rhel and centos
     # Set CLOUDSDK_PYTHON to python3 for gcloud commands to work.
 
-    # Instead of sourcing the whole file, just extract the value
     if [[ -f /etc/os-release ]]; then
-        # Extracts the version ID safely without sourcing the whole file
-        V_ID=$(grep -oP '^VERSION_ID="\K[^"]+' /etc/os-release)
-        
-        if [[ "$V_ID" =~ ^8 ]]; then
+        . /etc/os-release
+        echo "VERSION_ID" $VERSION_ID
+        # If version starts with 8, use python3; otherwise, use 3.11
+        if [[ "$VERSION_ID" =~ ^8 ]]; then
             export CLOUDSDK_PYTHON="/usr/bin/python3.11"
         else
             export CLOUDSDK_PYTHON="/usr/bin/python3"
