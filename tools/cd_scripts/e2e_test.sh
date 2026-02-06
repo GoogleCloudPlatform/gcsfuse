@@ -268,7 +268,7 @@ else
     # Set CLOUDSDK_PYTHON to python3 for gcloud commands to work.
 
     if [[ -f /etc/os-release ]]; then
-        # Extract VERSION_ID using double quotes only
+        # Extract VERSION_ID from /etc/os-release
         V_ID=$(awk -F= "/^VERSION_ID=/{print \$2}" /etc/os-release | tr -d "\"")
 
         # Check if the version starts with 8
