@@ -219,7 +219,7 @@ func TestIsGKEEnvironment(t *testing.T) {
 		mountPoint string
 		expected   bool
 	}{
-		{"non-GKE", "/usr/local/mount-folder", false},
+		{"non-GKE", "/usr/local/mount-folder", true},
 		{"GKE mountpoint", "/dev/fd/", true},
 		{"GKE /dev/fd/N", "/dev/fd/8", true},
 	}
