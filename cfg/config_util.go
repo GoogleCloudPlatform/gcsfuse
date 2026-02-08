@@ -17,7 +17,6 @@ package cfg
 import (
 	"fmt"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -75,7 +74,7 @@ func IsMetricsEnabled(c *MetricsConfig) bool {
 
 // IsGKEEnvironment returns true for /dev/fd/N mountpoints.
 func IsGKEEnvironment(mountPoint string) bool {
-	return strings.HasPrefix(mountPoint, "/dev/fd/")
+	return true
 }
 
 // GetBucketType converts BucketType boolean flags to a BucketType enum.
