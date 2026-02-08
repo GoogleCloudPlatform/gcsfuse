@@ -1295,13 +1295,10 @@ func (t *DirectoryTest) CreateHardLink() {
 		path.Join(mntDir, "bar"))
 
 	// Kernel behavior changed with: https://github.com/torvalds/linux/commit/8344213571b2ac8caf013cfd3b37bc3467c3a893
-	// Older kernels return "function not implemented" (ENOSYS)
-	// Newer kernels (6.x+) return "operation not permitted" (EPERM)
+	// Older kernels return ENOSYS (function not implemented)
+	// Newer kernels (6.x+) return EPERM (operation not permitted)
 	AssertNe(nil, err)
-	errStr := err.Error()
-	ExpectTrue(
-		strings.Contains(errStr, "not implemented") || strings.Contains(errStr, "operation not permitted"),
-		"Expected error to contain 'not implemented' or 'operation not permitted', got: %v", err)
+	ExpectTrue(errors.Is(err, syscall.ENOSYS) || errors.Is(err, syscall.EPERM), "Expected ENOSYS or EPERM, got: %v", err)
 }
 
 func (t *DirectoryTest) Chmod() {
