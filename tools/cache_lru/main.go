@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"log/slog"
 	"os"
@@ -29,8 +30,12 @@ import (
 var (
 	cacheDir   = flag.String("cache-dir", "", "Path to the cache directory")
 	targetSize = flag.Int64("target-size-mb", 10240, "Target cache size in MB (default: 10GB)")
-	dryRun     = flag.Bool("dry-run", false, "Dry run mode - don't delete files")
+	dryRun     = flag.Bool("dry-run", false, "Dry run mode - don't delete/expire files")
 	debug      = flag.Bool("debug", false, "Enable debug logging")
+)
+
+const (
+	MiB = 1024 * 1024
 )
 
 type FileInfo struct {
@@ -61,9 +66,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("Starting LRU cache eviction", "cache_dir", *cacheDir, "target_mb", *targetSize)
+	slog.Info("Starting LRU cache eviction", "cache_dir", *cacheDir, "target_size_mb", *targetSize)
 
-	// Step 1: Clean up any previous .bak files first
+	// Step 1: Clean up any previous .bak expired as part of previous run.
 	if !*dryRun {
 		removeAllBakFiles(*cacheDir)
 	}
@@ -76,24 +81,22 @@ func main() {
 	}
 	slog.Debug("Manifest created",
 		"files", len(manifest.Files),
-		"total_mb", float64(manifest.TotalSize)/(1024*1024),
+		"total_size_mb", float64(manifest.TotalSize)/MiB,
 		"scan_duration", manifest.ScanDuration)
 
 	// Step 3: Check if we need to expire files
-	targetBytes := *targetSize * 1024 * 1024
+	targetBytes := *targetSize * MiB
 	if manifest.TotalSize <= targetBytes {
 		slog.Info("Cache below target, nothing to do",
-			"cache_mb", float64(manifest.TotalSize)/(1024*1024),
-			"target_mb", float64(targetBytes)/(1024*1024))
+			"cache_size_mb", float64(manifest.TotalSize)/MiB,
+			"target_size_mb", float64(targetBytes)/MiB)
 		return
 	}
 
 	// Step 4: Find LRU files to expire
-	targetSize := manifest.TotalSize - targetBytes
-	filesToExpire := findLRUFiles(manifest, targetSize)
-
+	filesToExpire := findLRUFiles(manifest, targetBytes)
 	slog.Info("Expiring files",
-		"expired_mb", float64(targetSize)/(1024*1024),
+		"expired_size_mb", float64(manifest.TotalSize-targetBytes)/MiB,
 		"file_count", len(filesToExpire))
 
 	// Step 5: Expire files in parallel (rename to .bak)
@@ -111,7 +114,7 @@ func main() {
 			if i < 10 { // Show first 10
 				slog.Debug("Would evict",
 					"path", f.Path,
-					"size_mb", float64(f.Size)/(1024*1024),
+					"size_mb", float64(f.Size)/MiB,
 					"atime", f.Atime)
 			}
 		}
@@ -138,6 +141,7 @@ func createManifest(cacheDir string) (*Manifest, error) {
 
 	err := filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			slog.Warn("Skipping file due to error", "path", path, "error", err)
 			return nil // Skip errors
 		}
 
@@ -188,6 +192,8 @@ func findLRUFiles(manifest *Manifest, targetSize int64) []FileInfo {
 		return []FileInfo{}
 	}
 
+	bytesToExpire := manifest.TotalSize - targetSize
+
 	// Sort by atime (oldest first)
 	sorted := make([]FileInfo, len(manifest.Files))
 	copy(sorted, manifest.Files)
@@ -203,7 +209,7 @@ func findLRUFiles(manifest *Manifest, targetSize int64) []FileInfo {
 	for _, f := range sorted {
 		selected = append(selected, f)
 		totalBytes += f.Size
-		if totalBytes >= targetSize {
+		if totalBytes >= bytesToExpire {
 			break
 		}
 	}
@@ -240,7 +246,12 @@ func removeOldTmpFiles(cacheDir string) {
 	semaphore := make(chan struct{}, 10)
 
 	if err := filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			slog.Warn("Skipping file due to error", "path", path, "error", err)
+			return nil
+		}
+
+		if info.IsDir() {
 			return nil
 		}
 
@@ -284,7 +295,12 @@ func removeAllBakFiles(cacheDir string) {
 	var fileCount int
 
 	if err := filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			slog.Warn("Skipping file due to error", "path", path, "error", err)
+			return nil
+		}
+
+		if info.IsDir() {
 			return nil
 		}
 
@@ -348,8 +364,8 @@ func cleanupEmptyDirs(cacheDir string) {
 	for _, dir := range dirs {
 		// Try to remove if empty
 		if err := os.Remove(dir); err != nil {
-			// Ignore ENOTEMPTY - concurrent files were added
-			if !os.IsExist(err) {
+			// Ignore ENOTEMPTY - concurrently files were addeed back to this directory.
+			if !errors.Is(err, syscall.ENOTEMPTY) {
 				slog.Debug("Failed to remove directory", "path", dir, "error", err)
 			}
 		}

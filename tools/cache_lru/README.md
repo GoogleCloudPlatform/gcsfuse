@@ -78,7 +78,7 @@ concurrent read and eviction of chunked file.
 ## Example
 
 ```bash
-./gcsfuse-shared-cache-lru -cache-dir=/mnt/nfs-cache -target-size-mb=10240 -verbose
+./gcsfuse-shared-cache-lru -cache-dir=/mnt/nfs-cache -target-size-mb=10240 -debug
 ```
 Output:
 ```

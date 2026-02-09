@@ -50,8 +50,7 @@ func TestLRUEviction(t *testing.T) {
 	manifest, err := createManifest(cacheDir)
 	require.NoError(t, err)
 	targetSize := int64(2 * 1024 * 1024)
-	bytesToEvict := manifest.TotalSize - targetSize
-	filesToExpire := findLRUFiles(manifest, bytesToEvict)
+	filesToExpire := findLRUFiles(manifest, targetSize)
 	expireFiles(filesToExpire)
 
 	// Assert
