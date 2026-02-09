@@ -19,7 +19,7 @@ The feature is **disabled by default** and can be enabled using:
 **Note:** Buffered reads are designed to operate exclusively when the file cache is disabled. If both features are enabled, the file cache takes precedence and buffered reads will be ignored.
 
 **Best Use Cases:**
-- Applications using fewer threads (typically less than 8) reading large files (> 100MB) with sequential access patterns.
+- Applications reading large files (> 100MB) with sequential access patterns. Users need to ensure enough buffer memory is configured to allow for higher parallelism (default buffer settings allow up to 2 concurrent threads). If you need to increase this, you can increase `--read-global-max-blocks`.
 
 **Performance Gains:**
 - Can provide 2-6x improvement in sequential read throughput.
