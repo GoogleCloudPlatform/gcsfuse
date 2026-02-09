@@ -597,6 +597,8 @@ type GcsConnectionConfig struct {
 
 	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address"`
 
+	ForceGrpcDirectConnectivity bool `yaml:"force-grpc-direct-connectivity"`
+
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
@@ -1095,6 +1097,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("finalize-file-for-rapid", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
 
 	if err := flagSet.MarkHidden("finalize-file-for-rapid"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("force-grpc-direct-connectivity", "", false, "When enabled with client-protocol=grpc, forces direct-path connectivity. Falls back to HTTP1 client if direct-path is unavailable.")
+
+	if err := flagSet.MarkHidden("force-grpc-direct-connectivity"); err != nil {
 		return err
 	}
 
@@ -1646,6 +1654,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.finalize-file-for-rapid", flagSet.Lookup("finalize-file-for-rapid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.force-grpc-direct-connectivity", flagSet.Lookup("force-grpc-direct-connectivity")); err != nil {
 		return err
 	}
 
