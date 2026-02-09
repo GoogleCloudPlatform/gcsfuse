@@ -235,16 +235,19 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 
 func isValidMonitoringConfig(m *MonitoringConfig) error {
 	validExporters := []string{"stdout", "gcptrace"}
-	if len(m.ExperimentalTracingMode) > 0 {
-		for _, e := range m.ExperimentalTracingMode {
-			if !slices.Contains(validExporters, strings.TrimSpace(strings.ToLower(e))) {
-				return fmt.Errorf("Encountered invalid/unsupported tracing mode: %s", e)
-			}
-		}
-	}
 
 	if m.ExperimentalTracingSamplingRatio > 1 || m.ExperimentalTracingSamplingRatio < 0 {
-		return fmt.Errorf("invalid tracing sampling ratio: %f", m.ExperimentalTracingSamplingRatio)
+		return fmt.Errorf("Invalid tracing sampling ratio: %f, tracing sampling ratio should be between 0 and 1 inclusive", m.ExperimentalTracingSamplingRatio)
+	}
+
+	if len(m.ExperimentalTracingMode) == 0 {
+		return nil
+	}
+
+	for _, e := range m.ExperimentalTracingMode {
+		if !slices.Contains(validExporters, strings.TrimSpace(strings.ToLower(e))) {
+			return fmt.Errorf("Encountered invalid/unsupported tracing mode: %s", e)
+		}
 	}
 
 	return nil

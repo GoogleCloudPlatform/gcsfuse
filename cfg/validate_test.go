@@ -1021,52 +1021,32 @@ func TestValidateMetrics(t *testing.T) {
 	}
 }
 
-func TestValidateMonitoring(t *testing.T) {
+func TestValidateMonitoringSuccessScenarios(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name             string
 		MonitoringConfig MonitoringConfig
-		wantErr          bool
 	}{
 
 		{
-			name: "",
+			name: "verify_tracing_modes_exact_match",
 			MonitoringConfig: MonitoringConfig{
 				ExperimentalTracingMode: []string{"stdout", "  gcptrace"},
 			},
-			wantErr: false,
 		},
 		{
-			name: "",
+			name: "verify_tracing_modes_case_insensitive",
 			MonitoringConfig: MonitoringConfig{
 				ExperimentalTracingMode: []string{"STDout", "  Gcptrace"},
 			},
-			wantErr: false,
 		},
 		{
-			name: "",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode: []string{"stdout", "  random_export"},
-			},
-			wantErr: true,
-		},
-		{
-			name: "",
+			name: "verify_complete_tracing_config_success_case",
 			MonitoringConfig: MonitoringConfig{
 				ExperimentalTracingMode:          []string{},
 				ExperimentalTracingProjectId:     "test-gcloud-project",
 				ExperimentalTracingSamplingRatio: 0.3,
 			},
-			wantErr: false,
-		},
-		{
-			name: "",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{},
-				ExperimentalTracingProjectId:     "test-gcloud-project",
-				ExperimentalTracingSamplingRatio: 1.4,
-			},
-			wantErr: true,
 		},
 	}
 	for _, tc := range testCases {
@@ -1077,11 +1057,49 @@ func TestValidateMonitoring(t *testing.T) {
 
 			err := ValidateConfig(viper.New(), &c)
 
-			if tc.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestValidateMonitoringFailureScenarios(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name             string
+		MonitoringConfig MonitoringConfig
+	}{
+		{
+			name: "invalid_tracing_mode_failure",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode: []string{"stdout", "  random_export"},
+			},
+		},
+		{
+			name: "invalid_tracing_sampling_ratio_failure",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode:          []string{"stdout"},
+				ExperimentalTracingProjectId:     "test-gcloud-project",
+				ExperimentalTracingSamplingRatio: 1.4,
+			},
+		},
+		{
+			name: "invalid_tracing_sampling_ratio_failure_empty_mode",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode:          []string{},
+				ExperimentalTracingProjectId:     "test-gcloud-project",
+				ExperimentalTracingSamplingRatio: 1.4,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := validConfig(t)
+			c.Monitoring = tc.MonitoringConfig
+
+			err := ValidateConfig(viper.New(), &c)
+
+			assert.Error(t, err)
 		})
 	}
 }

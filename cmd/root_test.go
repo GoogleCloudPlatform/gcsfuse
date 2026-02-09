@@ -1842,6 +1842,43 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	}
 }
 
+func TestArgsParsingMonitoringConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfgFile  string
+		expected *cfg.MonitoringConfig
+	}{
+		{
+			name:     "default",
+			cfgFile:  "empty.yml",
+			expected: &cfg.MonitoringConfig{ExperimentalTracingMode: []string{}, ExperimentalTracingSamplingRatio: 0, ExperimentalTracingProjectId: ""},
+		},
+		{
+			name:     "sanitize_trace_exporters.yml",
+			cfgFile:  "sanitize_trace_exporters.yml",
+			expected: &cfg.MonitoringConfig{ExperimentalTracingMode: []string{"gcptrace", "stdout"}, ExperimentalTracingSamplingRatio: 0.5, ExperimentalTracingProjectId: "gcp-sample-test"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/monitoring_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expected, &gotConfig.Monitoring)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	tests := []struct {
 		name           string

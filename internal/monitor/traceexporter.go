@@ -42,13 +42,13 @@ func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.Shu
 	return nil
 }
 
-type ExporterFactory func() (sdktrace.SpanExporter, error)
+type exporterFactory func() (sdktrace.SpanExporter, error)
 
 func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace.TracerProvider, common.ShutdownFn, error) {
 	var opts []sdktrace.TracerProviderOption
 	exporterNames := c.Monitoring.ExperimentalTracingMode
 
-	exporterRegistry := map[string]ExporterFactory{
+	exporterRegistry := map[string]exporterFactory{
 		"stdout": func() (sdktrace.SpanExporter, error) {
 			return newStdoutTraceExporter()
 		},
@@ -58,11 +58,11 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 	}
 
 	for _, name := range exporterNames {
-		if exporterFactory, ok := exporterRegistry[name]; ok {
-			exporter, err := exporterFactory()
+		if expFactory, ok := exporterRegistry[name]; ok {
+			exporter, err := expFactory()
 
 			if err != nil {
-				logger.Errorf("failed to init %s exporter: %s", name, err)
+				logger.Errorf("failed to initialize %s exporter: %s", name, err)
 				return nil, nil, err
 			}
 
