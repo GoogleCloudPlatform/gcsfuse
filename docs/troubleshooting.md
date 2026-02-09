@@ -213,6 +213,16 @@ If this increased CPU usage negatively impacts your workload's performance, you 
 ### Potential Stat Consistency Issues on high-performance machines with Default TTL
 Starting with [version 3.0.0](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v3.0.0), On high-performance machines - gcsfuse will default to infinite stat cache TTL ([refer](https://cloud.google.com/storage/docs/cloud-storage-fuse/automated-configurations)), potentially causing stale file/directory information if the bucket is modified externally. If strict consistency is needed, manually set a finite TTL (e.g., --stat-cache-ttl 1m) to ensure metadata reflects recent changes. Consult [semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md) doc for more details.
 
+### User-defined configuration values in YAML are being ignored
+
+**Issue:** Specific settings defined in your YAML configuration file (such as `metadata-cache.ttl-secs` or `write.global-max-blocks`) do not seem to take effect.
+
+**Cause:** GCSFuse automatically identifies the machine type it is running on and applies performance optimizations accordingly. In versions `v3.4.0` through `v3.5.6`, these optimizations (and those triggered by `--profile`) incorrectly overrode user-provided values in the configuration file because the logic only checked if the flag was explicitly set via the command line.
+
+**Solution:**
+*   **Upgrade:** Update to GCSFuse **v3.6.0** or later. This version ensures that optimizations honor user-defined values provided in configuration files.
+*   **Workaround:** For affected versions, pass the configuration values as **CLI flags** (e.g., `--metadata-cache-ttl-secs=60`). Values provided via CLI flags take the highest precedence and will correctly override automatic optimizations.
+
 ### Writes still using legacy staged writes even though streaming writes are enabled.
 If you observe that GCSFuse is still utilizing staged writes despite streaming writes being enabled, several factors could be at play.
 
