@@ -55,9 +55,10 @@ const (
 	zonalLocationType = "zone"
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
-	directPathDetectionMaxAttempts = 2
-	directPathDetectionTimeout     = 10 * time.Second
-	directPathDetectionMaxBackoff  = 5 * time.Second
+	directPathDetectionMaxAttempts      = 5
+	directPathDetectionTimeout          = 10 * time.Second
+	directPathDetectionMaxBackoff       = 5 * time.Second
+	directPathDetectionMaxRetryDuration = 1 * time.Minute
 )
 
 type StorageHandle interface {
@@ -197,6 +198,7 @@ func applyDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientCo
 			// More permissive during detection to allow quick failure
 			return storageutil.ShouldRetryWithMonitoring(ctx, err, clientConfig.MetricHandle)
 		}),
+		storage.WithMaxRetryDuration(directPathDetectionMaxRetryDuration),
 	}
 
 	sc.SetRetry(detectionRetryOpts...)
@@ -206,9 +208,10 @@ func applyDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientCo
 // This function:
 // 1. Creates the client with experimental.WithDirectConnectivityEnforced()
 // 2. Initially applies detection retry config (lenient, fast-fail)
-// 3. After confirming DirectPath works, applies production retry config
+// 3. Verifies DirectPath works by performing an empty listing on the specified bucket
+// 4. After confirming DirectPath works, applies production retry config
 // Returns the client ready for production use, or error if DirectPath is unavailable.
-func createGRPCClientWithDirectPathEnforced(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (sc *storage.Client, err error) {
+func createGRPCClientWithDirectPathEnforced(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, bucketName string) (sc *storage.Client, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
@@ -239,7 +242,24 @@ func createGRPCClientWithDirectPathEnforced(ctx context.Context, clientConfig *s
 	// Apply detection retry config for initial verification
 	applyDetectionRetryConfig(ctx, sc, clientConfig)
 
-	logger.Infof("DirectPath client created successfully, applying production retry config")
+	// Verify DirectPath connection by performing an empty listing on the bucket
+	logger.Infof("Verifying DirectPath connectivity for bucket %q with empty listing", bucketName)
+	verifyCtx, verifyCancel := context.WithTimeout(ctx, directPathDetectionTimeout)
+	defer verifyCancel()
+
+	it := sc.Bucket(bucketName).Objects(verifyCtx, nil)
+	_, err = it.Next()
+	// We expect either a valid object or iterator.Done (empty bucket), both indicate success
+	if err != nil && err.Error() != "no more items in iterator" {
+		// DirectPath verification failed
+		sc.Close()
+		if unsetErr := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); unsetErr != nil {
+			logger.Fatal("error while unsetting direct path env var: %v", unsetErr)
+		}
+		return nil, fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, err)
+	}
+
+	logger.Infof("DirectPath verification successful for bucket %q, applying production retry config", bucketName)
 
 	// DirectPath confirmed working! Now apply production retry config for actual usage
 	setRetryConfig(ctx, sc, clientConfig)
@@ -429,13 +449,10 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*storage.Client, error) {
-	return sh.getClientWithProtocol(ctx, isbucketZonal, sh.clientConfig.ClientProtocol)
-}
-
 // getClientWithProtocol returns a storage client with the specified protocol.
 // This allows overriding the configured protocol (e.g., for fallback scenarios).
-func (sh *storageClient) getClientWithProtocol(ctx context.Context, isbucketZonal bool, protocol cfg.Protocol) (*storage.Client, error) {
+// bucketName is used for DirectPath verification when ForceGrpcDirectConnectivity is enabled.
+func (sh *storageClient) getClientWithProtocol(ctx context.Context, isbucketZonal bool, protocol cfg.Protocol, bucketName string) (*storage.Client, error) {
 	var err error
 	if isbucketZonal {
 		if sh.grpcClientWithBidiConfig == nil {
@@ -452,12 +469,13 @@ func (sh *storageClient) getClientWithProtocol(ctx context.Context, isbucketZona
 				// This function handles:
 				// 1. Client creation with DirectPath enforcement
 				// 2. Detection retry config during verification
-				// 3. Production retry config after success
-				logger.Infof("Attempting to create gRPC client with DirectPath enforcement")
-				sc, err := createGRPCClientWithDirectPathEnforced(ctx, &sh.clientConfig, false)
+				// 3. Bucket-specific verification with empty listing
+				// 4. Production retry config after success
+				logger.Infof("Attempting to create gRPC client with DirectPath enforcement for bucket %q", bucketName)
+				sc, err := createGRPCClientWithDirectPathEnforced(ctx, &sh.clientConfig, false, bucketName)
 				if err != nil {
 					// DirectPath failed, fallback to HTTP1
-					logger.Warnf("DirectPath creation failed: %v", err)
+					logger.Warnf("DirectPath creation/verification failed: %v", err)
 					logger.Infof("Falling back from gRPC to HTTP1 client")
 
 					// Create HTTP1 client instead
@@ -527,7 +545,8 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	}
 
 	// Get client - DirectPath detection and fallback logic is now handled in getClientWithProtocol
-	client, err = sh.getClient(ctx, bucketType.Zonal)
+	// Pass bucketName for DirectPath verification when ForceGrpcDirectConnectivity is enabled
+	client, err = sh.getClientWithProtocol(ctx, bucketType.Zonal, sh.clientConfig.ClientProtocol, bucketName)
 	if err != nil {
 		return nil, err
 	}
