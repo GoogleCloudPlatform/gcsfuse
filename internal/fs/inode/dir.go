@@ -704,6 +704,40 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 		// Trigger prefetcher
 		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
 
+		// If type cache is deprecated, we execute lookups sequentially. This avoids
+		// spamming GCS with parallel requests (2x load) for every lookup, which can
+		// cause connection pool exhaustion and timeouts in high-concurrency or
+		// congested scenarios.
+		// We prioritize directories to maintain semantics (directory shadows file).
+		if d.IsTypeCacheDeprecated() {
+			if d.isBucketHierarchical() {
+				if err := lookUpHNSDir(); err != nil {
+					return nil, err
+				}
+			} else {
+				if d.implicitDirs {
+					if err := lookUpImplicitOrExplicitDir(); err != nil {
+						return nil, err
+					}
+				} else {
+					if err := lookUpExplicitDir(); err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			// If directory found, return it.
+			if dirResult != nil {
+				return dirResult, nil
+			}
+
+			// If directory not found, check file.
+			if err := lookUpFile(); err != nil {
+				return nil, err
+			}
+			return fileResult, nil
+		}
+
 		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
 			group.Go(lookUpHNSDir)

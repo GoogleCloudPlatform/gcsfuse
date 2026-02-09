@@ -2242,3 +2242,46 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
 	mockBucket.AssertExpectations(t.T())
 }
+
+func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_SequentialOptimization() {
+	mockBucket := new(storagemock.TestifyMockBucket)
+	mockBucket.On("BucketType").Return(gcs.BucketType{})
+	syncerBucket := gcsx.NewSyncerBucket(1, ChunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
+	oldBucket := t.bucket
+	t.bucket = syncerBucket
+	defer func() { t.bucket = oldBucket }()
+	in := t.createDirInodeWithTypeCacheDeprecationFlag(dirInodeName, true)
+	const name = "dir"
+	objName := path.Join(dirInodeName, name)
+	dirObjName := objName + "/"
+	// Expect cache lookup for file -> CacheMiss
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == objName && req.FetchOnlyFromCache == true
+	})).Return(nil, nil, &caching.CacheMissError{}).Once()
+	// Expect cache lookup for dir -> CacheMiss
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == dirObjName && req.FetchOnlyFromCache == true
+	})).Return(nil, nil, &caching.CacheMissError{}).Once()
+
+	// Expect actual lookup for dir -> Success
+	minObject := &gcs.MinObject{
+		Name:           dirObjName,
+		Generation:     1,
+		MetaGeneration: 1,
+		Size:           0,
+	}
+	mockBucket.On("StatObject", mock.Anything, mock.MatchedBy(func(req *gcs.StatObjectRequest) bool {
+		return req.Name == dirObjName && req.FetchOnlyFromCache == false
+	})).Return(minObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
+
+	// Expect actual lookup for file -> SHOULD NOT HAPPEN because sequential optimization stops after Dir is found.
+
+	in.Lock()
+	entry, err := in.LookUpChild(t.ctx, name)
+	in.Unlock()
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), entry)
+	assert.Equal(t.T(), dirObjName, entry.FullName.GcsObjectName())
+	mockBucket.AssertExpectations(t.T())
+}
