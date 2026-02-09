@@ -658,28 +658,69 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 // fetchCoreEntity contains all the existing logic for looking up children
 // without worrying about the isTypeCacheDeprecated flag.
 func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType metadata.Type) (*Core, error) {
-	group, ctx := errgroup.WithContext(ctx)
-
 	var fileResult *Core
 	var dirResult *Core
 	var err error
 
-	lookUpFile := func() (err error) {
+	// Define lookup functions that take context as argument.
+	// This allows us to use the appropriate context (parent ctx for sequential,
+	// group ctx for parallel).
+	lookUpFile := func(ctx context.Context) (err error) {
 		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 		return
 	}
-	lookUpExplicitDir := func() (err error) {
+	lookUpExplicitDir := func(ctx context.Context) (err error) {
 		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 		return
 	}
-	lookUpImplicitOrExplicitDir := func() (err error) {
+	lookUpImplicitOrExplicitDir := func(ctx context.Context) (err error) {
 		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
-	lookUpHNSDir := func() (err error) {
+	lookUpHNSDir := func(ctx context.Context) (err error) {
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 		return
 	}
+
+	// Sequential Execution Path (Type Cache Deprecated)
+	if cachedType == metadata.UnknownType && d.IsTypeCacheDeprecated() {
+		// Trigger prefetcher
+		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
+
+		// Execute lookups sequentially using the parent context.
+		// This avoids creating an errgroup and its associated context overhead.
+		// It also reduces GCS request concurrency to prevent connection pool exhaustion.
+		if d.isBucketHierarchical() {
+			if err := lookUpHNSDir(ctx); err != nil {
+				return nil, err
+			}
+		} else {
+			if d.implicitDirs {
+				if err := lookUpImplicitOrExplicitDir(ctx); err != nil {
+					return nil, err
+				}
+			} else {
+				if err := lookUpExplicitDir(ctx); err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		// If directory found, return it.
+		if dirResult != nil {
+			return dirResult, nil
+		}
+
+		// If directory not found, check file.
+		if err := lookUpFile(ctx); err != nil {
+			return nil, err
+		}
+		return fileResult, nil
+	}
+
+	// Parallel Execution Path
+	// Initialize errgroup with context only if we are going down the parallel path.
+	group, groupCtx := errgroup.WithContext(ctx)
 
 	switch cachedType {
 	case metadata.ImplicitDirType:
@@ -690,12 +731,12 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 		}, nil
 	case metadata.ExplicitDirType:
 		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
+			group.Go(func() error { return lookUpHNSDir(groupCtx) })
 		} else {
-			group.Go(lookUpExplicitDir)
+			group.Go(func() error { return lookUpExplicitDir(groupCtx) })
 		}
 	case metadata.RegularFileType, metadata.SymlinkType:
-		group.Go(lookUpFile)
+		group.Go(func() error { return lookUpFile(groupCtx) })
 
 	case metadata.NonexistentType:
 		return nil, nil
@@ -704,48 +745,14 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 		// Trigger prefetcher
 		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
 
-		// If type cache is deprecated, we execute lookups sequentially. This avoids
-		// spamming GCS with parallel requests (2x load) for every lookup, which can
-		// cause connection pool exhaustion and timeouts in high-concurrency or
-		// congested scenarios.
-		// We prioritize directories to maintain semantics (directory shadows file).
-		if d.IsTypeCacheDeprecated() {
-			if d.isBucketHierarchical() {
-				if err := lookUpHNSDir(); err != nil {
-					return nil, err
-				}
-			} else {
-				if d.implicitDirs {
-					if err := lookUpImplicitOrExplicitDir(); err != nil {
-						return nil, err
-					}
-				} else {
-					if err := lookUpExplicitDir(); err != nil {
-						return nil, err
-					}
-				}
-			}
-
-			// If directory found, return it.
-			if dirResult != nil {
-				return dirResult, nil
-			}
-
-			// If directory not found, check file.
-			if err := lookUpFile(); err != nil {
-				return nil, err
-			}
-			return fileResult, nil
-		}
-
-		group.Go(lookUpFile)
+		group.Go(func() error { return lookUpFile(groupCtx) })
 		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
+			group.Go(func() error { return lookUpHNSDir(groupCtx) })
 		} else {
 			if d.implicitDirs {
-				group.Go(lookUpImplicitOrExplicitDir)
+				group.Go(func() error { return lookUpImplicitOrExplicitDir(groupCtx) })
 			} else {
-				group.Go(lookUpExplicitDir)
+				group.Go(func() error { return lookUpExplicitDir(groupCtx) })
 			}
 		}
 	}
