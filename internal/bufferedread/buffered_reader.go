@@ -413,7 +413,9 @@ func (p *BufferedReader) callback(entries []*blockQueueEntry) {
 	defer p.mu.Unlock()
 	for _, entry := range entries {
 		if entry.block.DecRef() && entry.wasEvicted {
-			p.blockPool.Release(entry.block)
+			if p.blockPool != nil {
+				p.blockPool.Release(entry.block)
+			}
 		}
 	}
 }
@@ -560,6 +562,12 @@ func (p *BufferedReader) Destroy() {
 	case <-done:
 		// Wait completed successfully.
 	case <-time.After(10 * time.Second):
+		// If this timeout is reached, it implies that the callback was not called
+		// within 10 seconds, which is highly unexpected. In this scenario, we
+		// proceed with destruction, meaning the in-flight blocks will not be
+		// returned to the pool for deallocation. This results in a memory leak
+		// (as the blocks are never released back to the pool), but it is
+		// considered an acceptable tradeoff given the rarity of this condition.
 		logger.Warnf("BufferedReader.Destroy: timed out waiting for outstanding data slice references to be released.")
 	}
 
@@ -571,10 +579,12 @@ func (p *BufferedReader) Destroy() {
 		p.cancelFunc = nil
 	}
 
+	p.mu.Lock()
 	if err := p.blockPool.ClearFreeBlockChannel(true); err != nil {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
+	p.mu.Unlock()
 }
 
 // releaseOrMarkEvicted handles the release of a block that has been removed

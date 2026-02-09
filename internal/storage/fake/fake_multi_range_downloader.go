@@ -139,10 +139,6 @@ func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64
 			err = fmt.Errorf("failed to write %v bytes to writer through multi-range-downloader, bytes written = %v, error = %v", length, n, err)
 		}
 
-		if fmrd.shortRead && err == nil {
-			err = io.EOF
-		}
-
 		if callback != nil {
 			callback(offset, int64(n), err)
 		}

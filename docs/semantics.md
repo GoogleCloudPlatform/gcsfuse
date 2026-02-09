@@ -19,10 +19,10 @@ The feature is **disabled by default** and can be enabled using:
 **Note:** Buffered reads are designed to operate exclusively when the file cache is disabled. If both features are enabled, the file cache takes precedence and buffered reads will be ignored.
 
 **Best Use Cases:**
-- Single-threaded applications reading large files (> 100MB) sequentially.
+- Applications reading large files (> 100MB) with sequential access patterns. Users need to ensure enough buffer memory is configured to allow for higher parallelism (default buffer settings allow up to 2 concurrent threads). If you need to increase this, you can increase `--read-global-max-blocks`.
 
 **Performance Gains:**
-- Can provide 2-5x improvement in sequential read throughput.
+- Can provide 2-6x improvement in sequential read throughput.
 - Most effective for files larger than 100 MB.
 
 **Memory Usage:**
@@ -33,8 +33,7 @@ The feature is **disabled by default** and can be enabled using:
 
 **CPU Usage:** The CPU overhead is typically proportional to the performance gains achieved.
 
-**Known Limitations:** Workloads combining sequential and random reads (e.g., some model serving scenarios) may not benefit and could automatically fall back to default reads. Future releases will include improved heuristics for these scenarios.
-
+**Random Reads:** Workloads with frequent random reads may fall back to default reads. However, GCSFuse monitors the read pattern and will automatically switch back to buffered reads if the pattern becomes sequential again.
 
 ## Writes
 
@@ -551,4 +550,3 @@ Not all of the usual file system features are supported. Most prominently:
 - File and directory permissions and ownership cannot be changed. See the permissions section above.
 - Modification times are not tracked for any inodes except for files.
 - No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
-

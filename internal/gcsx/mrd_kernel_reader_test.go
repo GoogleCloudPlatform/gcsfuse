@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"testing"
 	"time"
@@ -148,57 +147,28 @@ func (t *MrdKernelReaderTest) TestReadAt_NilMrdInstance() {
 	assert.Equal(t.T(), 0, resp.Size)
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetrySuccess() {
+func (t *MrdKernelReaderTest) TestReadAt_ShortRead_NoRetry() {
 	data := []byte("hello world")
-	// First MRD returns short read.
-	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
-	// Second MRD returns full read.
-	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, data)
+	// MRD returns short read.
+	fakeMRD := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
 	// Expectation:
-	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
+	// 1. Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD.
 	// 2. Read returns short read.
-	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD2.
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	// 3. isShortRead returns false because err is nil.
+	// 4. ReadAt returns the short read without retrying.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, len(data))
-	req := &ReadRequest{
-		Buffer: buf,
-		Offset: 0,
-	}
+	req := &ReadRequest{Buffer: buf, Offset: 0}
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), len(data), resp.Size)
-	assert.Equal(t.T(), string(data), string(buf))
-	// Verify refCount incremented
+	assert.Equal(t.T(), 5, resp.Size) // Short read size
+	assert.Equal(t.T(), "hello", string(buf[:5]))
+	// Verify refCount incremented (only once)
 	t.mrdInstance.refCountMu.Lock()
 	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
 	t.mrdInstance.refCountMu.Unlock()
-	t.bucket.AssertExpectations(t.T())
-}
-
-func (t *MrdKernelReaderTest) TestReadAt_ShortRead_RetryFails() {
-	data := []byte("hello world")
-	// First MRD returns short read with io.EOF.
-	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
-	// Second MRD returns 0 bytes and an error.
-	retryErr := status.Error(codes.Internal, "Internal error")
-	fakeMRD2 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, retryErr)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	buf := make([]byte, len(data))
-	req := &ReadRequest{
-		Buffer: buf,
-		Offset: 0,
-	}
-
-	resp, err := t.reader.ReadAt(context.Background(), req)
-
-	// ReadAt returns the error from the last attempt (the retry).
-	assert.ErrorIs(t.T(), err, retryErr)
-	assert.Equal(t.T(), 5, resp.Size)
-	assert.Equal(t.T(), "hello", string(buf[:5]))
 	t.bucket.AssertExpectations(t.T())
 }
 
@@ -274,10 +244,10 @@ func TestIsShortRead(t *testing.T) {
 			expected:   false,
 		},
 		{
-			name:       "Full read, EOF",
+			name:       "Full read, error",
 			bytesRead:  10,
 			bufferSize: 10,
-			err:        io.EOF,
+			err:        errors.New("error"),
 			expected:   false,
 		},
 		{
@@ -285,21 +255,7 @@ func TestIsShortRead(t *testing.T) {
 			bytesRead:  5,
 			bufferSize: 10,
 			err:        nil,
-			expected:   true,
-		},
-		{
-			name:       "Short read, EOF",
-			bytesRead:  5,
-			bufferSize: 10,
-			err:        io.EOF,
-			expected:   true,
-		},
-		{
-			name:       "Short read, UnexpectedEOF",
-			bytesRead:  5,
-			bufferSize: 10,
-			err:        io.ErrUnexpectedEOF,
-			expected:   true,
+			expected:   false,
 		},
 		{
 			name:       "Short read, OutOfRange",
@@ -356,17 +312,17 @@ func (t *MrdKernelReaderTest) TestDestroy() {
 }
 
 func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
-	data := []byte("hello world")
-	// First MRD returns short read.
-	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
+	// First MRD returns OutOfRange error.
+	outOfRangeErr := status.Error(codes.OutOfRange, "Out of range")
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, outOfRangeErr)
 	// Expectation:
 	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
-	// 2. Read returns short read.
+	// 2. Read returns OutOfRange.
 	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns ERROR.
 	// 4. ReadAt logs warning and retries with existing pool (fakeMRD1).
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, errors.New("recreate failed")).Once()
-	buf := make([]byte, len(data))
+	buf := make([]byte, 10)
 	req := &ReadRequest{
 		Buffer: buf,
 		Offset: 0,
@@ -376,11 +332,10 @@ func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 
 	// Assert
 	// We verify that we didn't get the "recreate failed" error.
-	if err != nil {
-		assert.NotEqual(t.T(), "recreate failed", err.Error())
-	}
-	// We expect some data to be read (from first attempt + potentially second attempt).
-	assert.Greater(t.T(), resp.Size, 0)
+	assert.ErrorIs(t.T(), err, outOfRangeErr)
+	assert.NotEqual(t.T(), "recreate failed", err.Error())
+	// We expect 0 bytes to be read as OutOfRange returns 0 bytes.
+	assert.Equal(t.T(), 0, resp.Size)
 	t.bucket.AssertExpectations(t.T())
 }
 
