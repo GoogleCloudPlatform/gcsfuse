@@ -74,6 +74,11 @@ func errno(err error, preconditionErrCfg bool) error {
 		return syscall.EACCES
 	}
 
+	// GCS API locally validates object names and returns this error for long names.
+	if strings.Contains(err.Error(), "invalid object name: length must be in") {
+		return syscall.ENAMETOOLONG
+	}
+
 	if grpcStatus, ok := status.FromError(err); ok {
 		switch grpcStatus.Code() {
 		case codes.Canceled:
