@@ -266,7 +266,18 @@ then
 else
     # For rhel and centos
     # Set CLOUDSDK_PYTHON to python3 for gcloud commands to work.
-    export CLOUDSDK_PYTHON=/usr/bin/python3
+
+    if [[ -f /etc/os-release ]]; then
+        # Extract VERSION_ID from /etc/os-release
+        V_ID=$(awk -F= "/^VERSION_ID=/{print \$2}" /etc/os-release | tr -d "\"")
+
+        # Check if the version starts with 8
+        if [[ "$V_ID" == 8* ]]; then
+            export CLOUDSDK_PYTHON="/usr/bin/python3.11"
+        else
+            export CLOUDSDK_PYTHON="/usr/bin/python3"
+        fi
+    fi
 
     # uname can be aarch or x86_64
     uname=$(uname -m)
