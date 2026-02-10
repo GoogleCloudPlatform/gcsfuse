@@ -589,11 +589,12 @@ func (d *dirInode) Destroy() (err error) {
 	return
 }
 
+// LOCKS_REQUIRED(d.mu.RLock)
 func (d *dirInode) Context() context.Context {
 	return d.ctx
 }
 
-// LOCKS_REQUIRED(d)
+// LOCKS_REQUIRED(d.mu.WLock)
 func (d *dirInode) CancelSubdirectoryPrefetches() {
 	if d.cancel != nil {
 		d.cancel()

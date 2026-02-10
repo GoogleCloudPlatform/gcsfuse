@@ -308,4 +308,5 @@ func (d *baseDirInode) CancelCurrDirPrefetcher() {}
 // with the assumption that Rename/Delete directory operations will lead to new inodes with fresh contexts.
 func (d *baseDirInode) CancelSubdirectoryPrefetches() {}
 
+// Context provides the lifecycle context of the inode.
 func (d *baseDirInode) Context() context.Context { return nil }

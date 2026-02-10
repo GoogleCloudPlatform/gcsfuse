@@ -116,7 +116,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 
 	// Critical check after acquiring lock: If the operation context was cancelled,
 	// we must not update the cache with this stale data.
-	if errors.Is(ctx.Err(), context.Canceled) {
+	if ctx != nil && ctx.Err() != nil {
 		return
 	}
 
@@ -176,7 +176,7 @@ func (b *fastStatBucket) insertMultipleMinObjects(ctx context.Context, minObjs [
 
 	// Critical check after acquiring lock: If the operation context was cancelled,
 	// we must not update the cache with this stale data.
-	if ctx != nil && errors.Is(ctx.Err(), context.Canceled) {
+	if ctx != nil && ctx.Err() != nil {
 		return
 	}
 
@@ -203,7 +203,7 @@ func (b *fastStatBucket) insertHierarchicalListing(ctx context.Context, listing 
 
 	// Critical check after acquiring lock: If the operation context was cancelled,
 	// we must not update the cache with this stale data.
-	if errors.Is(ctx.Err(), context.Canceled) {
+	if ctx != nil && ctx.Err() != nil {
 		return
 	}
 
