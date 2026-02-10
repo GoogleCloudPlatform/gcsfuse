@@ -28,12 +28,12 @@ go build .
 ```bash
 crontab -e
 # Add:
-0 * * * * /usr/local/bin/gcsfuse-scc-gc -cache-dir=/mnt/nfs-cache -target-size-mb=10240 2>&1 | logger -t gcsfuse-lru
+0 * * * * /usr/local/bin/gcsfuse-scc-gc -cache-dir=/mnt/nfs-cache -target-size-mb=10240 2>&1 | logger -t gcsfuse-scc-gc
 ```
 
 ### SystemD Timer
 
-**Service:** `/etc/systemd/system/gcsfuse-cache-lru.service`
+**Service:** `/etc/systemd/system/gcsfuse-scc-gc.service`
 ```ini
 [Unit]
 Description=GCSFuse Cache LRU Eviction
@@ -43,7 +43,7 @@ Type=oneshot
 ExecStart=/usr/local/bin/gcsfuse-scc-gc -cache-dir=/mnt/nfs-cache -target-size-mb=10240
 ```
 
-**Timer:** `/etc/systemd/system/gcsfuse-cache-lru.timer`
+**Timer:** `/etc/systemd/system/gcsfuse-scc-gc.timer`
 ```ini
 [Unit]
 Description=Run GCSFuse Cache LRU hourly
@@ -59,18 +59,18 @@ WantedBy=timers.target
 **Enable:**
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now gcsfuse-cache-lru.timer
+sudo systemctl enable --now gcsfuse-scc-gc.timer
 ```
 
 ## How It Works
 
-1. Cleans up any leftover `.bak` files from previous runs
+1. Cleans up any leftover `.bak` files from the previous runs.
 2. Scans cache directory for `.bin` files with atime and size
-3. If total size < target, exits
-4. Sorts by atime and selects oldest files to evict
-5. Renames selected files to `.bak` (kept until next run for safety)
+3. If total size < target, then exit without expiration or eviction.
+4. Sorts by atime and selects oldest files to expire.
+5. Renames selected files to `.bak` (kept until next run for ongoing reads).
 6. Removes old `.tmp` files (older than 1 hour)
-7. Cleans up empty directories
+7. Cleans up empty directories.
 
 **Two-phase eviction:** Files are renamed to `.bak` on the current run and deleted on the next run. This ensure no
 concurrent read and eviction of chunked file.
@@ -82,9 +82,9 @@ concurrent read and eviction of chunked file.
 ```
 Output:
 ```
-Manifest created: 5432 files, 15360 MB total (scan took 2.3s)
-Need to evict 5120 MB (2145 files)
-LRU cache eviction completed
+time=2026-02-10T10:38:30.989Z level=INFO msg="Starting LRU cache eviction" cache_dir=/mnt/nfs-cache target_size_mb=1024
+time=2026-02-10T10:38:31.244Z level=DEBUG msg="Manifest created" files=100 total_size_mb=800 scan_duration=126.255393ms
+time=2026-02-10T10:38:31.244Z level=INFO msg="Cache below target, nothing to do" cache_size_mb=800 target_size_mb=1024
 ```
 
 ## Notes
