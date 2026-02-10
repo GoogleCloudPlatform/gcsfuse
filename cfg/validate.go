@@ -90,6 +90,22 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 		return fmt.Errorf("invalid regex value %q provided for include-regex", config.IncludeRegex)
 	}
 
+	if config.SizeScanEnable {
+		if config.SizeScanFrequencySeconds <= 0 {
+			return errors.New("the value of file-cache-size-scan-frequency-seconds must be greater than 0 when size scan is enabled")
+		}
+	} else {
+		if config.SizeScanFiles {
+			return errors.New("file-cache-size-scan-files must be false when file-cache-size-scan-enable is false")
+		}
+		if config.SizeScanFrequencySeconds != 0 {
+			return errors.New("file-cache-size-scan-frequency-seconds must be 0 when file-cache-size-scan-enable is false")
+		}
+		if config.SizeScanDeleteEmptyDirs {
+			return errors.New("file-cache-size-scan-delete-empty-dirs must be false when file-cache-size-scan-enable is false")
+		}
+	}
+
 	return nil
 }
 

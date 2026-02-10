@@ -76,6 +76,13 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 		}
 	}
 	file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.FilePerm)
+	if err != nil && os.IsNotExist(err) {
+		// Retry creating directory structure if not present
+		err = os.MkdirAll(fileDir, fileSpec.DirPerm)
+		if err == nil {
+			file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.FilePerm)
+		}
+	}
 	if err != nil {
 		err = fmt.Errorf("error in creating file %s: %w", fileSpec.Path, err)
 		return

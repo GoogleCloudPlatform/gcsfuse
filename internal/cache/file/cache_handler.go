@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache
@@ -62,25 +63,39 @@ type CacheHandler struct {
 
 	// isSparse indicates whether sparse file mode is enabled
 	isSparse bool
+
+	// volumeBlockSize stores the block size of the volume where cacheDir resides
+	volumeBlockSize uint64
+
+	// diskSizeCalculator calculates the disk utilization of the cache directory
+	diskSizeCalculator *FileCacheDiskUtilizationCalculator
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, diskSizeCalculator *FileCacheDiskUtilizationCalculator) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
 	compiledExcludeRegex = compileRegex(excludeRegex)
 	compiledIncludeRegex = compileRegex(includeRegex)
 
+	volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
+	if err != nil {
+		logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default 4096.", cacheDir, err)
+		volumeBlockSize = 4096
+	}
+
 	return &CacheHandler{
-		fileInfoCache: fileInfoCache,
-		jobManager:    jobManager,
-		cacheDir:      cacheDir,
-		filePerm:      filePerm,
-		dirPerm:       dirPerm,
-		mu:            locker.New("FileCacheHandler", func() {}),
-		excludeRegex:  compiledExcludeRegex,
-		includeRegex:  compiledIncludeRegex,
-		isSparse:      isSparse,
+		fileInfoCache:      fileInfoCache,
+		jobManager:         jobManager,
+		cacheDir:           cacheDir,
+		filePerm:           filePerm,
+		dirPerm:            dirPerm,
+		mu:                 locker.New("FileCacheHandler", func() {}),
+		excludeRegex:       compiledExcludeRegex,
+		includeRegex:       compiledIncludeRegex,
+		isSparse:           isSparse,
+		volumeBlockSize:    volumeBlockSize,
+		diskSizeCalculator: diskSizeCalculator,
 	}
 }
 
@@ -321,6 +336,9 @@ func (chr *CacheHandler) Destroy() (err error) {
 	defer chr.mu.Unlock()
 
 	chr.jobManager.Destroy()
+	if chr.diskSizeCalculator != nil {
+		chr.diskSizeCalculator.Stop()
+	}
 	return
 }
 

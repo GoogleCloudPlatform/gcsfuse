@@ -1128,3 +1128,66 @@ func TestValidateProfile(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateFileCacheConfig_SizeScanDeleteEmptyDirs(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name    string
+		config  FileCacheConfig
+		wantErr bool
+	}{
+		{
+			name: "Enable=False,_Delete=True_->_Error",
+			config: FileCacheConfig{
+				SizeScanEnable:          false,
+				SizeScanDeleteEmptyDirs: true,
+				// Valid defaults
+				CacheFileForRangeRead:    false,
+				DownloadChunkSizeMb:      50,
+				EnableCrc:                false,
+				EnableParallelDownloads:  false,
+				MaxParallelDownloads:     4,
+				MaxSizeMb:                -1,
+				ParallelDownloadsPerFile: 16,
+				WriteBufferSize:          4 * 1024 * 1024,
+				EnableODirect:            true,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Enable=True,_Delete=True_->_Valid",
+			config: FileCacheConfig{
+				SizeScanEnable:           true,
+				SizeScanDeleteEmptyDirs:  true,
+				SizeScanFrequencySeconds: 10,
+				// Valid defaults
+				CacheFileForRangeRead:    false,
+				DownloadChunkSizeMb:      50,
+				EnableCrc:                false,
+				EnableParallelDownloads:  false,
+				MaxParallelDownloads:     4,
+				MaxSizeMb:                -1,
+				ParallelDownloadsPerFile: 16,
+				WriteBufferSize:          4 * 1024 * 1024,
+				EnableODirect:            true,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := validConfig(t)
+			c.FileCache = tc.config
+
+			err := ValidateConfig(&mockIsSet{}, &c)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

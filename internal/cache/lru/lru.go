@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 // Predefined errors returned by the Cache.
@@ -31,6 +32,54 @@ var (
 	ErrInvalidUpdateEntrySize = errors.New("size of entry to be updated is not same as existing size")
 	ErrEntryNotExist          = errors.New("entry with given key does not exist")
 )
+
+type SizeCalculator interface {
+	GetCurrentSize() uint64
+	EvictEntry(evictedEntry ValueType)
+	InsertEntry(insertedEntry ValueType)
+	AddDelta(delta int64)
+	SizeOf(entry ValueType) uint64
+}
+
+type defaultSizeCalculator struct {
+	// Sum of entry.Value.Size() of all the entries in the cache.
+	currentSize uint64
+}
+
+func (dsc *defaultSizeCalculator) GetCurrentSize() uint64 {
+	return dsc.currentSize
+}
+
+func (dsc *defaultSizeCalculator) SizeOf(entry ValueType) uint64 {
+	return entry.Size()
+}
+
+func (dsc *defaultSizeCalculator) EvictEntry(evictedEntry ValueType) {
+	dsc.currentSize -= evictedEntry.Size()
+}
+
+func (dsc *defaultSizeCalculator) InsertEntry(insertedEntry ValueType) {
+	dsc.currentSize += insertedEntry.Size()
+}
+
+func (dsc *defaultSizeCalculator) ReplaceEntry(replacedEntry, newEntry ValueType) {
+	dsc.currentSize -= replacedEntry.Size()
+	dsc.currentSize += newEntry.Size()
+}
+
+func (dsc *defaultSizeCalculator) AddDelta(delta int64) {
+	if delta < 0 {
+		negDelta := uint64(-delta)
+		if negDelta > dsc.currentSize {
+			dsc.currentSize = 0
+		} else {
+			dsc.currentSize = dsc.currentSize - negDelta
+		}
+	} else {
+		// assuming dsc.currentSize + delta <= UINT64_MAX
+		dsc.currentSize += uint64(delta)
+	}
+}
 
 // Cache is a LRU cache for any lru.ValueType indexed by string keys.
 // That means entry's value should be a lru.ValueType.
@@ -46,8 +95,8 @@ type Cache struct {
 	// Mutable state
 	/////////////////////////
 
-	// Sum of entry.Value.Size() of all the entries in the cache.
-	currentSize uint64
+	// Handler for calculating current size, increased size for this cache after insertion/deletion.
+	sizeCalculator SizeCalculator
 
 	// List of cache entries, with least recently used at the tail.
 	//
@@ -79,8 +128,24 @@ type entry struct {
 // the supplied maxSize, which must be greater than zero.
 func NewCache(maxSize uint64) *Cache {
 	c := &Cache{
-		maxSize: maxSize,
-		index:   make(map[string]*list.Element),
+		maxSize:        maxSize,
+		index:          make(map[string]*list.Element),
+		sizeCalculator: &defaultSizeCalculator{},
+	}
+
+	// Set up invariant checking.
+	c.mu = locker.NewRW("LRUCache", c.checkInvariants)
+	return c
+}
+
+// NewCache returns the reference of cache object by initialising the cache with
+// (a) the supplied maxSize, which must be greater than zero
+// (b) the size-calculator.
+func NewCacheWithCustomSizeCalculator(maxSize uint64, sizeCalculator SizeCalculator) *Cache {
+	c := &Cache{
+		maxSize:        maxSize,
+		index:          make(map[string]*list.Element),
+		sizeCalculator: sizeCalculator,
 	}
 
 	// Set up invariant checking.
@@ -96,8 +161,9 @@ func (c *Cache) checkInvariants() {
 	}
 
 	// INVARIANT: currentSize <= maxSize
-	if !(c.currentSize <= c.maxSize) {
-		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
+	currentSize := c.sizeCalculator.GetCurrentSize()
+	if !(currentSize <= c.maxSize) {
+		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", currentSize, c.maxSize))
 	}
 
 	// INVARIANT: Each element is of type entry
@@ -130,7 +196,7 @@ func (c *Cache) evictOne() ValueType {
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry).Value
-	c.currentSize -= evictedEntry.Size()
+	c.sizeCalculator.EvictEntry(evictedEntry)
 
 	c.entries.Remove(e)
 	delete(c.index, key)
@@ -155,28 +221,29 @@ func (c *Cache) Insert(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	valueSize := value.Size()
+	valueSize := c.sizeCalculator.SizeOf(value)
 	if valueSize > c.maxSize {
+		logger.Warnf("Cache insertion aborted: entry size %d is greater than max size %d for key %s", valueSize, c.maxSize, key)
 		return nil, ErrInvalidEntrySize
 	}
 
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.currentSize -= e.Value.(entry).Value.Size()
-		c.currentSize += valueSize
+		c.sizeCalculator.AddDelta(-int64(c.sizeCalculator.SizeOf(e.Value.(entry).Value)))
+		c.sizeCalculator.AddDelta(int64(valueSize))
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
-		c.currentSize += valueSize
+		c.sizeCalculator.AddDelta(int64(valueSize))
 	}
 
 	var evictedValues []ValueType
 	// Evict until we're at or below maxSize.
-	for c.currentSize > c.maxSize {
+	for c.sizeCalculator.GetCurrentSize() > c.maxSize {
 		evictedValues = append(evictedValues, c.evictOne())
 	}
 
@@ -194,7 +261,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry).Value
-	c.currentSize -= deletedEntry.Size()
+	c.sizeCalculator.EvictEntry(deletedEntry)
 
 	delete(c.index, key)
 	c.entries.Remove(e)
@@ -259,7 +326,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 		return ErrEntryNotExist
 	}
 
-	if value.Size() != e.Value.(entry).Value.Size() {
+	if c.sizeCalculator.SizeOf(value) != c.sizeCalculator.SizeOf(e.Value.(entry).Value) {
 		return ErrInvalidUpdateEntrySize
 	}
 
@@ -285,7 +352,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	// Update currentSize accounting
 	// Note: This may temporarily violate currentSize <= maxSize invariant
 	// Eviction will happen on the next Insert() call
-	c.currentSize += sizeDelta
+	c.sizeCalculator.AddDelta(int64(sizeDelta))
 
 	return nil
 }
