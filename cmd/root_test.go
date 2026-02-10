@@ -1872,9 +1872,8 @@ func TestArgsParsingMonitoringConfig(t *testing.T) {
 
 			err = cmd.Execute()
 
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expected, &gotConfig.Monitoring)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, &gotConfig.Monitoring)
 		})
 	}
 }

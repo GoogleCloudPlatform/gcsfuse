@@ -237,7 +237,7 @@ func isValidMonitoringConfig(m *MonitoringConfig) error {
 	validExporters := []string{"stdout", "gcptrace"}
 
 	if m.ExperimentalTracingSamplingRatio > 1 || m.ExperimentalTracingSamplingRatio < 0 {
-		return fmt.Errorf("Invalid tracing sampling ratio: %f, tracing sampling ratio should be between 0 and 1 inclusive", m.ExperimentalTracingSamplingRatio)
+		return fmt.Errorf("invalid tracing sampling ratio: %f, tracing sampling ratio should be in the range [0.0, 1.0]", m.ExperimentalTracingSamplingRatio)
 	}
 
 	if len(m.ExperimentalTracingMode) == 0 {
@@ -246,7 +246,7 @@ func isValidMonitoringConfig(m *MonitoringConfig) error {
 
 	for _, e := range m.ExperimentalTracingMode {
 		if !slices.Contains(validExporters, strings.TrimSpace(strings.ToLower(e))) {
-			return fmt.Errorf("Encountered invalid/unsupported tracing mode: %s", e)
+			return fmt.Errorf("encountered invalid/unsupported tracing mode: %s", e)
 		}
 	}
 
