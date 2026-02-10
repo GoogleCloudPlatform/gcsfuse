@@ -1,18 +1,18 @@
-# GCSFuse Shared Cache LRU Eviction Tool
+# GCSFuse Shared Chunk Cache (SCC) Garbage Collector
 
 Removes least recently used files from GCSFuse shared cache to maintain target size.
 
 ## Build
 
 ```bash
-cd tools/cache_lru
-go build -o gcsfuse-shared-cache-lru
+cd tools/gcsfuse-scc-gc
+go build .
 ```
 
 ## Usage
 
 ```bash
-./gcsfuse-shared-cache-lru -cache-dir=/mnt/nfs-cache -target-size-mb=10240
+./gcsfuse-scc-gc -cache-dir=/mnt/nfs-cache -target-size-mb=10240
 ```
 
 **Options:**
@@ -28,7 +28,7 @@ go build -o gcsfuse-shared-cache-lru
 ```bash
 crontab -e
 # Add:
-0 * * * * /usr/local/bin/gcsfuse-shared-cache-lru -cache-dir=/mnt/nfs-cache -target-size-mb=10240 2>&1 | logger -t gcsfuse-lru
+0 * * * * /usr/local/bin/gcsfuse-scc-gc -cache-dir=/mnt/nfs-cache -target-size-mb=10240 2>&1 | logger -t gcsfuse-lru
 ```
 
 ### SystemD Timer
@@ -40,7 +40,7 @@ Description=GCSFuse Cache LRU Eviction
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/gcsfuse-shared-cache-lru -cache-dir=/mnt/nfs-cache -target-size-mb=10240
+ExecStart=/usr/local/bin/gcsfuse-scc-gc -cache-dir=/mnt/nfs-cache -target-size-mb=10240
 ```
 
 **Timer:** `/etc/systemd/system/gcsfuse-cache-lru.timer`
@@ -78,7 +78,7 @@ concurrent read and eviction of chunked file.
 ## Example
 
 ```bash
-./gcsfuse-shared-cache-lru -cache-dir=/mnt/nfs-cache -target-size-mb=10240 -debug
+./gcsfuse-scc-gc -cache-dir=/mnt/nfs-cache -target-size-mb=10240 -debug
 ```
 Output:
 ```

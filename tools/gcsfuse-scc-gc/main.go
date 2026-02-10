@@ -12,6 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+/**
+* How does gcsfuse-scc-gc (GCSFuse Shared Chunk Cache Garbage Collector)?
+*
+* 1. Cleans up any leftover `.bak` files from the previous runs.
+* 2. Scans cache directory for `.bin` files with atime and size
+* 3. If total size < target, then exit without expiration or eviction.
+* 4. Sorts by atime and selects oldest files to expire.
+* 5. Renames selected files to `.bak` (kept until next run for ongoing reads).
+* 6. Removes old `.tmp` files (older than 1 hour)
+* 7. Cleans up empty directories.
+*/
+
+
+
 package main
 
 import (
