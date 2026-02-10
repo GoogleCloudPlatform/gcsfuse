@@ -16,9 +16,11 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,7 +41,6 @@ type SharedChunkCacheReader struct {
 	metricHandle metrics.MetricHandle
 	traceHandle  tracing.TraceHandle
 	handleID     fuseops.HandleID
-	retryConfig  file.RetryConfig
 }
 
 // NewSharedChunkCacheReader creates a new chunk-based reader for shared cache.
@@ -58,7 +59,6 @@ func NewSharedChunkCacheReader(
 		metricHandle: metricHandle,
 		traceHandle:  traceHandle,
 		handleID:     handleID,
-		retryConfig:  file.DefaultRetryConfig(),
 	}
 }
 
@@ -137,19 +137,21 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 		if statErr != nil {
 			if os.IsNotExist(statErr) {
 				// Chunk not in cache - download it
-				logger.Infof("Chunk %d not cached, downloading for %s/%s (offset %d)",
+				logger.Tracef("Chunk %d not cached, downloading for %s/%s (offset %d)",
 					chunkIndex, r.bucket.Name(), r.object.Name, currentOffset)
 
 				if downloadErr := r.downloadChunk(ctx, chunkIndex, chunkStart, chunkEnd); downloadErr != nil {
 					bytesRead = totalRead
 					cacheHit = false
-					return readResponse, fmt.Errorf("failed to download chunk %d: %w", chunkIndex, downloadErr)
+					logger.Warnf("DownloadChunk (%d, %d, %d) failed with: %v, read from GCS reader.", chunkIndex, chunkStart, chunkEnd, downloadErr)
+					return readResponse, FallbackToAnotherReader
 				}
-				cacheHit = false // Cache miss - we just downloaded it
+				cacheHit = false // Cache miss - we had to download the chunk
 			} else {
 				bytesRead = totalRead
 				cacheHit = false
-				return readResponse, fmt.Errorf("failed to stat chunk %d: %w", chunkIndex, statErr)
+				logger.Warnf("Failed to stat chunk %d: %v, falling back to GCS reader", chunkIndex, statErr)
+				return readResponse, FallbackToAnotherReader
 			}
 		} else {
 			// Cache hit - chunk was already cached
@@ -160,7 +162,8 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 		chunkFile, openErr := os.Open(chunkPath)
 		if openErr != nil {
 			bytesRead = totalRead
-			return readResponse, fmt.Errorf("failed to open chunk %d: %w", chunkIndex, openErr)
+			logger.Warnf("Failed to open chunk %d at path %s: %v, falling back to GCS reader", chunkIndex, chunkPath, openErr)
+			return readResponse, FallbackToAnotherReader
 		}
 		defer chunkFile.Close()
 
@@ -169,7 +172,8 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 
 		if readErr != nil && readErr != io.EOF {
 			bytesRead = totalRead
-			return readResponse, fmt.Errorf("failed to read from chunk %d at offset %d: %w", chunkIndex, offsetInChunk, readErr)
+			logger.Warnf("Failed to read chunk %d at path %s: %v, falling back to GCS reader", chunkIndex, chunkPath, readErr)
+			return readResponse, FallbackToAnotherReader
 		}
 
 		totalRead += n
@@ -187,6 +191,8 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 }
 
 // downloadChunk downloads a specific chunk from GCS and caches it atomically.
+// This method handles concurrent access and LRU cache eviction race conditions.
+// If any cache operation fails, we fallback to reading directly from GCS without caching.
 func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, chunkStart, chunkEnd int64) error {
 	chunkPath := r.manager.GetChunkPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
 
@@ -196,73 +202,77 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 		return nil
 	}
 
-	// Create object directory and temp file with retry (handles LRU deletion race)
 	objDir := r.manager.GetObjectDir(r.bucket.Name(), r.object.Name, r.object.Generation)
 	tmpPath := r.manager.GenerateTmpPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
-	var tmpFile *os.File
-	var bytesWritten int64
 
-	err := file.RetryOnNFSError("download_and_write_chunk", func() error {
-		// Ensure directory exists (handles LRU deletion race)
-		if mkdirErr := os.MkdirAll(objDir, r.manager.GetDirPerm()); mkdirErr != nil {
-			return mkdirErr
+	// Step 1: Create object directory
+	// Protects against concurrent LRU cache eviction that may have deleted the directory.
+	// - EEXIST: Ignore, directory already exists (expected)
+	// - Any other error: Fallback to GCS reader
+	if err := os.MkdirAll(objDir, r.manager.GetDirPerm()); err != nil {
+		if !errors.Is(err, syscall.EEXIST) {
+			return fmt.Errorf("MkDirAll failed: %w", err)
 		}
-
-		// Create/truncate temp file - O_TRUNC ensures clean slate on retry
-		var openErr error
-		tmpFile, openErr = os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, r.manager.GetFilePerm())
-		if openErr != nil {
-			return openErr
-		}
-		defer tmpFile.Close()
-
-		// Read chunk from GCS
-		readReq := &gcs.ReadObjectRequest{
-			Name:       r.object.Name,
-			Generation: r.object.Generation,
-			Range: &gcs.ByteRange{
-				Start: uint64(chunkStart),
-				Limit: uint64(chunkEnd),
-			},
-		}
-
-		reader, readErr := r.bucket.NewReaderWithReadHandle(ctx, readReq)
-		if readErr != nil {
-			return fmt.Errorf("failed to create GCS reader: %w", readErr)
-		}
-		defer reader.Close()
-
-		// Download data from GCS to temp file
-		var copyErr error
-		bytesWritten, copyErr = io.Copy(tmpFile, reader)
-		if copyErr != nil {
-			return copyErr
-		}
-
-		// Sync to ensure data is written to disk before rename
-		return tmpFile.Sync()
-	}, r.retryConfig)
-
-	if err != nil {
-		os.Remove(tmpPath) // Best effort cleanup
-		return fmt.Errorf("failed to download chunk data: %w", err)
 	}
 
-	// Atomically move chunk to final location with retry
-	err = file.RetryOnNFSError("rename_to_final_path", func() error {
-		return os.Rename(tmpPath, chunkPath)
-	}, r.retryConfig)
+	// Step 2: Create temporary file with O_EXCL (fail if already exists)
+	// - ENOENT: Directory was deleted (LRU race), retry once by recreating directory
+	// - Any other error, including EEXIST (chunk path collision): Fallback to GCS reader
+	tmpFile, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, r.manager.GetFilePerm())
 	if err != nil {
-		os.Remove(tmpPath) // Cleanup failed temp file
-		if os.IsExist(err) {
-			// Another process won the race - that's fine
-			logger.Tracef("Chunk %d already cached by another process (race)", chunkIndex)
-			return nil
+		if errors.Is(err, syscall.ENOENT) {
+			// Directory was deleted by LRU, retry once
+			if mkdirErr := os.MkdirAll(objDir, r.manager.GetDirPerm()); mkdirErr != nil && !errors.Is(mkdirErr, syscall.EEXIST) {
+				return fmt.Errorf("MkDirAll retry failed: %w", mkdirErr)
+			}
+			// Retry creating temp file
+			tmpFile, err = os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, r.manager.GetFilePerm())
+			if err != nil {
+				return fmt.Errorf("retry to created tmp file failed: %w", err)
+			}
+		} else {
+			return fmt.Errorf("create temp file failed: %w", err)
 		}
-		return fmt.Errorf("failed to move chunk to cache: %w", err)
+	}
+	defer tmpFile.Close()
+
+	// Step 3: Create GCS reader for the specific byte range
+	readReq := &gcs.ReadObjectRequest{
+		Name:       r.object.Name,
+		Generation: r.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(chunkStart),
+			Limit: uint64(chunkEnd),
+		},
+	}
+	reader, err := r.bucket.NewReaderWithReadHandle(ctx, readReq)
+	if err != nil {
+		os.Remove(tmpPath) // Cleanup
+		return fmt.Errorf("failed to create GCS reader: %w", err)
+	}
+	defer reader.Close()
+
+	// Step 4: Copy data from GCS to temp file
+	bytesWritten, err := io.Copy(tmpFile, reader)
+	if err != nil {
+		os.Remove(tmpPath) // Cleanup
+		return fmt.Errorf("failed to write chunk %d data: %v", chunkIndex, err)
 	}
 
-	logger.Infof("Downloaded and cached chunk %d (range %d-%d, %d bytes)",
+	// Sync to ensure data is written to disk before rename
+	if err := tmpFile.Sync(); err != nil {
+		os.Remove(tmpPath) // Cleanup
+		return fmt.Errorf("failed to sync tmpFile: %v", err)
+	}
+
+	// Step 5: Atomically rename temp file to final location
+	// Protects against concurrent downloads of the same chunk.
+	if err := os.Rename(tmpPath, chunkPath); err != nil {
+		os.Remove(tmpPath) // Cleanup
+		return fmt.Errorf("failed to rename temp file: %w", err)
+	}
+
+	logger.Tracef("Downloaded and cached chunk %d (range %d-%d, %d bytes)",
 		chunkIndex, chunkStart, chunkEnd, bytesWritten)
 
 	return nil

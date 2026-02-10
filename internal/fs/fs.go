@@ -1563,8 +1563,6 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 			err = fs.fileCacheHandler.InvalidateCache(objectGCSName, bucketName)
 			if err != nil {
 				return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating the file cache: %w", err)
-			} else if fs.sharedChunkCacheManager != nil {
-				return fmt.Errorf("sharedChunkCache is being used for object modify flow, and may serve stale data.")
 			}
 		}
 	} else {
