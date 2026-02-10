@@ -1026,7 +1026,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("experimental-tracing-mode", "", "gcptrace", "Experimental: specify comma separated value of tracing modes")
+	flagSet.StringSliceP("experimental-tracing-mode", "", []string{"gcptrace"}, "Experimental: specify comma separated value of tracing modes")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
 		return err
