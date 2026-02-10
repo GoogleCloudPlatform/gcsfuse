@@ -299,3 +299,13 @@ func (d *baseDirInode) Unlink() {
 func (d *baseDirInode) IsTypeCacheDeprecated() bool {
 	return d.isEnableTypeCacheDeprecation
 }
+
+// CancelCurrDirPrefetcher stops only the *current* prefetch run for this dir.
+func (d *baseDirInode) CancelCurrDirPrefetcher() {}
+
+// CancelSubdirectoryPrefetches permanently stops the context for this inode AND all its descendants.
+// This is used for Directory Rename/Delete operations. This context is not refreshed
+// with the assumption that Rename/Delete directory operations will lead to new inodes with fresh contexts.
+func (d *baseDirInode) CancelSubdirectoryPrefetches() {}
+
+func (d *baseDirInode) Context() context.Context { return nil }

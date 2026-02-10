@@ -182,7 +182,7 @@ func (t *DirPrefetchTest) TestPrefetch_CancellationOnDestroy() {
 	require.NoError(t.T(), err)
 
 	// The state should eventually return to Ready and context should be cancelled.
-	assert.Equal(t.T(), t.in.prefetcher.ctx.Err(), context.Canceled)
+	assert.Equal(t.T(), t.in.prefetcher.inodeCtx.Err(), context.Canceled)
 	assert.Eventually(t.T(), func() bool {
 		return t.in.prefetcher.state.Load() == prefetchReady
 	}, 1*time.Second, 5*time.Millisecond)
@@ -264,9 +264,10 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_ConcurrencyLimit() {
 	limit := int64(2)
 	sem := semaphore.NewWeighted(limit)
 	blockChan := make(chan struct{})
-	p1 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
-	p2 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
-	p3 := NewMetadataPrefetcher(t.config, sem, &t.clock, blockingListFunc(blockChan))
+	ctx := context.Background()
+	p1 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
+	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
+	p3 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
 	// 1. Run two prefetches to fill up the limit.
 	p1.Run("dir1/obj1")
 	p2.Run("dir2/obj2")
@@ -305,13 +306,14 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_RespectsMaxParallelPrefetchesCo
 		<-blockChan
 		return nil, nil, "", nil
 	}
-	p := NewMetadataPrefetcher(t.config, sem, &t.clock, listFunc)
+	ctx := context.Background()
+	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc)
 
 	// Trigger multiple runs on the same prefetcher (simulating different objects in same dir)
 	// and different prefetchers.
 	p.Run("a/1")
 	p.Run("a/2") // Will be skipped by atomic state check anyway
-	p2 := NewMetadataPrefetcher(t.config, sem, &t.clock, listFunc)
+	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc)
 	p2.Run("b/1") // Should be skipped by semaphore check
 
 	time.Sleep(10 * time.Millisecond)
@@ -333,7 +335,8 @@ func mockListFuncWithCtr() (*atomic.Int32, func(ctx context.Context, tok string,
 func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
 	listCallCtr, mockListFunc := mockListFuncWithCtr()
 	sem := semaphore.NewWeighted(1)
-	p := NewMetadataPrefetcher(t.config, sem, &t.clock, mockListFunc)
+	ctx := context.Background()
+	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, mockListFunc)
 
 	// 1. Initial Run: Should trigger a prefetch.
 	p.Run("dir/obj1")
@@ -358,6 +361,7 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
 }
 
 func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
+	ctx := context.Background()
 	listCallCtr, mockListFunc := mockListFuncWithCtr()
 	config := &cfg.Config{
 		MetadataCache: cfg.MetadataCacheConfig{
@@ -366,7 +370,7 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
 			TtlSecs:                60,
 		},
 	}
-	p := NewMetadataPrefetcher(config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(ctx, config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
 
 	p.Run("dir/obj1")
 
@@ -374,4 +378,66 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
 	time.Sleep(20 * time.Millisecond)
 	// Assert that no list calls were made because stat cache size is 0.
 	assert.Equal(t.T(), int32(0), listCallCtr.Load())
+}
+
+// TestPrefetch_RaceCondition_WriteCancelsPrefetch verifies that if a write operation
+// (simulated by calling Cancel()) occurs while a prefetch list call is in progress,
+// the prefetch is aborted and NO cache update occurs.
+func (t *DirPrefetchTest) TestPrefetch_RaceCondition_WriteCancelsPrefetch() {
+	// 1. Setup: Create a mock list function that blocks until we allow it to proceed.
+	startChan := make(chan struct{}) // Signal that the list function has started
+	blockChan := make(chan struct{}) // Channel to block the list function
+	updatePerformed := false         // Flag to track if the "critical section" was reached
+	// Mock ListFunc matching the signature expected by MetadataPrefetcher
+	mockListFunc := func(ctx context.Context, _ string, _ string, _ int) (map[Name]*Core, []string, string, error) {
+		close(startChan) // Notify test that we are running
+		<-blockChan      // Wait here (simulating network latency)
+		// This simulates the check done before stat/type cache update.
+		// If the context is cancelled, we should NOT see an update.
+		if ctx.Err() != nil {
+			return nil, nil, "", ctx.Err()
+		}
+		updatePerformed = true
+		return nil, nil, "", nil
+	}
+	// Initialize Prefetcher with the mock
+	// We use context.Background() as the inodeCtx for this unit test.
+	p := NewMetadataPrefetcher(context.Background(), t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+
+	// 2. Act: Trigger the prefetch
+	p.Run("dir/obj")
+
+	// Wait for the prefetch goroutine to start and reach the blocking point
+	<-startChan
+	// 3. Simulate a Write Operation: This calls Cancel() which should cancel the current run context.
+	p.Cancel()
+	// 4. Unblock the list function
+	close(blockChan)
+	// 5. Assert
+	// Wait for the prefetcher to return to 'Ready' state (worker finished)
+	assert.Eventually(t.T(), func() bool {
+		return p.state.Load() == prefetchReady
+	}, 1*time.Second, 10*time.Millisecond)
+	// CRITICAL: Verify that the update was NOT performed
+	assert.False(t.T(), updatePerformed, "Cache update should not happen if prefetch is cancelled")
+}
+
+// TestPrefetch_RecursiveCancellation verifies that cancelling the Inode context
+// (simulating a Directory Rename/Delete) stops future prefetch runs.
+func (t *DirPrefetchTest) TestPrefetch_RecursiveCancellation() {
+	// Setup cancellable inode context.
+	inodeCtx, cancelInode := context.WithCancel(context.Background())
+	_, mockListFunc := mockListFuncWithCtr()
+	p := NewMetadataPrefetcher(inodeCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+
+	// 1. Cancel the inode context (Simulate Rename/Delete Folder)
+	cancelInode()
+
+	// 2. Try to run prefetch
+	p.Run("dir/obj")
+	// 3. Assert: Prefetch should NOT start because inodeCtx is cancelled
+	// The state should remain 0 (Ready) and not switch to 1 (InProgress)
+	// We wait briefly to ensure no async goroutine starts
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t.T(), prefetchReady, p.state.Load())
 }
