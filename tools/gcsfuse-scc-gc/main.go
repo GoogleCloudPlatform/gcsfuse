@@ -15,7 +15,7 @@
 /**
 * How does gcsfuse-scc-gc (GCSFuse Shared Chunk Cache Garbage Collector) work?
 *
-* 1. Cleans up any leftover `.bak` files from the previous runs.
+* 1. Cleans up `.bak` files expired during the previous run.
 * 2. Scans cache directory for `.bin` files with atime and size
 * 3. If total size < target, then exit without expiration or eviction.
 * 4. Sorts by atime and selects oldest files to expire.
