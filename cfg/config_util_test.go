@@ -172,12 +172,15 @@ func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
 func TestIsTracingEnabled(t *testing.T) {
 	t.Parallel()
 	var testCases = []struct {
-		testName  string
-		traceMode []string
-		expected  bool
+		testName           string
+		traceMode          []string
+		traceSamplingRatio float64
+		expected           bool
 	}{
-		{"empty", []string{}, false},
-		{"not_empty", []string{"gcptrace"}, true},
+		{"empty_non_zero_sampling_ratio", []string{}, 0.5, false},
+		{"non_empty_non_zero_sampling_ratio", []string{"gcptrace"}, 0.4, true},
+		{"non_empty_zero_sampling_ratio", []string{"gcptrace"}, 0.0, false},
+		{"empty_zero_samping_ratio", []string{}, 0.0, false},
 	}
 
 	for _, tc := range testCases {
@@ -185,7 +188,8 @@ func TestIsTracingEnabled(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, tc.expected, IsTracingEnabled(&Config{Monitoring: MonitoringConfig{
-				ExperimentalTracingMode: tc.traceMode,
+				ExperimentalTracingMode:          tc.traceMode,
+				ExperimentalTracingSamplingRatio: tc.traceSamplingRatio,
 			}}))
 		})
 	}

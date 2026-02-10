@@ -51,7 +51,7 @@ func IsParallelDownloadsEnabled(mountConfig *Config) bool {
 
 // IsTracingEnabled returns true if tracing is enabled.
 func IsTracingEnabled(mountConfig *Config) bool {
-	return len(mountConfig.Monitoring.ExperimentalTracingMode) > 0
+	return len(mountConfig.Monitoring.ExperimentalTracingMode) > 0 && mountConfig.Monitoring.ExperimentalTracingSamplingRatio > 0
 }
 
 // ListCacheTTLSecsToDuration converts TTL in seconds to time.Duration.

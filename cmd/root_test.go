@@ -1851,7 +1851,7 @@ func TestArgsParsingMonitoringConfig(t *testing.T) {
 		{
 			name:     "default",
 			cfgFile:  "empty.yml",
-			expected: &cfg.MonitoringConfig{ExperimentalTracingMode: []string{}, ExperimentalTracingSamplingRatio: 0, ExperimentalTracingProjectId: ""},
+			expected: &cfg.MonitoringConfig{ExperimentalTracingMode: []string{"gcptrace"}, ExperimentalTracingSamplingRatio: 0, ExperimentalTracingProjectId: ""},
 		},
 		{
 			name:     "sanitize_trace_exporters.yml",
