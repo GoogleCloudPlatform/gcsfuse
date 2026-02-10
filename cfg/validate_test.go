@@ -1181,7 +1181,7 @@ func TestValidateFileCacheConfig_SizeScanDeleteEmptyDirs(t *testing.T) {
 			c := validConfig(t)
 			c.FileCache = tc.config
 
-			err := ValidateConfig(&mockIsSet{}, &c)
+			err := ValidateConfig(viper.New(), &c)
 
 			if tc.wantErr {
 				assert.Error(t, err)

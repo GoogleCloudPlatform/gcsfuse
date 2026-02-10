@@ -69,7 +69,7 @@ func isValidParallelDownloadConfig(config *Config) error {
 	return nil
 }
 
-func isValidFileCacheConfig(config *FileCacheConfig) error {
+func isValidFileCacheConfig(v *viper.Viper, config *FileCacheConfig) error {
 	if config.MaxSizeMb < -1 {
 		return errors.New(FileCacheMaxSizeMBInvalidValueError)
 	}
@@ -99,7 +99,9 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 			return errors.New("file-cache-size-scan-files must be false when file-cache-size-scan-enable is false")
 		}
 		if config.SizeScanFrequencySeconds != 0 {
-			return errors.New("file-cache-size-scan-frequency-seconds must be 0 when file-cache-size-scan-enable is false")
+			if v != nil && v.IsSet("file-cache.size-scan-frequency-seconds") {
+				return errors.New("file-cache-size-scan-frequency-seconds must be 0 when file-cache-size-scan-enable is false")
+			}
 		}
 		if config.SizeScanDeleteEmptyDirs {
 			return errors.New("file-cache-size-scan-delete-empty-dirs must be false when file-cache-size-scan-enable is false")
@@ -316,7 +318,7 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 		return fmt.Errorf("error parsing custom-endpoint config: %w", err)
 	}
 
-	if err = isValidFileCacheConfig(&config.FileCache); err != nil {
+	if err = isValidFileCacheConfig(v, &config.FileCache); err != nil {
 		return fmt.Errorf("error parsing file cache config: %w", err)
 	}
 
