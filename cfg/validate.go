@@ -236,12 +236,12 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 func isValidMonitoringConfig(m *MonitoringConfig) error {
 	validExporters := []string{"stdout", "gcptrace"}
 
-	if m.ExperimentalTracingSamplingRatio > 1 || m.ExperimentalTracingSamplingRatio < 0 {
-		return fmt.Errorf("invalid tracing sampling ratio: %f, tracing sampling ratio should be in the range [0.0, 1.0]", m.ExperimentalTracingSamplingRatio)
-	}
-
 	if len(m.ExperimentalTracingMode) == 0 {
 		return nil
+	}
+
+	if m.ExperimentalTracingSamplingRatio > 1 || m.ExperimentalTracingSamplingRatio < 0 {
+		return fmt.Errorf("invalid tracing sampling ratio: %f, tracing sampling ratio should be in the range [0.0, 1.0]", m.ExperimentalTracingSamplingRatio)
 	}
 
 	for _, e := range m.ExperimentalTracingMode {

@@ -1048,6 +1048,14 @@ func TestValidateMonitoringSuccessScenarios(t *testing.T) {
 				ExperimentalTracingSamplingRatio: 0.3,
 			},
 		},
+		{
+			name: "invalid_tracing_sampling_ratio_success_empty_mode",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode:          []string{},
+				ExperimentalTracingProjectId:     "test-gcloud-project",
+				ExperimentalTracingSamplingRatio: 1.4,
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1078,14 +1086,6 @@ func TestValidateMonitoringFailureScenarios(t *testing.T) {
 			name: "invalid_tracing_sampling_ratio_failure",
 			MonitoringConfig: MonitoringConfig{
 				ExperimentalTracingMode:          []string{"stdout"},
-				ExperimentalTracingProjectId:     "test-gcloud-project",
-				ExperimentalTracingSamplingRatio: 1.4,
-			},
-		},
-		{
-			name: "invalid_tracing_sampling_ratio_failure_empty_mode",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{},
 				ExperimentalTracingProjectId:     "test-gcloud-project",
 				ExperimentalTracingSamplingRatio: 1.4,
 			},
