@@ -1031,19 +1031,28 @@ func TestValidateMonitoringSuccessScenarios(t *testing.T) {
 		{
 			name: "verify_tracing_modes_exact_match",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode: []string{"stdout", "  gcptrace"},
+				ExperimentalTracingMode:          []string{"stdout", "gcptrace"},
+				ExperimentalTracingSamplingRatio: 0.2,
+			},
+		},
+		{
+			name: "verify_tracing_modes_unnecessary_space_match",
+			MonitoringConfig: MonitoringConfig{
+				ExperimentalTracingMode:          []string{"stdout", "  gcptrace"},
+				ExperimentalTracingSamplingRatio: 0.4,
 			},
 		},
 		{
 			name: "verify_tracing_modes_case_insensitive",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode: []string{"STDout", "  Gcptrace"},
+				ExperimentalTracingMode:          []string{"STDout", "  Gcptrace"},
+				ExperimentalTracingSamplingRatio: 0.7,
 			},
 		},
 		{
 			name: "verify_complete_tracing_config_success_case",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{},
+				ExperimentalTracingMode:          []string{"gcptrace"},
 				ExperimentalTracingProjectId:     "test-gcloud-project",
 				ExperimentalTracingSamplingRatio: 0.3,
 			},
