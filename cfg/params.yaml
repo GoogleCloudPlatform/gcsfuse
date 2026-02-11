@@ -1030,9 +1030,9 @@ params:
 
   - config-path: "monitoring.experimental-tracing-mode"
     flag-name: "experimental-tracing-mode"
-    type: "string"
-    usage: "Experimental: specify tracing mode"
-    default: ""
+    type: "[]string"
+    usage: "Experimental: specify comma separated value of tracing modes"
+    default: '"gcptrace"'
     hide-flag: true
 
   - config-path: "monitoring.experimental-tracing-project-id"

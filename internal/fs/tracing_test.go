@@ -71,7 +71,7 @@ func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInt
 				IgnoreInterrupts: ignoreInterrupts,
 			},
 			Monitoring: cfg.MonitoringConfig{
-				ExperimentalTracingMode:          "stdout",
+				ExperimentalTracingMode:          []string{"stdout"},
 				ExperimentalTracingSamplingRatio: 1.0,
 			},
 		},

@@ -689,7 +689,7 @@ type MetricsConfig struct {
 }
 
 type MonitoringConfig struct {
-	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
+	ExperimentalTracingMode []string `yaml:"experimental-tracing-mode"`
 
 	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
 
@@ -1026,7 +1026,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
+	flagSet.StringSliceP("experimental-tracing-mode", "", []string{"gcptrace"}, "Experimental: specify comma separated value of tracing modes")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
 		return err
