@@ -198,7 +198,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			Offset:           0,
 			FileSize:         object.Size,
 			SparseMode:       chr.isSparse,
-			DownloadedRanges: nil,
+			DownloadedChunks: nil,
 		}
 		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
 		// sparse mode, so Offset < requiredOffset checks always fail
@@ -206,7 +206,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			newFileInfo.Offset = ^uint64(0) // math.MaxUint64
 			// Use download chunk size for ByteRangeMap tracking granularity
 			chunkSizeBytes := uint64(chr.jobManager.DownloadChunkSizeMb()) * 1024 * 1024
-			newFileInfo.DownloadedRanges = data.NewByteRangeMap(chunkSizeBytes)
+			newFileInfo.DownloadedChunks = data.NewByteRangeMap(chunkSizeBytes, object.Size)
 		}
 
 		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, newFileInfo)

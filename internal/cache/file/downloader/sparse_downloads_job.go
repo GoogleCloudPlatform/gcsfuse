@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"golang.org/x/sync/errgroup"
 )
 
 // HandleSparseRead manages the download and validation of sparse file ranges.
@@ -43,20 +44,57 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 	}
 
 	// Check if the requested range is already downloaded
-	if fileInfo.DownloadedRanges.ContainsRange(uint64(startOffset), uint64(endOffset)) {
+	if fileInfo.DownloadedChunks.ContainsRange(uint64(startOffset), uint64(endOffset)) {
 		// Range already downloaded, return cache hit
 		return true, nil
 	}
 
-	// Calculate the chunk boundaries to download
-	chunkStart, chunkEnd, err := job.calculateSparseChunkBoundaries(startOffset, endOffset)
+	// Calculate the missing ranges to download and filter out in-flight chunks
+	chunksToDownload, waitChans, err := job.getChunksToDownload(fileInfo, startOffset, endOffset)
 	if err != nil {
-		return false, fmt.Errorf("HandleSparseRead: error calculating chunk boundaries: %w", err)
+		return false, fmt.Errorf("HandleSparseRead: error calculating ranges: %w", err)
 	}
 
-	// Download the chunk
-	if err := job.downloadSparseRange(ctx, chunkStart, chunkEnd); err != nil {
-		return false, fmt.Errorf("download failed for range [%d, %d): %w", chunkStart, chunkEnd, err)
+	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(ctx)
+	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
+
+	// Download missing chunks in parallel
+	for _, chunkID := range chunksToDownload {
+		downloadErrGroup.Go(func() error {
+			// Acquire semaphore to limit concurrency across all jobs
+			if err := job.maxParallelismSem.Acquire(downloadErrGroupCtx, 1); err != nil {
+				return err
+			}
+			defer job.maxParallelismSem.Release(1)
+			start := chunkID * chunkSize
+			end := start + chunkSize
+			return job.downloadSparseRange(downloadErrGroupCtx, start, end)
+		})
+	}
+
+	downloadErr := downloadErrGroup.Wait()
+
+	// Cleanup inflight chunks for all download attempts.
+	job.mu.Lock()
+	for _, chunkID := range chunksToDownload {
+		if ch, ok := job.inflightChunks[chunkID]; ok {
+			close(ch)
+			delete(job.inflightChunks, chunkID)
+		}
+	}
+	job.mu.Unlock()
+
+	if downloadErr != nil {
+		return false, fmt.Errorf("sparse download failed: %w", downloadErr)
+	}
+
+	// Wait for other inflight chunks
+	for _, ch := range waitChans {
+		select {
+		case <-ch:
+		case <-ctx.Done():
+			return false, ctx.Err()
+		}
 	}
 
 	// Verify the download was successful
@@ -70,6 +108,38 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 	}
 
 	return true, nil
+}
+
+// getChunksToDownload calculates the missing chunks that need to be downloaded
+// and filters out chunks that are already in-flight. It returns a list of
+// individual chunks to download and marks them as in-flight.
+func (job *Job) getChunksToDownload(fileInfo data.FileInfo, startOffset, endOffset int64) ([]uint64, []chan struct{}, error) {
+	if startOffset < 0 || endOffset < 0 || startOffset >= endOffset {
+		return nil, nil, fmt.Errorf("invalid offset range: [%d, %d)", startOffset, endOffset)
+	}
+
+	// Get missing chunks from ByteRangeMap
+	missingChunks := fileInfo.DownloadedChunks.GetMissingChunks(uint64(startOffset), uint64(endOffset))
+
+	var chunksToDownload []uint64
+	var waitChans []chan struct{}
+
+	job.mu.Lock()
+	defer job.mu.Unlock()
+
+	for _, chunkID := range missingChunks {
+		if ch, ok := job.inflightChunks[chunkID]; ok {
+			// Chunk is inflight, wait for it
+			waitChans = append(waitChans, ch)
+		} else {
+			// Chunk is not inflight, mark it and add to download list
+			ch := make(chan struct{})
+			job.inflightChunks[chunkID] = ch
+
+			chunksToDownload = append(chunksToDownload, chunkID)
+		}
+	}
+	return chunksToDownload, waitChans, nil
 }
 
 // getFileInfo retrieves the FileInfo from cache for this job's object.
@@ -96,38 +166,6 @@ func (job *Job) getFileInfo() (data.FileInfo, error) {
 	return fileInfo, nil
 }
 
-// calculateSparseChunkBoundaries calculates the aligned chunk boundaries
-// for a sparse file download based on the configured chunk size.
-//
-// The chunk boundaries are aligned to ensure efficient downloads:
-// - chunkStart is rounded down to the nearest chunk boundary
-// - chunkEnd is rounded up to the nearest chunk boundary
-// - chunkEnd is capped at the object size
-//
-// Uses DownloadChunkSizeMb from fileCacheConfig (default 200MB) for chunk size.
-func (job *Job) calculateSparseChunkBoundaries(startOffset, endOffset int64) (chunkStart, chunkEnd uint64, err error) {
-	if startOffset < 0 || endOffset < 0 || startOffset >= endOffset {
-		return 0, 0, fmt.Errorf("invalid offset range: [%d, %d)", startOffset, endOffset)
-	}
-
-	// Get the configured chunk size from fileCacheConfig
-	chunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * 1024 * 1024
-
-	// Align chunk start and end to chunk boundaries
-	// Start: round down to chunk boundary
-	chunkStart = (uint64(startOffset) / chunkSize) * chunkSize
-
-	// End: round up endOffset to chunk boundary to ensure full coverage
-	chunkEnd = ((uint64(endOffset) + chunkSize - 1) / chunkSize) * chunkSize
-
-	// Cap at object size
-	if chunkEnd > job.object.Size {
-		chunkEnd = job.object.Size
-	}
-
-	return chunkStart, chunkEnd, nil
-}
-
 // verifySparseRangeDownloaded verifies that the requested range has been
 // successfully downloaded by checking the updated FileInfo from the cache.
 //
@@ -142,10 +180,10 @@ func (job *Job) verifySparseRangeDownloaded(startOffset, endOffset int64) (cache
 	}
 
 	// Check if the range is downloaded
-	cacheHit = fileInfo.DownloadedRanges != nil && fileInfo.DownloadedRanges.ContainsRange(uint64(startOffset), uint64(endOffset))
+	cacheHit = fileInfo.DownloadedChunks != nil && fileInfo.DownloadedChunks.ContainsRange(uint64(startOffset), uint64(endOffset))
 
 	logger.Tracef("Sparse file cache hit check: startOffset=%d, endOffset=%d, DownloadedRanges=%v, cacheHit=%t",
-		startOffset, endOffset, fileInfo.DownloadedRanges != nil, cacheHit)
+		startOffset, endOffset, fileInfo.DownloadedChunks != nil, cacheHit)
 
 	return cacheHit, nil
 }
@@ -209,7 +247,7 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	}
 
 	// Add the downloaded range
-	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
+	bytesAdded := fileInfo.DownloadedChunks.AddRange(start, start+uint64(bytesWritten))
 
 	// Update LRU cache size accounting
 	fileInfoKey := data.FileInfoKey{

@@ -28,15 +28,15 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 		initialRanges  [][2]uint64 // [start, end] pairs
 		addStart       uint64
 		addEnd         uint64
-		expectedRanges []ByteRange // chunk-aligned ranges
-		expectedAdded  uint64      // bytes added (chunk size multiples)
+		expectedChunks []uint64
+		expectedAdded  uint64 // bytes added (chunk size multiples)
 	}{
 		{
 			name:           "add to empty map - single chunk",
 			initialRanges:  [][2]uint64{},
 			addStart:       0,
 			addEnd:         MB,
-			expectedRanges: []ByteRange{{0, MB}},
+			expectedChunks: []uint64{0},
 			expectedAdded:  MB,
 		},
 		{
@@ -44,7 +44,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			initialRanges:  [][2]uint64{},
 			addStart:       100,
 			addEnd:         200,
-			expectedRanges: []ByteRange{{0, MB}},
+			expectedChunks: []uint64{0},
 			expectedAdded:  MB, // tracks full chunk
 		},
 		{
@@ -52,7 +52,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			initialRanges:  [][2]uint64{{0, MB}},
 			addStart:       2 * MB,
 			addEnd:         3 * MB,
-			expectedRanges: []ByteRange{{0, MB}, {2 * MB, 3 * MB}},
+			expectedChunks: []uint64{0, 2},
 			expectedAdded:  MB,
 		},
 		{
@@ -60,7 +60,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			initialRanges:  [][2]uint64{{0, MB}},
 			addStart:       100,
 			addEnd:         200,
-			expectedRanges: []ByteRange{{0, MB}},
+			expectedChunks: []uint64{0},
 			expectedAdded:  0, // chunk already tracked
 		},
 		{
@@ -68,7 +68,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			initialRanges:  [][2]uint64{},
 			addStart:       0,
 			addEnd:         2 * MB,
-			expectedRanges: []ByteRange{{0, 2 * MB}},
+			expectedChunks: []uint64{0, 1},
 			expectedAdded:  2 * MB,
 		},
 		{
@@ -76,7 +76,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			initialRanges:  [][2]uint64{},
 			addStart:       MB / 2,
 			addEnd:         MB + MB/2,
-			expectedRanges: []ByteRange{{0, 2 * MB}}, // both chunks 0 and 1
+			expectedChunks: []uint64{0, 1},
 			expectedAdded:  2 * MB,
 		},
 		{
@@ -84,7 +84,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			initialRanges:  [][2]uint64{{0, MB}, {2 * MB, 3 * MB}},
 			addStart:       MB,
 			addEnd:         2 * MB,
-			expectedRanges: []ByteRange{{0, 3 * MB}},
+			expectedChunks: []uint64{0, 1, 2},
 			expectedAdded:  MB,
 		},
 		{
@@ -92,7 +92,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			initialRanges:  [][2]uint64{{0, MB}},
 			addStart:       0,
 			addEnd:         2 * MB,
-			expectedRanges: []ByteRange{{0, 2 * MB}},
+			expectedChunks: []uint64{0, 1},
 			expectedAdded:  MB, // only chunk 1 is new
 		},
 		{
@@ -100,14 +100,14 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			initialRanges:  [][2]uint64{{0, MB}},
 			addStart:       2 * MB,
 			addEnd:         2 * MB,
-			expectedRanges: []ByteRange{{0, MB}},
+			expectedChunks: []uint64{0},
 			expectedAdded:  0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			brm := NewByteRangeMap(DefaultChunkSize)
+			brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 			// Add initial ranges
 			for _, r := range tt.initialRanges {
 				brm.AddRange(r[0], r[1])
@@ -118,13 +118,13 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 
 			// Check results
 			assert.Equal(t, tt.expectedAdded, added, "bytes added mismatch")
-			assert.Equal(t, tt.expectedRanges, brm.Ranges(), "ranges mismatch")
+			assert.Equal(t, tt.expectedChunks, brm.Chunks(), "chunks mismatch")
 		})
 	}
 }
 
 func TestByteRangeMap_ContainsRange(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 	brm.AddRange(0, MB)      // chunk 0
 	brm.AddRange(2*MB, 3*MB) // chunk 2
 	brm.AddRange(5*MB, 6*MB) // chunk 5
@@ -153,8 +153,8 @@ func TestByteRangeMap_ContainsRange(t *testing.T) {
 	}
 }
 
-func TestByteRangeMap_GetMissingRanges(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+func TestByteRangeMap_GetMissingChunks(t *testing.T) {
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 	brm.AddRange(0, MB)      // chunk 0
 	brm.AddRange(2*MB, 3*MB) // chunk 2
 	brm.AddRange(5*MB, 6*MB) // chunk 5
@@ -163,7 +163,7 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 		name     string
 		start    uint64
 		end      uint64
-		expected []ByteRange
+		expected []uint64
 	}{
 		{
 			name:     "fully covered range",
@@ -175,29 +175,25 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 			name:     "single missing chunk",
 			start:    MB,
 			end:      2 * MB,
-			expected: []ByteRange{{MB, 2 * MB}},
+			expected: []uint64{1},
 		},
 		{
-			name:  "multiple missing chunks",
-			start: 0,
-			end:   6 * MB,
-			expected: []ByteRange{
-				{MB, 2 * MB},     // chunk 1
-				{3 * MB, 4 * MB}, // chunk 3
-				{4 * MB, 5 * MB}, // chunk 4
-			},
+			name:     "multiple missing chunks",
+			start:    0,
+			end:      6 * MB,
+			expected: []uint64{1, 3, 4},
 		},
 		{
 			name:     "completely missing range",
 			start:    10 * MB,
 			end:      11 * MB,
-			expected: []ByteRange{{10 * MB, 11 * MB}},
+			expected: []uint64{10},
 		},
 		{
 			name:     "partial chunk request - missing",
 			start:    MB + 100,
 			end:      MB + 200,
-			expected: []ByteRange{{MB, 2 * MB}}, // returns full chunk
+			expected: []uint64{1},
 		},
 		{
 			name:     "partial chunk request - present",
@@ -215,14 +211,14 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := brm.GetMissingRanges(tt.start, tt.end)
+			result := brm.GetMissingChunks(tt.start, tt.end)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
 func TestByteRangeMap_TotalBytes(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 
 	assert.Equal(t, uint64(0), brm.TotalBytes(), "empty map should have 0 bytes")
 
@@ -236,8 +232,18 @@ func TestByteRangeMap_TotalBytes(t *testing.T) {
 	assert.Equal(t, uint64(4*MB), brm.TotalBytes()) // 4 contiguous chunks
 }
 
+func TestByteRangeMap_TotalBytes_PartialLastChunk(t *testing.T) {
+	// Test partial last chunk
+	// Chunk size 100 bytes, File size 110 bytes
+	brmSmall := NewByteRangeMap(100, 110)
+	brmSmall.AddRange(100, 110)
+
+	// Should be 10 bytes, not 100
+	assert.Equal(t, uint64(10), brmSmall.TotalBytes(), "partial last chunk size mismatch")
+}
+
 func TestByteRangeMap_Clear(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 	brm.AddRange(0, MB)
 	brm.AddRange(2*MB, 3*MB)
 
@@ -246,11 +252,11 @@ func TestByteRangeMap_Clear(t *testing.T) {
 	brm.Clear()
 
 	assert.Equal(t, uint64(0), brm.TotalBytes())
-	assert.Empty(t, brm.Ranges())
+	assert.Empty(t, brm.Chunks())
 }
 
 func TestByteRangeMap_ConcurrentAccess(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 
 	// This test just ensures no race conditions occur
 	// Run with -race flag to detect issues
@@ -268,7 +274,7 @@ func TestByteRangeMap_ConcurrentAccess(t *testing.T) {
 	go func() {
 		for i := uint64(0); i < 10; i++ {
 			brm.ContainsRange(i*MB, (i+1)*MB)
-			brm.GetMissingRanges(i*MB, (i+2)*MB)
+			brm.GetMissingChunks(i*MB, (i+2)*MB)
 			brm.TotalBytes()
 		}
 		done <- true
@@ -279,7 +285,7 @@ func TestByteRangeMap_ConcurrentAccess(t *testing.T) {
 }
 
 func TestByteRangeMap_ChunkAlignment(t *testing.T) {
-	brm := NewByteRangeMap(DefaultChunkSize)
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
 
 	// Test that partial byte ranges get tracked as full chunks
 	brm.AddRange(100, 200)
@@ -293,4 +299,36 @@ func TestByteRangeMap_ChunkAlignment(t *testing.T) {
 	// Should not contain chunk 1
 	assert.False(t, brm.ContainsRange(MB, MB+1))
 	assert.False(t, brm.ContainsRange(100, MB+100))
+}
+
+func TestByteRangeMap_Chunks(t *testing.T) {
+	brm := NewByteRangeMap(DefaultChunkSize, 100*MB)
+	brm.AddRange(0, MB)      // chunk 0
+	brm.AddRange(2*MB, 3*MB) // chunk 2
+	brm.AddRange(5*MB, 6*MB) // chunk 5
+
+	expected := []uint64{0, 2, 5}
+	assert.Equal(t, expected, brm.Chunks())
+}
+
+func TestByteRangeMap_chunkSizeOf(t *testing.T) {
+	chunkSize := uint64(100)
+	fileSize := uint64(150)
+	brm := NewByteRangeMap(chunkSize, fileSize)
+
+	tests := []struct {
+		name     string
+		chunkID  uint64
+		expected uint64
+	}{
+		{"chunk 0 (full)", 0, 100},
+		{"chunk 1 (partial)", 1, 50},
+		{"chunk 2 (out of bounds)", 2, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, brm.chunkSizeOf(tt.chunkID))
+		})
+	}
 }
