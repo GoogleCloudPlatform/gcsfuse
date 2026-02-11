@@ -283,3 +283,72 @@ func (ts *DiskUtilTest) TestPrettyPrintOf() {
 		})
 	}
 }
+
+func (ts *DiskUtilTest) TestGetSizeOnDiskAndClean() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+	// Structure:
+	// tempDir/
+	//   emptyDir/          (should be removed)
+	//   nonEmptyDir/
+	//     file.txt         (size counted)
+	//   nestedEmptyDir/
+	//     level2/          (should be removed)
+	//   nestedNonEmptyDir/
+	//     level2/
+	//       file.txt       (size counted)
+
+	emptyDir := filepath.Join(tempDir, "emptyDir")
+	require.NoError(ts.T(), os.Mkdir(emptyDir, 0755))
+
+	nonEmptyDir := filepath.Join(tempDir, "nonEmptyDir")
+	require.NoError(ts.T(), os.Mkdir(nonEmptyDir, 0755))
+	f, err := os.Create(filepath.Join(nonEmptyDir, "file.txt"))
+	require.NoError(ts.T(), err)
+	_, err = f.Write([]byte("content")) // 7 bytes
+	require.NoError(ts.T(), err)
+	f.Close()
+
+	nestedEmptyDir := filepath.Join(tempDir, "nestedEmptyDir")
+	require.NoError(ts.T(), os.MkdirAll(filepath.Join(nestedEmptyDir, "level2"), 0755))
+
+	nestedNonEmptyDir := filepath.Join(tempDir, "nestedNonEmptyDir")
+	require.NoError(ts.T(), os.MkdirAll(filepath.Join(nestedNonEmptyDir, "level2"), 0755))
+	f2, err := os.Create(filepath.Join(nestedNonEmptyDir, "level2", "file.txt"))
+	require.NoError(ts.T(), err)
+	_, err = f2.Write([]byte("content")) // 7 bytes
+	require.NoError(ts.T(), err)
+	f2.Close()
+
+	// Act
+	size := GetSizeOnDiskAndClean(tempDir, true, true)
+
+	// Assert
+	// Root should exist
+	_, err = os.Stat(tempDir)
+	require.NoError(ts.T(), err)
+
+	// emptyDir should be gone
+	_, err = os.Stat(emptyDir)
+	require.True(ts.T(), os.IsNotExist(err))
+
+	// nonEmptyDir should exist
+	_, err = os.Stat(nonEmptyDir)
+	require.NoError(ts.T(), err)
+
+	// nestedEmptyDir should be gone (both level2 and parent)
+	_, err = os.Stat(nestedEmptyDir)
+	require.True(ts.T(), os.IsNotExist(err))
+
+	// nestedNonEmptyDir should exist
+	_, err = os.Stat(nestedNonEmptyDir)
+	require.NoError(ts.T(), err)
+
+	// Size calculation:
+	// Files: 7 + 7 = 14 bytes.
+	// Dirs (metadata): tempDir, nonEmptyDir, nestedNonEmptyDir, nestedNonEmptyDir/level2
+	// Depending on FS, dirs might have size.
+	// On tmpfs, dir size is 0? Let's check >= 14.
+	// We expect size > 0.
+	require.GreaterOrEqual(ts.T(), size, uint64(14))
+}

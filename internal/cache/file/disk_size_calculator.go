@@ -91,20 +91,10 @@ func (c *FileCacheDiskUtilizationCalculator) periodicSizeScan() {
 func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 	start := time.Now()
 
-	// First, remove empty directories. We ignore errors here.
-	if c.deleteEmptyDirs {
-		baseutil.RemoveEmptyDirs(c.cacheDir)
-	}
-
-	// Recalculate size: if includeFiles is true, we scan everything (onlyDirs=false).
-	// If includeFiles is false, we scan only directories (onlyDirs=true).
-	s, err := baseutil.GetSizeOnDisk(c.cacheDir, !c.includeFiles, true)
+	// Perform single pass scan to calculate size and optionally remove empty directories.
+	s := baseutil.GetSizeOnDiskAndClean(c.cacheDir, c.includeFiles, c.deleteEmptyDirs)
 	duration := time.Since(start)
 
-	if err != nil {
-		logger.Warnf("Failed to calculate disk usage for %q: %v", c.cacheDir, err)
-		return
-	}
 	c.scannedSize.Store(s)
 
 	// Debugging data
