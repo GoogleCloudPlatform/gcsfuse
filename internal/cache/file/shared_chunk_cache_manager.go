@@ -29,7 +29,11 @@ import (
 )
 
 // SharedChunkCacheManager manages a file cache that can be safely shared across
-// multiple gcsfuse mount instances using lock-free atomic operations.
+// multiple gcsfuse mount instances using lock-free atomic operations mkdir and
+// rename. It organizes cache files in a directory structure based on the hash of
+// bucket name, object name, and generation, and uses fixed-size chunk files for
+// caching object data. It also supports regex-based inclusion/exclusion of files
+// from caching.
 type SharedChunkCacheManager struct {
 	// cacheDir is the local path which contains the cache data
 	cacheDir string
@@ -146,7 +150,9 @@ func (sccm *SharedChunkCacheManager) GetChunkSize() int64 {
 func computeObjectHash(bucketName, objectName string, generation int64) string {
 	h := sha256.New()
 
-	// Use length prefixes to avoid hash collision, in case bucketName contains '/'.
+	// Use length prefixes to prevent different (bucket, objectName) tuples from resulting in
+	// the same pre-hash string. This is defensive, even though bucket names currently cannot
+	// contain '/'.
 	// Format: <bucketNameLength>:<bucketName><objectNameLength>:<objectName>:<generation>
 	fmt.Fprintf(h, "%d:%s", len(bucketName), bucketName)
 	fmt.Fprintf(h, "%d:%s", len(objectName), objectName)

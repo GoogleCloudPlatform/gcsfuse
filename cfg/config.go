@@ -511,7 +511,7 @@ type FileCacheConfig struct {
 
 	EnableCrc bool `yaml:"enable-crc"`
 
-	EnableExperimentalSharedFileCache bool `yaml:"enable-experimental-shared-file-cache"`
+	EnableExperimentalSharedChunkCache bool `yaml:"enable-experimental-shared-chunk-cache"`
 
 	EnableODirect bool `yaml:"enable-o-direct"`
 
@@ -922,7 +922,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-experimental-shared-file-cache", "", false, "[EXPERIMENTAL] Enable chunk-based shared cache that allows multiple gcsfuse mount instances to safely share the same cache directory (e.g., on NFS). Uses fixed size chunks with atomic operations (write + rename) to download chunk file without locks, automatic retry logic for NFS-specific errors. Ideal for distributed environments where multiple nodes need to share cached GCS data.")
+	flagSet.BoolP("enable-experimental-shared-chunk-cache", "", false, "[EXPERIMENTAL] Enable chunk-based shared cache that allows multiple gcsfuse mount instances to safely share the same cache directory (e.g., on NFS). Uses fixed size chunks with atomic operations (write + rename) to download chunk file without locks. Ideal for distributed environments where multiple nodes need to share cached GCS data.")
 
 	flagSet.BoolP("enable-google-lib-auth", "", true, "Enable google library authentication method to fetch the credentials")
 
@@ -1509,7 +1509,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-cache.enable-experimental-shared-file-cache", flagSet.Lookup("enable-experimental-shared-file-cache")); err != nil {
+	if err := v.BindPFlag("file-cache.enable-experimental-shared-chunk-cache", flagSet.Lookup("enable-experimental-shared-chunk-cache")); err != nil {
 		return err
 	}
 

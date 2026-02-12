@@ -303,6 +303,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	return fs, nil
 }
 
+// createFileCacheHandler either returns a regular file cache handler with an in-memory LRU cache, or
+// a shared chunk cache manager that allows multiple gcsfuse instances to share the same cache directory
+// on disk, based on the configuration.
 func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.CacheHandler, sharedChunkCacheManager *file.SharedChunkCacheManager, err error) {
 	cacheDir := string(serverCfg.NewConfig.CacheDir)
 	// Adding a new directory inside cacheDir to keep file-cache separate from
@@ -319,7 +322,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	}
 
 	// Shared cache with external LRU cache eviction.
-	if serverCfg.NewConfig.FileCache.EnableExperimentalSharedFileCache {
+	if serverCfg.NewConfig.FileCache.EnableExperimentalSharedChunkCache {
 		sharedCacheManager, sharedErr := file.NewSharedChunkCacheManager(
 			cacheDir,
 			filePerm,

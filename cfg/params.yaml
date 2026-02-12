@@ -267,15 +267,15 @@ params:
     default: false
     hide-flag: true
 
-  - config-path: "file-cache.enable-experimental-shared-file-cache"
-    flag-name: "enable-experimental-shared-file-cache"
+  - config-path: "file-cache.enable-experimental-shared-chunk-cache"
+    flag-name: "enable-experimental-shared-chunk-cache"
     type: "bool"
     usage: >-
       [EXPERIMENTAL] Enable chunk-based shared cache that allows multiple
       gcsfuse mount instances to safely share the same cache directory (e.g., on NFS).
       Uses fixed size chunks with atomic operations (write + rename) to download chunk
-      file without locks, automatic retry logic for NFS-specific errors. Ideal for
-      distributed environments where multiple nodes need to share cached GCS data.
+      file without locks. Ideal for distributed environments where multiple nodes need
+      to share cached GCS data.
     default: false
     hide-flag: false
 
