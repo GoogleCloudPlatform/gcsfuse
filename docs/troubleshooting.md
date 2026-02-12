@@ -220,8 +220,9 @@ Starting with [version 3.0.0](https://github.com/GoogleCloudPlatform/gcsfuse/rel
 **Cause:** GCSFuse automatically identifies the machine type it is running on and applies performance optimizations accordingly. In versions `v3.4.0` through `v3.5.6`, these optimizations (and those triggered by `--profile`) incorrectly overrode user-provided values in the configuration file because the logic only checked if the flag was explicitly set via the command line.
 
 **Solution:**
-*   **Upgrade:** Update to GCSFuse **v3.6.0** or later. This version ensures that optimizations honor user-defined values provided in configuration files.
+*   **Upgrade:** Update to GCSFuse **v3.6.0**, GKE **1.35.0-gke.1972000** or later. This version ensures that optimizations honor user-defined values provided in configuration files.
 *   **Workaround:** For affected versions, pass the configuration values as **CLI flags** (e.g., `--metadata-cache-ttl-secs=60`). Values provided via CLI flags take the highest precedence and will correctly override automatic optimizations.
+    *   **GKE:** Pass the flags in the `mountOptions` field or `gke-gcsfuse/mount-options` annotation without the leading dashes (e.g., `metadata-cache-ttl-secs=60`).
 
 ### Writes still using legacy staged writes even though streaming writes are enabled.
 If you observe that GCSFuse is still utilizing staged writes despite streaming writes being enabled, several factors could be at play.
