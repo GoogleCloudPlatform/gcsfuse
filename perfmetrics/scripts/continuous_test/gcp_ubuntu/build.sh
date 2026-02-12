@@ -21,9 +21,22 @@ sudo apt-get install git
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
-echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+
+TOOLS_DIR="${KOKORO_ARTIFACTS_DIR}/github/gcsfuse-tools"
+
+if [ -d "$TOOLS_DIR" ]; then
+    echo "Running Distributed Micro-Benchmark from gcsfuse-tools..."
+    chmod +x "$TOOLS_DIR/distributed-micro-benchmark/run.sh"
+    "$TOOLS_DIR/distributed-micro-benchmark/run.sh" --commit "$commitId"
+    
+else
+    echo "ERROR: gcsfuse-tools directory not found!"
+    exit 1
+fi
+
+echo "Building and installing gcsfuse"
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
 # Mounting gcs bucket
@@ -84,7 +97,7 @@ LIST_CONFIG_FILE="config-hns.json"
 run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
 run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
 
-#Running the rename benchmark script.
+# Running the rename benchmark script.
 cd "./hns_rename_folders_metrics"
 ./run_rename_benchmark.sh $UPLOAD_FLAGS
 
