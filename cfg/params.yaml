@@ -852,7 +852,7 @@ params:
     usage: >-
       Enables background prefetching of object metadata when a directory is first opened. 
       This reduces latency for subsequent file lookups by pre-filling the metadata cache.
-    default: false
+    default: true
     deprecated: false
     hide-flag: true
 
