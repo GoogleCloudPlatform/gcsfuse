@@ -26,7 +26,7 @@ curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install
 
 UPLOAD_FLAGS=$1
-gsutil cp gs://periodic-perf-tests/creds.json ../gsheet/
+gcloud storage cp gs://periodic-perf-tests/creds.json ../gsheet/
 
 # Install latest gcloud.
 ../install_latest_gcloud.sh
