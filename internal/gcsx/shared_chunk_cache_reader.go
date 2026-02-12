@@ -210,8 +210,8 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 	}
 
 	// Step 2: Create temporary file with O_EXCL (purely for defensive purposes to handle conflicting
-	// temporary downloads of the same chunk), given odds of collision are essentially zero with 64-bit
-	// hash-prefix.
+	// temporary downloads of the same chunk, given odds of collision are essentially zero with 64-bit
+	// hash-prefix).
 	// - ENOENT: Directory was deleted (LRU race), retry once by recreating directory
 	// - Any other error, including EEXIST (chunk path collision): Fallback to GCS reader
 	tmpFile, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, r.manager.GetFilePerm())
