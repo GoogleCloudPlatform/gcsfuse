@@ -18,8 +18,19 @@ go build .
 **Options:**
 - `-cache-dir` (required): Path to cache directory
 - `-target-size-mb`: Target size in MB (default: 10240)
+- `-concurrency`: Maximum concurrent file operations (default: 16)
 - `-dry-run`: Show what would be deleted
 - `-debug`: Enable debug logging
+
+## File System Requirements
+
+This garbage collector tool requires a file system that supports:
+
+1. **Atomic rename**: The tool uses atomic rename operations to safely expire cache files (renaming `.bin` to `.bak`) without disrupting concurrent reads from multiple GCSFuse instances.
+
+2. **Access time (atime) tracking**: The LRU eviction algorithm depends on file access times to determine which chunks are least recently used. The file system should track atime, either through:
+
+**Note:** NFS and most POSIX-compliant file systems meet these requirements.
 
 ## Scheduling
 
@@ -82,14 +93,7 @@ concurrent read and eviction of chunked file.
 ```
 Output:
 ```
-time=2026-02-10T10:38:30.989Z level=INFO msg="Starting LRU cache eviction" cache_dir=/mnt/nfs-cache target_size_mb=1024
-time=2026-02-10T10:38:31.244Z level=DEBUG msg="Manifest created" files=100 total_size_mb=800 scan_duration=126.255393ms
-time=2026-02-10T10:38:31.244Z level=INFO msg="Cache below target, nothing to do" cache_size_mb=800 target_size_mb=1024
+time=2026-02-12T19:06:36.237Z level=INFO msg="Starting LRU cache eviction" cache_dir=/mnt/nfs-cache target_size_mb=10240
+time=2026-02-12T19:06:36.640Z level=DEBUG msg="Manifest created" files=100 total_size_mb=800 scan_duration=120.731382ms
+time=2026-02-12T19:06:36.640Z level=INFO msg="Cache below target, nothing to do" cache_size_mb=800 target_size_mb=10240
 ```
-
-## Notes
-
-- **Multi-host safe**: Can run concurrently on multiple hosts
-- **Error tolerant**: Handles ENOENT/ENOTEMPTY gracefully
-- **Parallel operations**: 10 concurrent file operations
-- Works with SHA256-based cache structure: `cache-dir/XX/YY/hash/offset_offset.bin`
