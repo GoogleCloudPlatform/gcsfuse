@@ -541,7 +541,9 @@ func TestSharedChunkCacheReader_ReadAtFallbackOnDownloadError(t *testing.T) {
 	// Make cache directory read-only to cause download failures
 	err := os.Chmod(cacheDir, 0444)
 	require.NoError(t, err)
-	defer os.Chmod(cacheDir, 0755) // Restore for cleanup
+	defer func() {
+		_ = os.Chmod(cacheDir, 0755) // Restore for cleanup
+	}()
 	config := &cfg.FileCacheConfig{
 		SharedCacheChunkSizeMb: 1,
 	}
