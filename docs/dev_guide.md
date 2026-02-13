@@ -184,3 +184,35 @@ write end-to-end tests for GCSFuse.
    feature or have questions about scenarios to test, please feel free to open a
    [discussion thread](https://github.com/GoogleCloudPlatform/gcsfuse/discussions)
    with GCSFuse team. We're here to help!
+
+## Dummy I/O Mode for Performance Testing
+
+Dummy I/O mode simulates read operations without transferring data from Cloud Storage, allowing you to isolate and measure GCSFuse overhead independent of network latency.
+
+**Note:** 
+- Currently supports read operations only.
+- Hidden feature for developers/performance engineers.
+- Metadata operations (list, stat) remain real.
+- Reads return zeros without fetching data.
+
+### Use Cases
+
+**✅ When to use:**
+- Micro-optimizations in GCSFuse read flow
+- Isolate performance from network latency
+- Profile GCSFuse CPU/memory usage without network noise
+- Benchmark different kernel configurations
+
+**❌ When NOT to use:**
+- Real-world performance testing (network latency is critical)
+- Data correctness validation
+- Production workloads
+
+### Configuration
+
+```bash
+--enable-dummy-io
+--dummy-io-reader-latency=150ms    # Simulates reader creation latency
+--dummy-io-per-mb-latency=20ms     # Simulates per-MB read from stream latency
+```
+
