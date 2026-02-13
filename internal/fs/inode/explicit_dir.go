@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"context"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -37,6 +38,7 @@ type ExplicitDirInode interface {
 func NewExplicitDirInode(
 	id fuseops.InodeID,
 	name Name,
+	parentInodeCtx context.Context,
 	m *gcs.MinObject,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
@@ -50,6 +52,7 @@ func NewExplicitDirInode(
 	wrapped := NewDirInode(
 		id,
 		name,
+		parentInodeCtx,
 		attrs,
 		implicitDirs,
 		enableNonexistentTypeCache,

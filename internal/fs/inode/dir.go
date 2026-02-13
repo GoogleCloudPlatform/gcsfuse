@@ -71,8 +71,8 @@ type DirInode interface {
 	// Rename the file.
 	RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error)
 
-	// Rename the directory/folder.
-	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
+	// Rename the directory/folder. It accepts folderInode to trigger recursive prefetch cancellation.
+	RenameFolder(ctx context.Context, folderName string, destinationFolderId string, folderInode DirInode) (*gcs.Folder, error)
 
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
@@ -297,6 +297,7 @@ var _ DirInode = &dirInode{}
 func NewDirInode(
 	id fuseops.InodeID,
 	name Name,
+	parentInodeCtx context.Context,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	enableNonexistentTypeCache bool,
@@ -312,17 +313,12 @@ func NewDirInode(
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
-	// TODO: pass parent directory inode while creating dir inode.
-	var parentInode DirInode = nil
-	// Establish the recursive context chain.
-	// If parentInode is nil (Root), use Background.
-	var parentCtx context.Context
-	if parentInode != nil {
-		parentCtx = parentInode.Context()
-	} else {
-		parentCtx = context.Background()
+	// Establish the recursive context chain so if parent is cancelled, child inodes are also cancelled.
+	// If parent inode ctx is nil, set a new context. This will happen for bucket root inodes.
+	if parentInodeCtx == nil {
+		parentInodeCtx = context.Background()
 	}
-	ctx, cancel := context.WithCancel(parentCtx)
+	ctx, cancel := context.WithCancel(parentInodeCtx)
 
 	typed := &dirInode{
 		bucket:                          bucket,
@@ -1082,6 +1078,7 @@ func (d *dirInode) EraseFromTypeCache(name string) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
+	d.CancelCurrDirPrefetcher() // Invalidate parent listing.
 	if !d.IsTypeCacheDeprecated() {
 		// Erase any existing type information for this name.
 		d.cache.Erase(name)
@@ -1182,6 +1179,7 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
+	d.CancelCurrDirPrefetcher() // Invalidate parent listing
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -1215,6 +1213,13 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool,
 	dirInode DirInode) error {
+	// Recursively cancel the dir inode and ALL its descendants.
+	// Because dirInode.ctx is the parent of its children's contexts,
+	// cancelling it triggers a cascade down the entire directory subtree.
+	if dirInode != nil {
+		dirInode.CancelSubdirectoryPrefetches()
+	}
+
 	if !d.IsTypeCacheDeprecated() {
 		d.cache.Erase(name)
 	}
@@ -1406,6 +1411,7 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 // LOCKS_REQUIRED(d)
 // LOCKS_REQUIRED(parent of destinationFileName)
 func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
+	d.CancelCurrDirPrefetcher() // Invalidate parent listing.
 	req := &gcs.MoveObjectRequest{
 		SrcName:                       fileToRename.Name,
 		DstName:                       destinationFileName,
@@ -1423,7 +1429,14 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 	return o, err
 }
 
-func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string) (*gcs.Folder, error) {
+func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string, folderInode DirInode) (*gcs.Folder, error) {
+	// Recursively cancel the dir inode and ALL its descendants.
+	// Because folderInode.ctx is the parent of its children's contexts,
+	// cancelling it triggers a cascade down the entire directory subtree.
+	if folderInode != nil {
+		folderInode.CancelSubdirectoryPrefetches()
+	}
+
 	folder, err := d.bucket.RenameFolder(ctx, folderName, destinationFolderName)
 	if err != nil {
 		return nil, err
