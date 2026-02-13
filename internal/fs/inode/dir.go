@@ -178,10 +178,15 @@ type DirInode interface {
 	// served from GCSFuse.
 	InvalidateKernelListCache()
 
+	// CancelCurrDirPrefetcher stops only the *current* prefetch run for this dir.
 	CancelCurrDirPrefetcher()
 
+	// CancelSubdirectoryPrefetches permanently stops the context for this inode AND all its descendants.
+	// This is used for Directory Rename/Delete operations. This context is not refreshed
+	// with the assumption that Rename/Delete directory operations will lead to new inodes with fresh contexts.
 	CancelSubdirectoryPrefetches()
 
+	// Context provides the lifecycle context of the inode.
 	Context() context.Context
 
 	// RLock readonly lock.

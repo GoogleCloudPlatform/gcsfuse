@@ -300,13 +300,13 @@ func (d *baseDirInode) IsTypeCacheDeprecated() bool {
 	return d.isEnableTypeCacheDeprecation
 }
 
-// CancelCurrDirPrefetcher stops only the *current* prefetch run for this dir.
 func (d *baseDirInode) CancelCurrDirPrefetcher() {}
 
-// CancelSubdirectoryPrefetches permanently stops the context for this inode AND all its descendants.
-// This is used for Directory Rename/Delete operations. This context is not refreshed
-// with the assumption that Rename/Delete directory operations will lead to new inodes with fresh contexts.
 func (d *baseDirInode) CancelSubdirectoryPrefetches() {}
 
-// Context provides the lifecycle context of the inode.
-func (d *baseDirInode) Context() context.Context { return nil }
+func (d *baseDirInode) Context() context.Context {
+	// TODO: Consider implementing Context() if it simplifies the code in the future.
+	// Currently, baseDirInode is the root for dynamic mounts where listing (and thus prefetching)
+	// is not allowed, so a nil context suffices.
+	return nil
+}

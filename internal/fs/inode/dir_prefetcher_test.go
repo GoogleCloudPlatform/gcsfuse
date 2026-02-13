@@ -441,3 +441,20 @@ func (t *DirPrefetchTest) TestPrefetch_RecursiveCancellation() {
 	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t.T(), prefetchReady, p.state.Load())
 }
+
+// TestPrefetch_NilInodeContext verifies that a nil inode context does not cause a panic
+// and that the prefetch operation is correctly skipped.
+func (t *DirPrefetchTest) TestPrefetch_NilInodeContext() {
+	// Setup with a nil inode context.
+	listCallCtr, mockListFunc := mockListFuncWithCtr()
+	var nilCtx context.Context = nil
+	p := NewMetadataPrefetcher(nilCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+
+	// 1. Try to run prefetch. This should not panic.
+	p.Run("dir/obj")
+
+	// 2. Assert: Prefetch should NOT start because inodeCtx is nil.
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t.T(), prefetchReady, p.state.Load(), "State should remain ready")
+	assert.Equal(t.T(), int32(0), listCallCtr.Load(), "List function should not be called")
+}
