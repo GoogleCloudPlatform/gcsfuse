@@ -29,13 +29,14 @@ import (
 )
 
 type finiteNegativeStatCacheTest struct {
-	flags []string
+	flags   []string
+	testDir string
 	suite.Suite
 }
 
 func (s *finiteNegativeStatCacheTest) SetupTest() {
-	testDir := testDirName + setup.GenerateRandomString(5)
-	mountGCSFuseAndSetupTestDir(s.flags, testDir)
+	s.testDir = testDirName + setup.GenerateRandomString(5)
+	mountGCSFuseAndSetupTestDir(s.flags, s.testDir)
 }
 
 func (s *finiteNegativeStatCacheTest) TearDownTest() {
@@ -61,8 +62,7 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache() {
 	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	testDir := path.Base(testEnv.testDirPath)
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDir, path.Join("explicit_dir", "file1.txt"), "some-content", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, path.Join("explicit_dir", "file1.txt"), "some-content", s.T())
 
 	// Error should be returned again, as call will not be served from GCS due to finite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
