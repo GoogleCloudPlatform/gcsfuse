@@ -66,6 +66,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 	in := NewDirInode(
 		dirInodeID,
 		NewDirName(NewRootName(""), "dir/"),
+		nil,
 		fuseops.InodeAttributes{Mode: dirMode},
 		true, // implicitDirs
 		false,
