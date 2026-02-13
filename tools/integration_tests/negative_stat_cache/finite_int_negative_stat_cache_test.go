@@ -97,7 +97,7 @@ func TestFiniteNegativeStatCacheTest(t *testing.T) {
 	}
 
 	// Define flag set to run the tests.
-	flagsSet := []string{"--metadata-cache-negative-ttl-secs=2"}
+	flagsSet := []string{"--metadata-cache-negative-ttl-secs=5"}
 
 	// Run tests.
 	ts.flags = flagsSet
