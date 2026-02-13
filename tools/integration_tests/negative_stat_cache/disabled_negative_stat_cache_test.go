@@ -28,16 +28,19 @@ import (
 )
 
 type disabledNegativeStatCacheTest struct {
-	flags []string
+	flags   []string
+	testDir string
 	suite.Suite
 }
 
 func (s *disabledNegativeStatCacheTest) SetupTest() {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	s.testDir = testDirName + setup.GenerateRandomString(5)
+	mountGCSFuseAndSetupTestDir(s.flags, s.testDir)
 }
 
 func (s *disabledNegativeStatCacheTest) TearDownTest() {
 	setup.UnmountGCSFuse(testEnv.rootDir)
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), s.testDir))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -58,7 +61,7 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled() {
 	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, "explicit_dir/file1.txt", "some-content", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "explicit_dir/file1.txt", "some-content", s.T())
 
 	// File should be returned, as call will be served from GCS and gcsfuse should not return from cache
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))

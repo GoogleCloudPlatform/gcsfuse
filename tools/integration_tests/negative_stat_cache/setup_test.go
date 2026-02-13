@@ -30,7 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
-var (
+const (
 	testDirName    = "NegativeStatCacheTest"
 	onlyDirMounted = "OnlyDirMountNegativeStatCache"
 )
@@ -73,11 +73,6 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	testDirName += "-" + setup.GenerateRandomString(5)
-	onlyDirMounted += "-" + setup.GenerateRandomString(5)
-	log.Printf("Using test directory: %s", testDirName)
-	log.Printf("Using onlyDirMounted: %s", onlyDirMounted)
 
 	// Create common storage client to be used in test.
 	testEnv.ctx = context.Background()
