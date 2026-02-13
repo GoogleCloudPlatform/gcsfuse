@@ -40,8 +40,8 @@ func (s *finiteNegativeStatCacheTest) SetupTest() {
 }
 
 func (s *finiteNegativeStatCacheTest) TearDownTest() {
+	setup.CleanUpDir(testEnv.testDirPath)
 	setup.UnmountGCSFuse(testEnv.rootDir)
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), s.testDir))
 }
 
 ////////////////////////////////////////////////////////////////////////
