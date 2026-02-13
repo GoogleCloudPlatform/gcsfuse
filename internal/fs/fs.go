@@ -313,20 +313,22 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 
 	// Shared cache with external LRU cache eviction.
 	if serverCfg.NewConfig.FileCache.EnableExperimentalSharedChunkCache {
-		return createSharedChunkCacheManager(baseCacheDir, filePerm, dirPerm, serverCfg)
+		sharedChunkCacheManager, err := createSharedChunkCacheManager(baseCacheDir, filePerm, dirPerm, serverCfg)
+		return nil, sharedChunkCacheManager, err
 	}
 
 	// Regular gcsfuse file-cache with memory based LRU cache.
-	return createInMemoryFileCacheHandler(baseCacheDir, filePerm, dirPerm, serverCfg)
+	fileCacheHandler, err = createInMemoryFileCacheHandler(baseCacheDir, filePerm, dirPerm, serverCfg)
+	return fileCacheHandler, nil, err
 }
 
 // createSharedChunkCacheManager creates a shared chunk cache manager for multi-instance caching.
-func createSharedChunkCacheManager(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, *file.SharedChunkCacheManager, error) {
+func createSharedChunkCacheManager(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.SharedChunkCacheManager, error) {
 	// Use separate directory for shared chunk cache to avoid conflicts with regular file cache
 	cacheDir := path.Join(baseCacheDir, cacheutil.SharedChunkCache)
 
 	if err := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm); err != nil {
-		return nil, nil, fmt.Errorf("createSharedChunkCacheManager: while creating shared chunk cache directory: %w", err)
+		return nil, fmt.Errorf("createSharedChunkCacheManager: while creating shared chunk cache directory: %w", err)
 	}
 
 	sharedCacheManager, err := file.NewSharedChunkCacheManager(
@@ -336,20 +338,20 @@ func createSharedChunkCacheManager(baseCacheDir string, filePerm, dirPerm os.Fil
 		&serverCfg.NewConfig.FileCache,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("createSharedChunkCacheManager: while creating shared chunk cache manager: %w", err)
+		return nil, fmt.Errorf("createSharedChunkCacheManager: while creating shared chunk cache manager: %w", err)
 	}
 
 	logger.Infof("File Cache: Shared chunk cache created successfully at %s", cacheDir)
-	return nil, sharedCacheManager, nil
+	return sharedCacheManager, nil
 }
 
 // createInMemoryFileCacheHandler creates a file cache handler with in-memory LRU eviction for single-instance usage.
-func createInMemoryFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, *file.SharedChunkCacheManager, error) {
+func createInMemoryFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, error) {
 	// Use separate directory for regular file cache
 	cacheDir := path.Join(baseCacheDir, cacheutil.FileCache)
 
 	if err := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm); err != nil {
-		return nil, nil, fmt.Errorf("createInMemoryFileCacheHandler: while creating file cache directory: %w", err)
+		return nil, fmt.Errorf("createInMemoryFileCacheHandler: while creating file cache directory: %w", err)
 	}
 
 	// Calculate cache size
@@ -386,7 +388,7 @@ func createInMemoryFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.Fi
 		serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache,
 	)
 
-	return fileCacheHandler, nil, nil
+	return fileCacheHandler, nil
 }
 
 func makeRootForBucket(
