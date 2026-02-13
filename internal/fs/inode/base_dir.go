@@ -299,3 +299,14 @@ func (d *baseDirInode) Unlink() {
 func (d *baseDirInode) IsTypeCacheDeprecated() bool {
 	return d.isEnableTypeCacheDeprecation
 }
+
+func (d *baseDirInode) CancelCurrDirPrefetcher() {}
+
+func (d *baseDirInode) CancelSubdirectoryPrefetches() {}
+
+func (d *baseDirInode) Context() context.Context {
+	// TODO: Consider implementing Context() if it simplifies the code in the future.
+	// Currently, baseDirInode is the root for dynamic mounts where listing (and thus prefetching)
+	// is not allowed, so a nil context suffices.
+	return nil
+}

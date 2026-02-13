@@ -110,9 +110,15 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 // insertListing caches all objects and sub-directories discovered during a GCS listing.
 // It explicitly handles the "implicit directory" edge case where a directory exists
 // only as a prefix to other objects.
-func (b *fastStatBucket) insertListing(listing *gcs.Listing, dirName string) {
+func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing, dirName string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	// Critical check after acquiring lock: If the operation context was cancelled,
+	// we must not update the cache with this stale data.
+	if ctx != nil && ctx.Err() != nil {
+		return
+	}
 
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
@@ -164,9 +170,15 @@ func (b *fastStatBucket) insertListing(listing *gcs.Listing, dirName string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insertMultipleMinObjects(minObjs []*gcs.MinObject) {
+func (b *fastStatBucket) insertMultipleMinObjects(ctx context.Context, minObjs []*gcs.MinObject) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	// Critical check after acquiring lock: If the operation context was cancelled,
+	// we must not update the cache with this stale data.
+	if ctx != nil && ctx.Err() != nil {
+		return
+	}
 
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 	for _, o := range minObjs {
@@ -185,9 +197,15 @@ func (b *fastStatBucket) eraseEntriesWithGivenPrefix(folderName string) {
 // insertHierarchicalListing saves the objects in cache excluding zero byte objects corresponding to folders
 // by iterating objects present in listing and saves prefixes as folders (all prefixes are folders in hns) by
 // iterating collapsedRuns of listing.
-func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
+func (b *fastStatBucket) insertHierarchicalListing(ctx context.Context, listing *gcs.Listing) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	// Critical check after acquiring lock: If the operation context was cancelled,
+	// we must not update the cache with this stale data.
+	if ctx != nil && ctx.Err() != nil {
+		return
+	}
 
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
@@ -216,8 +234,8 @@ func (b *fastStatBucket) insert(o *gcs.Object) {
 	b.insertMultiple([]*gcs.Object{o})
 }
 
-func (b *fastStatBucket) insertMinObject(o *gcs.MinObject) {
-	b.insertMultipleMinObjects([]*gcs.MinObject{o})
+func (b *fastStatBucket) insertMinObject(ctx context.Context, o *gcs.MinObject) {
+	b.insertMultipleMinObjects(ctx, []*gcs.MinObject{o})
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -328,7 +346,7 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 	b.invalidate(name)
 	// Record the new object only if err is nil.
 	if err == nil {
-		b.insertMinObject(o)
+		b.insertMinObject(ctx, o)
 	}
 
 	return o, err
@@ -343,7 +361,7 @@ func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writ
 
 	// Record the new object if err is nil.
 	if err == nil {
-		b.insertMinObject(o)
+		b.insertMinObject(ctx, o)
 	}
 	return o, err
 }
@@ -437,15 +455,15 @@ func (b *fastStatBucket) ListObjects(
 	}
 
 	if b.BucketType().Hierarchical {
-		b.insertHierarchicalListing(listing)
+		b.insertHierarchicalListing(ctx, listing)
 		return
 	}
 
 	if b.isTypeCacheDeprecated {
-		b.insertListing(listing, req.Prefix)
+		b.insertListing(ctx, listing, req.Prefix)
 	} else {
 		// note anything we found.
-		b.insertMultipleMinObjects(listing.MinObjects)
+		b.insertMultipleMinObjects(ctx, listing.MinObjects)
 	}
 	return
 }
@@ -534,7 +552,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	}
 
 	// Put the object in cache.
-	b.insertMinObject(m)
+	b.insertMinObject(ctx, m)
 
 	return
 }

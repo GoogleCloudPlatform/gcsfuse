@@ -2242,3 +2242,21 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
 	mockBucket.AssertExpectations(t.T())
 }
+
+// Test that Destroy() cancels the inode's lifecycle context.
+func (t *DirTest) TestDestroy_CancelsContext() {
+	// 1. Setup
+	// Ensure the inode starts with a valid, non-cancelled context
+	assert.Nil(t.T(), t.in.Context().Err())
+
+	err := t.in.Destroy()
+	assert.Nil(nil, err)
+
+	// The context should now be cancelled
+	assert.Equal(t.T(), context.Canceled, t.in.Context().Err())
+}
+
+// Test that a new DirInode has a derived context.
+func (t *DirTest) TestNewDirInode_HasContext() {
+	assert.NotNil(t.T(), t.in.Context())
+}

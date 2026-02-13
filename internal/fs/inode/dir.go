@@ -71,7 +71,7 @@ type DirInode interface {
 	// Rename the file.
 	RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error)
 
-	// Rename the directiory/folder.
+	// Rename the directory/folder.
 	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
 
 	// Read the children objects of this dir, recursively. The result count
@@ -178,6 +178,17 @@ type DirInode interface {
 	// served from GCSFuse.
 	InvalidateKernelListCache()
 
+	// CancelCurrDirPrefetcher stops only the *current* prefetch run for this dir.
+	CancelCurrDirPrefetcher()
+
+	// CancelSubdirectoryPrefetches permanently stops the context for this inode AND all its descendants.
+	// This is used for Directory Rename/Delete operations. This context is not refreshed
+	// with the assumption that Rename/Delete directory operations will lead to new inodes with fresh contexts.
+	CancelSubdirectoryPrefetches()
+
+	// Context provides the lifecycle context of the inode.
+	Context() context.Context
+
 	// RLock readonly lock.
 	RLock()
 
@@ -206,6 +217,12 @@ type dirInode struct {
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
 	prefetcher *MetadataPrefetcher
+
+	// ctx is the lifecycle context for this inode.
+	// It is derived from the parent directory's context.
+	// Parent directory's context is cancelled on directory rename/deletion.
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	/////////////////////////
 	// Constant data
@@ -295,6 +312,18 @@ func NewDirInode(
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
+	// TODO: pass parent directory inode while creating dir inode.
+	var parentInode DirInode = nil
+	// Establish the recursive context chain.
+	// If parentInode is nil (Root), use Background.
+	var parentCtx context.Context
+	if parentInode != nil {
+		parentCtx = parentInode.Context()
+	} else {
+		parentCtx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parentCtx)
+
 	typed := &dirInode{
 		bucket:                          bucket,
 		mtimeClock:                      mtimeClock,
@@ -309,11 +338,15 @@ func NewDirInode(
 		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
 		unlinked:                        false,
+		ctx:                             ctx,
+		cancel:                          cancel,
 		metadataCacheTtlSecs:            cfg.MetadataCache.TtlSecs,
 	}
+
+	// Prefetcher is bound to the inode's lifecycle context `ctx`.
 	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
 	// acquiring d.mu only to update the cache.
-	typed.prefetcher = NewMetadataPrefetcher(cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked)
+	typed.prefetcher = NewMetadataPrefetcher(ctx, cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked)
 
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
@@ -555,6 +588,27 @@ func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
+	// When destroying the inode, we cancel its subdirectory prefetches.
+	// This cleans up any curr dir + child dir prefetchers.
+	d.CancelSubdirectoryPrefetches()
+	return
+}
+
+// LOCKS_REQUIRED(d.mu.RLock)
+func (d *dirInode) Context() context.Context {
+	return d.ctx
+}
+
+// LOCKS_REQUIRED(d.mu.WLock)
+func (d *dirInode) CancelSubdirectoryPrefetches() {
+	if d.cancel != nil {
+		d.cancel()
+		d.cancel = nil
+	}
+}
+
+// LOCKS_REQUIRED(d.mu.WLock)
+func (d *dirInode) CancelCurrDirPrefetcher() {
 	d.prefetcher.Cancel()
 	return
 }
@@ -589,7 +643,7 @@ func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 // See also the notes on DirInode.LookUpChild.
 const ConflictingFileNameSuffix = "\n"
 
-// LOCKS_REQUIRED(d)
+// LOCKS_REQUIRED(d.mu.RLock)
 func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
@@ -895,6 +949,7 @@ func (d *dirInode) listObjectsAndBuildCores(ctx context.Context, tok string, max
 	return
 }
 
+// LOCKS_REQUIRED(d)
 func (d *dirInode) insertToCache(cores map[Name]*Core) {
 	if d.IsTypeCacheDeprecated() {
 		return
@@ -926,9 +981,15 @@ func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOff
 	}
 
 	d.mu.Lock()
-	d.insertToCache(cores)
-	d.mu.Unlock()
+	defer d.mu.Unlock()
 
+	// Critical check after acquiring lock: If the context was cancelled during the list call (e.g. by a Rename),
+	// we must not update the cache with this stale data.
+	if ctx != nil && ctx.Err() != nil {
+		return nil, nil, "", ctx.Err()
+	}
+
+	d.insertToCache(cores)
 	return
 }
 
