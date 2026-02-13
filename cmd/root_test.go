@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -586,6 +587,9 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					MaxSizeMb:                              100,
 					ParallelDownloadsPerFile:               2,
 					SharedCacheChunkSizeMb:                 8,
+					SizeScanEnable:                         false,
+					SizeScanFiles:                          false,
+					SizeScanFrequencySeconds:               file.DefaultFileCacheSizeScanFrequencySeconds,
 					WriteBufferSize:                        4 * 1024 * 1024,
 					EnableODirect:                          false,
 				},
@@ -607,6 +611,9 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					MaxSizeMb:                              -1,
 					ParallelDownloadsPerFile:               16,
 					SharedCacheChunkSizeMb:                 8,
+					SizeScanEnable:                         false,
+					SizeScanFiles:                          false,
+					SizeScanFrequencySeconds:               file.DefaultFileCacheSizeScanFrequencySeconds,
 					WriteBufferSize:                        4 * 1024 * 1024,
 					EnableODirect:                          false,
 				},
@@ -2755,6 +2762,81 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, capturedMountInfo)
 			tc.validate(t, capturedMountInfo)
+		})
+	}
+}
+
+func TestArgsParsing_FileCacheSizeScanFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "Test size scan flags enabled.",
+			args: []string{"gcsfuse", "--file-cache-size-scan-enable", "--file-cache-size-scan-files", "--file-cache-size-scan-frequency-seconds=30", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					SizeScanEnable:                         true,
+					SizeScanFiles:                          true,
+					SizeScanFrequencySeconds:               30,
+					CacheFileForRangeRead:                  false,
+					DownloadChunkSizeMb:                    200,
+					EnableCrc:                              false,
+					EnableParallelDownloads:                false,
+					ExcludeRegex:                           "",
+					IncludeRegex:                           "",
+					ExperimentalParallelDownloadsDefaultOn: true,
+					MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
+					MaxSizeMb:                              -1,
+					ParallelDownloadsPerFile:               16,
+					SharedCacheChunkSizeMb:                 8,
+					WriteBufferSize:                        4 * 1024 * 1024,
+					EnableODirect:                          false,
+				},
+			},
+		},
+		{
+			name: "Test size scan flags default.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					SizeScanEnable:                         false,
+					SizeScanFiles:                          false,
+					SizeScanFrequencySeconds:               file.DefaultFileCacheSizeScanFrequencySeconds,
+					CacheFileForRangeRead:                  false,
+					DownloadChunkSizeMb:                    200,
+					EnableCrc:                              false,
+					EnableParallelDownloads:                false,
+					ExcludeRegex:                           "",
+					IncludeRegex:                           "",
+					ExperimentalParallelDownloadsDefaultOn: true,
+					MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
+					MaxSizeMb:                              -1,
+					ParallelDownloadsPerFile:               16,
+					SharedCacheChunkSizeMb:                 8,
+					WriteBufferSize:                        4 * 1024 * 1024,
+					EnableODirect:                          false,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.FileCache, gotConfig.FileCache)
+			}
 		})
 	}
 }
