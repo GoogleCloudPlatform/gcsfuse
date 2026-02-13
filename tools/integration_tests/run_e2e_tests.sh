@@ -236,7 +236,7 @@ function delete_buckets_listed_in_file() {
 			# something other than spaces.
 			if [ -n "${bucket}" ] && [ -n "${bucket// }" ]; then
 				# Delete the bucket and its contents.
-				if ! gcloud -q storage rm -r --verbosity=none gs://${bucket} ; then
+				if ! gcloud --no-user-output-enabled -q storage rm -r --verbosity=none gs://${bucket} ; then
 					>&2 echo "Failed to delete bucket ${bucket} !"
 				fi
 			fi
