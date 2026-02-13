@@ -307,36 +307,52 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 // a shared chunk cache manager that allows multiple gcsfuse instances to share the same cache directory
 // on disk, based on the configuration.
 func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.CacheHandler, sharedChunkCacheManager *file.SharedChunkCacheManager, err error) {
-	cacheDir := string(serverCfg.NewConfig.CacheDir)
-	// Adding a new directory inside cacheDir to keep file-cache separate from
-	// metadata cache if and when we support storing metadata cache on disk in
-	// the future.
-	cacheDir = path.Join(cacheDir, cacheutil.FileCache)
-
+	baseCacheDir := string(serverCfg.NewConfig.CacheDir)
 	filePerm := cacheutil.DefaultFilePerm
 	dirPerm := cacheutil.DefaultDirPerm
 
-	cacheDirErr := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
-	if cacheDirErr != nil {
-		return nil, nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
-	}
-
 	// Shared cache with external LRU cache eviction.
 	if serverCfg.NewConfig.FileCache.EnableExperimentalSharedChunkCache {
-		sharedCacheManager, sharedErr := file.NewSharedChunkCacheManager(
-			cacheDir,
-			filePerm,
-			dirPerm,
-			&serverCfg.NewConfig.FileCache,
-		)
-		if sharedErr != nil {
-			return nil, nil, fmt.Errorf("createFileCacheHandler: while creating shared chunk cache manager: %w", sharedErr)
-		}
-		logger.Infof("File Cache: Shared chunk cache created successfully")
-		return nil, sharedCacheManager, nil
+		return createSharedChunkCacheManager(baseCacheDir, filePerm, dirPerm, serverCfg)
 	}
 
 	// Regular gcsfuse file-cache with memory based LRU cache.
+	return createInMemoryFileCacheHandler(baseCacheDir, filePerm, dirPerm, serverCfg)
+}
+
+// createSharedChunkCacheManager creates a shared chunk cache manager for multi-instance caching.
+func createSharedChunkCacheManager(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, *file.SharedChunkCacheManager, error) {
+	// Use separate directory for shared chunk cache to avoid conflicts with regular file cache
+	cacheDir := path.Join(baseCacheDir, cacheutil.SharedChunkCache)
+
+	if err := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm); err != nil {
+		return nil, nil, fmt.Errorf("createSharedChunkCacheManager: while creating shared chunk cache directory: %w", err)
+	}
+
+	sharedCacheManager, err := file.NewSharedChunkCacheManager(
+		cacheDir,
+		filePerm,
+		dirPerm,
+		&serverCfg.NewConfig.FileCache,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("createSharedChunkCacheManager: while creating shared chunk cache manager: %w", err)
+	}
+
+	logger.Infof("File Cache: Shared chunk cache created successfully at %s", cacheDir)
+	return nil, sharedCacheManager, nil
+}
+
+// createInMemoryFileCacheHandler creates a file cache handler with in-memory LRU eviction for single-instance usage.
+func createInMemoryFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, *file.SharedChunkCacheManager, error) {
+	// Use separate directory for regular file cache
+	cacheDir := path.Join(baseCacheDir, cacheutil.FileCache)
+
+	if err := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm); err != nil {
+		return nil, nil, fmt.Errorf("createInMemoryFileCacheHandler: while creating file cache directory: %w", err)
+	}
+
+	// Calculate cache size
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
@@ -347,10 +363,29 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
 		logger.Infof("File Cache: Regular cache size: %d MB (%d bytes)", serverCfg.NewConfig.FileCache.MaxSizeMb, sizeInBytes)
 	}
-	fileInfoCache := lru.NewCache(sizeInBytes)
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache)
+	fileInfoCache := lru.NewCache(sizeInBytes)
+	jobManager := downloader.NewJobManager(
+		fileInfoCache,
+		filePerm,
+		dirPerm,
+		cacheDir,
+		serverCfg.SequentialReadSizeMb,
+		&serverCfg.NewConfig.FileCache,
+		serverCfg.MetricHandle,
+		serverCfg.TraceHandle,
+	)
+	fileCacheHandler := file.NewCacheHandler(
+		fileInfoCache,
+		jobManager,
+		cacheDir,
+		filePerm,
+		dirPerm,
+		serverCfg.NewConfig.FileCache.ExcludeRegex,
+		serverCfg.NewConfig.FileCache.IncludeRegex,
+		serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache,
+	)
+
 	return fileCacheHandler, nil, nil
 }
 

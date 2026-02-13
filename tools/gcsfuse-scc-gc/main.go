@@ -171,8 +171,8 @@ func scanCache(cacheDir string) (*Manifest, error) {
 		Dirs:     make([]string, 0),
 	}
 
-	// Look for gcsfuse-file-cache subdirectory
-	actualCacheDir := filepath.Join(cacheDir, "gcsfuse-file-cache")
+	// Look for gcsfuse-shared-chunk-cache subdirectory
+	actualCacheDir := filepath.Join(cacheDir, "gcsfuse-shared-chunk-cache")
 	if info, err := os.Stat(actualCacheDir); err == nil && info.IsDir() {
 		cacheDir = actualCacheDir
 	}

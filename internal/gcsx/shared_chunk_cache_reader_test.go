@@ -474,3 +474,224 @@ func TestSharedChunkCacheReader_ChunkRaceCondition(t *testing.T) {
 	wg.Wait()
 	assert.FileExists(t, expectedChunkPath, "Chunk should be cached exactly once despite race condition")
 }
+
+// TestSharedChunkCacheReader_DownloadChunkWithDeletedDirectory tests that the system
+// handles directory deletion gracefully, recovering and completing the download successfully.
+// This verifies resilience against concurrent LRU cache eviction scenarios.
+func TestSharedChunkCacheReader_DownloadChunkWithDeletedDirectory(t *testing.T) {
+	// Arrange
+	cacheDir := t.TempDir()
+	config := &cfg.FileCacheConfig{
+		SharedCacheChunkSizeMb: 1,
+	}
+	manager, err := file.NewSharedChunkCacheManager(cacheDir, 0644, 0755, config)
+	require.NoError(t, err)
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), testBucketName, gcs.BucketType{})
+	objectData := make([]byte, 2*1024*1024) // 2 MB
+	for i := range objectData {
+		objectData[i] = byte(i % 256)
+	}
+	ctx := context.Background()
+	createReq := &gcs.CreateObjectRequest{
+		Name:     testObjectName,
+		Contents: io.NopCloser(bytes.NewReader(objectData)),
+	}
+	createdObj, err := bucket.CreateObject(ctx, createReq)
+	require.NoError(t, err)
+	object := &gcs.MinObject{
+		Name:       createdObj.Name,
+		Size:       createdObj.Size,
+		Generation: createdObj.Generation,
+	}
+	reader := NewSharedChunkCacheReader(
+		manager,
+		bucket,
+		object,
+		metrics.NewNoopMetrics(),
+		tracing.NewNoopTracer(),
+		0,
+	)
+	// Pre-delete the cache directory structure to simulate LRU eviction
+	// The download should handle this and recreate necessary directories
+	objDir := manager.GetObjectDir(testBucketName, object.Name, object.Generation)
+	os.RemoveAll(objDir)
+
+	// Act - Trigger download with missing directory structure
+	buffer := make([]byte, 1024)
+	req := &ReadRequest{
+		Offset: 0,
+		Buffer: buffer,
+	}
+	resp, err := reader.ReadAt(ctx, req)
+
+	// Assert - Should succeed by recreating necessary directories
+	assert.NoError(t, err, "Should handle missing directories gracefully")
+	assert.Equal(t, 1024, resp.Size)
+	assert.Equal(t, objectData[:1024], buffer)
+	// Verify chunk was successfully cached after recreating directories
+	chunkPath := manager.GetChunkPath(testBucketName, object.Name, object.Generation, 0)
+	assert.FileExists(t, chunkPath)
+}
+
+// TestSharedChunkCacheReader_ReadAtFallbackOnDownloadError tests that ReadAt falls back
+// to GCS reader when downloadChunk fails after retry.
+func TestSharedChunkCacheReader_ReadAtFallbackOnDownloadError(t *testing.T) {
+	// Arrange
+	cacheDir := t.TempDir()
+	// Make cache directory read-only to cause download failures
+	err := os.Chmod(cacheDir, 0444)
+	require.NoError(t, err)
+	defer os.Chmod(cacheDir, 0755) // Restore for cleanup
+	config := &cfg.FileCacheConfig{
+		SharedCacheChunkSizeMb: 1,
+	}
+	manager, err := file.NewSharedChunkCacheManager(cacheDir, 0644, 0755, config)
+	require.NoError(t, err)
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), testBucketName, gcs.BucketType{})
+	objectData := make([]byte, 1024*1024) // 1 MB
+	for i := range objectData {
+		objectData[i] = byte(i % 256)
+	}
+	ctx := context.Background()
+	createReq := &gcs.CreateObjectRequest{
+		Name:     testObjectName,
+		Contents: io.NopCloser(bytes.NewReader(objectData)),
+	}
+	createdObj, err := bucket.CreateObject(ctx, createReq)
+	require.NoError(t, err)
+	object := &gcs.MinObject{
+		Name:       createdObj.Name,
+		Size:       createdObj.Size,
+		Generation: createdObj.Generation,
+	}
+	reader := NewSharedChunkCacheReader(
+		manager,
+		bucket,
+		object,
+		metrics.NewNoopMetrics(),
+		tracing.NewNoopTracer(),
+		0,
+	)
+
+	// Act - ReadAt should fail to cache and return FallbackToAnotherReader error
+	buffer := make([]byte, 1024)
+	req := &ReadRequest{
+		Offset: 0,
+		Buffer: buffer,
+	}
+	resp, err := reader.ReadAt(ctx, req)
+
+	// Assert - Should return FallbackToAnotherReader due to permission denied on directory
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, FallbackToAnotherReader)
+	assert.Equal(t, 0, resp.Size)
+}
+
+// TestSharedChunkCacheReader_ReadAtWithCorruptedCache tests ReadAt behavior when
+// cached chunk is corrupted (partial/incomplete).
+func TestSharedChunkCacheReader_ReadAtWithCorruptedCache(t *testing.T) {
+	// Arrange
+	cacheDir := t.TempDir()
+	config := &cfg.FileCacheConfig{
+		SharedCacheChunkSizeMb: 1,
+	}
+	manager, err := file.NewSharedChunkCacheManager(cacheDir, 0644, 0755, config)
+	require.NoError(t, err)
+
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), testBucketName, gcs.BucketType{})
+	objectData := make([]byte, 2*1024*1024) // 2 MB
+	for i := range objectData {
+		objectData[i] = byte(i % 256)
+	}
+	ctx := context.Background()
+	createReq := &gcs.CreateObjectRequest{
+		Name:     testObjectName,
+		Contents: io.NopCloser(bytes.NewReader(objectData)),
+	}
+	createdObj, err := bucket.CreateObject(ctx, createReq)
+	require.NoError(t, err)
+	object := &gcs.MinObject{
+		Name:       createdObj.Name,
+		Size:       createdObj.Size,
+		Generation: createdObj.Generation,
+	}
+	reader := NewSharedChunkCacheReader(
+		manager,
+		bucket,
+		object,
+		metrics.NewNoopMetrics(),
+		tracing.NewNoopTracer(),
+		0,
+	)
+	// First, populate the cache normally
+	buffer := make([]byte, 1024)
+	req := &ReadRequest{
+		Offset: 0,
+		Buffer: buffer,
+	}
+	resp, err := reader.ReadAt(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, 1024, resp.Size)
+	// Corrupt the cached chunk by truncating it
+	chunkPath := manager.GetChunkPath(testBucketName, object.Name, object.Generation, 0)
+	chunkFile, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_TRUNC, 0644)
+	require.NoError(t, err)
+	// Write only 512 bytes instead of full chunk
+	_, err = chunkFile.Write(objectData[:512])
+	require.NoError(t, err)
+	chunkFile.Close()
+
+	// Act - Try to read from corrupted cache (should fallback to GCS)
+	buffer2 := make([]byte, 1024)
+	req2 := &ReadRequest{
+		Offset: 512, // Read beyond corrupted data
+		Buffer: buffer2,
+	}
+	resp2, err2 := reader.ReadAt(ctx, req2)
+
+	// Assert - Should detect corruption and fallback
+	assert.Error(t, err2)
+	assert.ErrorIs(t, err2, FallbackToAnotherReader)
+	assert.Equal(t, 0, resp2.Size)
+}
+
+// TestSharedChunkCacheReader_DownloadChunkGCSError tests downloadChunk behavior
+// when GCS reader creation fails.
+func TestSharedChunkCacheReader_DownloadChunkGCSError(t *testing.T) {
+	// Arrange
+	cacheDir := t.TempDir()
+	config := &cfg.FileCacheConfig{
+		SharedCacheChunkSizeMb: 1,
+	}
+	manager, err := file.NewSharedChunkCacheManager(cacheDir, 0644, 0755, config)
+	require.NoError(t, err)
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), testBucketName, gcs.BucketType{})
+	ctx := context.Background()
+	// Create object that doesn't exist in bucket
+	object := &gcs.MinObject{
+		Name:       "nonexistent-object.txt",
+		Size:       1024 * 1024,
+		Generation: 12345,
+	}
+	reader := NewSharedChunkCacheReader(
+		manager,
+		bucket,
+		object,
+		metrics.NewNoopMetrics(),
+		tracing.NewNoopTracer(),
+		0,
+	)
+
+	// Act - Try to read non-existent object
+	buffer := make([]byte, 1024)
+	req := &ReadRequest{
+		Offset: 0,
+		Buffer: buffer,
+	}
+	resp, err := reader.ReadAt(ctx, req)
+
+	// Assert - Should fail and return FallbackToAnotherReader
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, FallbackToAnotherReader)
+	assert.Equal(t, 0, resp.Size)
+}
