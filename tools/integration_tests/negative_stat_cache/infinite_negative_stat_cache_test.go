@@ -30,15 +30,18 @@ import (
 )
 
 type infiniteNegativeStatCacheTest struct {
-	flags []string
+	flags   []string
+	testDir string
 	suite.Suite
 }
 
 func (s *infiniteNegativeStatCacheTest) SetupTest() {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	s.testDir = testDirName + setup.GenerateRandomString(5)
+	mountGCSFuseAndSetupTestDir(s.flags, s.testDir)
 }
 
 func (s *infiniteNegativeStatCacheTest) TearDownTest() {
+	setup.CleanUpDir(testEnv.testDirPath)
 	setup.UnmountGCSFuse(testEnv.rootDir)
 }
 
@@ -60,7 +63,7 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache() {
 	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, "explicit_dir/file1.txt", "some-content", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "explicit_dir/file1.txt", "some-content", s.T())
 
 	// Error should be returned again, as call will not be served from GCS due to infinite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
@@ -79,7 +82,7 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache() {
 func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder() {
 	dirName := "testAlreadyExistFolder"
 	dirPath := path.Join(testEnv.testDirPath, dirName)
-	dirPathOnBucket := path.Join(testDirName, dirName)
+	dirPathOnBucket := path.Join(s.testDir, dirName)
 	// Stat should return an error because the directory doesn't exist yet,
 	// populating the negative metadata cache.
 	_, err := os.Stat(dirPath)
