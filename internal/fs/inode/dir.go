@@ -1182,6 +1182,7 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
+	d.CancelCurrDirPrefetcher() // Invalidate parent listing
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
