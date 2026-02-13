@@ -55,7 +55,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	shutdownFns = append(shutdownFns, promShutdownFn)
 
 	if c.Metrics.ExperimentalEnableOtlpMetrics {
-		opts = setupOTLP(ctx, c.Metrics.ExperimentalOtlpEndpoint)
+		opts = setupOTLP(ctx, c.Metrics.ExperimentalOtlpEndpoint, c.Metrics.CloudMetricsExportIntervalSecs)
 		options = append(options, opts...)
 	}
 
@@ -114,8 +114,11 @@ func setupCloudMonitoring(secs int64) []metric.Option {
 	return []metric.Option{metric.WithReader(reader)}
 }
 
-func setupOTLP(ctx context.Context, endpoint string) []metric.Option {
+func setupOTLP(ctx context.Context, endpoint string, secs int64) []metric.Option {
 	if endpoint == "" {
+		return nil
+	}
+	if secs <= 0 {
 		return nil
 	}
 	exporter, err := otlpmetricgrpc.New(ctx,
@@ -125,8 +128,12 @@ func setupOTLP(ctx context.Context, endpoint string) []metric.Option {
 		logger.Errorf("Error while creating OTLP exporter: %v", err)
 		return nil
 	}
+	// Wrap the exporter to handle permission denied errors
+	wrappedExporter := &permissionAwareExporter{
+		Exporter: exporter,
+	}
 	// Create a periodic reader for the exporter
-	reader := metric.NewPeriodicReader(exporter)
+	reader := metric.NewPeriodicReader(wrappedExporter, metric.WithInterval(time.Duration(secs)*time.Second))
 	return []metric.Option{metric.WithReader(reader)}
 }
 
