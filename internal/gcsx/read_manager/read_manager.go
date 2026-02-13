@@ -52,16 +52,18 @@ type ReadManager struct {
 
 // ReadManagerConfig holds the configuration parameters for creating a new ReadManager.
 type ReadManagerConfig struct {
-	SequentialReadSizeMB  int32
-	FileCacheHandler      *file.CacheHandler
-	CacheFileForRangeRead bool
-	MetricHandle          metrics.MetricHandle
-	TraceHandle           tracing.TraceHandle
-	MrdWrapper            *gcsx.MultiRangeDownloaderWrapper
-	Config                *cfg.Config
-	GlobalMaxBlocksSem    *semaphore.Weighted
-	WorkerPool            workerpool.WorkerPool
-	HandleID              fuseops.HandleID
+	SequentialReadSizeMB int32
+	// Exactly one of these should be set:
+	FileCacheHandler        *file.CacheHandler
+	SharedChunkCacheManager *file.SharedChunkCacheManager
+	CacheFileForRangeRead   bool
+	MetricHandle            metrics.MetricHandle
+	TraceHandle             tracing.TraceHandle
+	MrdWrapper              *gcsx.MultiRangeDownloaderWrapper
+	Config                  *cfg.Config
+	GlobalMaxBlocksSem      *semaphore.Weighted
+	WorkerPool              workerpool.WorkerPool
+	HandleID                fuseops.HandleID
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -71,8 +73,20 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
 	var readers []gcsx.Reader
 
-	// If a file cache handler is provided, initialize the file cache reader and add it to the readers slice first.
-	if config.FileCacheHandler != nil {
+	// If a shared chunk cache handler is provided, use it
+	if config.SharedChunkCacheManager != nil {
+		// For SharedChunkCacheManager, create ShareChunkCacheReader directly
+		reader := gcsx.NewSharedChunkCacheReader(
+			config.SharedChunkCacheManager,
+			bucket,
+			object,
+			config.MetricHandle,
+			config.TraceHandle,
+			config.HandleID,
+		)
+		readers = append(readers, reader)
+	} else if config.FileCacheHandler != nil {
+		// For traditional cache handler, use FileCacheReader
 		fileCacheReader := gcsx.NewFileCacheReader(
 			object,
 			bucket,
@@ -82,7 +96,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			config.TraceHandle,
 			config.HandleID,
 		)
-		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
+		readers = append(readers, fileCacheReader)
 	}
 
 	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB))

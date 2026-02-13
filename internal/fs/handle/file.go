@@ -62,7 +62,9 @@ type FileHandle struct {
 	mrdKernelReader *gcsx.MrdKernelReader
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
-	fileCacheHandler *file.CacheHandler
+	// Exactly one of these should be set:
+	fileCacheHandler        *file.CacheHandler
+	SharedChunkCacheManager *file.SharedChunkCacheManager
 
 	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
@@ -88,18 +90,31 @@ type FileHandle struct {
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted, handleID fuseops.HandleID) (fh *FileHandle) {
+func NewFileHandle(
+	inode *inode.FileInode,
+	fileCacheHandler *file.CacheHandler,
+	sharedChunkCacheManager *file.SharedChunkCacheManager,
+	cacheFileForRangeRead bool,
+	metricHandle metrics.MetricHandle,
+	traceHandle tracing.TraceHandle,
+	openMode util.OpenMode,
+	c *cfg.Config,
+	bufferedReadWorkerPool workerpool.WorkerPool,
+	globalMaxReadBlocksSem *semaphore.Weighted,
+	handleID fuseops.HandleID,
+) (fh *FileHandle) {
 	fh = &FileHandle{
-		inode:                  inode,
-		fileCacheHandler:       fileCacheHandler,
-		cacheFileForRangeRead:  cacheFileForRangeRead,
-		metricHandle:           metricHandle,
-		traceHandle:            traceHandle,
-		openMode:               openMode,
-		config:                 c,
-		bufferedReadWorkerPool: bufferedReadWorkerPool,
-		globalMaxReadBlocksSem: globalMaxReadBlocksSem,
-		handleID:               handleID,
+		inode:                   inode,
+		fileCacheHandler:        fileCacheHandler,
+		SharedChunkCacheManager: sharedChunkCacheManager,
+		cacheFileForRangeRead:   cacheFileForRangeRead,
+		metricHandle:            metricHandle,
+		traceHandle:             traceHandle,
+		openMode:                openMode,
+		config:                  c,
+		bufferedReadWorkerPool:  bufferedReadWorkerPool,
+		globalMaxReadBlocksSem:  globalMaxReadBlocksSem,
+		handleID:                handleID,
 	}
 
 	if c.FileSystem.EnableKernelReader {
@@ -215,16 +230,17 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 		fh.destroyReadManager()
 		// Create a new read manager for the current inode state.
 		fh.readManager = read_manager.NewReadManager(minObj, bucket, &read_manager.ReadManagerConfig{
-			SequentialReadSizeMB:  sequentialReadSizeMb,
-			FileCacheHandler:      fh.fileCacheHandler,
-			CacheFileForRangeRead: fh.cacheFileForRangeRead,
-			MetricHandle:          fh.metricHandle,
-			TraceHandle:           fh.traceHandle,
-			MrdWrapper:            mrdWrapper,
-			Config:                fh.config,
-			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
-			WorkerPool:            fh.bufferedReadWorkerPool,
-			HandleID:              fh.handleID,
+			SequentialReadSizeMB:    sequentialReadSizeMb,
+			FileCacheHandler:        fh.fileCacheHandler,
+			SharedChunkCacheManager: fh.SharedChunkCacheManager,
+			CacheFileForRangeRead:   fh.cacheFileForRangeRead,
+			MetricHandle:            fh.metricHandle,
+			TraceHandle:             fh.traceHandle,
+			MrdWrapper:              mrdWrapper,
+			Config:                  fh.config,
+			GlobalMaxBlocksSem:      fh.globalMaxReadBlocksSem,
+			WorkerPool:              fh.bufferedReadWorkerPool,
+			HandleID:                fh.handleID,
 		})
 
 		// Override the read-manager with visual-read-manager (a wrapper over read_manager with visualizer) if configured.
@@ -322,7 +338,6 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		fh.mu.Lock()
 
 		fh.destroyReader()
-		// Attempt to create an appropriate reader.
 		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, fh.traceHandle, mrdWrapper, fh.config, fh.handleID)
 
 		// Release RWLock and take RLock on file handle again

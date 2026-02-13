@@ -511,6 +511,8 @@ type FileCacheConfig struct {
 
 	EnableCrc bool `yaml:"enable-crc"`
 
+	EnableExperimentalSharedChunkCache bool `yaml:"enable-experimental-shared-chunk-cache"`
+
 	EnableODirect bool `yaml:"enable-o-direct"`
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
@@ -528,6 +530,8 @@ type FileCacheConfig struct {
 	MaxSizeMb int64 `yaml:"max-size-mb"`
 
 	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file"`
+
+	SharedCacheChunkSizeMb int64 `yaml:"shared-cache-chunk-size-mb"`
 
 	WriteBufferSize int64 `yaml:"write-buffer-size"`
 }
@@ -918,6 +922,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-experimental-shared-chunk-cache", "", false, "[EXPERIMENTAL] Enable chunk-based shared cache that allows multiple gcsfuse mount instances to safely share the same cache directory (e.g., on NFS). Uses fixed size chunks with atomic operations (write + rename) to download chunk file without locks. Ideal for distributed environments where multiple nodes need to share cached GCS data.")
+
 	flagSet.BoolP("enable-google-lib-auth", "", true, "Enable google library authentication method to fetch the credentials")
 
 	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
@@ -1083,6 +1089,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("file-cache-max-size-mb", "", -1, "Maximum size of the file-cache in MiBs")
 
 	flagSet.IntP("file-cache-parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
+
+	flagSet.IntP("file-cache-shared-cache-chunk-size-mb", "", 8, "Chunk size in MiBs for shared chunk cache. Each chunk is downloaded on-demand.")
+
+	if err := flagSet.MarkHidden("file-cache-shared-cache-chunk-size-mb"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("file-cache-write-buffer-size", "", 4194304, "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache.")
 
@@ -1497,6 +1509,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-cache.enable-experimental-shared-chunk-cache", flagSet.Lookup("enable-experimental-shared-chunk-cache")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
 		return err
 	}
@@ -1634,6 +1650,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("file-cache-parallel-downloads-per-file")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.shared-cache-chunk-size-mb", flagSet.Lookup("file-cache-shared-cache-chunk-size-mb")); err != nil {
 		return err
 	}
 

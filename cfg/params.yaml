@@ -267,6 +267,18 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-cache.enable-experimental-shared-chunk-cache"
+    flag-name: "enable-experimental-shared-chunk-cache"
+    type: "bool"
+    usage: >-
+      [EXPERIMENTAL] Enable chunk-based shared cache that allows multiple
+      gcsfuse mount instances to safely share the same cache directory (e.g., on NFS).
+      Uses fixed size chunks with atomic operations (write + rename) to download chunk
+      file without locks. Ideal for distributed environments where multiple nodes need
+      to share cached GCS data.
+    default: false
+    hide-flag: false
+
   - config-path: "file-cache.enable-o-direct"
     flag-name: "file-cache-enable-o-direct"
     type: "bool"
@@ -323,6 +335,13 @@ params:
     type: "int"
     usage: "Number of concurrent download requests per file."
     default: "16"
+
+  - config-path: "file-cache.shared-cache-chunk-size-mb"
+    flag-name: "file-cache-shared-cache-chunk-size-mb"
+    type: "int"
+    usage: "Chunk size in MiBs for shared chunk cache. Each chunk is downloaded on-demand."
+    default: "8"
+    hide-flag: true
 
   - config-path: "file-cache.write-buffer-size"
     flag-name: "file-cache-write-buffer-size"
