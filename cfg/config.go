@@ -679,6 +679,10 @@ type MetricsConfig struct {
 
 	ExperimentalEnableGrpcMetrics bool `yaml:"experimental-enable-grpc-metrics"`
 
+	ExperimentalEnableOtlpMetrics bool `yaml:"experimental-enable-otlp-metrics"`
+
+	ExperimentalOtlpEndpoint string `yaml:"experimental-otlp-endpoint"`
+
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
@@ -996,6 +1000,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("experimental-enable-otlp-metrics", "", false, "Enables support for OTLP metrics")
+
+	if err := flagSet.MarkHidden("experimental-enable-otlp-metrics"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Enables ReadDirPlus capability")
 
 	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
@@ -1023,6 +1033,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otlp-endpoint", "", "telemetry.googleapis.com", "The OTLP endpoint to send metrics to.")
+
+	if err := flagSet.MarkHidden("experimental-otlp-endpoint"); err != nil {
 		return err
 	}
 
@@ -1557,6 +1573,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("metrics.experimental-enable-otlp-metrics", flagSet.Lookup("experimental-enable-otlp-metrics")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.experimental-enable-readdirplus", flagSet.Lookup("experimental-enable-readdirplus")); err != nil {
 		return err
 	}
@@ -1574,6 +1594,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.experimental-otlp-endpoint", flagSet.Lookup("experimental-otlp-endpoint")); err != nil {
 		return err
 	}
 

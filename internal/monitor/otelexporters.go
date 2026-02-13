@@ -29,6 +29,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
@@ -52,6 +53,11 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	opts, promShutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
 	options = append(options, opts...)
 	shutdownFns = append(shutdownFns, promShutdownFn)
+
+	if c.Metrics.ExperimentalEnableOtlpMetrics {
+		opts = setupOTLP(ctx, c.Metrics.ExperimentalOtlpEndpoint)
+		options = append(options, opts...)
+	}
 
 	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
 	options = append(options, opts...)
@@ -105,6 +111,22 @@ func setupCloudMonitoring(secs int64) []metric.Option {
 	}
 
 	reader := metric.NewPeriodicReader(wrappedExporter, metric.WithInterval(time.Duration(secs)*time.Second))
+	return []metric.Option{metric.WithReader(reader)}
+}
+
+func setupOTLP(ctx context.Context, endpoint string) []metric.Option {
+	if endpoint == "" {
+		return nil
+	}
+	exporter, err := otlpmetricgrpc.New(ctx,
+		otlpmetricgrpc.WithEndpoint(endpoint),
+	)
+	if err != nil {
+		logger.Errorf("Error while creating OTLP exporter: %v", err)
+		return nil
+	}
+	// Create a periodic reader for the exporter
+	reader := metric.NewPeriodicReader(exporter)
 	return []metric.Option{metric.WithReader(reader)}
 }
 

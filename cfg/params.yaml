@@ -998,6 +998,20 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "metrics.experimental-enable-otlp-metrics"
+    flag-name: "experimental-enable-otlp-metrics"
+    type: "bool"
+    usage: "Enables support for OTLP metrics"
+    default: false
+    hide-flag: true
+
+  - config-path: "metrics.experimental-otlp-endpoint"
+    flag-name: "experimental-otlp-endpoint"
+    type: "string"
+    usage: "The OTLP endpoint to send metrics to."
+    default: "telemetry.googleapis.com"
+    hide-flag: true
+
   - config-path: "metrics.prometheus-port"
     flag-name: "prometheus-port"
     type: "int"
