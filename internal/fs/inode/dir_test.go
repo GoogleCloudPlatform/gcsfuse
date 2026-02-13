@@ -118,9 +118,11 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 	}
 
+	parInodeCtx := context.Background()
 	t.in = NewDirInode(
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
+		parInodeCtx,
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
@@ -164,9 +166,11 @@ func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
 	}
 
+	parInodeCtx := context.Background()
 	return NewDirInode(
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
+		parInodeCtx,
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,

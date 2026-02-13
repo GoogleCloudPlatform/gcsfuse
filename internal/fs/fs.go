@@ -360,6 +360,7 @@ func makeRootForBucket(
 	return inode.NewDirInode(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
+		nil, // For root buckets, there is no parent and hence no parent context.
 		fuseops.InodeAttributes{
 			Uid:  fs.uid,
 			Gid:  fs.gid,
@@ -847,10 +848,11 @@ func (fs *fileSystem) checkInvariants() {
 	}
 }
 
-func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.Core) inode.Inode {
+func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.Core, parInodeCtx context.Context) inode.Inode {
 	in := inode.NewExplicitDirInode(
 		inodeID,
 		ic.FullName,
+		parInodeCtx,
 		ic.MinObject,
 		fuseops.InodeAttributes{
 			Uid:  fs.uid,
@@ -878,7 +880,7 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 // of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
+func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in inode.Inode) {
 	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
@@ -887,13 +889,14 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	switch {
 	// Explicit directories or folders in hierarchical bucket.
 	case (ic.MinObject != nil && ic.FullName.IsDir()), ic.Folder != nil:
-		in = fs.createExplicitDirInode(id, ic)
+		in = fs.createExplicitDirInode(id, ic, parInodeCtx)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
 		in = inode.NewDirInode(
 			id,
 			ic.FullName,
+			parInodeCtx,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -957,7 +960,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode) inode.Inode {
+func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode, parInodeCtx context.Context) inode.Inode {
 	if !ic.FullName.IsDir() {
 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
 	}
@@ -968,7 +971,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 		in, ok := (inodes)[ic.FullName]
 		// Create a new inode when a folder is created first time, or when a folder is deleted and then recreated with the same name.
 		if !ok || in.IsUnlinked() {
-			in := fs.mintInode(ic)
+			in := fs.mintInode(ic, parInodeCtx)
 			(inodes)[in.Name()] = in.(inode.DirInode)
 			in.Lock()
 			return in
@@ -1000,7 +1003,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Inode) {
+func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context, ic inode.Core) (in inode.Inode) {
 
 	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
@@ -1020,12 +1023,12 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 	// Handle Folders in hierarchical bucket.
 	if ic.Folder != nil {
-		return fs.createDirInode(ic, fs.folderInodes)
+		return fs.createDirInode(ic, fs.folderInodes, parInodeCtx)
 	}
 
 	// Handle implicit directories.
 	if ic.MinObject == nil {
-		return fs.createDirInode(ic, fs.implicitDirInodes)
+		return fs.createDirInode(ic, fs.implicitDirInodes, parInodeCtx)
 	}
 
 	oGen := inode.Generation{
@@ -1042,7 +1045,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 		// If we have no existing record, mint an inode and return it.
 		if !ok {
-			in = fs.mintInode(ic)
+			in = fs.mintInode(ic, parInodeCtx)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			in.Lock()
@@ -1098,7 +1101,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// lock in accordance with our lock ordering rules.
 		existingInode.Unlock()
 
-		in = fs.mintInode(ic)
+		in = fs.mintInode(ic, parInodeCtx)
 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 		continue
@@ -1162,7 +1165,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		}
 
 		// Attempt to create the inode. Return if successful.
-		child = fs.lookUpOrCreateInodeIfNotStale(*core)
+		child = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *core)
 		if child != nil {
 			return
 		}
@@ -1580,9 +1583,9 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 
 // coreToDirentPlus creates a fuseutil.DirentPlus entry from an inode core.
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core) (entryPlus *fuseutil.DirentPlus, err error) {
+func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core, parInodeCtx context.Context) (entryPlus *fuseutil.DirentPlus, err error) {
 	// Look up or create the inode for the core.
-	child := fs.lookUpOrCreateInodeIfNotStale(core)
+	child := fs.lookUpOrCreateInodeIfNotStale(parInodeCtx, core)
 	if child == nil {
 		return nil, fmt.Errorf("coreToDirentPlus: stale record for %s", path.Base(fullName.LocalName()))
 	}
@@ -1945,7 +1948,7 @@ func (fs *fileSystem) MkDir(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child := fs.lookUpOrCreateInodeIfNotStale(*result)
+	child := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if child == nil {
 		err = fmt.Errorf("newly-created record is already stale")
 		return err
@@ -2032,7 +2035,7 @@ func (fs *fileSystem) createFile(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child = fs.lookUpOrCreateInodeIfNotStale(*result)
+	child = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if child == nil {
 		err = fmt.Errorf("newly-created record is already stale")
 		return
@@ -2080,7 +2083,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	if err != nil {
 		return
 	}
-	child = fs.mintInode(core)
+	child = fs.mintInode(core, parent.Context())
 	fs.localFileInodes[child.Name()] = child
 	fileInode := child.(*inode.FileInode)
 	// Use deferred locking on filesystem so that it is locked before the defer call that unlocks the mutex and it doesn't fail.
@@ -2188,7 +2191,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child := fs.lookUpOrCreateInodeIfNotStale(*result)
+	child := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if child == nil {
 		err = fmt.Errorf("newly-created record is already stale")
 		return err
@@ -2591,7 +2594,7 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	}
 
 	// Rename old directory to the new directory, keeping both parent directories locked.
-	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName(), oldDirInode)
 	if err != nil {
 		return fmt.Errorf("failed to rename folder: %w", err)
 	}
@@ -2864,7 +2867,7 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 	// lock here has no performance overhead.
 	var entriesPlus []fuseutil.DirentPlus
 	for fullName, core := range cores {
-		entry, err := fs.coreToDirentPlus(ctx, fullName, *core)
+		entry, err := fs.coreToDirentPlus(ctx, fullName, *core, in.Context())
 		if err != nil {
 			return err
 		}

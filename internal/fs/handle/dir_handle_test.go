@@ -80,6 +80,7 @@ func (t *DirHandleTest) resetDirHandle() {
 	dirInode := inode.NewDirInode(
 		17,
 		inode.NewDirName(inode.NewRootName(""), "testDir"),
+		nil,
 		fuseops.InodeAttributes{
 			Uid:  123,
 			Gid:  456,
