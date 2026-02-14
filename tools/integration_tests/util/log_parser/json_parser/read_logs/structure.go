@@ -35,6 +35,8 @@ type StructuredReadLogEntry struct {
 	// It can be safely assumed that the Chunks will be sorted on timestamp as logs
 	// are parsed in the order of timestamps.
 	Chunks []ReadChunkData
+	// ChunkCacheReads contains logs related to chunk cache hit checks.
+	ChunkCacheReads []ChunkCacheReadLogEntry
 }
 
 // ReadChunkData stores the format of chunk to be stored StructuredReadLogEntry.
@@ -54,6 +56,8 @@ type Job struct {
 	BucketName string
 	ObjectName string
 	JobEntries []JobData
+	// ChunkCacheDownloads contains logs related to chunk downloads.
+	ChunkCacheDownloads []ChunkDownloadLogEntry
 }
 
 // JobData stores the job timestamp and offsets for a particular file.
@@ -61,6 +65,24 @@ type JobData struct {
 	StartTimeSeconds int64
 	StartTimeNanos   int64
 	Offset           int64
+}
+
+// ChunkCacheReadLogEntry stores the details of a chunk cache hit check.
+type ChunkCacheReadLogEntry struct {
+	StartTimeSeconds int64
+	StartTimeNanos   int64
+	StartOffset      int64
+	EndOffset        int64
+	CacheHit         bool
+}
+
+// ChunkDownloadLogEntry stores the details of a chunk download.
+type ChunkDownloadLogEntry struct {
+	StartTimeSeconds int64
+	StartTimeNanos   int64
+	StartOffset      int64
+	EndOffset        int64
+	BytesAdded       int64
 }
 
 ////////////////////////////////////////////////////////////////////////

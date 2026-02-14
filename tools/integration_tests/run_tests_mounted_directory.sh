@@ -386,6 +386,19 @@ function run_read_cache_test() {
     cleanup_test_environment
 }
 
+function run_chunk_cache_test() {
+    local test_case=$1
+    local flags=$2
+
+    cleanup_test_environment
+
+    gcsfuse $flags --log-file=/tmp/gcsfuse_read_cache_test_logs/log.json --log-format=json --log-severity=trace --cache-dir=/tmp/cache-dir-read-cache-hns-false "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+
+    GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+    sudo umount "$MOUNT_DIR"
+    cleanup_test_environment
+}
+
 # Read-cache test with cache-file-for-range-read:false.
 test_cases=(
   "TestCacheFileForRangeReadFalseTest/TestRangeReadsWithCacheMiss"
@@ -486,6 +499,12 @@ for test_case in "${test_cases[@]}"; do
   read_cache_test_setup 9 false 10 true
   run_read_cache_test "$test_case"
 done
+
+# Chunk cache tests.
+run_chunk_cache_test "TestChunkCacheTest" "--file-cache-experimental-enable-chunk-cache=true --file-cache-download-chunk-size-mb=10 --enable-kernel-reader=false"
+run_chunk_cache_test "TestChunkCacheDisabledTest" "--file-cache-experimental-enable-chunk-cache=false --enable-kernel-reader=false"
+run_chunk_cache_test "TestChunkCacheEviction" "--file-cache-experimental-enable-chunk-cache=true --file-cache-download-chunk-size-mb=10 --file-cache-max-size-mb=15 --enable-kernel-reader=false"
+
 
 # Package managed_folders
 echo "list:
@@ -778,4 +797,3 @@ for flags in "${!flag_optimizations_scenarios[@]}"; do
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/flag_optimizations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG} -test.run ${testfilter}
   sudo umount $MOUNT_DIR
 done
-
