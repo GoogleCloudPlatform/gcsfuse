@@ -1,0 +1,33 @@
+# Script to write 1 GB data
+[fio_write_data]
+stonewall
+directory=data-dir/   # Directory location for storing-data
+filesize=1G
+rw=write
+nrfiles=100
+numjobs=1
+filename_format=testdata.$filenum
+
+# Script to read 1 GB data once before actual test, so data is ingested in cache
+[fio_read_data_seq]
+stonewall
+directory=mounted-bucket/ # bucket mounted with gcsfuse
+rw=read
+numjobs=1
+filename_format=testdata.1
+
+# Script to read 1 GB data sequentially, data will be read from cache here, as in previous step data was ingested in cache
+[fio_read_data_seq]
+stonewall
+directory=mounteds-bucket/
+rw=read
+numjobs=1
+filename_format=testdata.1
+
+# Script to read 1 GB data randomly, data will be read from cache here, as in previous steps data was ingested in cache
+[fio_read_data_rand]
+stonewall
+directory=mounteds-bucket/
+rw=randread
+numjobs=1
+filename_format=testdata.1
