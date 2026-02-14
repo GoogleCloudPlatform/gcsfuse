@@ -781,7 +781,11 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 // LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) closeReader() {
 	rr.readHandle = rr.reader.ReadHandle()
-	err := rr.reader.Close()
+	_, err := io.Copy(io.Discard, rr.reader)
+	if err != nil {
+		logger.Warnf("error while drainging reader: %v", err)
+	}
+	err = rr.reader.Close()
 	if err != nil {
 		logger.Warnf("error while closing reader: %v", err)
 	}
