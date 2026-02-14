@@ -27,6 +27,10 @@ func (*noopTracer) StartSpan(ctx context.Context, traceName string) (context.Con
 	return ctx, noop.Span{}
 }
 
+func (*noopTracer) StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
+	return ctx, noop.Span{}
+}
+
 func (*noopTracer) StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	return ctx, noop.Span{}
 }
@@ -34,6 +38,8 @@ func (*noopTracer) StartServerSpan(ctx context.Context, traceName string) (conte
 func (*noopTracer) EndSpan(span trace.Span) {}
 
 func (*noopTracer) RecordError(span trace.Span, err error) {}
+
+func (o *noopTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {}
 
 // Return the new context as it is as this is a no-op implementation
 func (*noopTracer) PropagateTraceContext(newCtx context.Context, _ context.Context) context.Context {

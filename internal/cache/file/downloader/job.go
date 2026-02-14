@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"go.opentelemetry.io/otel/trace"
 
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
@@ -498,8 +499,15 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 	} else if job.status.Name == NotStarted {
 		// Start the async download
 		job.status.Name = Downloading
-		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
-		go job.downloadObjectAsync()
+		span := trace.SpanFromContext(ctx)
+		newCtx := context.Background()
+		newCtx = trace.ContextWithSpan(newCtx, span)
+		newCtx, downloadSpan := job.traceHandle.StartSpanLink(newCtx, tracing.FileDownloadJob)
+		job.cancelCtx, job.cancelFunc = context.WithCancel(newCtx)
+		go func() {
+			defer job.traceHandle.EndSpan(downloadSpan)
+			job.downloadObjectAsync()
+		}()
 	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {
 		defer job.mu.Unlock()
 		return job.status, nil
