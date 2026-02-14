@@ -1,0 +1,81 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: emu-testing-${NUM_PODS}-${MAX_DOWNLOAD_PARALLELISM}-${MAX_PARALLELISM_PER_FILE}-${READ_REQUEST_SIZE}-${ENABLE_CRC_CHECK}
+  labels:
+    run: emu-testing
+spec:
+  parallelism: ${NUM_PODS}
+  completions: ${NUM_PODS}
+  template:
+    metadata:
+      labels:
+        run: emu-testing
+      annotations: # required for GCSFuse
+        gke-gcsfuse/volumes: "true"
+        gke-gcsfuse/cpu-limit: "0"
+        gke-gcsfuse/memory-limit: "0"
+        gke-gcsfuse/ephemeral-storage-request: "1Ti"
+    spec:
+      initContainers:
+      - name: gke-gcsfuse-sidecar
+        image: gcr.io/gcs-tess/kislayk-pd-sem/gcs-fuse-csi-driver-sidecar-mounter:v1.4.0-36-gb83e1b73-dirty
+        restartPolicy: Always
+        env:
+        - name: NATIVE_SIDECAR
+          value: "TRUE"
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+            ephemeral-storage: 1Ti
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsGroup: 65534
+          runAsNonRoot: true
+          runAsUser: 65534
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /gcsfuse-tmp
+          name: gke-gcsfuse-tmp
+        - mountPath: /gcsfuse-buffer
+          name: gke-gcsfuse-buffer
+        - mountPath: /gcsfuse-cache
+          name: gke-gcsfuse-cache
+      serviceAccountName: gcs-fuse
+      restartPolicy: Never
+      containers:
+      - name: emu-testing
+        image: gcr.io/gcs-tess/shiqi-pd-emu:shengshiqi-6
+        volumeMounts:
+        - mountPath: /mnt/disks/pd
+          name: gcs-fuse-csi-ephemeral
+          readOnly: true
+        resources:
+          requests:
+            cpu: "20000m"
+      volumes:
+      - name: gcs-fuse-csi-ephemeral
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          readOnly: true
+          volumeAttributes:
+            skipCSIBucketAccessCheck: "true"
+            bucketName: shiqi-llama-a
+            mountOptions: "implicit-dirs,uid=1001,gid=3003,file-cache:enable-parallel-downloads:true,file-cache:download-parallelism-per-file:${MAX_PARALLELISM_PER_FILE},file-cache:max-download-parallelism:${MAX_DOWNLOAD_PARALLELISM},file-cache:read-request-size-mb:${READ_REQUEST_SIZE},file-cache:enable-crc-check:${ENABLE_CRC_CHECK}"
+            fileCacheCapacity: "-1"
+            metadataCacheTTLSeconds: "-1"
+            metadataStatCacheCapacity: "-1"
+            metadataTypeCacheCapacity: "-1"
+            fileCacheForRangeRead: "true"
+      - name: gke-gcsfuse-tmp
+        emptyDir: { }
+      - name: gke-gcsfuse-buffer
+        emptyDir: { }
+      - name: gke-gcsfuse-cache
+        emptyDir: { }
