@@ -78,9 +78,20 @@ func resolveStatCacheMaxSizeMB(v *viper.Viper, c *MetadataCacheConfig, optimized
 	}
 
 	// Order of precedence for setting stat cache size
-	// 1. If metadata-cache:stat-cache-size-mb is set it has the highest precedence
+	// 0. If metadata-cache:stat-cache-max-size-percent is set it has the highest precedence
+	// 1. If metadata-cache:stat-cache-size-mb is set it has the second highest precedence
 	// 2. If stat-cache-capacity is set or optimization is not applied then use it to calculate stat cache size
 	// 3. Else handle special case of -1 for both optimized or possible default value
+	if c.StatCacheMaxSizePercent > 0 {
+		totalMemory, err := util.GetTotalMemory()
+		if err != nil {
+			log.Printf("Error getting total memory for stat-cache size calculation: %v. Falling back to MB config.", err)
+		} else {
+			c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs((totalMemory * uint64(c.StatCacheMaxSizePercent)) / 100))
+			return
+		}
+	}
+
 	optimizationAppliedToStatCacheMaxSize := isFlagPresent(optimizedFlags, StatCacheMaxSizeConfigKey)
 	if v.IsSet(StatCacheMaxSizeConfigKey) {
 		if c.StatCacheMaxSizeMb == -1 {
@@ -90,6 +101,41 @@ func resolveStatCacheMaxSizeMB(v *viper.Viper, c *MetadataCacheConfig, optimized
 		c.StatCacheMaxSizeMb = calculateSizeFromCapacity(c.DeprecatedStatCacheCapacity)
 	} else if c.StatCacheMaxSizeMb == -1 {
 		c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
+	}
+}
+
+// resolveTypeCacheMaxSizeMB calculates the type-cache size in MiBs based on the
+// user's flags/configs.
+func resolveTypeCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
+	// Order of precedence for setting type cache size
+	// 1. If metadata-cache:type-cache-max-size-percent is set it has the highest precedence
+	// 2. If metadata-cache:type-cache-max-size-mb is set it has the second highest precedence
+	if c.TypeCacheMaxSizePercent > 0 {
+		totalMemory, err := util.GetTotalMemory()
+		if err != nil {
+			log.Printf("Error getting total memory for type-cache size calculation: %v. Falling back to MB config.", err)
+		} else {
+			c.TypeCacheMaxSizeMb = int64(util.BytesToHigherMiBs((totalMemory * uint64(c.TypeCacheMaxSizePercent)) / 100))
+			return
+		}
+	}
+
+	optimizationAppliedToTypeCacheMaxSize := isFlagPresent(optimizedFlags, TypeCacheMaxSizeConfigKey)
+	if v.IsSet(TypeCacheMaxSizeConfigKey) {
+		if c.TypeCacheMaxSizeMb == -1 {
+			// Currently there is no max supported value for type-cache max size.
+			// So we set it to MaxInt64 for now if -1 is passed.
+			c.TypeCacheMaxSizeMb = math.MaxInt64
+		}
+	} else if !optimizationAppliedToTypeCacheMaxSize {
+		// If optimization is not applied, we default to the value set in params.yaml (which is already loaded in c.TypeCacheMaxSizeMb)
+		// But if the user passed -1, we need to handle it.
+		if c.TypeCacheMaxSizeMb == -1 {
+			c.TypeCacheMaxSizeMb = math.MaxInt64
+		}
+	} else if c.TypeCacheMaxSizeMb == -1 {
+		// If optimization IS applied and the value is -1, it means unlimited.
+		c.TypeCacheMaxSizeMb = math.MaxInt64
 	}
 }
 
@@ -177,6 +223,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheConfig(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
+	resolveTypeCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
 	resolveFileCacheAndBufferedReadConflict(v, c)
