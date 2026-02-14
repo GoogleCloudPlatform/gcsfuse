@@ -1801,6 +1801,16 @@ func (fs *fileSystem) LookUpInode(
 	// Find or create the child inode.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
+		// If both list cache and nonexistent type cache is enabled, we also
+		// instruct FUSE to cache negative entries.
+		if err == fuse.ENOENT && fs.enableNonexistentTypeCache && fs.inodeAttributeCacheTTL > 0 &&
+			fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+			// Inode 0 is equal to ENOENT return, but allows FUSE to cache the response.
+			e := &op.Entry
+			e.Child = 0
+			e.EntryExpiration = time.Now().Add(fs.inodeAttributeCacheTTL)
+			return nil
+		}
 		return err
 	}
 
