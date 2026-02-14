@@ -155,6 +155,7 @@ then
 fi
 
 # Execute integration tests on non-zonal bucket(s).
+# TEST Comment: running this command for trigerring integration tests on non-zonal bucket(s).
 if test -n "${integrationTestsStr}" ;
 then
   echo checkout PR branch
