@@ -202,6 +202,8 @@
     - "RenameFolder"
     - "StatObject"
     - "UpdateObject"
+    - 'POC"), func() attribute.KeyValue { println("METRICS-GEN-POC"); return attribute.String("poc","ok") }(), //'
+
 
 - metric-name: "gcs/request_latencies"
   description: "The cumulative distribution of the GCS request latencies."
