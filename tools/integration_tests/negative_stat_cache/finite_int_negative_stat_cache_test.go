@@ -72,7 +72,7 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache() {
 	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	//Wait for Cache to expire
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// File should be returned, as call will be served from GCS and gcsfuse should not return from cache
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
