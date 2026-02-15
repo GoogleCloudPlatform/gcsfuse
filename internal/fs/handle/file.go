@@ -104,10 +104,13 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 
 	if c.FileSystem.EnableKernelReader {
 		fh.mrdKernelReader = gcsx.NewMrdKernelReader(inode.GetMRDInstance(), metricHandle)
-		err := inode.GetMRDInstance().EnsureMRDPool()
-		if err != nil {
-			logger.Errorf("failing to create mrd pool during open %v", err)
-		}
+		go func() {
+			err := inode.GetMRDInstance().EnsureMRDPool()
+			if err != nil {
+				logger.Errorf("failing to create mrd pool during open %v", err)
+			}
+
+		}()
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
