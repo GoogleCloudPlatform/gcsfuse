@@ -125,7 +125,7 @@ func (mi *MrdInstance) GetMinObject() *gcs.MinObject {
 // recreating it if necessary.
 func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
 	// Ensure the pool is initialized.
-	if err := mi.ensureMRDPool(); err != nil {
+	if err := mi.EnsureMRDPool(); err != nil {
 		return nil, err
 	}
 
@@ -205,7 +205,7 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics
 
 // ensureMRDPool ensures that the MRD pool is initialized. If the pool
 // already exists, this function is a no-op.
-func (mi *MrdInstance) ensureMRDPool() (err error) {
+func (mi *MrdInstance) EnsureMRDPool() (err error) {
 	// Return early if pool exists.
 	mi.poolMu.RLock()
 	if mi.mrdPool != nil {
