@@ -3078,7 +3078,7 @@ func (fs *fileSystem) WriteFile(
 func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
+	/*ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -3096,7 +3096,7 @@ func (fs *fileSystem) SyncFile(
 	// Sync it.
 	if err := fs.syncFile(ctx, file); err != nil {
 		return err
-	}
+	}*/
 
 	return
 }
