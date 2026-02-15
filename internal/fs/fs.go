@@ -1292,6 +1292,36 @@ func (fs *fileSystem) flushFile(
 	return nil
 }
 
+func (fs *fileSystem) asyncFlushFile(
+		ctx context.Context,
+		f *inode.FileInode) error {
+	// FlushFile mirrors the behavior of native filesystems by not returning an error
+	// when file to be synced has been unlinked from the same mount.
+	if f.IsUnlinked() {
+		return nil
+	}
+
+	go func() {
+		f.Lock()
+		defer f.Unlock()
+		err := f.Flush(ctx)
+		if err != nil {
+			logger.Errorf("FileInode.Sync: %w", err)
+			// If the inode was local file inode, treat it as unlinked.
+			fs.mu.Lock()
+			delete(fs.localFileInodes, f.Name())
+			fs.mu.Unlock()
+			return
+		}
+
+		// Promote the inode to generationBackedInodes in fs maps.
+		fs.promoteToGenerationBacked(f)
+
+	}()
+
+	return nil
+}
+
 // Synchronizes the supplied file inode to GCS, updating the index as
 // appropriate.
 //
@@ -2717,7 +2747,7 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0,   // Latest generation
+		0, // Latest generation
 		nil) // No meta-generation precondition
 
 	var preconditionErr *gcs.PreconditionError
@@ -3081,11 +3111,8 @@ func (fs *fileSystem) FlushFile(
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
-	in.Lock()
-	defer in.Unlock()
-
 	// Sync it.
-	if err := fs.flushFile(ctx, in); err != nil {
+	if err := fs.asyncFlushFile(ctx, in); err != nil {
 		return err
 	}
 
