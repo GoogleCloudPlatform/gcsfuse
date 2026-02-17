@@ -714,7 +714,16 @@ flag_optimizations:
           hns: false
           zonal: true
         run_on_gke: false
+      - run: TestZonalBucketOptimizations_Dynamic
+        flags:
+          - "--log-severity=trace"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: false
       - run: TestKernelReader_DefaultAndPrecedence
+        # Tests that kernel reader is used by default and takes precedence over buffered reader and file cache.
         flags:
           - "--implicit-dirs,--log-severity=trace"
           - "--implicit-dirs,--log-severity=trace,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache"
@@ -726,6 +735,7 @@ flag_optimizations:
           zonal: true
         run_on_gke: false
       - run: TestFileCache_KernelReaderDisabled
+        # Tests that file cache is used when kernel reader is explicitly disabled.
         flags:
           - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"
         compatible:
@@ -734,6 +744,7 @@ flag_optimizations:
           zonal: true
         run_on_gke: false
       - run: TestBufferedReader_KernelReaderDisabled
+        # Tests that buffered reader is used when kernel reader is explicitly disabled.
         flags:
           - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read"
         compatible:

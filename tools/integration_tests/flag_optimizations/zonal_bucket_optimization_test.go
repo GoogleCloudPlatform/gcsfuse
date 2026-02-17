@@ -96,6 +96,11 @@ func createAndReadFile(t *testing.T, testName string) {
 	fileName := testEnv.testDirPath + "/" + testName + "_test_file.txt"
 	// Use operations.CreateFileOfSize which uses O_DIRECT to avoid polluting page cache during write.
 	operations.CreateFileOfSize(10*1024*1024, fileName, t)
+	t.Cleanup(func() {
+		if err := os.Remove(fileName); err != nil {
+			t.Logf("Failed to remove file %s: %v", fileName, err)
+		}
+	})
 	require.NoError(t, os.Truncate(setup.LogFile(), 0), "Failed to truncate log file")
 
 	// Read the file using os.ReadFile which uses page cache to trigger kernel readahead.
@@ -246,24 +251,27 @@ func TestKernelReader(t *testing.T) {
 		t.Skip("Skipping test for dynamic mounting")
 	}
 	testCases := []struct {
-		configName          string
+		testName            string
 		expectedLog         string
 		unexpectedLog       string
 		validateParallelism bool
 	}{
+		// Tests that kernel reader is used by default and takes precedence over buffered reader and file cache.
 		{
-			configName:          "TestKernelReader_DefaultAndPrecedence",
+			testName:            "TestKernelReader_DefaultAndPrecedence",
 			expectedLog:         kernelReaderInitMsg,
 			validateParallelism: true,
 		},
+		// Tests that file cache is used when kernel reader is explicitly disabled.
 		{
-			configName:          "TestFileCache_KernelReaderDisabled",
+			testName:            "TestFileCache_KernelReaderDisabled",
 			expectedLog:         fileCacheMsg,
 			unexpectedLog:       kernelReaderInitMsg,
 			validateParallelism: false,
 		},
+		// Tests that buffered reader is used when kernel reader is explicitly disabled.
 		{
-			configName:          "TestBufferedReader_KernelReaderDisabled",
+			testName:            "TestBufferedReader_KernelReaderDisabled",
 			expectedLog:         bufferedReaderSchedMsg,
 			unexpectedLog:       kernelReaderInitMsg,
 			validateParallelism: false,
@@ -271,9 +279,9 @@ func TestKernelReader(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, tc.configName)
+		flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, tc.testName)
 		for _, flags := range flagsSet {
-			t.Run(tc.configName, func(t *testing.T) {
+			t.Run(tc.testName, func(t *testing.T) {
 				log.Printf("Running tests with flags: %s", flags)
 				s := &ReadStrategySuite{
 					flags:               flags,
