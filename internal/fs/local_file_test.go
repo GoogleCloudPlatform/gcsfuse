@@ -67,7 +67,8 @@ func (t *LocalFileTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.NewConfig = &cfg.Config{
 		Write: cfg.WriteConfig{
-			CreateEmptyFile: false,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: false,
 		}}
 	t.fsTest.SetUpTestSuite()
 }
