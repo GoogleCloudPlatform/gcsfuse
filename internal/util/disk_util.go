@@ -148,18 +148,47 @@ func GetVolumeBlockSize(path string) (uint64, error) {
 
 // RemoveEmptyDirs recursively removes all empty subdirectories within the given directory.
 // It does not remove the given directory itself.
+//
+// This function uses a post-order traversal to ensure that directories which become
+// empty after their subdirectories are removed are also cleaned up.
 func RemoveEmptyDirs(dir string) {
+	removeEmptyDirs(dir)
+}
+
+// removeEmptyDirs recursively attempts to remove empty directories.
+// It returns true if the directory is effectively empty (contains no files and
+// all subdirectories were successfully removed), and false otherwise.
+func removeEmptyDirs(dir string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return
+		// If we can't read the directory, we assume it's not safe to consider it empty.
+		return false
 	}
+
+	isEmpty := true
 	for _, entry := range entries {
 		if entry.IsDir() {
 			fullPath := filepath.Join(dir, entry.Name())
-			RemoveEmptyDirs(fullPath)
-			_ = os.Remove(fullPath)
+			// Recurse first (post-order traversal).
+			childEmpty := removeEmptyDirs(fullPath)
+			
+			if childEmpty {
+				// If the child directory is empty (or became empty), attempt to remove it.
+				err := os.Remove(fullPath)
+				if err != nil {
+					// Failed to remove (e.g. permissions), so this directory is not effectively empty.
+					isEmpty = false
+				}
+			} else {
+				// Child directory is not empty, so this directory cannot be empty.
+				isEmpty = false
+			}
+		} else {
+			// Found a file, so this directory is not empty.
+			isEmpty = false
 		}
 	}
+	return isEmpty
 }
 
 // PrettyPrintOf takes a uint64 number and returns a command-separated number string.
