@@ -20,13 +20,10 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 - `HttpClientTimeout`: Timeout for HTTP operations
 - `ExperimentalEnableJsonRead`: Use JSON API instead of XML API for reads
 - `ReadStallRetryConfig`: Configuration for handling read stalls with dynamic timeouts
----
 
 ### 2. gRPC Storage Client (Standard)
 
 **Purpose:** Storage operations using gRPC protocol for better performance and features
-
-**Creation:** `createGRPCClientHandle()` in `internal/storage/storage_handle.go`
 
 **Configuration Options:**
 - `GrpcConnPoolSize`: Number of gRPC connections in the pool
@@ -42,8 +39,6 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 - When `--client-protocol=grpc` is set
 - Normal mode without DirectPath enforcement
 
----
-
 ### 3. gRPC Storage Client with Bidi Configuration
 
 **Purpose:** gRPC client optimized for zonal buckets with bidirectional streaming
@@ -52,9 +47,7 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 - Automatically used for zonal buckets regardless of `--client-protocol` setting
 - Provides better performance for zonal bucket operations
 
---
-
-### 5. Storage Control Client (With GAX Retries)
+### 4. Storage Control Client
 
 **Purpose:** HNS folder operations with default retry logic
 
@@ -82,20 +75,11 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 
 **Parameters:**
 ```go
-Max Backoff:         30 seconds
-Multiplier:          2
-Max Attempts:        (0 = unlimited)
-Policy:              storage.RetryAlways (retry all operations)
+Max Backoff:         30 seconds (Configurable via `--max-retry-sleep`)
+Multiplier:          2 (Configurable via `--retry-multiplier`)
+Max Attempts:        0 (unlimited) (Configurable via `--max-retry-attempts`)
+Policy:              storage.RetryAlways
 ```
-
-**Retryable Conditions:**
-- Determined by `ShouldRetryWithMonitoring()` which checks error codes
-- Metrics are recorded for each retry attempt
-
-**Default Values (from config):**
-- MaxRetrySleep: Configurable via `--max-retry-sleep`
-- RetryMultiplier: Configurable via `--multiplier`
-- MaxRetryAttempts: Configurable via `--max-retry-attempts` (default: 0 = unlimited)
 
 ---
 
@@ -105,11 +89,11 @@ Policy:              storage.RetryAlways (retry all operations)
 - GetStorageLayout calls (all buckets)
 - All control client operations (zonal buckets)
 
-**Parameters:**
+**Default Parameters:**
 ```go
-Retry Deadline:      30 seconds (DefaultRetryDeadline)
-Total Budget:        5 minutes (DefaultTotalRetryBudget)
-Initial Backoff:     1 second (DefaultInitialBackoff)
+Retry Deadline:      30 seconds
+Total Budget:        5 minutes
+Initial Backoff:     1 second
 ```
 
 **Features:**
@@ -127,12 +111,13 @@ Initial Backoff:     1 second (DefaultInitialBackoff)
 **Applied To:**
 - HTTP storage clients when `ReadStallRetryConfig.Enable = true`
 
-**Parameters:**
+**Default Parameters:**
 ```go
-Min Timeout:         ReadStallRetryConfig.MinReqTimeout
-Target Percentile:   ReadStallRetryConfig.ReqTargetPercentile
-Initial Timeout:     ReadStallRetryConfig.InitialReqTimeout (via env var)
-Increase Rate:       ReadStallRetryConfig.ReqIncreaseRate (via env var)
+Min Timeout:         1.5 seconds (Configurable via `--read-stall-min-req-timeout`)
+Target Percentile:   0.99 (Configurable via `--read-stall-req-target-percentile`)
+Initial Timeout:     20 seconds (Configurable via `--read-stall-initial-req-timeout`)
+Max Timeout:         20 minutes (Configurable via `--read-stall-max-req-timeout`)
+Increase Rate:       15 (Configurable via `--read-stall-req-increase-rate`)
 ```
 
 **Purpose:**
@@ -140,17 +125,15 @@ Increase Rate:       ReadStallRetryConfig.ReqIncreaseRate (via env var)
 - Dynamic timeout adjustment based on request performance
 - Uses `experimental.WithReadStallTimeout()` option
 
----
+### Write Stall Retry Configuration (HTTP Only)
 
-### Write Stall Retry Configuration
-
-**Parameters:**
+**Default Parameters:**
 ```go
-ChunkTransferTimeoutSecs: 10 seconds
+Chunk Transfer Timeout: 10 seconds (Configurable via `--chunk-transfer-timeout-secs`)
 ```
 
 **Purpose:**
-- Detect and retry stalled write operations within 10 seconds for resumble uploads
+- Detect and retry stalled chunk write operations within 10 seconds for resumble uploads
 - No exponetial backoff
 
 ---
@@ -217,7 +200,7 @@ HTTP Storage Client                           │
                             ┌─────────────────┐
                             │   Bucket Type?  │
                             └────────┬────────┘
-                                    │
+                                     │
                                 ┌────┴────┐
                                 │         │
                                 Zonal    Non-Zonal
