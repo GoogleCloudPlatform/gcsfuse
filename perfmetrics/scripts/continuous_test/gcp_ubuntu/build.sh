@@ -28,7 +28,7 @@ TOOLS_DIR="${KOKORO_ARTIFACTS_DIR}/github/gcsfuse-tools"
 PERF_BENCHMARKS_FAILED=0
 if [ -d "$TOOLS_DIR" ]; then
     echo "Running Distributed Micro-Benchmark from gcsfuse-tools..."
-    "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId"
+    "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" || PERF_BENCHMARKS_FAILED=1
     
 else
     echo "ERROR: gcsfuse-tools directory not found!"
