@@ -36,7 +36,9 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/oauth"
 	"google.golang.org/grpc/status"
 )
 
@@ -57,10 +59,10 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	if c.Metrics.ExperimentalEnableOtlpMetrics {
 		opts = setupOTLP(ctx, c.Metrics.ExperimentalOtlpEndpoint, c.Metrics.CloudMetricsExportIntervalSecs)
 		options = append(options, opts...)
+	} else {
+		opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+		options = append(options, opts...)
 	}
-
-	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
-	options = append(options, opts...)
 
 	res, err := getResource(ctx, mountID)
 	if err != nil {
@@ -121,8 +123,16 @@ func setupOTLP(ctx context.Context, endpoint string, secs int64) []metric.Option
 	if secs <= 0 {
 		return nil
 	}
+
+	creds, err := oauth.NewApplicationDefault(ctx)
+	if err != nil {
+		logger.Errorf("Error while creating OTLP exporter: %v", err)
+		return nil
+	}
+
 	exporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(endpoint),
+		otlpmetricgrpc.WithDialOption(grpc.WithPerRPCCredentials(creds)),
 	)
 	if err != nil {
 		logger.Errorf("Error while creating OTLP exporter: %v", err)
