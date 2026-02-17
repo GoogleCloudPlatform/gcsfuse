@@ -10,8 +10,6 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 
 **Purpose:** Primary storage operations using HTTP protocol
 
-**Creation:** `createHTTPClientHandle()` in `internal/storage/storage_handle.go`
-
 **Protocols:**
 - **HTTP/1.1** (`cfg.HTTP1`): Default protocol, optimized for performance with connection pooling
 - **HTTP/2** (`cfg.HTTP2`): Alternative protocol for better multiplexing
@@ -22,10 +20,6 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 - `HttpClientTimeout`: Timeout for HTTP operations
 - `ExperimentalEnableJsonRead`: Use JSON API instead of XML API for reads
 - `ReadStallRetryConfig`: Configuration for handling read stalls with dynamic timeouts
-
-**When Used:**
-- Default client when `--client-protocol=http1` or `--client-protocol=http2`
-
 ---
 
 ### 2. gRPC Storage Client (Standard)
@@ -54,42 +48,18 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 
 **Purpose:** gRPC client optimized for zonal buckets with bidirectional streaming
 
-**Creation:** `createGRPCClientHandle()` with `enableBidiConfig=true`
-
-**Configuration:**
-- Includes `experimental.WithGRPCBidiReads()` option
-- Optimized for zonal bucket operations
-
 **When Used:**
 - Automatically used for zonal buckets regardless of `--client-protocol` setting
 - Provides better performance for zonal bucket operations
 
----
-
-### 4. Storage Control Client (Without GAX Retries)
-
-**Purpose:** HNS (Hierarchical Namespace) operations without default retry logic
-
-**Creation:** `storageutil.CreateGRPCControlClient()` with `disableDefaultGaxRetries=true`
-
-**Operations:**
-- GetStorageLayout (to determine bucket type)
-- Folder operations (when wrapped with custom retry logic)
-
-**Retry Strategy:**
-- No default GAX retries (custom retry logic applied via wrappers)
-- Wrapped with `withRetryOnStorageLayout()` for GetStorageLayout calls
-- Wrapped with `withRetryOnAllAPIs()` for zonal buckets
-
----
+--
 
 ### 5. Storage Control Client (With GAX Retries)
 
 **Purpose:** HNS folder operations with default retry logic
 
-**Creation:** `storageutil.CreateGRPCControlClient()` with `disableDefaultGaxRetries=false`
-
 **Operations:**
+- GetStorageLayout
 - CreateFolder
 - DeleteFolder
 - GetFolder
@@ -98,6 +68,7 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 **Retry Strategy:**
 - GAX retries with configurable backoff
 - Custom retry codes: ResourceExhausted, Unavailable, DeadlineExceeded, Internal, Unknown
+- [Custom retries](https://github.com/GoogleCloudPlatform/gcsfuse/blob/42f4247b1e0abdd1bcb6e7654089896d889fe6d4/internal/storage/storageutil/retry.go#L121) to avoid stalls.
 
 ---
 
@@ -105,19 +76,16 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 
 ### Standard Retry Configuration
 
-**Function:** `setRetryConfig()` in `internal/storage/storage_handle.go`
-
 **Applied To:**
 - All HTTP storage clients
 - All gRPC storage clients
 
 **Parameters:**
 ```go
-Max Backoff:         clientConfig.MaxRetrySleep (from config)
-Multiplier:          clientConfig.RetryMultiplier (from config)
-Max Attempts:        clientConfig.MaxRetryAttempts (0 = unlimited)
+Max Backoff:         30 seconds
+Multiplier:          2
+Max Attempts:        (0 = unlimited)
 Policy:              storage.RetryAlways (retry all operations)
-Error Function:      storageutil.ShouldRetryWithMonitoring()
 ```
 
 **Retryable Conditions:**
@@ -131,32 +99,7 @@ Error Function:      storageutil.ShouldRetryWithMonitoring()
 
 ---
 
-### GAX Retry Configuration (Control Client)
-
-**Function:** `storageControlClientGaxRetryOptions()` in `internal/storage/control_client_wrapper.go`
-
-**Applied To:**
-- Storage Control Client folder APIs
-- CreateFolder, DeleteFolder, GetFolder, RenameFolder
-
-**Parameters:**
-```go
-Total Timeout:       5 minutes (DefaultTotalRetryBudget)
-Max Backoff:         clientConfig.MaxRetrySleep
-Multiplier:          clientConfig.RetryMultiplier
-Retry Codes:         ResourceExhausted, Unavailable, DeadlineExceeded, 
-                     Internal, Unknown
-```
-
-**Purpose:**
-- Handle transient failures in control plane operations
-- Folder API operations are critical for HNS buckets
-
----
-
 ### GCSFuse-Level Retry with Stall Detection
-
-**Function:** `newRetryWrapper()` in `internal/storage/control_client_wrapper.go`
 
 **Applied To:**
 - GetStorageLayout calls (all buckets)
@@ -167,8 +110,6 @@ Retry Codes:         ResourceExhausted, Unavailable, DeadlineExceeded,
 Retry Deadline:      30 seconds (DefaultRetryDeadline)
 Total Budget:        5 minutes (DefaultTotalRetryBudget)
 Initial Backoff:     1 second (DefaultInitialBackoff)
-Max Backoff:         clientConfig.MaxRetrySleep
-Multiplier:          clientConfig.RetryMultiplier
 ```
 
 **Features:**
@@ -176,10 +117,6 @@ Multiplier:          clientConfig.RetryMultiplier
 - Exponential backoff with jitter
 - Stall detection with deadline per attempt
 - Retries on timeout and retryable errors
-
-**Wrapper Types:**
-- `withRetryOnStorageLayout()`: Retries only GetStorageLayout
-- `withRetryOnAllAPIs()`: Retries all control client operations (zonal buckets)
 
 ---
 
@@ -207,23 +144,14 @@ Increase Rate:       ReadStallRetryConfig.ReqIncreaseRate (via env var)
 
 ### Write Stall Retry Configuration
 
-**Configuration:** `WriteStallRetryConfig` in config
-
-**Applied To:**
-- All storage clients (HTTP and gRPC) when `WriteStallRetryConfig.Enable = true`
-
 **Parameters:**
 ```go
-Min Timeout:         WriteStallRetryConfig.MinReqTimeout
-Target Percentile:   WriteStallRetryConfig.ReqTargetPercentile
-Initial Timeout:     WriteStallRetryConfig.InitialReqTimeout
-Increase Rate:       WriteStallRetryConfig.ReqIncreaseRate
+ChunkTransferTimeoutSecs: 10 seconds
 ```
 
 **Purpose:**
-- Detect and retry stalled write operations
-- Dynamic timeout adjustment for upload operations
-- Applies to object writes and uploads
+- Detect and retry stalled write operations within 10 seconds for resumble uploads
+- No exponetial backoff
 
 ---
 
@@ -231,7 +159,7 @@ Increase Rate:       WriteStallRetryConfig.ReqIncreaseRate
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Bucket Access Request                     │
+│                    Bucket Access Request                    │
 └────────────────────────────┬────────────────────────────────┘
                              │
                              ▼
@@ -275,10 +203,10 @@ Increase Rate:       WriteStallRetryConfig.ReqIncreaseRate
 HTTP Storage Client                           │
                                               │
                                               ▼
-                                ┌──────────────────────────┐
-                                │ Enable HNS?              │
-                                └─────────┬────────────────┘
-                                            │
+                                ┌─────────────────────────┐
+                                │ Enable HNS?             │
+                                └────────┬────────────────┘
+                                         │
                                     ┌────┴────┐
                                     │         │
                                     YES       NO
