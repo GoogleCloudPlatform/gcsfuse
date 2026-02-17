@@ -351,19 +351,21 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	var diskSizeCalculator *file.FileCacheDiskUtilizationCalculator
 	var fileInfoCache *lru.Cache
 
+	sharedDirLocker := cacheutil.NewSharedDirLocker()
+
 	if serverCfg.NewConfig.FileCache.SizeScanEnable {
 		cacheDirVolumeBlockSize, err := util.GetVolumeBlockSize(cacheDir)
 		if err != nil {
 			return nil, nil, fmt.Errorf("createFileCacheHandler: failed to get the block-size for volume containing cache-dir %q: %v", cacheDir, err)
 		}
-		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(cacheDir, time.Duration(serverCfg.NewConfig.FileCache.SizeScanFrequencySeconds)*time.Second, serverCfg.NewConfig.FileCache.SizeScanFiles, serverCfg.NewConfig.FileCache.SizeScanDeleteEmptyDirs, cacheDirVolumeBlockSize)
+		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(cacheDir, time.Duration(serverCfg.NewConfig.FileCache.SizeScanFrequencySeconds)*time.Second, serverCfg.NewConfig.FileCache.SizeScanFiles, serverCfg.NewConfig.FileCache.SizeScanDeleteEmptyDirs, cacheDirVolumeBlockSize, sharedDirLocker)
 		fileInfoCache = lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator)
 	} else {
 		fileInfoCache = lru.NewCache(sizeInBytes)
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache, diskSizeCalculator)
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle, sharedDirLocker)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache, diskSizeCalculator, sharedDirLocker)
 	return fileCacheHandler, nil, nil
 }
 

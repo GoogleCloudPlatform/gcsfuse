@@ -86,11 +86,11 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 
 	// Job manager
 	jobManager := downloader.NewJobManager(cache, util.DefaultFilePerm,
-		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), nil)
 
 	// Mocked cached handler object.
 	isSparse := fileCacheConfig != nil && fileCacheConfig.ExperimentalEnableChunkCache
-	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse, nil)
+	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse, nil, nil)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)

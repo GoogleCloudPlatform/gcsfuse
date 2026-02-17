@@ -157,7 +157,7 @@ func TestParallelDownloads(t *testing.T) {
 				WriteBufferSize:      4 * 1024 * 1024,
 				EnableODirect:        tc.enableODirect,
 			}
-			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), nil)
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
 			subscriberC := job.subscribe(tc.subscribedOffset)
 
@@ -200,7 +200,7 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 		MaxParallelDownloads:     2,
 		WriteBufferSize:          4 * 1024 * 1024,
 	}
-	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), nil)
 	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
 	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
 	s1 := job1.subscribe(10 * util.MiB)

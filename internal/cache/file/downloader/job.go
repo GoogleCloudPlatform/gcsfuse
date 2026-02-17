@@ -21,6 +21,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
 	"syscall"
 
@@ -106,6 +107,8 @@ type Job struct {
 	// Map key is chunkID. Value is a channel that closes when download completes.
 	// This is used for sparse files.
 	inflightChunks map[uint64]chan struct{}
+
+	sharedDirLocker *cacheutil.SharedDirLocker
 }
 
 // JobStatus represents the status of job.
@@ -133,6 +136,7 @@ func NewJob(
 	maxParallelismSem *semaphore.Weighted,
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
+	sharedDirLocker *cacheutil.SharedDirLocker,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -145,6 +149,7 @@ func NewJob(
 		maxParallelismSem:    maxParallelismSem,
 		metricsHandle:        metricHandle,
 		traceHandle:          traceHandle,
+		sharedDirLocker:      sharedDirLocker,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -396,6 +401,14 @@ func (job *Job) cleanUpDownloadAsyncJob() {
 // createCacheFile is a helper function which creates file in cache using
 // appropriate open file flags.
 func (job *Job) createCacheFile() (*os.File, error) {
+	// Acquire shared read lock on the parent directory to prevent it from being
+	// deleted while we are creating the file.
+	if job.sharedDirLocker != nil {
+		dirPath := filepath.Dir(job.fileSpec.Path)
+		job.sharedDirLocker.ReadLock(dirPath)
+		defer job.sharedDirLocker.ReadUnlock(dirPath)
+	}
+
 	// Create, open and truncate cache file for writing object into it.
 	openFileFlags := os.O_TRUNC | os.O_WRONLY
 	var cacheFile *os.File

@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -45,6 +46,9 @@ type FileCacheDiskUtilizationCalculator struct {
 	// volumeBlockSize stores the block size of the volume.
 	volumeBlockSize uint64
 
+	// sharedDirLocker is used to acquire locks on directories during scanning and deletion.
+	sharedDirLocker *cacheutil.SharedDirLocker
+
 	// stopCh is used to signal the background goroutine to stop.
 	stopCh chan struct{}
 	// wg is used to wait for the background goroutine to exit.
@@ -53,7 +57,7 @@ type FileCacheDiskUtilizationCalculator struct {
 
 // NewFileCacheDiskUtilizationCalculator creates a new calculator and starts the
 // background directory size calculation.
-func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool, deleteEmptyDirs bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
+func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool, deleteEmptyDirs bool, volumeBlockSize uint64, sharedDirLocker *cacheutil.SharedDirLocker) *FileCacheDiskUtilizationCalculator {
 	if frequency <= 0 {
 		frequency = time.Duration(DefaultFileCacheSizeScanFrequencySeconds) * time.Second
 	}
@@ -63,6 +67,7 @@ func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Durat
 		includeFiles:    includeFiles,
 		deleteEmptyDirs: deleteEmptyDirs,
 		volumeBlockSize: volumeBlockSize,
+		sharedDirLocker: sharedDirLocker,
 		stopCh:          make(chan struct{}),
 	}
 	c.wg.Add(1)
@@ -91,20 +96,38 @@ func (c *FileCacheDiskUtilizationCalculator) periodicSizeScan() {
 func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 	start := time.Now()
 
-	// First, remove empty directories. We ignore errors here.
+	// 1. Remove empty directories if enabled
 	if c.deleteEmptyDirs {
-		baseutil.RemoveEmptyDirs(c.cacheDir)
+		var lockCallback func(string) func()
+		if c.sharedDirLocker != nil {
+			lockCallback = func(dir string) func() {
+				c.sharedDirLocker.WriteLock(dir)
+				return func() { c.sharedDirLocker.WriteUnlock(dir) }
+			}
+		}
+		baseutil.RemoveEmptyDirsWithCallback(c.cacheDir, lockCallback)
 	}
 
-	// Recalculate size: if includeFiles is true, we scan everything (onlyDirs=false).
-	// If includeFiles is false, we scan only directories (onlyDirs=true).
-	s, err := baseutil.GetSizeOnDisk(c.cacheDir, !c.includeFiles, true)
-	duration := time.Since(start)
-
+	// 2. Calculate size on disk (using parallel traversal)
+	// GetSizeOnDisk(dirPath, onlyDirs, ignoreErrors)
+	// includeFiles in Calculator means we want file sizes.
+	// onlyDirs in GetSizeOnDisk means "count ONLY directories".
+	// So if c.includeFiles is true, onlyDirs should be false.
+	// We ignore errors to match best-effort behavior.
+	var lockCallback func(string) func()
+	if c.sharedDirLocker != nil {
+		lockCallback = func(dir string) func() {
+			c.sharedDirLocker.ReadLock(dir)
+			return func() { c.sharedDirLocker.ReadUnlock(dir) }
+		}
+	}
+	s, err := baseutil.GetSizeOnDiskWithCallback(c.cacheDir, !c.includeFiles, true, lockCallback)
 	if err != nil {
 		logger.Warnf("Failed to calculate disk usage for %q: %v", c.cacheDir, err)
-		return
 	}
+
+	duration := time.Since(start)
+
 	c.scannedSize.Store(s)
 
 	// Debugging data

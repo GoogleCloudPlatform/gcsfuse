@@ -51,6 +51,10 @@ func getDiskUsage(entry fs.DirEntry) int64 {
 }
 
 func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, error) {
+	return GetSizeOnDiskWithCallback(dirPath, onlyDirs, ignoreErrors, nil)
+}
+
+func GetSizeOnDiskWithCallback(dirPath string, onlyDirs bool, ignoreErrors bool, lockCallback func(string) func()) (uint64, error) {
 	var sizeOnDisk int64
 	semSize := (runtime.NumCPU() + 4) / 5
 	var sem = make(chan struct{}, semSize)
@@ -76,6 +80,11 @@ func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, er
 		defer wg.Done()
 		sem <- struct{}{}
 		defer func() { <-sem }()
+
+		if lockCallback != nil {
+			unlock := lockCallback(dir)
+			defer unlock()
+		}
 
 		if !ignoreErrors {
 			errMu.Lock()
@@ -152,13 +161,20 @@ func GetVolumeBlockSize(path string) (uint64, error) {
 // This function uses a post-order traversal to ensure that directories which become
 // empty after their subdirectories are removed are also cleaned up.
 func RemoveEmptyDirs(dir string) {
-	removeEmptyDirs(dir)
+	removeEmptyDirs(dir, nil)
+}
+
+// RemoveEmptyDirsWithCallback recursively removes all empty subdirectories, executing
+// the provided lockCallback before attempting to remove a directory.
+// The callback should return a function to unlock.
+func RemoveEmptyDirsWithCallback(dir string, lockCallback func(string) func()) {
+	removeEmptyDirs(dir, lockCallback)
 }
 
 // removeEmptyDirs recursively attempts to remove empty directories.
 // It returns true if the directory is effectively empty (contains no files and
 // all subdirectories were successfully removed), and false otherwise.
-func removeEmptyDirs(dir string) bool {
+func removeEmptyDirs(dir string, lockCallback func(string) func()) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		// If we can't read the directory, we assume it's not safe to consider it empty.
@@ -170,11 +186,18 @@ func removeEmptyDirs(dir string) bool {
 		if entry.IsDir() {
 			fullPath := filepath.Join(dir, entry.Name())
 			// Recurse first (post-order traversal).
-			childEmpty := removeEmptyDirs(fullPath)
-			
+			childEmpty := removeEmptyDirs(fullPath, lockCallback)
+
 			if childEmpty {
 				// If the child directory is empty (or became empty), attempt to remove it.
-				err := os.Remove(fullPath)
+				if lockCallback != nil {
+					unlock := lockCallback(fullPath)
+					err = os.Remove(fullPath)
+					unlock()
+				} else {
+					err = os.Remove(fullPath)
+				}
+
 				if err != nil {
 					// Failed to remove (e.g. permissions), so this directory is not effectively empty.
 					isEmpty = false

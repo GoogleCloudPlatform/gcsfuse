@@ -40,7 +40,7 @@ func TestFileCacheDiskUtilizationCalculator_CurrentSize(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	require.NoError(t, os.Mkdir(subDir, 0755))
 
-	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 100*time.Millisecond, false, false, 4096)
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 100*time.Millisecond, false, false, 4096, nil)
 	defer calc.Stop()
 
 	// Initial size should include directory size (which might be 0 on tmpfs or 4096 on ext4)
@@ -74,7 +74,7 @@ func TestFileCacheDiskUtilizationCalculator_ClearEmptyDirsAndRescanSize(t *testi
 	f, err := os.Create(filepath.Join(nonEmptyDir, "file"))
 	require.NoError(t, err)
 	f.Close()
-	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, false, true, 4096)
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, false, true, 4096, nil)
 	defer calc.Stop()
 
 	// Initial check
@@ -103,7 +103,7 @@ func TestFileCacheDiskUtilizationCalculator_FullScan(t *testing.T) {
 	f.Close()
 
 	// Use includeFiles=true
-	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, true, false, 4096)
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, true, false, 4096, nil)
 	defer calc.Stop()
 
 	// Wait for update
@@ -117,7 +117,7 @@ func TestFileCacheDiskUtilizationCalculator_FullScan(t *testing.T) {
 
 func TestFileCacheDiskUtilizationCalculator_AddDelta(t *testing.T) {
 	tmpDir := t.TempDir()
-	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, time.Hour, false, false, 4096)
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, time.Hour, false, false, 4096, nil)
 	defer calc.Stop()
 
 	// Initial size (empty dir)
@@ -142,7 +142,7 @@ func TestFileCacheDiskUtilizationCalculator_AddDelta(t *testing.T) {
 
 func TestFileCacheDiskUtilizationCalculator_SizeOf_NonSparseFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, time.Hour, false, false, 4096)
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, time.Hour, false, false, 4096, nil)
 	defer calc.Stop()
 	// FileSize: 10000. Block size: 4096.
 	// Blocks: ceil(10000/4096) = 3. Size: 3 * 4096 = 12288.
@@ -159,7 +159,7 @@ func TestFileCacheDiskUtilizationCalculator_SizeOf_NonSparseFile(t *testing.T) {
 
 func TestFileCacheDiskUtilizationCalculator_SizeOf_SparseFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, time.Hour, false, false, 4096)
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, time.Hour, false, false, 4096, nil)
 	defer calc.Stop()
 	// Downloaded: 2 chunks of 1024 bytes.
 	// Chunk 0: [0, 1024)

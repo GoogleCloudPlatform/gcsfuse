@@ -64,11 +64,12 @@ type JobManager struct {
 	maxParallelismSem *semaphore.Weighted
 	metricHandle      metrics.MetricHandle
 	traceHandle       tracing.TraceHandle
+	sharedDirLocker   *util.SharedDirLocker
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
 	cacheDir string, sequentialReadSizeMb int32, c *cfg.FileCacheConfig,
-	metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle) (jm *JobManager) {
+	metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, sharedDirLocker *util.SharedDirLocker) (jm *JobManager) {
 	maxParallelDownloads := int64(math.MaxInt64)
 	if c.MaxParallelDownloads > 0 {
 		maxParallelDownloads = c.MaxParallelDownloads
@@ -84,6 +85,7 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.Fi
 		maxParallelismSem: semaphore.NewWeighted(maxParallelDownloads),
 		metricHandle:      metricHandle,
 		traceHandle:       traceHandle,
+		sharedDirLocker:   sharedDirLocker,
 	}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
@@ -121,7 +123,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem, jm.metricHandle, jm.traceHandle)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem, jm.metricHandle, jm.traceHandle, jm.sharedDirLocker)
 	jm.jobs[objectPath] = job
 	return job
 }

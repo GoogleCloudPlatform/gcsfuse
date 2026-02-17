@@ -69,9 +69,12 @@ type CacheHandler struct {
 
 	// diskSizeCalculator calculates the disk utilization of the cache directory
 	diskSizeCalculator *FileCacheDiskUtilizationCalculator
+
+	// sharedDirLocker provides locking for cache directories.
+	sharedDirLocker *util.SharedDirLocker
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, diskSizeCalculator *FileCacheDiskUtilizationCalculator) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, diskSizeCalculator *FileCacheDiskUtilizationCalculator, sharedDirLocker *util.SharedDirLocker) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
@@ -96,6 +99,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		isSparse:           isSparse,
 		volumeBlockSize:    volumeBlockSize,
 		diskSizeCalculator: diskSizeCalculator,
+		sharedDirLocker:    sharedDirLocker,
 	}
 }
 
