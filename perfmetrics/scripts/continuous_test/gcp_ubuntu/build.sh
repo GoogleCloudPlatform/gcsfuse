@@ -25,15 +25,14 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 
 TOOLS_DIR="${KOKORO_ARTIFACTS_DIR}/github/gcsfuse-tools"
-
+PERF_BENCHMARKS_FAILED=0
 if [ -d "$TOOLS_DIR" ]; then
     echo "Running Distributed Micro-Benchmark from gcsfuse-tools..."
-    chmod +x "$TOOLS_DIR/distributed-micro-benchmark/run.sh"
     "$TOOLS_DIR/distributed-micro-benchmark/run.sh" --commit "$commitId"
     
 else
     echo "ERROR: gcsfuse-tools directory not found!"
-    exit 1
+    PERF_BENCHMARKS_FAILED=1
 fi
 
 echo "Building and installing gcsfuse"
@@ -101,7 +100,10 @@ run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
 cd "./hns_rename_folders_metrics"
 ./run_rename_benchmark.sh $UPLOAD_FLAGS
 
-
+if [ $PERF_BENCHMARKS_FAILED -ne 0 ]; then
+  echo "Distributed benchmarks have failed."
+  exit 1
+fi
 # TODO: Testing for hns bucket with client protocol set to grpc. To be done when
 #  includeFolderAsPrefixes is supported in grpc.
 # TODO: Testing for hns bucket with client protocol set to grpc with grpc-conn-pool-size
