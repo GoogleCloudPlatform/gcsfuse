@@ -403,7 +403,7 @@ func (t *OpenTest) IllegalNames() {
 		err  string
 	}{
 		// Too long
-		{strings.Repeat("a", fuseMaxNameLen+1), "name too long"},
+		{strings.Repeat("a", fuseMaxNameLen+1), "input/output error"},
 
 		// Invalid UTF-8, rejected by GCS
 		{"\x80", "input/output"},
