@@ -625,7 +625,7 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	const name = "taco"
 
 	// Lookup
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).Times(0)
+	ExpectCall(t.cache, "LookUp")(Any(), Any()).WillOnce(Return(false, nil))
 
 	// Request
 	req := &gcs.StatObjectRequest{
@@ -660,7 +660,7 @@ func (t *StatObjectTest) TestStatObject_ForceFetchFromGcsTrueAndReturnExtendedOb
 	const name = "taco"
 
 	// Lookup
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).Times(0)
+	ExpectCall(t.cache, "LookUp")(Any(), Any()).WillOnce(Return(false, nil))
 
 	// Request
 	req := &gcs.StatObjectRequest{
@@ -796,6 +796,49 @@ func (t *StatObjectTest) WrappedSucceeds() {
 	m, _, err := t.bucket.StatObject(context.TODO(), req)
 	AssertEq(nil, err)
 	ExpectEq(minObj, m)
+}
+
+func (t *StatObjectTest) IgnoresStaleGcsSizeWhenCacheIsFresh() {
+	const name = "taco"
+	const generation int64 = 123
+	const cachedSize uint64 = 100
+	const staleGcsSize uint64 = 90
+
+	// Cache knows about a flush ahead of GCS metadata.
+	cachedMinObj := &gcs.MinObject{
+		Name:       name,
+		Generation: generation,
+		Size:       cachedSize,
+	}
+	ExpectCall(t.cache, "LookUp")(name, Any()).
+		WillOnce(Return(true, cachedMinObj))
+
+	// GCS returns stale data.
+	req := &gcs.StatObjectRequest{
+		Name:              name,
+		ForceFetchFromGcs: true,
+	}
+	minObjFromGcs := &gcs.MinObject{
+		Name:       name,
+		Generation: generation,
+		Size:       staleGcsSize,
+	}
+	ExpectCall(t.wrapped, "StatObject")(Any(), req).
+		WillOnce(Return(minObjFromGcs, nil, nil))
+
+	// The largest-known size should be retained in the cache and returned.
+	expectedInsertedObj := &gcs.MinObject{
+		Name:       name,
+		Generation: generation,
+		Size:       cachedSize,
+	}
+	ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*expectedInsertedObj)), Any())
+
+	m, _, err := t.bucket.StatObject(context.TODO(), req)
+
+	AssertEq(nil, err)
+	AssertNe(nil, m)
+	ExpectEq(cachedSize, m.Size)
 }
 
 ////////////////////////////////////////////////////////////////////////
