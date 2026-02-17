@@ -266,9 +266,9 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_ConcurrencyLimit() {
 	sem := semaphore.NewWeighted(limit)
 	blockChan := make(chan struct{})
 	ctx := context.Background()
-	p1 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
-	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
-	p3 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
+	p1 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan), func() bool { return true })
+	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan), func() bool { return true })
+	p3 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan), func() bool { return true })
 	// 1. Run two prefetches to fill up the limit.
 	p1.Run("dir1/obj1")
 	p2.Run("dir2/obj2")
@@ -308,13 +308,13 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_RespectsMaxParallelPrefetchesCo
 		return nil, nil, "", nil
 	}
 	ctx := context.Background()
-	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc)
+	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc, func() bool { return true })
 
 	// Trigger multiple runs on the same prefetcher (simulating different objects in same dir)
 	// and different prefetchers.
 	p.Run("a/1")
 	p.Run("a/2") // Will be skipped by atomic state check anyway
-	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc)
+	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc, func() bool { return true })
 	p2.Run("b/1") // Should be skipped by semaphore check
 
 	time.Sleep(10 * time.Millisecond)
@@ -337,7 +337,7 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
 	listCallCtr, mockListFunc := mockListFuncWithCtr()
 	sem := semaphore.NewWeighted(1)
 	ctx := context.Background()
-	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, mockListFunc, func() bool { return true })
 
 	// 1. Initial Run: Should trigger a prefetch.
 	p.Run("dir/obj1")
@@ -371,7 +371,7 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
 			TtlSecs:                60,
 		},
 	}
-	p := NewMetadataPrefetcher(ctx, config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(ctx, config, semaphore.NewWeighted(1), &t.clock, mockListFunc, func() bool { return true })
 
 	p.Run("dir/obj1")
 
@@ -403,7 +403,7 @@ func (t *DirPrefetchTest) TestPrefetch_RaceCondition_WriteCancelsPrefetch() {
 	}
 	// Initialize Prefetcher with the mock
 	// We use context.Background() as the inodeCtx for this unit test.
-	p := NewMetadataPrefetcher(context.Background(), t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(context.Background(), t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc, func() bool { return true })
 
 	// 2. Act: Trigger the prefetch
 	p.Run("dir/obj")
@@ -429,7 +429,7 @@ func (t *DirPrefetchTest) TestPrefetch_RecursiveCancellation() {
 	// Setup cancellable inode context.
 	inodeCtx, cancelInode := context.WithCancel(context.Background())
 	_, mockListFunc := mockListFuncWithCtr()
-	p := NewMetadataPrefetcher(inodeCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(inodeCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc, func() bool { return true })
 
 	// 1. Cancel the inode context (Simulate Rename/Delete Folder)
 	cancelInode()
@@ -449,12 +449,30 @@ func (t *DirPrefetchTest) TestPrefetch_NilInodeContext() {
 	// Setup with a nil inode context.
 	listCallCtr, mockListFunc := mockListFuncWithCtr()
 	var nilCtx context.Context = nil
-	p := NewMetadataPrefetcher(nilCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(nilCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc, func() bool { return true })
 
 	// 1. Try to run prefetch. This should not panic.
 	p.Run("dir/obj")
 
 	// 2. Assert: Prefetch should NOT start because inodeCtx is nil.
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t.T(), prefetchReady, p.state.Load(), "State should remain ready")
+	assert.Equal(t.T(), int32(0), listCallCtr.Load(), "List function should not be called")
+}
+
+// TestPrefetch_SkipIfActiveWriters verifies that if shouldRun returns false (simulating active writers),
+// the prefetch operation is skipped.
+func (t *DirPrefetchTest) TestPrefetch_SkipIfActiveWriters() {
+	listCallCtr, mockListFunc := mockListFuncWithCtr()
+	sem := semaphore.NewWeighted(1)
+	ctx := context.Background()
+	// Create prefetcher with shouldRun returning false.
+	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, mockListFunc, func() bool { return false })
+
+	// 1. Try to run prefetch.
+	p.Run("dir/obj1")
+
+	// 2. Assert: Prefetch should NOT start because shouldRun is false.
 	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t.T(), prefetchReady, p.state.Load(), "State should remain ready")
 	assert.Equal(t.T(), int32(0), listCallCtr.Load(), "List function should not be called")

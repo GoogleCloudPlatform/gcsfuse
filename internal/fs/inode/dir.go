@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -200,6 +201,18 @@ type DirInode interface {
 	Unlink()
 
 	IsTypeCacheDeprecated() bool
+
+	// IncrementActiveWriters increments the active writer count for this directory.
+	// This should be called before any write operation (file create, delete, rename, etc.)
+	// within this directory begins.
+	IncrementActiveWriters()
+
+	// DecrementActiveWriters decrements the active writer count for this directory.
+	// This should be called after any write operation within this directory completes.
+	DecrementActiveWriters()
+
+	// GetActiveWritersCount returns the current number of active writers in this directory.
+	GetActiveWritersCount() int32
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -271,6 +284,10 @@ type dirInode struct {
 	unlinked bool
 
 	metadataCacheTtlSecs int64
+
+	// activeWriters tracks the number of ongoing write operations in this directory.
+	// It is used to prevent metadata prefetching while writes are in progress.
+	activeWriters atomic.Int32
 }
 
 var _ DirInode = &dirInode{}
@@ -342,7 +359,10 @@ func NewDirInode(
 	// Prefetcher is bound to the inode's lifecycle context `ctx`.
 	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
 	// acquiring d.mu only to update the cache.
-	typed.prefetcher = NewMetadataPrefetcher(ctx, cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked)
+	// We pass a callback to check if there are active writers, to prevent prefetching during writes.
+	typed.prefetcher = NewMetadataPrefetcher(ctx, cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked, func() bool {
+		return typed.GetActiveWritersCount() == 0
+	})
 
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
@@ -788,6 +808,18 @@ func (d *dirInode) Unlink() {
 	d.unlinked = true
 }
 
+func (d *dirInode) IncrementActiveWriters() {
+	d.activeWriters.Add(1)
+}
+
+func (d *dirInode) DecrementActiveWriters() {
+	d.activeWriters.Add(-1)
+}
+
+func (d *dirInode) GetActiveWritersCount() int32 {
+	return d.activeWriters.Load()
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Core, error) {
 	var tok string
@@ -1036,6 +1068,8 @@ func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Na
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, error) {
+	d.CancelCurrDirPrefetcher()
+
 	childMetadata := map[string]string{
 		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
@@ -1082,6 +1116,8 @@ func (d *dirInode) EraseFromTypeCache(name string) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
+	d.CancelCurrDirPrefetcher()
+
 	if !d.IsTypeCacheDeprecated() {
 		// Erase any existing type information for this name.
 		d.cache.Erase(name)
@@ -1115,6 +1151,8 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error) {
+	d.CancelCurrDirPrefetcher()
+
 	fullName := NewFileName(d.Name(), name)
 	childMetadata := map[string]string{
 		SymlinkMetadataKey: target,
@@ -1139,6 +1177,8 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
+	d.CancelCurrDirPrefetcher()
+
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
 	var m *gcs.MinObject
@@ -1216,6 +1256,13 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool,
 	dirInode DirInode) error {
+	d.CancelCurrDirPrefetcher()
+
+	if dirInode != nil {
+		// Recursively cancel prefetches for the deleted directory and its children.
+		dirInode.CancelSubdirectoryPrefetches()
+	}
+
 	if !d.IsTypeCacheDeprecated() {
 		d.cache.Erase(name)
 	}
@@ -1407,6 +1454,8 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 // LOCKS_REQUIRED(d)
 // LOCKS_REQUIRED(parent of destinationFileName)
 func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
+	d.CancelCurrDirPrefetcher()
+
 	req := &gcs.MoveObjectRequest{
 		SrcName:                       fileToRename.Name,
 		DstName:                       destinationFileName,
@@ -1425,6 +1474,13 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 }
 
 func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string, folderInode DirInode) (*gcs.Folder, error) {
+	d.CancelCurrDirPrefetcher()
+
+	if folderInode != nil {
+		// Recursively cancel prefetches for the renamed folder and its children.
+		folderInode.CancelSubdirectoryPrefetches()
+	}
+
 	folder, err := d.bucket.RenameFolder(ctx, folderName, destinationFolderName)
 	if err != nil {
 		return nil, err
