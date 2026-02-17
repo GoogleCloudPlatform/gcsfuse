@@ -135,6 +135,9 @@ func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 // SizeOf returns the actual disk utilization of the underlying cached file.
 func (c *FileCacheDiskUtilizationCalculator) SizeOf(entry lru.ValueType) uint64 {
 	if fi, ok := entry.(data.FileInfo); ok {
+		if fi.SparseMode {
+			return baseutil.GetSpeculativeFileSizeOnDisk(fi.Size(), c.volumeBlockSize)
+		}
 		return baseutil.GetSpeculativeFileSizeOnDisk(fi.FileSize, c.volumeBlockSize)
 	}
 	return entry.Size()
