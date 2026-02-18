@@ -142,7 +142,7 @@ func (t *BufferedReaderTest) SetupTest() {
 	t.workerPool.Start()
 	t.metricHandle = metrics.NewNoopMetrics()
 	t.ctx = context.Background()
-	t.readTypeClassifier = gcsx.NewReadTypeClassifier(1)
+	t.readTypeClassifier = gcsx.NewReadTypeClassifier(1, 0)
 }
 
 func (t *BufferedReaderTest) TearDownTest() {
@@ -1563,7 +1563,7 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 		GlobalMaxBlocksSem: t.globalMaxBlocksSem,
 		WorkerPool:         t.workerPool,
 		MetricHandle:       t.metricHandle,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(1),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(1, 0),
 	})
 	reader.randomReadsThreshold = 2
 	require.NoError(t.T(), err)

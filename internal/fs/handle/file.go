@@ -241,6 +241,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 			GlobalMaxBlocksSem:      fh.globalMaxReadBlocksSem,
 			WorkerPool:              fh.bufferedReadWorkerPool,
 			HandleID:                fh.handleID,
+			InitialOffset:           req.Offset,
 		})
 
 		// Override the read-manager with visual-read-manager (a wrapper over read_manager with visualizer) if configured.

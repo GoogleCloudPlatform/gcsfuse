@@ -73,6 +73,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 			},
 		},
 		GlobalMaxBlocksSem: semaphore.NewWeighted(20),
+		InitialOffset:      0,
 	}
 	if bufferedReadEnable {
 		t.workerPool, _ = workerpool.NewStaticWorkerPool(5, 20, 25)
@@ -284,10 +285,10 @@ func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
 
 func (t *readManagerTest) Test_ReadAt_FileClobbered() {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{})
-	t.mockBucket.On("BucketType", mock.Anything).Return(t.bucketType).Times(2)
+	t.mockBucket.On("BucketType", mock.Anything).Return(t.bucketType).Times(3)
 	t.mockBucket.On("Name").Return("test-bucket")
 
-	_, err := t.readAt(make([]byte, 3), 1)
+	_, err := t.readAt(make([]byte, 3), 0)
 
 	assert.Error(t.T(), err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
@@ -337,7 +338,7 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 	rm := &ReadManager{
 		object:             t.object,
 		readers:            []gcsx.Reader{mockReader1, mockReader2},
-		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb),
+		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0),
 	}
 	mockReader1.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
 	mockReader1.On("Destroy").Once()
@@ -364,7 +365,7 @@ func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
 	rm := &ReadManager{
 		object:             t.object,
 		readers:            []gcsx.Reader{mockBufferedReader, mockGCSReader},
-		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb),
+		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0),
 	}
 	mockBufferedReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
 	mockBufferedReader.On("Destroy").Once()

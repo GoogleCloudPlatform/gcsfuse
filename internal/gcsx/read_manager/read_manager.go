@@ -64,6 +64,7 @@ type ReadManagerConfig struct {
 	GlobalMaxBlocksSem      *semaphore.Weighted
 	WorkerPool              workerpool.WorkerPool
 	HandleID                fuseops.HandleID
+	InitialOffset           int64
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -99,7 +100,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		readers = append(readers, fileCacheReader)
 	}
 
-	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB))
+	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB), config.InitialOffset)
 
 	// If buffered read is enabled, initialize the buffered reader and add it to the readers.
 	if config.Config.Read.EnableBufferedRead {

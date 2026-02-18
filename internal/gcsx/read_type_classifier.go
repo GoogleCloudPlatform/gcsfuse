@@ -57,15 +57,19 @@ type ReadTypeClassifier struct {
 
 	// sequentialReadSizeMb is the configured sequential read size in MB.
 	sequentialReadSizeMb int64
+
+	// initialOffset stores the first read offset, helps in determining the initial prefetch size.
+	initialOffset int64
 }
 
-func NewReadTypeClassifier(sequentialReadSizeMb int64) *ReadTypeClassifier {
+func NewReadTypeClassifier(sequentialReadSizeMb int64, initialOffset int64) *ReadTypeClassifier {
 	state := &ReadTypeClassifier{
 		readType:             atomic.Int64{},
 		expectedOffset:       atomic.Int64{},
 		seeks:                atomic.Uint64{},
 		totalReadBytes:       atomic.Uint64{},
 		sequentialReadSizeMb: sequentialReadSizeMb,
+		initialOffset:        initialOffset,
 	}
 
 	// Start as sequential read type, keep the existing GCSFuse read behavior.
@@ -116,22 +120,22 @@ func (rtc *ReadTypeClassifier) isSeekNeeded(offset int64) bool {
 // seekRecorded parameter describes whether a seek has already been recorded for this request.
 func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) ReadInfo {
 	previousReadType := rtc.readType.Load()
-	readType := previousReadType
-
 	expOffset := rtc.expectedOffset.Load()
 	numSeeks := rtc.seeks.Load()
+	currentTotalReadBytes := rtc.totalReadBytes.Load()
 
 	if !seekRecorded && rtc.isSeekNeeded(offset) {
 		numSeeks = rtc.seeks.Add(1)
 		seekRecorded = true
 	}
 
-	if numSeeks >= minSeeksForRandom {
-		readType = metrics.ReadTypeRandom
-	}
-	averageReadBytes := avgReadBytes(rtc.totalReadBytes.Load(), numSeeks)
+	readType := metrics.ReadTypeRandom
+	averageReadBytes := avgReadBytes(currentTotalReadBytes, numSeeks)
 
-	if averageReadBytes >= maxReadSize {
+	// Classify as Sequential if:
+	// 1. The average read size is large enough.
+	// 2. OR we haven't performed any seeks yet AND the first read was at offset 0.
+	if averageReadBytes >= maxReadSize || (numSeeks == 0 && rtc.initialOffset == 0) {
 		readType = metrics.ReadTypeSequential
 	}
 
@@ -154,17 +158,27 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 // Note: The returned prefetch window size is not limited by the object size, caller should
 // handle that separately.
 func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
-	if seeks := rtc.seeks.Load(); seeks >= minSeeksForRandom {
+	currentReadType := rtc.readType.Load()
+	seeks := rtc.seeks.Load()
+
+	// Evaluate for Random read type if seeks > 0 or the first read was non-zero.
+	// A non-zero initial offset implies random access even with zero seeks, so we check average read bytes.
+	if seeks > 0 || rtc.initialOffset > 0 {
 		averageReadBytes := avgReadBytes(rtc.totalReadBytes.Load(), seeks)
+
 		if averageReadBytes < maxReadSize {
 			randomReadSize := ((averageReadBytes + MB - 1) / MB) * MB
 			// Clamp to [minReadSize, maxReadSize]
 			randomReadSize = min(max(randomReadSize, minReadSize), maxReadSize)
-			rtc.readType.Store(metrics.ReadTypeRandom)
+			if currentReadType != metrics.ReadTypeRandom {
+				rtc.readType.Store(metrics.ReadTypeRandom)
+			}
 			return int64(randomReadSize)
 		}
 	}
-	rtc.readType.Store(metrics.ReadTypeSequential)
+	if currentReadType != metrics.ReadTypeSequential {
+		rtc.readType.Store(metrics.ReadTypeSequential)
+	}
 	return rtc.sequentialReadSizeMb * MB
 }
 

@@ -84,7 +84,7 @@ func (t *gcsReaderTest) SetupTest() {
 		MetricHandle:       metrics.NewNoopMetrics(),
 		MrdWrapper:         nil,
 		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb)),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 0),
 	})
 	t.ctx = context.Background()
 }
@@ -108,7 +108,7 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 		MetricHandle:       metrics.NewNoopMetrics(),
 		MrdWrapper:         nil,
 		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0),
 	})
 
 	assert.Equal(t.T(), object, gcsReader.object)
@@ -300,7 +300,7 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 		MetricHandle:       metrics.NewNoopMetrics(),
 		MrdWrapper:         nil,
 		Config:             &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0),
 	})
 	// Set up a blocking reader
 	finishRead := make(chan struct{})
