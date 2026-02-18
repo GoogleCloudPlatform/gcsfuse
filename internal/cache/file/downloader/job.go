@@ -21,7 +21,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"reflect"
 	"syscall"
 
@@ -401,14 +400,6 @@ func (job *Job) cleanUpDownloadAsyncJob() {
 // createCacheFile is a helper function which creates file in cache using
 // appropriate open file flags.
 func (job *Job) createCacheFile() (*os.File, error) {
-	// Acquire shared read lock on the parent directory to prevent it from being
-	// deleted while we are creating the file.
-	if job.sharedDirLocker != nil {
-		dirPath := filepath.Dir(job.fileSpec.Path)
-		job.sharedDirLocker.ReadLock(dirPath)
-		defer job.sharedDirLocker.ReadUnlock(dirPath)
-	}
-
 	// Create, open and truncate cache file for writing object into it.
 	openFileFlags := os.O_TRUNC | os.O_WRONLY
 	var cacheFile *os.File
@@ -416,13 +407,13 @@ func (job *Job) createCacheFile() (*os.File, error) {
 	// Try using O_DIRECT while opening file when parallel downloads are enabled
 	// and O_DIRECT use is not disabled.
 	if job.fileCacheConfig.EnableParallelDownloads && job.fileCacheConfig.EnableODirect {
-		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags|syscall.O_DIRECT)
+		cacheFile, err = cacheutil.SafeCreateFile(job.fileSpec, openFileFlags|syscall.O_DIRECT, job.sharedDirLocker)
 		if errors.Is(err, fs.ErrInvalid) || errors.Is(err, syscall.EINVAL) {
 			logger.Warnf("downloadObjectAsync: failure in opening file with O_DIRECT, falling back to without O_DIRECT")
-			cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
+			cacheFile, err = cacheutil.SafeCreateFile(job.fileSpec, openFileFlags, job.sharedDirLocker)
 		}
 	} else {
-		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
+		cacheFile, err = cacheutil.SafeCreateFile(job.fileSpec, openFileFlags, job.sharedDirLocker)
 	}
 
 	return cacheFile, err

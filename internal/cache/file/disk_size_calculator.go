@@ -98,14 +98,7 @@ func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 
 	// 1. Remove empty directories if enabled
 	if c.deleteEmptyDirs {
-		var lockCallback func(string) func()
-		if c.sharedDirLocker != nil {
-			lockCallback = func(dir string) func() {
-				c.sharedDirLocker.WriteLock(dir)
-				return func() { c.sharedDirLocker.WriteUnlock(dir) }
-			}
-		}
-		baseutil.RemoveEmptyDirsWithCallback(c.cacheDir, lockCallback)
+		baseutil.RemoveEmptyDirsWithLocker(c.cacheDir, c.sharedDirLocker)
 	}
 
 	// 2. Calculate size on disk (using parallel traversal)
@@ -114,14 +107,7 @@ func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 	// onlyDirs in GetSizeOnDisk means "count ONLY directories".
 	// So if c.includeFiles is true, onlyDirs should be false.
 	// We ignore errors to match best-effort behavior.
-	var lockCallback func(string) func()
-	if c.sharedDirLocker != nil {
-		lockCallback = func(dir string) func() {
-			c.sharedDirLocker.ReadLock(dir)
-			return func() { c.sharedDirLocker.ReadUnlock(dir) }
-		}
-	}
-	s, err := baseutil.GetSizeOnDiskWithCallback(c.cacheDir, !c.includeFiles, true, lockCallback)
+	s, err := baseutil.GetSizeOnDiskWithLocker(c.cacheDir, !c.includeFiles, true, c.sharedDirLocker)
 	if err != nil {
 		logger.Warnf("Failed to calculate disk usage for %q: %v", c.cacheDir, err)
 	}

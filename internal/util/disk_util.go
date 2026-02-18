@@ -50,11 +50,23 @@ func getDiskUsage(entry fs.DirEntry) int64 {
 	return getDiskUsageFromInfo(info)
 }
 
-func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, error) {
-	return GetSizeOnDiskWithCallback(dirPath, onlyDirs, ignoreErrors, nil)
+// DirLocker is an interface for locking directories during traversal or modification.
+type DirLocker interface {
+	// ReadLock should be invoked before listing/creating/deleting any files in the given directory.
+	ReadLock(path string)
+	// ReadUnlock should be invoked to undo ReadLock.
+	ReadUnlock(path string)
+	// WriteLock should be invoked before deleting/renaming the passed directory.
+	WriteLock(path string)
+	// WriteUnlock should be invoked to undo WriteLock.
+	WriteUnlock(path string)
 }
 
-func GetSizeOnDiskWithCallback(dirPath string, onlyDirs bool, ignoreErrors bool, lockCallback func(string) func()) (uint64, error) {
+func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, error) {
+	return GetSizeOnDiskWithLocker(dirPath, onlyDirs, ignoreErrors, nil)
+}
+
+func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, locker DirLocker) (uint64, error) {
 	var sizeOnDisk int64
 	semSize := (runtime.NumCPU() + 4) / 5
 	var sem = make(chan struct{}, semSize)
@@ -81,9 +93,9 @@ func GetSizeOnDiskWithCallback(dirPath string, onlyDirs bool, ignoreErrors bool,
 		sem <- struct{}{}
 		defer func() { <-sem }()
 
-		if lockCallback != nil {
-			unlock := lockCallback(dir)
-			defer unlock()
+		if locker != nil {
+			locker.ReadLock(dir)
+			defer locker.ReadUnlock(dir)
 		}
 
 		if !ignoreErrors {
@@ -164,17 +176,16 @@ func RemoveEmptyDirs(dir string) {
 	removeEmptyDirs(dir, nil)
 }
 
-// RemoveEmptyDirsWithCallback recursively removes all empty subdirectories, executing
-// the provided lockCallback before attempting to remove a directory.
-// The callback should return a function to unlock.
-func RemoveEmptyDirsWithCallback(dir string, lockCallback func(string) func()) {
-	removeEmptyDirs(dir, lockCallback)
+// RemoveEmptyDirsWithLocker recursively removes all empty subdirectories, executing
+// the provided locker's WriteLock before attempting to remove a directory.
+func RemoveEmptyDirsWithLocker(dir string, locker DirLocker) {
+	removeEmptyDirs(dir, locker)
 }
 
 // removeEmptyDirs recursively attempts to remove empty directories.
 // It returns true if the directory is effectively empty (contains no files and
 // all subdirectories were successfully removed), and false otherwise.
-func removeEmptyDirs(dir string, lockCallback func(string) func()) bool {
+func removeEmptyDirs(dir string, locker DirLocker) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		// If we can't read the directory, we assume it's not safe to consider it empty.
@@ -186,14 +197,14 @@ func removeEmptyDirs(dir string, lockCallback func(string) func()) bool {
 		if entry.IsDir() {
 			fullPath := filepath.Join(dir, entry.Name())
 			// Recurse first (post-order traversal).
-			childEmpty := removeEmptyDirs(fullPath, lockCallback)
+			childEmpty := removeEmptyDirs(fullPath, locker)
 
 			if childEmpty {
 				// If the child directory is empty (or became empty), attempt to remove it.
-				if lockCallback != nil {
-					unlock := lockCallback(fullPath)
+				if locker != nil {
+					locker.WriteLock(fullPath)
 					err = os.Remove(fullPath)
-					unlock()
+					locker.WriteUnlock(fullPath)
 				} else {
 					err = os.Remove(fullPath)
 				}

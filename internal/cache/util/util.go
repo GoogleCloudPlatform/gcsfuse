@@ -27,6 +27,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
+	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fsutil"
 )
 
@@ -88,6 +89,18 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 		return
 	}
 	return
+}
+
+// SafeCreateFile is similar to CreateFile but performs the creation logic
+// under a ReadLock on the parent directory using the provided locker, ensuring
+// the directory is not deleted concurrently.
+func SafeCreateFile(fileSpec data.FileSpec, flag int, locker baseutil.DirLocker) (*os.File, error) {
+	if locker != nil {
+		fileDir := filepath.Dir(fileSpec.Path)
+		locker.ReadLock(fileDir)
+		defer locker.ReadUnlock(fileDir)
+	}
+	return CreateFile(fileSpec, flag)
 }
 
 // GetObjectPath gives object path which is concatenation of bucket and object
