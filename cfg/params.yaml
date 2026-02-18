@@ -839,6 +839,14 @@ params:
     usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
     default: "info"
 
+  - config-path: "logging.wire-log"
+    flag-name: "wire-log"
+    type: "resolvedPath"
+    usage: >-
+      The file name of the wire log. When specified, GCSFuse will serialize
+      each FUSE operation as a JSON object and append it to this file.
+    hide-flag: true
+
   - config-path: "machine-type"
     flag-name: "machine-type"
     type: "string"

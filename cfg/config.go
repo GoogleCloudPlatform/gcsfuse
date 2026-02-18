@@ -621,6 +621,8 @@ type LoggingConfig struct {
 	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
 
 	Severity LogSeverity `yaml:"severity"`
+
+	WireLog ResolvedPath `yaml:"wire-log"`
 }
 
 type MetadataCacheConfig struct {
@@ -1333,6 +1335,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.StringP("wire-log", "", "", "The file name of the wire log. When specified, GCSFuse will serialize each FUSE operation as a JSON object and append it to this file.")
+
+	if err := flagSet.MarkHidden("wire-log"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("workload-insight-forward-merge-threshold-mb", "", 0, "The threshold in MB for merging forward sequential reads for workload insights visualization.Reads within this threshold will be merged into a single read operation. Applicable only when --visualize-workload-insight is enabled.")
 
 	if err := flagSet.MarkHidden("workload-insight-forward-merge-threshold-mb"); err != nil {
@@ -1909,6 +1917,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("workload-insight.visualize", flagSet.Lookup("visualize-workload-insight")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.wire-log", flagSet.Lookup("wire-log")); err != nil {
 		return err
 	}
 
