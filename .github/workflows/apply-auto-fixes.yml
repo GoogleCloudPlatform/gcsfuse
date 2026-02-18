@@ -27,7 +27,7 @@ jobs:
           # Use the GitHub API to check if the 'auto-fixes-patch' artifact exists for the triggering workflow run.
           # The artifacts_url is a pre-authenticated API endpoint.
           # We use jq to parse the JSON response and see if our artifact is in the list.
-          artifact_json=$(curl -s "${{ github.event.workflow_run.artifacts_url }}")
+          artifact_json=$(curl -s "${GITHUB_EVENT_WORKFLOW_RUN_ARTIFACTS_URL}")
           if echo "$artifact_json" | jq -e '.artifacts[] | select(.name == "auto-fixes-patch")' > /dev/null; then
             echo "Patch artifact found."
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -35,6 +35,8 @@ jobs:
             echo "No patch artifact was uploaded."
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
+        env:
+          GITHUB_EVENT_WORKFLOW_RUN_ARTIFACTS_URL: ${{ github.event.workflow_run.artifacts_url }}
 
       - name: Checkout PR branch
         if: steps.check_artifact.outputs.exists == 'true'
