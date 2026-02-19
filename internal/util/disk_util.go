@@ -209,36 +209,49 @@ func GetVolumeBlockSize(path string) (uint64, error) {
 //
 // This function uses a post-order traversal to ensure that directories which become
 // empty after their subdirectories are removed are also cleaned up.
-func RemoveEmptyDirs(dir string) {
-	removeEmptyDirs(dir, nil)
+// It returns the number of directories successfully removed.
+func RemoveEmptyDirs(dir string) uint64 {
+	_, removedCount, _ := removeEmptyDirs(dir, nil)
+	return removedCount
 }
 
 // RemoveEmptyDirsWithLocker recursively removes all empty subdirectories, executing
 // the provided locker's WriteLock before attempting to remove a directory.
-func RemoveEmptyDirsWithLocker(dir string, locker DirLocker) {
-	removeEmptyDirs(dir, locker)
+// It returns:
+//  1. The number of directories successfully removed.
+//  2. The number of directories that were identified as empty but failed to be removed
+//     (e.g. due to race condition with file creation).
+func RemoveEmptyDirsWithLocker(dir string, locker DirLocker) (uint64, uint64) {
+	_, removedCount, contentionCount := removeEmptyDirs(dir, locker)
+	return removedCount, contentionCount
 }
 
 // removeEmptyDirs recursively attempts to remove empty directories.
-// It returns true if the directory is effectively empty (contains no files and
-// all subdirectories were successfully removed), and false otherwise.
-func removeEmptyDirs(dir string, locker DirLocker) bool {
-	// ReadDir can only compete with the cached file creation/deletion operations
-	// which shouldn't have a destructive impact on the ReadDir call, so we need not lock it.
+// It returns:
+//  1. bool: true if the directory is effectively empty (contains no files and
+//     all subdirectories were successfully removed), and false otherwise.
+//  2. uint64: count of directories successfully removed.
+//  3. uint64: count of contention events (failed removals of "empty" dirs).
+func removeEmptyDirs(dir string, locker DirLocker) (bool, uint64, uint64) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		// If we can't read the directory, we assume it's not safe to consider it empty.
 		// Missing permissions or parallel deletion by another process usually triggers this.
-		return false
+		return false, 0, 0
 	}
 
 	isEmpty := true
+	var removedCount uint64 = 0
+	var contentionCount uint64 = 0
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			fullPath := filepath.Join(dir, entry.Name())
 			// Recurse first (post-order traversal). This ensures that leaf nodes are evaluated
 			// and removed before we evaluate whether their parent directory is empty.
-			childEmpty := removeEmptyDirs(fullPath, locker)
+			childEmpty, childRemoved, childContention := removeEmptyDirs(fullPath, locker)
+			removedCount += childRemoved
+			contentionCount += childContention
 
 			if childEmpty {
 				// If the child directory is empty (or became empty), attempt to remove it.
@@ -255,6 +268,15 @@ func removeEmptyDirs(dir string, locker DirLocker) bool {
 					// Failed to remove (e.g. permissions, or a file was concurrently added
 					// resulting in ENOTEMPTY or EEXIST), so this directory is not effectively empty.
 					isEmpty = false
+					// If error implies "not empty" (race condition), count it.
+					// syscall.ENOTEMPTY or EEXIST handles this.
+					if pathErr, ok := err.(*os.PathError); ok {
+						if pathErr.Err == syscall.ENOTEMPTY || pathErr.Err == syscall.EEXIST {
+							contentionCount++
+						}
+					}
+				} else {
+					removedCount++
 				}
 			} else {
 				// Child directory is not empty, so this directory cannot be empty.
@@ -265,7 +287,7 @@ func removeEmptyDirs(dir string, locker DirLocker) bool {
 			isEmpty = false
 		}
 	}
-	return isEmpty
+	return isEmpty, removedCount, contentionCount
 }
 
 // PrettyPrintOf takes a uint64 number and returns a command-separated number string.
