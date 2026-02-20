@@ -96,7 +96,7 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].TestBucket = setup.TestBucket()
 		cfg.FlagOptimizations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.FlagOptimizations[0].LogFile = setup.LogFile()
-		// Initialize the slice to hold 11 specific test configurations
+		// Initialize the slice to hold 12 specific test configurations
 		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 12)
 		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountFails"
 		cfg.FlagOptimizations[0].Configs[0].Flags = []string{"--profile=unknown-profile"}

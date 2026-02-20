@@ -53,6 +53,8 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// verifyKernelParam checks if the kernel parameter at path matches expectedVal (if set)
+// or optimizedVal (considering mount type).
 func (s *KernelReaderParamsSuite) verifyKernelParam(path string, expectedVal string, optimizedVal string) {
 	s.T().Helper()
 	content, err := os.ReadFile(path)
@@ -64,10 +66,13 @@ func (s *KernelReaderParamsSuite) verifyKernelParam(path string, expectedVal str
 	} else if setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
 		assert.NotEqual(s.T(), optimizedVal, val, "Param %s should NOT match optimized default for dynamic mount", path)
 	} else {
-		assert.Equal(s.T(), optimizedVal, val, "Param %s should NOT match optimized default", path)
+		assert.Equal(s.T(), optimizedVal, val, "Param %s mismatch with optimized default", path)
 	}
 }
 
+// validateParallelReads parses the log content to verify that parallel reads occurred.
+// It tracks the number of concurrent "ReadFile" operations and asserts that
+// the maximum parallelism observed is greater than 1.
 func (s *ReadStrategySuite) validateParallelReads(logContent string) {
 	s.T().Helper()
 	lines := strings.Split(logContent, "\n")
@@ -90,6 +95,8 @@ func (s *ReadStrategySuite) validateParallelReads(logContent string) {
 	assert.Greater(s.T(), maxParallelism, 1, "Expected parallel reads (max parallelism > 1)")
 }
 
+// createAndReadFile creates a 10MB file using O_DIRECT (avoiding write cache)
+// and reads it back using os.ReadFile (triggering readahead).
 func createAndReadFile(t *testing.T, testName string) {
 	t.Helper()
 	testName = strings.ReplaceAll(testName, "/", "_")
@@ -227,8 +234,8 @@ func (s *ReadStrategySuite) TearDownSuite() {
 
 // TestKernelReaderBehavior verifies the read strategy behavior based on flags.
 // Specifically for Zonal Buckets, it checks that if not explicitly disabled,
-// Kernel Reader is used (taking precedence) even if Buffered Read or File Cache
-// are enabled.
+// Kernel Reader is used (taking precedence) even if Buffered Read or File Cache are enabled.
+// It uses log assertions and optionally validates parallel reads.
 func (s *ReadStrategySuite) TestKernelReaderBehavior() {
 	createAndReadFile(s.T(), s.T().Name())
 
@@ -258,7 +265,7 @@ func TestKernelReader(t *testing.T) {
 	}{
 		// Tests that kernel reader is used by default and takes precedence over buffered reader and file cache.
 		{
-			testName:            "TestKernelReader_DefaultAndPrecedence",
+			testName:            "TestKernelReader_IsDefaultAndTakesPrecedence",
 			expectedLog:         kernelReaderInitMsg,
 			validateParallelism: true,
 		},
