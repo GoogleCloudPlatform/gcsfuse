@@ -11,24 +11,24 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 **Purpose:** Primary storage operations using HTTP protocol
 
 **Protocols:**
-- **HTTP/1.1** (`cfg.HTTP1`): Default protocol, optimized for performance with connection pooling
+- **HTTP/1.1** (`cfg.HTTP1`): Default protocol
 - **HTTP/2** (`cfg.HTTP2`): Alternative protocol for better multiplexing
 
 **Configuration Options:**
-- `MaxConnsPerHost`: Maximum TCP connections per server (HTTP/1.1 only)
-- `MaxIdleConnsPerHost`: Maximum idle connections per host
-- `HttpClientTimeout`: Timeout for HTTP operations
-- `ExperimentalEnableJsonRead`: Use JSON API instead of XML API for reads
-- `ReadStallRetryConfig`: Configuration for handling read stalls with dynamic timeouts
+- `MaxConnsPerHost`: The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications). (Default: 0)
+- `MaxIdleConnsPerHost`: The number of maximum idle connections allowed per server. (Default: 100)
+- `HttpClientTimeout`: The time duration that http client will wait to get response from the server. A value of 0 indicates no timeout. (Default: 0s)
+- `ExperimentalEnableJsonRead`: By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead. (Default: false)
+- `ReadStallRetryConfig`: To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past. (Default: true)
 
 ### 2. gRPC Storage Client (Standard)
 
 **Purpose:** Storage operations using gRPC protocol for better performance and features
 
 **Configuration Options:**
-- `GrpcConnPoolSize`: Number of gRPC connections in the pool
-- `EnableGrpcMetrics`: Enable gRPC metrics collection (GKE only)
-- `ExperimentalLocalSocketAddress`: Bind to specific local address
+- `GrpcConnPoolSize`: The number of gRPC channel in grpc client. (Default: 1)
+- `EnableGrpcMetrics`: Enables support for gRPC metrics. (Default: false)
+- `ExperimentalLocalSocketAddress`: The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag. (Default: "")
 
 **Features:**
 - DirectPath support via `GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS` environment variable
@@ -37,15 +37,14 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 
 **When Used:**
 - When `--client-protocol=grpc` is set
-- Normal mode without DirectPath enforcement
+- First tries DirectPath, defaulting to CloudPath as a secondary failover.
 
 ### 3. gRPC Storage Client with Bidi Configuration
 
-**Purpose:** gRPC client optimized for zonal buckets with bidirectional streaming
+**Purpose:** gRPC client optimized for rapid buckets with bidirectional read streaming
 
 **When Used:**
-- Automatically used for zonal buckets regardless of `--client-protocol` setting
-- Provides better performance for zonal bucket operations
+- Automatically used for rapid buckets regardless of `--client-protocol` setting.
 
 ### 4. Storage Control Client
 
@@ -58,10 +57,8 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 - GetFolder
 - RenameFolder
 
-**Retry Strategy:**
-- GAX retries with configurable backoff
-- Custom retry codes: ResourceExhausted, Unavailable, DeadlineExceeded, Internal, Unknown
-- [Custom retries](https://github.com/GoogleCloudPlatform/gcsfuse/blob/42f4247b1e0abdd1bcb6e7654089896d889fe6d4/internal/storage/storageutil/retry.go#L121) to avoid stalls.
+**When Used:**
+- For HNS buckets folder operations.
 
 ---
 
@@ -85,9 +82,11 @@ Policy:              storage.RetryAlways
 
 ### GCSFuse-Level Retry with Stall Detection
 
+Implemented [custom retry logic](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/storage/storageutil/retry.go) for Folder APIs to mitigate stall issues and improve request reliability.
+
 **Applied To:**
 - GetStorageLayout calls (all buckets)
-- All control client operations (zonal buckets)
+- All control client operations (rapid buckets)
 
 **Default Parameters:**
 ```go
@@ -132,8 +131,7 @@ Chunk Transfer Timeout: 10 seconds (Configurable via `--chunk-transfer-timeout-s
 ```
 
 **Purpose:**
-- Detect and retry stalled chunk write operations within 10 seconds for resumble uploads
-- No exponetial backoff
+- Detect and retry (without exponential backoff) stalled chunk write operations within 10 seconds for resumable uploads.
 
 ---
 
@@ -161,7 +159,7 @@ Chunk Transfer Timeout: 10 seconds (Configurable via `--chunk-transfer-timeout-s
       └───────┬───────┘            └──────────┬──────────┘
               │                               │
               ▼                               ▼
-        Is Zonal? ─── YES ──▶ gRPC Client     │
+        Is rapid? ─── YES ──▶ gRPC Client     │
               │               with Bidi       │
               │               Config          │
               NO                              │
@@ -202,7 +200,7 @@ HTTP Storage Client                           │
                                      │
                                 ┌────┴────┐
                                 │         │
-                                Zonal    Non-Zonal
+                                Rapid    Non-rapid
                                 │         │
                                 │         │
                                 ▼         ▼
