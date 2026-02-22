@@ -417,7 +417,7 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	if strings.HasSuffix(p, "/") {
+	if strings.HasSuffix(req.Name, "/") {
 		// Do we have an entry in the cache?
 		if hit, entry := b.lookUpFolder(req.Name); hit {
 			// Negative entries result in NotFoundError.
