@@ -162,10 +162,10 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		}
 
 		// Cache the prefix as a minimal object (implicit directory marker).
-		m := &gcs.MinObject{
+		f := &gcs.Folder{
 			Name: p,
 		}
-		b.cache.Insert(m, expiration)
+		b.cache.InsertFolder(f, expiration)
 	}
 }
 
@@ -417,20 +417,39 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	// Do we have an entry in the cache?
-	if hit, entry := b.lookUp(req.Name); hit {
-		// Negative entries result in NotFoundError.
-		if entry == nil {
-			err = &gcs.NotFoundError{
-				Err: fmt.Errorf("negative cache entry for %v", req.Name),
+	if strings.HasSuffix(p, "/") {
+		// Do we have an entry in the cache?
+		if hit, entry := b.lookUpFolder(req.Name); hit {
+			// Negative entries result in NotFoundError.
+			if entry == nil {
+				err = &gcs.NotFoundError{
+					Err: fmt.Errorf("negative cache entry for %v", req.Name),
+				}
+
+				return
 			}
 
+			m = &gcs.MinObject{
+				Name: entry.Name,
+			}
 			return
 		}
+	} else {
+		// Do we have an entry in the cache?
+		if hit, entry := b.lookUp(req.Name); hit {
+			// Negative entries result in NotFoundError.
+			if entry == nil {
+				err = &gcs.NotFoundError{
+					Err: fmt.Errorf("negative cache entry for %v", req.Name),
+				}
 
-		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
-		m = entry
-		return
+				return
+			}
+
+			// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+			m = entry
+			return
+		}
 	}
 
 	// Cache Miss Handling
