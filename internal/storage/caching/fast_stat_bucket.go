@@ -133,10 +133,10 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
 	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
 	if dirHasContents && !isDirInListing {
-		m := &gcs.MinObject{
+		f := &gcs.Folder{
 			Name: dirName,
 		}
-		b.cache.Insert(m, expiration)
+		b.cache.InsertFolder(f, expiration)
 	}
 
 	// 2. Cache Explicit Objects
