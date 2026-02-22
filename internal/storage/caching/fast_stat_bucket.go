@@ -162,11 +162,16 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		}
 
 		// Cache the prefix as a minimal object (implicit directory marker).
-		m := &gcs.MinObject{
+		f := &gcs.Folder{
 			Name: p,
 		}
-		b.cache.Insert(m, expiration)
+		b.cache.InsertFolder(f, expiration)
 	}
+
+	// Clear the map entries to release references to the keys (strings).
+	clear(minObjectNames)
+	// Nil the reference so the GC can claim the map header itself.
+	minObjectNames = nil
 }
 
 // LOCKS_EXCLUDED(b.mu)
