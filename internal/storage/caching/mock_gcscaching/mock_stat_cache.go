@@ -203,3 +203,66 @@ func (m *mockStatCache) EraseEntriesWithGivenPrefix(p0 string) {
 		panic(fmt.Sprintf("mockStatCache.LookUpFolder: invalid return values: %v", retVals))
 	}
 }
+
+func (m *mockStatCache) InsertImplicitDir(p0 string, p1 time.Time) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"InsertImplicitDir",
+		file,
+		line,
+		[]any{p0, p1})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.InsertImplicitDir: invalid return values: %v", retVals))
+	}
+}
+
+func (m *mockStatCache) LookUpImplicitDir(p0 string, p1 time.Time) (o0 bool, o1 *gcs.ImplicitDir) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"LookUpImplicitDir",
+		file,
+		line,
+		[]any{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockStatCache.LookUpImplicitDir: invalid return values: %v", retVals))
+	}
+
+	// o0 bool
+	if retVals[0] != nil {
+		o0 = retVals[0].(bool)
+	}
+
+	// o1 *gcs.ImplicitDir
+	if retVals[1] != nil {
+		o1 = retVals[1].(*gcs.ImplicitDir)
+	}
+
+	return
+}
+
+func (m *mockStatCache) AddNegativeEntryForImplicitDir(p0 string, p1 time.Time) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"AddNegativeEntryForImplicitDir",
+		file,
+		line,
+		[]any{p0, p1})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.AddNegativeEntryForImplicitDir: invalid return values: %v", retVals))
+	}
+}

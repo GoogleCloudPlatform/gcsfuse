@@ -592,3 +592,55 @@ func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 	assert.True(t.T(), hit6)
 	assert.Equal(t.T(), "d", entry6.Name)
 }
+
+func (t *StatCacheTest) Test_InsertImplicitDir() {
+	const name = "implicit_dir"
+	t.statCache.InsertImplicitDir(name, expiration)
+
+	hit, implicitDir := t.statCache.LookUpImplicitDir(name, someTime)
+
+	assert.True(t.T(), hit)
+	assert.NotNil(t.T(), implicitDir)
+	assert.Equal(t.T(), name, implicitDir.Name)
+}
+
+func (t *StatCacheTest) Test_LookUpImplicitDir_Negative() {
+	const name = "implicit_dir"
+	t.statCache.AddNegativeEntryForImplicitDir(name, expiration)
+
+	hit, implicitDir := t.statCache.LookUpImplicitDir(name, someTime)
+
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), implicitDir)
+}
+
+func (t *StatCacheTest) Test_LookUpImplicitDir_Miss() {
+	const name = "implicit_dir"
+
+	hit, implicitDir := t.statCache.LookUpImplicitDir(name, someTime)
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), implicitDir)
+}
+
+func (t *StatCacheTest) Test_LookUpImplicitDir_Expired() {
+	const name = "implicit_dir"
+	t.statCache.InsertImplicitDir(name, expiration)
+
+	hit, implicitDir := t.statCache.LookUpImplicitDir(name, expiration.Add(time.Nanosecond))
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), implicitDir)
+}
+
+func (t *StatCacheTest) Test_LookUpImplicitDir_ObjectExists() {
+	const name = "object"
+	m := &gcs.MinObject{Name: name}
+	t.statCache.Insert(m, expiration)
+
+	hit, implicitDir := t.statCache.LookUpImplicitDir(name, someTime)
+
+	// It hits because the entry exists, but it is not an implicit dir.
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), implicitDir)
+}

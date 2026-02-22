@@ -162,10 +162,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		}
 
 		// Cache the prefix as a minimal object (implicit directory marker).
-		f := &gcs.Folder{
-			Name: p,
-		}
-		b.cache.InsertFolder(f, expiration)
+		b.cache.InsertImplicitDir(p, expiration)
 	}
 
 	// Clear the map entries to release references to the keys (strings).
@@ -275,6 +272,15 @@ func (b *fastStatBucket) invalidate(name string) {
 	defer b.mu.Unlock()
 
 	b.cache.Erase(name)
+}
+
+// LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) lookUpImplicitDir(name string) (hit bool, i *gcs.ImplicitDir) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	hit, i = b.cache.LookUpImplicitDir(name, b.clock.Now())
+	return
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -422,20 +428,42 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	// Do we have an entry in the cache?
-	if hit, entry := b.lookUp(req.Name); hit {
-		// Negative entries result in NotFoundError.
-		if entry == nil {
-			err = &gcs.NotFoundError{
-				Err: fmt.Errorf("negative cache entry for %v", req.Name),
+	if strings.HasSuffix(req.Name, "/") {
+		// Do we have an entry in the cache?
+		if hit, i := b.lookUpImplicitDir(req.Name); hit {
+			// Negative entries result in NotFoundError.
+			if i == nil {
+				err = &gcs.NotFoundError{
+					Err: fmt.Errorf("negative cache entry for %v", req.Name),
+				}
+
+				return
 			}
 
+			// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+			m = &gcs.MinObject{
+				Name: i.Name,
+			}
 			return
 		}
 
-		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
-		m = entry
-		return
+	} else {
+		// Do we have an entry in the cache?
+		if hit, entry := b.lookUp(req.Name); hit {
+			// Negative entries result in NotFoundError.
+			if entry == nil {
+				err = &gcs.NotFoundError{
+					Err: fmt.Errorf("negative cache entry for %v", req.Name),
+				}
+
+				return
+			}
+
+			// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+			m = entry
+			return
+		}
+
 	}
 
 	// Cache Miss Handling

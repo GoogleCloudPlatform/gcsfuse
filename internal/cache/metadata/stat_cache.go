@@ -69,6 +69,19 @@ type StatCache interface {
 	// negative.
 	AddNegativeEntryForFolder(folderName string, expiration time.Time)
 
+	// Insert an entry for the given implicit directory.
+	InsertImplicitDir(name string, expiration time.Time)
+
+	// Return the current implicit directory entry for the given name.
+	// Return hit == false when there is neither a positive nor a negative
+	// entry, or the entry has expired according to the supplied current time.
+	LookUpImplicitDir(name string, now time.Time) (hit bool, i *gcs.ImplicitDir)
+
+	// Set up a negative entry for the given implicit directory name, indicating that the name
+	// doesn't exist. Overwrite any existing entry for the name, positive or
+	// negative.
+	AddNegativeEntryForImplicitDir(name string, expiration time.Time)
+
 	// Invalidate cache for all the entries with given prefix
 	// e.g. If cache contains below objects
 	// a
@@ -108,10 +121,11 @@ type statCacheBucketView struct {
 // An entry in the cache, pairing an object with the expiration time for the
 // entry. Nil object means negative entry.
 type entry struct {
-	m          *gcs.MinObject
-	f          *gcs.Folder
-	expiration time.Time
-	key        string
+	m             *gcs.MinObject
+	f             *gcs.Folder
+	isImplicitDir *gcs.ImplicitDir
+	expiration    time.Time
+	key           string
 }
 
 // Size returns the memory-size (resident set size) of the receiver entry.
@@ -218,6 +232,48 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 		f:          nil,
 		expiration: expiration,
 		key:        name,
+	}
+
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
+}
+
+func (sc *statCacheBucketView) InsertImplicitDir(name string, expiration time.Time) {
+	name = sc.key(name)
+
+	e := entry{
+		isImplicitDir: &gcs.ImplicitDir{Name: name},
+		expiration:    expiration,
+		key:           name,
+	}
+
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
+}
+
+func (sc *statCacheBucketView) LookUpImplicitDir(
+	name string,
+	now time.Time) (bool, *gcs.ImplicitDir) {
+	// Look up in the LRU cache.
+	hit, entry := sc.sharedCacheLookup(name, now)
+
+	if hit {
+		return hit, entry.isImplicitDir
+	}
+
+	return false, nil
+}
+
+func (sc *statCacheBucketView) AddNegativeEntryForImplicitDir(name string, expiration time.Time) {
+	name = sc.key(name)
+
+	// Insert a negative entry.
+	e := entry{
+		isImplicitDir: nil,
+		expiration:    expiration,
+		key:           name,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {

@@ -117,3 +117,7 @@ func (mo MinObject) HasContentEncodingGzip() bool {
 func (mo MinObject) IsUnfinalized() bool {
 	return mo.Finalized.IsZero()
 }
+
+type ImplicitDir struct {
+	Name string
+}
