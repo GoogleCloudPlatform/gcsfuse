@@ -151,6 +151,10 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		// Cache the prefix as a minimal object (implicit directory marker).
 		b.cache.InsertImplicitDir(p, expiration)
 	}
+
+	clear(minObjectNames)
+	// Nil the reference so the GC can claim the map header itself.
+	minObjectNames = nil
 }
 
 // LOCKS_EXCLUDED(b.mu)
