@@ -133,10 +133,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
 	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
 	if dirHasContents && !isDirInListing {
-		m := &gcs.MinObject{
-			Name: dirName,
-		}
-		b.cache.Insert(m, expiration)
+		b.cache.InsertImplicitDir(dirName, expiration)
 	}
 
 	// 2. Cache Explicit Objects
@@ -162,10 +159,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		}
 
 		// Cache the prefix as a minimal object (implicit directory marker).
-		m := &gcs.MinObject{
-			Name: p,
-		}
-		b.cache.Insert(m, expiration)
+		b.cache.InsertImplicitDir(p, expiration)
 	}
 }
 

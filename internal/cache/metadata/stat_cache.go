@@ -37,6 +37,10 @@ type StatCache interface {
 	// The entry will expire after the supplied time.
 	Insert(m *gcs.MinObject, expiration time.Time)
 
+	// Insert an entry for the given implicit directory.
+	// The entry will expire after the supplied time.
+	InsertImplicitDir(name string, expiration time.Time)
+
 	// Set up a negative entry for the given name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
 	// negative.
@@ -108,10 +112,11 @@ type statCacheBucketView struct {
 // An entry in the cache, pairing an object with the expiration time for the
 // entry. Nil object means negative entry.
 type entry struct {
-	m          *gcs.MinObject
-	f          *gcs.Folder
-	expiration time.Time
-	key        string
+	m             *gcs.MinObject
+	f             *gcs.Folder
+	expiration    time.Time
+	key           string
+	isImplicitDir bool
 }
 
 // Size returns the memory-size (resident set size) of the receiver entry.
@@ -125,9 +130,13 @@ func (e entry) Size() (size uint64) {
 	// First, calculate size on heap (including folder size also in case of hns buckets, in case of non-hns buckets 0 will be added as e.f will be Nil ).
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
 	// struct stored in the cache map and in the cache linked-list.
-	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
-	if e.m != nil {
-		size += 515
+	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key))
+
+	if !e.isImplicitDir {
+		size += uint64(util.NestedSizeOfGcsMinObject(e.m))
+		if e.m != nil {
+			size += 515
+		}
 	}
 
 	if e.f != nil {
@@ -195,6 +204,32 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	}
 }
 
+func (sc *statCacheBucketView) InsertImplicitDir(name string, expiration time.Time) {
+	key := sc.key(name)
+
+	// Is there already a better entry?
+	if existing := sc.sharedCache.LookUp(key); existing != nil {
+		e := existing.(entry)
+		// If existing entry is a positive entry (m != nil), we prefer it over implicit directory
+		// because implicit directory is inferred and has Generation 0.
+		// Even if existing is old generation, it's explicit.
+		if e.m != nil {
+			return
+		}
+	}
+
+	// Insert an entry.
+	e := entry{
+		isImplicitDir: true,
+		expiration:    expiration,
+		key:           key,
+	}
+
+	if _, err := sc.sharedCache.Insert(key, e); err != nil {
+		panic(err)
+	}
+}
+
 func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
 	name := sc.key(objectName)
 
@@ -236,6 +271,9 @@ func (sc *statCacheBucketView) LookUp(
 	// Look up in the LRU cache.
 	hit, entry := sc.sharedCacheLookup(objectName, now)
 	if hit {
+		if entry.isImplicitDir {
+			return true, &gcs.MinObject{Name: objectName}
+		}
 		return hit, entry.m
 	}
 

@@ -985,8 +985,18 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(listing, nil))
 	// Register expectations.
+	// Build set of explicit names
+	explicitNames := make(map[string]struct{})
+	for _, o := range listing.MinObjects {
+		explicitNames[o.Name] = struct{}{}
+	}
+
 	for _, obj := range expectedInserts {
-		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
+		if _, ok := explicitNames[obj.Name]; ok {
+			ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
+		} else {
+			ExpectCall(t.cache, "InsertImplicitDir")(obj.Name, Any())
+		}
 	}
 
 	// Call

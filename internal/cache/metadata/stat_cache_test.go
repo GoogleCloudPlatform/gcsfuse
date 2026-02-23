@@ -45,6 +45,12 @@ func (c *testHelperCache) Insert(
 	c.wrapped.Insert(m, expiration)
 }
 
+func (c *testHelperCache) InsertImplicitDir(
+	name string,
+	expiration time.Time) {
+	c.wrapped.InsertImplicitDir(name, expiration)
+}
+
 func (c *testHelperCache) AddNegativeEntry(
 	name string,
 	expiration time.Time) {
@@ -591,4 +597,60 @@ func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 	hit6, entry6 := t.statCache.LookUp("d", someTime)
 	assert.True(t.T(), hit6)
 	assert.Equal(t.T(), "d", entry6.Name)
+}
+
+func (t *StatCacheTest) Test_InsertImplicitDir() {
+	const name = "dir/"
+	t.cache.InsertImplicitDir(name, expiration)
+
+	m := t.cache.LookUpOrNil(name, someTime)
+	assert.NotNil(t.T(), m)
+	assert.Equal(t.T(), name, m.Name)
+	assert.Equal(t.T(), int64(0), m.Generation)
+}
+
+func (t *StatCacheTest) Test_InsertImplicitDir_Replacement() {
+	const name = "dir/"
+	// 1. Insert explicit
+	explicit := &gcs.MinObject{Name: name, Generation: 1}
+	t.cache.Insert(explicit, expiration)
+
+	// 2. Try to insert implicit (should fail to replace)
+	t.cache.InsertImplicitDir(name, expiration)
+	m := t.cache.LookUpOrNil(name, someTime)
+	assert.Equal(t.T(), int64(1), m.Generation)
+
+	// 3. Erase
+	t.cache.Erase(name)
+
+	// 4. Insert implicit
+	t.cache.InsertImplicitDir(name, expiration)
+	m = t.cache.LookUpOrNil(name, someTime)
+	assert.Equal(t.T(), int64(0), m.Generation)
+
+	// 5. Insert explicit (should replace implicit)
+	t.cache.Insert(explicit, expiration)
+	m = t.cache.LookUpOrNil(name, someTime)
+	assert.Equal(t.T(), int64(1), m.Generation)
+}
+
+func (t *StatCacheTest) Test_ImplicitDirSizeEfficiency() {
+	// Standard entry size ~1640 bytes (according to Test_FillUpToCapacity comments).
+	// Implicit entry size should be much smaller (around 100-200 bytes).
+	// So we should be able to store many more implicit entries than explicit ones.
+
+	// capacity is 3 in SetupTest. Max size = 3 * (AvgPos + AvgNeg) ~= 5000 bytes.
+
+	// 1. Fill with implicit dirs
+	// Insert 20 implicit dirs. They should all fit if size is small.
+	for i := 0; i < 20; i++ {
+		name := string(rune('a' + i)) + "/"
+		t.cache.InsertImplicitDir(name, expiration)
+	}
+
+	// Verify all are present
+	for i := 0; i < 20; i++ {
+		name := string(rune('a' + i)) + "/"
+		assert.True(t.T(), t.cache.Hit(name, someTime))
+	}
 }

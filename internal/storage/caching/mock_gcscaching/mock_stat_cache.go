@@ -112,6 +112,23 @@ func (m *mockStatCache) Insert(p0 *gcs.MinObject, p1 time.Time) {
 	}
 }
 
+func (m *mockStatCache) InsertImplicitDir(p0 string, p1 time.Time) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"InsertImplicitDir",
+		file,
+		line,
+		[]any{p0, p1})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.InsertImplicitDir: invalid return values: %v", retVals))
+	}
+}
+
 func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObject) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
