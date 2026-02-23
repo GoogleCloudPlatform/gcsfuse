@@ -151,6 +151,10 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		// Cache the prefix as a minimal object (implicit directory marker).
 		b.cache.InsertImplicitDir(p, expiration)
 	}
+
+	if s, ok := b.cache.(interface{ Size() uint64 }); ok {
+		logger.Infof("Overall LRU cache size: %d", s.Size())
+	}
 }
 
 // LOCKS_EXCLUDED(b.mu)
