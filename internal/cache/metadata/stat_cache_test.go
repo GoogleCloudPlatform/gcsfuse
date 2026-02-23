@@ -629,3 +629,27 @@ func (t *StatCacheTest) Test_ImplicitDirSizeEfficiency() {
 		assert.True(t.T(), t.cache.Hit(name, someTime))
 	}
 }
+
+func (t *StatCacheTest) Test_InsertImplicitDir_DoesNotOverwriteExplicit() {
+	const name = "dir/"
+	m := &gcs.MinObject{Name: name, Generation: 1}
+	t.statCache.Insert(m, expiration)
+
+	t.statCache.InsertImplicitDir(name, expiration)
+
+	hit, result := t.statCache.LookUp(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), m, result)
+}
+
+func (t *StatCacheTest) Test_Insert_OverwritesImplicitDir() {
+	const name = "dir/"
+	t.statCache.InsertImplicitDir(name, expiration)
+
+	m := &gcs.MinObject{Name: name, Generation: 1}
+	t.statCache.Insert(m, expiration)
+
+	hit, result := t.statCache.LookUp(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), m, result)
+}

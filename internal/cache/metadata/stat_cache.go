@@ -110,10 +110,11 @@ type statCacheBucketView struct {
 // An entry in the cache, pairing an object with the expiration time for the
 // entry. Nil object means negative entry.
 type entry struct {
-	m           *gcs.MinObject
-	f           *gcs.Folder
-	expiration  time.Time
-	key         string
+	m          *gcs.MinObject
+	f          *gcs.Folder
+	expiration time.Time
+	key        string
+	// Set true only with Implicit directory entries. This flag will always remains false with the negative entries.
 	implicitDir bool
 }
 
