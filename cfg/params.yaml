@@ -828,8 +828,8 @@ params:
       flag has been deprecated (starting v2.0) and in favor of
       stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be
       translated to the next higher corresponding value of stat-cache-max-size-mb
-      (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive
-      entry and 240 for corresponding negative entry), if stat-cache-max-size-mb
+      (assuming stat-cache entry-size ~= 1720 bytes, including 1464 for positive
+      entry and 256 for corresponding negative entry), if stat-cache-max-size-mb
       is not set."
     deprecated: true
     deprecation-warning: "Please use --stat-cache-max-size-mb instead."

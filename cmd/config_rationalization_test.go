@@ -33,7 +33,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 			name:                  "new_ttl_flag_set",
 			args:                  []string{"--metadata-cache-ttl-secs=30"},
 			expectedTTLSecs:       30,
-			expectedStatCacheSize: 34, // default.
+			expectedStatCacheSize: 33, // default.
 		},
 		{
 			name:                  "old_ttl_flags_set",

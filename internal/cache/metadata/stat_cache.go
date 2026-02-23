@@ -114,7 +114,7 @@ type entry struct {
 	f          *gcs.Folder
 	expiration time.Time
 	key        string
-	// Set true only with Implicit directory entries. This flag will always remains false with the negative entries.
+	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
 }
 

@@ -779,7 +779,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					MetadataPrefetchMaxWorkers:          10,
 					EnableMetadataPrefetch:              false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
-					StatCacheMaxSizeMb:                  34,
+					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
