@@ -1320,13 +1320,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive entry and 240 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
+	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1720 bytes, including 1464 for positive entry and 256 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
 
 	if err := flagSet.MarkDeprecated("stat-cache-capacity", "Please use --stat-cache-max-size-mb instead."); err != nil {
 		return err
 	}
 
-	flagSet.IntP("stat-cache-max-size-mb", "", 33, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
+	flagSet.IntP("stat-cache-max-size-mb", "", 34, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
 	flagSet.DurationP("stat-cache-ttl", "", 60000000000*time.Nanosecond, "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
 

@@ -947,7 +947,7 @@ params:
     usage: >-
       The maximum size of stat-cache in MiBs. It can also be set to -1 for
       no-size-limit, 0 for no cache. Values below -1 are not supported.
-    default: "33"
+    default: "34"
     optimizations:
       machine-based-optimization:
         - group: "high-performance"
