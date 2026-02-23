@@ -39,7 +39,7 @@ import (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-type chunkCacheTestBase struct {
+type chunkCacheTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
@@ -47,12 +47,12 @@ type chunkCacheTestBase struct {
 	suite.Suite
 }
 
-func (s *chunkCacheTestBase) SetupSuite() {
+func (s *chunkCacheTest) SetupSuite() {
 	setupLogFileAndCacheDir(s.baseTestName)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *chunkCacheTestBase) SetupTest() {
+func (s *chunkCacheTest) SetupTest() {
 	//Truncate log file created.
 	err := os.Truncate(testEnv.cfg.LogFile, 0)
 	require.NoError(s.T(), err)
@@ -61,16 +61,12 @@ func (s *chunkCacheTestBase) SetupTest() {
 	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
-func (s *chunkCacheTestBase) TearDownTest() {
+func (s *chunkCacheTest) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
-func (s *chunkCacheTestBase) TearDownSuite() {
+func (s *chunkCacheTest) TearDownSuite() {
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
-}
-
-type chunkCacheTest struct {
-	chunkCacheTestBase
 }
 
 func (s *chunkCacheTest) TestRandomRead() {
@@ -91,7 +87,7 @@ func (s *chunkCacheTest) TestRandomRead() {
 		{Start: 10 * util.MiB, End: 20 * util.MiB},
 		{Start: 0, End: 10 * util.MiB},
 	}
-	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads)
+	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads, testFileName)
 }
 
 func (s *chunkCacheTest) TestFullSequentialRead() {
@@ -109,7 +105,7 @@ func (s *chunkCacheTest) TestFullSequentialRead() {
 		{Start: 10 * util.MiB, End: 20 * util.MiB},
 		{Start: 20 * util.MiB, End: 30 * util.MiB},
 	}
-	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads)
+	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads, testFileName)
 }
 
 func (s *chunkCacheTest) TestSequentialReadWithCachedChunk() {
@@ -130,7 +126,7 @@ func (s *chunkCacheTest) TestSequentialReadWithCachedChunk() {
 		{Start: 0, End: 10 * util.MiB},
 		{Start: 20 * util.MiB, End: 30 * util.MiB},
 	}
-	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads)
+	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads, testFileName)
 }
 
 func (s *chunkCacheTest) TestReadSpanningTwoBlocks() {
@@ -146,7 +142,7 @@ func (s *chunkCacheTest) TestReadSpanningTwoBlocks() {
 		{Start: 10 * util.MiB, End: 20 * util.MiB},
 		{Start: 20 * util.MiB, End: 30 * util.MiB},
 	}
-	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads)
+	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads, testFileName)
 }
 
 func (s *chunkCacheTest) TestConcurrentDeduplication() {
@@ -174,10 +170,10 @@ func (s *chunkCacheTest) TestConcurrentDeduplication() {
 	expectedDownloads := []data.ObjectRange{
 		{Start: 0, End: 10 * util.MiB},
 	}
-	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads)
+	validateDownloads(s.T(), jobLogs[0].ChunkCacheDownloads, expectedDownloads, testFileName)
 }
 
-func (s *chunkCacheTest) TestFallback() {
+func (s *chunkCacheTest) TestReadOfDeletedfile() {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, 20*util.MiB, s.T())
 	// Read first chunk to ensure cache file is created and populated.
 	readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, 0, s.T())
@@ -237,18 +233,16 @@ func (s *chunkCacheTest) TestCacheFileAllocatedSize() {
 			validate(expectedOutcome, structuredLogs[i], tc.isSeq, true, 1, t)
 			jobLogs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, t)
 			require.NotEmpty(t, jobLogs)
-			validateDownloads(t, jobLogs[0].ChunkCacheDownloads, tc.expectedDownloads)
+			validateDownloads(t, jobLogs[0].ChunkCacheDownloads, tc.expectedDownloads, testFileName)
 		})
 	}
 }
 
 func TestChunkCacheTest(t *testing.T) {
 	ts := &chunkCacheTest{
-		chunkCacheTestBase: chunkCacheTestBase{
-			ctx:           context.Background(),
-			storageClient: testEnv.storageClient,
-			baseTestName:  t.Name(),
-		},
+		ctx:           context.Background(),
+		storageClient: testEnv.storageClient,
+		baseTestName:  t.Name(),
 	}
 	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
@@ -257,108 +251,6 @@ func TestChunkCacheTest(t *testing.T) {
 	}
 
 	// Run tests for GCE environment otherwise.
-	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
-	for _, flags := range flagsSet {
-		ts.flags = flags
-		log.Printf("running tests with flags: %s", ts.flags)
-		suite.Run(t, ts)
-	}
-}
-
-type chunkCacheDisabledTest struct {
-	chunkCacheTestBase
-}
-
-func (s *chunkCacheDisabledTest) TestNormalFileCacheWithChunkCacheDisabled() {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, 10*util.MiB, s.T())
-
-	expectedOutcome := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, 0, s.T())
-
-	// Verify cache miss for normal file cache
-	structuredLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
-	require.Len(s.T(), structuredLogs, 1)
-	validate(expectedOutcome, structuredLogs[0], true, false, 1, s.T())
-
-	jobLogs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
-	require.Len(s.T(), jobLogs, 1, "Job logs should have exactly 1 entry")
-	assert.Empty(s.T(), jobLogs[0].ChunkCacheDownloads, "Should not have chunk downloads")
-	assert.NotEmpty(s.T(), jobLogs[0].JobEntries, "Should have normal file cache downloads")
-}
-
-func TestChunkCacheDisabledTest(t *testing.T) {
-	ts := &chunkCacheDisabledTest{
-		chunkCacheTestBase: chunkCacheTestBase{
-			ctx:           context.Background(),
-			storageClient: testEnv.storageClient,
-			baseTestName:  t.Name(),
-		},
-	}
-	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		suite.Run(t, ts)
-		return
-	}
-
-	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
-	for _, flags := range flagsSet {
-		ts.flags = flags
-		log.Printf("running tests with flags: %s", ts.flags)
-		suite.Run(t, ts)
-	}
-}
-
-type chunkCacheEvictionTest struct {
-	chunkCacheTestBase
-}
-
-func (s *chunkCacheEvictionTest) TestEviction() {
-	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, 20*util.MiB, s.T())
-	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, 20*util.MiB, s.T())
-
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, 20*util.MiB, false, s.T())
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, 20*util.MiB, false, s.T())
-	expectedOutcome3 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName1, 0, s.T())
-
-	structuredLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
-	require.Len(s.T(), structuredLogs, 3)
-	validate(expectedOutcome1, structuredLogs[0], true, true, int(20*util.MiB/chunkSizeToRead), s.T())
-	validate(expectedOutcome2, structuredLogs[1], true, true, int(20*util.MiB/chunkSizeToRead), s.T())
-	validate(expectedOutcome3, structuredLogs[2], true, true, 1, s.T())
-	jobLogs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
-	require.NotEmpty(s.T(), jobLogs)
-	var allDownloads []read_logs.ChunkDownloadLogEntry
-	for _, jobLog := range jobLogs {
-		allDownloads = append(allDownloads, jobLog.ChunkCacheDownloads...)
-	}
-	// Expected download sequence:
-	// 1. File 1 is read (20MB). Cache grows to 20MB (exceeding 15MB limit, but eviction is deferred).
-	// 2. File 2 is read. Insertion of File 2 triggers eviction of File 1 (LRU) to enforce limit.
-	// 3. File 2 is downloaded (20MB). Cache grows to 20MB.
-	// 4. File 1 is read again. Insertion of File 1 triggers eviction of File 2. File 1 [0, 10) is re-downloaded.
-	expectedDownloads := []data.ObjectRange{
-		{Start: 0, End: 10 * util.MiB},             // File 1 chunk 1
-		{Start: 10 * util.MiB, End: 20 * util.MiB}, // File 1 chunk 2
-		{Start: 0, End: 10 * util.MiB},             // File 2 chunk 1
-		{Start: 10 * util.MiB, End: 20 * util.MiB}, // File 2 chunk 2
-		{Start: 0, End: 10 * util.MiB},             // File 1 chunk 1 (again)
-	}
-	validateDownloads(s.T(), allDownloads, expectedDownloads)
-}
-
-func TestChunkCacheEviction(t *testing.T) {
-	ts := &chunkCacheEvictionTest{
-		chunkCacheTestBase: chunkCacheTestBase{
-			ctx:           context.Background(),
-			storageClient: testEnv.storageClient,
-			baseTestName:  t.Name(),
-		},
-	}
-	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		suite.Run(t, ts)
-		return
-	}
-
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		ts.flags = flags

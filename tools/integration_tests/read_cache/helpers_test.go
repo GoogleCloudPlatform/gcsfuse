@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -287,7 +288,7 @@ func validateAllocatedFileSize(t *testing.T, fileName string, expectedSize int64
 	assert.GreaterOrEqual(t, allocatedSize, expectedSize, "Allocated size should be at least expected size")
 }
 
-func validateDownloads(t *testing.T, downloads []read_logs.ChunkDownloadLogEntry, expectedRanges []data.ObjectRange) {
+func validateDownloads(t *testing.T, downloads []read_logs.ChunkDownloadLogEntry, expectedRanges []data.ObjectRange, fileName string) {
 	require.Len(t, downloads, len(expectedRanges), "Expected exactly %d downloads", len(expectedRanges))
 
 	// Count expected
@@ -301,7 +302,32 @@ func validateDownloads(t *testing.T, downloads []read_logs.ChunkDownloadLogEntry
 	for _, d := range downloads {
 		r := data.ObjectRange{Start: d.StartOffset, End: d.EndOffset}
 		actualCounts[r]++
+		if fileName != "" {
+			validateContent(t, fileName, d.StartOffset, d.EndOffset)
+		}
 	}
-
 	assert.Equal(t, expectedCounts, actualCounts, "Download ranges mismatch")
+}
+
+func validateContent(t *testing.T, fileName string, start, end int64) {
+	// Read from cache
+	cacheFilePath := getCachedFilePath(fileName)
+	file, err := os.Open(cacheFilePath)
+	require.NoError(t, err)
+	defer file.Close()
+	size := end - start
+	cacheContent := make([]byte, size)
+	_, err = file.ReadAt(cacheContent, start)
+	require.NoError(t, err)
+
+	// Read from GCS
+	objectName := path.Join(testDirName, fileName)
+	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(objectName)
+	rc, err := testEnv.storageClient.Bucket(bucketName).Object(objectName).NewRangeReader(testEnv.ctx, start, size)
+	require.NoError(t, err)
+	defer rc.Close()
+
+	gcsContent, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	assert.Equal(t, gcsContent, cacheContent, "Content mismatch for range [%d, %d)", start, end)
 }
