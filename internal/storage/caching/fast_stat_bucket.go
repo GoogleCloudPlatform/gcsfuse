@@ -167,6 +167,9 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		}
 		b.cache.InsertFolder(f, expiration)
 	}
+	clear(minObjectNames)
+	// Nil the reference so the GC can claim the map header itself.
+	minObjectNames = nil
 }
 
 // LOCKS_EXCLUDED(b.mu)
