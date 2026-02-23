@@ -609,6 +609,49 @@ func (t *StatCacheTest) Test_InsertImplicitDir() {
 	assert.Equal(t.T(), int64(0), m.Generation)
 }
 
+func (t *StatCacheTest) Test_InsertImplicitDir_Replacement() {
+	const name = "dir/"
+	// 1. Insert explicit
+	explicit := &gcs.MinObject{Name: name, Generation: 1}
+	t.cache.Insert(explicit, expiration)
+
+	// 2. Try to insert implicit (should fail to replace)
+	t.cache.InsertImplicitDir(name, expiration)
+	m := t.cache.LookUpOrNil(name, someTime)
+	assert.Equal(t.T(), int64(1), m.Generation)
+
+	// 3. Erase
+	t.cache.Erase(name)
+
+	// 4. Insert implicit
+	t.cache.InsertImplicitDir(name, expiration)
+	m = t.cache.LookUpOrNil(name, someTime)
+	assert.Equal(t.T(), int64(0), m.Generation)
+
+	// 5. Insert explicit (should replace implicit)
+	t.cache.Insert(explicit, expiration)
+	m = t.cache.LookUpOrNil(name, someTime)
+	assert.Equal(t.T(), int64(1), m.Generation)
+}
+
+func (t *StatCacheTest) Test_AddNegativeEntry_Overwrites_ImplicitDir() {
+	const name = "dir/"
+	t.cache.InsertImplicitDir(name, expiration)
+
+	// Verify it exists as a positive entry
+	hit, m := t.cache.LookUp(name, someTime)
+	assert.True(t.T(), hit)
+	assert.NotNil(t.T(), m)
+
+	// Overwrite with negative entry
+	t.cache.AddNegativeEntry(name, expiration)
+
+	// Verify it is now a negative entry
+	hit, m = t.cache.LookUp(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), m)
+}
+
 func (t *StatCacheTest) Test_ImplicitDirSizeEfficiency() {
 	// Standard entry size ~1640 bytes (according to Test_FillUpToCapacity comments).
 	// Implicit entry size should be much smaller (around 100-200 bytes).
@@ -619,13 +662,13 @@ func (t *StatCacheTest) Test_ImplicitDirSizeEfficiency() {
 	// 1. Fill with implicit dirs
 	// Insert 20 implicit dirs. They should all fit if size is small.
 	for i := 0; i < 20; i++ {
-		name := string(rune('a'+i)) + "/"
+		name := string(rune('a' + i)) + "/"
 		t.cache.InsertImplicitDir(name, expiration)
 	}
 
 	// Verify all are present
 	for i := 0; i < 20; i++ {
-		name := string(rune('a'+i)) + "/"
+		name := string(rune('a' + i)) + "/"
 		assert.True(t.T(), t.cache.Hit(name, someTime))
 	}
 }

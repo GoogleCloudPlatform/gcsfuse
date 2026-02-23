@@ -109,14 +109,23 @@ type statCacheBucketView struct {
 	bucketName string
 }
 
+type statCacheEntryType int
+
+const (
+	unknownEntry     statCacheEntryType = iota
+	positiveEntry                       // m != nil or f != nil
+	negativeEntry                       // m == nil and f == nil
+	implicitDirEntry                    // m == nil, f == nil, but represents an implicit directory
+)
+
 // An entry in the cache, pairing an object with the expiration time for the
 // entry. Nil object means negative entry.
 type entry struct {
-	m             *gcs.MinObject
-	f             *gcs.Folder
-	expiration    time.Time
-	key           string
-	isImplicitDir bool
+	m          *gcs.MinObject
+	f          *gcs.Folder
+	expiration time.Time
+	key        string
+	entryType  statCacheEntryType
 }
 
 // Size returns the memory-size (resident set size) of the receiver entry.
@@ -132,7 +141,7 @@ func (e entry) Size() (size uint64) {
 	// struct stored in the cache map and in the cache linked-list.
 	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key))
 
-	if !e.isImplicitDir {
+	if e.entryType != implicitDirEntry && e.entryType != negativeEntry {
 		size += uint64(util.NestedSizeOfGcsMinObject(e.m))
 		if e.m != nil {
 			size += 515
@@ -197,6 +206,7 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		m:          m,
 		expiration: expiration,
 		key:        name,
+		entryType:  positiveEntry,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -207,11 +217,22 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 func (sc *statCacheBucketView) InsertImplicitDir(name string, expiration time.Time) {
 	key := sc.key(name)
 
+	// Is there already a better entry?
+	if existing := sc.sharedCache.LookUp(key); existing != nil {
+		e := existing.(entry)
+		// If existing entry is a positive entry (m != nil), we prefer it over implicit directory
+		// because implicit directory is inferred and has Generation 0.
+		// Even if existing is old generation, it's explicit.
+		if e.m != nil {
+			return
+		}
+	}
+
 	// Insert an entry.
 	e := entry{
-		isImplicitDir: true,
-		expiration:    expiration,
-		key:           key,
+		entryType:  implicitDirEntry,
+		expiration: expiration,
+		key:        key,
 	}
 
 	if _, err := sc.sharedCache.Insert(key, e); err != nil {
@@ -227,6 +248,7 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 		m:          nil,
 		expiration: expiration,
 		key:        name,
+		entryType:  negativeEntry,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -242,6 +264,7 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 		f:          nil,
 		expiration: expiration,
 		key:        name,
+		entryType:  negativeEntry,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -260,7 +283,7 @@ func (sc *statCacheBucketView) LookUp(
 	// Look up in the LRU cache.
 	hit, entry := sc.sharedCacheLookup(objectName, now)
 	if hit {
-		if entry.isImplicitDir {
+		if entry.entryType == implicitDirEntry {
 			return true, &gcs.MinObject{Name: objectName}
 		}
 		return hit, entry.m
@@ -306,6 +329,7 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 		f:          f,
 		expiration: expiration,
 		key:        name,
+		entryType:  positiveEntry,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
