@@ -457,6 +457,13 @@ read_cache:
           hns: true
           zonal: true
         run: TestChunkCacheEviction
+      - flags:
+          - "--file-cache-max-size-mb=10,--file-cache-size-scan-enable=true,--file-cache-size-scan-frequency-seconds=1,--metadata-cache-ttl-secs=0,--stat-cache-ttl=0s,--type-cache-ttl=0s,--enable-kernel-reader=false"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestDiskUtilization
         run_on_gke: true
 
 stale_handle:
