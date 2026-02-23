@@ -1072,7 +1072,7 @@ func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
 	expectedInserts := []*gcs.MinObject{
 		{Name: "dir/a/", Size: 0},
 	}
-	expectedImplicitDirs := []string{"dir/"}
+	expectedImplicitDirs := []string{"dir/", "dir/a/"}
 
 	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
