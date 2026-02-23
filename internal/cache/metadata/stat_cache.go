@@ -207,17 +207,6 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 func (sc *statCacheBucketView) InsertImplicitDir(name string, expiration time.Time) {
 	key := sc.key(name)
 
-	// Is there already a better entry?
-	if existing := sc.sharedCache.LookUp(key); existing != nil {
-		e := existing.(entry)
-		// If existing entry is a positive entry (m != nil), we prefer it over implicit directory
-		// because implicit directory is inferred and has Generation 0.
-		// Even if existing is old generation, it's explicit.
-		if e.m != nil {
-			return
-		}
-	}
-
 	// Insert an entry.
 	e := entry{
 		isImplicitDir: true,
