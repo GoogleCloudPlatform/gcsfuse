@@ -37,6 +37,8 @@ type StatCache interface {
 	// The entry will expire after the supplied time.
 	Insert(m *gcs.MinObject, expiration time.Time)
 
+	InsertImplicitDir(objectName string, expiration time.Time)
+
 	// Set up a negative entry for the given name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
 	// negative.
@@ -108,10 +110,11 @@ type statCacheBucketView struct {
 // An entry in the cache, pairing an object with the expiration time for the
 // entry. Nil object means negative entry.
 type entry struct {
-	m          *gcs.MinObject
-	f          *gcs.Folder
-	expiration time.Time
-	key        string
+	m           *gcs.MinObject
+	f           *gcs.Folder
+	expiration  time.Time
+	key         string
+	implicitDir bool
 }
 
 // Size returns the memory-size (resident set size) of the receiver entry.
@@ -195,6 +198,32 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	}
 }
 
+func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration time.Time) {
+	name := sc.key(objectName)
+
+	// Is there already a better entry?
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
+		e := existing.(entry)
+		// If existing entry is a positive entry (m != nil), we prefer it over implicit directory
+		// because implicit directory is inferred and has Generation 0.
+		// Even if existing is old generation, it's explicit.
+		if e.m != nil {
+			return
+		}
+	}
+
+	// Insert an entry.
+	e := entry{
+		implicitDir: true,
+		expiration:  expiration,
+		key:         name,
+	}
+
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
+}
+
 func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
 	name := sc.key(objectName)
 
@@ -236,6 +265,9 @@ func (sc *statCacheBucketView) LookUp(
 	// Look up in the LRU cache.
 	hit, entry := sc.sharedCacheLookup(objectName, now)
 	if hit {
+		if entry.implicitDir {
+			return true, &gcs.MinObject{Name: objectName}
+		}
 		return hit, entry.m
 	}
 
