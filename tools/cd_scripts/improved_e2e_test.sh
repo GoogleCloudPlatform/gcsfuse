@@ -357,7 +357,7 @@ upload_logs() {
         # Retrieve values from the test run
     EXIT_CODE=$(cat /tmp/test_exit_code.txt)
     LOG_FILENAME=$(cat /tmp/test_log_filename.txt)
-    GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${COMMIT_HASH}/${VM_INSTANCE_NAME}/"
+    GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/"
     TIMESTAMP=$(date +%d-%m-%H-%M)
 
     echo "Uploading logs to $GCS_DEST..."
