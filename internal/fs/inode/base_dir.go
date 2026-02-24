@@ -314,7 +314,3 @@ func (d *baseDirInode) Context() context.Context {
 func (d *baseDirInode) IncrementActiveWriters() {}
 
 func (d *baseDirInode) DecrementActiveWriters() {}
-
-func (d *baseDirInode) GetActiveWritersCount() int32 {
-	return 0
-}
