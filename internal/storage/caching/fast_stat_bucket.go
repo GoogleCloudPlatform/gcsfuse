@@ -336,7 +336,15 @@ func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.C
 }
 
 func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	return b.wrapped.CreateAppendableObjectWriter(ctx, req)
+	w, err := b.wrapped.CreateAppendableObjectWriter(ctx, req)
+	var precondErr *gcs.PreconditionError
+	if err != nil && errors.As(err, &precondErr) {
+		// In case of offset mismatch error while attempting to create takeover writer, we will remove the
+		// corresponding stat cache entry since current entry is stale as indicated by the mismatch in the user
+		// expected offset and takeover offset returned by server.
+		b.invalidate(req.Name)
+	}
+	return w, err
 }
 
 func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {

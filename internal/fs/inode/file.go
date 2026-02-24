@@ -1116,7 +1116,15 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		if f.bucket.BucketType().Zonal {
+			// In case of rapid appends, we will rely on kernel's latest view of the object
+			// instead of reaching out to the server for latest metadata.This is done to avoid
+			// forceful overwrites of local and latest object metadata with stale server response.
+			latestGcsObj = storageutil.ConvertMinObjectToObject(&f.src)
+		} else {
+			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		}
+
 		if err != nil {
 			return false, err
 		}
