@@ -15,25 +15,18 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 - **HTTP/2** (`cfg.HTTP2`): Alternative protocol for better multiplexing
 
 **Configuration Options:**
-- `MaxConnsPerHost`: The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications). (Default: 0)
-- `MaxIdleConnsPerHost`: The number of maximum idle connections allowed per server. (Default: 100)
+- `MaxConnsPerHost`: The max number of TCP connections allowed per host. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications). (Default: 0)
+- `MaxIdleConnsPerHost`: The number of maximum idle connections allowed per host. (Default: 100)
 - `HttpClientTimeout`: The time duration that http client will wait to get response from the server. A value of 0 indicates no timeout. (Default: 0s)
-- `ExperimentalEnableJsonRead`: By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead. (Default: false)
+- `ExperimentalEnableJsonRead`: By default, GCSFuse uses the GCS XML API to read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead. (Default: false)
 - `ReadStallRetryConfig`: To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past. (Default: true)
 
 ### 2. gRPC Storage Client (Standard)
 
-**Purpose:** Storage operations using gRPC protocol for better performance and features
-
+**Purpose:** Storage operations using gRPC protocol for better performance and features.
 **Configuration Options:**
 - `GrpcConnPoolSize`: The number of gRPC channel in grpc client. (Default: 1)
 - `EnableGrpcMetrics`: Enables support for gRPC metrics. (Default: false)
-- `ExperimentalLocalSocketAddress`: The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag. (Default: "")
-
-**Features:**
-- DirectPath support via `GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS` environment variable
-- Connection pooling for better throughput
-- gRPC interceptors for tracing and metrics
 
 **When Used:**
 - When `--client-protocol=grpc` is set
@@ -48,7 +41,7 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 
 ### 4. Storage Control Client
 
-**Purpose:** HNS folder operations with default retry logic
+**Purpose:** Handles HNS folder operations and utilizes GetStorageLayout to determine the bucket type using default retry logic.
 
 **Operations:**
 - GetStorageLayout
@@ -80,7 +73,7 @@ Policy:              storage.RetryAlways
 
 ---
 
-### GCSFuse-Level Retry with Stall Detection
+### GCSFuse-Level Control Client Retry with Stall Detection
 
 Implemented [custom retry logic](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/storage/storageutil/retry.go) for Folder APIs to mitigate stall issues and improve request reliability.
 
