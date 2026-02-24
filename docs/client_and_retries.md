@@ -2,7 +2,7 @@
 
 ## Overview
 
-GCSFuse uses multiple network clients to communicate with Google Cloud Storage (GCS) and related services. Each client has specific retry strategies tailored to its use case and the operations it performs.
+GCSFuse uses multiple network clients to communicate with Google Cloud Storage (GCS). Each client has specific retry strategies tailored to its use case and the operations it performs.
 
 ## Network Clients
 
