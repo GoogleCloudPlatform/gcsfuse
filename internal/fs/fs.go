@@ -2955,6 +2955,10 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+	defer func() {
+		logger.Tracef("ReadFile: %d By, Inode: %d, Handle: %d, Offset: %d, ReadSize: %d", op.BytesRead, op.Inode, op.Handle, op.Offset, len(op.Dst))
+	}()
+
 	ctx = fs.getInterruptlessContext(ctx)
 
 	// Find the handle and lock it.
