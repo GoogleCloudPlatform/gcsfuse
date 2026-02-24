@@ -457,3 +457,52 @@ func (t *DirPrefetchTest) TestPrefetch_SkipIfActiveWriters() {
 	assert.Equal(t.T(), prefetchReady, p.state.Load(), "State should remain ready")
 	assert.Equal(t.T(), int32(0), listCallCtr.Load(), "List function should not be called")
 }
+
+// TestPrefetch_RaceWithDeleteChildFile verifies that a slow prefetch triggered by LookUpChild
+// does not overwrite fresh metadata created by a subsequent DeleteChildFile operation.
+func (t *DirPrefetchTest) TestPrefetch_RaceWithDeleteChildFile() {
+	mockListFunc := func(ctx context.Context, tok string, start string, limit int) (map[Name]*Core, []string, string, error) {
+		// Simulate "Stale" data being returned for "file0001".
+		// This simulates the prefetcher finding an old version of the object.
+		res := make(map[Name]*Core)
+		res[Name{objectName: "file0001"}] = &Core{}
+		time.Sleep(700 * time.Millisecond)
+		return res, nil, "", nil
+	}
+	// Initialize the inode's prefetcher with the slow list function.
+	sem := semaphore.NewWeighted(1)
+	t.in.prefetcher = NewMetadataPrefetcher(t.ctx, t.config, sem, &t.clock, mockListFunc, func() bool { return true })
+
+	// 2. Act: Trigger a prefetch and validate that the result got cached.
+	// LookUpChild will trigger p.Run() which starts the background worker.
+	_, err := t.in.LookUpChild(t.ctx, "file0001")
+	require.NoError(t.T(), err)
+	t.in.mu.RLock()
+	cachedType := t.in.cache.Get(t.clock.Now(), "file0001")
+	assert.Equal(t.T(), metadata.RegularFileType, cachedType,
+		"The fresh RegularFile entry should not be overwritten by the stale prefetch result.")
+	t.in.mu.RUnlock()
+
+	// 3. Perform a Write Operation: eg: DeleteFile.
+	// This operation is expected to finish "sooner" than the slow prefetch.
+	// It calls CancelCurrDirPrefetcher() internally.
+	var metaGen int64 = 1
+	err = t.in.DeleteChildFile(t.ctx, "file0001", 1, &metaGen)
+	require.NoError(t.T(), err)
+	// Verify DeleteChildFile correctly updated the cache with "Fresh" data.
+	t.in.mu.RLock()
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file0001"))
+	t.in.mu.RUnlock()
+
+	// Wait for the prefetcher state to return to 'Ready', meaning the worker is done.
+	assert.Eventually(t.T(), func() bool {
+		return t.in.prefetcher.state.Load() == prefetchReady
+	}, 1*time.Second, 10*time.Millisecond)
+
+	// 5. Final Assertion: The "stale" data from list must NOT be written to the cache.
+	t.in.mu.RLock()
+	cachedType = t.in.cache.Get(t.clock.Now(), "file0001")
+	assert.Equal(t.T(), metadata.UnknownType, cachedType,
+		"The fresh RegularFile entry should not be overwritten by the stale prefetch result.")
+	t.in.mu.RUnlock()
+}
