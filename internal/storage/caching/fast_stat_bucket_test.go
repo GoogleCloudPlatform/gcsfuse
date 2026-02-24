@@ -281,6 +281,26 @@ func (t *CreateAppendableObjectWriterTest) WrappedSucceeds() {
 	ExpectEq(wr, gotWr)
 }
 
+func (t *CreateAppendableObjectWriterTest) WrappedReturnsPreconditionError() {
+	const name = "taco"
+	ctx := context.TODO()
+	req := &gcs.CreateObjectChunkWriterRequest{
+		CreateObjectRequest: gcs.CreateObjectRequest{
+			Name: name,
+		},
+	}
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("precondition failed")}))
+
+	// Call
+	_, err := t.bucket.CreateAppendableObjectWriter(ctx, req)
+
+	ExpectThat(err, Error(HasSubstr("precondition failed")))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // FinalizeUpload
 ////////////////////////////////////////////////////////////////////////
