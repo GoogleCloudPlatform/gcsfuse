@@ -349,6 +349,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initialized)
 	t.bucket.AssertExpectations(t.T())
+	t.bucket.AssertNotCalled(t.T(), "StatObject", mock.Anything, mock.Anything)
 }
 
 func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_RegionalBucket_FetchesLatestMetadataFromGCS() {
