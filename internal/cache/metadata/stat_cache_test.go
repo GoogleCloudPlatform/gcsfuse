@@ -604,6 +604,7 @@ func (t *StatCacheTest) Test_InsertImplicitDir() {
 	t.cache.InsertImplicitDir(name, expiration)
 
 	m := t.cache.LookUpOrNil(name, someTime)
+
 	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), name, m.Name)
 	assert.Equal(t.T(), int64(0), m.Generation)
@@ -613,9 +614,7 @@ func (t *StatCacheTest) Test_ImplicitDirSizeEfficiency() {
 	// Standard entry size ~1640 bytes (according to Test_FillUpToCapacity comments).
 	// Implicit entry size should be much smaller (around 100-200 bytes).
 	// So we should be able to store many more implicit entries than explicit ones.
-
 	// capacity is 3 in SetupTest. Max size = 3 * (AvgPos + AvgNeg) ~= 5000 bytes.
-
 	// 1. Fill with implicit dirs
 	// Insert 20 implicit dirs. They should all fit if size is small.
 	for i := 0; i < 20; i++ {
@@ -645,8 +644,8 @@ func (t *StatCacheTest) Test_InsertImplicitDir_DoesNotOverwriteExplicit() {
 func (t *StatCacheTest) Test_Insert_OverwritesImplicitDir() {
 	const name = "dir/"
 	t.statCache.InsertImplicitDir(name, expiration)
-
 	m := &gcs.MinObject{Name: name, Generation: 1}
+
 	t.statCache.Insert(m, expiration)
 
 	hit, result := t.statCache.LookUp(name, someTime)
