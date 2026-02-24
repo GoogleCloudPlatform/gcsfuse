@@ -30,7 +30,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-type RecursiveCancellationTest struct {
+type RecursivePrefetchCancellationTest struct {
 	suite.Suite
 	bucket gcsx.SyncerBucket
 	fake   gcs.Bucket
@@ -38,7 +38,7 @@ type RecursiveCancellationTest struct {
 	config *cfg.Config
 }
 
-func (t *RecursiveCancellationTest) SetupTest() {
+func (t *RecursivePrefetchCancellationTest) SetupTest() {
 	t.clock.SetTime(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	t.fake = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
 	t.bucket = gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", t.fake)
@@ -53,7 +53,7 @@ func (t *RecursiveCancellationTest) SetupTest() {
 	}
 }
 
-func (t *RecursiveCancellationTest) createDirInode(name Name, parentCtx context.Context) *dirInode {
+func (t *RecursivePrefetchCancellationTest) createDirInode(name Name, parentCtx context.Context) *dirInode {
 	in := NewDirInode(
 		fuseops.RootInodeID+1, // ID doesn't matter much
 		name,
@@ -71,7 +71,7 @@ func (t *RecursiveCancellationTest) createDirInode(name Name, parentCtx context.
 	return in.(*dirInode)
 }
 
-func (t *RecursiveCancellationTest) TestRecursiveCancellation() {
+func (t *RecursivePrefetchCancellationTest) TestRecursiveCancellation() {
 	// Root dir
 	rootDir := t.createDirInode(NewRootName(""), nil)
 
@@ -98,5 +98,5 @@ func (t *RecursiveCancellationTest) TestRecursiveCancellation() {
 }
 
 func TestRecursiveCancellationSuite(t *testing.T) {
-	suite.Run(t, new(RecursiveCancellationTest))
+	suite.Run(t, new(RecursivePrefetchCancellationTest))
 }

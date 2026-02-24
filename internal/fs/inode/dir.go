@@ -1061,8 +1061,7 @@ func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Na
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, error) {
-	d.CancelCurrDirPrefetcher()
-
+	// No need to cancel prefetch here as creation of new file can not lead to stale data in metadata cache.
 	childMetadata := map[string]string{
 		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
@@ -1109,6 +1108,10 @@ func (d *dirInode) EraseFromTypeCache(name string) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
+	// Increment active writers on the directory so no new prefetch gets triggered until the write operation completes.
+	d.IncrementActiveWriters()
+	defer d.DecrementActiveWriters()
+	// Cancel prefetch of the current directory only.
 	d.CancelCurrDirPrefetcher()
 
 	if !d.IsTypeCacheDeprecated() {
@@ -1144,7 +1147,7 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error) {
-	d.CancelCurrDirPrefetcher()
+	// No need to cancel prefetch here as creation of new symlink can not lead to stale data in metadata cache.
 
 	fullName := NewFileName(d.Name(), name)
 	childMetadata := map[string]string{
@@ -1170,8 +1173,7 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
-	d.CancelCurrDirPrefetcher()
-
+	// No need to cancel prefetch here as creation of new file can not lead to stale data in metadata cache.
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
 	var m *gcs.MinObject
@@ -1215,7 +1217,12 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
-	d.CancelCurrDirPrefetcher() // Invalidate parent listing
+	// Increment active writers on the directory so no new prefetch gets triggered until the write operation completes.
+	d.IncrementActiveWriters()
+	defer d.DecrementActiveWriters()
+	// Cancel prefetch of the current directory only.
+	d.CancelCurrDirPrefetcher()
+
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -1249,6 +1256,10 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool,
 	dirInode DirInode) error {
+	// Increment active writers on the directory so no new prefetch gets triggered until the write operation completes.
+	d.IncrementActiveWriters()
+	defer d.DecrementActiveWriters()
+	// Cancel prefetch of the current directory only.
 	d.CancelCurrDirPrefetcher()
 
 	if dirInode != nil {
@@ -1447,6 +1458,11 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 // LOCKS_REQUIRED(d)
 // LOCKS_REQUIRED(parent of destinationFileName)
 func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
+	// Increment active writers on the src dir so no new prefetch gets triggered until the write operation completes.
+	// Note that prefetch on dest directory can still continue because it will not have stale data (only missing renamed file).
+	d.IncrementActiveWriters()
+	defer d.DecrementActiveWriters()
+	// Cancel prefetch of the current directory only.
 	d.CancelCurrDirPrefetcher()
 
 	req := &gcs.MoveObjectRequest{
@@ -1467,6 +1483,10 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 }
 
 func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string, folderInode DirInode) (*gcs.Folder, error) {
+	// Increment active writers on the directory so no new prefetch gets triggered until the write operation completes.
+	d.IncrementActiveWriters()
+	defer d.DecrementActiveWriters()
+	// Cancel prefetch of the current directory.
 	d.CancelCurrDirPrefetcher()
 
 	if folderInode != nil {
