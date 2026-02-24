@@ -210,9 +210,6 @@ type DirInode interface {
 	// DecrementActiveWriters decrements the active writer count for this directory.
 	// This should be called after any write operation within this directory completes.
 	DecrementActiveWriters()
-
-	// GetActiveWritersCount returns the current number of active writers in this directory.
-	GetActiveWritersCount() int32
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -361,7 +358,7 @@ func NewDirInode(
 	// acquiring d.mu only to update the cache.
 	// We pass a callback to check if there are active writers, to prevent prefetching during writes.
 	typed.prefetcher = NewMetadataPrefetcher(ctx, cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked, func() bool {
-		return typed.GetActiveWritersCount() == 0
+		return typed.activeWriters.Load() == 0
 	})
 
 	var cache metadata.TypeCache
@@ -814,10 +811,6 @@ func (d *dirInode) IncrementActiveWriters() {
 
 func (d *dirInode) DecrementActiveWriters() {
 	d.activeWriters.Add(-1)
-}
-
-func (d *dirInode) GetActiveWritersCount() int32 {
-	return d.activeWriters.Load()
 }
 
 // LOCKS_REQUIRED(d)

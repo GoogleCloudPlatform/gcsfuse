@@ -96,7 +96,7 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 	// 2. metadata cache ttl is 0 (disabled).
 	// 3. stat cache size is 0.
 	// 4. The inode context is nil or already cancelled (dir inode is dead/renamed).
-	// 5. If there are active writers in the directory, do not trigger prefetch.
+	// 5. If there are active writers in the directory, do not trigger prefetch. This is determined by shouldRun function.
 	if !p.enabled || p.metadataCacheTTL == 0 || p.statCacheSize == 0 || p.inodeCtx == nil || p.inodeCtx.Err() != nil || !p.shouldRun() {
 		return
 	}

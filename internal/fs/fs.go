@@ -686,21 +686,6 @@ func (fs *fileSystem) findParentDirInode(childName inode.Name) inode.DirInode {
 	return nil
 }
 
-func (fs *fileSystem) cancelParentPrefetchAndIncWriters(in inode.Inode) func() {
-	fs.mu.Lock()
-	parent := fs.findParentDirInode(in.Name())
-	fs.mu.Unlock()
-
-	if parent != nil {
-		parent.IncrementActiveWriters()
-		parent.CancelCurrDirPrefetcher()
-		return func() {
-			parent.DecrementActiveWriters()
-		}
-	}
-	return func() {}
-}
-
 func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 	// INVARIANT: For each k/v, v.Name() == k
 	for k, v := range fs.localFileInodes {
@@ -1379,10 +1364,6 @@ func (fs *fileSystem) flushFile(
 		return nil
 	}
 
-	// Increment writers and cancel prefetch
-	cleanup := fs.cancelParentPrefetchAndIncWriters(f)
-	defer cleanup()
-
 	// Flush the inode.
 	err := f.Flush(ctx)
 	if err != nil {
@@ -1412,10 +1393,6 @@ func (fs *fileSystem) syncFile(
 	if f.IsUnlinked() {
 		return nil
 	}
-
-	// Increment writers and cancel prefetch
-	cleanup := fs.cancelParentPrefetchAndIncWriters(f)
-	defer cleanup()
 
 	// Sync the inode.
 	gcsSynced, err := f.Sync(ctx)
@@ -1936,10 +1913,6 @@ func (fs *fileSystem) SetInodeAttributes(
 	in := fs.inodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
-	// Increment writers and cancel prefetch
-	cleanup := fs.cancelParentPrefetchAndIncWriters(in)
-	defer cleanup()
-
 	in.Lock()
 	defer in.Unlock()
 	file, isFile := in.(*inode.FileInode)
@@ -2009,11 +1982,6 @@ func (fs *fileSystem) MkDir(
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
-
-	// Increment writers and cancel prefetch
-	parent.IncrementActiveWriters()
-	parent.CancelCurrDirPrefetcher()
-	defer parent.DecrementActiveWriters()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
@@ -2102,11 +2070,6 @@ func (fs *fileSystem) createFile(
 	parent := fs.dirInodeOrDie(parentID)
 	fs.mu.Unlock()
 
-	// Increment writers and cancel prefetch
-	parent.IncrementActiveWriters()
-	parent.CancelCurrDirPrefetcher()
-	defer parent.DecrementActiveWriters()
-
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
@@ -2146,11 +2109,6 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
-
-	// Increment writers and cancel prefetch
-	parent.IncrementActiveWriters()
-	parent.CancelCurrDirPrefetcher()
-	defer parent.DecrementActiveWriters()
 
 	defer func() {
 		if err != nil {
@@ -2269,11 +2227,6 @@ func (fs *fileSystem) CreateSymlink(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
-	// Increment writers and cancel prefetch
-	parent.IncrementActiveWriters()
-	parent.CancelCurrDirPrefetcher()
-	defer parent.DecrementActiveWriters()
-
 	// Create the object in GCS, failing if it already exists.
 	parent.Lock()
 	result, err := parent.CreateChildSymlink(ctx, op.Name, op.Target)
@@ -2337,11 +2290,6 @@ func (fs *fileSystem) RmDir(
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
-
-	// Increment writers and cancel prefetch
-	parent.IncrementActiveWriters()
-	parent.CancelCurrDirPrefetcher()
-	defer parent.DecrementActiveWriters()
 
 	// Find or create the child inode, locked.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
@@ -2457,18 +2405,6 @@ func (fs *fileSystem) Rename(
 	oldParent := fs.dirInodeOrDie(op.OldParent)
 	newParent := fs.dirInodeOrDie(op.NewParent)
 	fs.mu.Unlock()
-
-	// Increment writers and cancel prefetch for old parent
-	oldParent.IncrementActiveWriters()
-	oldParent.CancelCurrDirPrefetcher()
-	defer oldParent.DecrementActiveWriters()
-
-	// Increment writers and cancel prefetch for new parent
-	if newParent != oldParent {
-		newParent.IncrementActiveWriters()
-		newParent.CancelCurrDirPrefetcher()
-		defer newParent.DecrementActiveWriters()
-	}
 
 	if oldParentInode, ok := oldParent.(inode.BucketOwnedInode); !ok {
 		// The old parent is not owned by any bucket, which means it's the base
@@ -2861,11 +2797,6 @@ func (fs *fileSystem) Unlink(
 
 	fs.mu.Unlock()
 
-	// Increment writers and cancel prefetch
-	parent.IncrementActiveWriters()
-	parent.CancelCurrDirPrefetcher()
-	defer parent.DecrementActiveWriters()
-
 	if in != nil {
 		// Perform the unlink operation on the inode.
 		in.Lock()
@@ -3188,10 +3119,6 @@ func (fs *fileSystem) WriteFile(
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
-
-	// Increment writers and cancel prefetch
-	cleanup := fs.cancelParentPrefetchAndIncWriters(in)
-	defer cleanup()
 
 	var gcsSynced bool
 	in.Lock()
