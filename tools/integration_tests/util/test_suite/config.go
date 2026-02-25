@@ -17,7 +17,6 @@ package test_suite
 import (
 	"log"
 	"os"
-	"path"
 
 	"gopkg.in/yaml.v3"
 )
@@ -85,47 +84,6 @@ type Config struct {
 	UnsupportedPath       []TestConfig `yaml:"unsupported_path"`
 }
 
-func processTestConfigs(configs []TestConfig) {
-	for i := range configs {
-		if configs[i].OnlyDir != "" && configs[i].GKEMountedDirectory != "" {
-			// Add onlyDir infront of bucket_name incase of mounted dir
-			configs[i].TestBucket = path.Join(configs[i].TestBucket, configs[i].OnlyDir)
-		}
-	}
-}
-
-func (c *Config) postProcessConfig() {
-	processTestConfigs(c.ImplicitDir)
-	processTestConfigs(c.ExplicitDir)
-	processTestConfigs(c.ListLargeDir)
-	processTestConfigs(c.WriteLargeFiles)
-	processTestConfigs(c.Operations)
-	processTestConfigs(c.ReadLargeFiles)
-	processTestConfigs(c.ReadOnly)
-	processTestConfigs(c.ReadCache)
-	processTestConfigs(c.RenameDirLimit)
-	processTestConfigs(c.Gzip)
-	processTestConfigs(c.LocalFile)
-	processTestConfigs(c.LogRotation)
-	processTestConfigs(c.ManagedFolders)
-	processTestConfigs(c.ConcurrentOperations)
-	processTestConfigs(c.Benchmarking)
-	processTestConfigs(c.StaleHandle)
-	processTestConfigs(c.StreamingWrites)
-	processTestConfigs(c.InactiveStreamTimeout)
-	processTestConfigs(c.CloudProfiler)
-	processTestConfigs(c.KernelListCache)
-	processTestConfigs(c.ReadDirPlus)
-	processTestConfigs(c.DentryCache)
-	processTestConfigs(c.ReadGCSAlgo)
-	processTestConfigs(c.Interrupt)
-	processTestConfigs(c.UnfinalizedObject)
-	processTestConfigs(c.RapidAppends)
-	processTestConfigs(c.MountTimeout)
-	processTestConfigs(c.Monitoring)
-	processTestConfigs(c.FlagOptimizations)
-}
-
 // ReadConfigFile returns a Config struct from the YAML file.
 func ReadConfigFile(configFilePath string) Config {
 	var cfg Config
@@ -140,6 +98,5 @@ func ReadConfigFile(configFilePath string) Config {
 		}
 	}
 
-	cfg.postProcessConfig()
 	return cfg
 }
