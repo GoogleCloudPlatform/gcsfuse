@@ -55,6 +55,11 @@ func getDiskUsage(entry fs.DirEntry) int64 {
 }
 
 // DirLocker is an interface for locking directories during traversal or modification.
+// Providing this interface allows the concurrent directory scanning and pruning
+// routines to interoperate safely with actively mutating components (like background
+// downloaders or file handlers). Implementations of this interface (such as
+// SharedDirLocker) can use mechanisms like striped locking to minimize contention
+// across unrelated directory paths.
 type DirLocker interface {
 	// ReadLock should be invoked before listing/creating/deleting any files in the given directory.
 	ReadLock(path string)
@@ -66,25 +71,37 @@ type DirLocker interface {
 	WriteUnlock(path string)
 }
 
+// GetSizeOnDisk calculates the total disk size used by a directory.
 func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, error) {
 	return GetSizeOnDiskWithLocker(dirPath, onlyDirs, ignoreErrors, nil)
 }
 
+// GetSizeOnDiskWithLocker calculates the total disk space utilized by all files
+// and subdirectories within a given directory, executing recursively and concurrently.
+// It allows passing a DirLocker to safely acquire read locks on directories before
+// traversing them, ensuring that they are not concurrently removed while we list them.
 func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, locker DirLocker) (uint64, error) {
 	var sizeOnDisk int64
+
+	// Determine the semaphore size based on available CPUs to prevent overwhelming
+	// the I/O subsystem and CPU with too many concurrent disk operations.
 	semSize := int(math.Ceil(float64(runtime.NumCPU()) * cpuUtilizationPercentageForDiskSizeCalculation))
 	if semSize < 1 {
 		semSize = 1
 	}
+	// The semaphore bounds the number of concurrent walkDir goroutines actively processing.
 	var sem = make(chan struct{}, semSize)
+	// WaitGroup ensures we wait for all active recursive traversals to finish before returning.
 	var wg sync.WaitGroup
+	// errMu protects the firstErr variable to prevent concurrent write issues.
 	var errMu sync.Mutex
 
 	// firstErr captures the first error encountered during the concurrent walk.
-	// It is only used/populated when ignoreErrors is false.
+	// It is only used/populated when ignoreErrors is false to fail-fast.
 	var firstErr error
 
-	// Add the size of the root directory itself
+	// Add the size of the root directory itself.
+	// This ensures we account for the initial metadata footprint of the cache dir.
 	info, err := os.Stat(dirPath)
 	if err != nil {
 		if !ignoreErrors {
@@ -94,12 +111,17 @@ func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, l
 		sizeOnDisk = getDiskUsageFromInfo(info)
 	}
 
+	// walkDir recursively traverses the directory structure concurrently.
 	var walkDir func(dir string)
 	walkDir = func(dir string) {
 		defer wg.Done()
+
+		// Acquire semaphore slot to control the maximum number of concurrent goroutines.
 		sem <- struct{}{}
 		defer func() { <-sem }()
 
+		// Acquire read lock to prevent the directory from being deleted or renamed
+		// while we are inspecting its contents.
 		if locker != nil {
 			locker.ReadLock(dir)
 			defer locker.ReadUnlock(dir)
@@ -107,6 +129,7 @@ func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, l
 
 		if !ignoreErrors {
 			errMu.Lock()
+			// Abort early if an error was already encountered by another goroutine.
 			if firstErr != nil {
 				errMu.Unlock()
 				return
@@ -118,6 +141,7 @@ func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, l
 		if err != nil {
 			if !ignoreErrors {
 				errMu.Lock()
+				// Only capture the first error so we don't spam the log or overwrite the root cause.
 				if firstErr == nil {
 					firstErr = fmt.Errorf("failed to read dir %q: %w", dir, err)
 				}
@@ -129,10 +153,11 @@ func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, l
 		for _, entry := range entries {
 			if entry.IsDir() {
 				wg.Add(1)
+				// Spawn a new goroutine for each subdirectory.
 				go walkDir(filepath.Join(dir, entry.Name()))
 
-				// Directories themselves also take up space on disk (metadata)
-				// We should count the directory's own block usage too.
+				// Directories themselves also take up space on disk (metadata block allocation).
+				// We must count the directory's own block usage too.
 				atomic.AddInt64(&sizeOnDisk, getDiskUsage(entry))
 			} else if !onlyDirs {
 				atomic.AddInt64(&sizeOnDisk, getDiskUsage(entry))
@@ -142,6 +167,8 @@ func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, l
 
 	wg.Add(1)
 	walkDir(dirPath)
+
+	// Wait for all spawned goroutines to finish traversal.
 	wg.Wait()
 
 	if firstErr != nil {
@@ -154,6 +181,9 @@ func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, l
 	return uint64(sizeOnDisk), nil
 }
 
+// GetSpeculativeFileSizeOnDisk calculates the theoretical disk space a file will
+// consume given its actual content size and the filesystem's block size. It rounds
+// up the content size to the nearest block boundary to simulate block allocation.
 func GetSpeculativeFileSizeOnDisk(fileContentSize uint64, volumeBlockSize uint64) uint64 {
 	if volumeBlockSize == 0 {
 		return 0
@@ -198,6 +228,7 @@ func removeEmptyDirs(dir string, locker DirLocker) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		// If we can't read the directory, we assume it's not safe to consider it empty.
+		// Missing permissions or parallel deletion by another process usually triggers this.
 		return false
 	}
 
@@ -205,11 +236,13 @@ func removeEmptyDirs(dir string, locker DirLocker) bool {
 	for _, entry := range entries {
 		if entry.IsDir() {
 			fullPath := filepath.Join(dir, entry.Name())
-			// Recurse first (post-order traversal).
+			// Recurse first (post-order traversal). This ensures that leaf nodes are evaluated
+			// and removed before we evaluate whether their parent directory is empty.
 			childEmpty := removeEmptyDirs(fullPath, locker)
 
 			if childEmpty {
 				// If the child directory is empty (or became empty), attempt to remove it.
+				// We acquire an exclusive WriteLock because os.Remove mutates the directory.
 				if locker != nil {
 					locker.WriteLock(fullPath)
 					err = os.Remove(fullPath)
@@ -219,7 +252,8 @@ func removeEmptyDirs(dir string, locker DirLocker) bool {
 				}
 
 				if err != nil {
-					// Failed to remove (e.g. permissions), so this directory is not effectively empty.
+					// Failed to remove (e.g. permissions, or a file was concurrently added
+					// resulting in ENOTEMPTY or EEXIST), so this directory is not effectively empty.
 					isEmpty = false
 				}
 			} else {

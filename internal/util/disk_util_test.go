@@ -81,18 +81,15 @@ func (ts *DiskUtilTest) TestGetSizeOnDisk_Normal() {
 	_, err = f.Write([]byte("hello"))
 	require.NoError(ts.T(), err)
 	f.Close()
-
 	// Act
 	size, err := GetSizeOnDisk(tempDir, false, false)
-
 	// Assert
 	require.NoError(ts.T(), err)
-	// On some filesystems (like tmpfs), directories take 0 blocks.
-	// File takes 4096 bytes (8 blocks). Root dir takes 0. Total 4096.
-	require.GreaterOrEqual(ts.T(), size, uint64(4096))
+	// We just check it's > 0 since precise block allocations vary across OS and FS.
+	require.Greater(ts.T(), size, uint64(0))
 }
 
-func (ts *DiskUtilTest) TestGetSizeOnDisk_OnlyDirs() {
+func (ts *DiskUtilTest) TestGetSizeOnDisk_OnlyDirectories() {
 	// Arrange
 	tempDir := ts.T().TempDir()
 	f, err := os.CreateTemp(tempDir, "testfile")
@@ -100,17 +97,44 @@ func (ts *DiskUtilTest) TestGetSizeOnDisk_OnlyDirs() {
 	_, err = f.Write([]byte("hello"))
 	require.NoError(ts.T(), err)
 	f.Close()
-
 	subDir := filepath.Join(tempDir, "subdir")
 	require.NoError(ts.T(), os.Mkdir(subDir, 0755))
-
 	// Act
 	size, err := GetSizeOnDisk(tempDir, true, false)
-
 	// Assert
 	require.NoError(ts.T(), err)
 	// On tmpfs, directories take 0 blocks. So size might be 0.
 	require.GreaterOrEqual(ts.T(), size, uint64(0))
+}
+
+func (ts *DiskUtilTest) TestGetSizeOnDisk_BothDirectoriesAndFiles() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+	// Add a file
+	f, err := os.CreateTemp(tempDir, "testfile")
+	require.NoError(ts.T(), err)
+	_, err = f.Write([]byte("hello world"))
+	require.NoError(ts.T(), err)
+	f.Close()
+	// Add a subdirectory
+	subDir := filepath.Join(tempDir, "subdir")
+	require.NoError(ts.T(), os.Mkdir(subDir, 0755))
+	// Add a file in the subdirectory
+	subFile, err := os.CreateTemp(subDir, "subtestfile")
+	require.NoError(ts.T(), err)
+	_, err = subFile.Write([]byte("nested hello world"))
+	require.NoError(ts.T(), err)
+	subFile.Close()
+	// Act
+	sizeWithFiles, err := GetSizeOnDisk(tempDir, false, false)
+	require.NoError(ts.T(), err)
+	sizeOnlyDirs, err := GetSizeOnDisk(tempDir, true, false)
+	require.NoError(ts.T(), err)
+	// Assert
+	require.Greater(ts.T(), sizeWithFiles, uint64(0))
+	require.GreaterOrEqual(ts.T(), sizeOnlyDirs, uint64(0))
+	// Files take up extra space, so total size should be strictly greater than dir-only size
+	require.Greater(ts.T(), sizeWithFiles, sizeOnlyDirs)
 }
 
 func (ts *DiskUtilTest) TestGetSizeOnDisk_PermissionDenied_NoIgnore() {
@@ -123,10 +147,8 @@ func (ts *DiskUtilTest) TestGetSizeOnDisk_PermissionDenied_NoIgnore() {
 		err := os.Chmod(subDir, 0755)
 		require.NoError(ts.T(), err)
 	}()
-
 	// Act
 	_, err := GetSizeOnDisk(tempDir, false, false)
-
 	// Assert
 	require.Error(ts.T(), err)
 }
@@ -147,10 +169,8 @@ func (ts *DiskUtilTest) TestGetSizeOnDisk_PermissionDenied_Ignore() {
 		err := os.Chmod(subDir, 0755)
 		require.NoError(ts.T(), err)
 	}()
-
 	// Act
 	size, err := GetSizeOnDisk(tempDir, false, true)
-
 	// Assert
 	require.NoError(ts.T(), err)
 	// We might or might not get size > 0 depending on whether we count the blocked directory itself.
@@ -161,10 +181,8 @@ func (ts *DiskUtilTest) TestGetSizeOnDisk_PermissionDenied_Ignore() {
 func (ts *DiskUtilTest) TestGetVolumeBlockSize() {
 	// Arrange
 	tempDir := ts.T().TempDir()
-
 	// Act
 	blockSize, err := GetVolumeBlockSize(tempDir)
-
 	// Assert
 	require.NoError(ts.T(), err)
 	// Block size is typically a power of 2 (e.g., 4096).
@@ -186,46 +204,52 @@ func (ts *DiskUtilTest) TestRemoveEmptyDirs() {
 	//   nestedNonEmptyDir/
 	//     level2/
 	//       file.txt
-
 	emptyDir := filepath.Join(tempDir, "emptyDir")
 	require.NoError(ts.T(), os.Mkdir(emptyDir, 0755))
-
 	nonEmptyDir := filepath.Join(tempDir, "nonEmptyDir")
 	require.NoError(ts.T(), os.Mkdir(nonEmptyDir, 0755))
 	f, err := os.Create(filepath.Join(nonEmptyDir, "file.txt"))
 	require.NoError(ts.T(), err)
 	f.Close()
-
 	nestedEmptyDir := filepath.Join(tempDir, "nestedEmptyDir")
 	require.NoError(ts.T(), os.MkdirAll(filepath.Join(nestedEmptyDir, "level2"), 0755))
-
 	nestedNonEmptyDir := filepath.Join(tempDir, "nestedNonEmptyDir")
 	require.NoError(ts.T(), os.MkdirAll(filepath.Join(nestedNonEmptyDir, "level2"), 0755))
 	f2, err := os.Create(filepath.Join(nestedNonEmptyDir, "level2", "file.txt"))
 	require.NoError(ts.T(), err)
 	f2.Close()
-
 	// Act
 	RemoveEmptyDirs(tempDir)
-
 	// Assert
 	// emptyDir should be gone
 	_, err = os.Stat(emptyDir)
 	require.True(ts.T(), os.IsNotExist(err))
-
 	// nonEmptyDir should exist
 	_, err = os.Stat(nonEmptyDir)
 	require.NoError(ts.T(), err)
-
 	// nestedEmptyDir should be gone (both level2 and parent)
 	_, err = os.Stat(nestedEmptyDir)
 	require.True(ts.T(), os.IsNotExist(err))
-
 	// nestedNonEmptyDir should exist
 	_, err = os.Stat(nestedNonEmptyDir)
 	require.NoError(ts.T(), err)
-
 	// nestedNonEmptyDir/level2 should exist
 	_, err = os.Stat(filepath.Join(nestedNonEmptyDir, "level2"))
+	require.NoError(ts.T(), err)
+}
+
+func (ts *DiskUtilTest) TestRemoveEmptyDirs_CompletelyEmptyRoot() {
+	// Arrange
+	tempDir := ts.T().TempDir()
+	// Verify it's effectively empty to start with
+	entries, err := os.ReadDir(tempDir)
+	require.NoError(ts.T(), err)
+	require.Empty(ts.T(), entries)
+	// Act
+	RemoveEmptyDirs(tempDir)
+	// Assert
+	// The root directory passed to RemoveEmptyDirs should NEVER be deleted,
+	// even if it is completely empty.
+	_, err = os.Stat(tempDir)
 	require.NoError(ts.T(), err)
 }
