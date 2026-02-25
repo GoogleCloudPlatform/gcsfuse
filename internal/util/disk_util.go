@@ -17,6 +17,7 @@ package util
 import (
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -24,6 +25,9 @@ import (
 	"sync/atomic"
 	"syscall"
 )
+
+// The percentage of total CPUs to be used for the concurrent disk size calculation.
+const cpuUtilizationPercentageForDiskSizeCalculation = 0.20
 
 // getDiskUsageFromInfo extracts the allocated size from the system specific info
 func getDiskUsageFromInfo(info fs.FileInfo) int64 {
@@ -68,7 +72,10 @@ func GetSizeOnDisk(dirPath string, onlyDirs bool, ignoreErrors bool) (uint64, er
 
 func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, locker DirLocker) (uint64, error) {
 	var sizeOnDisk int64
-	semSize := (runtime.NumCPU() + 4) / 5
+	semSize := int(math.Ceil(float64(runtime.NumCPU()) * cpuUtilizationPercentageForDiskSizeCalculation))
+	if semSize < 1 {
+		semSize = 1
+	}
 	var sem = make(chan struct{}, semSize)
 	var wg sync.WaitGroup
 	var errMu sync.Mutex
@@ -142,7 +149,7 @@ func GetSizeOnDiskWithLocker(dirPath string, onlyDirs bool, ignoreErrors bool, l
 	}
 
 	if sizeOnDisk < 0 {
-		return 0, fmt.Errorf("Something failed while calculating disk utilization of %q", dirPath)
+		return 0, fmt.Errorf("disk utilization calculation resulted in a negative value for %q: %d", dirPath, sizeOnDisk)
 	}
 	return uint64(sizeOnDisk), nil
 }
@@ -186,6 +193,8 @@ func RemoveEmptyDirsWithLocker(dir string, locker DirLocker) {
 // It returns true if the directory is effectively empty (contains no files and
 // all subdirectories were successfully removed), and false otherwise.
 func removeEmptyDirs(dir string, locker DirLocker) bool {
+	// ReadDir can only compete with the cached file creation/deletion operations
+	// which shouldn't have a destructive impact on the ReadDir call, so we need not lock it.
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		// If we can't read the directory, we assume it's not safe to consider it empty.
