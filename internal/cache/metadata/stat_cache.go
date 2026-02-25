@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -205,6 +206,8 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
 		e := existing.(entry)
+		// The ListObject function returns explicit directory objects in both the MinObject and CollapseRun lists.
+		// Since these objects are already captured in the MinObject collection, we no longer need to overwrite or re-add them during the CollapseRun iteration.
 		// If existing entry is a positive entry (m != nil), we prefer it over implicit directory
 		// because implicit directory is inferred and has Generation 0.
 		// Even if existing is old generation, it's explicit.
@@ -221,7 +224,7 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
-		panic(err)
+		logger.Errorf("Failed to insert implicit dir stat cache entry for %q: %v", name, err)
 	}
 }
 
