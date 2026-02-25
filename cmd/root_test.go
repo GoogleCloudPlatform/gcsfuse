@@ -570,45 +570,51 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 		expectedConfig *cfg.Config
 	}{
 		{
-			name: "Test file cache flags.",
+			name: "Test_file_cache_flags",
 			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-exclude-regex=.*", "--file-cache-include-regex=.*", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				CacheDir: "/some/valid/dir",
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:                  true,
-					DownloadChunkSizeMb:                    20,
-					EnableCrc:                              true,
-					EnableParallelDownloads:                true,
-					ExcludeRegex:                           ".*",
-					IncludeRegex:                           ".*",
-					ExperimentalParallelDownloadsDefaultOn: true,
-					MaxParallelDownloads:                   40,
-					MaxSizeMb:                              100,
-					ParallelDownloadsPerFile:               2,
-					SharedCacheChunkSizeMb:                 8,
-					WriteBufferSize:                        4 * 1024 * 1024,
-					EnableODirect:                          false,
+					CacheFileForRangeRead:                    true,
+					DownloadChunkSizeMb:                      20,
+					EnableCrc:                                true,
+					EnableParallelDownloads:                  true,
+					ExcludeRegex:                             ".*",
+					IncludeRegex:                             ".*",
+					ExperimentalParallelDownloadsDefaultOn:   true,
+					MaxParallelDownloads:                     40,
+					MaxSizeMb:                                100,
+					ParallelDownloadsPerFile:                 2,
+					SharedCacheChunkSizeMb:                   8,
+					ExperimentalEnableSizeCalculationFix:     false,
+					ExperimentalDeleteEmptyDirs:              true,
+					ExperimentalSizeCalculationFrequencySecs: cfg.DefaultFileCacheSizeScanFrequencySecs,
+					WriteBufferSize:                          4 * 1024 * 1024,
+					EnableODirect:                            false,
 				},
 			},
 		},
 		{
-			name: "Test default file cache flags.",
+			name: "Test_default_file_cache_flags",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:                  false,
-					DownloadChunkSizeMb:                    200,
-					EnableCrc:                              false,
-					EnableParallelDownloads:                false,
-					ExcludeRegex:                           "",
-					IncludeRegex:                           "",
-					ExperimentalParallelDownloadsDefaultOn: true,
-					MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
-					MaxSizeMb:                              -1,
-					ParallelDownloadsPerFile:               16,
-					SharedCacheChunkSizeMb:                 8,
-					WriteBufferSize:                        4 * 1024 * 1024,
-					EnableODirect:                          false,
+					CacheFileForRangeRead:                    false,
+					DownloadChunkSizeMb:                      200,
+					EnableCrc:                                false,
+					EnableParallelDownloads:                  false,
+					ExcludeRegex:                             "",
+					IncludeRegex:                             "",
+					ExperimentalParallelDownloadsDefaultOn:   true,
+					MaxParallelDownloads:                     int64(max(16, 2*runtime.NumCPU())),
+					MaxSizeMb:                                -1,
+					ParallelDownloadsPerFile:                 16,
+					SharedCacheChunkSizeMb:                   8,
+					ExperimentalEnableSizeCalculationFix:     false,
+					ExperimentalDeleteEmptyDirs:              true,
+					ExperimentalSizeCalculationFrequencySecs: cfg.DefaultFileCacheSizeScanFrequencySecs,
+					WriteBufferSize:                          4 * 1024 * 1024,
+					EnableODirect:                            false,
 				},
 			},
 		},
@@ -2845,6 +2851,129 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, capturedMountInfo)
 			tc.validate(t, capturedMountInfo)
+		})
+	}
+}
+
+func TestArgsParsing_FileCacheSizeScanFlags(t *testing.T) {
+	tests := []struct {
+		name                 string
+		args                 []string
+		expectedConfig       *cfg.Config
+		expectedErrorMessage string
+	}{
+		{
+			name: "Test_size_scan_flags_explicitly_enabled_but_max-size_is_-1",
+			args: []string{"gcsfuse", "--cache-dir=/tmp", "--experimental-file-cache-enable-size-calculation-fix", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					// Even though size scan is explicitly enabled via flags,
+					// it should be resolved to false because MaxSizeMb is -1 (default).
+					ExperimentalEnableSizeCalculationFix: false,
+					MaxSizeMb:                            -1,
+				},
+			},
+		},
+		{
+			name: "Test_size_scan_flags_explicitly_enabled_with_default_frequency_and_files",
+			args: []string{"gcsfuse", "--cache-dir=/tmp", "--file-cache-max-size-mb=10", "--experimental-file-cache-enable-size-calculation-fix", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					// Size scan is explicitly enabled and max-size is set > -1,
+					// so it should remain enabled.
+					ExperimentalEnableSizeCalculationFix:     true,
+					ExperimentalDeleteEmptyDirs:              true,
+					ExperimentalSizeCalculationFrequencySecs: cfg.DefaultFileCacheSizeScanFrequencySecs,
+					MaxSizeMb:                                10,
+				},
+			},
+		},
+		{
+			name: "Test_size_scan_flags_explicitly_enabled_with_deletes_disabled",
+			args: []string{"gcsfuse", "--cache-dir=/tmp", "--file-cache-max-size-mb=10", "--experimental-file-cache-enable-size-calculation-fix", "--experimental-file-cache-delete-empty-dirs=false", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					ExperimentalEnableSizeCalculationFix:     true,
+					ExperimentalDeleteEmptyDirs:              false,
+					ExperimentalSizeCalculationFrequencySecs: cfg.DefaultFileCacheSizeScanFrequencySecs,
+					MaxSizeMb:                                10,
+				},
+			},
+		},
+		{
+			name:                 "Test_size_scan_flags_explicitly_enabled_with_frequency_0",
+			args:                 []string{"gcsfuse", "--cache-dir=/tmp", "--file-cache-max-size-mb=10", "--experimental-file-cache-enable-size-calculation-fix", "--experimental-file-cache-size-calculation-frequency-secs=0", "abc", "pqr"},
+			expectedErrorMessage: "invalid config: error parsing file cache config: the value of experimental-file-cache-size-calculation-frequency-secs must be greater than 0 when experimental-file-cache-enable-size-calculation-fix is enabled",
+		},
+		{
+			name: "Test_size_scan_flags_explicitly_enabled_with_frequency_30",
+			args: []string{"gcsfuse", "--cache-dir=/tmp", "--file-cache-max-size-mb=10", "--experimental-file-cache-enable-size-calculation-fix", "--experimental-file-cache-size-calculation-frequency-secs=30", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					ExperimentalEnableSizeCalculationFix:     true,
+					ExperimentalDeleteEmptyDirs:              true,
+					ExperimentalSizeCalculationFrequencySecs: 30,
+					MaxSizeMb:                                10,
+				},
+			},
+		},
+		{
+			name: "Test_size_scan_flags_default_max-size_is_greater_than_-1",
+			args: []string{"gcsfuse", "--cache-dir=/tmp", "--file-cache-max-size-mb=100", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					// Default is false, and MaxSizeMb > -1 shouldn't automatically enable it.
+					ExperimentalEnableSizeCalculationFix: false,
+					MaxSizeMb:                            100,
+				},
+			},
+		},
+		{
+			name: "Test_size_scan_flags_default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					ExperimentalEnableSizeCalculationFix: false,
+					//ExperimentalSizeCalculationFrequencySecs: cfg.DefaultFileCacheSizeScanFrequencySecs,
+					MaxSizeMb: -1,
+				},
+			},
+		},
+		{
+			name: "Test_size_scan_flags_explicitly_enabled_but_cache_dir_missing",
+			args: []string{"gcsfuse", "--file-cache-max-size-mb=10", "--experimental-file-cache-enable-size-calculation-fix", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					ExperimentalEnableSizeCalculationFix: false,
+					//ExperimentalSizeCalculationFrequencySecs: cfg.DefaultFileCacheSizeScanFrequencySecs,
+					MaxSizeMb: 10,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if tc.expectedErrorMessage != "" {
+				require.ErrorContains(t, err, tc.expectedErrorMessage)
+			} else if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.FileCache.MaxSizeMb, gotConfig.FileCache.MaxSizeMb)
+				assert.Equal(t, tc.expectedConfig.FileCache.ExperimentalEnableSizeCalculationFix, gotConfig.FileCache.ExperimentalEnableSizeCalculationFix)
+				if tc.expectedConfig.FileCache.ExperimentalEnableSizeCalculationFix {
+					assert.Equal(t, tc.expectedConfig.FileCache.ExperimentalDeleteEmptyDirs, gotConfig.FileCache.ExperimentalDeleteEmptyDirs)
+					assert.Equal(t, tc.expectedConfig.FileCache.ExperimentalSizeCalculationFrequencySecs, gotConfig.FileCache.ExperimentalSizeCalculationFrequencySecs)
+				}
+			}
 		})
 	}
 }

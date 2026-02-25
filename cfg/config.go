@@ -489,9 +489,15 @@ type FileCacheConfig struct {
 
 	ExcludeRegex string `yaml:"exclude-regex"`
 
+	ExperimentalDeleteEmptyDirs bool `yaml:"experimental-delete-empty-dirs"`
+
 	ExperimentalEnableChunkCache bool `yaml:"experimental-enable-chunk-cache"`
 
+	ExperimentalEnableSizeCalculationFix bool `yaml:"experimental-enable-size-calculation-fix"`
+
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
+
+	ExperimentalSizeCalculationFrequencySecs int64 `yaml:"experimental-size-calculation-frequency-secs"`
 
 	IncludeRegex string `yaml:"include-regex"`
 
@@ -993,6 +999,16 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("experimental-enable-standard-symlinks"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("experimental-file-cache-delete-empty-dirs", "", true, "Whether or not to delete empty directories inside cache-dir during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true.")
+
+	if err := flagSet.MarkHidden("experimental-file-cache-delete-empty-dirs"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-file-cache-enable-size-calculation-fix", "", false, "Whether or not to scan disk sizes of file-cache cache-dir.")
+
+	flagSet.IntP("experimental-file-cache-size-calculation-frequency-secs", "", 10, "The duration in seconds after which the size of the file-cache cache-dir is calculated again. It should be set only when file-cache-size-scan-enable is true.")
 
 	flagSet.IntP("experimental-grpc-conn-pool-size", "", 1, "The number of gRPC channel in grpc client.")
 
@@ -1578,6 +1594,18 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("experimental-enable-standard-symlinks", flagSet.Lookup("experimental-enable-standard-symlinks")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-delete-empty-dirs", flagSet.Lookup("experimental-file-cache-delete-empty-dirs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-enable-size-calculation-fix", flagSet.Lookup("experimental-file-cache-enable-size-calculation-fix")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-size-calculation-frequency-secs", flagSet.Lookup("experimental-file-cache-size-calculation-frequency-secs")); err != nil {
 		return err
 	}
 

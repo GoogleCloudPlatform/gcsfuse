@@ -92,6 +92,16 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 		return fmt.Errorf("invalid regex value %q provided for include-regex", config.IncludeRegex)
 	}
 
+	if config.ExperimentalEnableSizeCalculationFix {
+		if config.ExperimentalSizeCalculationFrequencySecs <= 0 {
+			return errors.New("the value of experimental-file-cache-size-calculation-frequency-secs must be greater than 0 when experimental-file-cache-enable-size-calculation-fix is enabled")
+		}
+	} else {
+		if config.ExperimentalSizeCalculationFrequencySecs != DefaultFileCacheSizeScanFrequencySecs {
+			return errors.New("experimental-file-cache-size-calculation-frequency-secs must be 0 or must not be set when experimental-file-cache-enable-size-caclulation-fix is false")
+		}
+	}
+
 	return nil
 }
 
