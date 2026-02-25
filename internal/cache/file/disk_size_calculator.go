@@ -58,14 +58,14 @@ type FileCacheDiskUtilizationCalculator struct {
 
 // NewFileCacheDiskUtilizationCalculator creates a new calculator and starts the
 // background directory size calculation.
-func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, includeFiles bool, deleteEmptyDirs bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
+func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, deleteEmptyDirs bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
 	if frequency <= 0 {
 		frequency = time.Duration(DefaultFileCacheSizeScanFrequencySeconds) * time.Second
 	}
 	c := &FileCacheDiskUtilizationCalculator{
 		cacheDir:        cacheDir,
 		frequency:       frequency,
-		includeFiles:    includeFiles,
+		includeFiles:    false,
 		deleteEmptyDirs: deleteEmptyDirs,
 		volumeBlockSize: volumeBlockSize,
 		stopCh:          make(chan struct{}),
