@@ -115,6 +115,12 @@ func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
 	}
 }
 
+func resolveSizeScanEnableValue(c *Config) {
+	if c.FileCache.MaxSizeMb == -1 || !IsFileCacheEnabled(c) {
+		c.FileCache.ExperimentalEnableSizeCalculationFix = false
+	}
+}
+
 func resolveParallelDownloadsValue(v *viper.Viper, fc *FileCacheConfig, c *Config) {
 	// Parallel downloads should be default ON when file cache is enabled, in case
 	// it is explicitly set by the user, use that value.
@@ -178,6 +184,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveMetadataCacheConfig(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
+	resolveSizeScanEnableValue(c)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
 	resolveFileCacheAndBufferedReadConflict(v, c)
 

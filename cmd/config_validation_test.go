@@ -53,17 +53,20 @@ func getConfigObjectWithConfigFile(t *testing.T, configFilePath string) (*cfg.Co
 func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 	t.Helper()
 	return cfg.FileCacheConfig{
-		CacheFileForRangeRead:                  false,
-		DownloadChunkSizeMb:                    200,
-		EnableCrc:                              false,
-		EnableParallelDownloads:                false,
-		ExperimentalParallelDownloadsDefaultOn: true,
-		MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
-		MaxSizeMb:                              -1,
-		ParallelDownloadsPerFile:               16,
-		SharedCacheChunkSizeMb:                 8,
-		WriteBufferSize:                        4 * 1024 * 1024,
-		EnableODirect:                          false,
+		CacheFileForRangeRead:                    false,
+		DownloadChunkSizeMb:                      200,
+		EnableCrc:                                false,
+		EnableParallelDownloads:                  false,
+		ExperimentalParallelDownloadsDefaultOn:   true,
+		MaxParallelDownloads:                     int64(max(16, 2*runtime.NumCPU())),
+		MaxSizeMb:                                -1,
+		ParallelDownloadsPerFile:                 16,
+		SharedCacheChunkSizeMb:                   8,
+		WriteBufferSize:                          4 * 1024 * 1024,
+		EnableODirect:                            false,
+		ExperimentalEnableSizeCalculationFix:     false,
+		ExperimentalDeleteEmptyDirs:              true,
+		ExperimentalSizeCalculationFrequencySecs: cfg.DefaultFileCacheSizeScanFrequencySecs,
 	}
 }
 
@@ -415,28 +418,31 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 		expectedConfig *cfg.Config
 	}{
 		{
-			name:       "Empty config file [default values].",
+			name:       "Empty_config_file_default_values.",
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				FileCache: defaultFileCacheConfig(t),
 			},
 		},
 		{
-			name:       "Valid config file.",
+			name:       "Valid_config_file.",
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:                  true,
-					DownloadChunkSizeMb:                    300,
-					EnableCrc:                              true,
-					EnableParallelDownloads:                false,
-					MaxParallelDownloads:                   200,
-					MaxSizeMb:                              40,
-					ParallelDownloadsPerFile:               10,
-					SharedCacheChunkSizeMb:                 8,
-					WriteBufferSize:                        8192,
-					EnableODirect:                          true,
-					ExperimentalParallelDownloadsDefaultOn: true,
+					CacheFileForRangeRead:                    true,
+					DownloadChunkSizeMb:                      300,
+					EnableCrc:                                true,
+					EnableParallelDownloads:                  false,
+					MaxParallelDownloads:                     200,
+					MaxSizeMb:                                40,
+					ParallelDownloadsPerFile:                 10,
+					SharedCacheChunkSizeMb:                   8,
+					WriteBufferSize:                          8192,
+					EnableODirect:                            true,
+					ExperimentalParallelDownloadsDefaultOn:   true,
+					ExperimentalEnableSizeCalculationFix:     true,
+					ExperimentalDeleteEmptyDirs:              false,
+					ExperimentalSizeCalculationFrequencySecs: 20,
 				},
 			},
 		},

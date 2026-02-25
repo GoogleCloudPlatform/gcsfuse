@@ -1255,3 +1255,67 @@ func TestValidateProfile(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateFileCacheConfig_SizeCalculationFixConfig(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name    string
+		config  FileCacheConfig
+		wantErr bool
+	}{
+		{
+			name: "Enable=False,_Frequency!=default_->_Error",
+			config: FileCacheConfig{
+				ExperimentalEnableSizeCalculationFix:     false,
+				ExperimentalDeleteEmptyDirs:              true,
+				ExperimentalSizeCalculationFrequencySecs: 20,
+				// Valid defaults
+				CacheFileForRangeRead:    false,
+				DownloadChunkSizeMb:      50,
+				EnableCrc:                false,
+				EnableParallelDownloads:  false,
+				MaxParallelDownloads:     4,
+				MaxSizeMb:                10,
+				ParallelDownloadsPerFile: 16,
+				WriteBufferSize:          4 * 1024 * 1024,
+				EnableODirect:            true,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Enable=True,_Delete=True_->_Valid",
+			config: FileCacheConfig{
+				ExperimentalEnableSizeCalculationFix:     true,
+				ExperimentalDeleteEmptyDirs:              true,
+				ExperimentalSizeCalculationFrequencySecs: 10,
+				// Valid defaults
+				CacheFileForRangeRead:    false,
+				DownloadChunkSizeMb:      50,
+				EnableCrc:                false,
+				EnableParallelDownloads:  false,
+				MaxParallelDownloads:     4,
+				MaxSizeMb:                -1,
+				ParallelDownloadsPerFile: 16,
+				WriteBufferSize:          4 * 1024 * 1024,
+				EnableODirect:            true,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := validConfig(t)
+			c.FileCache = tc.config
+
+			err := ValidateConfig(viper.New(), &c)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
