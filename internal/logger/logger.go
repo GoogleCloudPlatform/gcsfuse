@@ -129,7 +129,7 @@ func generateMountUUID(size int) (string, error) {
 	if size > len(uuidStr) {
 		return "", fmt.Errorf("UUID is smaller than requested size %d for MountUUID, UUID: %s", size, uuidStr)
 	}
-	return uuidStr[:size], nil
+	return "mohit-" + uuidStr[:size], nil
 }
 
 // setupMountUUID handles the retrieval of mountUUID if GCSFuse is in
