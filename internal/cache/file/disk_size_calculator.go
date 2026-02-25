@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -32,8 +33,20 @@ const (
 )
 
 type FileCacheDiskUtilizationCalculator struct {
-	// filesSize tracks the size of files in the cache.
-	filesSize atomic.Uint64
+	// filesSize tracks the size of files in the cache. It is a non-atomic uint64
+	// because all its reads and writes (via InsertEntry, EvictEntry, AddDelta,
+	// GetCurrentSize) are exclusively invoked by the lru.Cache, which already
+	// holds its own global mutex during these operations. Avoiding atomics/mutexes
+	// here prevents severe cache-line bouncing and lock contention under high
+	// concurrency (e.g., 50+ threads).
+	filesSize uint64
+
+	// fileCacheFileOpsMu is a pointer to the LRU cache's mutex. It is provided from the outside
+	// (via SetLRUMutex) so that the background periodic scanner can safely read
+	// filesSize for debug logging without introducing a separate, redundant mutex
+	// into the hot path of the calculator.
+	fileCacheFileOpsMu *locker.RWLocker
+
 	// scannedSize tracks the size calculated from disk scan (directories or full).
 	scannedSize atomic.Uint64
 	// cacheDir is the directory path of the cache.
@@ -80,6 +93,15 @@ func (c *FileCacheDiskUtilizationCalculator) SetSharedDirLocker(sharedDirLocker 
 		return fmt.Errorf("sharedDirLocker is already set")
 	}
 	c.sharedDirLocker = sharedDirLocker
+	return nil
+}
+
+// SetLRUMutex sets the mutex from the LRU cache to allow safe reads of filesSize by the background scanner.
+func (c *FileCacheDiskUtilizationCalculator) SetLRUMutex(mu *locker.RWLocker) error {
+	if c.fileCacheFileOpsMu != nil {
+		return fmt.Errorf("fileCacheFileOpsMu is already set")
+	}
+	c.fileCacheFileOpsMu = mu
 	return nil
 }
 
@@ -132,7 +154,15 @@ func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 	c.scannedSize.Store(s)
 
 	// Debugging data
-	filesSize := c.filesSize.Load()
+	var filesSize uint64
+	if c.fileCacheFileOpsMu != nil {
+		// Acquire the file-cache's read lock to safely read the non-atomic filesSize.
+		// This prevents data races with concurrent Insert/Evict operations happening
+		// in the foreground.
+		(*c.fileCacheFileOpsMu).RLock()
+		filesSize = c.filesSize
+		(*c.fileCacheFileOpsMu).RUnlock()
+	}
 	total := s
 	if !c.includeFiles {
 		total += filesSize
@@ -156,7 +186,7 @@ func (c *FileCacheDiskUtilizationCalculator) GetCurrentSize() uint64 {
 		logger.Tracef("GetCurrentSize for file-cache: %s", baseutil.PrettyPrintOf(total))
 		return total
 	}
-	filesDiskUtilization := c.filesSize.Load()
+	filesDiskUtilization := c.filesSize
 	dirsDiskUtilization := c.scannedSize.Load()
 	total := filesDiskUtilization + dirsDiskUtilization
 	logger.Tracef("GetCurrentSize for file-cache: files = %s, dirs = %s, total = %s", baseutil.PrettyPrintOf(filesDiskUtilization), baseutil.PrettyPrintOf(dirsDiskUtilization), baseutil.PrettyPrintOf(total))
@@ -176,12 +206,17 @@ func (c *FileCacheDiskUtilizationCalculator) SizeOf(entry lru.ValueType) uint64 
 
 // EvictEntry subtracts the size for the given entry.
 func (c *FileCacheDiskUtilizationCalculator) EvictEntry(evictedEntry lru.ValueType) {
-	c.filesSize.Add(-c.SizeOf(evictedEntry))
+	size := c.SizeOf(evictedEntry)
+	if c.filesSize > size {
+		c.filesSize -= size
+	} else {
+		c.filesSize = 0
+	}
 }
 
 // EvictEntry adds the size for the given entry.
 func (c *FileCacheDiskUtilizationCalculator) InsertEntry(insertedEntry lru.ValueType) {
-	c.filesSize.Add(c.SizeOf(insertedEntry))
+	c.filesSize += c.SizeOf(insertedEntry)
 }
 
 // AddDelta directly add the given delta to the stored files' size.
@@ -190,12 +225,12 @@ func (c *FileCacheDiskUtilizationCalculator) InsertEntry(insertedEntry lru.Value
 func (c *FileCacheDiskUtilizationCalculator) AddDelta(delta int64) {
 	if delta < 0 {
 		negDelta := uint64(-delta)
-		if negDelta > c.filesSize.Load() {
-			c.filesSize.Store(0)
+		if negDelta > c.filesSize {
+			c.filesSize = 0
 		} else {
-			c.filesSize.Add(-negDelta)
+			c.filesSize -= negDelta
 		}
 	} else {
-		c.filesSize.Add(uint64(delta))
+		c.filesSize += uint64(delta)
 	}
 }
