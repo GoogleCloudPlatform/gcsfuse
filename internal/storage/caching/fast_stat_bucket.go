@@ -339,9 +339,9 @@ func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *
 	w, err := b.wrapped.CreateAppendableObjectWriter(ctx, req)
 	var precondErr *gcs.PreconditionError
 	if err != nil && errors.As(err, &precondErr) {
-		// In case of offset mismatch error while attempting to create takeover writer, we will remove the
-		// corresponding stat cache entry since current entry is stale as indicated by the mismatch in the user
-		// expected offset and takeover offset returned by server.
+		// If creating a takeover writer fails with a precondition error (for e.g. offset mismatch),
+		// it indicates our local stat cache is out of sync with the remote object state.
+		// Throw away the existing record in such cases.
 		b.invalidate(req.Name)
 	}
 	return w, err
