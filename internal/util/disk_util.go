@@ -267,3 +267,20 @@ func removeEmptyDirs(dir string, locker DirLocker) bool {
 	}
 	return isEmpty
 }
+
+// PrettyPrintOf takes a uint64 number and returns a command-separated number string.
+// e.g. input 12345678 and output "12,345,678"
+func PrettyPrintOf(n uint64) string {
+	s := fmt.Sprintf("%d", n)
+	if len(s) <= 3 {
+		return s
+	}
+	var result []byte
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result = append(result, ',')
+		}
+		result = append(result, byte(c))
+	}
+	return string(result)
+}
