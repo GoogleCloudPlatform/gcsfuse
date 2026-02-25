@@ -106,6 +106,8 @@ type Job struct {
 	// Map key is chunkID. Value is a channel that closes when download completes.
 	// This is used for sparse files.
 	inflightChunks map[uint64]chan struct{}
+
+	sharedDirLocker *cacheutil.SharedDirLocker
 }
 
 // JobStatus represents the status of job.
@@ -133,6 +135,7 @@ func NewJob(
 	maxParallelismSem *semaphore.Weighted,
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
+	sharedDirLocker *cacheutil.SharedDirLocker,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -145,6 +148,7 @@ func NewJob(
 		maxParallelismSem:    maxParallelismSem,
 		metricsHandle:        metricHandle,
 		traceHandle:          traceHandle,
+		sharedDirLocker:      sharedDirLocker,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -403,13 +407,13 @@ func (job *Job) createCacheFile() (*os.File, error) {
 	// Try using O_DIRECT while opening file when parallel downloads are enabled
 	// and O_DIRECT use is not disabled.
 	if job.fileCacheConfig.EnableParallelDownloads && job.fileCacheConfig.EnableODirect {
-		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags|syscall.O_DIRECT)
+		cacheFile, err = cacheutil.SafeCreateFile(job.fileSpec, openFileFlags|syscall.O_DIRECT, job.sharedDirLocker)
 		if errors.Is(err, fs.ErrInvalid) || errors.Is(err, syscall.EINVAL) {
 			logger.Warnf("downloadObjectAsync: failure in opening file with O_DIRECT, falling back to without O_DIRECT")
-			cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
+			cacheFile, err = cacheutil.SafeCreateFile(job.fileSpec, openFileFlags, job.sharedDirLocker)
 		}
 	} else {
-		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
+		cacheFile, err = cacheutil.SafeCreateFile(job.fileSpec, openFileFlags, job.sharedDirLocker)
 	}
 
 	return cacheFile, err
