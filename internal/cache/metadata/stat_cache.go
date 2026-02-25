@@ -206,11 +206,20 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
 		e := existing.(entry)
-		// The ListObject function returns explicit directory objects in both the MinObject and CollapseRun lists.
-		// Since these objects are already captured in the MinObject collection, we no longer need to overwrite or re-add them during the CollapseRun iteration.
-		// If existing entry is a positive entry (m != nil), we prefer it over implicit directory
-		// because implicit directory is inferred and has Generation 0.
-		// Even if existing is old generation, it's explicit.
+		// The ListObjects response handles directories in two ways:
+		// 1. 'MinObject' returns explicit directory objects containing full metadata.
+		// 2. 'CollapseRun' generates placeholders for these same directories; if no
+		//    explicit object exists, it treats them as "implicit" (inferred).
+		//
+		// We attempt to create implicit directories for all entries in 'CollapseRun'.
+		// However, since 'ListObject' returns explicit directories in the 'MinObject'
+		// list as well, this could result in redundant implicit entries for
+		// every explicit directory already processed.
+		//
+		// To prevent this, we check if an entry with the same name already exists
+		// with non-nil metadata. If metadata is present, we skip the implicit
+		// creation to avoid overwriting a real, explicit object with an inferred
+		// placeholder (which would lack metadata and have 'Generation 0').
 		if e.m != nil {
 			return
 		}
