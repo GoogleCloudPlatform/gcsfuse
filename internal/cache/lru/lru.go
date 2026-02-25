@@ -240,11 +240,6 @@ func (c *Cache) checkInvariants() {
 	}
 }
 
-// GetMutex returns a pointer to the RWLocker used by the cache.
-func (c *Cache) GetMutex() *locker.RWLocker {
-	return &c.mu
-}
-
 func (c *Cache) evictOne() ValueType {
 	e := c.entries.Back()
 	key := e.Value.(entry).Key
