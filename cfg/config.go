@@ -972,7 +972,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-type-cache-deprecation", "", false, "Enables support to deprecate type cache.")
+	flagSet.BoolP("enable-type-cache-deprecation", "", true, "Enables support to deprecate type cache.")
 
 	if err := flagSet.MarkHidden("enable-type-cache-deprecation"); err != nil {
 		return err
