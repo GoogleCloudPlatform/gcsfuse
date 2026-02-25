@@ -290,7 +290,6 @@ func (t *SingleMountAppendsTestSuite) TestOpenAppendCloseReopenFromSingleMount()
 	// Initially create an unfinalized object.
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
-
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 
 	for i := 0; i < 3; i++ {

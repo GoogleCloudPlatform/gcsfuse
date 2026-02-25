@@ -1124,7 +1124,6 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		} else {
 			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		}
-
 		if err != nil {
 			return false, err
 		}
