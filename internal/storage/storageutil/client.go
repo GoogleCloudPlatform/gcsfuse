@@ -78,8 +78,8 @@ type StorageClientConfig struct {
 	// EnableGoogleLibAuth indicates whether to use the google library authentication flow
 	EnableGoogleLibAuth bool
 
-	// ForceGrpcDirectConnectivity forces fallback to HTTP1 if DirectPath unavailable
-	ForceGrpcDirectConnectivity bool
+	// GrpcPathStrategy controls DirectPath connectivity behavior
+	GrpcPathStrategy cfg.DirectPathStrategy
 
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 

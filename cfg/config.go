@@ -597,9 +597,9 @@ type GcsConnectionConfig struct {
 
 	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address"`
 
-	ForceGrpcDirectConnectivity bool `yaml:"force-grpc-direct-connectivity"`
-
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
+
+	GrpcPathStrategy DirectPathStrategy `yaml:"grpc-path-strategy"`
 
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
 
@@ -1100,9 +1100,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("force-grpc-direct-connectivity", "", false, "When enabled with client-protocol=grpc, forces direct-path connectivity. Falls back to HTTP1 client if direct-path is unavailable.")
+	flagSet.StringP("grpc-path-strategy", "", "ensure-direct-path-if-eligible", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1), 'ensure-direct-path-if-eligible' (fallback when impossible, fail when possible but broken).")
 
-	if err := flagSet.MarkHidden("force-grpc-direct-connectivity"); err != nil {
+	if err := flagSet.MarkHidden("grpc-path-strategy"); err != nil {
 		return err
 	}
 
@@ -1657,7 +1657,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-connection.force-grpc-direct-connectivity", flagSet.Lookup("force-grpc-direct-connectivity")); err != nil {
+	if err := v.BindPFlag("gcs-connection.grpc-path-strategy", flagSet.Lookup("grpc-path-strategy")); err != nil {
 		return err
 	}
 

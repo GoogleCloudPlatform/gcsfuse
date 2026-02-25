@@ -596,13 +596,14 @@ params:
     default: ""
     hide-flag: true
 
-  - config-path: "gcs-connection.force-grpc-direct-connectivity"
-    flag-name: "force-grpc-direct-connectivity"
-    type: "bool"
+  - config-path: "gcs-connection.grpc-path-strategy"
+    flag-name: "grpc-path-strategy"
+    type: "string"
     usage: >-
-      When enabled with client-protocol=grpc, forces direct-path connectivity.
-      Falls back to HTTP1 client if direct-path is unavailable.
-    default: false
+      Strategy for DirectPath connectivity when client-protocol=grpc.
+      Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1),
+      'ensure-direct-path-if-eligible' (default: fallback when impossible, fail when possible but broken).
+    default: "ensure-direct-path-if-eligible"
     hide-flag: true
 
   - config-path: "gcs-connection.grpc-conn-pool-size"
