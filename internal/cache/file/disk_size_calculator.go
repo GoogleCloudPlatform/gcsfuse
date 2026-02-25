@@ -111,8 +111,22 @@ func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 
 	start := time.Now()
 
-	// Perform single pass scan to calculate size and optionally remove empty directories.
-	s := baseutil.GetSizeOnDiskAndCleanWithLocker(c.cacheDir, c.includeFiles, c.deleteEmptyDirs, locker)
+	// 1. Remove empty directories if enabled
+	if c.deleteEmptyDirs {
+		baseutil.RemoveEmptyDirsWithLocker(c.cacheDir, locker)
+	}
+
+	// 2. Calculate size on disk (using parallel traversal)
+	// GetSizeOnDisk(dirPath, onlyDirs, ignoreErrors)
+	// includeFiles in Calculator means we want file sizes.
+	// onlyDirs in GetSizeOnDisk means "count ONLY directories".
+	// So if c.includeFiles is true, onlyDirs should be false.
+	// We ignore errors to match best-effort behavior.
+	s, err := baseutil.GetSizeOnDiskWithLocker(c.cacheDir, !c.includeFiles, true, locker)
+	if err != nil {
+		logger.Warnf("Failed to calculate disk usage for %q: %v", c.cacheDir, err)
+	}
+
 	duration := time.Since(start)
 
 	c.scannedSize.Store(s)
