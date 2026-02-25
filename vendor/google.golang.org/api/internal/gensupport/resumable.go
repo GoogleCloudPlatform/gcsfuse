@@ -208,10 +208,7 @@ func (rx *ResumableUpload) uploadChunkWithRetries(ctx context.Context, chunk io.
 	shouldRetry := rx.Retry.errorFunc()
 
 	// Configure single chunk retry deadline.
-	chunkRetryDeadline := defaultRetryDeadline
-	if rx.ChunkRetryDeadline != 0 {
-		chunkRetryDeadline = rx.ChunkRetryDeadline
-	}
+	chunkRetryDeadline := 32 * time.Minute
 
 	// Each chunk gets its own initialized-at-zero backoff and invocation ID.
 	bo := rx.Retry.backoff()
