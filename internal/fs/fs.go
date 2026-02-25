@@ -318,7 +318,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	}
 
 	// Regular gcsfuse file-cache with memory based LRU cache.
-	fileCacheHandler, err = createInMemoryFileCacheHandler(baseCacheDir, filePerm, dirPerm, serverCfg)
+	fileCacheHandler, err = createSingleMountFileCacheHandler(baseCacheDir, filePerm, dirPerm, serverCfg)
 	return fileCacheHandler, nil, err
 }
 
@@ -345,13 +345,13 @@ func createSharedChunkCacheManager(baseCacheDir string, filePerm, dirPerm os.Fil
 	return sharedCacheManager, nil
 }
 
-// createInMemoryFileCacheHandler creates a file cache handler with in-memory LRU eviction for single-instance usage.
-func createInMemoryFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, error) {
+// createSingleMountFileCacheHandler creates a file cache handler with an in-memory LRU cache specific to a single gcsfuse instance.
+func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, error) {
 	// Use separate directory for regular file cache
 	cacheDir := path.Join(baseCacheDir, cacheutil.FileCache)
 
 	if err := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm); err != nil {
-		return nil, fmt.Errorf("createInMemoryFileCacheHandler: while creating file cache directory: %w", err)
+		return nil, fmt.Errorf("createSingleMountFileCacheHandler: while creating file cache directory: %w", err)
 	}
 
 	// Calculate cache size
