@@ -530,8 +530,8 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		}
 		markSuccessfulMount()
 
-		// Apply post mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
-		if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
+		// Apply post mount kernel settings in non-GKE environments for non dynamic mounts.
+		if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) {
 			kernelparams := kernelparams.NewKernelParamsManager()
 			kernelparams.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
 			kernelparams.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
