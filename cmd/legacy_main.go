@@ -413,7 +413,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	}
 
 	if newConfig.EnableTypeCacheDeprecation && (newConfig.MetadataCache.TypeCacheMaxSizeMb != mount.DefaultTypeCacheSizeMB || newConfig.MetadataCache.DeprecatedTypeCacheTtl != mount.DefaultStatOrTypeCacheTTL || newConfig.MetadataCache.EnableNonexistentTypeCache) {
-		logger.Warnf("Type cache is deprecated. The flags 'type-cache-max-size-mb', 'type-cache-ttl' or 'enable-nonexistent-type-cache' will be ignored.")
+		logger.Warnf("Type cache is deprecated. The flags 'type-cache-max-size-mb', 'type-cache-ttl' and 'enable-nonexistent-type-cache' will be ignored.")
 	}
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
