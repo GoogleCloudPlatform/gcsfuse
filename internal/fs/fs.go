@@ -279,10 +279,8 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
 		}
-		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
-		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
-		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
-		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+		// Always write in GKE Environments whatever was provided.
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
