@@ -1962,7 +1962,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					StatCacheMaxSizeMb:                  1024,
 					TtlSecs:                             9223372036,
 					NegativeTtlSecs:                     0,
-					TypeCacheMaxSizeMb:                  128,
+					TypeCacheMaxSizeMb:                  4,
 				},
 			},
 		},

@@ -412,7 +412,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
 
-	if newConfig.EnableTypeCacheDeprecation && (newConfig.MetadataCache.TypeCacheMaxSizeMb != mount.DefaultTypeCacheSizeMB || newConfig.MetadataCache.DeprecatedTypeCacheTtl != mount.DefaultStatOrTypeCacheTTL) || newConfig.MetadataCache.EnableNonexistentTypeCache == true {
+	if newConfig.EnableTypeCacheDeprecation && (newConfig.MetadataCache.TypeCacheMaxSizeMb != mount.DefaultTypeCacheSizeMB || newConfig.MetadataCache.DeprecatedTypeCacheTtl != mount.DefaultStatOrTypeCacheTTL || newConfig.MetadataCache.EnableNonexistentTypeCache) {
 		logger.Warnf("Type cache is deprecated. The flags 'type-cache-max-size-mb', 'type-cache-ttl' or 'enable-nonexistent-type-cache' will be ignored.")
 	}
 
