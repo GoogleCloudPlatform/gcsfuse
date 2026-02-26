@@ -308,7 +308,13 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (*http.Response, error) {
 		}
 		s := time.Now()
 		resp, err := rx.uploadChunkWithRetries(ctx, chunk, off, int64(size), done)
-		log.Printf("ChunkTransferTime: [%v]", time.Since(s).Seconds())
+		if !done && off == 0 {
+			log.Printf("First ChunkTransferTime: [%v]", time.Since(s).Seconds())
+		} else if !done {
+			log.Printf("Intermediate ChunkTransferTime: [%v]", time.Since(s).Seconds())
+		} else {
+			log.Printf("Final ChunkTransferTime: [%v]", time.Since(s).Seconds())
+		}
 		// There are a couple of cases where it's possible for err and resp to both
 		// be non-nil. However, we expose a simpler contract to our callers: exactly
 		// one of resp and err will be non-nil. This means that any response body
