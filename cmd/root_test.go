@@ -1505,7 +1505,7 @@ func TestArgsParsing_EnableTypeCacheDeprecationFlags(t *testing.T) {
 		expectedEnableTypeCacheDeprecation bool
 	}{
 		{
-			name:                               "normal",
+			name:                               "explicitly_disabled",
 			args:                               []string{"gcsfuse", "--enable-type-cache-deprecation=false", "abc", "pqr"},
 			expectedEnableTypeCacheDeprecation: false,
 		},
