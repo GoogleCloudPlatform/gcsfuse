@@ -1173,7 +1173,7 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
-	// No need to cancel prefetch here as creation of new file can not lead to stale data in metadata cache.
+	// No need to cancel prefetch here as creation of new directory can not lead to stale data in metadata cache.
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
 	var m *gcs.MinObject
@@ -1482,16 +1482,16 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 	return o, err
 }
 
-func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string, folderInode DirInode) (*gcs.Folder, error) {
+func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string, dstFolderInode DirInode) (*gcs.Folder, error) {
 	// Increment active writers on the directory so no new prefetch gets triggered until the write operation completes.
 	d.IncrementActiveWriters()
 	defer d.DecrementActiveWriters()
 	// Cancel prefetch of the current directory.
 	d.CancelCurrDirPrefetcher()
 
-	if folderInode != nil {
+	if dstFolderInode != nil {
 		// Recursively cancel prefetches for the renamed folder and its children.
-		folderInode.CancelSubdirectoryPrefetches()
+		dstFolderInode.CancelSubdirectoryPrefetches()
 	}
 
 	folder, err := d.bucket.RenameFolder(ctx, folderName, destinationFolderName)
