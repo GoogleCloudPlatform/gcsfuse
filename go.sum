@@ -154,8 +154,8 @@ github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6 h1:XKHJmHcgU9glxk
 github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6/go.mod h1:JEWKD6V8xETMW+DEv+IQVz++f8Cn8O/X0HPeDY3qNis=
 github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 h1:iQTw/8FWTuc7uiaSepXwyf3o52HaUYcV+Tu66S3F5GA=
 github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0/go.mod h1:1NbS8ALrpOvjt0rHPNLyCIeMtbizbir8U//inJ+zuB8=
-github.com/kislaykishore/fuse-pool v0.0.0-20260226192855-c64a2b6348ec h1:OaBpA8jePOWVbzrCYrh7kwetGjZEsufLNEmo39At1wU=
-github.com/kislaykishore/fuse-pool v0.0.0-20260226192855-c64a2b6348ec/go.mod h1:fcpw1yk/suvFhB8rT9P+pst+NLboWsBLky9csooKjPc=
+github.com/kislaykishore/fuse-pool v0.0.0-20260226201607-90702b4f20c6 h1:UAuY0Z0mCE+oLOm2A6BlihGUAPHgQ0JXkTLZtLQnYsQ=
+github.com/kislaykishore/fuse-pool v0.0.0-20260226201607-90702b4f20c6/go.mod h1:fcpw1yk/suvFhB8rT9P+pst+NLboWsBLky9csooKjPc=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/klauspost/cpuid/v2 v2.2.9 h1:66ze0taIn2H33fBvCkXuv9BmCwDfafmiIVpKV9kKGuY=
