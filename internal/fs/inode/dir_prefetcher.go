@@ -90,7 +90,7 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 	// Do not trigger prefetching if:
 	// 1. The inode context is nil or already cancelled (dir inode is dead/renamed).
 	// 2. If there are active writers in the directory, do not trigger prefetch.
-	if p.inodeCtx == nil || p.inodeCtx.Err() != nil  || !p.shouldRun() {
+	if p.inodeCtx == nil || p.inodeCtx.Err() != nil || !p.shouldRun() {
 		return
 	}
 
