@@ -985,17 +985,6 @@ params:
     type: "int"
     usage: "Max size of type-cache maps which are maintained at a per-directory level."
     default: "4"
-    optimizations:
-      machine-based-optimization:
-        - group: "high-performance"
-          value: 128
-      profiles:
-        - name: "aiml-training"
-          value: -1
-        - name: "aiml-serving"
-          value: -1
-        - name: "aiml-checkpointing"
-          value: -1
 
   - config-path: "metrics.buffer-size"
     flag-name: "metrics-buffer-size"

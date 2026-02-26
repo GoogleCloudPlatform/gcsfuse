@@ -168,27 +168,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(-1),
 		},
 	},
-}, "metadata-cache.type-cache-max-size-mb": {
-	MachineBasedOptimization: []shared.MachineBasedOptimization{
-		{
-			Group: "high-performance",
-			Value: int64(128),
-		},
-	},
-	Profiles: []shared.ProfileOptimization{
-		{
-			Name:  "aiml-training",
-			Value: int64(-1),
-		},
-		{
-			Name:  "aiml-serving",
-			Value: int64(-1),
-		},
-		{
-			Name:  "aiml-checkpointing",
-			Value: int64(-1),
-		},
-	},
 }, "write.global-max-blocks": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
@@ -373,18 +352,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
 					c.MetadataCache.StatCacheMaxSizeMb = val
 					optimizedFlags["metadata-cache.stat-cache-max-size-mb"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("metadata-cache.type-cache-max-size-mb") {
-		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(int64); ok {
-				if c.MetadataCache.TypeCacheMaxSizeMb != val {
-					c.MetadataCache.TypeCacheMaxSizeMb = val
-					optimizedFlags["metadata-cache.type-cache-max-size-mb"] = result
 				}
 			}
 		}
