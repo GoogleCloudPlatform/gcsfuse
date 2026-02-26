@@ -361,26 +361,6 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
 	}, 200*time.Millisecond, 10*time.Millisecond)
 }
 
-func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
-	ctx := context.Background()
-	listCallCtr, mockListFunc := mockListFuncWithCtr()
-	config := &cfg.Config{
-		MetadataCache: cfg.MetadataCacheConfig{
-			EnableMetadataPrefetch: true,
-			StatCacheMaxSizeMb:     0,
-			TtlSecs:                60,
-		},
-	}
-	p := NewMetadataPrefetcher(ctx, config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
-
-	p.Run("dir/obj1")
-
-	// Allow some time for any potential background work to start.
-	time.Sleep(20 * time.Millisecond)
-	// Assert that no list calls were made because stat cache size is 0.
-	assert.Equal(t.T(), int32(0), listCallCtr.Load())
-}
-
 // TestPrefetch_RaceCondition_WriteCancelsPrefetch verifies that if a write operation
 // (simulated by calling Cancel()) occurs while a prefetch list call is in progress,
 // the prefetch is aborted and NO cache update occurs.

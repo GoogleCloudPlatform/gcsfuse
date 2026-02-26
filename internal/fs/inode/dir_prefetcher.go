@@ -34,9 +34,7 @@ const (
 
 type MetadataPrefetcher struct {
 	// Variables for metadata prefetching.
-	enabled          bool
 	metadataCacheTTL time.Duration
-	statCacheSize    int64
 	state            atomic.Uint32 // 0=Ready, 1=InProgress
 
 	// inodeCtx is the lifecycle context of the owning inode.
@@ -70,9 +68,7 @@ func NewMetadataPrefetcher(
 ) *MetadataPrefetcher {
 	return &MetadataPrefetcher{
 		inodeCtx:         inodeCtx,
-		enabled:          cfg.MetadataCache.EnableMetadataPrefetch,
 		metadataCacheTTL: time.Duration(cfg.MetadataCache.TtlSecs) * time.Second,
-		statCacheSize:    cfg.MetadataCache.StatCacheMaxSizeMb,
 		maxPrefetchCount: cfg.MetadataCache.MetadataPrefetchEntriesLimit,
 		cacheClock:       cacheClock,
 		sem:              prefetchSem,
@@ -86,11 +82,8 @@ func NewMetadataPrefetcher(
 // This function is already protected by directory mutex so no new mutex is required here for the setup part.
 func (p *MetadataPrefetcher) Run(fullObjectName string) {
 	// Do not trigger prefetching if:
-	// 1. metadata prefetch config is disabled.
-	// 2. metadata cache ttl is 0 (disabled).
-	// 3. stat cache size is 0.
-	// 4. The inode context is nil or already cancelled (dir inode is dead/renamed).
-	if !p.enabled || p.metadataCacheTTL == 0 || p.statCacheSize == 0 || p.inodeCtx == nil || p.inodeCtx.Err() != nil {
+	// 1. The inode context is nil or already cancelled (dir inode is dead/renamed).
+	if p.inodeCtx == nil || p.inodeCtx.Err() != nil {
 		return
 	}
 
@@ -189,9 +182,6 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 // Use this for operations to stop the prefetcher for this directory.
 // This function is already protected by directory mutex so no new mutex is required here.
 func (p *MetadataPrefetcher) Cancel() {
-	if !p.enabled {
-		return
-	}
 	if p.runCancelFunc != nil {
 		p.runCancelFunc()
 		p.runCancelFunc = nil

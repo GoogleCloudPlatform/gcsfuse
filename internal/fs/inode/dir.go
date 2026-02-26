@@ -339,10 +339,13 @@ func NewDirInode(
 		metadataCacheTtlSecs:            cfg.MetadataCache.TtlSecs,
 	}
 
+	// Init Prefetcher only if it is enabled, stat cache ttl != 0 and stat cache size != 0.
 	// Prefetcher is bound to the inode's lifecycle context `ctx`.
 	// readObjectsUnlocked is used by the prefetcher so the background worker performs GCS I/O without the lock,
 	// acquiring d.mu only to update the cache.
-	typed.prefetcher = NewMetadataPrefetcher(ctx, cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked)
+	if cfg.MetadataCache.EnableMetadataPrefetch && cfg.MetadataCache.TtlSecs != 0 && cfg.MetadataCache.StatCacheMaxSizeMb != 0 {
+		typed.prefetcher = NewMetadataPrefetcher(ctx, cfg, prefetchSem, cacheClock, typed.readObjectsUnlocked)
+	}
 
 	var cache metadata.TypeCache
 	if !cfg.EnableTypeCacheDeprecation {
@@ -609,7 +612,9 @@ func (d *dirInode) CancelSubdirectoryPrefetches() {
 // This allows the prefetcher to be restarted later (unless the inode context itself is cancelled).
 // LOCKS_REQUIRED(d.mu.WLock)
 func (d *dirInode) CancelCurrDirPrefetcher() {
-	d.prefetcher.Cancel()
+	if d.prefetcher != nil {
+		d.prefetcher.Cancel()
+	}
 	return
 }
 
@@ -756,7 +761,9 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 	case metadata.UnknownType:
 		// Entry not present in cache.
 		// Trigger prefetcher
-		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
+		if d.prefetcher != nil {
+			d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
+		}
 
 		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
