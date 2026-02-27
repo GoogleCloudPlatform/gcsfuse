@@ -94,14 +94,14 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 		return
 	}
 
-	//6. Do not trigger prefetch if the last prefetch result is still within the TTL.
+	// Do not trigger prefetch if the last prefetch result is still within the TTL.
 	lastPrefetchTime := p.lastPrefetchTime.Load()
 	now := p.cacheClock.Now()
 	if lastPrefetchTime != nil && now.Sub(*lastPrefetchTime) < p.metadataCacheTTL {
 		return
 	}
 
-	// 6. Ensure only one prefetch runs at a time for this directory.
+	// Ensure only one prefetch runs at a time for this directory.
 	if !p.state.CompareAndSwap(prefetchReady, prefetchInProgress) {
 		return
 	}

@@ -666,6 +666,7 @@ type fileSystem struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) findParentDirInode(childName inode.Name) inode.DirInode {
 	parentName, err := childName.ParentName()
 	if err != nil {
@@ -1364,6 +1365,17 @@ func (fs *fileSystem) flushFile(
 		return nil
 	}
 
+	fs.mu.Lock()
+	parInode := fs.findParentDirInode(f.Name())
+	fs.mu.Unlock()
+	if parInode != nil {
+		// Increment active writers so no new prefetch gets triggered until write operation completes.
+		parInode.IncrementActiveWriters()
+		defer parInode.DecrementActiveWriters()
+		// Cancel current directory's prefetch so stale data is not updated in cache.
+		parInode.CancelCurrDirPrefetcher()
+	}
+
 	// Flush the inode.
 	err := f.Flush(ctx)
 	if err != nil {
@@ -1392,6 +1404,17 @@ func (fs *fileSystem) syncFile(
 	// when file to be synced has been unlinked from the same mount.
 	if f.IsUnlinked() {
 		return nil
+	}
+
+	fs.mu.Lock()
+	parInode := fs.findParentDirInode(f.Name())
+	fs.mu.Unlock()
+	if parInode != nil {
+		// Increment active writers so no new prefetch gets triggered until write operation completes.
+		parInode.IncrementActiveWriters()
+		defer parInode.DecrementActiveWriters()
+		// Cancel current directory's prefetch so stale data is not updated in cache.
+		parInode.CancelCurrDirPrefetcher()
 	}
 
 	// Sync the inode.
