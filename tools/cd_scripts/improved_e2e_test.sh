@@ -18,11 +18,11 @@ set -x
 # -e: Exit on error, -u: Exit on unset vars, -o pipefail: Pipeline error trapping
 set -euo pipefail
 
-# FIX: Startup scripts run in a minimal environment where USER and HOSTNAME are often unset.
+# Startup scripts run in a minimal environment where USER and HOSTNAME are often unset.
 # We define them explicitly here to prevent 'unbound variable' errors from 'set -u'.
 export USER=$(whoami)
 export HOSTNAME=$(hostname)
-# FIX: HOME is sometimes unset in startup scripts or set to / which can confuse installers.
+# HOME is sometimes unset in startup scripts or set to / which can confuse installers.
 export HOME=${HOME:-/root}
 
 # Defaults
@@ -131,6 +131,7 @@ fetch_metadata() {
     echo "BUCKET_NAME_TO_USE: $BUCKET_NAME_TO_USE"
 
     # Extract version info
+    # Line 1: VERSION, Line 2: COMMIT_HASH, Line 3: VM_INSTANCE_NAME
     VERSION=$(sed -n 1p "$DETAILS_FILE")
     COMMIT_HASH=$(sed -n 2p "$DETAILS_FILE")
     VM_INSTANCE_NAME=$(sed -n 3p "$DETAILS_FILE")

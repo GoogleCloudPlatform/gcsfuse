@@ -57,14 +57,26 @@ install_packages_by_os() {
     rhel|centos|fedora|almalinux|rocky)
       # Map package names for RHEL if necessary
       local rhel_pkgs=()
+      local install_crcmod=false # Installation of crcmod is working through pip only on rhel and centos.
       for pkg in "${pkgs[@]}"; do
         if [[ "$pkg" == "python3-dev" ]]; then
           rhel_pkgs+=("python3-devel")
+        elif [[ "$pkg" == "python3-crcmod" ]]; then
+          install_crcmod=true
         else
           rhel_pkgs+=("$pkg")
         fi
       done
+
+      if [ "$install_crcmod" = true ]; then
+        rhel_pkgs+=("python3-pip")
+      fi
+
       sudo yum install -y "${rhel_pkgs[@]}"
+
+      if [ "$install_crcmod" = true ]; then
+        sudo python3 -m pip install crcmod
+      fi
       ;;
     arch|manjaro)
       # Map package names for Arch
