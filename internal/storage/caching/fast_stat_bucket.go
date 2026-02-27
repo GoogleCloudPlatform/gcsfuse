@@ -338,7 +338,7 @@ func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.C
 func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
 	w, err := b.wrapped.CreateAppendableObjectWriter(ctx, req)
 	var precondErr *gcs.PreconditionError
-	if err != nil && errors.As(err, &precondErr) {
+	if errors.As(err, &precondErr) {
 		// If creating a takeover writer fails with a precondition error (for e.g. offset mismatch),
 		// it indicates our local stat cache is out of sync with the remote object state.
 		// Throw away the existing record in such cases.
