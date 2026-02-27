@@ -880,11 +880,11 @@ params:
     type: "bool"
     usage: >-
       Once set, if an inode is not found in GCS, a type cache entry with type
-      NonexistentType will be created. This also means new file/dir created might not be seen. 
-      For example, if this flag is set, and metadata-cache-ttl-secs
+      NonexistentType will be created. This also means new file/dir created might
+      not be seen. For example, if this flag is set, and metadata-cache-ttl-secs
       is set, then if we create the same file/node in the meantime using the same
       mount, since we are not refreshing the cache, it will still return nil.
-      This flag has been deprecated and  This flag has been deprecated in favour of a single unified flag metadata-cache.negative-ttl-sec.
+      This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.
     default: false
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
@@ -984,7 +984,7 @@ params:
   - config-path: "metadata-cache.type-cache-max-size-mb"
     flag-name: "type-cache-max-size-mb"
     type: "int"
-    usage: "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag metadata-cache.stat-cache-max-size-mb."
+    usage: "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb."
     default: "4"
 
   - config-path: "metrics.buffer-size"
