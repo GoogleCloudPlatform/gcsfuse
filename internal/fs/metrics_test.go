@@ -647,62 +647,48 @@ func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
 }
 
 func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
-	testCases := []struct {
-		name            string
-		enableNewReader bool
-	}{
-		{"NewReader", true},
-		{"OldReader", false},
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableNewReader = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			params := defaultServerConfigParams()
-			params.enableNewReader = tc.enableNewReader
-			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
-			server = wrappers.WithMonitoring(server, mh)
-			fileName := "test.txt"
-			content := "test content"
-			createWithContents(ctx, t, bucket, fileName, content)
-			lookupOp := &fuseops.LookUpInodeOp{
-				Parent: fuseops.RootInodeID,
-				Name:   fileName,
-			}
-			err := server.LookUpInode(ctx, lookupOp)
-			require.NoError(t, err, "LookUpInode")
-			openOp := &fuseops.OpenFileOp{
-				Inode: lookupOp.Entry.Child,
-			}
-			err = server.OpenFile(ctx, openOp)
-			require.NoError(t, err, "OpenFile")
-
-			// Perform a random read at offset 10, 5, 3, and 0 in order.
-			readOp := &fuseops.ReadFileOp{
-				Inode:  lookupOp.Entry.Child,
-				Handle: openOp.Handle,
-				Offset: 10,
-				Dst:    make([]byte, len(content)),
-			}
-			err = server.ReadFile(ctx, readOp) // Sequential read of 2 bytes (12 - 10).
-			require.NoError(t, err, "ReadFile")
-			readOp.Offset = 5
-			err = server.ReadFile(ctx, readOp) // Sequential read of 7 bytes (12 - 5).
-			require.NoError(t, err, "ReadFile")
-			readOp.Offset = 3
-			err = server.ReadFile(ctx, readOp) // Random read of 9 bytes (12 - 3).
-			require.NoError(t, err, "ReadFile")
-			readOp.Offset = 0
-			err = server.ReadFile(ctx, readOp) // Random read of 12 bytes (12 - 0).
-			require.NoError(t, err, "ReadFile")
-			waitForMetricsProcessing()
-
-			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(2))
-			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(2))
-			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(9))
-			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(21))
-		})
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
 	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+
+	// Perform a random read at offset 10, 5, 3, and 0 in order.
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 10,
+		Dst:    make([]byte, len(content)),
+	}
+	err = server.ReadFile(ctx, readOp) // Sequential read of 2 bytes (12 - 10).
+	require.NoError(t, err, "ReadFile")
+	readOp.Offset = 5
+	err = server.ReadFile(ctx, readOp) // Sequential read of 7 bytes (12 - 5).
+	require.NoError(t, err, "ReadFile")
+	readOp.Offset = 3
+	err = server.ReadFile(ctx, readOp) // Random read of 9 bytes (12 - 3).
+	require.NoError(t, err, "ReadFile")
+	readOp.Offset = 0
+	err = server.ReadFile(ctx, readOp) // Random read of 12 bytes (12 - 0).
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(4))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(30))
 }
 
 func TestGetInodeAttributes_Metrics(t *testing.T) {

@@ -938,7 +938,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   33,
+				expectedValue:   34,
 			},
 			{
 				name:            "profile_aiml-training",
@@ -1003,7 +1003,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.MetadataCache.StatCacheMaxSizeMb = tc.expectedValue.(int64)
 				} else {
-					c.MetadataCache.StatCacheMaxSizeMb = 33
+					c.MetadataCache.StatCacheMaxSizeMb = 34
 				}
 
 				v := viper.New()

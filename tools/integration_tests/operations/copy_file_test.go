@@ -26,9 +26,10 @@ import (
 
 func TestCopyFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	fileName := path.Join(testDir, tempFileName)
+	fileName := path.Join(testDir, tempFileName+setup.GenerateRandomString(5))
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	defer os.Remove(fileName)
 
 	content, err := operations.ReadFile(fileName)
 	if err != nil {
@@ -44,6 +45,7 @@ func TestCopyFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error : %v", err)
 	}
+	defer os.Remove(newFileName)
 
 	// Check if the data in the copied file matches the original file,
 	// and the data in original file is unchanged.

@@ -21,9 +21,21 @@ sudo apt-get install git
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
-echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+
+TOOLS_DIR="${KOKORO_ARTIFACTS_DIR}/github/gcsfuse-tools"
+PERF_BENCHMARKS_FAILED=0
+if [ -d "$TOOLS_DIR" ]; then
+    echo "Running Distributed Micro-Benchmark from gcsfuse-tools..."
+    "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" || PERF_BENCHMARKS_FAILED=1
+    
+else
+    echo "ERROR: gcsfuse-tools directory not found!"
+    PERF_BENCHMARKS_FAILED=1
+fi
+
+echo "Building and installing gcsfuse"
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
 # Mounting gcs bucket
@@ -84,11 +96,14 @@ LIST_CONFIG_FILE="config-hns.json"
 run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
 run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
 
-#Running the rename benchmark script.
+# Running the rename benchmark script.
 cd "./hns_rename_folders_metrics"
 ./run_rename_benchmark.sh $UPLOAD_FLAGS
 
-
+if [ $PERF_BENCHMARKS_FAILED -ne 0 ]; then
+  echo "Distributed benchmarks have failed."
+  exit 1
+fi
 # TODO: Testing for hns bucket with client protocol set to grpc. To be done when
 #  includeFolderAsPrefixes is supported in grpc.
 # TODO: Testing for hns bucket with client protocol set to grpc with grpc-conn-pool-size

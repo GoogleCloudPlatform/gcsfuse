@@ -105,6 +105,26 @@ func TestParseJobLogsSuccessful(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "Test chunk download logs",
+			reader: bytes.NewReader([]byte(`{"timestamp":{"seconds":1721228431,"nanos":993427325},"severity":"TRACE","message":"Job:0xc000af6000 (bucket:/obj) downloaded range [0, 10), added 10 bytes to sparse file"}`)),
+			expected: map[string]*Job{
+				"0xc000af6000": {
+					BucketName: "bucket",
+					ObjectName: "obj",
+					JobID:      "0xc000af6000",
+					ChunkCacheDownloads: []ChunkDownloadLogEntry{
+						{
+							StartTimeSeconds: 1721228431,
+							StartTimeNanos:   993427325,
+							StartOffset:      0,
+							EndOffset:        10,
+							BytesAdded:       10,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

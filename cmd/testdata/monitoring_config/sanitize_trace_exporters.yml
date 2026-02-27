@@ -1,0 +1,4 @@
+monitoring:
+  experimental-tracing-mode: GcPtrAce,  STdOut
+  experimental-tracing-sampling-ratio: 0.5
+  experimental-tracing-project-id: gcp-sample-test

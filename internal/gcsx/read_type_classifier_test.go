@@ -23,12 +23,13 @@ import (
 )
 
 func TestReadTypeClassifier_InitialState(t *testing.T) {
-	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 
 	assert.Equal(t, metrics.ReadTypeSequential, readTypeClassifier.readType.Load())
 	assert.Equal(t, int64(0), readTypeClassifier.expectedOffset.Load())
 	assert.Equal(t, uint64(0), readTypeClassifier.seeks.Load())
 	assert.Equal(t, uint64(0), readTypeClassifier.totalReadBytes.Load())
+	assert.Equal(t, int64(0), readTypeClassifier.initialOffset)
 }
 
 func TestReadTypeClassifier_IsSeekNeeded(t *testing.T) {
@@ -106,7 +107,7 @@ func TestReadTypeClassifier_IsSeekNeeded(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 			classifier.readType.Store(tc.readType)
 			classifier.expectedOffset.Store(tc.expectedOffset)
 
@@ -127,6 +128,7 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 		initialExpOffset      int64
 		initialNumSeeks       uint64
 		initialTotalReadBytes uint64
+		initialOffset         int64
 		expectedReadType      int64
 		expectedNumSeeks      uint64
 	}{
@@ -138,7 +140,20 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 			initialExpOffset:      0,
 			initialNumSeeks:       0,
 			initialTotalReadBytes: 0,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      0,
+		},
+		{
+			name:                  "First Read at non-zero offset",
+			offset:                100,
+			seekRecorded:          false,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      0,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 0,
+			initialOffset:         100,
+			expectedReadType:      metrics.ReadTypeRandom,
 			expectedNumSeeks:      0,
 		},
 		{
@@ -149,6 +164,7 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 			initialExpOffset:      10,
 			initialNumSeeks:       0,
 			initialTotalReadBytes: 100,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeSequential,
 			expectedNumSeeks:      0,
 		},
@@ -160,29 +176,32 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 			initialExpOffset:      10,
 			initialNumSeeks:       0,
 			initialTotalReadBytes: 10000000,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeSequential,
 			expectedNumSeeks:      0,
 		},
 		{
-			name:                  "Sequential read with large forward jump is a seek",
+			name:                  "Sequential read with large forward jump is a seek and switches to random",
 			offset:                50 + maxReadSize + 1,
 			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      50,
 			initialNumSeeks:       0,
 			initialTotalReadBytes: 50 * 1024,
-			expectedReadType:      metrics.ReadTypeSequential,
+			initialOffset:         0,
+			expectedReadType:      metrics.ReadTypeRandom,
 			expectedNumSeeks:      1,
 		},
 		{
-			name:                  "Sequential read with backward jump is a seek",
+			name:                  "Sequential read with backward jump is a seek and switches to random",
 			offset:                49,
 			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      50,
 			initialNumSeeks:       0,
 			initialTotalReadBytes: 50 * 1024,
-			expectedReadType:      metrics.ReadTypeSequential,
+			initialOffset:         0,
+			expectedReadType:      metrics.ReadTypeRandom,
 			expectedNumSeeks:      1,
 		},
 		{
@@ -191,10 +210,11 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeRandom,
 			initialExpOffset:      50,
-			initialNumSeeks:       minSeeksForRandom,
+			initialNumSeeks:       1,
 			initialTotalReadBytes: 50 * 1024,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeRandom,
-			expectedNumSeeks:      minSeeksForRandom,
+			expectedNumSeeks:      1,
 		},
 		{
 			name:                  "Non-contiguous random read is a seek",
@@ -202,21 +222,23 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeRandom,
 			initialExpOffset:      50,
-			initialNumSeeks:       minSeeksForRandom,
+			initialNumSeeks:       1,
 			initialTotalReadBytes: 50 * 1024,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeRandom,
-			expectedNumSeeks:      minSeeksForRandom + 1,
+			expectedNumSeeks:      2,
 		},
 		{
-			name:                  "Switches to random read after enough seeks",
+			name:                  "Switches to random read on seek",
 			offset:                50 + maxReadSize + 1,
 			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      50,
-			initialNumSeeks:       minSeeksForRandom - 1,
+			initialNumSeeks:       0,
 			initialTotalReadBytes: 1000,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeRandom,
-			expectedNumSeeks:      minSeeksForRandom,
+			expectedNumSeeks:      1,
 		},
 		{
 			name:                  "Switches back to sequential with high average read bytes",
@@ -224,10 +246,11 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeRandom,
 			initialExpOffset:      50,
-			initialNumSeeks:       minSeeksForRandom,
-			initialTotalReadBytes: maxReadSize * (minSeeksForRandom + 1),
+			initialNumSeeks:       1,
+			initialTotalReadBytes: maxReadSize * 2,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeSequential,
-			expectedNumSeeks:      minSeeksForRandom + 1,
+			expectedNumSeeks:      2,
 		},
 		{
 			name:                  "Seek recorded: sequential large forward jump",
@@ -237,18 +260,20 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 			initialExpOffset:      50,
 			initialNumSeeks:       0,
 			initialTotalReadBytes: 50 * 1024,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeSequential,
 			expectedNumSeeks:      0, // Not incremented
 		},
 		{
-			name:                  "Seek recorded: sequential backward jump",
+			name:                  "Seek recorded: sequential backward jump switches to random",
 			offset:                49,
 			seekRecorded:          true,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      50,
 			initialNumSeeks:       1,
 			initialTotalReadBytes: 50 * 1024,
-			expectedReadType:      metrics.ReadTypeSequential,
+			initialOffset:         0,
+			expectedReadType:      metrics.ReadTypeRandom,
 			expectedNumSeeks:      1, // Not incremented
 		},
 		{
@@ -257,31 +282,34 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 			seekRecorded:          true,
 			initialReadType:       metrics.ReadTypeRandom,
 			initialExpOffset:      50,
-			initialNumSeeks:       minSeeksForRandom,
+			initialNumSeeks:       1,
 			initialTotalReadBytes: 50 * 1024,
+			initialOffset:         0,
 			expectedReadType:      metrics.ReadTypeRandom,
-			expectedNumSeeks:      minSeeksForRandom, // Not incremented
+			expectedNumSeeks:      1, // Not incremented
 		},
 		{
-			name:                  "Seek recorded: does not switch to random",
+			name:                  "Seek recorded: switches to random",
 			offset:                50 + maxReadSize + 1,
 			seekRecorded:          true,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      50,
-			initialNumSeeks:       minSeeksForRandom - 1,
+			initialNumSeeks:       1,
 			initialTotalReadBytes: 1000,
-			expectedReadType:      metrics.ReadTypeSequential, // Does not switch
-			expectedNumSeeks:      minSeeksForRandom - 1,      // Not incremented
+			initialOffset:         0,
+			expectedReadType:      metrics.ReadTypeRandom,
+			expectedNumSeeks:      1, // Not incremented
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+			readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 			readTypeClassifier.readType.Store(tc.initialReadType)
 			readTypeClassifier.expectedOffset.Store(tc.initialExpOffset)
 			readTypeClassifier.seeks.Store(tc.initialNumSeeks)
 			readTypeClassifier.totalReadBytes.Store(tc.initialTotalReadBytes)
+			readTypeClassifier.initialOffset = tc.initialOffset
 
 			readInfo := readTypeClassifier.GetReadInfo(tc.offset, tc.seekRecorded)
 
@@ -332,7 +360,7 @@ func TestReadTypeClassifier_RecordRead(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 			classifier.expectedOffset.Store(tc.initialExpectedOffset)
 			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
 
@@ -349,6 +377,7 @@ func TestReadTypeClassifier_ComputeSeqPrefetchWindowAndAdjustType(t *testing.T) 
 		name                      string
 		initialNumSeeks           uint64
 		initialTotalReadBytes     uint64
+		initialOffset             int64
 		sequentialReadSizeMb      int64
 		expectedSeqPrefetchWindow int64
 	}{
@@ -356,55 +385,55 @@ func TestReadTypeClassifier_ComputeSeqPrefetchWindowAndAdjustType(t *testing.T) 
 			name:                      "Sequential Read, No seek",
 			initialNumSeeks:           0,
 			initialTotalReadBytes:     0,
+			initialOffset:             0,
 			sequentialReadSizeMb:      22,
 			expectedSeqPrefetchWindow: 22 * MB,
 		},
 		{
-			name:                      "Sequential Read, Few seeks but high average read size",
-			initialNumSeeks:           minSeeksForRandom - 1,
+			name:                      "Sequential Read, 1 seek but high average read size",
+			initialNumSeeks:           1,
 			initialTotalReadBytes:     100 * MB,
+			initialOffset:             0,
 			sequentialReadSizeMb:      22,
 			expectedSeqPrefetchWindow: 22 * MB,
 		},
 		{
-			name:                      "Sequential Read, Exactly minSeeksForRandom but high average read size",
-			initialNumSeeks:           minSeeksForRandom,
-			initialTotalReadBytes:     100 * MB,
-			sequentialReadSizeMb:      22,
-			expectedSeqPrefetchWindow: 22 * MB,
-		},
-		{
-			name:                      "Sequential Read, more than minSeeksForRandom but low average read size",
-			initialNumSeeks:           3,
+			name:                      "Sequential Read, multiple seeks but low average read size",
+			initialNumSeeks:           2,
 			initialTotalReadBytes:     10 * MB,
+			initialOffset:             0,
 			sequentialReadSizeMb:      22,
-			expectedSeqPrefetchWindow: 4 * MB, // Avg is 3.3MB, rounded up to 4MB.
+			expectedSeqPrefetchWindow: 5 * MB, // Avg is 5MB.
 		},
 		{
-			name:                      "Random Read, more than minSeeksForRandom and low average read size",
-			initialNumSeeks:           3,
+			name:                      "Random Read, multiple seeks and low average read size",
+			initialNumSeeks:           2,
 			initialTotalReadBytes:     5 * MB,
+			initialOffset:             0,
 			sequentialReadSizeMb:      22,
-			expectedSeqPrefetchWindow: 2 * MB, // Avg is 1.66MB, rounded up to 2MB.
+			expectedSeqPrefetchWindow: 3 * MB, // Avg is 2.5MB, rounded up to 3MB.
 		},
 		{
-			name:                      "Random Read, more than minSeeksForRandom and very low average read size",
-			initialNumSeeks:           3,
+			name:                      "Random Read, multiple seeks and very low average read size",
+			initialNumSeeks:           2,
 			initialTotalReadBytes:     500 * 1024, // 500KB
+			initialOffset:             0,
 			sequentialReadSizeMb:      22,
 			expectedSeqPrefetchWindow: minReadSize,
 		},
 		{
-			name:                      "Random Read, more than minSeeksForRandom and moderate average read size",
-			initialNumSeeks:           3,
+			name:                      "Random Read, multiple seeks and moderate average read size",
+			initialNumSeeks:           2,
 			initialTotalReadBytes:     3 * MB,
+			initialOffset:             0,
 			sequentialReadSizeMb:      22,
-			expectedSeqPrefetchWindow: 1 * MB,
+			expectedSeqPrefetchWindow: 2 * MB, // Avg is 1.5MB, rounded up to 2MB.
 		},
 		{
-			name:                      "Random Read, more than minSeeksForRandom and high average read size",
-			initialNumSeeks:           3,
+			name:                      "Random Read, multiple seeks and high average read size",
+			initialNumSeeks:           2,
 			initialTotalReadBytes:     100 * MB,
+			initialOffset:             0,
 			sequentialReadSizeMb:      22,
 			expectedSeqPrefetchWindow: 22 * MB, // Avg is ~33MB, more than maxReadSize so capped to 22MB.
 		},
@@ -412,23 +441,42 @@ func TestReadTypeClassifier_ComputeSeqPrefetchWindowAndAdjustType(t *testing.T) 
 			name:                      "Sequential read, Different sequential read size configured",
 			initialNumSeeks:           0,
 			initialTotalReadBytes:     0,
+			initialOffset:             0,
 			sequentialReadSizeMb:      10,
 			expectedSeqPrefetchWindow: 10 * MB,
 		},
 		{
-			name:                      "Random Read, more than minSeeksForRandom and high average read size, 10MB sequential read size",
-			initialNumSeeks:           3,
+			name:                      "Random Read, multiple seeks and high average read size, 10MB sequential read size",
+			initialNumSeeks:           2,
 			initialTotalReadBytes:     100 * MB,
+			initialOffset:             0,
 			sequentialReadSizeMb:      10,
 			expectedSeqPrefetchWindow: 10 * MB,
+		},
+		{
+			name:                      "Random Read, 1 seek and low average read size",
+			initialNumSeeks:           1,
+			initialTotalReadBytes:     1 * MB,
+			initialOffset:             0,
+			sequentialReadSizeMb:      22,
+			expectedSeqPrefetchWindow: 1 * MB,
+		},
+		{
+			name:                      "First read non-zero offset (Random type set, seeks 0)",
+			initialNumSeeks:           0,
+			initialTotalReadBytes:     0,
+			initialOffset:             100,
+			sequentialReadSizeMb:      22,
+			expectedSeqPrefetchWindow: minReadSize,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(tc.sequentialReadSizeMb)
+			classifier := NewReadTypeClassifier(tc.sequentialReadSizeMb, 0)
 			classifier.seeks.Store(tc.initialNumSeeks)
 			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
+			classifier.initialOffset = tc.initialOffset
 
 			seqReadIO := classifier.ComputeSeqPrefetchWindowAndAdjustType()
 
@@ -462,7 +510,7 @@ func TestReadTypeClassifier_IsSequentialRead(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 			classifier.readType.Store(tc.readType)
 
 			assert.Equal(t, tc.SequentialRead, classifier.IsReadSequential())
@@ -512,7 +560,7 @@ func Test_avgReadBytes(t *testing.T) {
 }
 
 func TestReadTypeClassifier_SequentialReads(t *testing.T) {
-	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 
 	// Simulate 4 reads of 10MB IO.
 	readSizes := []int64{10 * MB, 10 * MB, 10 * MB, 10 * MB}
@@ -531,7 +579,7 @@ func TestReadTypeClassifier_SequentialReads(t *testing.T) {
 }
 
 func TestReadTypeClassifier_RandomReads(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 
 	// Simulate random reads of 5MB each at different offsets.
 	readSizes := []int64{5 * MB, 5 * MB, 5 * MB, 5 * MB}
@@ -547,7 +595,7 @@ func TestReadTypeClassifier_RandomReads(t *testing.T) {
 }
 
 func TestReadTypeClassifier_RandomToSequentialRead(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 	// Start with random reads.
 	randomReadSizes := []int64{2 * MB, 2 * MB, 2 * MB, 2 * MB, 2 * MB}
 	randomOffsets := []int64{50 * MB, 20 * MB, 10 * MB, 30 * MB, 40 * MB}
@@ -573,7 +621,7 @@ func TestReadTypeClassifier_RandomToSequentialRead(t *testing.T) {
 }
 
 func TestReadTypeClassifier_ConcurrentUpdates(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
 	var wg sync.WaitGroup
 	numGoroutines := 10
 	readsPerGoroutine := 100

@@ -560,6 +560,71 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 	}
 }
 
+func TestRationalizeMonitoringConfig(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		config   *Config
+		expected []string
+	}{
+		{
+			name: "all_params_filled",
+			config: &Config{
+				Monitoring: MonitoringConfig{
+					ExperimentalTracingMode:          []string{"stdout"},
+					ExperimentalTracingProjectId:     "test-gcp-project",
+					ExperimentalTracingSamplingRatio: 0.2,
+				},
+			},
+			expected: []string{"stdout"},
+		},
+		{
+			name: "missing_project_id",
+			config: &Config{
+				Monitoring: MonitoringConfig{
+					ExperimentalTracingMode:          []string{"stdout"},
+					ExperimentalTracingProjectId:     "test-gcp-project",
+					ExperimentalTracingSamplingRatio: 0.2,
+				},
+			},
+			expected: []string{"stdout"},
+		},
+		{
+			name: "multiple_tracing_modes",
+			config: &Config{
+				Monitoring: MonitoringConfig{
+					ExperimentalTracingMode:          []string{"stdout ", " gcptrace "},
+					ExperimentalTracingProjectId:     "test-gcp-project",
+					ExperimentalTracingSamplingRatio: 0.2,
+				},
+			},
+			expected: []string{"stdout", "gcptrace"},
+		},
+		{
+			name: "multiple_tracing_modes",
+			config: &Config{
+				Monitoring: MonitoringConfig{
+					ExperimentalTracingMode:          []string{"STDout ", " GcPTraCe "},
+					ExperimentalTracingProjectId:     "test-gcp-project",
+					ExperimentalTracingSamplingRatio: 0.2,
+				},
+			},
+			expected: []string{"stdout", "gcptrace"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := Rationalize(viper.New(), tc.config, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, tc.config.Monitoring.ExperimentalTracingMode)
+		})
+	}
+}
+
 func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 	testCases := []struct {
 		name                      string

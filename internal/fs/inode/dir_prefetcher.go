@@ -34,12 +34,17 @@ const (
 
 type MetadataPrefetcher struct {
 	// Variables for metadata prefetching.
-	enabled          bool
 	metadataCacheTTL time.Duration
-	statCacheSize    int64
 	state            atomic.Uint32 // 0=Ready, 1=InProgress
-	ctx              context.Context
-	cancel           context.CancelFunc
+
+	// inodeCtx is the lifecycle context of the owning inode.
+	// If this is cancelled (e.g. due to rename/delete folder), all prefetch runs including the subdirectories stop
+	// because they are all inherited from the same inodeCtx.
+	inodeCtx context.Context
+
+	// runCancelFunc cancels the *current* prefetch run, without killing the inodeCtx.
+	runCancelFunc context.CancelFunc
+
 	maxPrefetchCount int64
 	cacheClock       timeutil.Clock
 	lastPrefetchTime atomic.Pointer[time.Time]
@@ -52,57 +57,68 @@ type MetadataPrefetcher struct {
 
 	// listCallFunc allows the prefetcher to perform GCS List call and hydrate metadata cache.
 	listCallFunc func(ctx context.Context, tok string, startOffset string, limit int) (map[Name]*Core, []string, string, error)
+
+	// shouldRun is a callback that returns true if prefetching is allowed.
+	// It checks if there are any active writers in the directory.
+	shouldRun func() bool
 }
 
 func NewMetadataPrefetcher(
+	inodeCtx context.Context, // Passed from DirInode
 	cfg *cfg.Config,
 	prefetchSem *semaphore.Weighted, // Shared semaphore across all MetadataPrefetchers.
 	cacheClock timeutil.Clock,
 	listFunc func(context.Context, string, string, int) (map[Name]*Core, []string, string, error),
+	shouldRun func() bool,
 ) *MetadataPrefetcher {
-	// Initialize a new context for metadata prefetch worker so it can run in background.
-	ctx, cancel := context.WithCancel(context.Background())
 	return &MetadataPrefetcher{
-		enabled:          cfg.MetadataCache.EnableMetadataPrefetch,
+		inodeCtx:         inodeCtx,
 		metadataCacheTTL: time.Duration(cfg.MetadataCache.TtlSecs) * time.Second,
-		statCacheSize:    cfg.MetadataCache.StatCacheMaxSizeMb,
-		ctx:              ctx,
-		cancel:           cancel,
 		maxPrefetchCount: cfg.MetadataCache.MetadataPrefetchEntriesLimit,
 		cacheClock:       cacheClock,
 		sem:              prefetchSem,
 		listCallFunc:     listFunc,
+		shouldRun:        shouldRun,
 		// state is 0 (prefetchReady) by default.
 	}
 }
 
 // Run attempts to prefetch metadata for the directory if a prefetch is due.
 // It uses an atomic state to prevent concurrent execution.
+// This function is already protected by directory mutex so no new mutex is required here for the setup part.
 func (p *MetadataPrefetcher) Run(fullObjectName string) {
 	// Do not trigger prefetching if:
-	// 1. metadata prefetch config is disabled.
-	// 2. metadata cache ttl is 0 (disabled).
-	// 3. stat cache size is 0.
-	if !p.enabled || p.metadataCacheTTL == 0 || p.statCacheSize == 0 {
+	// 1. The inode context is nil or already cancelled (dir inode is dead/renamed).
+	// 2. If there are active writers in the directory, do not trigger prefetch.
+	if p.inodeCtx == nil || p.inodeCtx.Err() != nil || !p.shouldRun() {
 		return
 	}
 
-	// 4. Trigger prefetch only if last prefetch time was before metadata cache ttl expiry.
+	// Do not trigger prefetch if the last prefetch result is still within the TTL.
 	lastPrefetchTime := p.lastPrefetchTime.Load()
 	now := p.cacheClock.Now()
 	if lastPrefetchTime != nil && now.Sub(*lastPrefetchTime) < p.metadataCacheTTL {
 		return
 	}
 
-	// 5. Ensure only one prefetch runs at a time for this directory.
+	// Ensure only one prefetch runs at a time for this directory.
 	if !p.state.CompareAndSwap(prefetchReady, prefetchInProgress) {
 		return
 	}
+
+	// Create a new context for this specific run, derived from the Inode's lifecycle context.
+	// This ensures that if the Inode is cancelled (Recursive), this run stops.
+	// We also keep runCancel so we can stop prefetch for just this run (for operations only effecting the curr dir).
+	ctx, cancel := context.WithCancel(p.inodeCtx)
+	p.runCancelFunc = cancel
 
 	// Run in background to avoid blocking the main Lookup call.
 	go func() {
 		// Reset to Ready state when the worker finishes.
 		defer p.state.Store(prefetchReady)
+		// Ensure context resources are released when worker finishes. Calling cancel is idempotent, so it is safe even
+		// if p.Cancel() is called externally.
+		defer cancel()
 
 		// Try to acquire a semaphore. If the semaphore is full, we skip this prefetch
 		// to avoid queuing stale background work.
@@ -125,7 +141,7 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 
 		for totalPrefetched < p.maxPrefetchCount {
 			select {
-			case <-p.ctx.Done():
+			case <-ctx.Done():
 				logger.Debugf("Metadata prefetch for directory %s aborted: context cancelled.", dirName)
 				return
 			default:
@@ -136,10 +152,14 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 			batchSize := min(remaining, MaxResultsForListObjectsCall)
 
 			// Perform network I/O without holding the inode lock.
-			cores, _, newTok, err := p.listCallFunc(p.ctx, continuationToken, startOffset, int(batchSize))
+			cores, _, newTok, err := p.listCallFunc(ctx, continuationToken, startOffset, int(batchSize))
 			if err != nil {
-				logger.Warnf("Prefetch failed for %s: %v", dirName, err)
-				return // Abort.
+				if ctx == nil || ctx.Err() != nil {
+					logger.Debugf("Metadata prefetch for directory %s aborted during list call: %v", dirName, ctx.Err())
+				} else {
+					logger.Warnf("Prefetch failed for %s: %v", dirName, err)
+				}
+				return
 			}
 
 			totalPrefetched += int64(len(cores))
@@ -165,9 +185,12 @@ func (p *MetadataPrefetcher) Run(fullObjectName string) {
 	}()
 }
 
+// Cancel stops the *current* prefetch run. It does NOT cancel the inodeCtx.
+// Use this for operations to stop the prefetcher for this directory.
+// This function is already protected by directory mutex so no new mutex is required here.
 func (p *MetadataPrefetcher) Cancel() {
-	if p.enabled && p.cancel != nil {
-		// cancel any in progress prefetch when the inode is getting destroyed.
-		p.cancel()
+	if p.runCancelFunc != nil {
+		p.runCancelFunc()
+		p.runCancelFunc = nil
 	}
 }

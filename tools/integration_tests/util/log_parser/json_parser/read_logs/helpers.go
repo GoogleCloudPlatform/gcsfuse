@@ -224,3 +224,58 @@ func parseJobFileLog(startTimeStampSec, startTimeStampNanos int64, logsMessage s
 	}
 	return nil
 }
+
+// parseChunkDownloadLog parses a chunk download log message and adds details
+// to the structuredLogs map.
+func parseChunkDownloadLog(startTimeStampSec, startTimeStampNanos int64, logsMessage string, structuredLogs map[string]*Job) error {
+	// Fetch bucket name, object name and offsets from the logs.
+	// Example: Job:0xc000aa65b0 (bucket:/obj) downloaded range [0, 10), added 10 bytes to sparse file
+	pattern := `Job:(\w+) \(([\w./_-]+):/([\w./_-]+)\) downloaded range \[(\d+), (\d+)\), added (\d+) bytes to sparse file`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(logsMessage)
+
+	var jobID, bucketName, objectName string
+	var startOffset, endOffset, bytesAdded int64
+	var err error
+
+	if len(matches) == 7 {
+		jobID = matches[1]
+		bucketName = matches[2]
+		objectName = matches[3]
+		startOffset, err = strconv.ParseInt(matches[4], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error while parsing start offset: %v", err)
+		}
+		endOffset, err = strconv.ParseInt(matches[5], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error while parsing end offset: %v", err)
+		}
+		bytesAdded, err = strconv.ParseInt(matches[6], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error while parsing bytes added: %v", err)
+		}
+	} else {
+		return fmt.Errorf("string did not match the expected pattern for sparse download")
+	}
+
+	entry := ChunkDownloadLogEntry{
+		StartTimeSeconds: startTimeStampSec,
+		StartTimeNanos:   startTimeStampNanos,
+		StartOffset:      startOffset,
+		EndOffset:        endOffset,
+		BytesAdded:       bytesAdded,
+	}
+
+	jobEntry, ok := structuredLogs[jobID]
+	if !ok {
+		structuredLogs[jobID] = &Job{
+			JobID:               jobID,
+			ObjectName:          objectName,
+			BucketName:          bucketName,
+			ChunkCacheDownloads: []ChunkDownloadLogEntry{entry},
+		}
+	} else {
+		jobEntry.ChunkCacheDownloads = append(jobEntry.ChunkCacheDownloads, entry)
+	}
+	return nil
+}

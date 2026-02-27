@@ -585,6 +585,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					MaxParallelDownloads:                   40,
 					MaxSizeMb:                              100,
 					ParallelDownloadsPerFile:               2,
+					SharedCacheChunkSizeMb:                 8,
 					WriteBufferSize:                        4 * 1024 * 1024,
 					EnableODirect:                          false,
 				},
@@ -605,6 +606,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
 					MaxSizeMb:                              -1,
 					ParallelDownloadsPerFile:               16,
+					SharedCacheChunkSizeMb:                 8,
 					WriteBufferSize:                        4 * 1024 * 1024,
 					EnableODirect:                          false,
 				},
@@ -1503,14 +1505,14 @@ func TestArgsParsing_EnableTypeCacheDeprecationFlags(t *testing.T) {
 		expectedEnableTypeCacheDeprecation bool
 	}{
 		{
-			name:                               "normal",
-			args:                               []string{"gcsfuse", "--enable-type-cache-deprecation=true", "abc", "pqr"},
-			expectedEnableTypeCacheDeprecation: true,
+			name:                               "explicitly_disabled",
+			args:                               []string{"gcsfuse", "--enable-type-cache-deprecation=false", "abc", "pqr"},
+			expectedEnableTypeCacheDeprecation: false,
 		},
 		{
 			name:                               "default",
 			args:                               []string{"gcsfuse", "abc", "pqr"},
-			expectedEnableTypeCacheDeprecation: false,
+			expectedEnableTypeCacheDeprecation: true,
 		},
 	}
 
@@ -1842,6 +1844,42 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	}
 }
 
+func TestArgsParsingMonitoringConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfgFile  string
+		expected *cfg.MonitoringConfig
+	}{
+		{
+			name:     "default",
+			cfgFile:  "empty.yml",
+			expected: &cfg.MonitoringConfig{ExperimentalTracingMode: []string{"gcptrace"}, ExperimentalTracingSamplingRatio: 0, ExperimentalTracingProjectId: ""},
+		},
+		{
+			name:     "sanitize_trace_exporters.yml",
+			cfgFile:  "sanitize_trace_exporters.yml",
+			expected: &cfg.MonitoringConfig{ExperimentalTracingMode: []string{"gcptrace", "stdout"}, ExperimentalTracingSamplingRatio: 0.5, ExperimentalTracingProjectId: "gcp-sample-test"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/monitoring_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, &gotConfig.Monitoring)
+		})
+	}
+}
+
 func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -1881,7 +1919,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					MetadataPrefetchMaxWorkers:          10,
 					EnableMetadataPrefetch:              false,
 					MetadataPrefetchEntriesLimit:        5000,
-					StatCacheMaxSizeMb:                  33,
+					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
@@ -1901,7 +1939,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					MetadataPrefetchMaxWorkers:          10,
 					EnableMetadataPrefetch:              false,
 					MetadataPrefetchEntriesLimit:        5000,
-					StatCacheMaxSizeMb:                  33,
+					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,

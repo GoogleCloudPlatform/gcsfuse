@@ -283,7 +283,7 @@ func (d *baseDirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObje
 	return nil, err
 }
 
-func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (op *gcs.Folder, err error) {
+func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string, folderInode DirInode) (op *gcs.Folder, err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -299,3 +299,18 @@ func (d *baseDirInode) Unlink() {
 func (d *baseDirInode) IsTypeCacheDeprecated() bool {
 	return d.isEnableTypeCacheDeprecation
 }
+
+func (d *baseDirInode) CancelCurrDirPrefetcher() {}
+
+func (d *baseDirInode) CancelSubdirectoryPrefetches() {}
+
+func (d *baseDirInode) Context() context.Context {
+	// TODO: Consider implementing Context() if it simplifies the code in the future.
+	// Currently, baseDirInode is the root for dynamic mounts where listing (and thus prefetching)
+	// is not allowed, so a nil context suffices.
+	return nil
+}
+
+func (d *baseDirInode) IncrementActiveWriters() {}
+
+func (d *baseDirInode) DecrementActiveWriters() {}

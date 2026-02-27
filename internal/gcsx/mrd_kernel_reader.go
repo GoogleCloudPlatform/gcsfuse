@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -45,18 +44,18 @@ func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHa
 	}
 }
 
-// isShortRead checks if the read operation returned fewer bytes than requested
-// without encountering a fatal error.
-// It returns true if bytesRead < bufferSize and err is either nil, io.EOF, io.ErrUnexpectedEOF,
-// or a gRPC OutOfRange error.
+// isShortRead determines what constitutes a short read for retry purposes.
+// It returns true if bytesRead < bufferSize and the error is a gRPC OutOfRange error.
 func isShortRead(bytesRead int, bufferSize int, err error) bool {
 	if bytesRead >= bufferSize {
 		return false
 	}
 
-	if err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		return true
-	}
+	// Even without O_DIRECT, OutOfRange errors can occur during appends from the same mount.
+	// The kernel tracks the updated file size and allows reads, but the active MRD connection might
+	// still reference the old object size. We update the local object in the MrdInstance without
+	// recreating the MRD connection. Reads beyond the old size thus return OutOfRange, which
+	// we handle as a short read to trigger MRD recreation and retry.
 
 	// Check for gRPC OutOfRange error, handling wrapped errors.
 	var se interface{ GRPCStatus() *status.Status }

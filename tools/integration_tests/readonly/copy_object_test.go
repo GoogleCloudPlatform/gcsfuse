@@ -16,7 +16,6 @@
 package readonly_test
 
 import (
-	"os"
 	"path"
 	"testing"
 
@@ -26,16 +25,11 @@ import (
 
 // Copy srcFile in testBucket/testDirForReadOnlyTest/Test/b/b.txt destination.
 func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
-	// cp without destination file creates a destination file and create workflow is already covered separately.
-	copyFile := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 
-	// cp without destination file creates a destination file and create workflow is already covered separately.
-	// Checking if destination object exist.
-	if _, err := os.Stat(copyFile); err != nil {
-		t.Errorf("Copied file %s is not present", copyFile)
-	}
+	destFileName := FileNameInSubDirectoryTestBucket + setup.GenerateRandomString(5)
+	destFile := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, destFileName)
 
-	err := operations.CopyFile(srcFilePath, copyFile)
+	err := operations.CopyFile(srcFilePath, destFile)
 	if err == nil {
 		t.Errorf("File copied in read-only file system: %v", err)
 	}

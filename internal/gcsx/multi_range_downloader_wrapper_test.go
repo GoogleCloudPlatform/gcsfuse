@@ -169,7 +169,7 @@ func (t *mrdWrapperTest) Test_Read_ShortRead() {
 
 	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), false)
 
-	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.NoError(t.T(), err)
 	assert.Less(t.T(), bytesRead, int(t.object.Size))
 }
 

@@ -118,9 +118,11 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 	}
 
+	parInodeCtx := context.Background()
 	t.in = NewDirInode(
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
+		parInodeCtx,
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
@@ -164,9 +166,11 @@ func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
 	}
 
+	parInodeCtx := context.Background()
 	return NewDirInode(
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
+		parInodeCtx,
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
@@ -2241,4 +2245,89 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 	require.NotNil(t.T(), entry)
 	assert.Equal(t.T(), objName, entry.FullName.GcsObjectName())
 	mockBucket.AssertExpectations(t.T())
+}
+
+// Test that Destroy() cancels the inode's lifecycle context.
+func (t *DirTest) TestDestroy_CancelsContext() {
+	// 1. Setup
+	// Ensure the inode starts with a valid, non-cancelled context
+	assert.Nil(t.T(), t.in.Context().Err())
+
+	err := t.in.Destroy()
+	assert.Nil(nil, err)
+
+	// The context should now be cancelled
+	assert.Equal(t.T(), context.Canceled, t.in.Context().Err())
+}
+
+// Test that a new DirInode has a derived context.
+func (t *DirTest) TestNewDirInode_HasContext() {
+	assert.NotNil(t.T(), t.in.Context())
+}
+
+func (t *DirTest) TestMetadataPrefetcher_InitializationGuards() {
+	testCases := []struct {
+		name               string
+		enablePrefetch     bool
+		statCacheMaxSizeMb int64
+		ttlSecs            int64
+		expectActive       bool
+	}{
+		{
+			name:               "DisabledInConfig",
+			enablePrefetch:     false,
+			statCacheMaxSizeMb: 4,
+			ttlSecs:            60,
+			expectActive:       false,
+		},
+		{
+			name:               "ZeroCacheSize",
+			enablePrefetch:     true,
+			statCacheMaxSizeMb: 0,
+			ttlSecs:            60,
+			expectActive:       false,
+		},
+		{
+			name:               "ZeroTTL",
+			enablePrefetch:     true,
+			statCacheMaxSizeMb: 4,
+			ttlSecs:            0,
+			expectActive:       false,
+		},
+		{
+			name:               "ValidConfig",
+			enablePrefetch:     true,
+			statCacheMaxSizeMb: 4,
+			ttlSecs:            60,
+			expectActive:       true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(st *testing.T) {
+			config := &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					EnableMetadataPrefetch:       tc.enablePrefetch,
+					StatCacheMaxSizeMb:           tc.statCacheMaxSizeMb,
+					TtlSecs:                      tc.ttlSecs,
+					MetadataPrefetchEntriesLimit: 500,
+				},
+			}
+
+			// Create a new inode with the specific config
+			inode := NewDirInode(
+				dirInodeID,
+				NewDirName(NewRootName(""), dirInodeName),
+				context.Background(),
+				fuseops.InodeAttributes{Mode: dirMode},
+				false, false, time.Second,
+				&t.bucket, &t.clock, &t.clock,
+				semaphore.NewWeighted(10),
+				config,
+			)
+
+			d := inode.(*dirInode)
+			assert.Equal(st, tc.expectActive, d.prefetcher != nil)
+		})
+	}
 }

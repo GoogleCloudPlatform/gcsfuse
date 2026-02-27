@@ -48,6 +48,7 @@ const (
 	DefaultFilePerm  = os.FileMode(0600)
 	DefaultDirPerm   = os.FileMode(0700)
 	FileCache        = "gcsfuse-file-cache"
+	SharedChunkCache = "gcsfuse-shared-chunk-cache"
 	BufferSizeForCRC = 65536
 )
 

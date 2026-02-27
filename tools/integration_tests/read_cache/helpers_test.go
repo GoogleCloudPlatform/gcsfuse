@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -27,10 +28,12 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -270,4 +273,61 @@ func runTestsOnlyForDynamicMount(t *testing.T) {
 		log.Println("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
+}
+
+func validateAllocatedFileSize(t *testing.T, fileName string, expectedSize int64) {
+	cachedFilePath := getCachedFilePath(fileName)
+	fi, err := os.Stat(cachedFilePath)
+	require.NoError(t, err)
+	stat := fi.Sys().(*syscall.Stat_t)
+	allocatedSize := stat.Blocks * 512
+
+	// Allow small overhead (1KB) for metadata stored for this file.
+	overhead := int64(1024)
+	assert.LessOrEqual(t, allocatedSize, expectedSize+overhead, "Allocated size should be close to expected size")
+	assert.GreaterOrEqual(t, allocatedSize, expectedSize, "Allocated size should be at least expected size")
+}
+
+func validateDownloads(t *testing.T, downloads []read_logs.ChunkDownloadLogEntry, expectedRanges []data.ObjectRange, fileName string) {
+	require.Len(t, downloads, len(expectedRanges), "Expected exactly %d downloads", len(expectedRanges))
+
+	// Count expected
+	expectedCounts := make(map[data.ObjectRange]int)
+	for _, r := range expectedRanges {
+		expectedCounts[r]++
+	}
+
+	// Count actual
+	actualCounts := make(map[data.ObjectRange]int)
+	for _, d := range downloads {
+		r := data.ObjectRange{Start: d.StartOffset, End: d.EndOffset}
+		actualCounts[r]++
+		if fileName != "" {
+			validateContent(t, fileName, d.StartOffset, d.EndOffset)
+		}
+	}
+	assert.Equal(t, expectedCounts, actualCounts, "Download ranges mismatch")
+}
+
+func validateContent(t *testing.T, fileName string, start, end int64) {
+	// Read from cache
+	cacheFilePath := getCachedFilePath(fileName)
+	file, err := os.Open(cacheFilePath)
+	require.NoError(t, err)
+	defer file.Close()
+	size := end - start
+	cacheContent := make([]byte, size)
+	_, err = file.ReadAt(cacheContent, start)
+	require.NoError(t, err)
+
+	// Read from GCS
+	objectName := path.Join(testDirName, fileName)
+	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(objectName)
+	rc, err := testEnv.storageClient.Bucket(bucketName).Object(objectName).NewRangeReader(testEnv.ctx, start, size)
+	require.NoError(t, err)
+	defer rc.Close()
+
+	gcsContent, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	assert.Equal(t, gcsContent, cacheContent, "Content mismatch for range [%d, %d)", start, end)
 }

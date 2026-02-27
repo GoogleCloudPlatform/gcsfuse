@@ -441,29 +441,6 @@ func SetUpTestDirForTestBucket(cfg *test_suite.TestConfig) {
 	SetLogFile(cfg.LogFile)
 }
 
-func SetUpLogDirForTestDirTests(logDirName string) (logDir string) {
-	logDir = path.Join(TestDir(), logDirName)
-	err := os.Mkdir(logDir, DirPermission_0755)
-	if err != nil {
-		log.Printf("os.Mkdir %s: %v\n", logDir, err)
-		os.Exit(1)
-	}
-	return
-}
-
-func ValidateLogDirForMountedDirTests(logDirName string) (logDir string) {
-	if *mountedDirectory == "" {
-		return ""
-	}
-	logDir = path.Join(os.TempDir(), logDirName)
-	_, err := os.Stat(logDir)
-	if err != nil {
-		log.Printf("validateLogDirForMountedDirTests %s: %v\n", logDir, err)
-		os.Exit(1)
-	}
-	return
-}
-
 func LogAndExit(s string) {
 	log.Print(s)
 	log.Print(string(debug.Stack()))
@@ -644,9 +621,11 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 }
 
 func SetGlobalVars(cfg *test_suite.TestConfig) {
+	// TODO: clean global variables after test migration to config file completes.
 	testBucket = &cfg.TestBucket
 	logFile = cfg.LogFile
 	mntDir = cfg.GKEMountedDirectory
+	onlyDirMounted = cfg.OnlyDir
 }
 
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
@@ -825,6 +804,12 @@ func GetGCERegion(gceZone string) (string, error) {
 		return region, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", region, err)
 	}
 	return region, nil
+}
+
+// IsDynamicMount returns true if the mount is dynamic.
+// In dynamic mounts, rootDir contains all buckets, and mountDir is the specific bucket directory.
+func IsDynamicMount(mountDir, rootDir string) bool {
+	return mountDir != rootDir
 }
 
 // ExtractServiceVersionFromFlags parses the cloud-profiler-label from a slice of flag strings.

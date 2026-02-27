@@ -43,12 +43,14 @@ import (
 
 type hnsDirTest struct {
 	suite.Suite
-	ctx        context.Context
-	bucket     gcsx.SyncerBucket
-	in         DirInode
-	mockBucket *storagemock.TestifyMockBucket
-	typeCache  metadata.TypeCache
-	fixedTime  timeutil.SimulatedClock
+	ctx         context.Context
+	bucket      gcsx.SyncerBucket
+	in          DirInode
+	mockBucket  *storagemock.TestifyMockBucket
+	typeCache   metadata.TypeCache
+	fixedTime   timeutil.SimulatedClock
+	config      *cfg.Config
+	parInodeCtx context.Context
 }
 
 type HNSDirTest struct {
@@ -94,7 +96,7 @@ func (t *hnsDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, ena
 func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
 	t.fixedTime.SetTime(time.Date(2024, 7, 22, 2, 15, 0, 0, time.Local))
 
-	config := &cfg.Config{
+	t.config = &cfg.Config{
 		List:                         cfg.ListConfig{EnableEmptyManagedFolders: enableManagedFoldersListing},
 		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: typeCacheMaxSizeMB},
 		EnableHns:                    true,
@@ -102,9 +104,11 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 	}
 
+	t.parInodeCtx = context.Background()
 	t.in = NewDirInode(
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
+		t.parInodeCtx,
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
@@ -117,7 +121,7 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		&t.fixedTime,
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
-		config,
+		t.config,
 	)
 
 	d := t.in.(*dirInode)
@@ -149,9 +153,29 @@ func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName str
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
 	}
 
+	parInode := NewDirInode(
+		1,
+		NewRootName(""),
+		nil,
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		false,
+		true,
+		typeCacheTTL,
+		&t.bucket,
+		&t.fixedTime,
+		&t.fixedTime,
+		semaphore.NewWeighted(10),
+		config,
+	)
+
 	return NewDirInode(
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
+		parInode.Context(),
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
@@ -360,13 +384,31 @@ func (t *HNSDirTest) TestRenameFolderWithGivenName() {
 		dirName       = "qux"
 		renameDirName = "rename"
 	)
+	folderInode := NewDirInode(
+		7,
+		NewDirName(NewRootName(""), path.Join(dirInodeName, dirName)),
+		nil,
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		false,
+		true,
+		typeCacheTTL,
+		&t.bucket,
+		&t.fixedTime,
+		&t.fixedTime,
+		semaphore.NewWeighted(10),
+		t.config,
+	)
 	folderName := path.Join(dirInodeName, dirName) + "/"
 	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
 	renameFolder := gcs.Folder{Name: renameFolderName}
 	t.mockBucket.On("RenameFolder", t.ctx, folderName, renameFolderName).Return(&renameFolder, nil)
 
 	// Attempt to rename the folder.
-	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
+	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName, folderInode)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
@@ -381,12 +423,30 @@ func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
 		dirName       = "qux"
 		renameDirName = "rename"
 	)
+	folderInode := NewDirInode(
+		7,
+		NewDirName(NewRootName(""), path.Join(dirInodeName, dirName)),
+		nil,
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		false,
+		true,
+		typeCacheTTL,
+		&t.bucket,
+		&t.fixedTime,
+		&t.fixedTime,
+		semaphore.NewWeighted(10),
+		t.config,
+	)
 	folderName := path.Join(dirInodeName, dirName) + "/"
 	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
 	t.mockBucket.On("RenameFolder", t.ctx, folderName, renameFolderName).Return(nil, &gcs.NotFoundError{})
 
 	// Attempt to rename the folder.
-	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
+	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName, folderInode)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.True(t.T(), errors.As(err, &notFoundErr))
@@ -770,12 +830,13 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(st *testing.T) {
 			// Enable type cache deprecation
-			config := &cfg.Config{
+			t.config = &cfg.Config{
 				EnableTypeCacheDeprecation: true,
 			}
 			dirInode := NewDirInode(
 				dirInodeID,
 				NewDirName(NewRootName(""), dirInodeName),
+				t.parInodeCtx,
 				fuseops.InodeAttributes{
 					Uid:  uid,
 					Gid:  gid,
@@ -788,7 +849,7 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 				&t.fixedTime,
 				&t.fixedTime,
 				semaphore.NewWeighted(10),
-				config,
+				t.config,
 			)
 			dirName := path.Join(dirInodeName, tc.name) + "/"
 			// Expectation: DeleteObject called with OnlyDeleteFromCache

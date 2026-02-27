@@ -49,13 +49,13 @@ type FileInfo struct {
 	Offset           uint64 // For non-sparse files: bytes downloaded so far. For sparse files: set to MaxUint64 as sentinel
 	FileSize         uint64
 	SparseMode       bool          // Whether this file is using sparse file mode
-	DownloadedRanges *ByteRangeMap // For sparse files: tracks which byte ranges have been downloaded
+	DownloadedChunks *ByteRangeMap // For sparse files: tracks which chunks have been downloaded
 }
 
 func (fi FileInfo) Size() uint64 {
 	// For sparse files, return actual downloaded bytes, not full file size
-	if fi.SparseMode && fi.DownloadedRanges != nil {
-		return fi.DownloadedRanges.TotalBytes()
+	if fi.SparseMode && fi.DownloadedChunks != nil {
+		return fi.DownloadedChunks.TotalBytes()
 	}
 	return fi.FileSize
 }
