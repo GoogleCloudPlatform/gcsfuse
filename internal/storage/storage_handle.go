@@ -54,6 +54,8 @@ const (
 
 	zonalLocationType         = "zone"
 	stallTimeoutForDirectPath = 60 * time.Second
+
+	directPathDetectionTimeout = 10 * time.Second
 )
 
 type StorageHandle interface {
@@ -199,7 +201,7 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (sc *storage.Client, err error) {
 
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
-		logger.Fatal("error setting direct path env var: %v", err)
+		logger.Errorf("error setting direct path env var: %v", err)
 	}
 
 	var clientOpts []option.ClientOption
@@ -208,7 +210,13 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
-	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
+	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
+	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+
+	// Create client with DirectPath enforced
+	detectionCtx, cancel := context.WithTimeout(ctx, directPathDetectionTimeout)
+	defer cancel()
+	sc, err = storage.NewGRPCClient(detectionCtx, clientOpts...)
 	if err != nil {
 		err = fmt.Errorf("NewGRPCClient: %w", err)
 	} else {
@@ -217,7 +225,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
-		logger.Fatal("error while unsetting direct path env var: %v", err)
+		logger.Errorf("error while unsetting direct path env var: %v", err)
 	}
 
 	return
