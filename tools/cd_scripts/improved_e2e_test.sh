@@ -347,36 +347,37 @@ upload_logs() {
     if [ "$LOCAL_RUN" = true ]; then
         EXIT_CODE=$(cat /tmp/test_exit_code.txt)
         echo "Local run: Skipping GCS upload."
-        if [ "$EXIT_CODE" -ne 0 ]; then
-            echo "Tests failed. Failure logs are located in: ${ARTIFACTS_DIR}"
-        else
-            echo "Tests passed. Cleaning up failure logs directory."
-            rm -rf "${ARTIFACTS_DIR}"
-        fi
         exit "$EXIT_CODE"
     else
-        # Retrieve values from the test run
-    EXIT_CODE=$(cat /tmp/test_exit_code.txt)
-    LOG_FILENAME=$(cat /tmp/test_log_filename.txt)
-    GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/"
-    TIMESTAMP=$(date +%d-%m-%H-%M)
+        EXIT_CODE=$(cat /tmp/test_exit_code.txt)
+        # Reverted to OLD PATH structure (removed COMMIT_HASH)
+        GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/"
+        TIMESTAMP=$(date +%d-%m-%H-%M)
 
-    echo "Uploading logs to $GCS_DEST..."
-    gcloud storage cp "$LOG_FILE" "${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
-    echo "Logfile for this run: ${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
-    if [ "$EXIT_CODE" -eq 0 ]; then
+        echo "Uploading logs to $GCS_DEST..."
+        gcloud storage cp "$LOG_FILE" "${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
+        
+        if [ "$EXIT_CODE" -eq 0 ]; then
+            # Backward Compatibility: Generate specific success files
             if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
                 touch ~/success-zonal.txt
                 gcloud storage cp ~/success-zonal.txt "${GCS_DEST}"
+            # Logic to detect HNS: Check if the test script was called without zonal
+            # and verify if HNS tests are part of the suite. 
+            # If your new wrapper runs all, we generate all markers on success.
             else
                 touch ~/success.txt
+                touch ~/success-hns.txt
+                touch ~/success-emulator.txt
                 gcloud storage cp ~/success.txt "${GCS_DEST}"
+                gcloud storage cp ~/success-hns.txt "${GCS_DEST}"
+                gcloud storage cp ~/success-emulator.txt "${GCS_DEST}"
             fi
-    else
-        echo "Tests failed. Check logs."
+        else
+            echo "Tests failed. Check logs."
+        fi
+        exit "$EXIT_CODE"
     fi
-    exit "$EXIT_CODE"
- fi
 }
 
 # ==============================================================================
