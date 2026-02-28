@@ -241,15 +241,17 @@ func TestParsingSuccess(t *testing.T) {
 
 func TestParsingError(t *testing.T) {
 	type TestConfig struct {
-		OctalParam       Octal
-		LogSeverityParam LogSeverity
-		ProtocolParam    Protocol
+		OctalParam              Octal
+		LogSeverityParam        LogSeverity
+		ProtocolParam           Protocol
+		DirectPathStrategyParam DirectPathStrategy
 	}
 	declareFlags := func() *flag.FlagSet {
 		fs := flag.NewFlagSet("test", flag.ExitOnError)
 		fs.String("octalParam", "0", "")
 		fs.String("logSeverityParam", "INFO", "")
 		fs.String("protocolParam", "http1", "")
+		fs.String("directPathStrategyParam", "direct-path-with-fallback", "")
 		return fs
 	}
 	bindFlags := func(fs *flag.FlagSet) *viper.Viper {
@@ -258,6 +260,7 @@ func TestParsingError(t *testing.T) {
 		bindFlag(t, v, "OctalParam", fs.Lookup("octalParam"))
 		bindFlag(t, v, "LogSeverityParam", fs.Lookup("logSeverityParam"))
 		bindFlag(t, v, "ProtocolParam", fs.Lookup("protocolParam"))
+		bindFlag(t, v, "DirectPathStrategyParam", fs.Lookup("directPathStrategyParam"))
 		return v
 	}
 	tests := []struct {
@@ -279,6 +282,11 @@ func TestParsingError(t *testing.T) {
 			name:   "Protocol",
 			args:   []string{"--protocolParam=pqr"},
 			errMsg: "invalid protocol value: pqr. It can only accept values in the list: [http1 http2 grpc]",
+		},
+		{
+			name:   "DirectPathStrategy",
+			args:   []string{"--directPathStrategyParam=invalid-strategy"},
+			errMsg: "invalid direct-path strategy value: invalid-strategy. It can only accept values in the list: [direct-path-only direct-path-with-fallback]",
 		},
 	}
 	for _, tc := range tests {

@@ -603,6 +603,8 @@ type GcsConnectionConfig struct {
 
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
+	GrpcPathStrategy string `yaml:"grpc-path-strategy"`
+
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
 
 	LimitBytesPerSec float64 `yaml:"limit-bytes-per-sec"`
@@ -1113,6 +1115,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
+
+	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).")
+
+	if err := flagSet.MarkHidden("grpc-path-strategy"); err != nil {
+		return err
+	}
 
 	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. A value of 0 indicates no timeout.")
 
@@ -1674,6 +1682,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.gid", flagSet.Lookup("gid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.grpc-path-strategy", flagSet.Lookup("grpc-path-strategy")); err != nil {
 		return err
 	}
 
