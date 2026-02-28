@@ -52,7 +52,21 @@ install_packages_by_os() {
 
   case "$os_id" in
     ubuntu|debian)
-      sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"
+      local retry_count=0
+      local max_retries=10
+      
+      # Loop to handle the apt lock issue
+      until sudo apt-get update; do
+        if [ $retry_count -ge $max_retries ]; then
+          echo "Error: Could not obtain apt lock after $max_retries attempts."
+          return 1
+        fi
+        
+        echo "Waiting for apt lock (Process $(fuser /var/lib/apt/lists/lock 2>/dev/null))..."
+        sleep 5
+        ((retry_count++))
+      done
+      sudo apt-get install -y "${pkgs[@]}"
       ;;
     rhel|centos|fedora|almalinux|rocky)
       # Map package names for RHEL if necessary
