@@ -350,7 +350,6 @@ upload_logs() {
         exit "$EXIT_CODE"
     else
         EXIT_CODE=$(cat /tmp/test_exit_code.txt)
-        # Reverted to OLD PATH structure (removed COMMIT_HASH)
         GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/"
 
         echo "Uploading logs to $GCS_DEST..."
