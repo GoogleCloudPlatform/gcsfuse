@@ -174,12 +174,7 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics
 	entry.mu.RLock()
 	if entry.mrd == nil {
 		entry.mu.RUnlock()
-		// Recreate the entry if it is not valid.
-		if err := mi.mrdPool.RecreateMRD(entry, nil); err != nil {
-			return 0, fmt.Errorf("MrdInstance::Read: failed to recreate MRD: %w", err)
-		}
-		// Retry getting the entry.
-		return mi.Read(ctx, p, offset, metrics)
+		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
 	}
 
 	start := time.Now()
