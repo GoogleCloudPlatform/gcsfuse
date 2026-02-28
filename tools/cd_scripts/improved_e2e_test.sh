@@ -303,22 +303,22 @@ fi
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
 BASH_EXECUTABLE="bash"
-REQUIRED_BASH_MAJOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f1)
-REQUIRED_BASH_MINOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f2)
+REQUIRED_BASH_MAJOR=\$(echo "\$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f1)
+REQUIRED_BASH_MINOR=\$(echo "\$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f2)
 
-echo "Current Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
-echo "Required Bash version for e2e script: ${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}"
+echo "Current Bash version: \${BASH_VERSINFO[0]}.\${BASH_VERSINFO[1]}"
+echo "Required Bash version for e2e script: \$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
 
-if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
-    echo "Current Bash version is older than the required version. Installing Bash ${INSTALL_BASH_VERSION}..."
-    ./perfmetrics/scripts/install_bash.sh "$INSTALL_BASH_VERSION"
+if (( \${BASH_VERSINFO[0]} < \$REQUIRED_BASH_MAJOR || ( \${BASH_VERSINFO[0]} == \$REQUIRED_BASH_MAJOR && \${BASH_VERSINFO[1]} < \$REQUIRED_BASH_MINOR ) )); then
+    echo "Current Bash version is older than the required version. Installing Bash \$INSTALL_BASH_VERSION..."
+    ./perfmetrics/scripts/install_bash.sh "\$INSTALL_BASH_VERSION"
     BASH_EXECUTABLE="/usr/local/bin/bash"
 else
-    echo "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) meets or exceeds the required version (${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}). Skipping Bash installation."
+    echo "Current Bash version (\${BASH_VERSINFO[0]}.\${BASH_VERSINFO[1]}) meets or exceeds the required version (\$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT). Skipping Bash installation."
 fi
 
 REGION=\${ZONE_NAME%-*}
-TEST_SCRIPT="${BASH_EXECUTABLE} tools/integration_tests/improved_run_e2e_tests.sh"
+TEST_SCRIPT="\${BASH_EXECUTABLE} tools/integration_tests/improved_run_e2e_tests.sh"
 ARGS="--bucket-location \$REGION --test-installed-package --no-build-binary-in-script --package-level-parallelism=5"
 [[ "\$RUN_ON_ZB_ONLY" == "true" ]] && ARGS="\$ARGS --zonal"
 
