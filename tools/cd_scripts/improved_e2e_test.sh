@@ -352,10 +352,9 @@ upload_logs() {
         EXIT_CODE=$(cat /tmp/test_exit_code.txt)
         # Reverted to OLD PATH structure (removed COMMIT_HASH)
         GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/"
-        TIMESTAMP=$(date +%d-%m-%H-%M)
 
         echo "Uploading logs to $GCS_DEST..."
-        gcloud storage cp "$LOG_FILE" "${GCS_DEST}_combined_e2e_logs_${TIMESTAMP}.txt"
+        gcloud storage cp "$LOG_FILE" "${GCS_DEST}"
         
         if [ "$EXIT_CODE" -eq 0 ]; then
             # Backward Compatibility: Generate specific success files
