@@ -186,7 +186,7 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 
 // applyDetectionRetryConfig applies a lenient retry configuration for DirectPath detection phase.
 // This config is designed to fail fast during the initial connection check.
-func applyDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *storageutil.StorageClientConfig) {
+func applyDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *storageutil.StorageClientConfig) {
 	detectionRetryOpts := []storage.RetryOption{
 		storage.WithBackoff(gax.Backoff{
 			Max:        directPathDetectionMaxBackoff,
@@ -217,7 +217,7 @@ func applyDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientCo
 // Returns the client ready for production use, or error if DirectPath is unavailable.
 func createGRPCClientWithDirectPathEnforced(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, bucketName string) (sc *storage.Client, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
-		logger.Fatal("error setting direct path env var: %v", err)
+		logger.Errorf("error setting direct path env var: %v", err)
 	}
 
 	// Create client options
@@ -238,13 +238,13 @@ func createGRPCClientWithDirectPathEnforced(ctx context.Context, clientConfig *s
 	if err != nil {
 		// Unset the environment variable before returning error
 		if unsetErr := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); unsetErr != nil {
-			logger.Fatal("error while unsetting direct path env var: %v", unsetErr)
+			logger.Errorf("error while unsetting direct path env var: %v", unsetErr)
 		}
 		return nil, fmt.Errorf("DirectPath not available: %w", err)
 	}
 
 	// Apply detection retry config for initial verification
-	applyDetectionRetryConfig(ctx, sc, clientConfig)
+	applyDPDetectionRetryConfig(ctx, sc, clientConfig)
 
 	// Verify DirectPath connection by performing an empty listing on the bucket
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with empty listing", bucketName)
@@ -258,7 +258,7 @@ func createGRPCClientWithDirectPathEnforced(ctx context.Context, clientConfig *s
 		// DirectPath verification failed
 		sc.Close()
 		if unsetErr := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); unsetErr != nil {
-			logger.Fatal("error while unsetting direct path env var: %v", unsetErr)
+			logger.Errorf("error while unsetting direct path env var: %v", unsetErr)
 		}
 		return nil, fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, err)
 	}
@@ -270,7 +270,7 @@ func createGRPCClientWithDirectPathEnforced(ctx context.Context, clientConfig *s
 
 	// Unset the environment variable
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
-		logger.Fatal("error while unsetting direct path env var: %v", err)
+		logger.Errorf("error while unsetting direct path env var: %v", err)
 	}
 
 	return sc, nil
@@ -465,96 +465,93 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 // Important: Both zonal buckets and non-zonal buckets with client-protocol=grpc apply DirectPath enforcement.
 // However, zonal buckets CANNOT fallback to HTTP (they must use gRPC), so they fail directly
 // if DirectPath is unavailable, regardless of the strategy setting.
-func (sh *storageClient) getClientWithProtocol(ctx context.Context, isbucketZonal bool, protocol cfg.Protocol, bucketName string) (*storage.Client, error) {
+func (sh *storageClient) getClient(ctx context.Context, bucketZonal bool, bucketName string) (*storage.Client, error) {
 	var err error
 	// Zonal buckets always use gRPC with bidi config and apply DirectPath enforcement.
 	// Unlike non-zonal buckets, zonal buckets cannot fallback to HTTP/1, so they fail directly
 	// if DirectPath is unavailable (strategy is not applicable).
-	if isbucketZonal {
+	if bucketZonal {
 		if sh.grpcClientWithBidiConfig == nil {
 			logger.Infof("Attempting to create gRPC client with DirectPath enforcement for zonal bucket %q", bucketName)
-			sc, err := createGRPCClientWithDirectPathEnforced(ctx, &sh.clientConfig, true, bucketName)
-			if err != nil {
-				// DirectPath failed for zonal bucket - fail directly (no strategy logic needed)
-				logger.Errorf("DirectPath unavailable for zonal bucket %q, failing mount (zonal buckets require gRPC and cannot fallback to HTTP/1): %v", bucketName, err)
-				return nil, fmt.Errorf("DirectPath unavailable for zonal bucket (HTTP/1 fallback not possible): %w", err)
-			}
-			// DirectPath succeeded for zonal bucket
-			sh.grpcClientWithBidiConfig = sc
-			logger.Infof("Using gRPC client with DirectPath for zonal bucket (production retry config applied)")
+			sh.grpcClientWithBidiConfig, err = createGRPCClientWithDirectPathEnforced(ctx, &sh.clientConfig, true, bucketName)
 		}
-		return sh.grpcClientWithBidiConfig, nil
+		return sh.grpcClientWithBidiConfig, err
 	}
 
 	// DirectPath enforcement only applies when client-protocol=grpc is explicitly set
 	// for non-zonal buckets. Non-zonal buckets can fallback to HTTP/1 based on strategy.
-	if protocol == cfg.GRPC {
+	if sh.clientConfig.ClientProtocol == cfg.GRPC {
 		if sh.grpcClient == nil {
-			// Try to create with DirectPath enforced
-			// This function handles:
-			// 1. Client creation with DirectPath enforcement
-			// 2. Detection retry config during verification
-			// 3. Bucket-specific verification with empty listing
-			// 4. Production retry config after success
-			logger.Infof("Attempting to create gRPC client with DirectPath enforcement for bucket %q with strategy %q", bucketName, sh.clientConfig.GrpcPathStrategy)
-			sc, err := createGRPCClientWithDirectPathEnforced(ctx, &sh.clientConfig, false, bucketName)
-			if err != nil {
-				// DirectPath failed - handle based on strategy
-				logger.Warnf("DirectPath creation/verification failed: %v", err)
-
-				switch sh.clientConfig.GrpcPathStrategy {
-				case cfg.DirectPathOnly:
-					// Fail without fallback
-					logger.Errorf("DirectPath-only strategy: failing mount due to DirectPath unavailability")
-					return nil, fmt.Errorf("DirectPath unavailable and grpc-path-strategy is 'direct-path-only': %w", err)
-
-				case cfg.DirectPathWithFallback:
-					// Always fallback to HTTP/1
-					logger.Infof("DirectPath-with-fallback strategy: falling back from gRPC to HTTP/1 client")
-					if sh.httpClient == nil {
-						sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
-						if err != nil {
-							return nil, fmt.Errorf("failed to create fallback HTTP/1 client: %w", err)
-						}
-					}
-					return sh.httpClient, nil
-
-				case cfg.EnsureDirectPathIfEligible:
-					// Fallback to HTTP/1 (for now - future: check error type to distinguish InvalidError vs UnavailableError)
-					// TODO: When SDK supports error classification:
-					// - InvalidError (DirectPath impossible): Fallback to HTTP/1
-					// - UnavailableError (DirectPath possible but broken): Fail the mount
-					logger.Infof("Ensure-direct-path-if-eligible strategy: falling back from gRPC to HTTP/1 client")
-					logger.Infof("Note: Future enhancement will distinguish between DirectPath impossible vs broken scenarios")
-					if sh.httpClient == nil {
-						sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
-						if err != nil {
-							return nil, fmt.Errorf("failed to create fallback HTTP/1 client: %w", err)
-						}
-					}
-					return sh.httpClient, nil
-
-				default:
-					// Unknown strategy - fail safely
-					logger.Errorf("Unknown grpc-path-strategy: %q, failing mount", sh.clientConfig.GrpcPathStrategy)
-					return nil, fmt.Errorf("unknown grpc-path-strategy: %s", sh.clientConfig.GrpcPathStrategy)
-				}
-			}
-			// DirectPath succeeded, client has production retry config applied
-			sh.grpcClient = sc
-			logger.Infof("Using gRPC client with DirectPath (production retry config applied)")
+			sh.grpcClient, err = sh.createGRPCClient(ctx, bucketName)
 		}
-		return sh.grpcClient, nil
+		return sh.grpcClient, err
 	}
 
-	if protocol == cfg.HTTP1 || protocol == cfg.HTTP2 {
+	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
 		if sh.httpClient == nil {
 			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 		}
 		return sh.httpClient, err
 	}
 
-	return nil, fmt.Errorf("invalid client-protocol requested: %s", protocol)
+	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
+}
+
+func (sh *storageClient) createGRPCClient(ctx context.Context, bucketName string) (*storage.Client, error) {
+	// Try to create with DirectPath enforced
+	// This function handles:
+	// 1. Client creation with DirectPath enforcement
+	// 2. Detection retry config during verification
+	// 3. Bucket-specific verification with empty listing
+	// 4. Production retry config after success
+	logger.Infof("Attempting to create gRPC client with DirectPath enforcement for bucket %q with strategy %q", bucketName, sh.clientConfig.GrpcPathStrategy)
+	sc, err := createGRPCClientWithDirectPathEnforced(ctx, &sh.clientConfig, false, bucketName)
+	if err != nil {
+		// DirectPath failed - handle based on strategy
+		logger.Warnf("DirectPath creation/verification failed: %v", err)
+
+		switch sh.clientConfig.GrpcPathStrategy {
+		case cfg.DirectPathOnly:
+			// Fail without fallback
+			logger.Errorf("DirectPath-only strategy: failing mount due to DirectPath unavailability")
+			return nil, fmt.Errorf("DirectPath unavailable and grpc-path-strategy is 'direct-path-only': %w", err)
+
+		case cfg.DirectPathWithFallback:
+			// Always fallback to HTTP/1
+			logger.Infof("DirectPath-with-fallback strategy: falling back from gRPC to HTTP/1 client")
+			if sh.httpClient == nil {
+				sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create fallback HTTP/1 client: %w", err)
+				}
+			}
+			return sh.httpClient, nil
+
+		case cfg.EnsureDirectPathIfEligible:
+			// Fallback to HTTP/1 (for now - future: check error type to distinguish InvalidError vs UnavailableError)
+			// TODO: When SDK supports error classification:
+			// - InvalidError (DirectPath impossible): Fallback to HTTP/1
+			// - UnavailableError (DirectPath possible but broken): Fail the mount
+			logger.Infof("Ensure-direct-path-if-eligible strategy: falling back from gRPC to HTTP/1 client")
+			logger.Infof("Note: Future enhancement will distinguish between DirectPath impossible vs broken scenarios")
+			if sh.httpClient == nil {
+				sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create fallback HTTP/1 client: %w", err)
+				}
+			}
+			return sh.httpClient, nil
+
+		default:
+			// Unknown strategy - fail safely
+			logger.Errorf("Unknown grpc-path-strategy: %q, failing mount", sh.clientConfig.GrpcPathStrategy)
+			return nil, fmt.Errorf("unknown grpc-path-strategy: %s", sh.clientConfig.GrpcPathStrategy)
+		}
+	}
+	// DirectPath succeeded, client has production retry config applied
+	sh.grpcClient = sc
+	logger.Infof("Using gRPC client with DirectPath (production retry config applied)")
+	return nil, nil
 }
 
 // controlClientForBucketHandle returns a storage control client for the given bucket handle,
@@ -592,7 +589,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 
 	// Get client - DirectPath detection and fallback logic is now handled in getClientWithProtocol
 	// Pass bucketName for DirectPath verification when using gRPC protocol
-	client, err = sh.getClientWithProtocol(ctx, bucketType.Zonal, sh.clientConfig.ClientProtocol, bucketName)
+	client, err = sh.getClient(ctx, bucketType.Zonal, bucketName)
 	if err != nil {
 		return nil, err
 	}
