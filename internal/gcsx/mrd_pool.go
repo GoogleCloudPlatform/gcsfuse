@@ -18,8 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -31,10 +33,17 @@ const (
 	mediumFileThresholdMiB = 500
 )
 
+// ObjectAccessLatency records the latency of accessing a GCS object.
+type ObjectAccessLatency struct {
+	Latency time.Duration
+}
+
 // MRDEntry holds a single MultiRangeDownloader instance and a mutex to protect access to it.
 type MRDEntry struct {
 	mrd gcs.MultiRangeDownloader
 	mu  sync.RWMutex
+	// To store latencies for each read.
+	latencies []ObjectAccessLatency
 }
 
 // MRDPoolConfig contains configuration for the MRD pool.
@@ -234,4 +243,27 @@ func (p *MRDPool) Close() (handle []byte) {
 // Return the max size of the pool.
 func (p *MRDPool) Size() uint64 {
 	return uint64(p.poolConfig.PoolSize)
+}
+
+func (e *MRDEntry) logLatencyStats(mrdIndex int) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	if len(e.latencies) == 0 {
+		return
+	}
+
+	// Sort latencies in ascending order.
+	sort.Slice(e.latencies, func(i, j int) bool {
+		return e.latencies[i].Latency < e.latencies[j].Latency
+	})
+
+	// Calculate percentiles.
+	p50 := e.latencies[len(e.latencies)/2].Latency
+	p90 := e.latencies[len(e.latencies)*9/10].Latency
+	p99 := e.latencies[len(e.latencies)*99/100].Latency
+	p100 := e.latencies[len(e.latencies)-1].Latency
+
+	logger.Infof("MRD %d latency stats: P50: %v, P90: %v, P99: %v, P100: %v",
+		mrdIndex, p50, p90, p99, p100)
 }

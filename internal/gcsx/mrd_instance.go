@@ -174,11 +174,19 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics
 	entry.mu.RLock()
 	if entry.mrd == nil {
 		entry.mu.RUnlock()
-		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
+		// Recreate the entry if it is not valid.
+		if err := mi.mrdPool.RecreateMRD(entry, nil); err != nil {
+			return 0, fmt.Errorf("MrdInstance::Read: failed to recreate MRD: %w", err)
+		}
+		// Retry getting the entry.
+		return mi.Read(ctx, p, offset, metrics)
 	}
 
 	start := time.Now()
-	defer monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
+	defer func() {
+		entry.latencies = append(entry.latencies, ObjectAccessLatency{Latency: time.Since(start)})
+		monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
+	}()
 	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
 	})
@@ -362,6 +370,15 @@ func (mi *MrdInstance) DecrementRefCount() {
 	}
 
 	mi.refCount--
+
+	if mi.refCount == 0 {
+		for i := range mi.mrdPool.entries {
+			mi.mrdPool.entries[i].logLatencyStats(i)
+		}
+		mi.closePool()
+		return
+	}
+
 	// Do nothing if MRDInstance is in use or cache is not enabled.
 	if mi.refCount > 0 || mi.mrdCache == nil {
 		return
@@ -392,6 +409,10 @@ func (mi *MrdInstance) DecrementRefCount() {
 		mrdInstance, ok := instance.(*MrdInstance)
 		if !ok {
 			logger.Errorf("MrdInstance::DecrementRefCount: Invalid value type, expected *MrdInstance, got %T", instance)
+		} else if mrdInstance.mrdPool != nil {
+			for i := range mrdInstance.mrdPool.entries {
+				mrdInstance.mrdPool.entries[i].logLatencyStats(i)
+			}
 		} else {
 			mrdInstance.handleEviction()
 		}
