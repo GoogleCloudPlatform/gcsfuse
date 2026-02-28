@@ -201,7 +201,7 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (sc *storage.Client, err error) {
 
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
-		logger.Errorf("error setting direct path env var: %v", err)
+		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
 
 	var clientOpts []option.ClientOption
