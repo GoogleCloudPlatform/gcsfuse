@@ -1,1 +1,1 @@
-pwd
+whoami
