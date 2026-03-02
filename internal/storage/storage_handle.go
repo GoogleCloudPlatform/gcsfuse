@@ -54,8 +54,6 @@ const (
 
 	zonalLocationType         = "zone"
 	stallTimeoutForDirectPath = 60 * time.Second
-
-	directPathDetectionTimeout = 10 * time.Second
 )
 
 type StorageHandle interface {
@@ -214,9 +212,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 
 	// Create client with DirectPath enforced
-	detectionCtx, cancel := context.WithTimeout(ctx, directPathDetectionTimeout)
-	defer cancel()
-	sc, err = storage.NewGRPCClient(detectionCtx, clientOpts...)
+	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
 		err = fmt.Errorf("NewGRPCClient: %w", err)
 	} else {
