@@ -69,7 +69,7 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
-		true)
+		isImplicitDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
