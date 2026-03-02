@@ -80,6 +80,8 @@ type BucketConfig struct {
 	DummyIOCfg cfg.DummyIoConfig
 
 	IsTypeCacheDeprecated bool
+
+	ImplicitDir bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -242,7 +244,8 @@ func (bm *bucketManager) SetUpBucket(
 			timeutil.RealClock(),
 			b,
 			bm.config.NegativeStatCacheTTL,
-			bm.config.IsTypeCacheDeprecated)
+			bm.config.IsTypeCacheDeprecated,
+			bm.config.ImplicitDir)
 	}
 
 	// Enable content type awareness

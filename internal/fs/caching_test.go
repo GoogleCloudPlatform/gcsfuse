@@ -67,6 +67,7 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 		uncachedBucket,
 		negativeCacheTTL,
 		IsTypeCacheDeprecated,
+		true,
 	)
 
 	// Enable directory type caching.
@@ -476,6 +477,7 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 			uncachedBuckets[bucketName],
 			negativeCacheTTL,
 			IsTypeCacheDeprecated,
+			true,
 		)
 	}
 
