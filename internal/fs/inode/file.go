@@ -1123,8 +1123,9 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			// response. Since appends happen at the same generation, StatObject() call is redundant.
 			latestGcsObj = storageutil.ConvertMinObjectToObject(&f.src)
 		} else {
-			// For regional buckets, call StatObject() to fetch extended attributes missing from the cached MinObject,
-			// which is required by the CreateObject request to create the new object generation.
+			// For regional buckets or overwrites for rapid buckets, call StatObject() to fetch extended
+			// attributes missing from the cached MinObject, which is required by the CreateObject request
+			// to create the new object generation.
 			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		}
 		if err != nil {
