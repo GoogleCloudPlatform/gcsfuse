@@ -13,398 +13,168 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Print commands and their arguments as they are executed.
-set -x
-# -e: Exit on error, -u: Exit on unset vars, -o pipefail: Pipeline error trapping
+# Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
 
-# Startup scripts run in a minimal environment where USER and HOSTNAME are often unset.
-# We define them explicitly here to prevent 'unbound variable' errors from 'set -u'.
-export USER=$(whoami)
-export HOSTNAME=$(hostname)
-# HOME is sometimes unset in startup scripts or set to / which can confuse installers.
-export HOME=${HOME:-/root}
+# Logging Helpers
+log_info() {
+    echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+}
+
+log_error() {
+    echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+}
+
+# Constants
+readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
+readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
+readonly RELEASE_PACKAGE_BUCKET="gcsfuse-release-packages"
 
 # Defaults
 LOCAL_RUN=false
-CUSTOM_BUCKET=""
-LOG_FILE=$(pwd)/logs.txt
-TEST_USER="starterscriptuser"
-HOME_DIR="/home/${TEST_USER}"
-ARTIFACTS_DIR="${HOME_DIR}/failure_logs"
-DETAILS_FILE="$(pwd)/details.txt"
-
-# Determine the absolute location of THIS script to find repo root
-SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
-REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
-# If not in a repository(i.e. ran this via starterscript), we'll clone it later.
-[[ ! -f "${REPO_ROOT}/.go-version" ]] && REPO_ROOT="/tmp/gcsfuse"
+RELEASE_VERSION=""
+RUN_TESTS_WITH_ZONAL_BUCKET=false
 
 usage() {
-    echo "Usage: $0 [--local-run] [--bucket <bucket_name>]"
-    echo "  --local-run    Skips user creation and GCS log uploads."
-    echo "  --bucket       Sets a custom bucket name (overrides default/metadata)."
-    exit 1
+    echo "Usage: $0 [--local-run] "
+    echo "  --local-run                     Pass this flag to run this script for local runs. If this flag is passed then gcsfuse is built" 
+    echo "                                  locally instead of getting installed by pre-built package from release bucket."
+    echo "  --release-version <3.0.0>       Release version determines from which directory the pre-built package is used from release bucket."
+    echo "                                  Release version is required if not running using --local-run"
+    echo "  --zonal                         Should run tests for zonal bucket (Default: false)"
+    exit "$1"
 }
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --local-run)
-            LOCAL_RUN=true
-            TEST_USER="$USER"
-            HOME_DIR="$HOME"
-            ARTIFACTS_DIR="$(pwd)/failure_logs"
-            DETAILS_FILE="$(pwd)/details.txt"
-            echo "Running on LOCAL machine. No new users created, logs won't be uploaded."
-            shift
-            ;;
-        --bucket)
-            if [[ -n "${2:-}" ]]; then
-                CUSTOM_BUCKET="$2"
-                shift
-                shift
-            else
-                echo "ERROR: --bucket requires a non-empty value."
-                exit 1
+# Define options for getopt
+# A long option name followed by a colon indicates it requires an argument.
+LONG=local-run,zonal,release-version:,help
+
+# Parse the options using getopt
+# --options "" specifies that there are no short options.
+PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@")
+if [[ $? -ne 0 ]]; then
+    # getopt will have already printed an error message
+    usage 1
+fi
+
+# Read the parsed options back into the positional parameters.
+eval set -- "$PARSED"
+
+# Loop through the options and assign values to our variables
+while (( $# >= 1 )); do
+    case "$1" in
+        --release-version)
+            RELEASE_VERSION="$2"
+            shift 2
+            # Regex breakdown:
+            # ^      : Start of string
+            # [0-9]+ : One or more digits
+            #  \.     : A literal dot
+            # $      : End of string
+            RE="^[0-9]+\.[0-9]+\.[0-9]+$"
+            if [[ ! $RELEASE_VERSION =~ $RE ]]; then
+                log_error "--release-version is incorrectly formatted."
+                usage 1
             fi
             ;;
-        -h|--help)
-            usage
+        --zonal)
+            RUN_TESTS_WITH_ZONAL_BUCKET=true
+            shift
+            ;;
+        --local-run)
+            LOCAL_RUN=true
+            shift
+            ;;
+        --help)
+            usage 0
+            ;;
+        --)
+            shift
+            break
             ;;
         *)
-            echo "ERROR: Unknown argument: $1"
-            usage
+            log_error "Unrecognized arguments [$*]."
+            usage 1
             ;;
     esac
 done
 
-# Initialize Log File
-touch "$LOG_FILE"
-chmod 666 "$LOG_FILE"
-echo "User: $USER" &>> "${LOG_FILE}"
-echo "Current Working Directory: $(pwd)" &>> "${LOG_FILE}"
-echo "Repository Root: ${REPO_ROOT}" &>> "${LOG_FILE}"
-
-# ==============================================================================
-# 1. HELPER FUNCTIONS
-# ==============================================================================
-
-cleanup() {
-    echo "Cleaning up temporary script files..."
-    sudo rm -f /tmp/test_exit_code.txt /tmp/test_log_filename.txt /tmp/run_tests_logic.sh
-    # Remove the cloned repository if it was a temporary bootstrap
-    [[ "$REPO_ROOT" == "/tmp/gcsfuse" ]] && sudo rm -rf "$REPO_ROOT"
-    echo "Cleanup complete."
-}
-trap cleanup EXIT
-
-fetch_metadata() {
-    local os_id="unknown"
-    if [ -f /etc/os-release ]; then
-        os_id=$(. /etc/os-release && echo "$ID")
-    fi
-
-    if [ "$LOCAL_RUN" = true ]; then
-        echo "Local run detected. Setting dummy metadata."
-        ZONE="projects/12345/zones/us-west1-b"
-        ZONE_NAME="us-west1-b"
-        RUN_ON_ZB_ONLY="false"
-        BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-local-run-cd-script"}
-        # Recreate details.txt in local mode to include OS type in the instance name field
-        echo "3.5.4" > "$DETAILS_FILE"
-        echo "local-commit" >> "$DETAILS_FILE"
-        echo "local-instance-${os_id}" >> "$DETAILS_FILE"
-    else
-        # Real Metadata Fetching
-        ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
-        ZONE_NAME=$(basename "$ZONE")
-        CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
-        RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
-        BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-local-run-cd-script"}
-        # Fetch details.txt from bucket
-        gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt" .
-        # Append instance name from metadata server
-        curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> "$DETAILS_FILE"
-    fi
-
-    echo "ZONE_NAME: $ZONE_NAME"
-    echo "BUCKET_NAME_TO_USE: $BUCKET_NAME_TO_USE"
-
-    # Extract version info
-    # Line 1: VERSION, Line 2: COMMIT_HASH, Line 3: VM_INSTANCE_NAME
-    VERSION=$(sed -n 1p "$DETAILS_FILE")
-    COMMIT_HASH=$(sed -n 2p "$DETAILS_FILE")
-    VM_INSTANCE_NAME=$(sed -n 3p "$DETAILS_FILE")
-}
-
-clone_repo() {
-    echo "Bootstrapping repository..."
-    # Install git if missing (required to clone)
-    if [ -f /etc/os-release ]; then
-        local os_id=$(. /etc/os-release && echo "$ID")
-        if [[ "$os_id" == "ubuntu" || "$os_id" == "debian" ]]; then
-            sudo apt-get update && sudo apt-get install -y git
-        else
-            sudo yum install -y git
-        fi
-    fi
-
-    # Clone the repo to the temporary REPO_ROOT
-    sudo rm -rf "$REPO_ROOT"
-    git clone https://github.com/googlecloudplatform/gcsfuse "$REPO_ROOT"
-    cd "$REPO_ROOT"
-    git checkout "$COMMIT_HASH"
-}
-
-install_system_deps() {
-    echo "Installing system dependencies..."
-
-    # Source os_utils.sh from the cloned repo
-    if [ -f "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh" ]; then
-        source "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh"
-    else
-        echo "Error: os_utils.sh not found."
-        exit 1
-    fi
-
-    local os_id=$(get_os_id)
-    local pkgs=("wget" "fuse" "git")
-    if [[ "$os_id" == "ubuntu" || "$os_id" == "debian" ]]; then
-        pkgs+=("build-essential")
-    else
-        pkgs+=("gcc" "gcc-c++" "make")
-    fi
-
-    install_packages_by_os "$os_id" "${pkgs[@]}"
-
-    # Upgrade gcloud using scripts in the repo
-    echo "Upgrading gcloud..."
-    chmod +x "${REPO_ROOT}/perfmetrics/scripts/upgrade_python3.sh"
-
-    # Patch scripts to install Python globally to /usr/local/python-3.11.9 to avoid permission issues
-    sed -i 's|INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"|INSTALL_PREFIX="/usr/local/python-$PYTHON_VERSION"|g' "${REPO_ROOT}/perfmetrics/scripts/upgrade_python3.sh"
-    sed -i 's|export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"|export CLOUDSDK_PYTHON="/usr/local/python-3.11.9/bin/python3.11"|g' "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
-
-    sudo bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
-    export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
-
-    if [[ -x "/usr/local/python-3.11.9/bin/python3.11" ]]; then
-        export CLOUDSDK_PYTHON="/usr/local/python-3.11.9/bin/python3.11"
-        export PATH="/usr/local/python-3.11.9/bin:$PATH"
-    fi
-}
-
-setup_test_user() {
-    if [ "$LOCAL_RUN" = true ]; then
-        echo "Skipping user creation for local run."
-        return 0
-    fi
-
-    local user=$1
-    local home=$2
-    local details=$3
-
-    if id "${user}" &>/dev/null; then
-        echo "User ${user} already exists."
-    else
-        echo "Creating user ${user}..."
-        if grep -qi -E 'ubuntu|debian' "$details"; then
-            sudo adduser --disabled-password --home "${home}" --gecos "" "${user}"
-        else
-            sudo adduser --home-dir "${home}" "${user}" && sudo passwd -d "${user}"
-        fi
-    fi
-
-    # Grant Sudo
-    sudo mkdir -p /etc/sudoers.d/
-    local sudoers_file="/etc/sudoers.d/${user}"
-    if ! sudo test -f "${sudoers_file}"; then
-        echo "${user} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${sudoers_file}" > /dev/null
-        sudo chmod 440 "${sudoers_file}"
-    fi
-}
-
-install_go() {
-    # Read version and run script directly from cloned repo
-    local go_version=$(cat "${REPO_ROOT}/.go-version")
-    echo "Installing Go version: ${go_version}..."
-    bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "${go_version}"
-}
-
-install_gcsfuse_package() {
-    if grep -q ubuntu "$DETAILS_FILE" || grep -q debian "$DETAILS_FILE"; then
-        architecture=$(dpkg --print-architecture)
-    else
-        uname=$(uname -m)
-        if [[ $uname == "x86_64" ]]; then architecture="amd64"; elif [[ $uname == "aarch64" ]]; then architecture="arm64"; fi
-    fi
-
-    install_go
-
-    # CI/CD Logic: Download and install package if using default bucket
-    if [[ "${BUCKET_NAME_TO_USE}" == "gcsfuse-release-packages" ]]; then
-        echo "Downloading pre-built package..." &>> "${LOG_FILE}"
-        if grep -q -E 'ubuntu|debian' "$DETAILS_FILE"; then
-            gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/v${VERSION}/gcsfuse_${VERSION}_${architecture}.deb" . &>> "${LOG_FILE}"
-            sudo dpkg -i "gcsfuse_${VERSION}_${architecture}.deb" |& tee -a "${LOG_FILE}"
-        else
-            gcloud storage cp "gs://${BUCKET_NAME_TO_USE}/v${VERSION}/gcsfuse-${VERSION}-1.${uname}.rpm" . &>> "${LOG_FILE}"
-            sudo yum -y localinstall "gcsfuse-${VERSION}-1.${uname}.rpm" &>> "${LOG_FILE}"
-        fi
-    else
-        echo "Custom bucket detected; skipping pre-built package installation." &>> "${LOG_FILE}"
-    fi
-}
-
-run_tests() {
-    # Prepare the test script content dynamically
-    local script_runner_path="/tmp/run_tests_logic.sh"
-    
-    cat << EOF > "$script_runner_path"
-#!/bin/bash
-set -e
-set -x
-
-export PATH=/usr/local/google-cloud-sdk/bin:/usr/local/go/bin:/usr/sbin:/sbin:\$PATH
-export HOME="${HOME_DIR}"
-export KOKORO_ARTIFACTS_DIR="${ARTIFACTS_DIR}"
-export ZONE_NAME="${ZONE_NAME}"
-export RUN_ON_ZB_ONLY="${RUN_ON_ZB_ONLY}"
-
-mkdir -p "\$KOKORO_ARTIFACTS_DIR"
-
-# Repository Setup
-if [ "${LOCAL_RUN}" = "true" ]; then
-    echo "Local Run: Using existing repository at ${REPO_ROOT}"
-    cd "${REPO_ROOT}"
-else
-    # CI Mode: Use the repo cloned by the bootstrap process
-    cd "\$HOME/gcsfuse"
-
-    # Patch child scripts to use the global Python installed by the parent script
-    sed -i 's|export CLOUDSDK_PYTHON="\$HOME/.local/python-3.11.9/bin/python3.11"|export CLOUDSDK_PYTHON="/usr/local/python-3.11.9/bin/python3.11"|g' tools/integration_tests/improved_run_e2e_tests.sh
-    sed -i 's|export CLOUDSDK_PYTHON="\$HOME/.local/python-3.11.9/bin/python3.11"|export CLOUDSDK_PYTHON="/usr/local/python-3.11.9/bin/python3.11"|g' perfmetrics/scripts/install_latest_gcloud.sh
-    sed -i '/^set -x/a if [ -x "/usr/local/python-3.11.9/bin/python3.11" ]; then echo "Global Python found, skipping build."; exit 0; fi' perfmetrics/scripts/upgrade_python3.sh
+# Argument validation
+if [[ "$LOCAL_RUN" == "false" ]] && [[ -z "$RELEASE_VERSION" ]]; then
+    log_error "--release-version required if not running with --local-run"
+    usage 1
 fi
 
-# Always perform cleanup before building or executing tests
-echo "Cleaning up any previous GCSFuse mounts, processes, and artifacts..."
-sudo pkill -f gcsfuse || true
-rm -rf bin sbin
-
-# Build GCSFuse from source if it's a local run or requires a custom build
-if [ "${LOCAL_RUN}" = "true" ] || [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
-    echo "Building GCSFuse from source (Version: ${VERSION})..."
-    go run tools/build_gcsfuse/main.go . . "${VERSION}"
-    sudo cp bin/* /usr/bin/
-    sudo cp sbin/* /usr/sbin/
-fi
-
-readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
-readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
+# Check and install required bash version for e2e script.
 BASH_EXECUTABLE="bash"
-REQUIRED_BASH_MAJOR=\$(echo "\$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f1)
-REQUIRED_BASH_MINOR=\$(echo "\$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f2)
+REQUIRED_BASH_MAJOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f1)
+REQUIRED_BASH_MINOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f2)
 
-echo "Current Bash version: \${BASH_VERSINFO[0]}.\${BASH_VERSINFO[1]}"
-echo "Required Bash version for e2e script: \$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+log_info "Current Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+log_info "Required Bash version for e2e script: ${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}"
 
-if (( \${BASH_VERSINFO[0]} < \$REQUIRED_BASH_MAJOR || ( \${BASH_VERSINFO[0]} == \$REQUIRED_BASH_MAJOR && \${BASH_VERSINFO[1]} < \$REQUIRED_BASH_MINOR ) )); then
-    echo "Current Bash version is older than the required version. Installing Bash \$INSTALL_BASH_VERSION..."
-    ./perfmetrics/scripts/install_bash.sh "\$INSTALL_BASH_VERSION"
+if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
+    log_info "Current Bash version is older than the required version. Installing Bash ${INSTALL_BASH_VERSION}..."
+    ./perfmetrics/scripts/install_bash.sh "$INSTALL_BASH_VERSION"
     BASH_EXECUTABLE="/usr/local/bin/bash"
 else
-    echo "Current Bash version (\${BASH_VERSINFO[0]}.\${BASH_VERSINFO[1]}) meets or exceeds the required version (\$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT). Skipping Bash installation."
+    log_info "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) meets or exceeds the required version (${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}). Skipping Bash installation."
 fi
 
-REGION=\${ZONE_NAME%-*}
-TEST_SCRIPT="\${BASH_EXECUTABLE} tools/integration_tests/improved_run_e2e_tests.sh"
-ARGS="--bucket-location \$REGION --test-installed-package --no-build-binary-in-script --package-level-parallelism=5"
-[[ "\$RUN_ON_ZB_ONLY" == "true" ]] && ARGS="\$ARGS --zonal"
+# Build args for the e2e script 
+ARGS=()
 
-echo "----------------------------------------------------------------"
-echo "EXECUTING TEST SCRIPT: \$TEST_SCRIPT \$ARGS"
-echo "----------------------------------------------------------------"
+# If Get Region from ZONE
+ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
+ZONE_NAME=$(basename "$ZONE")
+REGION="${ZONE_NAME%-*}"
+ARGS+=("--bucket-location=${REGION}")
 
-# Capture exit code
-set +e
-TIMESTAMP=\$(date +%d-%m-%H-%M)
-LOG_FILENAME="e2e_run_logs_\${TIMESTAMP}.txt"
-
-# Run tests and capture output
-\$TEST_SCRIPT \$ARGS 2>&1 | tee -a "${LOG_FILE}"
-EXIT_CODE=\${PIPESTATUS[0]}
-set -e
-
-# Export for the parent script to see (via file, since we are in subshell/sudo)
-echo \$EXIT_CODE > /tmp/test_exit_code.txt
-echo \$LOG_FILENAME > /tmp/test_log_filename.txt
-EOF
-
-    chmod +x "$script_runner_path"
-
-    # Execute the runner
-    if [ "$LOCAL_RUN" = true ]; then
-        # Run directly as current user (preserving env)
-        /bin/bash "$script_runner_path"
-    else
-    # CI Mode: Provision the repository for the test user
-        sudo cp -r "${REPO_ROOT}" "${HOME_DIR}/gcsfuse"
-        sudo chown -R "${TEST_USER}:${TEST_USER}" "${HOME_DIR}/gcsfuse"
-        cp "$DETAILS_FILE" "${HOME_DIR}/"
-        chown "${TEST_USER}:${TEST_USER}" "${HOME_DIR}/details.txt"
-
-        # Run as test user
-        sudo -u "$TEST_USER" /bin/bash "$script_runner_path"
-    fi
-}
-
-upload_logs() {
-    if [ "$LOCAL_RUN" = true ]; then
-        EXIT_CODE=$(cat /tmp/test_exit_code.txt)
-        echo "Local run: Skipping GCS upload."
-        exit "$EXIT_CODE"
-    else
-        EXIT_CODE=$(cat /tmp/test_exit_code.txt)
-        GCS_DEST="gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/"
-
-        echo "Uploading logs to $GCS_DEST..."
-        gcloud storage cp "$LOG_FILE" "${GCS_DEST}"
-        
-        if [ "$EXIT_CODE" -eq 0 ]; then
-            # Backward Compatibility: Generate specific success files
-            if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
-                touch ~/success-zonal.txt
-                gcloud storage cp ~/success-zonal.txt "${GCS_DEST}"
-            # Logic to detect HNS: Check if the test script was called without zonal
-            # and verify if HNS tests are part of the suite. 
-            # If your new wrapper runs all, we generate all markers on success.
-            else
-                touch ~/success.txt
-                touch ~/success-hns.txt
-                touch ~/success-emulator.txt
-                gcloud storage cp ~/success.txt "${GCS_DEST}"
-                gcloud storage cp ~/success-hns.txt "${GCS_DEST}"
-                gcloud storage cp ~/success-emulator.txt "${GCS_DEST}"
-            fi
+# Local Run Validation and gcsfuse package installation.
+if ${LOCAL_RUN}; then
+    log_info "Running script in local mode gcsfuse binary would be built in script from current repository."
+else
+    log_info "Running script with release version package from release bucket for version $RELEASE_VERSION will be installed."
+    # Identify the OS and Architecture
+    if [ -f /etc/os-release ]; then
+        # We source in a subshell to prevent variable pollution, 
+        # then capture only the ID and ID_LIKE fields.
+        DISTRO_DATA=$( (source /etc/os-release; echo "${ID:-} ${ID_LIKE:-}") )
+        # Check for debian or ubuntu in the ID or the ID_LIKE chain
+        if [[ "$DISTRO_DATA" == *"debian"* ]] || [[ "$DISTRO_DATA" == *"ubuntu"* ]]; then
+            ARCH=$(dpkg --print-architecture)
+            ARGS+=(
+                "--install-package-from-path=gs://${RELEASE_PACKAGE_BUCKET}/v${RELEASE_VERSION}/gcsfuse_${RELEASE_VERSION}_${ARCH}.deb"
+            )
+        elif [[ "$DISTRO_DATA" == *"rhel"* ]] || [[ "$DISTRO_DATA" == *"centos"* ]]; then
+            # On RHEL-based systems, we use 'arch' or 'uname -m' 
+            # as dpkg is usually not present.
+            ARCH=$(uname -m)
+            ARGS+=(
+                "--install-package-from-path=gs://${RELEASE_PACKAGE_BUCKET}/v${RELEASE_VERSION}/gcsfuse-${RELEASE_VERSION}-1.${ARCH}.rpm"
+            )
         else
-            echo "Tests failed. Check logs."
+            log_error "This script only supports Debian/Ubuntu/rhel/centos based distributions."
+            log_info "Your distribution is:"
+            cat /etc/os-release
+            exit 1
         fi
-        exit "$EXIT_CODE"
+    else
+        log_error "/etc/os-release not found. Unable to determine distribution"
+        exit 1
     fi
-}
-
-# ==============================================================================
-# 2. MAIN EXECUTION FLOW
-# ==============================================================================
-
-fetch_metadata
-# Clone repo only if it doesn't already exist (not in a local repo)
-if [[ "$LOCAL_RUN" == "false" && ! -f "${REPO_ROOT}/.go-version" ]]; then
-    clone_repo
 fi
-install_system_deps
-setup_test_user "$TEST_USER" "$HOME_DIR" "$DETAILS_FILE"
-install_gcsfuse_package
-run_tests
-upload_logs
+
+# Set parallelism to 3
+ARGS+=( "--package-level-parallelism=3")
+
+# Set --zonal arg if required
+if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+    log_info "Running zonal e2e tests."
+    ARGS+=("--zonal")
+else
+    log_info "Running regional e2e tests."
+fi
+
+# Run the main e2e script
+"${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"
