@@ -132,7 +132,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// implicit directory.
 	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
 	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
-	if dirHasContents && !isDirInListing {
+	if b.implicitDir && dirHasContents && !isDirInListing {
 		b.cache.InsertImplicitDir(dirName, expiration)
 	}
 

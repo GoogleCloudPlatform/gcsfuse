@@ -1117,7 +1117,6 @@ func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached(
 		negativeCacheTTL,
 		true,
 		false)
-
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a", Size: 1},
@@ -1127,8 +1126,7 @@ func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached(
 	expectedInserts := []*gcs.MinObject{
 		{Name: "dir/a", Size: 1},
 	}
-	// "dir/" is inferred as parent directory because listing has contents.
-	expectedImplicitDirs := []string{"dir/"}
+	expectedImplicitDirs := []string{}
 
 	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
