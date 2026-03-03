@@ -56,6 +56,7 @@ type SymlinkInode struct {
 	sourceGeneration Generation
 	attrs            fuseops.InodeAttributes
 	target           string
+	metadata         map[string]string
 
 	/////////////////////////
 	// Mutable state
@@ -97,7 +98,8 @@ func NewSymlinkInode(
 			Ctime: m.Updated,
 			Mtime: m.Updated,
 		},
-		target: m.Metadata[SymlinkMetadataKey],
+		target:   m.Metadata[SymlinkMetadataKey],
+		metadata: m.Metadata,
 	}
 
 	// Set up lookup counting.
@@ -183,9 +185,7 @@ func (s *SymlinkInode) Source() *gcs.MinObject {
 		Generation:     s.sourceGeneration.Object,
 		MetaGeneration: s.sourceGeneration.Metadata,
 		Size:           s.sourceGeneration.Size,
-		Metadata: map[string]string{
-			SymlinkMetadataKey: s.target,
-		},
-		Updated: s.attrs.Mtime,
+		Metadata:       s.metadata,
+		Updated:        s.attrs.Mtime,
 	}
 }

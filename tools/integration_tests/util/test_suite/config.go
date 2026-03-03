@@ -83,7 +83,6 @@ type Config struct {
 	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`
 	UnsupportedPath       []TestConfig `yaml:"unsupported_path"`
 	SymlinkHandling       []TestConfig `yaml:"symlink_handling"`
-
 }
 
 // ReadConfigFile returns a Config struct from the YAML file.
