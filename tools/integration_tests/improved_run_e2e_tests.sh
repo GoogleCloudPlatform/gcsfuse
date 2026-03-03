@@ -436,11 +436,11 @@ clean_up() {
     rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   fi
   cleanup_created_buckets
-  if ! rm -rf /tmp/"${TMP_PREFIX}"*; then 
-    log_error "Failed to delete temporary files"
-  else 
-    log_info "Successfully cleaned up temporary files"
-  fi
+  # if ! rm -rf /tmp/"${TMP_PREFIX}"*; then 
+  #   log_error "Failed to delete temporary files"
+  # else 
+  #   log_info "Successfully cleaned up temporary files"
+  # fi
 }
 
 # Helper method to process any of the background process and
