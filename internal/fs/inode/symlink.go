@@ -34,9 +34,15 @@ func IsSymlink(m *gcs.MinObject) bool {
 	if m == nil {
 		return false
 	}
-
-	_, ok := m.Metadata[SymlinkMetadataKey]
-	return ok
+	// 1. Check legacy/custom key presence
+	if _, ok := m.Metadata[SymlinkMetadataKey]; ok {
+		return true
+	}
+	// 2. Check standard reserved key value
+	if val, ok := m.Metadata[StandardSymlinkMetadataKey]; ok {
+		return val == "true"
+	}
+	return false
 }
 
 type SymlinkInode struct {
