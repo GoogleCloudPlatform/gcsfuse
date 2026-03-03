@@ -121,7 +121,8 @@ func (t *SymlinkTest) TestAttributes() {
 		Mode: 0777 | os.ModeSymlink,
 	}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
+	AssertEq(nil, err)
 	tests := []struct {
 		name           string
 		clobberedCheck bool
@@ -153,7 +154,8 @@ func (t *SymlinkTest) TestUpdateSize() {
 	}
 	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
+	AssertEq(nil, err)
 
 	s.UpdateSize(200)
 
@@ -169,9 +171,12 @@ func (t *SymlinkTest) TestSource() {
 		Metadata:       map[string]string{inode.StandardSymlinkMetadataKey: "true"},
 		Updated:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
+	m.Metadata[inode.StandardSymlinkMetadataKey] = "true"
+
 	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
+	AssertEq(nil, err)
 
 	source := s.Source()
 
