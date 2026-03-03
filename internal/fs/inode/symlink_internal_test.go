@@ -107,3 +107,89 @@ func (t *SymlinkInternalTest) TestOpenReader_Clobbered() {
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	assert.True(t.T(), errors.As(err, &clobberedErr))
 }
+
+func (t *SymlinkInternalTest) TestResolveSymlinkTarget_Standard() {
+	target := "target_file"
+	s := t.createSymlinkInode("foo", target)
+
+	resolvedTarget, err := s.resolveSymlinkTarget(t.ctx)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), target, resolvedTarget)
+}
+
+func (t *SymlinkInternalTest) TestResolveSymlinkTarget_Legacy() {
+	target := "target_file"
+	objName := "legacy_symlink"
+	// Create object in bucket with empty content
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	require.NoError(t.T(), err)
+
+	m := storageutil.ConvertObjToMinObject(o)
+	if m.Metadata == nil {
+		m.Metadata = make(map[string]string)
+	}
+	m.Metadata[SymlinkMetadataKey] = target
+
+	syncerBucket := gcsx.NewSyncerBucket(
+		1,
+		10, // ChunkTransferTimeoutSecs
+		".gcsfuse_tmp/",
+		t.bucket,
+	)
+
+	s := NewSymlinkInode(
+		fuseops.InodeID(1),
+		NewFileName(NewRootName(""), objName),
+		&syncerBucket,
+		m,
+		fuseops.InodeAttributes{},
+	)
+
+	resolvedTarget, err := s.resolveSymlinkTarget(t.ctx)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), target, resolvedTarget)
+}
+
+func (t *SymlinkInternalTest) TestResolveSymlinkTarget_Clobbered() {
+	target := "target_file"
+	s := t.createSymlinkInode("foo", target)
+
+	// Clobber the object in GCS (update it, changing generation)
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("new_target"))
+	require.NoError(t.T(), err)
+
+	_, err = s.resolveSymlinkTarget(t.ctx)
+
+	require.Error(t.T(), err)
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	assert.True(t.T(), errors.As(err, &clobberedErr))
+}
+
+func (t *SymlinkInternalTest) TestResolveSymlinkTarget_NotSymlink() {
+	objName := "not_symlink"
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("content"))
+	require.NoError(t.T(), err)
+
+	m := storageutil.ConvertObjToMinObject(o)
+	syncerBucket := gcsx.NewSyncerBucket(
+		1,
+		10, // ChunkTransferTimeoutSecs
+		".gcsfuse_tmp/",
+		t.bucket,
+	)
+
+	s := NewSymlinkInode(
+		fuseops.InodeID(1),
+		NewFileName(NewRootName(""), objName),
+		&syncerBucket,
+		m,
+		fuseops.InodeAttributes{},
+	)
+
+	_, err = s.resolveSymlinkTarget(t.ctx)
+
+	require.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "symlink target could not be resolved")
+}

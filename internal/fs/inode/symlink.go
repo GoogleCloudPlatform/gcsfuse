@@ -143,6 +143,37 @@ func (s *SymlinkInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	return rc, err
 }
 
+// resolveSymlinkTarget retrieves the target path of the symlink.
+//
+// It handles two types of symlinks:
+//  1. Standard Symlinks: Identified by the "goog-reserved-file-is-symlink" metadata key.
+//     The target path is stored as the object's content.
+//  2. Legacy Symlinks: Identified by the "gcsfuse_symlink_target" metadata key.
+//     The target path is stored directly in the metadata value.
+func (s *SymlinkInode) resolveSymlinkTarget(ctx context.Context) (string, error) {
+	// Check for standard symlink representation where the target is stored in the object content.
+	if val, ok := s.metadata[StandardSymlinkMetadataKey]; ok && val == "true" {
+		rc, err := s.openReader(ctx)
+		if err != nil {
+			return "", fmt.Errorf("openReader: %w", err)
+		}
+		defer rc.Close()
+
+		content, err := io.ReadAll(rc)
+		if err != nil {
+			return "", fmt.Errorf("ReadAll: %w", err)
+		}
+		return string(content), nil
+	}
+
+	// Check for legacy symlink representation where the target is stored in metadata.
+	if target, ok := s.metadata[SymlinkMetadataKey]; ok {
+		return target, nil
+	}
+
+	return "", fmt.Errorf("symlink target could not be resolved")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
