@@ -15,8 +15,12 @@
 package inode
 
 import (
+	"errors"
+	"fmt"
+	"io"
 	"sync"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
@@ -108,6 +112,35 @@ func NewSymlinkInode(
 	s.lc.Init(id)
 
 	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// Open a reader for the Symlink GCS object.
+func (s *SymlinkInode) openReader(ctx context.Context) (io.ReadCloser, error) {
+	rc, err := s.bucket.NewReaderWithReadHandle(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       s.name.GcsObjectName(),
+			Generation: s.sourceGeneration.Object,
+		})
+
+	// If the object with requested generation doesn't exist in GCS, it indicates
+	// a file clobbering scenario. This likely occurred because the file was
+	// modified/deleted leading to different generation number.
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err:        fmt.Errorf("NewReader: %w", err),
+			ObjectName: s.name.GcsObjectName(),
+		}
+	}
+	if err != nil {
+		err = fmt.Errorf("NewReader: %w", err)
+	}
+	return rc, err
 }
 
 ////////////////////////////////////////////////////////////////////////
