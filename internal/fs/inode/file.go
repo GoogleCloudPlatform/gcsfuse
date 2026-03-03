@@ -1116,7 +1116,18 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		if f.bucket.BucketType().Zonal && openMode.IsAppend() {
+			// In case of rapid appends, we will rely on kernel's latest view of the object
+			// instead of reaching out to the server for latest metadata. This is done to avoid
+			// forceful overwrites of local and latest object metadata with possibly stale server
+			// response. Since appends happen at the same generation, StatObject() call is redundant.
+			latestGcsObj = storageutil.ConvertMinObjectToObject(&f.src)
+		} else {
+			// For regional buckets or overwrites for rapid buckets, call StatObject() to fetch extended
+			// attributes missing from the cached MinObject, which is required by the CreateObject request
+			// to create the new object generation.
+			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		}
 		if err != nil {
 			return false, err
 		}
