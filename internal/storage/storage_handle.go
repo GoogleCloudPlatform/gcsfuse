@@ -234,17 +234,18 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Apply detection retry config for initial verification
 	applyDPDetectionRetryConfig(ctx, sc, clientConfig)
-	client, err2 := funcName(ctx, clientConfig, bucketName, sc)
-	if err2 != nil {
-		return client, err2
+	err = verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc)
+	unSetDirectPathEnvVariable()
+
+	if err != nil {
+		return nil, err
 	}
 
-	unSetDirectPathEnvVariable()
-	return
+	return sc, nil
 }
 
-func funcName(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client) (*storage.Client, error) {
-	// Verify DirectPath connection by performing an empty listing on the bucket
+func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client) error {
+	// Verify DirectPath connection by performing an stat call on the bucket
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
 	verifyCtx, verifyCancel := context.WithTimeout(ctx, directPathDetectionTimeout)
 	defer verifyCancel()
@@ -259,13 +260,13 @@ func funcName(ctx context.Context, clientConfig *storageutil.StorageClientConfig
 		// DirectPath verification failed
 		sc.Close()
 		unSetDirectPathEnvVariable()
-		return nil, fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, statErr)
+		return fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, statErr)
 	}
 
 	logger.Infof("DirectPath verification successful for bucket %q, applying production retry config", bucketName)
 	// DirectPath confirmed working! Now apply production retry config for actual usage
 	setRetryConfig(ctx, sc, clientConfig)
-	return nil, nil
+	return nil
 }
 
 func unSetDirectPathEnvVariable() {
@@ -453,17 +454,18 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	}
 
 	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, bucketName)
+	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
 		return sh.grpcClient, nil
 	}
 
-	// If grpcPathStrategy set to direct-path-only, then fail without creating a http client.
-	if err != nil { //&& sh.clientConfig if dp only {
+	// We will reach here when we failed to create a grpc client with direct path.
+	// Decide whether to create a http client based on grpPathStrategy param.
+	if err != nil && sh.clientConfig.GrpcPathStrategy == cfg.DirectPathOnly {
 		return nil, err
 	}
 
-	// We will reach here when grpcPathStrategy is set to direct-path-with-fallback.
-	// Then create http client as we failed to create a grpc dp client.
+	// When grpcPathStrategy=DirectPathWithFallback, create a http client.
 	if sh.httpClient == nil {
 		sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 	}
