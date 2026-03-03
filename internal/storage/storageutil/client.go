@@ -72,6 +72,7 @@ type StorageClientConfig struct {
 
 	/** Grpc client parameters. */
 	GrpcConnPoolSize int
+	GrpcPathStrategy cfg.DirectPathStrategy
 
 	// Enabling new API flow for HNS bucket.
 	EnableHNS bool

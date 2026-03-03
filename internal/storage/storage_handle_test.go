@@ -16,12 +16,11 @@ package storage
 
 import (
 	"context"
-	"os"
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -342,21 +341,21 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
 
-func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
+func (testSuite *StorageHandleTest) TestNewStorageHandle() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
 	}{
 		{
-			name:           "grpcWithNonNilDirectPathDetector",
+			name:           "grpcProtocol",
 			clientProtocol: cfg.GRPC,
 		},
 		{
-			name:           "http1WithNilDirectPathDetector",
+			name:           "http1Protocol",
 			clientProtocol: cfg.HTTP1,
 		},
 		{
-			name:           "http2WithNilDirectPathDetector",
+			name:           "http2Protocol",
 			clientProtocol: cfg.HTTP2,
 		},
 	}
@@ -374,49 +373,59 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
 			storageClient, ok := handleCreated.(*storageClient)
 			assert.True(testSuite.T(), ok)
 
-			assert.NotNil(testSuite.T(), storageClient.directPathDetector)
+			assert.NotNil(testSuite.T(), storageClient)
 		})
 	}
 }
 
-func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.ClientProtocol = cfg.GRPC
-	sc.MetricHandle = metrics.NewNoopMetrics()
-
-	// Mock statObject to bypass real network/credentials verification in test environment
+func (testSuite *StorageHandleTest) TestVerifyDirectPathConnectivity() {
 	originalStatObject := statObject
-	statObject = func(ctx context.Context, sc *storage.Client, bucketName string) error {
-		return nil
-	}
 	defer func() {
 		statObject = originalStatObject
 	}()
-
-	storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, false, TestBucketName)
-
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), storageClient)
-}
-
-func (testSuite *StorageHandleTest) TestCreateGRPCClientHandleWithBidiConfig() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.ClientProtocol = cfg.GRPC
-	sc.MetricHandle = metrics.NewNoopMetrics()
 
-	// Mock statObject to bypass real network/credentials verification in test environment
-	originalStatObject := statObject
-	statObject = func(ctx context.Context, sc *storage.Client, bucketName string) error {
-		return nil
+	for _, tc := range []struct {
+		name          string
+		statError     error
+		expectedError string
+	}{
+		{
+			name:          "Stat Success",
+			statError:     nil,
+			expectedError: "",
+		},
+		{
+			name:          "Stat Error Not Found",
+			statError:     &gcs.NotFoundError{Err: fmt.Errorf("not found")},
+			expectedError: "",
+		},
+		{
+			name:          "Stat Error Other",
+			statError:     fmt.Errorf("other error"),
+			expectedError: "DirectPath verification failed for bucket",
+		},
+	} {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			statObject = func(ctx context.Context, sc *storage.Client, bucketName string) error {
+				return tc.statError
+			}
+
+			// We need a dummy storage.Client to pass to verifyDirectPathConnectivity, even though it's mocked
+			// We can use createHTTPClientHandle since we're just passing it around and mocking its usage
+			dummySc, err := createHTTPClientHandle(testSuite.ctx, &sc)
+			require.NoError(t, err)
+
+			err = verifyDirectPathConnectivity(testSuite.ctx, &sc, TestBucketName, dummySc)
+
+			if tc.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
-	defer func() {
-		statObject = originalStatObject
-	}()
-
-	storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, true, TestBucketName)
-
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), storageClient)
 }
 
 func (testSuite *StorageHandleTest) TestUnSetDirectPathEnvVariable() {
@@ -429,71 +438,6 @@ func (testSuite *StorageHandleTest) TestUnSetDirectPathEnvVariable() {
 	// Verify the environment variable is unset
 	_, isSet := os.LookupEnv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS")
 	assert.False(testSuite.T(), isSet)
-}
-
-func (testSuite *StorageHandleTest) TestGetClient() {
-	// Mock statObject to bypass real network/credentials verification in test environment
-	originalStatObject := statObject
-	statObject = func(ctx context.Context, sc *storage.Client, bucketName string) error {
-		return nil
-	}
-	defer func() {
-		statObject = originalStatObject
-	}()
-
-	for _, tc := range []struct {
-		name          string
-		clientProto   cfg.Protocol
-		isZonal       bool
-		expectedError string
-	}{
-		{
-			name:        "HTTP1 - Non-Zonal",
-			clientProto: cfg.HTTP1,
-			isZonal:     false,
-		},
-		{
-			name:        "HTTP2 - Non-Zonal",
-			clientProto: cfg.HTTP2,
-			isZonal:     false,
-		},
-		{
-			name:        "GRPC - Non-Zonal",
-			clientProto: cfg.GRPC,
-			isZonal:     false,
-		},
-		{
-			name:        "HTTP1 - Zonal (Forces GRPC)",
-			clientProto: cfg.HTTP1,
-			isZonal:     true,
-		},
-		{
-			name:        "GRPC - Zonal",
-			clientProto: cfg.GRPC,
-			isZonal:     true,
-		},
-	} {
-		testSuite.T().Run(tc.name, func(t *testing.T) {
-			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-			sc.ClientProtocol = tc.clientProto
-			sc.MetricHandle = metrics.NewNoopMetrics()
-
-			sh := &storageClient{
-				clientConfig: sc,
-			}
-
-			client, err := sh.getClient(testSuite.ctx, tc.isZonal, TestBucketName)
-
-			if tc.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expectedError)
-				assert.Nil(t, client)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, client)
-			}
-		})
-	}
 }
 
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {

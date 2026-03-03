@@ -809,13 +809,14 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	}{
 		{
 			name: "Test gcs connection flags.",
-			args: []string{"gcsfuse", "--billing-project=abc", "--client-protocol=http2", "--custom-endpoint=www.abc.com", "--experimental-enable-json-read", "--experimental-grpc-conn-pool-size=20", "--http-client-timeout=20s", "--limit-bytes-per-sec=30", "--limit-ops-per-sec=10", "--max-conns-per-host=1000", "--max-idle-conns-per-host=20", "--sequential-read-size-mb=70", "abc", "pqr"},
+			args: []string{"gcsfuse", "--billing-project=abc", "--client-protocol=http2", "--custom-endpoint=www.abc.com", "--experimental-enable-json-read", "--experimental-grpc-conn-pool-size=20", "--http-client-timeout=20s", "--limit-bytes-per-sec=30", "--limit-ops-per-sec=10", "--max-conns-per-host=1000", "--max-idle-conns-per-host=20", "--sequential-read-size-mb=70", "abc", "pqr", "--grpc-path-strategy=direct-path-only"},
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "abc",
 					ClientProtocol:             "http2",
 					CustomEndpoint:             "www.abc.com",
 					ExperimentalEnableJsonRead: true,
+					GrpcPathStrategy:           "direct-path-only",
 					GrpcConnPoolSize:           20,
 					HttpClientTimeout:          20 * time.Second,
 					LimitBytesPerSec:           30,
@@ -836,6 +837,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					ClientProtocol:             "http1",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
+					GrpcPathStrategy:           "direct-path-with-fallback",
 					GrpcConnPoolSize:           1,
 					HttpClientTimeout:          0,
 					LimitBytesPerSec:           -1,
@@ -856,6 +858,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					ClientProtocol:             "http1",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
+					GrpcPathStrategy:           "direct-path-with-fallback",
 					GrpcConnPoolSize:           1,
 					HttpClientTimeout:          0,
 					LimitBytesPerSec:           -1,
