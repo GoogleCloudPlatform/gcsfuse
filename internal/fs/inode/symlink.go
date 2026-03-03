@@ -78,11 +78,12 @@ var _ Inode = &SymlinkInode{}
 //
 // REQUIRES: IsSymlink(o)
 func NewSymlinkInode(
+	ctx context.Context,
 	id fuseops.InodeID,
 	name Name,
 	bucket *gcsx.SyncerBucket,
 	m *gcs.MinObject,
-	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
+	attrs fuseops.InodeAttributes) (s *SymlinkInode, err error) {
 	// Create the inode.
 	s = &SymlinkInode{
 		id:     id,
@@ -102,14 +103,18 @@ func NewSymlinkInode(
 			Ctime: m.Updated,
 			Mtime: m.Updated,
 		},
-		target:   m.Metadata[SymlinkMetadataKey],
 		metadata: m.Metadata,
 	}
 
 	// Set up lookup counting.
 	s.lc.Init(id)
 
-	return
+	s.target, err = s.resolveSymlinkTarget(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 ////////////////////////////////////////////////////////////////////////
