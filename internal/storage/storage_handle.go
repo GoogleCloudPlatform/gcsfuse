@@ -222,6 +222,13 @@ func applyDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, client
 	sc.SetRetry(detectionRetryOpts...)
 }
 
+// statObject is extracted for test mocking to prevent actual network calls during DP verification in unit tests.
+var statObject = func(ctx context.Context, sc *storage.Client, bucketName string) error {
+	var testObject = "testObject"
+	_, err := sc.Bucket(bucketName).Object(testObject).Attrs(ctx)
+	return err
+}
+
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, bucketName string) (sc *storage.Client, err error) {
 
@@ -258,8 +265,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Retrieving object attrs through Go Storage Client.
 	var notFoundError *gcs.NotFoundError
-	var testObject = "testObject"
-	_, statErr := sc.Bucket(bucketName).Object(testObject).Attrs(verifyCtx)
+	statErr := statObject(verifyCtx, sc, bucketName)
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {

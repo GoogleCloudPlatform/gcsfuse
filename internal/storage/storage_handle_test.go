@@ -16,6 +16,9 @@ package storage
 
 import (
 	"context"
+	"os"
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"fmt"
 	"net"
 	"net/url"
@@ -379,27 +382,118 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.ClientProtocol = cfg.GRPC
+	sc.MetricHandle = metrics.NewNoopMetrics()
+
+	// Mock statObject to bypass real network/credentials verification in test environment
+	originalStatObject := statObject
+	statObject = func(ctx context.Context, sc *storage.Client, bucketName string) error {
+		return nil
+	}
+	defer func() {
+		statObject = originalStatObject
+	}()
 
 	storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, false, TestBucketName)
 
-	// We expect the direct path check to fail here due to lack of network/credentials in test environment.
-	// We want to test the logic, so we could mock things, but currently we expect an error or fallback.
-	require.Error(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "DirectPath verification failed")
-	assert.Nil(testSuite.T(), storageClient)
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
 }
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandleWithBidiConfig() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.ClientProtocol = cfg.GRPC
+	sc.MetricHandle = metrics.NewNoopMetrics()
+
+	// Mock statObject to bypass real network/credentials verification in test environment
+	originalStatObject := statObject
+	statObject = func(ctx context.Context, sc *storage.Client, bucketName string) error {
+		return nil
+	}
+	defer func() {
+		statObject = originalStatObject
+	}()
 
 	storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, true, TestBucketName)
 
-	// We expect the direct path check to fail here due to lack of network/credentials in test environment.
-	// We want to test the logic, so we could mock things, but currently we expect an error or fallback.
-	require.Error(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "DirectPath verification failed")
-	assert.Nil(testSuite.T(), storageClient)
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
+}
+
+func (testSuite *StorageHandleTest) TestUnSetDirectPathEnvVariable() {
+	// Set the environment variable
+	testSuite.T().Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true")
+
+	// Call the function
+	unSetDirectPathEnvVariable()
+
+	// Verify the environment variable is unset
+	_, isSet := os.LookupEnv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS")
+	assert.False(testSuite.T(), isSet)
+}
+
+func (testSuite *StorageHandleTest) TestGetClient() {
+	// Mock statObject to bypass real network/credentials verification in test environment
+	originalStatObject := statObject
+	statObject = func(ctx context.Context, sc *storage.Client, bucketName string) error {
+		return nil
+	}
+	defer func() {
+		statObject = originalStatObject
+	}()
+
+	for _, tc := range []struct {
+		name          string
+		clientProto   cfg.Protocol
+		isZonal       bool
+		expectedError string
+	}{
+		{
+			name:        "HTTP1 - Non-Zonal",
+			clientProto: cfg.HTTP1,
+			isZonal:     false,
+		},
+		{
+			name:        "HTTP2 - Non-Zonal",
+			clientProto: cfg.HTTP2,
+			isZonal:     false,
+		},
+		{
+			name:        "GRPC - Non-Zonal",
+			clientProto: cfg.GRPC,
+			isZonal:     false,
+		},
+		{
+			name:        "HTTP1 - Zonal (Forces GRPC)",
+			clientProto: cfg.HTTP1,
+			isZonal:     true,
+		},
+		{
+			name:        "GRPC - Zonal",
+			clientProto: cfg.GRPC,
+			isZonal:     true,
+		},
+	} {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			sc.ClientProtocol = tc.clientProto
+			sc.MetricHandle = metrics.NewNoopMetrics()
+
+			sh := &storageClient{
+				clientConfig: sc,
+			}
+
+			client, err := sh.getClient(testSuite.ctx, tc.isZonal, TestBucketName)
+
+			if tc.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedError)
+				assert.Nil(t, client)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, client)
+			}
+		})
+	}
 }
 
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {

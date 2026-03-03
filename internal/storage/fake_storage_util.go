@@ -16,7 +16,6 @@ package storage
 
 import (
 	"github.com/fsouza/fake-gcs-server/fakestorage"
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -52,10 +51,6 @@ type FakeStorage interface {
 	CreateStorageHandle() (sh StorageHandle)
 
 	ShutDown()
-
-	Client() *storage.Client
-
-	URL() string
 }
 
 type fakeStorage struct {
@@ -80,14 +75,6 @@ func (f *fakeStorage) CreateStorageHandle() (sh StorageHandle) {
 
 func (f *fakeStorage) ShutDown() {
 	f.fakeStorageServer.Stop()
-}
-
-func (f *fakeStorage) Client() *storage.Client {
-	return f.fakeStorageServer.Client()
-}
-
-func (f *fakeStorage) URL() string {
-	return f.fakeStorageServer.URL()
 }
 
 func NewFakeStorage() FakeStorage {

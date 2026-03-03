@@ -16,7 +16,6 @@ package storageutil
 
 import (
 	"time"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 )
@@ -37,7 +36,6 @@ func GetDefaultStorageClientConfig(keyFile string) (clientConfig StorageClientCo
 		UserAgent:                  "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
 		CustomEndpoint:             "",
 		KeyFile:                    keyFile,
-		MetricHandle:               metrics.NewNoopMetrics(),
 		TokenUrl:                   "",
 		ReuseTokenFromUrl:          true,
 		ExperimentalEnableJsonRead: false,
