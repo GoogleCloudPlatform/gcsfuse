@@ -705,6 +705,7 @@ install_packages() {
   # Execute install_go.sh using the absolute path
   bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
+  export USER=$(whoami)
   export GOPATH="$(eval echo ~$USER)/go"
   export GOMODCACHE="$GOPATH/pkg/mod"
   

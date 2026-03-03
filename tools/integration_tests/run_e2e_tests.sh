@@ -260,6 +260,7 @@ function install_packages() {
   # Install required go version.
   ./perfmetrics/scripts/install_go.sh "$(cat .go-version)"
   export PATH="/usr/local/go/bin:$PATH"
+  export USER=$(whoami)
   export GOPATH="$(eval echo ~$USER)/go"
   export GOMODCACHE="$GOPATH/pkg/mod"
   
