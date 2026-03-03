@@ -263,6 +263,7 @@ function install_packages() {
   export USER=$(whoami)
   export GOPATH="$(eval echo ~$USER)/go"
   export GOMODCACHE="$GOPATH/pkg/mod"
+  export GOCACHE="$GOPATH/.cache/go-build"
   
   sudo apt-get update
   sudo apt-get install -y python3

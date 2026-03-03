@@ -708,6 +708,7 @@ install_packages() {
   export USER=$(whoami)
   export GOPATH="$(eval echo ~$USER)/go"
   export GOMODCACHE="$GOPATH/pkg/mod"
+  export GOCACHE="$GOPATH/.cache/go-build"
   
   # Install latest gcloud version.
   bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"

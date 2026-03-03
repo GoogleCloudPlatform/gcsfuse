@@ -92,6 +92,7 @@ else
     export USER=$(whoami)
     export GOPATH="$(eval echo ~$USER)/go"
     export GOMODCACHE="$GOPATH/pkg/mod"
+    export GOCACHE="$GOPATH/.cache/go-build"
     
     # Verify installation
     if ! command -v go >/dev/null 2>&1; then
