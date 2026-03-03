@@ -77,6 +77,8 @@ install_packages_by_os() {
           rhel_pkgs+=("python3-devel")
         elif [[ "$pkg" == "python3-crcmod" ]]; then
           install_crcmod=true
+        elif [[ "$pkg" == "fuse3" ]]; then
+          rhel_pkgs+=("fuse")
         else
           rhel_pkgs+=("$pkg")
         fi
