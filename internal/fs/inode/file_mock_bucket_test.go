@@ -351,7 +351,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 }
 
 func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_FetchesLatestMetadataFromGCS_ForOverwrites() {
-	// Setup Mock Bucket for Non-Zonal
+	// Setup Mock Bucket for Zonal
 	t.bucket = new(storagemock.TestifyMockBucket)
 	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
 	// Setup expectations for inode creation
