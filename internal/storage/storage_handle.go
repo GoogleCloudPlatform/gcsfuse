@@ -232,11 +232,8 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		setRetryConfig(ctx, sc, clientConfig)
 	}
 
-	// Apply detection retry config for initial verification
-	applyDPDetectionRetryConfig(ctx, sc, clientConfig)
 	err = verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc)
 	unSetDirectPathEnvVariable()
-
 	if err != nil {
 		return nil, err
 	}
@@ -247,6 +244,8 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client) error {
 	// Verify DirectPath connection by performing an stat call on the bucket
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
+	// Apply detection retry config for initial verification
+	applyDPDetectionRetryConfig(ctx, sc, clientConfig)
 	verifyCtx, verifyCancel := context.WithTimeout(ctx, directPathDetectionTimeout)
 	defer verifyCancel()
 
@@ -264,7 +263,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	}
 
 	logger.Infof("DirectPath verification successful for bucket %q, applying production retry config", bucketName)
-	// DirectPath confirmed working! Now apply production retry config for actual usage
+	// DirectPath is working! Now apply production retry config for actual usage.
 	setRetryConfig(ctx, sc, clientConfig)
 	return nil
 }
