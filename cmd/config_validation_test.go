@@ -546,7 +546,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 					ClientProtocol:             "http2",
 					CustomEndpoint:             "www.abc.com",
 					ExperimentalEnableJsonRead: true,
-					GrpcPathStrategy:           "direct-path-with-fallback",
+					GrpcPathStrategy:           "direct-path-only",
 					GrpcConnPoolSize:           200,
 					HttpClientTimeout:          400 * time.Second,
 					LimitBytesPerSec:           20,
