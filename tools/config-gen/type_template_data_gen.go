@@ -76,6 +76,8 @@ func getGoDataType(dt string) string {
 		return "int64"
 	case "[]int":
 		return "[]int64"
+	case "directPathStrategy":
+		return "DirectPathStrategy"
 	default:
 		return dt
 	}

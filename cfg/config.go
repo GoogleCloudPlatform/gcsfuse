@@ -603,7 +603,7 @@ type GcsConnectionConfig struct {
 
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
-	GrpcPathStrategy string `yaml:"grpc-path-strategy"`
+	GrpcPathStrategy DirectPathStrategy `yaml:"grpc-path-strategy"`
 
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
 

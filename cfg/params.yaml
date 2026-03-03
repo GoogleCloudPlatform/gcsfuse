@@ -625,7 +625,7 @@ params:
 
   - config-path: "gcs-connection.grpc-path-strategy"
     flag-name: "grpc-path-strategy"
-    type: "string"
+    type: "directPathStrategy"
     usage: >-
       Strategy for DirectPath connectivity when client-protocol=grpc.
       Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).

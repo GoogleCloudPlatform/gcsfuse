@@ -70,14 +70,15 @@ const (
 )
 
 func (d *DirectPathStrategy) UnmarshalText(text []byte) error {
-	txtStr := string(text)
-	strategy := strings.ToLower(txtStr)
-	v := []string{"direct-path-only", "direct-path-with-fallback"}
-	if !slices.Contains(v, strategy) {
-		return fmt.Errorf("invalid direct-path strategy value: %s. It can only accept values in the list: %v", txtStr, v)
+	strategy := DirectPathStrategy(strings.ToLower(string(text)))
+	switch strategy {
+	case DirectPathOnly, DirectPathWithFallback:
+		*d = strategy
+		return nil
+	default:
+		validValues := []string{string(DirectPathOnly), string(DirectPathWithFallback)}
+		return fmt.Errorf("invalid direct-path strategy value: %s. It can only accept values in the list: %v", string(text), validValues)
 	}
-	*d = DirectPathStrategy(strategy)
-	return nil
 }
 
 // LogSeverity represents the logging severity and can accept the following values
