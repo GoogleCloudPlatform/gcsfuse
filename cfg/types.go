@@ -59,6 +59,28 @@ func (p *Protocol) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// DirectPathStrategy specifies how to handle DirectPath connectivity failures.
+type DirectPathStrategy string
+
+const (
+	// DirectPathOnly fails if DirectPath is unavailable (no fallback).
+	DirectPathOnly DirectPathStrategy = "direct-path-only"
+	// DirectPathWithFallback falls back to HTTP/1 if DirectPath is unavailable.
+	DirectPathWithFallback DirectPathStrategy = "direct-path-with-fallback"
+)
+
+func (d *DirectPathStrategy) UnmarshalText(text []byte) error {
+	strategy := DirectPathStrategy(strings.ToLower(string(text)))
+	switch strategy {
+	case DirectPathOnly, DirectPathWithFallback:
+		*d = strategy
+		return nil
+	default:
+		validValues := []string{string(DirectPathOnly), string(DirectPathWithFallback)}
+		return fmt.Errorf("invalid direct-path strategy value: %s. It can only accept values in the list: %v", string(text), validValues)
+	}
+}
+
 // LogSeverity represents the logging severity and can accept the following values
 // "TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "OFF"
 type LogSeverity string

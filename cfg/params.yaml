@@ -623,6 +623,15 @@ params:
     deprecated: true
     deprecation-warning: "Experimental flag: can be removed in a minor release."
 
+  - config-path: "gcs-connection.grpc-path-strategy"
+    flag-name: "grpc-path-strategy"
+    type: "directPathStrategy"
+    usage: >-
+      Strategy for DirectPath connectivity when client-protocol=grpc.
+      Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).
+    default: "direct-path-with-fallback"
+    hide-flag: true
+
   - config-path: "gcs-connection.http-client-timeout"
     flag-name: "http-client-timeout"
     type: "duration"
