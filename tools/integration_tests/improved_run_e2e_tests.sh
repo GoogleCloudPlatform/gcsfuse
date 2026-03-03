@@ -705,6 +705,8 @@ install_packages() {
   # Execute install_go.sh using the absolute path
   bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
+  export GOPATH="$(eval echo ~$USER)/go"
+  export GOMODCACHE="$GOPATH/pkg/mod"
   
   # Install latest gcloud version.
   bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"

@@ -62,6 +62,8 @@ GO_VERSION=$(cat "${REPO_ROOT}/.go-version")
 ./perfmetrics/scripts/install_go.sh "$GO_VERSION"
 export CGO_ENABLED=0
 export PATH="/usr/local/go/bin:$PATH"
+export GOPATH="$(eval echo ~$USER)/go"
+export GOMODCACHE="$GOPATH/pkg/mod"
 
 # Fetch PR branch
 echo '[remote "origin"]

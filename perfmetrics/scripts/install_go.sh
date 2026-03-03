@@ -89,6 +89,8 @@ else
     # export PATH needs to be called from the shell or use absolute go path
     # or permanently add this to path variable in bashrc.
     export PATH="${INSTALL_DIR}/go/bin:$PATH"
+    export GOPATH="$(eval echo ~$USER)/go"
+    export GOMODCACHE="$GOPATH/pkg/mod"
     
     # Verify installation
     if ! command -v go >/dev/null 2>&1; then
