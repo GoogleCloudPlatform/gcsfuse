@@ -251,14 +251,13 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 
 	// Retrieving object attrs through Go Storage Client.
 	var notFoundError *gcs.NotFoundError
-	var testObject = "testObject"
+	var testObject = "gcsfuse-dp-object"
 	_, statErr := sc.Bucket(bucketName).Object(testObject).Attrs(verifyCtx)
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {
 		// DirectPath verification failed
 		sc.Close()
-		unSetDirectPathEnvVariable()
 		return fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, statErr)
 	}
 
@@ -434,7 +433,7 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, buck
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.GRPC {
-		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, err, bucketName)
+		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName)
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
@@ -447,11 +446,12 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, buck
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
 }
 
-func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Context, err error, bucketName string) (*storage.Client, error) {
+func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Context, bucketName string) (*storage.Client, error) {
 	if sh.grpcClient != nil {
 		return sh.grpcClient, nil
 	}
 
+	var err error
 	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, bucketName)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
@@ -460,7 +460,7 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 
 	// We will reach here when we failed to create a grpc client with direct path.
 	// Decide whether to create a http client based on grpPathStrategy param.
-	if err != nil && sh.clientConfig.GrpcPathStrategy == cfg.DirectPathOnly {
+	if sh.clientConfig.GrpcPathStrategy == cfg.DirectPathOnly {
 		return nil, err
 	}
 
