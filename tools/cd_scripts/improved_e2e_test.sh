@@ -124,12 +124,6 @@ fi
 # Build args for the e2e script 
 ARGS=()
 
-# Get Region from ZONE
-ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
-ZONE_NAME=$(basename "$ZONE")
-REGION="${ZONE_NAME%-*}"
-ARGS+=("--bucket-location=${REGION}")
-
 # Local Run Validation and gcsfuse package installation.
 if ${LOCAL_RUN}; then
     log_info "Running script in local mode gcsfuse binary would be built in script from current repository."

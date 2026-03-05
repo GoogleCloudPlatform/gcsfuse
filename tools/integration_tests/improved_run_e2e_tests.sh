@@ -74,9 +74,9 @@ readonly HNS="hns"
 ZONE=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
 ZONE_NAME=$(basename "$ZONE")
 GCE_VM_LOCATION="${ZONE_NAME%-*}"
-GCE_VM_ROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id)
-log_info "Default Project ID from GCE VM: $PROJECT_ID"
-log_info "Default Location from GCE VM: $LOCATION"
+GCE_VM_PROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id)
+log_info "Project ID from GCE VM: $GCE_VM_PROJECT_ID"
+log_info "Location from GCE VM: $GCE_VM_LOCATION"
 
 # This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
@@ -198,8 +198,8 @@ if [[ -z "$BUCKET_LOCATION" ]]; then
 fi
 
 if [[ -z "$PROJECT_ID" ]]; then 
-  log_info "Project ID is not provided using GCE VM Project ID '$PROJECT_ID' as project ID."
-  PROJECT_ID="$GCE_VM_ROJECT_ID"
+  log_info "Project ID is not provided using GCE VM Project ID '$GCE_VM_PROJECT_ID' as project ID."
+  PROJECT_ID="$GCE_VM_PROJECT_ID"
 fi
 
 # Check if it contains "cloudtop"
