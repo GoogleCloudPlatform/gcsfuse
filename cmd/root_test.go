@@ -1594,7 +1594,7 @@ func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableStandardSymlinks bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
-				gotEnableStandardSymlinks = mountInfo.config.EnableStandardSymlinks
+				gotEnableStandardSymlinks = mountInfo.config.ExperimentalEnableStandardSymlinks
 				return nil
 			})
 			require.Nil(t, err)
