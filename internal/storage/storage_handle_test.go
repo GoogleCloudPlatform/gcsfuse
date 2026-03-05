@@ -340,21 +340,21 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
 
-func (testSuite *StorageHandleTest) TestNewStorageHandle() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
 	}{
 		{
-			name:           "grpcProtocol",
+			name:           "grpcProtocolDirectPathDetector",
 			clientProtocol: cfg.GRPC,
 		},
 		{
-			name:           "http1Protocol",
+			name:           "http1ProtocolDirectPathDetector",
 			clientProtocol: cfg.HTTP1,
 		},
 		{
-			name:           "http2Protocol",
+			name:           "http2ProtocolDirectPathDetector",
 			clientProtocol: cfg.HTTP2,
 		},
 	}
@@ -372,7 +372,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandle() {
 			storageClient, ok := handleCreated.(*storageClient)
 			assert.True(testSuite.T(), ok)
 
-			assert.NotNil(testSuite.T(), storageClient)
+			assert.NotNil(testSuite.T(), storageClient.directPathDetector)
 		})
 	}
 }
