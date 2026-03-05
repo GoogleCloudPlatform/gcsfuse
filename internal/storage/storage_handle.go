@@ -478,10 +478,12 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	// We will reach here when we failed to create a grpc client with direct path.
 	// Decide whether to create a http client based on grpPathStrategy param.
 	if sh.clientConfig.GrpcPathStrategy == cfg.DirectPathOnly {
+		logger.Infof("Grpc dp is not available and not falling back to Http as gRPC path strategy is set to DirectPathOnly")
 		return nil, err
 	}
 
 	// When grpcPathStrategy=DirectPathWithFallback, create a http client.
+	logger.Infof("Grpc dp is not available and falling back to Http.")
 	if sh.httpClient == nil {
 		sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 	}
