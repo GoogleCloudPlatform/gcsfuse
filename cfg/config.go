@@ -411,8 +411,6 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
-	EnableStandardSymlinks bool `yaml:"enable-standard-symlinks"`
-
 	EnableTypeCacheDeprecation bool `yaml:"enable-type-cache-deprecation"`
 
 	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
@@ -947,12 +945,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("enable-standard-symlinks", "", false, "Enables the creation and reading of symbolic links using the standard GCS representation.  When enabled, new symlinks created via GCSFuse mount ensure compatibility with other GCS clients like Storage Transfer Service (STS). ")
-
-	if err := flagSet.MarkHidden("enable-standard-symlinks"); err != nil {
 		return err
 	}
 
@@ -1546,10 +1538,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-retries.read-stall.enable", flagSet.Lookup("enable-read-stall-retry")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("enable-standard-symlinks", flagSet.Lookup("enable-standard-symlinks")); err != nil {
 		return err
 	}
 
