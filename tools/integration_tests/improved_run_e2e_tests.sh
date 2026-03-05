@@ -75,8 +75,15 @@ ZONE=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/comp
 ZONE_NAME=$(basename "$ZONE")
 GCE_VM_LOCATION="${ZONE_NAME%-*}"
 GCE_VM_PROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id)
-log_info "Project ID from GCE VM: $GCE_VM_PROJECT_ID"
-log_info "Location from GCE VM: $GCE_VM_LOCATION"
+log_info "Project ID from GCE VM: '$GCE_VM_PROJECT_ID'"
+log_info "Location from GCE VM: '$GCE_VM_LOCATION'"
+log_info "Running e2e script as '$(whoami)'"
+log_info "Current directory is '$(pwd)'"
+# If HOME is not set, find it dynamically and export it
+if [ -z "$HOME" ]; then
+    HOME=$(getent passwd "$(whoami)" | cut -d: -f6); export HOME
+fi
+log_info "HOME is set to '$HOME'"
 
 # This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
