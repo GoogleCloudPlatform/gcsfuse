@@ -1010,7 +1010,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-enable-standard-symlinks", "", false, "Enables the creation and reading of symbolic links using the standard GCS representation.  When enabled, new symlinks created via GCSFuse mount ensure compatibility with other GCS clients like Storage Transfer Service (STS). ")
+	flagSet.BoolP("experimental-enable-standard-symlinks", "", false, "Enables the creation and reading of symbolic links using the standard GCS representation. When enabled, new symlinks created via GCSFuse mount ensure compatibility with other GCS clients like Storage Transfer Service (STS).")
 
 	if err := flagSet.MarkHidden("experimental-enable-standard-symlinks"); err != nil {
 		return err
