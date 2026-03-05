@@ -740,6 +740,13 @@ params:
         - name: "aiml-checkpointing"
           value: true
 
+  - config-path: "list-should-stuck-for-secs"
+    flag-name: "list-should-stuck-for-secs"
+    type: "int"
+    usage: "It makes the list object based access check stuck for secs duration during mount operation"
+    default: 0
+    hide-flag: true
+
   - config-path: "list.enable-empty-managed-folders"
     flag-name: "enable-empty-managed-folders"
     type: "bool"

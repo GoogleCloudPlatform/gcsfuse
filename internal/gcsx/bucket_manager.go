@@ -74,6 +74,9 @@ type BucketConfig struct {
 	// Disable Initial ListObject API check during the mount operation.
 	DisableListAccessCheck bool
 
+	// List Should stuck for secs.
+	ListShouldStuckForSecs int64
+
 	// Enable dummy I/O mode for testing purposes, simulated read without
 	// any data read from GCS.
 	// All the metadata operations like object listing and stats are real.
@@ -263,6 +266,11 @@ func (bm *bucketManager) SetUpBucket(
 	if !bm.config.DisableListAccessCheck {
 		// Check whether this bucket works, giving the user a warning early if there
 		// is some problem.
+		if bm.config.ListShouldStuckForSecs > 0 {
+			logger.Infof("Emulating List Stuck during mount -- Sleeping for %d seconds", bm.config.ListShouldStuckForSecs)
+			time.Sleep(time.Duration(bm.config.ListShouldStuckForSecs) * time.Second)
+			logger.Info("Emulating List Stuck during mount -- Done sleeping")
+		}
 		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1, IncludeFoldersAsPrefixes: true, Delimiter: "/"})
 		if err != nil {
 			return

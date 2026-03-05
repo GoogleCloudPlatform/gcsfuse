@@ -106,6 +106,7 @@ be interacting with the file system.`)
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,
 		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
+		ListShouldStuckForSecs:             newConfig.ListShouldStuckForSecs,
 		DummyIOCfg:                         newConfig.DummyIo,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)

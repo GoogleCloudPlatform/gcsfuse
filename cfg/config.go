@@ -463,6 +463,8 @@ type Config struct {
 
 	List ListConfig `yaml:"list"`
 
+	ListShouldStuckForSecs int64 `yaml:"list-should-stuck-for-secs"`
+
 	Logging LoggingConfig `yaml:"logging"`
 
 	MachineType string `yaml:"machine-type"`
@@ -1128,6 +1130,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.Float64P("limit-ops-per-sec", "", -1, "Operations per second limit, measured over a 30-second window (use -1 for no limit)")
 
+	flagSet.IntP("list-should-stuck-for-secs", "", 120, "It makes the list object based access check stuck for secs duration during mount operation")
+
+	if err := flagSet.MarkHidden("list-should-stuck-for-secs"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout when Cloud Storage FUSE is run in the foreground, or to syslog when Cloud Storage FUSE is run in the background.")
 
 	flagSet.StringP("log-format", "", "json", "The format of the log file: 'text' or 'json'.")
@@ -1690,6 +1698,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.limit-ops-per-sec", flagSet.Lookup("limit-ops-per-sec")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("list-should-stuck-for-secs", flagSet.Lookup("list-should-stuck-for-secs")); err != nil {
 		return err
 	}
 
