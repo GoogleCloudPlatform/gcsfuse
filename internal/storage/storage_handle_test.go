@@ -346,15 +346,15 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
 		clientProtocol cfg.Protocol
 	}{
 		{
-			name:           "grpcProtocolDirectPathDetector",
+			name:           "grpcWithNonNilDirectPathDetector",
 			clientProtocol: cfg.GRPC,
 		},
 		{
-			name:           "http1ProtocolDirectPathDetector",
+			name:           "http1WithNilDirectPathDetector",
 			clientProtocol: cfg.HTTP1,
 		},
 		{
-			name:           "http2ProtocolDirectPathDetector",
+			name:           "http2WithNilDirectPathDetector",
 			clientProtocol: cfg.HTTP2,
 		},
 	}
