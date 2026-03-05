@@ -435,6 +435,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		rawStorageControlClientWithGaxRetries:    rawStorageControlClientWithGaxRetries,
 		storageControlClient:                     controlClient,
 		clientConfig:                             clientConfig,
+		directPathDetector:                       &gRPCDirectPathDetector{clientOptions: clientOpts},
 	}
 	return
 }
