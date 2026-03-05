@@ -1130,7 +1130,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.Float64P("limit-ops-per-sec", "", -1, "Operations per second limit, measured over a 30-second window (use -1 for no limit)")
 
-	flagSet.IntP("list-should-stuck-for-secs", "", 120, "It makes the list object based access check stuck for secs duration during mount operation")
+	flagSet.IntP("list-should-stuck-for-secs", "", 0, "It makes the list object based access check stuck for secs duration during mount operation")
 
 	if err := flagSet.MarkHidden("list-should-stuck-for-secs"); err != nil {
 		return err
