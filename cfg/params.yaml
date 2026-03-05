@@ -893,6 +893,7 @@ params:
       not be seen. For example, if this flag is set, and metadata-cache-ttl-secs
       is set, then if we create the same file/node in the meantime using the same
       mount, since we are not refreshing the cache, it will still return nil.
+      This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.
     default: false
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
@@ -992,19 +993,8 @@ params:
   - config-path: "metadata-cache.type-cache-max-size-mb"
     flag-name: "type-cache-max-size-mb"
     type: "int"
-    usage: "Max size of type-cache maps which are maintained at a per-directory level."
+    usage: "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb."
     default: "4"
-    optimizations:
-      machine-based-optimization:
-        - group: "high-performance"
-          value: 128
-      profiles:
-        - name: "aiml-training"
-          value: -1
-        - name: "aiml-serving"
-          value: -1
-        - name: "aiml-checkpointing"
-          value: -1
 
   - config-path: "metrics.buffer-size"
     flag-name: "metrics-buffer-size"

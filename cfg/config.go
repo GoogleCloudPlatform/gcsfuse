@@ -168,27 +168,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(-1),
 		},
 	},
-}, "metadata-cache.type-cache-max-size-mb": {
-	MachineBasedOptimization: []shared.MachineBasedOptimization{
-		{
-			Group: "high-performance",
-			Value: int64(128),
-		},
-	},
-	Profiles: []shared.ProfileOptimization{
-		{
-			Name:  "aiml-training",
-			Value: int64(-1),
-		},
-		{
-			Name:  "aiml-serving",
-			Value: int64(-1),
-		},
-		{
-			Name:  "aiml-checkpointing",
-			Value: int64(-1),
-		},
-	},
 }, "write.global-max-blocks": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
@@ -373,18 +352,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
 					c.MetadataCache.StatCacheMaxSizeMb = val
 					optimizedFlags["metadata-cache.stat-cache-max-size-mb"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("metadata-cache.type-cache-max-size-mb") {
-		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(int64); ok {
-				if c.MetadataCache.TypeCacheMaxSizeMb != val {
-					c.MetadataCache.TypeCacheMaxSizeMb = val
-					optimizedFlags["metadata-cache.type-cache-max-size-mb"] = result
 				}
 			}
 		}
@@ -962,7 +929,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
+	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
 
@@ -1346,7 +1313,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
 
-	flagSet.IntP("type-cache-max-size-mb", "", 4, "Max size of type-cache maps which are maintained at a per-directory level.")
+	flagSet.IntP("type-cache-max-size-mb", "", 4, "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb.")
 
 	flagSet.DurationP("type-cache-ttl", "", 60000000000*time.Nanosecond, "Usage: How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
 

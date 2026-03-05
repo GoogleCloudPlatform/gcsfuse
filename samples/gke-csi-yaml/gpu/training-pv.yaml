@@ -17,7 +17,6 @@ spec:
   - metadata-cache:negative-ttl-secs:0  # Disable caching for lookups of files/dirs that don't exist
   - metadata-cache:ttl-secs:-1          # Keep cached metadata (file attributes, types) indefinitely time-wise
   - metadata-cache:stat-cache-max-size-mb:-1 # Allow unlimited size for the file attribute (stat) cache
-  - metadata-cache:type-cache-max-size-mb:-1 # Allow unlimited size for the file/directory type cache
   # if enabling the file cache, uncomment out to use #
   # - file-cache:max-size-mb:-1           # Allow unlimited size for the file content cache
   # - file-cache:cache-file-for-range-read:true # Cache the entire file when any part is read sequentially
