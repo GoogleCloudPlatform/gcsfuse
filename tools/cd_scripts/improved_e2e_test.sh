@@ -124,7 +124,7 @@ fi
 # Build args for the e2e script 
 ARGS=()
 
-# If Get Region from ZONE
+# Get Region from ZONE
 ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
 ZONE_NAME=$(basename "$ZONE")
 REGION="${ZONE_NAME%-*}"
@@ -165,8 +165,8 @@ else
     fi
 fi
 
-# Set parallelism to 3
-ARGS+=( "--package-level-parallelism=3")
+# Set parallelism to 4
+ARGS+=( "--package-level-parallelism=4")
 
 # Set --zonal arg if required
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
