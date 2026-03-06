@@ -542,15 +542,15 @@ func (s *concurrentListingTest) Test_ListWithMoveFile() {
 		}
 	}()
 
-	// Create file
-	err := os.WriteFile(path.Join(testDirPath, "move_file.txt"), []byte("Hello, world!"), setup.FilePermission_0600)
-	require.NoError(s.T(), err)
-
 	// Goroutine 2: Move file
 	go func() {
 		defer wg.Done()
 		for range iterationsForHeavyOperations { // Adjust iteration count if needed
 			fileName := setup.GenerateRandomString(5) + "move_file.txt"
+			// Create file
+			err := os.WriteFile(path.Join(testDirPath, fileName), []byte("Hello, world!"), setup.FilePermission_0600)
+			require.NoError(s.T(), err)
+
 			// Move File in the target directory
 			err = operations.Move(path.Join(testDirPath, fileName), path.Join(targetDir, fileName))
 			require.NoError(s.T(), err)
@@ -599,15 +599,16 @@ func (s *concurrentListingTest) Test_ListWithMoveDir() {
 			require.NoError(s.T(), f.Close())
 		}
 	}()
-	// Create Dir
-	err := os.Mkdir(path.Join(testDirPath, "move_dir"), setup.DirPermission_0755)
-	require.NoError(s.T(), err)
 
 	// Goroutine 2: Move Dir
 	go func() {
 		defer wg.Done()
 		for range iterationsForHeavyOperations { // Adjust iteration count if needed
 			dirName := setup.GenerateRandomString(5) + "move_dir"
+			// Create Dir
+			err := os.Mkdir(path.Join(testDirPath, dirName), setup.DirPermission_0755)
+			require.NoError(s.T(), err)
+
 			// Move Dir in the target dir
 			err = operations.Move(path.Join(testDirPath, dirName), path.Join(targetDir, dirName))
 			require.NoError(s.T(), err)
