@@ -96,7 +96,7 @@ jobs:
       with:
         go-version-file: '.go-version'
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v9
       with:
-        args: -E=goimports,unused --timeout 3m0s
+        args: -E=unused --timeout 3m0s
         only-new-issues: true
