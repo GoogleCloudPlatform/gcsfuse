@@ -414,6 +414,8 @@ type Config struct {
 
 	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
 
+	ExperimentalEnableStandardSymlinks bool `yaml:"experimental-enable-standard-symlinks"`
+
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
 	FileSystem FileSystemConfig `yaml:"file-system"`
@@ -974,6 +976,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Enables ReadDirPlus capability")
 
 	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-standard-symlinks", "", false, "Enables the creation and reading of symbolic links using the standard GCS representation. When enabled, new symlinks created via GCSFuse mount ensure compatibility with other GCS clients like Storage Transfer Service (STS).")
+
+	if err := flagSet.MarkHidden("experimental-enable-standard-symlinks"); err != nil {
 		return err
 	}
 
@@ -1549,6 +1557,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-enable-readdirplus", flagSet.Lookup("experimental-enable-readdirplus")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("experimental-enable-standard-symlinks", flagSet.Lookup("experimental-enable-standard-symlinks")); err != nil {
 		return err
 	}
 

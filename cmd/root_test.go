@@ -1575,6 +1575,43 @@ func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
+	tests := []struct {
+		name                           string
+		args                           []string
+		expectedEnableStandardSymlinks bool
+	}{
+		{
+			name:                           "default",
+			args:                           []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableStandardSymlinks: false,
+		},
+		{
+			name:                           "normal",
+			args:                           []string{"gcsfuse", "--experimental-enable-standard-symlinks=true", "abc", "pqr"},
+			expectedEnableStandardSymlinks: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableStandardSymlinks bool
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableStandardSymlinks = mountInfo.config.ExperimentalEnableStandardSymlinks
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableStandardSymlinks, gotEnableStandardSymlinks)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 	tests := []struct {
 		name                        string
