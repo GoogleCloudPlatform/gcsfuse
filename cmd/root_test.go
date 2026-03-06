@@ -1585,7 +1585,7 @@ func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
 		},
 		{
 			name:                           "normal",
-			args:                           []string{"gcsfuse", "--enable-standard-symlinks=true", "abc", "pqr"},
+			args:                           []string{"gcsfuse", "--experimental-enable-standard-symlinks=true", "abc", "pqr"},
 			expectedEnableStandardSymlinks: true,
 		},
 	}
