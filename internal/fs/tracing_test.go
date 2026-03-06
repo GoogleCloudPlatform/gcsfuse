@@ -61,10 +61,7 @@ func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInt
 				GlobalMaxBlocks: 1,
 			},
 			Read: cfg.ReadConfig{
-				EnableBufferedRead: true,
-				GlobalMaxBlocks:    1,
-				BlockSizeMb:        1,
-				MaxBlocksPerHandle: 10,
+				EnableBufferedRead: false,
 			},
 			EnableNewReader: true,
 			FileSystem: cfg.FileSystemConfig{
@@ -103,8 +100,8 @@ func (s *TracingTestSuite) TestTraceLookupInode() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode"}},
-		{"disabled", false, []string{"LookUpInode"}},
+		{"enabled", true, []string{"fs.inode.lookup"}},
+		{"disabled", false, []string{"fs.inode.lookup"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -140,8 +137,8 @@ func (s *TracingTestSuite) TestTraceStatFS() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"StatFS"}},
-		{"disabled", false, []string{"StatFS"}},
+		{"enabled", true, []string{"fs.stat_fs"}},
+		{"disabled", false, []string{"fs.stat_fs"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -174,8 +171,8 @@ func (s *TracingTestSuite) TestTraceGetInodeAttributes() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"GetInodeAttributes"}},
-		{"disabled", false, []string{"GetInodeAttributes"}},
+		{"enabled", true, []string{"fs.inode.get_attributes"}},
+		{"disabled", false, []string{"fs.inode.get_attributes"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -210,8 +207,8 @@ func (s *TracingTestSuite) TestTraceSetInodeAttributes() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "SetInodeAttributes"}},
-		{"disabled", false, []string{"LookUpInode", "SetInodeAttributes"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.inode.set_attributes"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.inode.set_attributes"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -253,8 +250,8 @@ func (s *TracingTestSuite) TestTraceForgetInode() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "ForgetInode"}},
-		{"disabled", false, []string{"LookUpInode", "ForgetInode"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.inode.forget"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.inode.forget"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -296,8 +293,8 @@ func (s *TracingTestSuite) TestTraceMkDir() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"MkDir"}},
-		{"disabled", false, []string{"MkDir"}},
+		{"enabled", true, []string{"fs.mkdir"}},
+		{"disabled", false, []string{"fs.mkdir"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -333,8 +330,8 @@ func (s *TracingTestSuite) TestTraceMkNode() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"MkNode"}},
-		{"disabled", false, []string{"MkNode"}},
+		{"enabled", true, []string{"fs.mknode"}},
+		{"disabled", false, []string{"fs.mknode"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -370,8 +367,8 @@ func (s *TracingTestSuite) TestTraceCreateFile() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"CreateFile"}},
-		{"disabled", false, []string{"CreateFile"}},
+		{"enabled", true, []string{"ffs.file.create"}},
+		{"disabled", false, []string{"ffs.file.create"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -407,8 +404,8 @@ func (s *TracingTestSuite) TestTraceCreateLink() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "CreateLink"}},
-		{"disabled", false, []string{"LookUpInode", "CreateLink"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.link.create"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.link.create"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -451,8 +448,8 @@ func (s *TracingTestSuite) TestTraceCreateSymlink() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"CreateSymlink"}},
-		{"disabled", false, []string{"CreateSymlink"}},
+		{"enabled", true, []string{"fs.symlink.create"}},
+		{"disabled", false, []string{"fs.symlink.create"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -489,8 +486,8 @@ func (s *TracingTestSuite) TestTraceRename() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"Rename"}},
-		{"disabled", false, []string{"Rename"}},
+		{"enabled", true, []string{"fs.rename"}},
+		{"disabled", false, []string{"fs.rename"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -529,8 +526,8 @@ func (s *TracingTestSuite) TestTraceRmDir() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"MkDir", "RmDir"}},
-		{"disabled", false, []string{"MkDir", "RmDir"}},
+		{"enabled", true, []string{"fs.mkdir", "fs.rmdir"}},
+		{"disabled", false, []string{"fs.mkdir", "fs.rmdir"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -573,8 +570,8 @@ func (s *TracingTestSuite) TestTraceUnlink() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"Unlink"}},
-		{"disabled", false, []string{"Unlink"}},
+		{"enabled", true, []string{"fs.unlink"}},
+		{"disabled", false, []string{"fs.unlink"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -610,8 +607,8 @@ func (s *TracingTestSuite) TestTraceOpenDir() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"OpenDir"}},
-		{"disabled", false, []string{"OpenDir"}},
+		{"enabled", true, []string{"fs.dir.open"}},
+		{"disabled", false, []string{"fs.dir.open"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -646,8 +643,8 @@ func (s *TracingTestSuite) TestTraceReadDir() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"OpenDir", "ReadDir"}},
-		{"disabled", false, []string{"OpenDir", "ReadDir"}},
+		{"enabled", true, []string{"fs.dir.open", "fs.dir.read"}},
+		{"disabled", false, []string{"fs.dir.open", "fs.dir.read"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -690,8 +687,8 @@ func (s *TracingTestSuite) TestTraceReadDirPlus() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"OpenDir", "ReadDirPlus"}},
-		{"disabled", false, []string{"OpenDir", "ReadDirPlus"}},
+		{"enabled", true, []string{"fs.dir.open", "fs.dir.read_plus"}},
+		{"disabled", false, []string{"fs.dir.open", "fs.dir.read_plus"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -736,8 +733,8 @@ func (s *TracingTestSuite) TestTraceReleaseDirHandle() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"OpenDir", "ReleaseDirHandle"}},
-		{"disabled", false, []string{"OpenDir", "ReleaseDirHandle"}},
+		{"enabled", true, []string{"fs.dir.open", "fs.dir.release_handle"}},
+		{"disabled", false, []string{"fs.dir.open", "fs.dir.release_handle"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -777,8 +774,8 @@ func (s *TracingTestSuite) TestTraceOpenFile() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "OpenFile"}},
-		{"disabled", false, []string{"LookUpInode", "OpenFile"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.file.open"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.file.open"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -819,8 +816,8 @@ func (s *TracingTestSuite) TestTraceReadFile() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "OpenFile", "ReadFile"}},
-		{"disabled", false, []string{"LookUpInode", "OpenFile", "ReadFile"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.file.open", "fs.file.read"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.file.open", "fs.file.read"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -868,8 +865,8 @@ func (s *TracingTestSuite) TestTraceWriteFile() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "OpenFile", "WriteFile"}},
-		{"disabled", false, []string{"LookUpInode", "OpenFile", "WriteFile"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.file.open", "fs.file.write"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.file.open", "fs.file.write"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -918,8 +915,8 @@ func (s *TracingTestSuite) TestTraceSyncFile() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "SyncFile"}},
-		{"disabled", false, []string{"LookUpInode", "SyncFile"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.file.sync"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.file.sync"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -960,8 +957,8 @@ func (s *TracingTestSuite) TestTraceFlushFile() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "OpenFile", "FlushFile"}},
-		{"disabled", false, []string{"LookUpInode", "OpenFile", "FlushFile"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.file.open", "fs.file.flush"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.file.open", "fs.file.flush"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1008,8 +1005,8 @@ func (s *TracingTestSuite) TestTraceReleaseFileHandle() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "OpenFile", "ReleaseFileHandle"}},
-		{"disabled", false, []string{"LookUpInode", "OpenFile", "ReleaseFileHandle"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.file.open", "fs.file.release_handle"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.file.open", "fs.file.release_handle"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1055,8 +1052,8 @@ func (s *TracingTestSuite) TestTraceReadSymlink() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"CreateSymlink", "ReadSymlink"}},
-		{"disabled", false, []string{"CreateSymlink", "ReadSymlink"}},
+		{"enabled", true, []string{"fs.symlink.create", "fs.symlink.read"}},
+		{"disabled", false, []string{"fs.symlink.create", "fs.symlink.read"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1097,8 +1094,8 @@ func (s *TracingTestSuite) TestTraceRemoveXattr() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "RemoveXattr"}},
-		{"disabled", false, []string{"LookUpInode", "RemoveXattr"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.xattr.remove"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.xattr.remove"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1140,8 +1137,8 @@ func (s *TracingTestSuite) TestTraceGetXattr() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "GetXattr"}},
-		{"disabled", false, []string{"LookUpInode", "GetXattr"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.xattr.get"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.xattr.get"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1183,8 +1180,8 @@ func (s *TracingTestSuite) TestTraceListXattr() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "ListXattr"}},
-		{"disabled", false, []string{"LookUpInode", "ListXattr"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.xattr.list"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.xattr.list"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1225,8 +1222,8 @@ func (s *TracingTestSuite) TestTraceSetXattr() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "SetXattr"}},
-		{"disabled", false, []string{"LookUpInode", "SetXattr"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.SetXattr"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.SetXattr"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1269,8 +1266,8 @@ func (s *TracingTestSuite) TestTraceFallocate() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "OpenFile", "Fallocate"}},
-		{"disabled", false, []string{"LookUpInode", "OpenFile", "Fallocate"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.file.open", "fs.fallocate"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.file.open", "fs.fallocate"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1320,8 +1317,8 @@ func (s *TracingTestSuite) TestTraceSyncFS() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"LookUpInode", "SyncFS"}},
-		{"disabled", false, []string{"LookUpInode", "SyncFS"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.sync_fs"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.sync_fs"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
