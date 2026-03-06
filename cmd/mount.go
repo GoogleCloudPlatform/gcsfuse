@@ -189,6 +189,15 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
+	if newConfig.Logging.WireLog != "" {
+		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
+		if err == nil {
+			mountCfg.WireLogger = wireLog
+		} else {
+			logger.Errorf("Unable to create wire log: %v", err)
+		}
+	}
+
 	// GCSFuse to Jacobsa Fuse Log Level mapping:
 	// OFF           OFF
 	// ERROR         ERROR
