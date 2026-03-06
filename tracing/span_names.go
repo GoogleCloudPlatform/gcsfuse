@@ -104,7 +104,7 @@ const (
 	// SetXattr sets or updates an extended attribute.
 	SetXattr = "fs.SetXattr"
 	// ListXattr lists the names of extended attributes assigned to a file.
-	ListXattr   = "fs.xattr.list"
+	ListXattr = "fs.xattr.list"
 	// RemoveXattr deletes an extended attribute from a file.
 	RemoveXattr = "fs.xattr.remove"
 

@@ -62,7 +62,7 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 
 // This method is performant in the no-op implementation as the attribute.Bool and int methods perform heap allocation and they go as bad as 60-90 ns
 // It is not good that way so the whole attribute creation has been moved inside this method keeping no-op lightweight
-// Performance characteristics for this method along with StartSpan & EndSpan together for no-op 
+// Performance characteristics for this method along with StartSpan & EndSpan together for no-op
 func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
 	span.SetAttributes(
 		attribute.Bool(IS_CACHE_HIT, isCacheHit),
