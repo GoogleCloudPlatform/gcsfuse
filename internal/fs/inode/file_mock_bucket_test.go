@@ -326,3 +326,74 @@ func (t *FileMockBucketTest) TestAttributes_NoChangeInAttributes() {
 	assert.Equal(t.T(), initialSize, f.Source().Size)
 	assert.Equal(t.T(), initialTime, f.Source().Updated)
 }
+
+func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_DoesNotFetchMetadataFromGCS_ForAppends() {
+	// Setup Mock Bucket for Zonal
+	t.bucket = new(storagemock.TestifyMockBucket)
+	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	// Setup expectations for inode creation (emptyGCSFile triggers CreateObject)
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, nil)
+	// Create Inode (Non-local)
+	t.createLockedInode(fileName, emptyGCSFile)
+	t.in.content = nil // Force content to nil to allow BWH init
+	t.in.config.Write = *getWriteConfigWithEnabledRapidAppends()
+
+	// Call Method
+	// We do NOT expect StatObject to be called.
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND))
+
+	// Assertions
+	require.NoError(t.T(), err)
+	assert.True(t.T(), initialized)
+	t.bucket.AssertExpectations(t.T())
+	t.bucket.AssertNotCalled(t.T(), "StatObject", mock.Anything, mock.Anything)
+}
+
+func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_FetchesLatestMetadataFromGCS_ForOverwrites() {
+	// Setup Mock Bucket for Zonal
+	t.bucket = new(storagemock.TestifyMockBucket)
+	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	// Setup expectations for inode creation
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, nil)
+	// Create Inode (Non-local)
+	t.createLockedInode(fileName, emptyGCSFile)
+	t.in.content = nil // Force content to nil to allow BWH init
+	t.in.config.Write = *getWriteConfigWithEnabledRapidAppends()
+	// We expect to make a StatObject() call to GCS to fetch the latest minObject.
+	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
+		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
+
+	// Call Method
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0))
+
+	// Assertions
+	require.NoError(t.T(), err)
+	assert.True(t.T(), initialized)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_RegionalBucket_FetchesLatestMetadataFromGCS_Always() {
+	// Setup Mock Bucket for Non-Zonal
+	t.bucket = new(storagemock.TestifyMockBucket)
+	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: false})
+	// Setup expectations for inode creation
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, nil)
+	// Create Inode (Non-local)
+	t.createLockedInode(fileName, emptyGCSFile)
+	t.in.content = nil // Force content to nil to allow BWH init
+	t.in.config.Write = *getWriteConfigWithEnabledRapidAppends()
+	// We expect to make a StatObject() call to GCS to fetch the latest minObject.
+	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
+		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
+
+	// Call Method
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0))
+
+	// Assertions
+	require.NoError(t.T(), err)
+	assert.True(t.T(), initialized)
+	t.bucket.AssertExpectations(t.T())
+}

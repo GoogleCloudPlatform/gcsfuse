@@ -240,7 +240,15 @@ params:
     default: true
     hide-flag: true
 
-
+  - config-path: "experimental-enable-standard-symlinks"
+    flag-name: "experimental-enable-standard-symlinks"
+    type: "bool"
+    usage: >-
+      Enables the creation and reading of symbolic links using the standard GCS representation.
+      When enabled, new symlinks created via GCSFuse mount ensure compatibility with other
+      GCS clients like Storage Transfer Service (STS).
+    default: false
+    hide-flag: true
 
   - config-path: "file-cache.cache-file-for-range-read"
     flag-name: "file-cache-cache-file-for-range-read"
@@ -623,6 +631,15 @@ params:
     deprecated: true
     deprecation-warning: "Experimental flag: can be removed in a minor release."
 
+  - config-path: "gcs-connection.grpc-path-strategy"
+    flag-name: "grpc-path-strategy"
+    type: "directPathStrategy"
+    usage: >-
+      Strategy for DirectPath connectivity when client-protocol=grpc.
+      Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).
+    default: "direct-path-with-fallback"
+    hide-flag: true
+
   - config-path: "gcs-connection.http-client-timeout"
     flag-name: "http-client-timeout"
     type: "duration"
@@ -884,6 +901,7 @@ params:
       not be seen. For example, if this flag is set, and metadata-cache-ttl-secs
       is set, then if we create the same file/node in the meantime using the same
       mount, since we are not refreshing the cache, it will still return nil.
+      This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.
     default: false
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
@@ -983,19 +1001,8 @@ params:
   - config-path: "metadata-cache.type-cache-max-size-mb"
     flag-name: "type-cache-max-size-mb"
     type: "int"
-    usage: "Max size of type-cache maps which are maintained at a per-directory level."
+    usage: "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb."
     default: "4"
-    optimizations:
-      machine-based-optimization:
-        - group: "high-performance"
-          value: 128
-      profiles:
-        - name: "aiml-training"
-          value: -1
-        - name: "aiml-serving"
-          value: -1
-        - name: "aiml-checkpointing"
-          value: -1
 
   - config-path: "metrics.buffer-size"
     flag-name: "metrics-buffer-size"
