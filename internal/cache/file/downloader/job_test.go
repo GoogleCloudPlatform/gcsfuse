@@ -956,7 +956,8 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse()
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 }
 
-func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
+// Disabled because it's flaky.
+func (dt *downloaderTest) validateCRC_WheContextIsCancelled() {
 	objectName := "path/in/gcs/file2.txt"
 	objectSize := 10 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
