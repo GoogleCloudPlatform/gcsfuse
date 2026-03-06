@@ -85,7 +85,7 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 }
 
 func (fc *FileCacheReader) ReaderName() string {
-	return "FileCacheReader"
+	return "file_cache_reader"
 }
 
 // tryReadingFromFileCache creates the cache handle first if it doesn't exist already
@@ -105,6 +105,7 @@ func (fc *FileCacheReader) ReaderName() string {
 // fileHandle to file in cache. So, we will get the correct data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (int, bool, error) {
+	ctx, span := fc.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
 	if fc.fileCacheHandler == nil {
 		return 0, false, nil
 	}
@@ -141,6 +142,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 			readType = metrics.ReadTypeSequential
 		}
 		captureFileCacheMetrics(ctx, fc.metricHandle, metrics.ReadTypeNames[readType], bytesRead, cacheHit, executionTime)
+		fc.traceHandle.SetCacheReadAttributes(span, cacheHit, bytesRead)
+		if err != nil {
+			fc.traceHandle.RecordError(span, err)
+		}
+		fc.traceHandle.EndSpan(span)
 	}()
 
 	// Create fileCacheHandle if not already.
@@ -220,12 +226,8 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadRe
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
-	ctx, span := fc.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
-	defer fc.traceHandle.EndSpan(span)
 	bytesRead, cacheHit, err := fc.tryReadingFromFileCache(ctx, req.Buffer, req.Offset)
-	fc.traceHandle.SetCacheReadAttributes(span, cacheHit, bytesRead)
 	if err != nil {
-		fc.traceHandle.RecordError(span, err)
 		return readResponse, fmt.Errorf("ReadAt: while reading from cache: %w", err)
 	}
 	// Data was served from cache.

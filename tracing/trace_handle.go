@@ -27,6 +27,7 @@ type TraceHandle interface {
 	// Start a span with a given name & context
 	StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span)
 
+	// Start a span link given name and context
 	StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span)
 
 	// Start a span of span kind server given name & context

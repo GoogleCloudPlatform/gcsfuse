@@ -25,7 +25,7 @@ type MockReader struct {
 }
 
 func (m *MockReader) ReaderName() string {
-	return "MockReader"
+	return "mock_reader"
 }
 
 func (m *MockReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {

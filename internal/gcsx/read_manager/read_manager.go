@@ -155,7 +155,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 }
 
 func (rr *ReadManager) ReaderName() string {
-	return "ReadManager"
+	return "read_manager"
 }
 
 func (rr *ReadManager) Object() *gcs.MinObject {

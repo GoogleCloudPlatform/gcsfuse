@@ -173,7 +173,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 }
 
 func (p *BufferedReader) ReaderName() string {
-	return "BufferedReader"
+	return "buffered_reader"
 }
 
 // handleRandomRead detects and handles random read patterns. A read is considered

@@ -99,7 +99,7 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 }
 
 func (gr *GCSReader) ReaderName() string {
-	return "GCSReader"
+	return "gcs_reader"
 }
 
 func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {

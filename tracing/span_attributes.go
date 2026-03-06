@@ -15,6 +15,6 @@
 package tracing
 
 const (
-	IS_CACHE_HIT = "gcsfuse.is_cache_hit"
-	BYTES_READ   = "gcsfuse.bytes_read"
+	IS_CACHE_HIT = "cache.hit"
+	BYTES_READ   = "read.size"
 )

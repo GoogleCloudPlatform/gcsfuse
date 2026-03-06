@@ -28,7 +28,7 @@ type MockReadManager struct {
 }
 
 func (m *MockReadManager) ReaderName() string {
-	return "MockReadManager"
+	return "mock_read_manager"
 }
 
 func (m *MockReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {

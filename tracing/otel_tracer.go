@@ -23,6 +23,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// Identifies the span link as a parent relationship for proper trace visualization in GCP.
+var parentLinkAttributes = []attribute.KeyValue{
+	attribute.Int64("gcp.cloud_trace.link_type", 1),
+}
+
 type otelTracer struct {
 	tracer trace.Tracer
 }
@@ -33,13 +38,12 @@ func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.C
 
 func (o *otelTracer) StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	span := trace.SpanFromContext(ctx)
-	traceOpts := make([]trace.SpanStartOption, 0, 1)
-	traceOpts = append(traceOpts, trace.WithLinks(trace.Link{
-		SpanContext: span.SpanContext(),
-		Attributes: []attribute.KeyValue{
-			attribute.Int64("gcp.cloud_trace.link_type", 1),
-		},
-	}))
+	traceOpts := []trace.SpanStartOption{
+		trace.WithLinks(trace.Link{
+			SpanContext: span.SpanContext(),
+			Attributes:  parentLinkAttributes,
+		}),
+	}
 	return o.tracer.Start(ctx, traceName, traceOpts...)
 }
 
@@ -56,6 +60,9 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.SetStatus(codes.Error, err.Error())
 }
 
+// This method is performant in the no-op implementation as the attribute.Bool and int methods perform heap allocation and they go as bad as 60-90 ns
+// It is not good that way so the whole attribute creation has been moved inside this method keeping no-op lightweight
+// Performance characteristics for this method along with StartSpan & EndSpan together for no-op 
 func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
 	span.SetAttributes(
 		attribute.Bool(IS_CACHE_HIT, isCacheHit),

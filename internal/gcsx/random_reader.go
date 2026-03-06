@@ -237,7 +237,14 @@ func (rr *randomReader) CheckInvariants() {
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {
-
+	ctx, span := rr.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
+	defer func() {
+		rr.traceHandle.SetCacheReadAttributes(span, cacheHit, n)
+		if err != nil {
+			rr.traceHandle.RecordError(span, err)
+		}
+		rr.traceHandle.EndSpan(span)
+	}()
 	if rr.fileCacheHandler == nil {
 		return
 	}
@@ -359,12 +366,8 @@ func (rr *randomReader) ReadAt(
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
-	ctx, span := rr.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
-	defer rr.traceHandle.EndSpan(span)
 	n, cacheHit, err := rr.tryReadingFromFileCache(ctx, p, offset)
-	rr.traceHandle.SetCacheReadAttributes(span, cacheHit, n)
 	if err != nil {
-		rr.traceHandle.RecordError(span, err)
 		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return
 	}

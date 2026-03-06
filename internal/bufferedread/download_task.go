@@ -64,11 +64,6 @@ func (p *downloadTask) Execute() {
 	var n int64
 	var span trace.Span
 	p.ctx, span = p.traceHandle.StartSpan(p.ctx, tracing.DownloadPrefetchBlock)
-	logger.Info("Start span has been successfully triggerd")
-	defer func() {
-		p.traceHandle.EndSpan(span)
-		logger.Info("End span has been successfully triggerd")
-	}()
 
 	defer func() {
 		dur := time.Since(stime)
@@ -83,6 +78,10 @@ func (p *downloadTask) Execute() {
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}
 		p.metricHandle.GcsDownloadBytesCount(n, metrics.ReadTypeBufferedAttr)
+		if err != nil {
+			p.traceHandle.RecordError(span, err)
+		}
+		p.traceHandle.EndSpan(span)
 	}()
 
 	start := uint64(startOff)
