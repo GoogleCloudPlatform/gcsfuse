@@ -180,11 +180,11 @@ fi
 
 # Fallback to /tmp if OUTPUT_DIR is unset
 OUTPUT_DIR="${OUTPUT_DIR:-/tmp}"
-mkdir -p "$BASE_PATH" || { 
-    log_error "Failed to create or access output directory: $BASE_PATH"; 
+mkdir -p "$OUTPUT_DIR" || { 
+    log_error "Failed to create or access output directory '$OUTPUT_DIR'"; 
     exit 1
 }
-args+=("--output-dir=$OUTPUT_DIR")
+ARGS+=("--output-dir=$OUTPUT_DIR")
 
 # Run the main e2e script
 "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"
