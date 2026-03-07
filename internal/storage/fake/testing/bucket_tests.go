@@ -35,9 +35,10 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 )
@@ -245,11 +246,9 @@ func listDifference(a []string, b []string) (res []string) {
 }
 
 // Issue all of the supplied read requests with some degree of parallelism.
-func readMultiple(
-	ctx context.Context,
-	bucket gcs.Bucket,
+func (t *bucketTest) readMultiple(
 	reqs []*gcs.ReadObjectRequest) (contents [][]byte, errs []error) {
-	group, ctx := errgroup.WithContext(ctx)
+	group, ctx := errgroup.WithContext(t.ctx)
 
 	// Feed indices into a channel.
 	indices := make(chan int, len(reqs))
@@ -271,7 +270,7 @@ func readMultiple(
 		}()
 
 		// Open a reader.
-		rc, err := bucket.NewReaderWithReadHandle(ctx, reqs[i])
+		rc, err := t.bucket.NewReaderWithReadHandle(ctx, reqs[i])
 		if err != nil {
 			err = fmt.Errorf("NewReader: %v", err)
 			return
@@ -304,27 +303,25 @@ func readMultiple(
 		})
 	}
 
-	AssertEq(nil, group.Wait())
+	require.Equal(t.T(), nil, group.Wait())
 	return
 }
 
 // Issue all of the supplied read requests
 // using multi-range-read approach,
 // with some degree of parallelism.
-func readMultipleUsingMultiRangeDownloader(
-	ctx context.Context,
-	bucket gcs.Bucket,
+func (t *bucketTest) readMultipleUsingMultiRangeDownloader(
 	req *gcs.MultiRangeDownloaderRequest,
 	ranges []gcs.ByteRange) (contents []*bytes.Buffer, errs []error) {
-	group, ctx := errgroup.WithContext(ctx)
+	group, ctx := errgroup.WithContext(t.ctx)
 	if len(ranges) == 0 {
 		return // nothing to do
 	}
 
 	// Open a reader.
-	mrd, err := bucket.NewMultiRangeDownloader(ctx, req)
+	mrd, err := t.bucket.NewMultiRangeDownloader(ctx, req)
 	if err != nil {
-		AddFailure("failed to get multi-range-downloader for object %s: %v", req.Name, err)
+		t.T().Errorf("failed to get multi-range-downloader for object %s: %v", req.Name, err)
 		return
 	}
 	// Not checking error on mrd.Close() here as it is expected to fail for
@@ -374,7 +371,7 @@ func readMultipleUsingMultiRangeDownloader(
 		})
 	}
 
-	AssertEq(nil, group.Wait())
+	require.Equal(t.T(), nil, group.Wait())
 	return
 }
 
@@ -416,6 +413,8 @@ func forEachString(
 ////////////////////////////////////////////////////////////////////////
 
 type bucketTest struct {
+	suite.Suite
+	MakeDeps                       func(context.Context) BucketTestDeps
 	ctx                            context.Context
 	bucket                         gcs.Bucket
 	clock                          timeutil.Clock
@@ -423,10 +422,12 @@ type bucketTest struct {
 	buffersEntireContentsForCreate bool
 }
 
-var _ bucketTestSetUpInterface = &bucketTest{}
-
-func (t *bucketTest) setUpBucketTest(deps BucketTestDeps) {
+func (t *bucketTest) SetupTest() {
+	deps := t.MakeDeps(context.Background())
 	t.ctx = deps.ctx
+	if t.ctx == nil {
+		t.ctx = context.Background()
+	}
 	t.bucket = deps.Bucket
 	t.clock = deps.Clock
 	t.supportsCancellation = deps.SupportsCancellation
@@ -455,7 +456,7 @@ func (t *bucketTest) readObject(objectName string) (contents string, err error) 
 	}
 
 	defer func() {
-		AssertEq(nil, reader.Close())
+		require.Equal(t.T(), nil, reader.Close())
 	}()
 
 	// Read the contents of the object.
@@ -484,42 +485,38 @@ func (t *bucketTest) advanceTime() {
 
 // Return a matcher that matches event times as reported by the bucket
 // corresponding to the supplied start time as measured by the test.
-func (t *bucketTest) matchesStartTime(start time.Time) Matcher {
-	// For simulated clocks we can use exact equality.
+func (t *bucketTest) assertStartTime(start time.Time, actual time.Time) {
 	if _, ok := t.clock.(*timeutil.SimulatedClock); ok {
-		return timeutil.TimeEq(start)
+		assert.Equal(t.T(), start, actual)
+	} else {
+		assert.WithinDuration(t.T(), start, actual, 60*time.Second)
 	}
-
-	// Otherwise, we need to take into account latency between the start of our
-	// call and the time the server actually executed the operation.
-	const slop = 60 * time.Second
-	return timeutil.TimeNear(start, slop)
 }
 
 // Given gcs.minObject and gcs.extendedObjectAttributes , assert on attributes of gcs.Object
 func (t *bucketTest) assertOnObjectAttributes(expectedMinObj *gcs.MinObject, expectedExtendedAttr *gcs.ExtendedObjectAttributes, o *gcs.Object) {
-	ExpectThat(expectedMinObj.Name, Equals(o.Name))
-	ExpectThat(expectedMinObj.Size, Equals(o.Size))
-	ExpectThat(expectedMinObj.Generation, Equals(o.Generation))
-	ExpectThat(expectedMinObj.MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(expectedMinObj.Updated, DeepEquals(o.Updated))
-	ExpectThat(expectedMinObj.Finalized, DeepEquals(o.Finalized))
-	ExpectThat(expectedMinObj.Metadata, DeepEquals(o.Metadata))
-	ExpectThat(expectedMinObj.ContentEncoding, Equals(o.ContentEncoding))
-	ExpectThat(expectedMinObj.CRC32C, Equals(o.CRC32C))
-	ExpectThat(expectedExtendedAttr.ContentType, Equals(o.ContentType))
-	ExpectThat(expectedExtendedAttr.ContentLanguage, Equals(o.ContentLanguage))
-	ExpectThat(expectedExtendedAttr.CacheControl, Equals(o.CacheControl))
-	ExpectThat(expectedExtendedAttr.Owner, Equals(o.Owner))
-	ExpectThat(expectedExtendedAttr.MD5, Equals(o.MD5))
-	ExpectThat(expectedExtendedAttr.MediaLink, Equals(o.MediaLink))
-	ExpectThat(expectedExtendedAttr.StorageClass, Equals(o.StorageClass))
-	ExpectThat(expectedExtendedAttr.Deleted, DeepEquals(o.Deleted))
-	ExpectThat(expectedExtendedAttr.ComponentCount, Equals(o.ComponentCount))
-	ExpectThat(expectedExtendedAttr.ContentDisposition, Equals(o.ContentDisposition))
-	ExpectThat(expectedExtendedAttr.CustomTime, Equals(o.CustomTime))
-	ExpectThat(expectedExtendedAttr.EventBasedHold, Equals(o.EventBasedHold))
-	ExpectThat(expectedExtendedAttr.Acl, DeepEquals(o.Acl))
+	assert.Equal(t.T(), o.Name, expectedMinObj.Name)
+	assert.Equal(t.T(), o.Size, expectedMinObj.Size)
+	assert.Equal(t.T(), o.Generation, expectedMinObj.Generation)
+	assert.Equal(t.T(), o.MetaGeneration, expectedMinObj.MetaGeneration)
+	assert.Equal(t.T(), o.Updated, expectedMinObj.Updated)
+	assert.Equal(t.T(), o.Finalized, expectedMinObj.Finalized)
+	assert.Equal(t.T(), o.Metadata, expectedMinObj.Metadata)
+	assert.Equal(t.T(), o.ContentEncoding, expectedMinObj.ContentEncoding)
+	assert.Equal(t.T(), o.CRC32C, expectedMinObj.CRC32C)
+	assert.Equal(t.T(), o.ContentType, expectedExtendedAttr.ContentType)
+	assert.Equal(t.T(), o.ContentLanguage, expectedExtendedAttr.ContentLanguage)
+	assert.Equal(t.T(), o.CacheControl, expectedExtendedAttr.CacheControl)
+	assert.Equal(t.T(), o.Owner, expectedExtendedAttr.Owner)
+	assert.Equal(t.T(), o.MD5, expectedExtendedAttr.MD5)
+	assert.Equal(t.T(), o.MediaLink, expectedExtendedAttr.MediaLink)
+	assert.Equal(t.T(), o.StorageClass, expectedExtendedAttr.StorageClass)
+	assert.Equal(t.T(), o.Deleted, expectedExtendedAttr.Deleted)
+	assert.Equal(t.T(), o.ComponentCount, expectedExtendedAttr.ComponentCount)
+	assert.Equal(t.T(), o.ContentDisposition, expectedExtendedAttr.ContentDisposition)
+	assert.Equal(t.T(), o.CustomTime, expectedExtendedAttr.CustomTime)
+	assert.Equal(t.T(), o.EventBasedHold, expectedExtendedAttr.EventBasedHold)
+	assert.Equal(t.T(), o.Acl, expectedExtendedAttr.Acl)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -530,43 +527,43 @@ type createTest struct {
 	bucketTest
 }
 
-func (t *createTest) EmptyObject() {
+func (t *createTest) TestEmptyObject() {
 	// Create the object.
-	AssertEq(nil, t.createObject("foo", ""))
+	require.Equal(t.T(), nil, t.createObject("foo", ""))
 
 	// Ensure it shows up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
+	require.Equal(t.T(), 1, len(listing.MinObjects))
 	o := listing.MinObjects[0]
 
-	AssertEq("foo", o.Name)
-	ExpectEq(0, o.Size)
+	require.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), uint64(0), o.Size)
 }
 
-func (t *createTest) NonEmptyObject() {
+func (t *createTest) TestNonEmptyObject() {
 	// Create the object.
-	AssertEq(nil, t.createObject("foo", "taco"))
+	require.Equal(t.T(), nil, t.createObject("foo", "taco"))
 
 	// Ensure it shows up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
+	require.Equal(t.T(), 1, len(listing.MinObjects))
 	o := listing.MinObjects[0]
 
-	AssertEq("foo", o.Name)
-	ExpectEq(len("taco"), o.Size)
+	require.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), uint64(len("taco")), o.Size)
 }
 
-func (t *createTest) Overwrite() {
+func (t *createTest) TestOverwrite() {
 	var err error
 
 	// Create a first version of an object, with some custom metadata.
@@ -580,7 +577,7 @@ func (t *createTest) Overwrite() {
 			Contents: strings.NewReader("taco"),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Overwrite it with another version.
 	_, err = t.bucket.CreateObject(
@@ -590,56 +587,58 @@ func (t *createTest) Overwrite() {
 			Contents: strings.NewReader("burrito"),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// The second version should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
+	require.Equal(t.T(), 1, len(listing.MinObjects))
 	o := listing.MinObjects[0]
 
-	AssertEq("foo", o.Name)
-	ExpectEq(len("burrito"), o.Size)
-	ExpectEq(0, len(o.Metadata))
+	require.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), uint64(len("burrito")), o.Size)
+	assert.Equal(t.T(), 0, len(o.Metadata))
 
 	// The second version should be what we get when we read the object.
 	contents, err := t.readObject("foo")
-	AssertEq(nil, err)
-	ExpectEq("burrito", contents)
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "burrito", contents)
 }
 
-func (t *createTest) ObjectAttributes_Default() {
+func (t *createTest) TestObjectAttributes_Default() {
 	// Create an object with default attributes aside from the name.
 	createTime := t.clock.Now()
 	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
 
 	// Check the Object struct.
-	ExpectEq("foo", o.Name)
-	ExpectEq("", o.ContentType)
-	ExpectEq("", o.ContentLanguage)
-	ExpectEq("", o.CacheControl)
-	ExpectThat(o.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("taco"), o.Size)
-	ExpectEq("", o.ContentEncoding)
-	ExpectEq(1, o.ComponentCount)
-	ExpectThat(o.MD5, Pointee(DeepEquals(md5.Sum([]byte("taco")))))
-	ExpectEq(computeCrc32C("taco"), *o.CRC32C)
-	ExpectThat(o.MediaLink, MatchesRegexp("download/storage.*foo"))
-	ExpectEq(nil, o.Metadata)
-	ExpectLt(0, o.Generation)
-	ExpectEq(1, o.MetaGeneration)
-	ExpectEq("STANDARD", o.StorageClass)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, t.matchesStartTime(createTime))
-	ExpectThat(o.Finalized, timeutil.TimeEq(time.Time{}))
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), "", o.ContentType)
+	assert.Equal(t.T(), "", o.ContentLanguage)
+	assert.Equal(t.T(), "", o.CacheControl)
+	assert.Regexp(t.T(), "^user-.*", o.Owner)
+	assert.Equal(t.T(), uint64(len("taco")), o.Size)
+	assert.Equal(t.T(), "", o.ContentEncoding)
+	assert.Equal(t.T(), int64(1), o.ComponentCount)
+	assert.NotNil(t.T(), o.MD5)
+	expectedMD5 := md5.Sum([]byte("taco"))
+	assert.Equal(t.T(), expectedMD5, *o.MD5)
+	assert.Equal(t.T(), computeCrc32C("taco"), *o.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*foo", o.MediaLink)
+	assert.Empty(t.T(), o.Metadata)
+	assert.Less(t.T(), int64(0), o.Generation)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", o.StorageClass)
+	assert.True(t.T(), o.Deleted.IsZero())
+	t.assertStartTime(createTime, o.Updated)
+	assert.True(t.T(), o.Finalized.IsZero())
 
 	// Make sure it matches when we stat object.
 	minObj, extendedAttr, err := t.bucket.StatObject(
@@ -647,12 +646,12 @@ func (t *createTest) ObjectAttributes_Default() {
 		&gcs.StatObjectRequest{Name: o.Name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
-func (t *createTest) ObjectAttributes_Explicit() {
+func (t *createTest) TestObjectAttributes_Explicit() {
 	// Create an object with explicit attributes set.
 	createTime := t.clock.Now()
 	req := &gcs.CreateObjectRequest{
@@ -670,31 +669,33 @@ func (t *createTest) ObjectAttributes_Explicit() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
 
 	// Check the Object struct.
-	ExpectEq("foo", o.Name)
-	ExpectEq("image/png", o.ContentType)
-	ExpectEq("fr", o.ContentLanguage)
-	ExpectEq("public", o.CacheControl)
-	ExpectThat(o.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("taco"), o.Size)
-	ExpectEq("gzip", o.ContentEncoding)
-	ExpectEq(1, o.ComponentCount)
-	ExpectThat(o.MD5, Pointee(DeepEquals(md5.Sum([]byte("taco")))))
-	ExpectEq(computeCrc32C("taco"), *o.CRC32C)
-	ExpectThat(o.MediaLink, MatchesRegexp("download/storage.*foo"))
-	ExpectThat(o.Metadata, DeepEquals(req.Metadata))
-	ExpectLt(0, o.Generation)
-	ExpectEq(1, o.MetaGeneration)
-	ExpectEq("STANDARD", o.StorageClass)
-	ExpectThat(o.Deleted, DeepEquals(time.Time{}))
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, t.matchesStartTime(createTime))
-	ExpectThat(o.Finalized, timeutil.TimeEq(time.Time{}))
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), "image/png", o.ContentType)
+	assert.Equal(t.T(), "fr", o.ContentLanguage)
+	assert.Equal(t.T(), "public", o.CacheControl)
+	assert.Regexp(t.T(), "^user-.*", o.Owner)
+	assert.Equal(t.T(), uint64(len("taco")), o.Size)
+	assert.Equal(t.T(), "gzip", o.ContentEncoding)
+	assert.Equal(t.T(), int64(1), o.ComponentCount)
+	assert.NotNil(t.T(), o.MD5)
+	expectedMD5 := md5.Sum([]byte("taco"))
+	assert.Equal(t.T(), expectedMD5, *o.MD5)
+	assert.Equal(t.T(), computeCrc32C("taco"), *o.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*foo", o.MediaLink)
+	assert.Equal(t.T(), req.Metadata, o.Metadata)
+	assert.Less(t.T(), int64(0), o.Generation)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", o.StorageClass)
+	assert.True(t.T(), o.Deleted.IsZero())
+	assert.True(t.T(), o.Deleted.IsZero())
+	t.assertStartTime(createTime, o.Updated)
+	assert.True(t.T(), o.Finalized.IsZero())
 
 	// Make sure it matches when we stat object.
 	minObj, extendedAttr, err := t.bucket.StatObject(
@@ -702,12 +703,12 @@ func (t *createTest) ObjectAttributes_Explicit() {
 		&gcs.StatObjectRequest{Name: o.Name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
-func (t *createTest) ErrorAfterPartialContents() {
+func (t *createTest) TestErrorAfterPartialContents() {
 	const contents = "tacoburritoenchilada"
 
 	// Set up a reader that will return some successful data, then an error.
@@ -721,20 +722,20 @@ func (t *createTest) ErrorAfterPartialContents() {
 	// An attempt to create the object should fail.
 	_, err := t.bucket.CreateObject(t.ctx, req)
 
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("timeout")))
+	require.NotEqual(t.T(), nil, err)
+	assert.ErrorContains(t.T(), err, "timeout")
 
 	// The object should not show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	ExpectThat(listing.MinObjects, ElementsAre())
+	assert.Empty(t.T(), listing.MinObjects)
 }
 
-func (t *createTest) InterestingNames() {
+func (t *createTest) TestInterestingNames() {
 	var err error
 
 	// Grab a list of interesting legal names.
@@ -754,7 +755,7 @@ func (t *createTest) InterestingNames() {
 			return
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Make sure we can read each, and that we get back the content we created
 	// above.
@@ -781,14 +782,14 @@ func (t *createTest) InterestingNames() {
 			return
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Grab a listing and extract the names.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
 	var listingNames []string
 	for _, o := range listing.MinObjects {
@@ -796,7 +797,7 @@ func (t *createTest) InterestingNames() {
 	}
 
 	// The names should have come back sorted by their UTF-8 encodings.
-	AssertTrue(sort.IsSorted(sort.StringSlice(listingNames)))
+	require.True(t.T(), sort.IsSorted(sort.StringSlice(listingNames)))
 
 	// Make sure all and only the expected names exist.
 	if diff := listDifference(listingNames, names); len(diff) != 0 {
@@ -805,9 +806,7 @@ func (t *createTest) InterestingNames() {
 			dumps = append(dumps, hex.Dump([]byte(n)))
 		}
 
-		AddFailure(
-			"Unexpected names in listing:\n%s",
-			strings.Join(dumps, "\n"))
+		t.T().Errorf("Unexpected names in listing:\n%s", strings.Join(dumps, "\n"))
 	}
 
 	if diff := listDifference(names, listingNames); len(diff) != 0 {
@@ -816,13 +815,11 @@ func (t *createTest) InterestingNames() {
 			dumps = append(dumps, hex.Dump([]byte(n)))
 		}
 
-		AddFailure(
-			"Names missing from listing:\n%s",
-			strings.Join(dumps, "\n"))
+		t.T().Errorf("Names missing from listing:\n%s", strings.Join(dumps, "\n"))
 	}
 }
 
-func (t *createTest) IllegalNames() {
+func (t *createTest) TestIllegalNames() {
 	var err error
 
 	// Make sure we cannot create any of the names above.
@@ -853,18 +850,18 @@ func (t *createTest) IllegalNames() {
 			return
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// No objects should have been created.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-	ExpectThat(listing.MinObjects, ElementsAre())
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
+	assert.Empty(t.T(), listing.MinObjects)
 }
 
-func (t *createTest) IncorrectCRC32C() {
+func (t *createTest) TestIncorrectCRC32C() {
 	const name = "foo"
 	const contents = "taco"
 	var err error
@@ -880,8 +877,8 @@ func (t *createTest) IncorrectCRC32C() {
 	}
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
-	AssertThat(err, Error(HasSubstr("CRC32C")))
-	AssertThat(err, Error(HasSubstr("match")))
+	require.ErrorContains(t.T(), err, "CRC32C")
+	require.ErrorContains(t.T(), err, "match")
 
 	// It should not have been created.
 	statReq := &gcs.StatObjectRequest{
@@ -889,10 +886,10 @@ func (t *createTest) IncorrectCRC32C() {
 	}
 
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *createTest) CorrectCRC32C() {
+func (t *createTest) TestCorrectCRC32C() {
 	const name = "foo"
 	const contents = "taco"
 	var err error
@@ -905,11 +902,11 @@ func (t *createTest) CorrectCRC32C() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
-	AssertEq(nil, err)
-	ExpectEq(len(contents), o.Size)
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), uint64(len(contents)), o.Size)
 }
 
-func (t *createTest) IncorrectMD5() {
+func (t *createTest) TestIncorrectMD5() {
 	const name = "foo"
 	const contents = "taco"
 	var err error
@@ -925,8 +922,8 @@ func (t *createTest) IncorrectMD5() {
 	}
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
-	AssertThat(err, Error(HasSubstr("MD5")))
-	AssertThat(err, Error(HasSubstr("match")))
+	require.ErrorContains(t.T(), err, "MD5")
+	require.ErrorContains(t.T(), err, "match")
 
 	// It should not have been created.
 	statReq := &gcs.StatObjectRequest{
@@ -934,10 +931,10 @@ func (t *createTest) IncorrectMD5() {
 	}
 
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *createTest) CorrectMD5() {
+func (t *createTest) TestCorrectMD5() {
 	const name = "foo"
 	const contents = "taco"
 	var err error
@@ -950,11 +947,11 @@ func (t *createTest) CorrectMD5() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
-	AssertEq(nil, err)
-	ExpectEq(len(contents), o.Size)
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), uint64(len(contents)), o.Size)
 }
 
-func (t *createTest) CorrectCRC32CAndMD5() {
+func (t *createTest) TestCorrectCRC32CAndMD5() {
 	const name = "foo"
 	const contents = "taco"
 	var err error
@@ -968,11 +965,11 @@ func (t *createTest) CorrectCRC32CAndMD5() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
-	AssertEq(nil, err)
-	ExpectEq(len(contents), o.Size)
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), uint64(len(contents)), o.Size)
 }
 
-func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
+func (t *createTest) TestGenerationPrecondition_Zero_Unsatisfied() {
 	// Create an existing object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -980,7 +977,7 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 		"foo",
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Request to create another version of the object, with a precondition
 	// saying it shouldn't exist. The request should fail.
@@ -993,28 +990,29 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
-	ExpectThat(err, Error(MatchesRegexp("object exists|googleapi.*412")))
+	require.IsType(t.T(), &gcs.PreconditionError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "object exists|googleapi.*412", err.Error())
 
 	// The old version should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
-	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
-	ExpectEq(len("taco"), listing.MinObjects[0].Size)
+	require.Equal(t.T(), 1, len(listing.MinObjects))
+	require.Equal(t.T(), "foo", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), o.Generation, listing.MinObjects[0].Generation)
+	assert.Equal(t.T(), uint64(len("taco")), listing.MinObjects[0].Size)
 
 	// We should see the old contents when we read.
 	contents, err := t.readObject("foo")
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 }
 
-func (t *createTest) GenerationPrecondition_Zero_Satisfied() {
+func (t *createTest) TestGenerationPrecondition_Zero_Satisfied() {
 	// Request to create an object with a precondition saying it shouldn't exist.
 	// The request should succeed.
 	var gen int64 = 0
@@ -1025,30 +1023,30 @@ func (t *createTest) GenerationPrecondition_Zero_Satisfied() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	ExpectEq(len("burrito"), o.Size)
-	ExpectNe(0, o.Generation)
+	assert.Equal(t.T(), uint64(len("burrito")), o.Size)
+	assert.NotEqual(t.T(), 0, o.Generation)
 
 	// The object should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
-	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
-	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
+	require.Equal(t.T(), 1, len(listing.MinObjects))
+	require.Equal(t.T(), "foo", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), o.Generation, listing.MinObjects[0].Generation)
+	assert.Equal(t.T(), uint64(len("burrito")), listing.MinObjects[0].Size)
 
 	// We should see the new contents when we read.
 	contents, err := t.readObject("foo")
-	AssertEq(nil, err)
-	ExpectEq("burrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "burrito", string(contents))
 }
 
-func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Missing() {
+func (t *createTest) TestGenerationPrecondition_NonZero_Unsatisfied_Missing() {
 	// Request to create a non-existent object with a precondition saying it
 	// should already exist with some generation number. The request should fail.
 	var gen int64 = 17
@@ -1060,19 +1058,20 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Missing() {
 
 	_, err := t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
-	ExpectThat(err, Error(MatchesRegexp("object doesn't exist|googleapi.*412")))
+	require.IsType(t.T(), &gcs.PreconditionError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "object doesn't exist|googleapi.*412", err.Error())
 
 	// Nothing should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-	ExpectEq(0, len(listing.MinObjects))
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
+	assert.Equal(t.T(), 0, len(listing.MinObjects))
 }
 
-func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
+func (t *createTest) TestGenerationPrecondition_NonZero_Unsatisfied_Present() {
 	// Create an existing object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -1080,7 +1079,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 		"foo",
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Request to create another version of the object, with a precondition for
 	// the wrong generation. The request should fail.
@@ -1093,28 +1092,29 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
-	ExpectThat(err, Error(MatchesRegexp("generation|googleapi.*412")))
+	require.IsType(t.T(), &gcs.PreconditionError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "generation|googleapi.*412", err.Error())
 
 	// The old version should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
-	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
-	ExpectEq(len("taco"), listing.MinObjects[0].Size)
+	require.Equal(t.T(), 1, len(listing.MinObjects))
+	require.Equal(t.T(), "foo", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), o.Generation, listing.MinObjects[0].Generation)
+	assert.Equal(t.T(), uint64(len("taco")), listing.MinObjects[0].Size)
 
 	// We should see the old contents when we read.
 	contents, err := t.readObject("foo")
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 }
 
-func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
+func (t *createTest) TestGenerationPrecondition_NonZero_Satisfied() {
 	// Create an existing object.
 	orig, err := storageutil.CreateObject(
 		t.ctx,
@@ -1122,7 +1122,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 		"foo",
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Request to create another version of the object, with a precondition
 	// saying it should exist with the appropriate generation number. The request
@@ -1135,30 +1135,30 @@ func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	ExpectEq(len("burrito"), o.Size)
-	ExpectNe(orig.Generation, o.Generation)
+	assert.Equal(t.T(), uint64(len("burrito")), o.Size)
+	assert.NotEqual(t.T(), orig.Generation, o.Generation)
 
 	// The new version should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
-	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
-	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
+	require.Equal(t.T(), 1, len(listing.MinObjects))
+	require.Equal(t.T(), "foo", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), o.Generation, listing.MinObjects[0].Generation)
+	assert.Equal(t.T(), uint64(len("burrito")), listing.MinObjects[0].Size)
 
 	// We should see the new contents when we read.
 	contents, err := t.readObject("foo")
-	AssertEq(nil, err)
-	ExpectEq("burrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "burrito", string(contents))
 }
 
-func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() {
+func (t *createTest) TestMetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() {
 	var err error
 
 	// Request to create a missing object, with a precondition for
@@ -1172,20 +1172,21 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
-	ExpectThat(err, Error(MatchesRegexp("doesn't exist|googleapi.*412")))
+	require.IsType(t.T(), &gcs.PreconditionError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "doesn't exist|googleapi.*412", err.Error())
 
 	// Nothing should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	ExpectEq(0, len(listing.MinObjects))
+	assert.Equal(t.T(), 0, len(listing.MinObjects))
 }
 
-func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
+func (t *createTest) TestMetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	// Create an existing object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -1193,7 +1194,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 		"foo",
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 	// Request to create another version of the object, with a precondition for
 	// the wrong meta-generation. The request should fail.
 	var metagen int64 = o.MetaGeneration + 1
@@ -1205,36 +1206,37 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
-	ExpectThat(err, Error(MatchesRegexp("meta-generation|googleapi.*412")))
+	require.IsType(t.T(), &gcs.PreconditionError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "meta-generation|googleapi.*412", err.Error())
 
 	// The old version should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
-	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
-	ExpectEq(o.MetaGeneration, listing.MinObjects[0].MetaGeneration)
-	ExpectEq(len("taco"), listing.MinObjects[0].Size)
+	require.Equal(t.T(), 1, len(listing.MinObjects))
+	require.Equal(t.T(), "foo", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), o.Generation, listing.MinObjects[0].Generation)
+	assert.Equal(t.T(), o.MetaGeneration, listing.MinObjects[0].MetaGeneration)
+	assert.Equal(t.T(), uint64(len("taco")), listing.MinObjects[0].Size)
 
 	// We should see the old contents when we read.
 	contents, err := t.readObject("foo")
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 }
 
-func (t *createTest) MetaGenerationPrecondition_Satisfied() {
+func (t *createTest) TestMetaGenerationPrecondition_Satisfied() {
 	// Create an existing object.
 	orig, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
 		[]byte("taco"))
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Request to create another version of the object, with a satisfied
 	// precondition.
@@ -1245,29 +1247,29 @@ func (t *createTest) MetaGenerationPrecondition_Satisfied() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	ExpectEq(len("burrito"), o.Size)
-	ExpectNe(orig.Generation, o.Generation)
-	ExpectEq(1, o.MetaGeneration)
+	assert.Equal(t.T(), uint64(len("burrito")), o.Size)
+	assert.NotEqual(t.T(), orig.Generation, o.Generation)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
 
 	// The new version should show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.MinObjects))
-	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
-	ExpectEq(o.MetaGeneration, listing.MinObjects[0].MetaGeneration)
-	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
+	require.Equal(t.T(), 1, len(listing.MinObjects))
+	require.Equal(t.T(), "foo", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), o.Generation, listing.MinObjects[0].Generation)
+	assert.Equal(t.T(), o.MetaGeneration, listing.MinObjects[0].MetaGeneration)
+	assert.Equal(t.T(), uint64(len("burrito")), listing.MinObjects[0].Size)
 
 	// We should see the new contents when we read.
 	contents, err := t.readObject("foo")
-	AssertEq(nil, err)
-	ExpectEq("burrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "burrito", string(contents))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1278,7 +1280,7 @@ type copyTest struct {
 	bucketTest
 }
 
-func (t *copyTest) SourceDoesntExist() {
+func (t *copyTest) TestSourceDoesntExist() {
 	var err error
 
 	// Copy
@@ -1288,7 +1290,7 @@ func (t *copyTest) SourceDoesntExist() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 
 	// List
 	objects, runs, err := storageutil.ListAll(
@@ -1296,12 +1298,12 @@ func (t *copyTest) SourceDoesntExist() {
 		t.bucket,
 		&gcs.ListObjectsRequest{})
 
-	AssertEq(nil, err)
-	ExpectThat(objects, ElementsAre())
-	ExpectThat(runs, ElementsAre())
+	require.Equal(t.T(), nil, err)
+	assert.Empty(t.T(), objects)
+	assert.Empty(t.T(), runs)
 }
 
-func (t *copyTest) DestinationDoesntExist() {
+func (t *copyTest) TestDestinationDoesntExist() {
 	var err error
 
 	// Create a source object with explicit attributes set.
@@ -1321,8 +1323,8 @@ func (t *copyTest) DestinationDoesntExist() {
 			Contents: strings.NewReader("taco"),
 		})
 
-	AssertEq(nil, err)
-	AssertThat(src.Updated, t.matchesStartTime(createTime))
+	require.Equal(t.T(), nil, err)
+	t.assertStartTime(createTime, src.Updated)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
@@ -1335,31 +1337,37 @@ func (t *copyTest) DestinationDoesntExist() {
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
 
-	AssertEq(nil, err)
-	ExpectEq("bar", dst.Name)
-	ExpectEq("text/plain", dst.ContentType)
-	ExpectEq("fr", dst.ContentLanguage)
-	ExpectEq("public", dst.CacheControl)
-	ExpectThat(dst.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("taco"), dst.Size)
-	ExpectEq(1, dst.ComponentCount)
-	ExpectThat(dst.MD5, Pointee(DeepEquals(md5.Sum([]byte("taco")))))
-	ExpectEq(computeCrc32C("taco"), *dst.CRC32C)
-	ExpectThat(dst.MediaLink, MatchesRegexp("download/storage.*bar"))
-	ExpectThat(dst.Metadata, DeepEquals(src.Metadata))
-	ExpectLt(0, dst.Generation)
-	ExpectEq(1, dst.MetaGeneration)
-	ExpectEq("STANDARD", dst.StorageClass)
-	ExpectThat(dst.Deleted, DeepEquals(time.Time{}))
-	ExpectThat(dst.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
-	ExpectThat(dst.Finalized, timeutil.TimeEq(time.Time{}))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "bar", dst.Name)
+	assert.Equal(t.T(), "text/plain", dst.ContentType)
+	assert.Equal(t.T(), "fr", dst.ContentLanguage)
+	assert.Equal(t.T(), "public", dst.CacheControl)
+	assert.Regexp(t.T(), "^user-.*", dst.Owner)
+	assert.Equal(t.T(), uint64(len("taco")), dst.Size)
+	assert.Equal(t.T(), int64(1), dst.ComponentCount)
+	assert.NotNil(t.T(), dst.MD5)
+	expectedMD5 := md5.Sum([]byte("taco"))
+	assert.Equal(t.T(), expectedMD5, *dst.MD5)
+	assert.Equal(t.T(), computeCrc32C("taco"), *dst.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*bar", dst.MediaLink)
+	if src.Metadata == nil {
+		assert.Empty(t.T(), dst.Metadata)
+	} else {
+		assert.Equal(t.T(), src.Metadata, dst.Metadata)
+	}
+	assert.Less(t.T(), int64(0), dst.Generation)
+	assert.Equal(t.T(), int64(1), dst.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", dst.StorageClass)
+	assert.True(t.T(), dst.Deleted.IsZero())
+	assert.True(t.T(), dst.Deleted.IsZero())
+	t.assertStartTime(createTime, dst.Updated)
+	assert.True(t.T(), dst.Finalized.IsZero())
 
 	// The object should be readable.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "bar")
 
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 
 	// And stattable.
 	statMinObj, statExtObjAttr, err := t.bucket.StatObject(
@@ -1368,14 +1376,15 @@ func (t *copyTest) DestinationDoesntExist() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 
-	AssertEq(nil, err)
-	AssertNe(nil, statMinObj)
-	AssertNe(nil, statExtObjAttr)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, statMinObj)
+	require.NotEqual(t.T(), nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
+	assert.NotNil(t.T(), statObj)
+	assert.Equal(t.T(), *dst, *statObj)
 }
 
-func (t *copyTest) DestinationExists() {
+func (t *copyTest) TestDestinationExists() {
 	var err error
 
 	// Create a source object with explicit attributes set.
@@ -1395,8 +1404,8 @@ func (t *copyTest) DestinationExists() {
 			Contents: strings.NewReader("taco"),
 		})
 
-	AssertEq(nil, err)
-	AssertThat(src.Updated, t.matchesStartTime(createTime))
+	require.Equal(t.T(), nil, err)
+	t.assertStartTime(createTime, src.Updated)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
@@ -1416,7 +1425,7 @@ func (t *copyTest) DestinationExists() {
 			Contents: strings.NewReader("burrito"),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Copy over the existing object.
 	req := &gcs.CopyObjectRequest{
@@ -1426,31 +1435,37 @@ func (t *copyTest) DestinationExists() {
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
 
-	AssertEq(nil, err)
-	ExpectEq("bar", dst.Name)
-	ExpectEq("text/plain", dst.ContentType)
-	ExpectEq("fr", dst.ContentLanguage)
-	ExpectEq("public", dst.CacheControl)
-	ExpectThat(dst.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("taco"), dst.Size)
-	ExpectEq(1, dst.ComponentCount)
-	ExpectThat(dst.MD5, Pointee(DeepEquals(md5.Sum([]byte("taco")))))
-	ExpectEq(computeCrc32C("taco"), *dst.CRC32C)
-	ExpectThat(dst.MediaLink, MatchesRegexp("download/storage.*bar"))
-	ExpectThat(dst.Metadata, DeepEquals(src.Metadata))
-	ExpectLt(orig.Generation, dst.Generation)
-	ExpectEq(1, dst.MetaGeneration)
-	ExpectEq("STANDARD", dst.StorageClass)
-	ExpectThat(dst.Deleted, DeepEquals(time.Time{}))
-	ExpectThat(dst.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
-	ExpectThat(dst.Finalized, timeutil.TimeEq(time.Time{}))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "bar", dst.Name)
+	assert.Equal(t.T(), "text/plain", dst.ContentType)
+	assert.Equal(t.T(), "fr", dst.ContentLanguage)
+	assert.Equal(t.T(), "public", dst.CacheControl)
+	assert.Regexp(t.T(), "^user-.*", dst.Owner)
+	assert.Equal(t.T(), uint64(len("taco")), dst.Size)
+	assert.Equal(t.T(), int64(1), dst.ComponentCount)
+	assert.NotNil(t.T(), dst.MD5)
+	expectedMD5 := md5.Sum([]byte("taco"))
+	assert.Equal(t.T(), expectedMD5, *dst.MD5)
+	assert.Equal(t.T(), computeCrc32C("taco"), *dst.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*bar", dst.MediaLink)
+	if src.Metadata == nil {
+		assert.Empty(t.T(), dst.Metadata)
+	} else {
+		assert.Equal(t.T(), src.Metadata, dst.Metadata)
+	}
+	assert.Less(t.T(), orig.Generation, dst.Generation)
+	assert.Equal(t.T(), int64(1), dst.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", dst.StorageClass)
+	assert.True(t.T(), dst.Deleted.IsZero())
+	assert.True(t.T(), dst.Deleted.IsZero())
+	t.assertStartTime(createTime, dst.Updated)
+	assert.True(t.T(), dst.Finalized.IsZero())
 
 	// The object should be readable.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "bar")
 
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 
 	// And stattable.
 	statMinObj, statExtObjAttr, err := t.bucket.StatObject(
@@ -1459,14 +1474,15 @@ func (t *copyTest) DestinationExists() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 
-	AssertEq(nil, err)
-	AssertNe(nil, statMinObj)
-	AssertNe(nil, statExtObjAttr)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, statMinObj)
+	require.NotEqual(t.T(), nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
+	assert.NotNil(t.T(), statObj)
+	assert.Equal(t.T(), *dst, *statObj)
 }
 
-func (t *copyTest) DestinationIsSameName() {
+func (t *copyTest) TestDestinationIsSameName() {
 	var err error
 
 	// Create a source object with explicit attributes set.
@@ -1486,8 +1502,8 @@ func (t *copyTest) DestinationIsSameName() {
 			Contents: strings.NewReader("taco"),
 		})
 
-	AssertEq(nil, err)
-	AssertThat(src.Updated, t.matchesStartTime(createTime))
+	require.Equal(t.T(), nil, err)
+	t.assertStartTime(createTime, src.Updated)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
@@ -1500,31 +1516,37 @@ func (t *copyTest) DestinationIsSameName() {
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
 
-	AssertEq(nil, err)
-	ExpectEq("foo", dst.Name)
-	ExpectEq("text/plain", dst.ContentType)
-	ExpectEq("fr", dst.ContentLanguage)
-	ExpectEq("public", dst.CacheControl)
-	ExpectThat(dst.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("taco"), dst.Size)
-	ExpectEq(1, dst.ComponentCount)
-	ExpectThat(dst.MD5, Pointee(DeepEquals(md5.Sum([]byte("taco")))))
-	ExpectEq(computeCrc32C("taco"), *dst.CRC32C)
-	ExpectThat(dst.MediaLink, MatchesRegexp("download/storage.*foo"))
-	ExpectThat(dst.Metadata, DeepEquals(src.Metadata))
-	ExpectLt(src.Generation, dst.Generation)
-	ExpectEq(1, dst.MetaGeneration)
-	ExpectEq("STANDARD", dst.StorageClass)
-	ExpectThat(dst.Deleted, DeepEquals(time.Time{}))
-	ExpectThat(dst.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
-	ExpectThat(dst.Finalized, timeutil.TimeEq(time.Time{}))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "foo", dst.Name)
+	assert.Equal(t.T(), "text/plain", dst.ContentType)
+	assert.Equal(t.T(), "fr", dst.ContentLanguage)
+	assert.Equal(t.T(), "public", dst.CacheControl)
+	assert.Regexp(t.T(), "^user-.*", dst.Owner)
+	assert.Equal(t.T(), uint64(len("taco")), dst.Size)
+	assert.Equal(t.T(), int64(1), dst.ComponentCount)
+	assert.NotNil(t.T(), dst.MD5)
+	expectedMD5 := md5.Sum([]byte("taco"))
+	assert.Equal(t.T(), expectedMD5, *dst.MD5)
+	assert.Equal(t.T(), computeCrc32C("taco"), *dst.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*foo", dst.MediaLink)
+	if src.Metadata == nil {
+		assert.Empty(t.T(), dst.Metadata)
+	} else {
+		assert.Equal(t.T(), src.Metadata, dst.Metadata)
+	}
+	assert.Less(t.T(), src.Generation, dst.Generation)
+	assert.Equal(t.T(), int64(1), dst.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", dst.StorageClass)
+	assert.True(t.T(), dst.Deleted.IsZero())
+	assert.True(t.T(), dst.Deleted.IsZero())
+	t.assertStartTime(createTime, dst.Updated)
+	assert.True(t.T(), dst.Finalized.IsZero())
 
 	// The object should be readable.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 
 	// And stattable.
 	statMinObj, statExtObjAttr, err := t.bucket.StatObject(
@@ -1533,20 +1555,21 @@ func (t *copyTest) DestinationIsSameName() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 
-	AssertEq(nil, err)
-	AssertNe(nil, statMinObj)
-	AssertNe(nil, statExtObjAttr)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, statMinObj)
+	require.NotEqual(t.T(), nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
+	assert.NotNil(t.T(), statObj)
+	assert.Equal(t.T(), *dst, *statObj)
 }
 
-func (t *copyTest) InterestingNames() {
+func (t *copyTest) TestInterestingNames() {
 	var err error
 
 	// Create a source object.
 	const srcName = "foo"
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Make sure we can use each interesting name as a copy destination.
 	err = forEachString(
@@ -1568,16 +1591,16 @@ func (t *copyTest) InterestingNames() {
 			return
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 }
 
-func (t *copyTest) IllegalNames() {
+func (t *copyTest) TestIllegalNames() {
 	var err error
 
 	// Create a source object.
 	const srcName = "foo"
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Make sure we can't use any illegal name as a copy destination.
 	err = forEachString(
@@ -1613,10 +1636,10 @@ func (t *copyTest) IllegalNames() {
 			return
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 }
 
-func (t *copyTest) ParticularSourceGeneration_NameDoesntExist() {
+func (t *copyTest) TestParticularSourceGeneration_NameDoesntExist() {
 	var err error
 
 	// Copy
@@ -1627,10 +1650,10 @@ func (t *copyTest) ParticularSourceGeneration_NameDoesntExist() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *copyTest) ParticularSourceGeneration_GenerationDoesntExist() {
+func (t *copyTest) TestParticularSourceGeneration_GenerationDoesntExist() {
 	var err error
 
 	// Create a source object.
@@ -1641,7 +1664,7 @@ func (t *copyTest) ParticularSourceGeneration_GenerationDoesntExist() {
 			Contents: strings.NewReader("taco"),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Send a copy request for the wrong generation number.
 	req := &gcs.CopyObjectRequest{
@@ -1651,10 +1674,10 @@ func (t *copyTest) ParticularSourceGeneration_GenerationDoesntExist() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *copyTest) ParticularSourceGeneration_Exists() {
+func (t *copyTest) TestParticularSourceGeneration_Exists() {
 	var err error
 
 	// Create a source object.
@@ -1665,7 +1688,7 @@ func (t *copyTest) ParticularSourceGeneration_Exists() {
 			Contents: strings.NewReader("taco"),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Send a copy request for the right generation number.
 	req := &gcs.CopyObjectRequest{
@@ -1675,10 +1698,10 @@ func (t *copyTest) ParticularSourceGeneration_Exists() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
-func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
+func (t *copyTest) TestSrcMetaGenerationPrecondition_Unsatisfied() {
 	var err error
 
 	// Create a source object.
@@ -1689,7 +1712,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
 			Contents: strings.NewReader(""),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to copy, with a precondition.
 	precond := src.MetaGeneration + 1
@@ -1700,17 +1723,17 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	require.IsType(t.T(), &gcs.PreconditionError{}, err)
 
 	// The object should not have been created.
 	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
+func (t *copyTest) TestSrcMetaGenerationPrecondition_Satisfied() {
 	var err error
 
 	// Create a source object.
@@ -1721,7 +1744,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
 			Contents: strings.NewReader(""),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Copy, with a precondition.
 	req := &gcs.CopyObjectRequest{
@@ -1731,14 +1754,14 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// The object should have been created.
 	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
 
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1796,13 +1819,13 @@ func (t *composeTest) createSources(
 	return
 }
 
-func (t *composeTest) OneSimpleSource() {
+func (t *composeTest) TestOneSimpleSource() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose them.
 	t.advanceTime()
@@ -1820,44 +1843,44 @@ func (t *composeTest) OneSimpleSource() {
 		})
 
 	t.advanceTime()
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq("foo", o.Name)
-	ExpectEq("", o.ContentType)
-	ExpectEq("", o.ContentLanguage)
-	ExpectEq("", o.CacheControl)
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), "", o.ContentType)
+	assert.Equal(t.T(), "", o.ContentLanguage)
+	assert.Equal(t.T(), "", o.CacheControl)
 	// Disabled due to Google-internal bug 31476941.
-	// ExpectThat(o.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("taco"), o.Size)
-	ExpectEq("", o.ContentEncoding)
-	ExpectEq(1, o.ComponentCount)
-	ExpectEq(nil, o.MD5)
-	ExpectEq(computeCrc32C("taco"), *o.CRC32C)
-	ExpectThat(o.MediaLink, MatchesRegexp("download/storage.*foo"))
-	ExpectEq(nil, o.Metadata)
-	ExpectLt(sources[0].Generation, o.Generation)
-	ExpectEq(1, o.MetaGeneration)
-	ExpectEq("STANDARD", o.StorageClass)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
-	ExpectThat(o.Finalized, timeutil.TimeEq(time.Time{}))
+	// assert.Regexp(t.T(), "^user-.*", o.Owner)
+	assert.Equal(t.T(), uint64(len("taco")), o.Size)
+	assert.Equal(t.T(), "", o.ContentEncoding)
+	assert.Equal(t.T(), int64(1), o.ComponentCount)
+	assert.Nil(t.T(), o.MD5)
+	assert.Equal(t.T(), computeCrc32C("taco"), *o.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*foo", o.MediaLink)
+	assert.Empty(t.T(), o.Metadata)
+	assert.Less(t.T(), sources[0].Generation, o.Generation)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", o.StorageClass)
+	assert.True(t.T(), o.Deleted.IsZero())
+	t.assertStartTime(composeTime, o.Updated)
+	assert.True(t.T(), o.Finalized.IsZero())
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 }
 
-func (t *composeTest) TwoSimpleSources() {
+func (t *composeTest) TestTwoSimpleSources() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose them.
 	t.advanceTime()
@@ -1879,38 +1902,38 @@ func (t *composeTest) TwoSimpleSources() {
 		})
 
 	t.advanceTime()
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq("foo", o.Name)
-	ExpectEq("", o.ContentType)
-	ExpectEq("", o.ContentLanguage)
-	ExpectEq("", o.CacheControl)
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), "", o.ContentType)
+	assert.Equal(t.T(), "", o.ContentLanguage)
+	assert.Equal(t.T(), "", o.CacheControl)
 	// Disabled due to Google-internal bug 31476941.
-	// ExpectThat(o.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("tacoburrito"), o.Size)
-	ExpectEq("", o.ContentEncoding)
-	ExpectEq(2, o.ComponentCount)
-	ExpectEq(nil, o.MD5)
-	ExpectEq(computeCrc32C("tacoburrito"), *o.CRC32C)
-	ExpectThat(o.MediaLink, MatchesRegexp("download/storage.*foo"))
-	ExpectEq(nil, o.Metadata)
-	ExpectLt(sources[0].Generation, o.Generation)
-	ExpectLt(sources[1].Generation, o.Generation)
-	ExpectEq(1, o.MetaGeneration)
-	ExpectEq("STANDARD", o.StorageClass)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
-	ExpectThat(o.Finalized, timeutil.TimeEq(time.Time{}))
+	// assert.Regexp(t.T(), "^user-.*", o.Owner)
+	assert.Equal(t.T(), uint64(len("tacoburrito")), o.Size)
+	assert.Equal(t.T(), "", o.ContentEncoding)
+	assert.Equal(t.T(), int64(2), o.ComponentCount)
+	assert.Nil(t.T(), o.MD5)
+	assert.Equal(t.T(), computeCrc32C("tacoburrito"), *o.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*foo", o.MediaLink)
+	assert.Empty(t.T(), o.Metadata)
+	assert.Less(t.T(), sources[0].Generation, o.Generation)
+	assert.Less(t.T(), sources[1].Generation, o.Generation)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", o.StorageClass)
+	assert.True(t.T(), o.Deleted.IsZero())
+	t.assertStartTime(composeTime, o.Updated)
+	assert.True(t.T(), o.Finalized.IsZero())
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
-	AssertEq(nil, err)
-	ExpectEq("tacoburrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "tacoburrito", string(contents))
 }
 
-func (t *composeTest) ManySimpleSources() {
+func (t *composeTest) TestManySimpleSources() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
@@ -1921,7 +1944,7 @@ func (t *composeTest) ManySimpleSources() {
 		"",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose them.
 	req := &gcs.ComposeObjectsRequest{
@@ -1938,47 +1961,47 @@ func (t *composeTest) ManySimpleSources() {
 	o, err := t.bucket.ComposeObjects(t.ctx, req)
 
 	t.advanceTime()
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq("foo", o.Name)
-	ExpectEq("", o.ContentType)
-	ExpectEq("", o.ContentLanguage)
-	ExpectEq("", o.CacheControl)
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), "", o.ContentType)
+	assert.Equal(t.T(), "", o.ContentLanguage)
+	assert.Equal(t.T(), "", o.CacheControl)
 	// Disabled due to Google-internal bug 31476941.
-	// ExpectThat(o.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("tacoburritoenchiladaqueso"), o.Size)
-	ExpectEq("", o.ContentEncoding)
-	ExpectEq(6, o.ComponentCount)
-	ExpectEq(nil, o.MD5)
-	ExpectEq(computeCrc32C("tacoburritoenchiladaqueso"), *o.CRC32C)
-	ExpectThat(o.MediaLink, MatchesRegexp("download/storage.*foo"))
-	ExpectEq(nil, o.Metadata)
-	ExpectEq(1, o.MetaGeneration)
-	ExpectEq("STANDARD", o.StorageClass)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
-	ExpectThat(o.Finalized, timeutil.TimeEq(time.Time{}))
+	// assert.Regexp(t.T(), "^user-.*", o.Owner)
+	assert.Equal(t.T(), uint64(len("tacoburritoenchiladaqueso")), o.Size)
+	assert.Equal(t.T(), "", o.ContentEncoding)
+	assert.Equal(t.T(), int64(6), o.ComponentCount)
+	assert.Nil(t.T(), o.MD5)
+	assert.Equal(t.T(), computeCrc32C("tacoburritoenchiladaqueso"), *o.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*foo", o.MediaLink)
+	assert.Empty(t.T(), o.Metadata)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", o.StorageClass)
+	assert.True(t.T(), o.Deleted.IsZero())
+	t.assertStartTime(composeTime, o.Updated)
+	assert.True(t.T(), o.Finalized.IsZero())
 
 	for _, src := range sources {
-		ExpectLt(src.Generation, o.Generation)
+		assert.Less(t.T(), src.Generation, o.Generation)
 	}
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
-	AssertEq(nil, err)
-	ExpectEq("tacoburritoenchiladaqueso", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "tacoburritoenchiladaqueso", string(contents))
 }
 
-func (t *composeTest) RepeatedSources() {
+func (t *composeTest) TestRepeatedSources() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose them, using each multiple times.
 	t.advanceTime()
@@ -2008,45 +2031,45 @@ func (t *composeTest) RepeatedSources() {
 		})
 
 	t.advanceTime()
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq("foo", o.Name)
-	ExpectEq("", o.ContentType)
-	ExpectEq("", o.ContentLanguage)
-	ExpectEq("", o.CacheControl)
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), "", o.ContentType)
+	assert.Equal(t.T(), "", o.ContentLanguage)
+	assert.Equal(t.T(), "", o.CacheControl)
 	// Disabled due to Google-internal bug 31476941.
-	// ExpectThat(o.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("tacoburritotacoburrito"), o.Size)
-	ExpectEq("", o.ContentEncoding)
-	ExpectEq(4, o.ComponentCount)
-	ExpectEq(nil, o.MD5)
-	ExpectEq(computeCrc32C("tacoburritotacoburrito"), *o.CRC32C)
-	ExpectThat(o.MediaLink, MatchesRegexp("download/storage.*foo"))
-	ExpectEq(nil, o.Metadata)
-	ExpectLt(sources[0].Generation, o.Generation)
-	ExpectLt(sources[1].Generation, o.Generation)
-	ExpectEq(1, o.MetaGeneration)
-	ExpectEq("STANDARD", o.StorageClass)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
-	ExpectThat(o.Finalized, timeutil.TimeEq(time.Time{}))
+	// assert.Regexp(t.T(), "^user-.*", o.Owner)
+	assert.Equal(t.T(), uint64(len("tacoburritotacoburrito")), o.Size)
+	assert.Equal(t.T(), "", o.ContentEncoding)
+	assert.Equal(t.T(), int64(4), o.ComponentCount)
+	assert.Nil(t.T(), o.MD5)
+	assert.Equal(t.T(), computeCrc32C("tacoburritotacoburrito"), *o.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*foo", o.MediaLink)
+	assert.Empty(t.T(), o.Metadata)
+	assert.Less(t.T(), sources[0].Generation, o.Generation)
+	assert.Less(t.T(), sources[1].Generation, o.Generation)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", o.StorageClass)
+	assert.True(t.T(), o.Deleted.IsZero())
+	t.assertStartTime(composeTime, o.Updated)
+	assert.True(t.T(), o.Finalized.IsZero())
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
-	AssertEq(nil, err)
-	ExpectEq("tacoburritotacoburrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "tacoburritotacoburrito", string(contents))
 }
 
-func (t *composeTest) CompositeSources() {
+func (t *composeTest) TestCompositeSources() {
 	// Create two source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose them to form another source object.
 	sources = append(sources, nil)
@@ -2065,7 +2088,7 @@ func (t *composeTest) CompositeSources() {
 			},
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Now compose that a couple of times along with one of the originals.
 	t.advanceTime()
@@ -2091,45 +2114,45 @@ func (t *composeTest) CompositeSources() {
 		})
 
 	t.advanceTime()
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq("foo", o.Name)
-	ExpectEq("", o.ContentType)
-	ExpectEq("", o.ContentLanguage)
-	ExpectEq("", o.CacheControl)
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), "", o.ContentType)
+	assert.Equal(t.T(), "", o.ContentLanguage)
+	assert.Equal(t.T(), "", o.CacheControl)
 	// Disabled due to Google-internal bug 31476941.
-	// ExpectThat(o.Owner, MatchesRegexp("^user-.*"))
-	ExpectEq(len("tacoburritotacotacoburrito"), o.Size)
-	ExpectEq("", o.ContentEncoding)
-	ExpectEq(5, o.ComponentCount)
-	ExpectEq(nil, o.MD5)
-	ExpectEq(computeCrc32C("tacoburritotacotacoburrito"), *o.CRC32C)
-	ExpectThat(o.MediaLink, MatchesRegexp("download/storage.*foo"))
-	ExpectEq(nil, o.Metadata)
-	ExpectLt(sources[0].Generation, o.Generation)
-	ExpectLt(sources[2].Generation, o.Generation)
-	ExpectEq(1, o.MetaGeneration)
-	ExpectEq("STANDARD", o.StorageClass)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
-	ExpectThat(o.Finalized, timeutil.TimeEq(time.Time{}))
+	// assert.Regexp(t.T(), "^user-.*", o.Owner)
+	assert.Equal(t.T(), uint64(len("tacoburritotacotacoburrito")), o.Size)
+	assert.Equal(t.T(), "", o.ContentEncoding)
+	assert.Equal(t.T(), int64(5), o.ComponentCount)
+	assert.Nil(t.T(), o.MD5)
+	assert.Equal(t.T(), computeCrc32C("tacoburritotacotacoburrito"), *o.CRC32C)
+	assert.Regexp(t.T(), "download/storage.*foo", o.MediaLink)
+	assert.Empty(t.T(), o.Metadata)
+	assert.Less(t.T(), sources[0].Generation, o.Generation)
+	assert.Less(t.T(), sources[2].Generation, o.Generation)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
+	assert.Equal(t.T(), "STANDARD", o.StorageClass)
+	assert.True(t.T(), o.Deleted.IsZero())
+	t.assertStartTime(composeTime, o.Updated)
+	assert.True(t.T(), o.Finalized.IsZero())
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
-	AssertEq(nil, err)
-	ExpectEq("tacoburritotacotacoburrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "tacoburritotacotacoburrito", string(contents))
 }
 
-func (t *composeTest) Metadata() {
+func (t *composeTest) TestMetadata() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose them, including metadata.
 	o, err := t.bucket.ComposeObjects(
@@ -2153,26 +2176,26 @@ func (t *composeTest) Metadata() {
 		})
 
 	t.advanceTime()
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	AssertEq("foo", o.Name)
-	ExpectEq(1, o.MetaGeneration)
+	require.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), int64(1), o.MetaGeneration)
 
-	ExpectEq("image/jpeg", o.ContentType)
-	ExpectEq(2, len(o.Metadata))
-	ExpectEq("val0", o.Metadata["key0"])
-	ExpectEq("val1", o.Metadata["key1"])
+	assert.Equal(t.T(), "image/jpeg", o.ContentType)
+	assert.Equal(t.T(), 2, len(o.Metadata))
+	assert.Equal(t.T(), "val0", o.Metadata["key0"])
+	assert.Equal(t.T(), "val1", o.Metadata["key1"])
 }
 
-func (t *composeTest) DestinationNameMatchesSource() {
+func (t *composeTest) TestDestinationNameMatchesSource() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose on top of the first's name.
 	o, err := t.bucket.ComposeObjects(
@@ -2190,30 +2213,30 @@ func (t *composeTest) DestinationNameMatchesSource() {
 			},
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq(sources[0].Name, o.Name)
-	ExpectEq(len("tacoburrito"), o.Size)
-	ExpectEq(2, o.ComponentCount)
-	ExpectLt(sources[0].Generation, o.Generation)
-	ExpectLt(sources[1].Generation, o.Generation)
+	assert.Equal(t.T(), sources[0].Name, o.Name)
+	assert.Equal(t.T(), uint64(len("tacoburrito")), o.Size)
+	assert.Equal(t.T(), int64(2), o.ComponentCount)
+	assert.Less(t.T(), sources[0].Generation, o.Generation)
+	assert.Less(t.T(), sources[1].Generation, o.Generation)
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
 
-	AssertEq(nil, err)
-	ExpectEq("tacoburrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "tacoburrito", string(contents))
 }
 
-func (t *composeTest) OneSourceDoesntExist() {
+func (t *composeTest) TestOneSourceDoesntExist() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose them with a name that doesn't exist.
 	_, err = t.bucket.ComposeObjects(
@@ -2235,24 +2258,24 @@ func (t *composeTest) OneSourceDoesntExist() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 
 	// Make sure the destination object doesn't exist.
 	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *composeTest) ExplicitGenerations_Exist() {
+func (t *composeTest) TestExplicitGenerations_Exist() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose them.
 	o, err := t.bucket.ComposeObjects(
@@ -2272,14 +2295,14 @@ func (t *composeTest) ExplicitGenerations_Exist() {
 			},
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq("foo", o.Name)
-	ExpectEq(len("tacoburrito"), o.Size)
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), uint64(len("tacoburrito")), o.Size)
 }
 
-func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
+func (t *composeTest) TestExplicitGenerations_OneDoesntExist() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
@@ -2287,7 +2310,7 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 		"enchilada",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose them, with the wrong generation for one of them.
 	_, err = t.bucket.ComposeObjects(
@@ -2312,24 +2335,24 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 
 	// Make sure the destination object doesn't exist.
 	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *composeTest) DestinationExists_NoPreconditions() {
+func (t *composeTest) TestDestinationExists_NoPreconditions() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose them on top of the first.
 	o, err := t.bucket.ComposeObjects(
@@ -2347,30 +2370,30 @@ func (t *composeTest) DestinationExists_NoPreconditions() {
 			},
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq(sources[0].Name, o.Name)
-	ExpectEq(len("tacoburrito"), o.Size)
-	ExpectEq(2, o.ComponentCount)
-	ExpectLt(sources[0].Generation, o.Generation)
-	ExpectLt(sources[1].Generation, o.Generation)
+	assert.Equal(t.T(), sources[0].Name, o.Name)
+	assert.Equal(t.T(), uint64(len("tacoburrito")), o.Size)
+	assert.Equal(t.T(), int64(2), o.ComponentCount)
+	assert.Less(t.T(), sources[0].Generation, o.Generation)
+	assert.Less(t.T(), sources[1].Generation, o.Generation)
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
 
-	AssertEq(nil, err)
-	ExpectEq("tacoburrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "tacoburrito", string(contents))
 }
 
-func (t *composeTest) DestinationExists_GenerationPreconditionNotSatisfied() {
+func (t *composeTest) TestDestinationExists_GenerationPreconditionNotSatisfied() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose them on top of the first.
 	precond := sources[0].Generation + 1
@@ -2391,26 +2414,26 @@ func (t *composeTest) DestinationExists_GenerationPreconditionNotSatisfied() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	assert.IsType(t.T(), &gcs.PreconditionError{}, err)
 
 	// Make sure the object wasn't overwritten.
 	m, _, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: sources[0].Name})
 
-	AssertEq(nil, err)
-	ExpectEq(sources[0].Generation, m.Generation)
-	ExpectEq(len("taco"), m.Size)
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), sources[0].Generation, m.Generation)
+	assert.Equal(t.T(), uint64(len("taco")), m.Size)
 }
 
-func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied() {
+func (t *composeTest) TestDestinationExists_MetaGenerationPreconditionNotSatisfied() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose them on top of the first.
 	precond := sources[0].MetaGeneration + 1
@@ -2431,27 +2454,27 @@ func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied()
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	assert.IsType(t.T(), &gcs.PreconditionError{}, err)
 
 	// Make sure the object wasn't overwritten.
 	m, _, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: sources[0].Name})
 
-	AssertEq(nil, err)
-	ExpectEq(sources[0].Generation, m.Generation)
-	ExpectEq(sources[0].MetaGeneration, m.MetaGeneration)
-	ExpectEq(len("taco"), m.Size)
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), sources[0].Generation, m.Generation)
+	assert.Equal(t.T(), sources[0].MetaGeneration, m.MetaGeneration)
+	assert.Equal(t.T(), uint64(len("taco")), m.Size)
 }
 
-func (t *composeTest) DestinationExists_PreconditionsSatisfied() {
+func (t *composeTest) TestDestinationExists_PreconditionsSatisfied() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose them on top of the first.
 	o, err := t.bucket.ComposeObjects(
@@ -2472,30 +2495,30 @@ func (t *composeTest) DestinationExists_PreconditionsSatisfied() {
 			},
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq(sources[0].Name, o.Name)
-	ExpectEq(len("tacoburrito"), o.Size)
-	ExpectEq(2, o.ComponentCount)
-	ExpectLt(sources[0].Generation, o.Generation)
-	ExpectLt(sources[1].Generation, o.Generation)
+	assert.Equal(t.T(), sources[0].Name, o.Name)
+	assert.Equal(t.T(), uint64(len("tacoburrito")), o.Size)
+	assert.Equal(t.T(), int64(2), o.ComponentCount)
+	assert.Less(t.T(), sources[0].Generation, o.Generation)
+	assert.Less(t.T(), sources[1].Generation, o.Generation)
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
 
-	AssertEq(nil, err)
-	ExpectEq("tacoburrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "tacoburrito", string(contents))
 }
 
-func (t *composeTest) DestinationDoesntExist_PreconditionNotSatisfied() {
+func (t *composeTest) TestDestinationDoesntExist_PreconditionNotSatisfied() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose them.
 	var precond int64 = 1
@@ -2516,24 +2539,24 @@ func (t *composeTest) DestinationDoesntExist_PreconditionNotSatisfied() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	assert.IsType(t.T(), &gcs.PreconditionError{}, err)
 
 	// Make sure the destination object doesn't exist.
 	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *composeTest) DestinationDoesntExist_PreconditionSatisfied() {
+func (t *composeTest) TestDestinationDoesntExist_PreconditionSatisfied() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
 		"taco",
 		"burrito",
 	})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose them.
 	var precond int64 = 0
@@ -2554,33 +2577,33 @@ func (t *composeTest) DestinationDoesntExist_PreconditionSatisfied() {
 			},
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the result.
-	ExpectEq("foo", o.Name)
-	ExpectEq(len("tacoburrito"), o.Size)
-	ExpectEq(2, o.ComponentCount)
-	ExpectLt(sources[0].Generation, o.Generation)
-	ExpectLt(sources[1].Generation, o.Generation)
+	assert.Equal(t.T(), "foo", o.Name)
+	assert.Equal(t.T(), uint64(len("tacoburrito")), o.Size)
+	assert.Equal(t.T(), int64(2), o.ComponentCount)
+	assert.Less(t.T(), sources[0].Generation, o.Generation)
+	assert.Less(t.T(), sources[1].Generation, o.Generation)
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
-	AssertEq(nil, err)
-	ExpectEq("tacoburrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "tacoburrito", string(contents))
 }
 
-func (t *composeTest) ZeroSources() {
+func (t *composeTest) TestZeroSources() {
 	// GCS doesn't like zero-source requests (and so neither should our fake).
 	req := &gcs.ComposeObjectsRequest{
 		DstName: "foo",
 	}
 
 	_, err := t.bucket.ComposeObjects(t.ctx, req)
-	ExpectThat(err, Error(HasSubstr("at least one")))
+	assert.ErrorContains(t.T(), err, "at least one")
 }
 
-func (t *composeTest) TooManySources() {
+func (t *composeTest) TestTooManySources() {
 	// Create an original object.
 	src, err := t.bucket.CreateObject(
 		t.ctx,
@@ -2589,7 +2612,7 @@ func (t *composeTest) TooManySources() {
 			Contents: strings.NewReader(""),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to compose too many copies of it.
 	req := &gcs.ComposeObjectsRequest{
@@ -2602,15 +2625,14 @@ func (t *composeTest) TooManySources() {
 
 	_, err = t.bucket.ComposeObjects(t.ctx, req)
 
-	ExpectThat(err, Error(HasSubstr("source components")))
+	assert.ErrorContains(t.T(), err, "source components")
 }
 
-func (t *composeTest) ComponentCountLimits() {
+func (t *composeTest) TestComponentCountLimits() {
 	// The tests below assume that we can hit the max component count with two
 	// rounds of composing.
-	AssertEq(
-		gcs.MaxComponentCount,
-		gcs.MaxSourcesPerComposeRequest*gcs.MaxSourcesPerComposeRequest)
+	require.Equal(t.T(),
+		gcs.MaxComponentCount, gcs.MaxSourcesPerComposeRequest*gcs.MaxSourcesPerComposeRequest)
 
 	// Create a single original object.
 	small, err := t.bucket.CreateObject(
@@ -2620,7 +2642,7 @@ func (t *composeTest) ComponentCountLimits() {
 			Contents: strings.NewReader("a"),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Compose as many copies of it as possible.
 	req := &gcs.ComposeObjectsRequest{
@@ -2633,9 +2655,9 @@ func (t *composeTest) ComponentCountLimits() {
 
 	medium, err := t.bucket.ComposeObjects(t.ctx, req)
 
-	AssertEq(nil, err)
-	AssertEq(gcs.MaxSourcesPerComposeRequest, medium.ComponentCount)
-	AssertEq(gcs.MaxSourcesPerComposeRequest, medium.Size)
+	require.Equal(t.T(), nil, err)
+	require.Equal(t.T(), int64(gcs.MaxSourcesPerComposeRequest), medium.ComponentCount)
+	require.Equal(t.T(), uint64(gcs.MaxSourcesPerComposeRequest), medium.Size)
 
 	// Compose that many copies over again to hit the maximum component count
 	// limit.
@@ -2649,9 +2671,9 @@ func (t *composeTest) ComponentCountLimits() {
 
 	large, err := t.bucket.ComposeObjects(t.ctx, req)
 
-	AssertEq(nil, err)
-	AssertEq(gcs.MaxComponentCount, large.ComponentCount)
-	AssertEq(gcs.MaxComponentCount, large.Size)
+	require.Equal(t.T(), nil, err)
+	require.Equal(t.T(), int64(gcs.MaxComponentCount), large.ComponentCount)
+	require.Equal(t.T(), uint64(gcs.MaxComponentCount), large.Size)
 
 	// Attempting to add one more component should fail.
 	req = &gcs.ComposeObjectsRequest{
@@ -2664,16 +2686,16 @@ func (t *composeTest) ComponentCountLimits() {
 
 	_, err = t.bucket.ComposeObjects(t.ctx, req)
 
-	ExpectThat(err, Error(HasSubstr("too many components")))
+	assert.ErrorContains(t.T(), err, "too many components")
 }
 
-func (t *composeTest) InterestingNames() {
+func (t *composeTest) TestInterestingNames() {
 	var err error
 
 	// Create a source object.
 	const srcName = "foo"
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Make sure we can use each interesting name as a compose destination.
 	err = forEachString(
@@ -2698,16 +2720,16 @@ func (t *composeTest) InterestingNames() {
 			return
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 }
 
-func (t *composeTest) IllegalNames() {
+func (t *composeTest) TestIllegalNames() {
 	var err error
 
 	// Create a source object.
 	const srcName = "foo"
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Make sure we can't use any illegal name as a compose destination.
 	err = forEachString(
@@ -2746,7 +2768,7 @@ func (t *composeTest) IllegalNames() {
 			return
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -2757,7 +2779,7 @@ type readTest struct {
 	bucketTest
 }
 
-func (t *readTest) ObjectNameDoesntExist() {
+func (t *readTest) TestObjectNameDoesntExist() {
 	req := &gcs.ReadObjectRequest{
 		Name: "foobar",
 	}
@@ -2768,13 +2790,14 @@ func (t *readTest) ObjectNameDoesntExist() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "(?i)not found|404", err.Error())
 }
 
-func (t *readTest) EmptyObject() {
+func (t *readTest) TestEmptyObject() {
 	// Create
-	AssertEq(nil, t.createObject("foo", ""))
+	require.Equal(t.T(), nil, t.createObject("foo", ""))
 
 	// Read
 	req := &gcs.ReadObjectRequest{
@@ -2782,19 +2805,19 @@ func (t *readTest) EmptyObject() {
 	}
 
 	r, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	contents, err := io.ReadAll(r)
-	AssertEq(nil, err)
-	ExpectEq("", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "", string(contents))
 
 	// Close
-	AssertEq(nil, r.Close())
+	require.Equal(t.T(), nil, r.Close())
 }
 
-func (t *readTest) NonEmptyObject() {
+func (t *readTest) TestNonEmptyObject() {
 	// Create
-	AssertEq(nil, t.createObject("foo", "taco"))
+	require.Equal(t.T(), nil, t.createObject("foo", "taco"))
 
 	// Read
 	req := &gcs.ReadObjectRequest{
@@ -2802,17 +2825,17 @@ func (t *readTest) NonEmptyObject() {
 	}
 
 	r, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	contents, err := io.ReadAll(r)
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 
 	// Close
-	AssertEq(nil, r.Close())
+	require.Equal(t.T(), nil, r.Close())
 }
 
-func (t *readTest) ParticularGeneration_NeverExisted() {
+func (t *readTest) TestParticularGeneration_NeverExisted() {
 	// Create an object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -2820,8 +2843,8 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 		"foo",
 		[]byte{})
 
-	AssertEq(nil, err)
-	AssertGt(o.Generation, 0)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o.Generation, int64(0))
 
 	// Attempt to read a different generation.
 	req := &gcs.ReadObjectRequest{
@@ -2835,11 +2858,12 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "(?i)not found|404", err.Error())
 }
 
-func (t *readTest) ParticularGeneration_HasBeenDeleted() {
+func (t *readTest) TestParticularGeneration_HasBeenDeleted() {
 	// Create an object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -2847,8 +2871,8 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 		"foo",
 		[]byte{})
 
-	AssertEq(nil, err)
-	AssertGt(o.Generation, 0)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o.Generation, int64(0))
 
 	// Delete it.
 	err = t.bucket.DeleteObject(
@@ -2857,7 +2881,7 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 			Name: "foo",
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to read by that generation.
 	req := &gcs.ReadObjectRequest{
@@ -2871,11 +2895,12 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "(?i)not found|404", err.Error())
 }
 
-func (t *readTest) ParticularGeneration_Exists() {
+func (t *readTest) TestParticularGeneration_Exists() {
 	// Create an object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -2883,8 +2908,8 @@ func (t *readTest) ParticularGeneration_Exists() {
 		"foo",
 		[]byte("taco"))
 
-	AssertEq(nil, err)
-	AssertGt(o.Generation, 0)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o.Generation, int64(0))
 
 	// Attempt to read the correct generation.
 	req := &gcs.ReadObjectRequest{
@@ -2893,17 +2918,17 @@ func (t *readTest) ParticularGeneration_Exists() {
 	}
 
 	r, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	contents, err := io.ReadAll(r)
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 
 	// Close
-	AssertEq(nil, r.Close())
+	require.Equal(t.T(), nil, r.Close())
 }
 
-func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
+func (t *readTest) TestParticularGeneration_ObjectHasBeenOverwritten() {
 	// Create an object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -2911,8 +2936,8 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		"foo",
 		[]byte("taco"))
 
-	AssertEq(nil, err)
-	AssertGt(o.Generation, 0)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o.Generation, int64(0))
 
 	// Overwrite with a new generation.
 	o2, err := storageutil.CreateObject(
@@ -2921,9 +2946,9 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		"foo",
 		[]byte("burrito"))
 
-	AssertEq(nil, err)
-	AssertGt(o2.Generation, 0)
-	AssertNe(o.Generation, o2.Generation)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o2.Generation, int64(0))
+	require.NotEqual(t.T(), o.Generation, o2.Generation)
 
 	// Reading by the old generation should fail.
 	req := &gcs.ReadObjectRequest{
@@ -2937,26 +2962,27 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "(?i)not found|404", err.Error())
 
 	// Reading by the new generation should work.
 	req.Generation = o2.Generation
 
 	rc, err = t.bucket.NewReaderWithReadHandle(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	contents, err := io.ReadAll(rc)
-	AssertEq(nil, err)
-	ExpectEq("burrito", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "burrito", string(contents))
 
 	// Close
-	AssertEq(nil, rc.Close())
+	require.Equal(t.T(), nil, rc.Close())
 }
 
-func (t *readTest) Ranges_EmptyObject() {
+func (t *readTest) TestRanges_EmptyObject() {
 	// Create an empty object.
-	AssertEq(nil, t.createObject("foo", ""))
+	require.Equal(t.T(), nil, t.createObject("foo", ""))
 
 	// Test cases.
 	testCases := []struct {
@@ -3004,23 +3030,21 @@ func (t *readTest) Ranges_EmptyObject() {
 	}
 
 	// Make each request.
-	contents, errs := readMultiple(
-		t.ctx,
-		t.bucket,
+	contents, errs := t.readMultiple(
 		requests)
 
-	AssertEq(len(testCases), len(contents))
-	AssertEq(len(testCases), len(errs))
+	require.Equal(t.T(), len(testCases), len(contents))
+	require.Equal(t.T(), len(testCases), len(errs))
 	for i, tc := range testCases {
 		desc := fmt.Sprintf("Test case %d, range %v", i, tc.br)
-		ExpectEq(nil, errs[i], "%s", desc)
-		ExpectEq("", string(contents[i]), "%s", desc)
+		assert.Equal(t.T(), nil, errs[i], "%s", desc)
+		assert.Equal(t.T(), "", string(contents[i]), "%s", desc)
 	}
 }
 
-func (t *readTest) Ranges_NonEmptyObject() {
+func (t *readTest) TestRanges_NonEmptyObject() {
 	// Create an object of length four.
-	AssertEq(nil, t.createObject("foo", "taco"))
+	require.Equal(t.T(), nil, t.createObject("foo", "taco"))
 
 	// Test cases.
 	testCases := []struct {
@@ -3096,17 +3120,15 @@ func (t *readTest) Ranges_NonEmptyObject() {
 	}
 
 	// Make each request.
-	contents, errs := readMultiple(
-		t.ctx,
-		t.bucket,
+	contents, errs := t.readMultiple(
 		requests)
 
-	AssertEq(len(testCases), len(contents))
-	AssertEq(len(testCases), len(errs))
+	require.Equal(t.T(), len(testCases), len(contents))
+	require.Equal(t.T(), len(testCases), len(errs))
 	for i, tc := range testCases {
 		desc := fmt.Sprintf("Test case %d, range %v", i, tc.br)
-		ExpectEq(nil, errs[i], "%s", desc)
-		ExpectEq(tc.expectedContents, string(contents[i]), "%s", desc)
+		assert.Equal(t.T(), nil, errs[i], "%s", desc)
+		assert.Equal(t.T(), tc.expectedContents, string(contents[i]), "%s", desc)
 	}
 }
 
@@ -3118,20 +3140,21 @@ type readMultiRangeTest struct {
 	bucketTest
 }
 
-func (t *readMultiRangeTest) ObjectNameDoesntExist() {
+func (t *readMultiRangeTest) TestObjectNameDoesntExist() {
 	req := &gcs.MultiRangeDownloaderRequest{
 		Name: "foobar",
 	}
 
 	_, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "(?i)not found|404", err.Error())
 }
 
-func (t *readMultiRangeTest) EmptyObject() {
+func (t *readMultiRangeTest) TestEmptyObject() {
 	// Create
-	AssertEq(nil, t.createObject("foo", ""))
+	require.Equal(t.T(), nil, t.createObject("foo", ""))
 
 	// Read
 	req := &gcs.MultiRangeDownloaderRequest{
@@ -3139,15 +3162,15 @@ func (t *readMultiRangeTest) EmptyObject() {
 	}
 
 	mrd, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Close
-	AssertEq(nil, mrd.Close())
+	require.Equal(t.T(), nil, mrd.Close())
 }
 
-func (t *readMultiRangeTest) NonEmptyObject() {
+func (t *readMultiRangeTest) TestNonEmptyObject() {
 	// Create
-	AssertEq(nil, t.createObject("foo", "taco"))
+	require.Equal(t.T(), nil, t.createObject("foo", "taco"))
 
 	// Read
 	req := &gcs.MultiRangeDownloaderRequest{
@@ -3155,23 +3178,23 @@ func (t *readMultiRangeTest) NonEmptyObject() {
 	}
 
 	mrd, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	outBuffer := bytes.NewBufferString("")
 	callbackCalled := false
 	mrd.Add(outBuffer, 0, 4, func(offset int64, length int64, err error) {
-		AssertEq(nil, err)
-		AssertEq("taco", outBuffer.String())
+		require.Equal(t.T(), nil, err)
+		require.Equal(t.T(), "taco", outBuffer.String())
 		callbackCalled = true
 	})
 
 	// Close
 	mrd.Wait()
-	AssertTrue(callbackCalled)
-	AssertEq(nil, mrd.Close())
+	require.True(t.T(), callbackCalled)
+	require.Equal(t.T(), nil, mrd.Close())
 }
 
-func (t *readMultiRangeTest) ParticularGeneration_NeverExisted() {
+func (t *readMultiRangeTest) TestParticularGeneration_NeverExisted() {
 	// Create an object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -3179,8 +3202,8 @@ func (t *readMultiRangeTest) ParticularGeneration_NeverExisted() {
 		"foo",
 		[]byte{})
 
-	AssertEq(nil, err)
-	AssertGt(o.Generation, 0)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o.Generation, int64(0))
 
 	// Attempt to read a different generation.
 	req := &gcs.MultiRangeDownloaderRequest{
@@ -3189,11 +3212,12 @@ func (t *readMultiRangeTest) ParticularGeneration_NeverExisted() {
 	}
 	_, err = t.bucket.NewMultiRangeDownloader(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "(?i)not found|404", err.Error())
 }
 
-func (t *readMultiRangeTest) ParticularGeneration_HasBeenDeleted() {
+func (t *readMultiRangeTest) TestParticularGeneration_HasBeenDeleted() {
 	// Create an object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -3201,8 +3225,8 @@ func (t *readMultiRangeTest) ParticularGeneration_HasBeenDeleted() {
 		"foo",
 		[]byte{})
 
-	AssertEq(nil, err)
-	AssertGt(o.Generation, 0)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o.Generation, int64(0))
 
 	// Delete it.
 	err = t.bucket.DeleteObject(
@@ -3211,7 +3235,7 @@ func (t *readMultiRangeTest) ParticularGeneration_HasBeenDeleted() {
 			Name: "foo",
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to read by generation.
 	req := &gcs.MultiRangeDownloaderRequest{
@@ -3220,11 +3244,12 @@ func (t *readMultiRangeTest) ParticularGeneration_HasBeenDeleted() {
 	}
 	_, err = t.bucket.NewMultiRangeDownloader(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "(?i)not found|404", err.Error())
 }
 
-func (t *readMultiRangeTest) ParticularGeneration_Exists() {
+func (t *readMultiRangeTest) TestParticularGeneration_Exists() {
 	// Create an object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -3232,8 +3257,8 @@ func (t *readMultiRangeTest) ParticularGeneration_Exists() {
 		"foo",
 		[]byte("taco"))
 
-	AssertEq(nil, err)
-	AssertGt(o.Generation, 0)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o.Generation, int64(0))
 
 	// Attempt to read the correct generation.
 	req := &gcs.MultiRangeDownloaderRequest{
@@ -3242,22 +3267,22 @@ func (t *readMultiRangeTest) ParticularGeneration_Exists() {
 	}
 
 	mrd, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	outBuffer := bytes.NewBufferString("")
 	callbackCalled := false
 	mrd.Add(outBuffer, 0, 4, func(offset int64, length int64, err error) {
-		AssertEq(nil, err)
-		AssertEq("taco", outBuffer.String())
+		require.Equal(t.T(), nil, err)
+		require.Equal(t.T(), "taco", outBuffer.String())
 		callbackCalled = true
 	})
 
 	// Close
-	AssertEq(nil, mrd.Close())
-	AssertTrue(callbackCalled)
+	require.Equal(t.T(), nil, mrd.Close())
+	require.True(t.T(), callbackCalled)
 }
 
-func (t *readMultiRangeTest) ParticularGeneration_ObjectHasBeenOverwritten() {
+func (t *readMultiRangeTest) TestParticularGeneration_ObjectHasBeenOverwritten() {
 	// Create an object.
 	o, err := storageutil.CreateObject(
 		t.ctx,
@@ -3265,8 +3290,8 @@ func (t *readMultiRangeTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		"foo",
 		[]byte("taco"))
 
-	AssertEq(nil, err)
-	AssertGt(o.Generation, 0)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o.Generation, int64(0))
 
 	// Overwrite with a new generation.
 	o2, err := storageutil.CreateObject(
@@ -3275,9 +3300,9 @@ func (t *readMultiRangeTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		"foo",
 		[]byte("burrito"))
 
-	AssertEq(nil, err)
-	AssertGt(o2.Generation, 0)
-	AssertNe(o.Generation, o2.Generation)
+	require.Equal(t.T(), nil, err)
+	require.Greater(t.T(), o2.Generation, int64(0))
+	require.NotEqual(t.T(), o.Generation, o2.Generation)
 
 	// Reading by the old generation should fail.
 	req := &gcs.MultiRangeDownloaderRequest{
@@ -3286,34 +3311,34 @@ func (t *readMultiRangeTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 	}
 
 	_, err = t.bucket.NewMultiRangeDownloader(t.ctx, req)
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "(?i)not found|404", err.Error())
 
 	// Reading by the new generation should work.
 	req.Generation = o2.Generation
 	mrd, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
 
-	AssertEq(nil, err)
-	AssertNe(nil, mrd)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, mrd)
 
 	size := len("burrito")
 	callbackCalled := false
 	writer := bytes.NewBufferString("")
 	mrd.Add(writer, int64(0), int64(size), func(offset, length int64, err error) {
-		AssertEq(nil, err)
-		AssertEq("burrito", writer.String(),
-			"Failed to match buf=%v, content=%v", writer.Bytes(), []byte("burrito"))
+		require.Equal(t.T(), nil, err)
+		require.Equal(t.T(), "burrito", writer.String(), "Failed to match buf=%v, content=%v", writer.Bytes(), []byte("burrito"))
 		callbackCalled = true
 	})
 
 	// Close
-	AssertEq(nil, mrd.Close())
-	AssertTrue(callbackCalled)
+	require.Equal(t.T(), nil, mrd.Close())
+	require.True(t.T(), callbackCalled)
 }
 
-func (t *readMultiRangeTest) Ranges_EmptyObject() {
+func (t *readMultiRangeTest) TestRanges_EmptyObject() {
 	// Create an empty object.
-	AssertEq(nil, t.createObject("foo", ""))
+	require.Equal(t.T(), nil, t.createObject("foo", ""))
 
 	// Test cases.
 	testCases := []struct {
@@ -3343,28 +3368,26 @@ func (t *readMultiRangeTest) Ranges_EmptyObject() {
 	}
 
 	// Make each request.
-	contents, errs := readMultipleUsingMultiRangeDownloader(
-		t.ctx,
-		t.bucket,
+	contents, errs := t.readMultipleUsingMultiRangeDownloader(
 		req,
 		ranges)
 
-	AssertEq(len(testCases), len(contents))
-	AssertEq(len(testCases), len(errs))
+	require.Equal(t.T(), len(testCases), len(contents))
+	require.Equal(t.T(), len(testCases), len(errs))
 	for i, tc := range testCases {
 		desc := fmt.Sprintf("Test case %d, range %v", i, tc.br)
 		if tc.expectError {
-			ExpectNe(nil, errs[i], desc)
+			assert.NotEqual(t.T(), nil, errs[i], desc)
 		} else {
-			ExpectEq(nil, errs[i], "%s", desc)
-			ExpectEq("", contents[i].String(), "%s", desc)
+			assert.Equal(t.T(), nil, errs[i], "%s", desc)
+			assert.Equal(t.T(), "", contents[i].String(), "%s", desc)
 		}
 	}
 }
 
-func (t *readMultiRangeTest) Ranges_NonEmptyObject() {
+func (t *readMultiRangeTest) TestRanges_NonEmptyObject() {
 	// Create an object of length four.
-	AssertEq(nil, t.createObject("foo", "taco"))
+	require.Equal(t.T(), nil, t.createObject("foo", "taco"))
 
 	// Test cases.
 	testCases := []struct {
@@ -3420,22 +3443,20 @@ func (t *readMultiRangeTest) Ranges_NonEmptyObject() {
 	}
 
 	// Make each request.
-	contents, errs := readMultipleUsingMultiRangeDownloader(
-		t.ctx,
-		t.bucket,
+	contents, errs := t.readMultipleUsingMultiRangeDownloader(
 		req,
 		ranges)
 
-	AssertEq(len(testCases), len(contents))
-	AssertEq(len(testCases), len(errs))
+	require.Equal(t.T(), len(testCases), len(contents))
+	require.Equal(t.T(), len(testCases), len(errs))
 	for i, tc := range testCases {
 		desc := fmt.Sprintf("Test case %d, range %v", i, tc.br)
 		if tc.expectError {
-			ExpectNe(nil, errs[i], "%q", desc)
+			assert.NotEqual(t.T(), nil, errs[i], "%q", desc)
 		} else {
-			ExpectEq(nil, errs[i], "%q", desc)
+			assert.Equal(t.T(), nil, errs[i], "%q", desc)
 			if tc.br.Limit > tc.br.Start {
-				ExpectEq(tc.expectedContents, contents[i].String(), "%s", desc)
+				assert.Equal(t.T(), tc.expectedContents, contents[i].String(), "%s", desc)
 			}
 		}
 	}
@@ -3449,23 +3470,24 @@ type statTest struct {
 	bucketTest
 }
 
-func (t *statTest) NonExistentObject() {
+func (t *statTest) TestNonExistentObject() {
 	req := &gcs.StatObjectRequest{
 		Name: "foo",
 	}
 
 	_, _, err := t.bucket.StatObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "not found|404", err.Error())
 }
 
-func (t *statTest) StatAfterCreating() {
+func (t *statTest) TestStatAfterCreating() {
 	// Create an object.
 	createTime := t.clock.Now()
 	orig, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
-	AssertThat(orig.Updated, t.matchesStartTime(createTime))
+	require.Equal(t.T(), nil, err)
+	t.assertStartTime(createTime, orig.Updated)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
@@ -3478,22 +3500,22 @@ func (t *statTest) StatAfterCreating() {
 	}
 
 	m, e, err := t.bucket.StatObject(t.ctx, req)
-	AssertEq(nil, err)
-	AssertNe(nil, m)
-	AssertNe(nil, e)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, m)
+	require.NotEqual(t.T(), nil, e)
 
-	ExpectEq("foo", m.Name)
-	ExpectEq(orig.Generation, m.Generation)
-	ExpectEq(len("taco"), m.Size)
-	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(orig.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	assert.Equal(t.T(), "foo", m.Name)
+	assert.Equal(t.T(), orig.Generation, m.Generation)
+	assert.Equal(t.T(), uint64(len("taco")), m.Size)
+	assert.True(t.T(), e.Deleted.IsZero())
+	assert.Equal(t.T(), orig.Updated, m.Updated)
+	assert.True(t.T(), m.Finalized.IsZero())
 }
 
-func (t *statTest) StatAfterOverwriting() {
+func (t *statTest) TestStatAfterOverwriting() {
 	// Create an object.
 	_, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
@@ -3501,8 +3523,8 @@ func (t *statTest) StatAfterOverwriting() {
 	// Overwrite it.
 	overwriteTime := t.clock.Now()
 	o2, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
-	AssertEq(nil, err)
-	AssertThat(o2.Updated, t.matchesStartTime(overwriteTime))
+	require.Equal(t.T(), nil, err)
+	t.assertStartTime(overwriteTime, o2.Updated)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
@@ -3515,24 +3537,24 @@ func (t *statTest) StatAfterOverwriting() {
 	}
 
 	m, e, err := t.bucket.StatObject(t.ctx, req)
-	AssertEq(nil, err)
-	AssertNe(nil, m)
-	AssertNe(nil, e)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, m)
+	require.NotEqual(t.T(), nil, e)
 
-	ExpectEq("foo", m.Name)
-	ExpectEq(o2.Generation, m.Generation)
-	ExpectEq(len("burrito"), m.Size)
-	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	assert.Equal(t.T(), "foo", m.Name)
+	assert.Equal(t.T(), o2.Generation, m.Generation)
+	assert.Equal(t.T(), uint64(len("burrito")), m.Size)
+	assert.True(t.T(), e.Deleted.IsZero())
+	assert.Equal(t.T(), o2.Updated, m.Updated)
+	assert.True(t.T(), m.Finalized.IsZero())
 }
 
-func (t *statTest) StatAfterUpdating() {
+func (t *statTest) TestStatAfterUpdating() {
 	// Create an object.
 	createTime := t.clock.Now()
 	orig, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
-	AssertThat(orig.Updated, t.matchesStartTime(createTime))
+	require.Equal(t.T(), nil, err)
+	t.assertStartTime(createTime, orig.Updated)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
@@ -3545,16 +3567,12 @@ func (t *statTest) StatAfterUpdating() {
 
 	updateTime := t.clock.Now()
 	o2, err := t.bucket.UpdateObject(t.ctx, ureq)
-	AssertEq(nil, err)
-	AssertNe(o2.MetaGeneration, orig.MetaGeneration)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), o2.MetaGeneration, orig.MetaGeneration)
 
 	// 'Updated' should be the update time, not the creation time.
-	ExpectThat(o2.Updated, t.matchesStartTime(updateTime))
-	ExpectTrue(
-		orig.Updated.Before(o2.Updated),
-		"orig.Updated: %v\n"+
-			"o2.Updated:   %v",
-		orig.Updated,
+	t.assertStartTime(updateTime, o2.Updated)
+	assert.True(t.T(), orig.Updated.Before(o2.Updated), "orig.Updated: %v\n"+"o2.Updated:   %v", orig.Updated,
 		o2.Updated)
 
 	// Ensure the time below doesn't match exactly.
@@ -3568,17 +3586,17 @@ func (t *statTest) StatAfterUpdating() {
 	}
 
 	m, e, err := t.bucket.StatObject(t.ctx, req)
-	AssertEq(nil, err)
-	AssertNe(nil, m)
-	AssertNe(nil, e)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, m)
+	require.NotEqual(t.T(), nil, e)
 
-	ExpectEq("foo", m.Name)
-	ExpectEq(o2.Generation, m.Generation)
-	ExpectEq(o2.MetaGeneration, m.MetaGeneration)
-	ExpectEq(len("taco"), m.Size)
-	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	assert.Equal(t.T(), "foo", m.Name)
+	assert.Equal(t.T(), o2.Generation, m.Generation)
+	assert.Equal(t.T(), o2.MetaGeneration, m.MetaGeneration)
+	assert.Equal(t.T(), uint64(len("taco")), m.Size)
+	assert.True(t.T(), e.Deleted.IsZero())
+	assert.Equal(t.T(), o2.Updated, m.Updated)
+	assert.True(t.T(), m.Finalized.IsZero())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -3589,7 +3607,7 @@ type updateTest struct {
 	bucketTest
 }
 
-func (t *updateTest) NonExistentObject() {
+func (t *updateTest) TestNonExistentObject() {
 	req := &gcs.UpdateObjectRequest{
 		Name:        "foo",
 		ContentType: makeStringPtr("image/png"),
@@ -3597,11 +3615,12 @@ func (t *updateTest) NonExistentObject() {
 
 	_, err := t.bucket.UpdateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "not found|404", err.Error())
 }
 
-func (t *updateTest) RemoveAllFields() {
+func (t *updateTest) TestRemoveAllFields() {
 	// Create an object with explicit attributes set.
 	createReq := &gcs.CreateObjectRequest{
 		Name:            "foo",
@@ -3617,7 +3636,7 @@ func (t *updateTest) RemoveAllFields() {
 	}
 
 	_, err := t.bucket.CreateObject(t.ctx, createReq)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Remove all of the fields that were set, aside from user metadata.
 	req := &gcs.UpdateObjectRequest{
@@ -3629,19 +3648,19 @@ func (t *updateTest) RemoveAllFields() {
 	}
 
 	o, err := t.bucket.UpdateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the returned object.
-	AssertEq("foo", o.Name)
-	AssertEq(len("taco"), o.Size)
-	AssertEq(2, o.MetaGeneration)
+	require.Equal(t.T(), "foo", o.Name)
+	require.Equal(t.T(), uint64(len("taco")), o.Size)
+	require.Equal(t.T(), int64(2), o.MetaGeneration)
 
-	ExpectEq("", o.ContentType)
-	ExpectEq("", o.ContentEncoding)
-	ExpectEq("", o.ContentLanguage)
-	ExpectEq("", o.CacheControl)
+	assert.Equal(t.T(), "", o.ContentType)
+	assert.Equal(t.T(), "", o.ContentEncoding)
+	assert.Equal(t.T(), "", o.ContentLanguage)
+	assert.Equal(t.T(), "", o.CacheControl)
 
-	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
+	assert.Equal(t.T(), createReq.Metadata, o.Metadata)
 
 	// Make sure it matches when we stat object.
 	minObj, extendedAttr, err := t.bucket.StatObject(
@@ -3649,12 +3668,12 @@ func (t *updateTest) RemoveAllFields() {
 		&gcs.StatObjectRequest{Name: o.Name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
-func (t *updateTest) ModifyAllFields() {
+func (t *updateTest) TestModifyAllFields() {
 	// Create an object with explicit attributes set.
 	createReq := &gcs.CreateObjectRequest{
 		Name:            "foo",
@@ -3670,7 +3689,7 @@ func (t *updateTest) ModifyAllFields() {
 	}
 
 	_, err := t.bucket.CreateObject(t.ctx, createReq)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Modify all of the fields that were set, aside from user metadata.
 	req := &gcs.UpdateObjectRequest{
@@ -3682,19 +3701,19 @@ func (t *updateTest) ModifyAllFields() {
 	}
 
 	o, err := t.bucket.UpdateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the returned object.
-	AssertEq("foo", o.Name)
-	AssertEq(len("taco"), o.Size)
-	AssertEq(2, o.MetaGeneration)
+	require.Equal(t.T(), "foo", o.Name)
+	require.Equal(t.T(), uint64(len("taco")), o.Size)
+	require.Equal(t.T(), int64(2), o.MetaGeneration)
 
-	ExpectEq("image/jpeg", o.ContentType)
-	ExpectEq("bzip2", o.ContentEncoding)
-	ExpectEq("de", o.ContentLanguage)
-	ExpectEq("private", o.CacheControl)
+	assert.Equal(t.T(), "image/jpeg", o.ContentType)
+	assert.Equal(t.T(), "bzip2", o.ContentEncoding)
+	assert.Equal(t.T(), "de", o.ContentLanguage)
+	assert.Equal(t.T(), "private", o.CacheControl)
 
-	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
+	assert.Equal(t.T(), createReq.Metadata, o.Metadata)
 
 	// Make sure it matches when we stat object.
 	minObj, extendedAttr, err := t.bucket.StatObject(
@@ -3702,12 +3721,12 @@ func (t *updateTest) ModifyAllFields() {
 		&gcs.StatObjectRequest{Name: o.Name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
-func (t *updateTest) MixedModificationsToFields() {
+func (t *updateTest) TestMixedModificationsToFields() {
 	// Create an object with some explicit attributes set.
 	createReq := &gcs.CreateObjectRequest{
 		Name:            "foo",
@@ -3722,7 +3741,7 @@ func (t *updateTest) MixedModificationsToFields() {
 	}
 
 	_, err := t.bucket.CreateObject(t.ctx, createReq)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Leave one field unmodified, delete one field, modify an existing field,
 	// and add a new field.
@@ -3735,19 +3754,19 @@ func (t *updateTest) MixedModificationsToFields() {
 	}
 
 	o, err := t.bucket.UpdateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the returned object.
-	AssertEq("foo", o.Name)
-	AssertEq(len("taco"), o.Size)
-	AssertEq(2, o.MetaGeneration)
+	require.Equal(t.T(), "foo", o.Name)
+	require.Equal(t.T(), uint64(len("taco")), o.Size)
+	require.Equal(t.T(), int64(2), o.MetaGeneration)
 
-	ExpectEq("image/png", o.ContentType)
-	ExpectEq("", o.ContentEncoding)
-	ExpectEq("de", o.ContentLanguage)
-	ExpectEq("private", o.CacheControl)
+	assert.Equal(t.T(), "image/png", o.ContentType)
+	assert.Equal(t.T(), "", o.ContentEncoding)
+	assert.Equal(t.T(), "de", o.ContentLanguage)
+	assert.Equal(t.T(), "private", o.CacheControl)
 
-	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
+	assert.Equal(t.T(), createReq.Metadata, o.Metadata)
 
 	// Make sure it matches when we stat object.
 	minObj, extendedAttr, err := t.bucket.StatObject(
@@ -3755,17 +3774,17 @@ func (t *updateTest) MixedModificationsToFields() {
 		&gcs.StatObjectRequest{Name: o.Name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
-func (t *updateTest) AddUserMetadata() {
+func (t *updateTest) TestAddUserMetadata() {
 	// Create an object with no user metadata.
 	orig, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertEq(nil, orig.Metadata)
+	require.Empty(t.T(), orig.Metadata)
 
 	// Add some metadata.
 	req := &gcs.UpdateObjectRequest{
@@ -3777,20 +3796,17 @@ func (t *updateTest) AddUserMetadata() {
 	}
 
 	o, err := t.bucket.UpdateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the returned object.
-	AssertEq("foo", o.Name)
-	AssertEq(len("taco"), o.Size)
-	AssertEq(2, o.MetaGeneration)
+	require.Equal(t.T(), "foo", o.Name)
+	require.Equal(t.T(), uint64(len("taco")), o.Size)
+	require.Equal(t.T(), int64(2), o.MetaGeneration)
 
-	ExpectThat(
-		o.Metadata,
-		DeepEquals(
-			map[string]string{
-				"0": "taco",
-				"1": "burrito",
-			}))
+	assert.Equal(t.T(), map[string]string{
+		"0": "taco",
+		"1": "burrito",
+	}, o.Metadata)
 
 	// Make sure it matches when we stat object.
 	minObj, extendedAttr, err := t.bucket.StatObject(
@@ -3798,12 +3814,12 @@ func (t *updateTest) AddUserMetadata() {
 		&gcs.StatObjectRequest{Name: o.Name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
-func (t *updateTest) MixedModificationsToUserMetadata() {
+func (t *updateTest) TestMixedModificationsToUserMetadata() {
 	// Create an object with some user metadata.
 	createReq := &gcs.CreateObjectRequest{
 		Name: "foo",
@@ -3817,9 +3833,9 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 	}
 
 	orig, err := t.bucket.CreateObject(t.ctx, createReq)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertThat(orig.Metadata, DeepEquals(createReq.Metadata))
+	require.Equal(t.T(), createReq.Metadata, orig.Metadata)
 
 	// Leave an existing field untouched, add a new field, remove an existing
 	// field, and modify an existing field.
@@ -3833,21 +3849,18 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 	}
 
 	o, err := t.bucket.UpdateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Check the returned object.
-	AssertEq("foo", o.Name)
-	AssertEq(len("taco"), o.Size)
-	AssertEq(2, o.MetaGeneration)
+	require.Equal(t.T(), "foo", o.Name)
+	require.Equal(t.T(), uint64(len("taco")), o.Size)
+	require.Equal(t.T(), int64(2), o.MetaGeneration)
 
-	ExpectThat(
-		o.Metadata,
-		DeepEquals(
-			map[string]string{
-				"0": "taco",
-				"1": "burrito",
-				"3": "updated",
-			}))
+	assert.Equal(t.T(), map[string]string{
+		"0": "taco",
+		"1": "burrito",
+		"3": "updated",
+	}, o.Metadata)
 
 	// Make sure it matches when we stat object.
 	minObj, extendedAttr, err := t.bucket.StatObject(
@@ -3855,17 +3868,17 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 		&gcs.StatObjectRequest{Name: o.Name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
-func (t *updateTest) UpdateTime() {
+func (t *updateTest) TestUpdateTime() {
 	// Create an object.
 	createTime := t.clock.Now()
 	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte{})
-	AssertEq(nil, err)
-	AssertThat(o.Updated, t.matchesStartTime(createTime))
+	require.Equal(t.T(), nil, err)
+	t.assertStartTime(createTime, o.Updated)
 
 	// Ensure the time below doesn't match exactly.
 	t.advanceTime()
@@ -3878,19 +3891,15 @@ func (t *updateTest) UpdateTime() {
 
 	updateTime := t.clock.Now()
 	o2, err := t.bucket.UpdateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// 'Updated' should be the update time, not the creation time.
-	ExpectThat(o2.Updated, t.matchesStartTime(updateTime))
-	ExpectTrue(
-		o.Updated.Before(o2.Updated),
-		"o.Updated:  %v\n"+
-			"o2.Updated: %v",
-		o.Updated,
+	t.assertStartTime(updateTime, o2.Updated)
+	assert.True(t.T(), o.Updated.Before(o2.Updated), "o.Updated:  %v\n"+"o2.Updated: %v", o.Updated,
 		o2.Updated)
 }
 
-func (t *updateTest) ParticularGeneration_NameDoesntExist() {
+func (t *updateTest) TestParticularGeneration_NameDoesntExist() {
 	req := &gcs.UpdateObjectRequest{
 		Name:        "foo",
 		Generation:  17,
@@ -3899,11 +3908,12 @@ func (t *updateTest) ParticularGeneration_NameDoesntExist() {
 
 	_, err := t.bucket.UpdateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "not found|404", err.Error())
 }
 
-func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
+func (t *updateTest) TestParticularGeneration_GenerationDoesntExist() {
 	// Create an object.
 	createReq := &gcs.CreateObjectRequest{
 		Name:     "foo",
@@ -3911,7 +3921,7 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, createReq)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to update the wrong generation by giving it a new content
 	// language.
@@ -3923,8 +3933,9 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 
 	_, err = t.bucket.UpdateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("not found|404")))
+	require.IsType(t.T(), &gcs.NotFoundError{}, err)
+	assert.Error(t.T(), err)
+	assert.Regexp(t.T(), "not found|404", err.Error())
 
 	// The original object should be unaffected.
 	_, e, err := t.bucket.StatObject(
@@ -3933,12 +3944,12 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 
-	AssertEq(nil, err)
-	AssertNe(nil, e)
-	ExpectEq("", e.ContentLanguage)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, e)
+	assert.Equal(t.T(), "", e.ContentLanguage)
 }
 
-func (t *updateTest) ParticularGeneration_Successful() {
+func (t *updateTest) TestParticularGeneration_Successful() {
 	// Create an object.
 	createReq := &gcs.CreateObjectRequest{
 		Name:     "foo",
@@ -3946,7 +3957,7 @@ func (t *updateTest) ParticularGeneration_Successful() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, createReq)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Update it with an explicit generation.
 	req := &gcs.UpdateObjectRequest{
@@ -3957,8 +3968,8 @@ func (t *updateTest) ParticularGeneration_Successful() {
 
 	o, err = t.bucket.UpdateObject(t.ctx, req)
 
-	AssertEq(nil, err)
-	ExpectEq("fr", o.ContentLanguage)
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "fr", o.ContentLanguage)
 
 	// Stat and make sure it took effect.
 	_, e, err := t.bucket.StatObject(
@@ -3967,12 +3978,12 @@ func (t *updateTest) ParticularGeneration_Successful() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 
-	AssertEq(nil, err)
-	AssertNe(nil, e)
-	ExpectEq("fr", e.ContentLanguage)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, e)
+	assert.Equal(t.T(), "fr", e.ContentLanguage)
 }
 
-func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
+func (t *updateTest) TestMetaGenerationPrecondition_Unsatisfied() {
 	// Create an object.
 	createReq := &gcs.CreateObjectRequest{
 		Name:     "foo",
@@ -3980,7 +3991,7 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, createReq)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to update with a bad precondition.
 	precond := o.MetaGeneration + 1
@@ -3991,7 +4002,7 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 	}
 
 	_, err = t.bucket.UpdateObject(t.ctx, req)
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	assert.IsType(t.T(), &gcs.PreconditionError{}, err)
 
 	// The original object should be unaffected.
 	_, e, err := t.bucket.StatObject(
@@ -4000,12 +4011,12 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 
-	AssertEq(nil, err)
-	AssertNe(nil, e)
-	ExpectEq("", e.ContentLanguage)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, e)
+	assert.Equal(t.T(), "", e.ContentLanguage)
 }
 
-func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
+func (t *updateTest) TestMetaGenerationPrecondition_Satisfied() {
 	// Create an object.
 	createReq := &gcs.CreateObjectRequest{
 		Name:     "foo",
@@ -4013,7 +4024,7 @@ func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, createReq)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Update with a good precondition.
 	req := &gcs.UpdateObjectRequest{
@@ -4023,7 +4034,7 @@ func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
 	}
 
 	_, err = t.bucket.UpdateObject(t.ctx, req)
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// The object should have been updated.
 	_, e, err := t.bucket.StatObject(
@@ -4032,9 +4043,9 @@ func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 
-	AssertEq(nil, err)
-	AssertNe(nil, e)
-	ExpectEq("fr", e.ContentLanguage)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, e)
+	assert.Equal(t.T(), "fr", e.ContentLanguage)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -4045,7 +4056,7 @@ type deleteTest struct {
 	bucketTest
 }
 
-func (t *deleteTest) NoParticularGeneration_NameDoesntExist() {
+func (t *deleteTest) TestNoParticularGeneration_NameDoesntExist() {
 	// No error should be returned.
 	err := t.bucket.DeleteObject(
 		t.ctx,
@@ -4053,30 +4064,27 @@ func (t *deleteTest) NoParticularGeneration_NameDoesntExist() {
 			Name: "foobar",
 		})
 
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
-func (t *deleteTest) NoParticularGeneration_Successful() {
+func (t *deleteTest) TestNoParticularGeneration_Successful() {
 	// Create an object.
-	AssertEq(nil, t.createObject("a", "taco"))
+	require.Equal(t.T(), nil, t.createObject("a", "taco"))
 
 	// Delete it.
-	AssertEq(
-		nil,
-		t.bucket.DeleteObject(
-			t.ctx,
-			&gcs.DeleteObjectRequest{
-				Name: "a",
-			}))
+	require.Equal(t.T(), nil, t.bucket.DeleteObject(t.ctx,
+		&gcs.DeleteObjectRequest{
+			Name: "a",
+		}))
 
 	// It shouldn't show up in a listing.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertNe(nil, listing)
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-	ExpectThat(listing.MinObjects, ElementsAre())
+	require.NotEqual(t.T(), nil, listing)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
+	assert.Empty(t.T(), listing.MinObjects)
 
 	// It shouldn't be readable.
 	req := &gcs.ReadObjectRequest{
@@ -4089,10 +4097,10 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *deleteTest) ParticularGeneration_NameDoesntExist() {
+func (t *deleteTest) TestParticularGeneration_NameDoesntExist() {
 	// No error should be returned.
 	err := t.bucket.DeleteObject(
 		t.ctx,
@@ -4101,10 +4109,10 @@ func (t *deleteTest) ParticularGeneration_NameDoesntExist() {
 			Generation: 17,
 		})
 
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
-func (t *deleteTest) ParticularGeneration_GenerationDoesntExist() {
+func (t *deleteTest) TestParticularGeneration_GenerationDoesntExist() {
 	const name = "foo"
 	var err error
 
@@ -4115,7 +4123,7 @@ func (t *deleteTest) ParticularGeneration_GenerationDoesntExist() {
 		name,
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to delete a different generation. Though it doesn't exist, no
 	// error should be returned.
@@ -4126,16 +4134,16 @@ func (t *deleteTest) ParticularGeneration_GenerationDoesntExist() {
 			Generation: o.Generation + 1,
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// The original generation should still exist.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, name)
 
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	require.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "taco", string(contents))
 }
 
-func (t *deleteTest) ParticularGeneration_Successful() {
+func (t *deleteTest) TestParticularGeneration_Successful() {
 	const name = "foo"
 	var err error
 
@@ -4146,7 +4154,7 @@ func (t *deleteTest) ParticularGeneration_Successful() {
 		name,
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Delete that particular generation.
 	err = t.bucket.DeleteObject(
@@ -4156,14 +4164,14 @@ func (t *deleteTest) ParticularGeneration_Successful() {
 			Generation: o.Generation,
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// The object should no longer exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
+func (t *deleteTest) TestMetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	const name = "foo"
 	var err error
 
@@ -4174,7 +4182,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 		name,
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to delete, with a precondition for the wrong meta-generation.
 	precond := o.MetaGeneration + 1
@@ -4185,14 +4193,14 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 			MetaGenerationPrecondition: &precond,
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	assert.IsType(t.T(), &gcs.PreconditionError{}, err)
 
 	// The object should still exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
-func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() {
+func (t *deleteTest) TestMetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() {
 	const name = "foo"
 	var err error
 
@@ -4205,10 +4213,10 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 			MetaGenerationPrecondition: &precond,
 		})
 
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
-func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_WrongGeneration() {
+func (t *deleteTest) TestMetaGenerationPrecondition_Unsatisfied_WrongGeneration() {
 	const name = "foo"
 	var err error
 
@@ -4219,7 +4227,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_WrongGeneration() {
 		name,
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Attempt to delete, with a precondition for the wrong meta-generation,
 	// addressing the wrong object generation.
@@ -4232,14 +4240,14 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_WrongGeneration() {
 			MetaGenerationPrecondition: &precond,
 		})
 
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// The object should still exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
-func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
+func (t *deleteTest) TestMetaGenerationPrecondition_Satisfied() {
 	const name = "foo"
 	var err error
 
@@ -4250,7 +4258,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
 		name,
 		[]byte("taco"))
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Delete with a precondition.
 	precond := o.MetaGeneration
@@ -4261,11 +4269,11 @@ func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
 			MetaGenerationPrecondition: &precond,
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// The object should no longer exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -4276,89 +4284,86 @@ type listTest struct {
 	bucketTest
 }
 
-func (t *listTest) EmptyBucket() {
+func (t *listTest) TestEmptyBucket() {
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertNe(nil, listing)
-	ExpectThat(listing.MinObjects, ElementsAre())
-	ExpectThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.NotEqual(t.T(), nil, listing)
+	assert.Empty(t.T(), listing.MinObjects)
+	assert.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 }
 
-func (t *listTest) NewlyCreatedObject() {
+func (t *listTest) TestNewlyCreatedObject() {
 	// Create an object.
-	AssertEq(nil, t.createObject("a", "taco"))
+	require.Equal(t.T(), nil, t.createObject("a", "taco"))
 
 	// List all objects in the bucket.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertNe(nil, listing)
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.NotEqual(t.T(), nil, listing)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
 	var o *gcs.MinObject
-	AssertEq(1, len(listing.MinObjects))
+	require.Equal(t.T(), 1, len(listing.MinObjects))
 
 	// a
 	o = listing.MinObjects[0]
-	AssertEq("a", o.Name)
-	ExpectEq(len("taco"), o.Size)
+	require.Equal(t.T(), "a", o.Name)
+	assert.Equal(t.T(), uint64(len("taco")), o.Size)
 }
 
-func (t *listTest) TrivialQuery() {
+func (t *listTest) TestTrivialQuery() {
 	// Create few objects.
-	AssertEq(nil, t.createObject("a", "taco"))
-	AssertEq(nil, t.createObject("b", "burrito"))
-	AssertEq(nil, t.createObject("c", "enchilada"))
+	require.Equal(t.T(), nil, t.createObject("a", "taco"))
+	require.Equal(t.T(), nil, t.createObject("b", "burrito"))
+	require.Equal(t.T(), nil, t.createObject("c", "enchilada"))
 
 	// List all objects in the bucket.
 	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
-	AssertNe(nil, listing)
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
+	require.NotEqual(t.T(), nil, listing)
+	require.Empty(t.T(), listing.CollapsedRuns)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
 	var o *gcs.MinObject
-	AssertEq(3, len(listing.MinObjects))
+	require.Equal(t.T(), 3, len(listing.MinObjects))
 
 	// a
 	o = listing.MinObjects[0]
-	AssertEq("a", o.Name)
-	ExpectEq(len("taco"), o.Size)
+	require.Equal(t.T(), "a", o.Name)
+	assert.Equal(t.T(), uint64(len("taco")), o.Size)
 
 	// b
 	o = listing.MinObjects[1]
-	AssertEq("b", o.Name)
-	ExpectEq(len("burrito"), o.Size)
+	require.Equal(t.T(), "b", o.Name)
+	assert.Equal(t.T(), uint64(len("burrito")), o.Size)
 
 	// c
 	o = listing.MinObjects[2]
-	AssertEq("c", o.Name)
-	ExpectEq(len("enchilada"), o.Size)
+	require.Equal(t.T(), "c", o.Name)
+	assert.Equal(t.T(), uint64(len("enchilada")), o.Size)
 }
 
-func (t *listTest) Delimiter_SingleRune() {
+func (t *listTest) TestDelimiter_SingleRune() {
 	// Create several objects.
-	AssertEq(
-		nil,
-		createEmpty(
-			t.ctx,
-			t.bucket,
-			[]string{
-				"!",
-				"a",
-				"b",
-				"b!foo",
-				"b!bar",
-				"b!baz!qux",
-				"c!",
-				"d!taco",
-				"d!burrito",
-				"e",
-			}))
+	require.Equal(t.T(), nil, createEmpty(t.ctx,
+		t.bucket,
+		[]string{
+			"!",
+			"a",
+			"b",
+			"b!foo",
+			"b!bar",
+			"b!baz!qux",
+			"c!",
+			"d!taco",
+			"d!burrito",
+			"e",
+		}))
 
 	// List with the delimiter "!".
 	req := &gcs.ListObjectsRequest{
@@ -4366,49 +4371,46 @@ func (t *listTest) Delimiter_SingleRune() {
 	}
 
 	listing, err := t.bucket.ListObjects(t.ctx, req)
-	AssertEq(nil, err)
-	AssertNe(nil, listing)
-	AssertEq("", listing.ContinuationToken)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, listing)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
 	// Collapsed runs
-	ExpectThat(listing.CollapsedRuns, ElementsAre("!", "b!", "c!", "d!"))
+	assert.ElementsMatch(t.T(), listing.CollapsedRuns, []interface{}{"!", "b!", "c!", "d!"})
 
 	// Objects
-	AssertEq(3, len(listing.MinObjects))
+	require.Equal(t.T(), 3, len(listing.MinObjects))
 
-	ExpectEq("a", listing.MinObjects[0].Name)
-	ExpectEq("b", listing.MinObjects[1].Name)
-	ExpectEq("e", listing.MinObjects[2].Name)
+	assert.Equal(t.T(), "a", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), "b", listing.MinObjects[1].Name)
+	assert.Equal(t.T(), "e", listing.MinObjects[2].Name)
 }
 
-func (t *listTest) Delimiter_MultiRune() {
+func (t *listTest) TestDelimiter_MultiRune() {
 	// Create several objects.
-	AssertEq(
-		nil,
-		createEmpty(
-			t.ctx,
-			t.bucket,
-			[]string{
-				"!",
-				"!!",
-				"!!!",
-				"!!!!",
-				"!!!!!!!!!",
-				"a",
-				"b",
-				"b!",
-				"b!foo",
-				"b!!",
-				"b!!!",
-				"b!!foo",
-				"b!!!foo",
-				"b!!bar",
-				"b!!baz!!qux",
-				"c!!",
-				"d!!taco",
-				"d!!burrito",
-				"e",
-			}))
+	require.Equal(t.T(), nil, createEmpty(t.ctx,
+		t.bucket,
+		[]string{
+			"!",
+			"!!",
+			"!!!",
+			"!!!!",
+			"!!!!!!!!!",
+			"a",
+			"b",
+			"b!",
+			"b!foo",
+			"b!!",
+			"b!!!",
+			"b!!foo",
+			"b!!!foo",
+			"b!!bar",
+			"b!!baz!!qux",
+			"c!!",
+			"d!!taco",
+			"d!!burrito",
+			"e",
+		}))
 
 	// List with the delimiter "!!".
 	req := &gcs.ListObjectsRequest{
@@ -4416,40 +4418,37 @@ func (t *listTest) Delimiter_MultiRune() {
 	}
 
 	listing, err := t.bucket.ListObjects(t.ctx, req)
-	AssertEq(nil, err)
-	AssertNe(nil, listing)
-	AssertEq("", listing.ContinuationToken)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, listing)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
 	// Collapsed runs
-	ExpectThat(listing.CollapsedRuns, ElementsAre("!!", "b!!", "c!!", "d!!"))
+	assert.ElementsMatch(t.T(), listing.CollapsedRuns, []interface{}{"!!", "b!!", "c!!", "d!!"})
 
 	// Objects
-	AssertEq(6, len(listing.MinObjects))
+	require.Equal(t.T(), 6, len(listing.MinObjects))
 
-	ExpectEq("!", listing.MinObjects[0].Name)
-	ExpectEq("a", listing.MinObjects[1].Name)
-	ExpectEq("b", listing.MinObjects[2].Name)
-	ExpectEq("b!", listing.MinObjects[3].Name)
-	ExpectEq("b!foo", listing.MinObjects[4].Name)
-	ExpectEq("e", listing.MinObjects[5].Name)
+	assert.Equal(t.T(), "!", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), "a", listing.MinObjects[1].Name)
+	assert.Equal(t.T(), "b", listing.MinObjects[2].Name)
+	assert.Equal(t.T(), "b!", listing.MinObjects[3].Name)
+	assert.Equal(t.T(), "b!foo", listing.MinObjects[4].Name)
+	assert.Equal(t.T(), "e", listing.MinObjects[5].Name)
 }
 
-func (t *listTest) Prefix() {
+func (t *listTest) TestPrefix() {
 	// Create several objects.
-	AssertEq(
-		nil,
-		createEmpty(
-			t.ctx,
-			t.bucket,
-			[]string{
-				"a",
-				"a\x7f",
-				"b",
-				"b\x00",
-				"b\x01",
-				"b타코",
-				"c",
-			}))
+	require.Equal(t.T(), nil, createEmpty(t.ctx,
+		t.bucket,
+		[]string{
+			"a",
+			"a\x7f",
+			"b",
+			"b\x00",
+			"b\x01",
+			"b타코",
+			"c",
+		}))
 
 	// List with the prefix "b".
 	req := &gcs.ListObjectsRequest{
@@ -4457,50 +4456,47 @@ func (t *listTest) Prefix() {
 	}
 
 	listing, err := t.bucket.ListObjects(t.ctx, req)
-	AssertEq(nil, err)
-	AssertNe(nil, listing)
-	AssertEq("", listing.ContinuationToken)
-	AssertThat(listing.CollapsedRuns, ElementsAre())
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, listing)
+	require.Equal(t.T(), "", listing.ContinuationToken)
+	require.Empty(t.T(), listing.CollapsedRuns)
 
 	// Objects
-	AssertEq(4, len(listing.MinObjects))
+	require.Equal(t.T(), 4, len(listing.MinObjects))
 
-	ExpectEq("b", listing.MinObjects[0].Name)
-	ExpectEq("b\x00", listing.MinObjects[1].Name)
-	ExpectEq("b\x01", listing.MinObjects[2].Name)
-	ExpectEq("b타코", listing.MinObjects[3].Name)
+	assert.Equal(t.T(), "b", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), "b\x00", listing.MinObjects[1].Name)
+	assert.Equal(t.T(), "b\x01", listing.MinObjects[2].Name)
+	assert.Equal(t.T(), "b타코", listing.MinObjects[3].Name)
 }
 
-func (t *listTest) PrefixAndDelimiter_SingleRune() {
+func (t *listTest) TestPrefixAndDelimiter_SingleRune() {
 	// Create several objects.
-	AssertEq(
-		nil,
-		createEmpty(
-			t.ctx,
-			t.bucket,
-			[]string{
-				"blag",
-				"blag!",
-				"blah",
-				"blah!a",
-				"blah!a\x7f",
-				"blah!b",
-				"blah!b!",
-				"blah!b!asd",
-				"blah!b\x00",
-				"blah!b\x00!",
-				"blah!b\x00!asd",
-				"blah!b\x00!asd!sdf",
-				"blah!b\x01",
-				"blah!b\x01!",
-				"blah!b\x01!asd",
-				"blah!b\x01!asd!sdf",
-				"blah!b타코",
-				"blah!b타코!",
-				"blah!b타코!asd",
-				"blah!b타코!asd!sdf",
-				"blah!c",
-			}))
+	require.Equal(t.T(), nil, createEmpty(t.ctx,
+		t.bucket,
+		[]string{
+			"blag",
+			"blag!",
+			"blah",
+			"blah!a",
+			"blah!a\x7f",
+			"blah!b",
+			"blah!b!",
+			"blah!b!asd",
+			"blah!b\x00",
+			"blah!b\x00!",
+			"blah!b\x00!asd",
+			"blah!b\x00!asd!sdf",
+			"blah!b\x01",
+			"blah!b\x01!",
+			"blah!b\x01!asd",
+			"blah!b\x01!asd!sdf",
+			"blah!b타코",
+			"blah!b타코!",
+			"blah!b타코!asd",
+			"blah!b타코!asd!sdf",
+			"blah!c",
+		}))
 
 	// List with the prefix "blah!b" and the delimiter "!".
 	req := &gcs.ListObjectsRequest{
@@ -4509,63 +4505,57 @@ func (t *listTest) PrefixAndDelimiter_SingleRune() {
 	}
 
 	listing, err := t.bucket.ListObjects(t.ctx, req)
-	AssertEq(nil, err)
-	AssertNe(nil, listing)
-	AssertEq("", listing.ContinuationToken)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, listing)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
 	// Collapsed runs
-	ExpectThat(
-		listing.CollapsedRuns,
-		ElementsAre(
-			"blah!b\x00!",
-			"blah!b\x01!",
-			"blah!b!",
-			"blah!b타코!",
-		))
+	assert.ElementsMatch(t.T(), listing.CollapsedRuns, []interface{}{"blah!b\x00!",
+		"blah!b\x01!",
+		"blah!b!",
+		"blah!b타코!",
+	})
 
 	// Objects
-	AssertEq(4, len(listing.MinObjects))
+	require.Equal(t.T(), 4, len(listing.MinObjects))
 
-	ExpectEq("blah!b", listing.MinObjects[0].Name)
-	ExpectEq("blah!b\x00", listing.MinObjects[1].Name)
-	ExpectEq("blah!b\x01", listing.MinObjects[2].Name)
-	ExpectEq("blah!b타코", listing.MinObjects[3].Name)
+	assert.Equal(t.T(), "blah!b", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), "blah!b\x00", listing.MinObjects[1].Name)
+	assert.Equal(t.T(), "blah!b\x01", listing.MinObjects[2].Name)
+	assert.Equal(t.T(), "blah!b타코", listing.MinObjects[3].Name)
 }
 
-func (t *listTest) PrefixAndDelimiter_MultiRune() {
+func (t *listTest) TestPrefixAndDelimiter_MultiRune() {
 	// Create several objects.
-	AssertEq(
-		nil,
-		createEmpty(
-			t.ctx,
-			t.bucket,
-			[]string{
-				"blag",
-				"blag!!",
-				"blah",
-				"blah!!a",
-				"blah!!a\x7f",
-				"blah!!b",
-				"blah!!b!",
-				"blah!!b!!",
-				"blah!!b!!asd",
-				"blah!!b\x00",
-				"blah!!b\x00!",
-				"blah!!b\x00!!",
-				"blah!!b\x00!!asd",
-				"blah!!b\x00!!asd!sdf",
-				"blah!!b\x01",
-				"blah!!b\x01!",
-				"blah!!b\x01!!",
-				"blah!!b\x01!!asd",
-				"blah!!b\x01!!asd!sdf",
-				"blah!!b타코",
-				"blah!!b타코!",
-				"blah!!b타코!!",
-				"blah!!b타코!!asd",
-				"blah!!b타코!!asd!sdf",
-				"blah!!c",
-			}))
+	require.Equal(t.T(), nil, createEmpty(t.ctx,
+		t.bucket,
+		[]string{
+			"blag",
+			"blag!!",
+			"blah",
+			"blah!!a",
+			"blah!!a\x7f",
+			"blah!!b",
+			"blah!!b!",
+			"blah!!b!!",
+			"blah!!b!!asd",
+			"blah!!b\x00",
+			"blah!!b\x00!",
+			"blah!!b\x00!!",
+			"blah!!b\x00!!asd",
+			"blah!!b\x00!!asd!sdf",
+			"blah!!b\x01",
+			"blah!!b\x01!",
+			"blah!!b\x01!!",
+			"blah!!b\x01!!asd",
+			"blah!!b\x01!!asd!sdf",
+			"blah!!b타코",
+			"blah!!b타코!",
+			"blah!!b타코!!",
+			"blah!!b타코!!asd",
+			"blah!!b타코!!asd!sdf",
+			"blah!!c",
+		}))
 
 	// List with the prefix "blah!b" and the delimiter "!".
 	req := &gcs.ListObjectsRequest{
@@ -4574,128 +4564,51 @@ func (t *listTest) PrefixAndDelimiter_MultiRune() {
 	}
 
 	listing, err := t.bucket.ListObjects(t.ctx, req)
-	AssertEq(nil, err)
-	AssertNe(nil, listing)
-	AssertEq("", listing.ContinuationToken)
+	require.Equal(t.T(), nil, err)
+	require.NotEqual(t.T(), nil, listing)
+	require.Equal(t.T(), "", listing.ContinuationToken)
 
 	// Collapsed runs
-	ExpectThat(
-		listing.CollapsedRuns,
-		ElementsAre(
-			"blah!!b\x00!!",
-			"blah!!b\x01!!",
-			"blah!!b!!",
-			"blah!!b타코!!",
-		))
+	assert.ElementsMatch(t.T(), listing.CollapsedRuns, []interface{}{"blah!!b\x00!!",
+		"blah!!b\x01!!",
+		"blah!!b!!",
+		"blah!!b타코!!",
+	})
 
 	// Objects
-	AssertEq(8, len(listing.MinObjects))
+	require.Equal(t.T(), 8, len(listing.MinObjects))
 
-	ExpectEq("blah!!b", listing.MinObjects[0].Name)
-	ExpectEq("blah!!b\x00", listing.MinObjects[1].Name)
-	ExpectEq("blah!!b\x00!", listing.MinObjects[2].Name)
-	ExpectEq("blah!!b\x01", listing.MinObjects[3].Name)
-	ExpectEq("blah!!b\x01!", listing.MinObjects[4].Name)
-	ExpectEq("blah!!b!", listing.MinObjects[5].Name)
-	ExpectEq("blah!!b타코", listing.MinObjects[6].Name)
-	ExpectEq("blah!!b타코!", listing.MinObjects[7].Name)
+	assert.Equal(t.T(), "blah!!b", listing.MinObjects[0].Name)
+	assert.Equal(t.T(), "blah!!b\x00", listing.MinObjects[1].Name)
+	assert.Equal(t.T(), "blah!!b\x00!", listing.MinObjects[2].Name)
+	assert.Equal(t.T(), "blah!!b\x01", listing.MinObjects[3].Name)
+	assert.Equal(t.T(), "blah!!b\x01!", listing.MinObjects[4].Name)
+	assert.Equal(t.T(), "blah!!b!", listing.MinObjects[5].Name)
+	assert.Equal(t.T(), "blah!!b타코", listing.MinObjects[6].Name)
+	assert.Equal(t.T(), "blah!!b타코!", listing.MinObjects[7].Name)
 }
 
-func (t *listTest) Cursor_BucketEndsWithRunOfIndividualObjects() {
+func (t *listTest) TestCursor_BucketEndsWithRunOfIndividualObjects() {
 	// Create a good number of objects, containing a run of objects sharing a
 	// prefix under the delimiter "!".
-	AssertEq(
-		nil,
-		createEmpty(
-			t.ctx,
-			t.bucket,
-			[]string{
-				"a",
-				"b",
-				"c",
-				"c!0",
-				"c!1",
-				"c!2",
-				"c!3",
-				"c!4",
-				"d!",
-				"e",
-				"e!",
-				"f!",
-				"g!",
-				"h",
-			}))
-
-	// List repeatedly with a small value for MaxResults. Keep track of all of
-	// the objects and runs we find.
-	req := &gcs.ListObjectsRequest{
-		Delimiter:  "!",
-		MaxResults: 2,
-	}
-
-	var objects []string
-	var runs []string
-
-	for {
-		listing, err := t.bucket.ListObjects(t.ctx, req)
-		AssertEq(nil, err)
-
-		for _, o := range listing.MinObjects {
-			objects = append(objects, o.Name)
-		}
-
-		runs = append(runs, listing.CollapsedRuns...)
-
-		if listing.ContinuationToken == "" {
-			break
-		}
-
-		req.ContinuationToken = listing.ContinuationToken
-	}
-
-	// Check the results.
-	ExpectThat(
-		objects,
-		ElementsAre(
+	require.Equal(t.T(), nil, createEmpty(t.ctx,
+		t.bucket,
+		[]string{
 			"a",
 			"b",
 			"c",
-			"e",
-			"h",
-		))
-
-	ExpectThat(
-		runs,
-		ElementsAre(
-			"c!",
+			"c!0",
+			"c!1",
+			"c!2",
+			"c!3",
+			"c!4",
 			"d!",
+			"e",
 			"e!",
 			"f!",
 			"g!",
-		))
-}
-
-func (t *listTest) Cursor_BucketEndsWithRunOfObjectsGroupedByDelimiter() {
-	// Create a good number of objects, containing runs of objects sharing a
-	// prefix under the delimiter "!" at the end of the bucket.
-	AssertEq(
-		nil,
-		createEmpty(
-			t.ctx,
-			t.bucket,
-			[]string{
-				"a",
-				"b",
-				"c",
-				"c!",
-				"c!0",
-				"c!1",
-				"c!2",
-				"d!",
-				"d!0",
-				"d!1",
-				"d!2",
-			}))
+			"h",
+		}))
 
 	// List repeatedly with a small value for MaxResults. Keep track of all of
 	// the objects and runs we find.
@@ -4709,7 +4622,7 @@ func (t *listTest) Cursor_BucketEndsWithRunOfObjectsGroupedByDelimiter() {
 
 	for {
 		listing, err := t.bucket.ListObjects(t.ctx, req)
-		AssertEq(nil, err)
+		require.Equal(t.T(), nil, err)
 
 		for _, o := range listing.MinObjects {
 			objects = append(objects, o.Name)
@@ -4725,20 +4638,76 @@ func (t *listTest) Cursor_BucketEndsWithRunOfObjectsGroupedByDelimiter() {
 	}
 
 	// Check the results.
-	ExpectThat(
-		objects,
-		ElementsAre(
+	assert.ElementsMatch(t.T(), objects, []interface{}{"a",
+		"b",
+		"c",
+		"e",
+		"h",
+	})
+
+	assert.ElementsMatch(t.T(), runs, []interface{}{"c!",
+		"d!",
+		"e!",
+		"f!",
+		"g!",
+	})
+}
+
+func (t *listTest) TestCursor_BucketEndsWithRunOfObjectsGroupedByDelimiter() {
+	// Create a good number of objects, containing runs of objects sharing a
+	// prefix under the delimiter "!" at the end of the bucket.
+	require.Equal(t.T(), nil, createEmpty(t.ctx,
+		t.bucket,
+		[]string{
 			"a",
 			"b",
 			"c",
-		))
-
-	ExpectThat(
-		runs,
-		ElementsAre(
 			"c!",
+			"c!0",
+			"c!1",
+			"c!2",
 			"d!",
-		))
+			"d!0",
+			"d!1",
+			"d!2",
+		}))
+
+	// List repeatedly with a small value for MaxResults. Keep track of all of
+	// the objects and runs we find.
+	req := &gcs.ListObjectsRequest{
+		Delimiter:  "!",
+		MaxResults: 2,
+	}
+
+	var objects []string
+	var runs []string
+
+	for {
+		listing, err := t.bucket.ListObjects(t.ctx, req)
+		require.Equal(t.T(), nil, err)
+
+		for _, o := range listing.MinObjects {
+			objects = append(objects, o.Name)
+		}
+
+		runs = append(runs, listing.CollapsedRuns...)
+
+		if listing.ContinuationToken == "" {
+			break
+		}
+
+		req.ContinuationToken = listing.ContinuationToken
+	}
+
+	// Check the results.
+	assert.ElementsMatch(t.T(), objects, []interface{}{"a",
+		"b",
+		"c",
+	})
+
+	assert.ElementsMatch(t.T(), runs, []interface{}{"c!",
+		"d!",
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -4776,7 +4745,7 @@ func (rc *bottomlessReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (t *cancellationTest) CreateObject() {
+func (t *cancellationTest) TestCreateObject() {
 	const name = "foo"
 	var err error
 
@@ -4817,8 +4786,8 @@ func (t *cancellationTest) CreateObject() {
 	// Wait a moment longer. The request should not yet be complete.
 	select {
 	case err = <-errChan:
-		AddFailure("CreateObject returned early with error: %v", err)
-		AbortTest()
+		t.T().Errorf("CreateObject returned early with error: %v", err)
+		t.T().FailNow()
 
 	case <-time.After(10 * time.Millisecond):
 	}
@@ -4828,13 +4797,9 @@ func (t *cancellationTest) CreateObject() {
 	cancel()
 	err = <-errChan
 
-	ExpectThat(
-		err,
-		Error(
-			AnyOf(
-				HasSubstr("closed network connection"),
-				HasSubstr("transport closed"),
-				HasSubstr("request canceled"))))
+	require.Error(t.T(), err)
+	errStr := err.Error()
+	assert.True(t.T(), strings.Contains(errStr, "closed network connection") || strings.Contains(errStr, "transport closed") || strings.Contains(errStr, "request canceled"))
 
 	// The object should not have been created.
 	statReq := &gcs.StatObjectRequest{
@@ -4842,10 +4807,10 @@ func (t *cancellationTest) CreateObject() {
 	}
 
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	assert.IsType(t.T(), &gcs.NotFoundError{}, err)
 }
 
-func (t *cancellationTest) ReadObject() {
+func (t *cancellationTest) TestReadObject() {
 	const name = "foo"
 	var err error
 
@@ -4864,7 +4829,7 @@ func (t *cancellationTest) ReadObject() {
 			Contents: io.LimitReader(rand.Reader, size),
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Create a reader for the object using a cancellable context.
 	ctx, cancel := context.WithCancel(t.ctx)
@@ -4874,14 +4839,14 @@ func (t *cancellationTest) ReadObject() {
 			Name: name,
 		})
 
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	defer rc.Close()
 
 	// Read a few bytes; nothing should go wrong.
 	const firstReadSize = 32
 	_, err = io.ReadFull(rc, make([]byte, firstReadSize))
-	AssertEq(nil, err)
+	require.Equal(t.T(), nil, err)
 
 	// Cancel the context.
 	cancel()
@@ -4890,12 +4855,8 @@ func (t *cancellationTest) ReadObject() {
 	before := time.Now()
 	_, err = io.ReadFull(rc, make([]byte, size-firstReadSize))
 
-	ExpectThat(
-		err,
-		Error(
-			AnyOf(
-				HasSubstr("closed network connection"),
-				HasSubstr("transport closed"),
-				HasSubstr("request canceled"))))
-	ExpectLt(time.Since(before), 50*time.Millisecond)
+	require.Error(t.T(), err)
+	errStr := err.Error()
+	assert.True(t.T(), strings.Contains(errStr, "closed network connection") || strings.Contains(errStr, "transport closed") || strings.Contains(errStr, "request canceled"))
+	assert.Less(t.T(), 50*time.Millisecond, time.Since(before))
 }
