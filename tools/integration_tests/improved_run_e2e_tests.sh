@@ -218,11 +218,11 @@ fi
 # Fallback to /tmp if OUTPUT_DIR is unset
 BASE_PATH="${OUTPUT_DIR:-/tmp}"
 mkdir -p "$BASE_PATH" || { 
-    log_error "Failed to create or access output directory: $BASE_PATH"; 
+    log_error "Failed to create or access output directory '$BASE_PATH'"; 
     exit 1 
 }
-OUTPUT_DIR=$(mktemp -d "$BASE_PATH/gcsfuse-e2e-run-XXXXXXXX") || {
-    log_error "Failed to create unique output directory in $BASE_PATH";
+OUTPUT_DIR=$(mktemp -d "${BASE_PATH%/}/gcsfuse-e2e-run-XXXXXXXX") || {
+    log_error "Failed to create unique output directory in '$BASE_PATH'";
     exit 1
 }
 log_info "Ouput directory for the e2e run is set to '$OUTPUT_DIR'"
