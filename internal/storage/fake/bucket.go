@@ -294,12 +294,13 @@ func (b *bucket) addFolderEntry(path string) {
 	// We need to add both "A" and "A/B/" as folder entries.
 	for i := range parts {
 		folder := gcs.Folder{Name: strings.Join(parts[:i+1], string(filepath.Separator)) + string(filepath.Separator)}
-		existingIndex := b.folders.find(folder.Name)
-		if existingIndex == len(b.folders) {
-			b.folders = append(b.folders, folder)
+		insertIndex := b.folders.lowerBound(folder.Name)
+		if insertIndex == len(b.folders) || b.folders[insertIndex].Name != folder.Name {
+			b.folders = append(b.folders, gcs.Folder{})
+			copy(b.folders[insertIndex+1:], b.folders[insertIndex:])
+			b.folders[insertIndex] = folder
 		}
 	}
-	sort.Sort(b.folders)
 }
 
 func preconditionChecks(b *bucket, req *gcs.CreateObjectRequest, contents []byte) (err error) {
@@ -395,8 +396,8 @@ func preconditionChecks(b *bucket, req *gcs.CreateObjectRequest, contents []byte
 func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents []byte, isAppend bool) (o *gcs.Object, err error) {
 	var fo fakeObject
 	// Replace an entry in or add an entry to our list of objects.
-	existingIndex := b.objects.find(req.Name)
-	if existingIndex < len(b.objects) {
+	insertIndex := b.objects.lowerBound(req.Name)
+	if insertIndex < len(b.objects) && b.objects[insertIndex].metadata.Name == req.Name {
 		var content []byte
 		if isAppend {
 			// If this is an append operation, then we will update the fake object with the appended content.
@@ -412,11 +413,12 @@ func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents 
 			content = contents
 		}
 		fo = b.mintObject(req, content)
-		b.objects[existingIndex] = fo
+		b.objects[insertIndex] = fo
 	} else {
 		fo = b.mintObject(req, contents)
-		b.objects = append(b.objects, fo)
-		sort.Sort(b.objects)
+		b.objects = append(b.objects, fakeObject{})
+		copy(b.objects[insertIndex+1:], b.objects[insertIndex:])
+		b.objects[insertIndex] = fo
 	}
 	o = copyObject(&fo.metadata)
 
@@ -709,6 +711,9 @@ func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObj
 }
 
 func (b *bucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	index := b.objects.find(req.Name)
 	if index != len(b.objects) {
 		obj := b.objects[index]
@@ -810,12 +815,13 @@ func (b *bucket) CopyObject(
 	dst.metadata.Generation = b.prevGeneration
 
 	// Insert into our array.
-	existingIndex := b.objects.find(req.DstName)
-	if existingIndex < len(b.objects) {
-		b.objects[existingIndex] = dst
+	insertIndex := b.objects.lowerBound(req.DstName)
+	if insertIndex < len(b.objects) && b.objects[insertIndex].metadata.Name == req.DstName {
+		b.objects[insertIndex] = dst
 	} else {
-		b.objects = append(b.objects, dst)
-		sort.Sort(b.objects)
+		b.objects = append(b.objects, fakeObject{})
+		copy(b.objects[insertIndex+1:], b.objects[insertIndex:])
+		b.objects[insertIndex] = dst
 	}
 
 	o = copyObject(&dst.metadata)
@@ -1054,6 +1060,9 @@ func (b *bucket) DeleteObject(
 }
 
 func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	// Check that the destination name is legal.
 	err := checkName(req.DstName)
 	if err != nil {
@@ -1101,12 +1110,13 @@ func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*g
 	// Remove the source object.
 	b.objects = append(b.objects[:srcIndex], b.objects[srcIndex+1:]...)
 	// Insert dest object into our array.
-	existingIndex := b.objects.find(req.DstName)
-	if existingIndex < len(b.objects) {
-		b.objects[existingIndex] = dst
+	insertIndex := b.objects.lowerBound(req.DstName)
+	if insertIndex < len(b.objects) && b.objects[insertIndex].metadata.Name == req.DstName {
+		b.objects[insertIndex] = dst
 	} else {
-		b.objects = append(b.objects, dst)
-		sort.Sort(b.objects)
+		b.objects = append(b.objects, fakeObject{})
+		copy(b.objects[insertIndex+1:], b.objects[insertIndex:])
+		b.objects[insertIndex] = dst
 	}
 
 	o := copyObject(&dst.metadata)
@@ -1169,17 +1179,18 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Fold
 	}
 
 	// Find any existing record for this name.
-	existingIndex := b.folders.find(folderName)
+	insertIndex := b.folders.lowerBound(folderName)
 
 	// Create a folder record from the given attributes.
 	fo := b.mintFolder(folderName)
 
 	// Replace an entry in or add an entry to our list of folders.
-	if existingIndex < len(b.folders) {
-		b.folders[existingIndex] = fo
+	if insertIndex < len(b.folders) && b.folders[insertIndex].Name == folderName {
+		b.folders[insertIndex] = fo
 	} else {
-		b.folders = append(b.folders, fo)
-		sort.Sort(b.folders)
+		b.folders = append(b.folders, gcs.Folder{})
+		copy(b.folders[insertIndex+1:], b.folders[insertIndex:])
+		b.folders[insertIndex] = fo
 	}
 
 	// In the hierarchical bucket, control client API creates folders  as well as
@@ -1187,24 +1198,28 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Fold
 	// entry needs to be created here as well.
 
 	// Find any existing record for this name.
-	existingObjectPrefixIndex := b.objects.find(folderName)
+	insertObjIndex := b.objects.lowerBound(folderName)
 
 	// Create a prefix object record from the given attributes.
 	var prefixObject fakeObject
 	prefixObject.metadata = gcs.Object{Name: folderName}
 
 	// Replace an entry in or add an entry to our list of objects.
-	if existingObjectPrefixIndex < len(b.objects) {
-		b.objects[existingObjectPrefixIndex] = prefixObject
+	if insertObjIndex < len(b.objects) && b.objects[insertObjIndex].metadata.Name == folderName {
+		b.objects[insertObjIndex] = prefixObject
 	} else {
-		b.objects = append(b.objects, prefixObject)
-		sort.Sort(b.objects)
+		b.objects = append(b.objects, fakeObject{})
+		copy(b.objects[insertObjIndex+1:], b.objects[insertObjIndex:])
+		b.objects[insertObjIndex] = prefixObject
 	}
 
 	return &fo, nil
 }
 
 func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	// Check that the destination name is legal.
 	err := checkName(destinationFolderId)
 	if err != nil {
@@ -1253,6 +1268,9 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 
 func (b *bucket) NewMultiRangeDownloader(
 	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (gcs.MultiRangeDownloader, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	index := b.objects.find(req.Name)
 	if index >= len(b.objects) || index < 0 {
 		return nil, &gcs.NotFoundError{Err: fmt.Errorf("not found object %s in fake-bucket", req.Name)}
