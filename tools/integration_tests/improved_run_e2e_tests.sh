@@ -62,7 +62,6 @@ readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=90 
-readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
@@ -219,7 +218,7 @@ fi
 # Fallback to /tmp if OUTPUT_DIR is unset
 BASE_PATH="${OUTPUT_DIR:-/tmp}"
 mkdir -p "$BASE_PATH" || { 
-    log_error "Failed to create or access base directory: $BASE_PATH"; 
+    log_error "Failed to create or access output directory: $BASE_PATH"; 
     exit 1 
 }
 OUTPUT_DIR=$(mktemp -d "$BASE_PATH/gcsfuse-e2e-run-XXXXXXXX") || {
