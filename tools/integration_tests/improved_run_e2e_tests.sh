@@ -285,43 +285,43 @@ CREATED_BUCKETS_LIST_FILE=$(create_file_helper "created_buckets_list.txt")
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  # "managed_folders"
-  # "operations"
+  "managed_folders"
+  "operations"
   "read_large_files"
-  # # "concurrent_operations"
+  "concurrent_operations"
   "read_cache"
-  # "list_large_dir"
-  # "mount_timeout"
-  # "write_large_files"
-  # "implicit_dir"
-  # "interrupt"
-  # "local_file"
+  "list_large_dir"
+  "mount_timeout"
+  "write_large_files"
+  "implicit_dir"
+  "interrupt"
+  "local_file"
   "readonly"
-  # "readonly_creds"
-  # "rename_dir_limit"
-  # "kernel_list_cache"
-  # "streaming_writes"
-  # "benchmarking"
-  # "explicit_dir"
-  # "gzip"
-  # "log_rotation"
-  # "monitoring"
-  # "mounting"
-  # "unsupported_path"
-  # # "grpc_validation"
-  # "negative_stat_cache"
-  # "stale_handle"
-  # "release_version"
-  # "readdirplus"
-  # "dentry_cache"
-  # "buffered_read"
-  # "flag_optimizations"
+  "readonly_creds"
+  "rename_dir_limit"
+  "kernel_list_cache"
+  "streaming_writes"
+  "benchmarking"
+  "explicit_dir"
+  "gzip"
+  "log_rotation"
+  "monitoring"
+  "mounting"
+  "unsupported_path"
+  # "grpc_validation"
+  "negative_stat_cache"
+  "stale_handle"
+  "release_version"
+  "readdirplus"
+  "dentry_cache"
+  "buffered_read"
+  "flag_optimizations"
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
@@ -638,11 +638,15 @@ test_package() {
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
     log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
-    cp --parents "$test_package_log_file" "${OUTPUT_DIR}/failed_package_logs/${bucket_type}/${package_name}.txt"
-  else
-    log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
-    cp --parents "$test_package_log_file" "${OUTPUT_DIR}/success_package_logs/${bucket_type}/${package_name}.txt"
-  fi
+    local dest_dir="${OUTPUT_DIR}/failed_package_logs/${bucket_type}"
+    mkdir -p "$dest_dir"
+    cp "$test_package_log_file" "$dest_dir/${package_name}.txt"
+else
+    log_info "Passed test package [$package_name]"
+    local dest_dir="${OUTPUT_DIR}/success_package_logs/${bucket_type}"
+    mkdir -p "$dest_dir"
+    cp "$test_package_log_file" "$dest_dir/${package_name}.txt"
+fi
   local end=$SECONDS
 
   # Add the package stats to the file.
