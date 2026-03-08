@@ -135,7 +135,7 @@ func (s *chunkCacheTest) TestReadSpanningTwoBlocks() {
 	content, err := operations.ReadChunkFromFile(path.Join(testEnv.testDirPath, testFileName), 1*util.MiB, 19.5*util.MiB, os.O_RDONLY|syscall.O_DIRECT)
 
 	require.NoError(s.T(), err)
-	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, 19.5*util.MiB, 1*util.MiB, string(content), s.T())
+	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, path.Base(testEnv.testDirPath), testFileName, 19.5*util.MiB, 1*util.MiB, string(content), s.T())
 	jobLogs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	require.NotEmpty(s.T(), jobLogs)
 	expectedDownloads := []data.ObjectRange{
@@ -178,7 +178,7 @@ func (s *chunkCacheTest) TestReadOfDeletedfile() {
 	// Read first chunk to ensure cache file is created and populated.
 	readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, 0, s.T())
 	// Delete the file from GCS to trigger a failure during the next download attempt.
-	_, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(path.Join(testDirName, testFileName))
+	_, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(path.Join(path.Base(testEnv.testDirPath), testFileName))
 	err := client.DeleteObjectOnGCS(s.ctx, s.storageClient, objectName)
 	require.NoError(s.T(), err)
 

@@ -17,6 +17,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -102,7 +103,7 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit() {
 func (s *readOnlyTest) TestReadFileSequentiallyLargerThanCacheCapacity() {
 	// Set up a file in test directory of size more than cache capacity.
 	fileName := setup.GenerateRandomString(7)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, fileName, largeFileSize, s.T())
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, path.Base(testEnv.testDirPath), fileName, largeFileSize, s.T())
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, fileName, true, zeroOffset, s.T())
@@ -118,7 +119,7 @@ func (s *readOnlyTest) TestReadFileSequentiallyLargerThanCacheCapacity() {
 func (s *readOnlyTest) TestReadFileRandomlyLargerThanCacheCapacity() {
 	// Set up a file in test directory of size more than cache capacity.
 	fileName := setup.GenerateRandomString(7)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, fileName, largeFileSize, s.T())
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, path.Base(testEnv.testDirPath), fileName, largeFileSize, s.T())
 
 	// Do a random read on file.
 	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, fileName, false, randomReadOffset, s.T())
@@ -132,7 +133,7 @@ func (s *readOnlyTest) TestReadFileRandomlyLargerThanCacheCapacity() {
 }
 
 func (s *readOnlyTest) TestReadMultipleFilesMoreThanCacheLimit() {
-	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesMoreThanCacheLimit, testFileName, fileSize, testDirName, s.T())
+	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesMoreThanCacheLimit, testFileName, fileSize, path.Base(testEnv.testDirPath), s.T())
 
 	expectedOutcome := readMultipleFiles(NumberOfFilesMoreThanCacheLimit, s.ctx, s.storageClient, fileNames, s.T())
 	expectedOutcome = append(expectedOutcome, readMultipleFiles(NumberOfFilesMoreThanCacheLimit, s.ctx, s.storageClient, fileNames, s.T())...)
@@ -144,7 +145,7 @@ func (s *readOnlyTest) TestReadMultipleFilesMoreThanCacheLimit() {
 }
 
 func (s *readOnlyTest) TestReadMultipleFilesWithinCacheLimit() {
-	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithinCacheLimit, testFileName, fileSize, testDirName, s.T())
+	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithinCacheLimit, testFileName, fileSize, path.Base(testEnv.testDirPath), s.T())
 
 	expectedOutcome := readMultipleFiles(NumberOfFilesWithinCacheLimit, s.ctx, s.storageClient, fileNames, s.T())
 	expectedOutcome = append(expectedOutcome, readMultipleFiles(NumberOfFilesWithinCacheLimit, s.ctx, s.storageClient, fileNames, s.T())...)

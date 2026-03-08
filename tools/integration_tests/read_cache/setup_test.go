@@ -298,10 +298,10 @@ func TestMain(m *testing.M) {
 		cfg.ReadCache[0].Configs[15].Run = "TestRemountTest"
 
 		cfg.ReadCache[0].Configs[16].Flags = []string{
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest.*/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest.*/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest.*/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest.*/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[16].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[16].Run = "TestCacheFileForIncludeRegexTest"
