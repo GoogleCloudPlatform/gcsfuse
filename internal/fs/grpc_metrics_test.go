@@ -38,6 +38,11 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 )
 
+const (
+	readObjectMethod  = "google.storage.v2.Storage/ReadObject"
+	writeObjectMethod = "google.storage.v2.Storage/WriteObject"
+)
+
 // mockGrpcBucket intercepts gcs.Bucket calls to artificially emit grpc metrics
 // based on standard otel grpc plugin behavior for unit testing framework testing purposes.
 type mockGrpcBucket struct {
@@ -59,21 +64,21 @@ func (m *mockGrpcBucket) emitGrpcMetric(ctx context.Context, method string, isFa
 }
 
 func (m *mockGrpcBucket) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
-	method := "google.storage.v2.Storage/ReadObject"
+	method := readObjectMethod
 	minObj, extAttr, err := m.Bucket.StatObject(ctx, req)
 	m.emitGrpcMetric(ctx, method, err != nil)
 	return minObj, extAttr, err
 }
 
 func (m *mockGrpcBucket) NewReaderWithReadHandle(ctx context.Context, req *gcs.ReadObjectRequest) (gcs.StorageReader, error) {
-	method := "google.storage.v2.Storage/ReadObject"
+	method := readObjectMethod
 	rd, err := m.Bucket.NewReaderWithReadHandle(ctx, req)
 	m.emitGrpcMetric(ctx, method, err != nil)
 	return rd, err
 }
 
 func (m *mockGrpcBucket) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (*gcs.Object, error) {
-	method := "google.storage.v2.Storage/WriteObject"
+	method := writeObjectMethod
 	obj, err := m.Bucket.CreateObject(ctx, req)
 	m.emitGrpcMetric(ctx, method, err != nil)
 	return obj, err
@@ -184,9 +189,9 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 	return bucket, server, mh, reader
 }
 
-// TestGrpcMetrics_ClientAttemptStarted tests the grpc_client_attempt_started metric.
-// We verify that the grpc_client_attempt_started with grpc_method attribute is incremented upon LookUpInode.
-func TestGrpcMetrics_ClientAttemptStarted(t *testing.T) {
+// TestGrpcMetrics_LookUpInode tests multiple gRPC metrics emitted during a LookUpInode operation.
+// We verify that grpc_client_attempt_started, grpc_client_call_duration, and grpc_lb_rls_default_target_picks are recorded.
+func TestGrpcMetrics_LookUpInode(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 
@@ -205,63 +210,26 @@ func TestGrpcMetrics_ClientAttemptStarted(t *testing.T) {
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
-	// 3 started attempts due to LookUpInode making StatObject calls (1 dir check + 1 file check + 1 attribute refresh)
-	metrics.VerifyCounterMetric(t, ctx, reader, "grpc_client_attempt_started",
-		attribute.NewSet(attribute.String("grpc_method", "google.storage.v2.Storage/ReadObject")),
-		3)
-}
+	t.Run("grpc_client_attempt_started", func(t *testing.T) {
+		// 3 started attempts due to LookUpInode making StatObject calls (1 dir check + 1 file check + 1 attribute refresh)
+		metrics.VerifyCounterMetric(t, ctx, reader, "grpc_client_attempt_started",
+			attribute.NewSet(attribute.String("grpc_method", readObjectMethod)),
+			3)
+	})
 
-// TestGrpcMetrics_ClientCallDuration tests the grpc_client_call_duration metric.
-// We verify that the grpc_client_call_duration histogram records an event upon a read operation.
-func TestGrpcMetrics_ClientCallDuration(t *testing.T) {
-	ctx := context.Background()
-	params := defaultServerConfigParams()
+	t.Run("grpc_client_call_duration", func(t *testing.T) {
+		// 3 histogram records
+		metrics.VerifyHistogramMetric(t, ctx, reader, "grpc_client_call_duration",
+			attribute.NewSet(attribute.String("grpc_method", readObjectMethod)),
+			3)
+	})
 
-	bucket, server, mh, reader := createTestFileSystemWithGrpcMetrics(ctx, t, params)
-	server = wrappers.WithMonitoring(server, mh)
-
-	fileName := "test.txt"
-	createWithContents(ctx, t, bucket, fileName, "test content")
-
-	lookupOp := &fuseops.LookUpInodeOp{
-		Parent: fuseops.RootInodeID,
-		Name:   fileName,
-	}
-
-	err := server.LookUpInode(ctx, lookupOp)
-	require.NoError(t, err)
-	waitForMetricsProcessing()
-
-	// 3 histogram records
-	metrics.VerifyHistogramMetric(t, ctx, reader, "grpc_client_call_duration",
-		attribute.NewSet(attribute.String("grpc_method", "google.storage.v2.Storage/ReadObject")),
-		3)
-}
-
-// TestGrpcMetrics_LbRlsDefaultTargetPicks tests the grpc_lb_rls_default_target_picks metric.
-func TestGrpcMetrics_LbRlsDefaultTargetPicks(t *testing.T) {
-	ctx := context.Background()
-	params := defaultServerConfigParams()
-
-	bucket, server, mh, reader := createTestFileSystemWithGrpcMetrics(ctx, t, params)
-	server = wrappers.WithMonitoring(server, mh)
-
-	fileName := "test.txt"
-	createWithContents(ctx, t, bucket, fileName, "test content")
-
-	lookupOp := &fuseops.LookUpInodeOp{
-		Parent: fuseops.RootInodeID,
-		Name:   fileName,
-	}
-
-	err := server.LookUpInode(ctx, lookupOp)
-	require.NoError(t, err)
-	waitForMetricsProcessing()
-
-	// 3 default component picks
-	metrics.VerifyCounterMetric(t, ctx, reader, "grpc_lb_rls_default_target_picks",
-		attribute.NewSet(attribute.String("grpc_method", "google.storage.v2.Storage/ReadObject")),
-		3)
+	t.Run("grpc_lb_rls_default_target_picks", func(t *testing.T) {
+		// 3 default component picks
+		metrics.VerifyCounterMetric(t, ctx, reader, "grpc_lb_rls_default_target_picks",
+			attribute.NewSet(attribute.String("grpc_method", readObjectMethod)),
+			3)
+	})
 }
 
 // TestGrpcMetrics_LbRlsFailedPicks tests the grpc_lb_rls_failed_picks metric.
@@ -280,13 +248,14 @@ func TestGrpcMetrics_LbRlsFailedPicks(t *testing.T) {
 	}
 
 	// This operation is expected to fail or hit fallback
-	_ = server.LookUpInode(ctx, lookupOp)
+	err := server.LookUpInode(ctx, lookupOp)
+	require.Error(t, err)
 	waitForMetricsProcessing()
 
 	// LookUpInode on a non-existent file triggers a failed StatObject for directory prefix, then a failed StatObject for the file itself.
 	// Therefore, we get 2 failures.
 	metrics.VerifyCounterMetric(t, ctx, reader, "grpc_lb_rls_failed_picks",
-		attribute.NewSet(attribute.String("grpc_method", "google.storage.v2.Storage/ReadObject")),
+		attribute.NewSet(attribute.String("grpc_method", readObjectMethod)),
 		2)
 }
 
@@ -330,7 +299,7 @@ func TestGrpcMetrics_FileCache_Read(t *testing.T) {
 	// For a cache miss download, NewReaderWithReadHandle is triggered which contributes to grpc metrics.
 	// 3 for Stat (LookUp) + 1 for NewReader
 	metrics.VerifyCounterMetric(t, ctx, reader, "grpc_client_attempt_started",
-		attribute.NewSet(attribute.String("grpc_method", "google.storage.v2.Storage/ReadObject")),
+		attribute.NewSet(attribute.String("grpc_method", readObjectMethod)),
 		4)
 }
 
@@ -364,6 +333,6 @@ func TestGrpcMetrics_CreateObject(t *testing.T) {
 
 	// 1 for WriteObject
 	metrics.VerifyCounterMetric(t, ctx, reader, "grpc_client_attempt_started",
-		attribute.NewSet(attribute.String("grpc_method", "google.storage.v2.Storage/WriteObject")),
+		attribute.NewSet(attribute.String("grpc_method", writeObjectMethod)),
 		1)
 }
