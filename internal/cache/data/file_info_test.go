@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const TestDataFileSize uint64 = 23
@@ -42,9 +41,10 @@ func TestKeyMethod(t *testing.T) {
 	fik := getTestFileInfoKey()
 
 	key, err := fik.Key()
-	require.Equal(t, nil, err)
 
-	assert.Equal(t, ExpectedFileInfoKey, key)
+	assert.NoError(t, err)
+	unixCreationTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
+	assert.Equal(t, fik.BucketName+unixCreationTimeString+fik.ObjectName, key)
 }
 
 func TestKeyMethodWithEmptyBucketName(t *testing.T) {
@@ -52,19 +52,9 @@ func TestKeyMethodWithEmptyBucketName(t *testing.T) {
 	fik.BucketName = ""
 
 	key, err := fik.Key()
-	require.Equal(t, InvalidKeyAttributes, err.Error())
 
+	assert.Equal(t, InvalidKeyAttributes, err.Error())
 	assert.Equal(t, "", key)
-}
-
-func TestKeyMethodWithZeroBucketCreationTime(t *testing.T) {
-	fik := getTestFileInfoKey()
-
-	key, err := fik.Key()
-
-	assert.Equal(t, nil, err)
-	unixCreationTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
-	assert.Equal(t, fik.BucketName+unixCreationTimeString+fik.ObjectName, key)
 }
 
 func TestKeyMethodWithEmptyObjectName(t *testing.T) {
@@ -72,8 +62,8 @@ func TestKeyMethodWithEmptyObjectName(t *testing.T) {
 	fik.ObjectName = ""
 
 	key, err := fik.Key()
-	require.Equal(t, InvalidKeyAttributes, err.Error())
 
+	assert.Equal(t, InvalidKeyAttributes, err.Error())
 	assert.Equal(t, "", key)
 }
 
