@@ -100,10 +100,22 @@ func (bm *fakeGrpcBucketManager) SetUpBucket(
 		return sb, err
 	}
 
-	started, _ := bm.meter.Int64Counter("grpc_client_attempt_started")
-	callDur, _ := bm.meter.Int64Histogram("grpc_client_call_duration")
-	defaultPicks, _ := bm.meter.Int64Counter("grpc_lb_rls_default_target_picks")
-	failedPicks, _ := bm.meter.Int64Counter("grpc_lb_rls_failed_picks")
+	started, err := bm.meter.Int64Counter("grpc_client_attempt_started")
+	if err != nil {
+		return sb, fmt.Errorf("failed to create metric: %w", err)
+	}
+	callDur, err := bm.meter.Int64Histogram("grpc_client_call_duration")
+	if err != nil {
+		return sb, fmt.Errorf("failed to create metric: %w", err)
+	}
+	defaultPicks, err := bm.meter.Int64Counter("grpc_lb_rls_default_target_picks")
+	if err != nil {
+		return sb, fmt.Errorf("failed to create metric: %w", err)
+	}
+	failedPicks, err := bm.meter.Int64Counter("grpc_lb_rls_failed_picks")
+	if err != nil {
+		return sb, fmt.Errorf("failed to create metric: %w", err)
+	}
 
 	mockGrpcBkt := &mockGrpcBucket{
 		Bucket:       bucket,
