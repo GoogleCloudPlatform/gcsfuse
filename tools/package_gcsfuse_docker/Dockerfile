@@ -42,7 +42,7 @@
 #   - /packages/gcsfuse_{VERSION}_{ARCH}.deb
 #   - /packages/gcsfuse-{VERSION}-1.x86_64.rpm (or aarch64 for arm64)
 
-FROM golang:1.24.5 as builder
+FROM golang:1.26.1 as builder
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential && gem install --no-document bundler -v "2.4.12"
 RUN apt-get install -y rpm wget
