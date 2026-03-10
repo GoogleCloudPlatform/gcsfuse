@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -215,7 +216,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_SuccessOnFirstAttempt()
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.NoError(t.T(), err)
@@ -236,7 +237,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_SuccessAfterRetry() {
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.NoError(t.T(), err)
@@ -254,7 +255,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_FailureOnNonRetryableEr
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, nonRetryableErr)
@@ -276,7 +277,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RetryableThenNonRetryab
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, nonRetryableErr)
@@ -302,7 +303,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	}
 
 	// Act
-	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "Expected context.DeadlineExceeded because each attempt is designed to "+
@@ -322,7 +323,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 	}
 
 	// Act
-	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the total retry budget timeout")
@@ -353,7 +354,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutSho
 	// The parent context will be checked within ExecuteWithRetry before the first attempt,
 	// but the attempt will still proceed. The attempt's context will expire
 	// due to the parent's timeout.
-	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the parent context's timeout")
@@ -380,7 +381,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBet
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the parent context's timeout")
@@ -403,7 +404,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutLon
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from context created in ExecuteWithRetry")
@@ -421,7 +422,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCan
 	}
 
 	// Act
-	_, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+	_, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall, logger.LevelTrace)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.Canceled)

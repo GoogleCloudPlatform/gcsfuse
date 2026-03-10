@@ -233,7 +233,10 @@ var logFHandlers = map[slog.Level]logFunc{
 }
 
 func GetLogFHandler(level slog.Level) logFunc {
-	return logFHandlers[level]
+	if fn, ok := logFHandlers[level]; ok {
+		return fn
+	}
+	panic(fmt.Sprintf("logger: unsupported log level: %v", level))
 }
 
 // Fatal prints an error log and exits with non-zero exit code.
