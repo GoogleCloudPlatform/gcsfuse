@@ -143,10 +143,8 @@ func ExecuteWithRetry[T any](
 
 		if i == 0 {
 			logger.GetLogFHandler(logLevel)("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
-			// logger.Tracef("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
 		} else {
 			logger.GetLogFHandler(logLevel)("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
-			// logger.Tracef("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
 		}
 
 		result, err := apiCall(attemptCtx)
