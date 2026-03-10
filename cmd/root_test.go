@@ -2067,7 +2067,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	}
 }
 
-func TestArgParsing_GCSRetriesChunkTransferTimeout(t *testing.T) {
+func TestArgParsing_GCSRetries(t *testing.T) {
 	tests := []struct {
 		name           string
 		args           []string
@@ -2094,32 +2094,6 @@ func TestArgParsing_GCSRetriesChunkTransferTimeout(t *testing.T) {
 				},
 			},
 		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
-				gotConfig = mountInfo.config
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig.GcsRetries, gotConfig.GcsRetries)
-			}
-		})
-	}
-}
-
-func TestArgParsing_GCSRetriesChunkRetryDeadline(t *testing.T) {
-	tests := []struct {
-		name           string
-		args           []string
-		expectedConfig *cfg.Config
-	}{
 		{
 			name: "Test with non default chunkRetryDeadline",
 			args: []string{"gcsfuse", "--chunk-retry-deadline-secs=360", "abc", "pqr"},
