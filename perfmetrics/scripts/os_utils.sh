@@ -71,7 +71,7 @@ install_packages_by_os() {
     rhel|centos|fedora|almalinux|rocky)
       # Map package names for RHEL if necessary
       local rhel_pkgs=()
-      local install_crcmod=false # Installation of crcmod is working through pip only on rhel and centos.
+local install_crcmod=false # Installation of crcmod is working through pip only on rhel, centos, fedora, almalinux and rocky.
       for pkg in "${pkgs[@]}"; do
         if [[ "$pkg" == "python3-dev" ]]; then
           rhel_pkgs+=("python3-devel")
