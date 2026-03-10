@@ -681,14 +681,23 @@ params:
     usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported"
     default: "200"
 
+  - config-path: "gcs-retries.chunk-retry-deadline-secs"
+    flag-name: "chunk-retry-deadline-secs"
+    type: "int"
+    usage: >-
+      We send larger file uploads in 16 MiB (Legacy Writes) or 32MiB (Streaming Writes) chunks. This flag controls the overall duration
+      that GCSFuse would keep retrying for a single chunk upload completion. 0 means infinity duration for chunk retries.
+    default: "120"
+    hide-flag: true
+
   - config-path: "gcs-retries.chunk-transfer-timeout-secs"
     flag-name: "chunk-transfer-timeout-secs"
     type: "int"
     usage: >-
-      We send larger file uploads in 16 MiB chunks. This flag controls the duration
+      We send larger file uploads in 16 MiB (Legacy Writes) or 32MiB (Streaming Writes) chunks. This flag controls the duration
       that the HTTP client will wait for a response after making a request to upload a chunk.
       As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion;
-      otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
+      otherwise, it cancels the request and retries for that chunk till chunk retry deadline duration. 0 means no timeout.
     default: "10"
     hide-flag: true
 

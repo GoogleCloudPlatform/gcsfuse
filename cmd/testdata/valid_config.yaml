@@ -44,6 +44,7 @@ gcs-connection:
   max-idle-conns-per-host: 20
   sequential-read-size-mb: 450
 gcs-retries:
+  chunk-retry-deadline-secs: 180
   chunk-transfer-timeout-secs: 20
   read-stall:
     enable: false

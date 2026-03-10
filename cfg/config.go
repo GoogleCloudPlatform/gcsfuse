@@ -588,6 +588,8 @@ type GcsConnectionConfig struct {
 }
 
 type GcsRetriesConfig struct {
+	ChunkRetryDeadlineSecs int64 `yaml:"chunk-retry-deadline-secs"`
+
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
@@ -741,7 +743,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
-	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration that the HTTP client will wait for a response after making a request to upload a chunk. As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
+	flagSet.IntP("chunk-retry-deadline-secs", "", 120, "We send larger file uploads in 16 MiB (Legacy Writes) or 32MiB (Streaming Writes) chunks. This flag controls the overall duration that GCSFuse would keep retrying for a single chunk upload completion. 0 means infinity duration for chunk retries.")
+
+	if err := flagSet.MarkHidden("chunk-retry-deadline-secs"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB (Legacy Writes) or 32MiB (Streaming Writes) chunks. This flag controls the duration that the HTTP client will wait for a response after making a request to upload a chunk. As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; otherwise, it cancels the request and retries for that chunk till chunk retry deadline duration. 0 means no timeout.")
 
 	if err := flagSet.MarkHidden("chunk-transfer-timeout-secs"); err != nil {
 		return err
@@ -1381,6 +1389,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cache-dir", flagSet.Lookup("cache-dir")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.chunk-retry-deadline-secs", flagSet.Lookup("chunk-retry-deadline-secs")); err != nil {
 		return err
 	}
 

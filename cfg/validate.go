@@ -253,6 +253,13 @@ func isValidMonitoringConfig(m *MonitoringConfig) error {
 	return nil
 }
 
+func isValidChunkRetryDeadlineForRetriesConfig(chunkRetryDeadlineSecs int64) error {
+	if chunkRetryDeadlineSecs < 0 || chunkRetryDeadlineSecs > maxSupportedTTLInSeconds {
+		return fmt.Errorf("invalid value of ChunkRetryDeadline: %d; should be > 0 or 0 (for infinite)", chunkRetryDeadlineSecs)
+	}
+	return nil
+}
+
 func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64) error {
 	if chunkTransferTimeoutSecs < 0 || chunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
 		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", chunkTransferTimeoutSecs)
@@ -352,6 +359,10 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 
 	if err = isValidReadStallGcsRetriesConfig(&config.GcsRetries.ReadStall); err != nil {
 		return fmt.Errorf("error parsing read-stall-gcs-retries config: %w", err)
+	}
+
+	if err = isValidChunkRetryDeadlineForRetriesConfig(config.GcsRetries.ChunkRetryDeadlineSecs); err != nil {
+		return fmt.Errorf("error parsing chunk-retry-deadline-secs config: %w", err)
 	}
 
 	if err = isValidChunkTransferTimeoutForRetriesConfig(config.GcsRetries.ChunkTransferTimeoutSecs); err != nil {
