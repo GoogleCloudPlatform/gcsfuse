@@ -108,7 +108,7 @@ func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *
 
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running dynamic mounting tests...")
-	successCode = executeTestsForDynamicMounting(config, flagsSet, m)
 	log.Printf("GCSFuse Log File for test: %s\n", config.LogFile)
+	successCode = executeTestsForDynamicMounting(config, flagsSet, m)
 	return successCode
 }
