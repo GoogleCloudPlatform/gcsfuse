@@ -118,10 +118,7 @@ func RunTests(flags [][]string, dirName string, m *testing.M) (successCode int) 
 
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, dirName string, m *testing.M) (successCode int) {
 	log.Println("Running only dir mounting tests...")
-
 	successCode = executeTestsForOnlyDirMounting(config, flagsSet, dirName, m)
-
-	log.Printf("Test log: %s\n", setup.LogFile())
-
+	log.Printf("GCSFuse Log File for test: %s\n", config.LogFile)
 	return successCode
 }
