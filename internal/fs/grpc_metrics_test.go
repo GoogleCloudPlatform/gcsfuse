@@ -341,6 +341,7 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 
 	// Bypass the protobuf registration conflict panic.
 	_ = os.Setenv("GOLANG_PROTOBUF_REGISTRATION_CONFLICT", "ignore")
+	_ = os.Setenv("GOOGLE_CLOUD_PROJECT", "test-project")
 
 	// Start fake gRPC server
 	lis, err := net.Listen("tcp", "localhost:0")
