@@ -15,7 +15,7 @@
 
 set -e
 echo "Step 1: Container started. Updating apt and installing dependencies..."
-apt-get update && apt-get install -y wget git build-essential ca-certificates
+apt-get update && apt-get install -y wget git build-essential ca-certificates sudo
 
 echo "Step 2: Cloning GCSFuse repo..."
 git clone -b "$GCSFUSE_BRANCH" https://github.com/GoogleCloudPlatform/gcsfuse.git
@@ -26,10 +26,9 @@ if [[ ! "$GO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "Error: Invalid Go version format in .go-version"
     exit 1
 fi
-echo "Step 3: Installing Go $GO_VERSION ..."
-wget -q https://go.dev/dl/go$GO_VERSION.linux-amd64.tar.gz
-rm -rf /usr/local/go && tar -C /usr/local -xzf go$GO_VERSION.linux-amd64.tar.gz
-export PATH=$PATH:/usr/local/go/bin
+echo "Step 3: Installing Go..."
+./perfmetrics/scripts/install_go.sh "$GO_VERSION"
+export PATH="/usr/local/go/bin:$PATH"
 echo "Go version installed:"
 go version
 
