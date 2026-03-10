@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -356,6 +357,24 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 		grpcServer.Stop()
 	})
 
+	// Start fake metadata server to provide project ID for gRPC metrics
+	metadataLis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/computeMetadata/v1/project/project-id", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Metadata-Flavor", "Google")
+		_, _ = w.Write([]byte("test-project"))
+	})
+	metadataServer := &http.Server{Handler: mux}
+	go func() {
+		_ = metadataServer.Serve(metadataLis)
+	}()
+	t.Cleanup(func() {
+		_ = metadataServer.Close()
+	})
+	_ = os.Setenv("GCE_METADATA_HOST", metadataLis.Addr().String())
+	t.Cleanup(func() { _ = os.Unsetenv("GCE_METADATA_HOST") })
+
 	origProvider := otel.GetMeterProvider()
 	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
 	reader := metric.NewManualReader()
@@ -376,6 +395,12 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 
 	sh, err := storage.NewStorageHandle(ctx, clientConfig, "")
 	require.NoError(t, err)
+
+	// Poke the storage client to trigger internal DirectPath checks with a short timeout.
+	// This prevents the subsequent real operations from hanging for 60s.
+	shortCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	_, _ = sh.BucketHandle(shortCtx, "test-bucket", "", false)
+	cancel()
 
 	bucketName := "test-bucket"
 	bucketConfig := gcsx.BucketConfig{
