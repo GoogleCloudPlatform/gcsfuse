@@ -255,14 +255,14 @@ func isValidMonitoringConfig(m *MonitoringConfig) error {
 
 func isValidChunkRetryDeadlineForRetriesConfig(chunkRetryDeadlineSecs int64) error {
 	if chunkRetryDeadlineSecs < 0 || chunkRetryDeadlineSecs > maxSupportedTTLInSeconds {
-		return fmt.Errorf("invalid value of ChunkRetryDeadline: %d; should be > 0 or 0 (for infinite)", chunkRetryDeadlineSecs)
+		return fmt.Errorf("invalid value of ChunkRetryDeadline: %d; should be >= 0 (0 for infinite)", chunkRetryDeadlineSecs)
 	}
 	return nil
 }
 
 func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64) error {
 	if chunkTransferTimeoutSecs < 0 || chunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
-		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", chunkTransferTimeoutSecs)
+		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be >= 0 (0 for infinite)", chunkTransferTimeoutSecs)
 	}
 	return nil
 }

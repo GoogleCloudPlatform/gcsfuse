@@ -302,7 +302,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			},
 		},
 		{
-			name: "valid_chunk_chunk_retry_deadline_secs",
+			name: "valid_chunk_retry_deadline_secs",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),

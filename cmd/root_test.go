@@ -2114,7 +2114,7 @@ func TestArgParsing_GCSRetriesChunkTransferTimeout(t *testing.T) {
 	}
 }
 
-func TestArgParsing_GCSRetriesChunkRetryDeadlin(t *testing.T) {
+func TestArgParsing_GCSRetriesChunkRetryDeadline(t *testing.T) {
 	tests := []struct {
 		name           string
 		args           []string
