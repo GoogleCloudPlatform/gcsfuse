@@ -277,7 +277,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 				}
 			}
 		} else {
-			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
+			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
 		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
