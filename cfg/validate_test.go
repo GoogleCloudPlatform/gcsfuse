@@ -302,6 +302,28 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			},
 		},
 		{
+			name: "valid_chunk_retry_deadline_secs",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
+				GcsRetries: GcsRetriesConfig{ChunkRetryDeadlineSecs: 60},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
+			},
+		},
+		{
 			name: "valid_chunk_transfer_timeout_secs",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
@@ -526,6 +548,19 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfigWithIncludeRegex(t, "["),
+			},
+		},
+		{
+			name: "chunk_retry_deadline_secs_in_negative",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ChunkRetryDeadlineSecs: -10,
+				},
 			},
 		},
 		{

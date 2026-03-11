@@ -2078,7 +2078,29 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 			args: []string{"gcsfuse", "--chunk-transfer-timeout-secs=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 30,
+					MaxRetryAttempts:         0,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
+						MinReqTimeout:       1500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
+					},
+				},
+			},
+		},
+		{
+			name: "Test with non default chunkRetryDeadline",
+			args: []string{"gcsfuse", "--chunk-retry-deadline-secs=360", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   360,
+					ChunkTransferTimeoutSecs: 10,
 					MaxRetryAttempts:         0,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
