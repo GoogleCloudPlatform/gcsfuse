@@ -1772,6 +1772,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				CloudMetricsExportIntervalSecs: 10,
 				Workers:                        3,
 				BufferSize:                     256,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 		{
@@ -1782,6 +1783,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				StackdriverExportInterval:      time.Duration(10) * time.Hour,
 				Workers:                        3,
 				BufferSize:                     256,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 		{
@@ -1791,6 +1793,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				UseNewNames: true,
 				Workers:     3,
 				BufferSize:  256,
+				ExperimentalEnableGrpcMetrics: true,
 			},
 		},
 		{
@@ -1799,6 +1802,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			expected: &cfg.MetricsConfig{
 				Workers:    10,
 				BufferSize: 256,
+				ExperimentalEnableGrpcMetrics: true,
 			},
 		},
 		{
@@ -1807,6 +1811,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			expected: &cfg.MetricsConfig{
 				Workers:    3,
 				BufferSize: 1024,
+				ExperimentalEnableGrpcMetrics: true,
 			},
 		},
 		{
@@ -1847,12 +1852,12 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		{
 			name:     "default",
 			cfgFile:  "empty.yml",
-			expected: &cfg.MetricsConfig{Workers: 3, BufferSize: 256},
+			expected: &cfg.MetricsConfig{Workers: 3, BufferSize: 256, ExperimentalEnableGrpcMetrics: true},
 		},
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, Workers: 3, BufferSize: 256},
+			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, Workers: 3, BufferSize: 256, ExperimentalEnableGrpcMetrics: true},
 		},
 		{
 			name:    "stackdriver-export-interval-positive",
@@ -1862,6 +1867,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 				StackdriverExportInterval:      12 * time.Hour,
 				Workers:                        3,
 				BufferSize:                     256,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 	}
