@@ -969,7 +969,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-enable-grpc-metrics", "", false, "Enables support for gRPC metrics")
+	flagSet.BoolP("experimental-enable-grpc-metrics", "", true, "Enables support for gRPC metrics")
 
 	if err := flagSet.MarkHidden("experimental-enable-grpc-metrics"); err != nil {
 		return err
