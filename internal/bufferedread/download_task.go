@@ -58,7 +58,6 @@ func (p *downloadTask) Execute() {
 	stime := time.Now()
 	var err error
 	var n int64
-
 	defer func() {
 		dur := time.Since(stime)
 		if err == nil {

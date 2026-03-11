@@ -341,9 +341,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		entry := p.blockQueue.Peek()
 		blk := entry.block
 
-		fetchCtx, span := p.traceHandle.StartSpan(ctx, tracing.WaitForPrefetchBlock)
-		status, waitErr := blk.AwaitReady(fetchCtx)
-		p.traceHandle.EndSpan(span)
+		status, waitErr := blk.AwaitReady(ctx)
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
@@ -365,9 +363,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 		relOff := readOffset - blk.AbsStartOff()
 		bytesToRead := len(req.Buffer) - bytesRead
-		_, span = p.traceHandle.StartSpan(ctx, tracing.ReadFromPrefetchBlock)
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
-		p.traceHandle.EndSpan(span)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen
 		readOffset += int64(sliceLen)
