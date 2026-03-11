@@ -1030,7 +1030,7 @@ params:
     flag-name: "experimental-enable-grpc-metrics"
     type: "bool"
     usage: "Enables support for gRPC metrics"
-    default: false
+    default: true
     hide-flag: true
 
   - config-path: "metrics.prometheus-port"
