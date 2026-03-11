@@ -157,6 +157,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
 		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
 		ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
+		ImpersonateServiceAccount:  newConfig.GcsAuth.ImpersonateServiceAccount,
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
 		GrpcPathStrategy:           newConfig.GcsConnection.GrpcPathStrategy,

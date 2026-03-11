@@ -1255,3 +1255,67 @@ func TestValidateProfile(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateImpersonateServiceAccount(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name    string
+		auth    GcsAuthConfig
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "empty_impersonate_sa_is_valid",
+			auth:    GcsAuthConfig{},
+			wantErr: false,
+		},
+		{
+			name: "valid_impersonate_sa_email",
+			auth: GcsAuthConfig{
+				ImpersonateServiceAccount: "sa-a@project.iam.gserviceaccount.com",
+			},
+			wantErr: false,
+		},
+		{
+			name: "impersonate_with_anonymous_access",
+			auth: GcsAuthConfig{
+				AnonymousAccess:           true,
+				ImpersonateServiceAccount: "sa-a@project.iam.gserviceaccount.com",
+			},
+			wantErr: true,
+			errMsg:  ImpersonateWithAnonymousError,
+		},
+		{
+			name: "impersonate_invalid_email_no_at",
+			auth: GcsAuthConfig{
+				ImpersonateServiceAccount: "invalid-email",
+			},
+			wantErr: true,
+			errMsg:  ImpersonateInvalidEmailError,
+		},
+		{
+			name: "impersonate_invalid_email_no_dot",
+			auth: GcsAuthConfig{
+				ImpersonateServiceAccount: "user@nodot",
+			},
+			wantErr: true,
+			errMsg:  ImpersonateInvalidEmailError,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := validConfig(t)
+			c.GcsAuth = tc.auth
+
+			err := ValidateConfig(viper.New(), &c)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

@@ -35,6 +35,8 @@ const (
 	ProfileAIMLTraining                       = "aiml-training"
 	ProfileAIMLServing                        = "aiml-serving"
 	ProfileAIMLCheckpointing                  = "aiml-checkpointing"
+	ImpersonateWithAnonymousError             = "impersonate-service-account cannot be used with anonymous-access"
+	ImpersonateInvalidEmailError              = "impersonate-service-account must be a valid service account email address"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -43,6 +45,21 @@ func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
 	}
 	if config.BackupFileCount < 0 {
 		return fmt.Errorf("backup-file-count should be 0 (to retain all backup files) or a positive value")
+	}
+	return nil
+}
+
+func isValidImpersonateServiceAccount(authConfig *GcsAuthConfig) error {
+	if authConfig.ImpersonateServiceAccount == "" {
+		return nil
+	}
+	if authConfig.AnonymousAccess {
+		return errors.New(ImpersonateWithAnonymousError)
+	}
+	// Validate service account email format: must contain @ and end with .iam.gserviceaccount.com or similar.
+	saEmail := authConfig.ImpersonateServiceAccount
+	if !strings.Contains(saEmail, "@") || !strings.Contains(saEmail, ".") {
+		return errors.New(ImpersonateInvalidEmailError)
 	}
 	return nil
 }
@@ -339,6 +356,10 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 
 	if err = isValidURL(config.GcsAuth.TokenUrl); err != nil {
 		return fmt.Errorf("error parsing token-url config: %w", err)
+	}
+
+	if err = isValidImpersonateServiceAccount(&config.GcsAuth); err != nil {
+		return fmt.Errorf("error parsing impersonate-service-account config: %w", err)
 	}
 
 	if err = isValidSequentialReadSizeMB(config.GcsConnection.SequentialReadSizeMb); err != nil {

@@ -23,7 +23,9 @@ import (
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/impersonate"
 	"google.golang.org/api/option"
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
 // GetClientAuthOptionsAndToken returns client options and a token source using either a token URL or fallback to key file/ADC.
@@ -33,6 +35,14 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		tokenSrc, err := auth2.NewTokenSourceFromURL(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
 		if err != nil {
 			return nil, nil, fmt.Errorf("while fetching token source: %w", err)
+		}
+
+		// Wrap with impersonation if requested.
+		if config.ImpersonateServiceAccount != "" {
+			tokenSrc, err = wrapWithImpersonation(ctx, config.ImpersonateServiceAccount)
+			if err != nil {
+				return nil, nil, fmt.Errorf("while impersonating service account: %w", err)
+			}
 		}
 
 		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
@@ -46,6 +56,16 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	}
 
 	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
+
+	// Wrap with impersonation if requested.
+	if config.ImpersonateServiceAccount != "" {
+		tokenSrc, err = wrapWithImpersonation(ctx, config.ImpersonateServiceAccount)
+		if err != nil {
+			return nil, nil, fmt.Errorf("while impersonating service account: %w", err)
+		}
+		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
+		return clientOpts, tokenSrc, nil
+	}
 
 	retryConfig := NewRetryConfig(config, DefaultRetryDeadline, DefaultTotalRetryBudget, DefaultInitialBackoff)
 
@@ -72,4 +92,18 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	clientOpts := []option.ClientOption{option.WithUniverseDomain(domain), option.WithAuthCredentials(newCreds)}
 
 	return clientOpts, tokenSrc, nil
+}
+
+// wrapWithImpersonation returns a token source that impersonates the given
+// service account. It uses the ambient credentials (ADC, metadata server, etc.)
+// to obtain short-lived access tokens for the target SA via the IAM Credentials API.
+func wrapWithImpersonation(ctx context.Context, targetServiceAccount string) (oauth2.TokenSource, error) {
+	ts, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
+		TargetPrincipal: targetServiceAccount,
+		Scopes:          []string{storagev1.DevstorageFullControlScope},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("impersonate.CredentialsTokenSource(%s): %w", targetServiceAccount, err)
+	}
+	return ts, nil
 }
