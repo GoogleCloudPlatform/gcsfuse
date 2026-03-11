@@ -140,9 +140,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// the file, capped by the configured minimum.
 	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
 	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
-	_, span := opts.TraceHandle.StartSpan(context.Background(), tracing.ReadPrefetchBlockPoolGen)
 	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
-	opts.TraceHandle.EndSpan(span)
 	if err != nil {
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
@@ -332,7 +330,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		p.prepareQueueForOffset(readOffset)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(ctx, readOffset); err != nil {
+			if err = p.freshStart(readOffset); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, p.handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
@@ -396,7 +394,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
-				if pfErr := p.prefetch(ctx); pfErr != nil {
+				if pfErr := p.prefetch(); pfErr != nil {
 					logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
 				}
 			}
@@ -433,7 +431,7 @@ func (p *BufferedReader) callback(entries []*blockQueueEntry) {
 // prefetch schedules the next set of blocks for prefetching starting from
 // the nextBlockIndexToPrefetch.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) prefetch(ctx context.Context) error {
+func (p *BufferedReader) prefetch() error {
 	// Determine the number of blocks to prefetch in this cycle, respecting the
 	// MaxPrefetchBlockCnt and the number of blocks remaining in the file.
 	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
@@ -449,7 +447,7 @@ func (p *BufferedReader) prefetch(ctx context.Context) error {
 
 	allBlocksScheduledSuccessfully := true
 	for range blockCountToPrefetch {
-		if err := p.scheduleNextBlock(ctx, false); err != nil {
+		if err := p.scheduleNextBlock(false); err != nil {
 			if errors.Is(err, ErrPrefetchBlockNotAvailable) {
 				// This is not a critical error for a background prefetch. We just stop
 				// trying to prefetch more in this cycle. The specific reason has
@@ -480,7 +478,7 @@ func (p *BufferedReader) prefetch(ctx context.Context) error {
 // freshStart resets the prefetching state and schedules the initial set of
 // blocks starting from the given offset.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) freshStart(ctx context.Context, currentOffset int64) error {
+func (p *BufferedReader) freshStart(currentOffset int64) error {
 	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
 	p.nextBlockIndexToPrefetch = blockIndex
 
@@ -488,12 +486,12 @@ func (p *BufferedReader) freshStart(ctx context.Context, currentOffset int64) er
 	p.numPrefetchBlocks = min(p.config.InitialPrefetchBlockCnt, p.config.MaxPrefetchBlockCnt)
 
 	// Schedule the first block as urgent.
-	if err := p.scheduleNextBlock(ctx, true); err != nil {
+	if err := p.scheduleNextBlock(true); err != nil {
 		return fmt.Errorf("freshStart: scheduling first block: %w", err)
 	}
 
 	// Prefetch the initial blocks.
-	if err := p.prefetch(ctx); err != nil {
+	if err := p.prefetch(); err != nil {
 		// A failure during the initial prefetch is not fatal, as the first block
 		// has already been scheduled. Log the error and continue.
 		logger.Warnf("freshStart: initial prefetch: %v", err)
@@ -503,10 +501,7 @@ func (p *BufferedReader) freshStart(ctx context.Context, currentOffset int64) er
 
 // scheduleNextBlock schedules the next block for prefetch.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) scheduleNextBlock(ctx context.Context, urgent bool) error {
-	ctx, span := p.traceHandle.StartSpanLink(ctx, tracing.ScheduleBlockForDownload)
-	defer p.traceHandle.EndSpan(span)
-
+func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	b, err := p.blockPool.TryGet()
 	if err != nil {
 		// Any error from TryGet (e.g., pool exhausted, mmap failure) means we
@@ -517,7 +512,7 @@ func (p *BufferedReader) scheduleNextBlock(ctx context.Context, urgent bool) err
 		return ErrPrefetchBlockNotAvailable
 	}
 
-	if err := p.scheduleBlockWithIndex(ctx, b, p.nextBlockIndexToPrefetch, urgent); err != nil {
+	if err := p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent); err != nil {
 		p.blockPool.Release(b)
 		return fmt.Errorf("scheduleNextBlock: %w", err)
 	}
@@ -527,13 +522,13 @@ func (p *BufferedReader) scheduleNextBlock(ctx context.Context, urgent bool) err
 
 // scheduleBlockWithIndex schedules a block with a specific index.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) scheduleBlockWithIndex(ctx context.Context, b block.PrefetchBlock, blockIndex int64, urgent bool) error {
+func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
 	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
 	if err := b.SetAbsStartOff(startOffset); err != nil {
 		return fmt.Errorf("scheduleBlockWithIndex: setting start offset: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(p.ctx)
 	task := &downloadTask{
 		ctx:          ctx,
 		object:       p.object,
@@ -541,7 +536,6 @@ func (p *BufferedReader) scheduleBlockWithIndex(ctx context.Context, b block.Pre
 		block:        b,
 		readHandle:   p.readHandle,
 		metricHandle: p.metricHandle,
-		traceHandle:  p.traceHandle,
 	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
