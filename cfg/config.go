@@ -929,10 +929,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
-	if err := flagSet.MarkHidden("enable-metadata-prefetch"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
 	if err := flagSet.MarkHidden("enable-new-reader"); err != nil {
@@ -1181,15 +1177,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("metadata-prefetch-entries-limit", "", 5000, "The maximum number of metadata entries (files and directories) to prefetch  into the cache upon a prefetch trigger. Since a single GCS List call is capped at 5000 results, values higher than 5000 will trigger multiple sequential GCS  List calls per directory.\n")
 
-	if err := flagSet.MarkHidden("metadata-prefetch-entries-limit"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("metadata-prefetch-max-workers", "", 10, "The maximum number of concurrent goroutines (workers) allowed to perform  metadata prefetching across all directories.\n")
-
-	if err := flagSet.MarkHidden("metadata-prefetch-max-workers"); err != nil {
-		return err
-	}
 
 	flagSet.IntP("metrics-buffer-size", "", 256, "The maximum number of histogram metric updates in the queue.")
 

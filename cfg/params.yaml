@@ -899,7 +899,7 @@ params:
       This reduces latency for subsequent file lookups by pre-filling the metadata cache.
     default: false
     deprecated: false
-    hide-flag: true
+    hide-flag: false
 
   - config-path: "metadata-cache.enable-nonexistent-type-cache"
     flag-name: "enable-nonexistent-type-cache"
@@ -936,7 +936,7 @@ params:
       List calls per directory.
     default: "5000"
     deprecated: false
-    hide-flag: true
+    hide-flag: false
 
   - config-path: "metadata-cache.metadata-prefetch-max-workers"
     flag-name: "metadata-prefetch-max-workers"
@@ -946,7 +946,7 @@ params:
       metadata prefetching across all directories.
     default: "10"
     deprecated: false
-    hide-flag: true
+    hide-flag: false
 
   - config-path: "metadata-cache.negative-ttl-secs"
     flag-name: "metadata-cache-negative-ttl-secs"
