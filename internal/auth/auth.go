@@ -22,6 +22,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/impersonate"
+	"google.golang.org/api/option"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -118,9 +119,9 @@ func GetTokenSource(
 
 	// If impersonation is requested, wrap the base token source.
 	if impersonateServiceAccount != "" {
-		tokenSrc, err = newImpersonatedTokenSource(ctx, tokenSrc, impersonateServiceAccount)
+		tokenSrc, err = NewImpersonatedTokenSource(ctx, tokenSrc, impersonateServiceAccount)
 		if err != nil {
-			err = fmt.Errorf("newImpersonatedTokenSource: %w", err)
+			err = fmt.Errorf("NewImpersonatedTokenSource: %w", err)
 			return nil, err
 		}
 	}
@@ -128,15 +129,17 @@ func GetTokenSource(
 	return
 }
 
-// newImpersonatedTokenSource creates a token source that impersonates the given
+// NewImpersonatedTokenSource creates a token source that impersonates the given
 // service account using the provided base token source for authentication.
 // It uses the IAM Credentials API to generate short-lived access tokens that
-// are automatically refreshed.
-func newImpersonatedTokenSource(ctx context.Context, baseTokenSource oauth2.TokenSource, targetServiceAccount string) (oauth2.TokenSource, error) {
+// are automatically refreshed. The baseTokenSource is used as the source
+// credential for making the impersonation request, rather than falling back
+// to Application Default Credentials.
+func NewImpersonatedTokenSource(ctx context.Context, baseTokenSource oauth2.TokenSource, targetServiceAccount string) (oauth2.TokenSource, error) {
 	ts, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
 		TargetPrincipal: targetServiceAccount,
 		Scopes:          []string{storagev1.DevstorageFullControlScope},
-	})
+	}, option.WithTokenSource(baseTokenSource))
 	if err != nil {
 		return nil, fmt.Errorf("impersonate.CredentialsTokenSource(%s): %w", targetServiceAccount, err)
 	}

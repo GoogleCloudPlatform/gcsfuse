@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/mail"
 	"regexp"
 	"slices"
 	"strings"
@@ -56,9 +57,14 @@ func isValidImpersonateServiceAccount(authConfig *GcsAuthConfig) error {
 	if authConfig.AnonymousAccess {
 		return errors.New(ImpersonateWithAnonymousError)
 	}
-	// Validate service account email format: must contain @ and end with .iam.gserviceaccount.com or similar.
+	// Validate service account email format using net/mail for robust parsing,
+	// and enforce .iam.gserviceaccount.com suffix for service accounts.
 	saEmail := authConfig.ImpersonateServiceAccount
-	if !strings.Contains(saEmail, "@") || !strings.Contains(saEmail, ".") {
+	addr, err := mail.ParseAddress(saEmail)
+	if err != nil || addr.Address != saEmail {
+		return errors.New(ImpersonateInvalidEmailError)
+	}
+	if !strings.HasSuffix(saEmail, ".iam.gserviceaccount.com") {
 		return errors.New(ImpersonateInvalidEmailError)
 	}
 	return nil

@@ -1301,6 +1301,22 @@ func TestValidateImpersonateServiceAccount(t *testing.T) {
 			wantErr: true,
 			errMsg:  ImpersonateInvalidEmailError,
 		},
+		{
+			name: "impersonate_valid_email_but_not_service_account",
+			auth: GcsAuthConfig{
+				ImpersonateServiceAccount: "user@example.com",
+			},
+			wantErr: true,
+			errMsg:  ImpersonateInvalidEmailError,
+		},
+		{
+			name: "impersonate_invalid_email_with_display_name",
+			auth: GcsAuthConfig{
+				ImpersonateServiceAccount: "My SA <sa@project.iam.gserviceaccount.com>",
+			},
+			wantErr: true,
+			errMsg:  ImpersonateInvalidEmailError,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

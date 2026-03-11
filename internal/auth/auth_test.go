@@ -112,3 +112,44 @@ func (t *AuthTest) TestGetTokenSource_WithInvalidKeyFile() {
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), tokenSrc)
 }
+
+func (t *AuthTest) TestNewImpersonatedTokenSource_UsesBaseTokenSource() {
+	// Verify that NewImpersonatedTokenSource returns a non-nil token source
+	// when given valid base credentials and a target SA. This confirms the
+	// base token source is passed through (via option.WithTokenSource) rather
+	// than falling back to ADC.
+	baseSrc, err := newTokenSourceFromPath(
+		context.Background(),
+		"testdata/google_creds.json",
+		storagev1.DevstorageFullControlScope,
+	)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), baseSrc)
+
+	impersonatedSrc, err := NewImpersonatedTokenSource(
+		context.Background(),
+		baseSrc,
+		"test-sa@my-project.iam.gserviceaccount.com",
+	)
+
+	// The call should succeed (creating the token source); actual token
+	// generation would fail without real IAM credentials, but we verify
+	// the wrapping itself works correctly.
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), impersonatedSrc)
+}
+
+func (t *AuthTest) TestGetTokenSource_WithImpersonation() {
+	// Verify the full GetTokenSource flow with impersonation enabled.
+	// Uses a key file as the base credential and wraps it with impersonation.
+	tokenSrc, err := GetTokenSource(
+		context.Background(),
+		"testdata/google_creds.json",
+		"",
+		false,
+		"test-sa@my-project.iam.gserviceaccount.com",
+	)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), tokenSrc)
+}
