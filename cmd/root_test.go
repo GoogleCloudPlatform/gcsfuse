@@ -1772,6 +1772,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				CloudMetricsExportIntervalSecs: 10,
 				Workers:                        3,
 				BufferSize:                     256,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 		{
@@ -1782,31 +1783,35 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				StackdriverExportInterval:      time.Duration(10) * time.Hour,
 				Workers:                        3,
 				BufferSize:                     256,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 		{
 			name: "use_new_metric_names",
 			args: []string{"gcsfuse", "--metrics-use-new-names=true", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				UseNewNames: true,
-				Workers:     3,
-				BufferSize:  256,
+				UseNewNames:                   true,
+				Workers:                       3,
+				BufferSize:                    256,
+				ExperimentalEnableGrpcMetrics: true,
 			},
 		},
 		{
 			name: "metrics_workers_non_default",
 			args: []string{"gcsfuse", "--metrics-workers=10", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				Workers:    10,
-				BufferSize: 256,
+				Workers:                       10,
+				BufferSize:                    256,
+				ExperimentalEnableGrpcMetrics: true,
 			},
 		},
 		{
 			name: "metrics_buffer_size_non_default",
 			args: []string{"gcsfuse", "--metrics-buffer-size=1024", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				Workers:    3,
-				BufferSize: 1024,
+				Workers:                       3,
+				BufferSize:                    1024,
+				ExperimentalEnableGrpcMetrics: true,
 			},
 		},
 		{
@@ -1847,12 +1852,12 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		{
 			name:     "default",
 			cfgFile:  "empty.yml",
-			expected: &cfg.MetricsConfig{Workers: 3, BufferSize: 256},
+			expected: &cfg.MetricsConfig{Workers: 3, BufferSize: 256, ExperimentalEnableGrpcMetrics: true},
 		},
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, Workers: 3, BufferSize: 256},
+			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, Workers: 3, BufferSize: 256, ExperimentalEnableGrpcMetrics: true},
 		},
 		{
 			name:    "stackdriver-export-interval-positive",
@@ -1862,6 +1867,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 				StackdriverExportInterval:      12 * time.Hour,
 				Workers:                        3,
 				BufferSize:                     256,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 	}
