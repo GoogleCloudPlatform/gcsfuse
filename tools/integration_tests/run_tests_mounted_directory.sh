@@ -368,7 +368,6 @@ file-cache:
 metadata-cache:
   stat-cache-max-size-mb: 4
   ttl-secs: $cache_ttl
-  type-cache-max-size-mb: 32
 cache-dir: /tmp/cache-dir-read-cache-hns-false" > /tmp/gcsfuse_config.yaml
 }
 

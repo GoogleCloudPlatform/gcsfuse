@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -376,24 +377,16 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
 	}
 }
 
-func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.ClientProtocol = cfg.GRPC
+func (testSuite *StorageHandleTest) TestUnSetDirectPathEnvVariable() {
+	// Set the environment variable
+	testSuite.T().Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true")
 
-	storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, false)
+	// Call the function
+	unSetDirectPathEnvVariable()
 
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), storageClient)
-}
-
-func (testSuite *StorageHandleTest) TestCreateGRPCClientHandleWithBidiConfig() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.ClientProtocol = cfg.GRPC
-
-	storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, true)
-
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), storageClient)
+	// Verify the environment variable is unset
+	_, isSet := os.LookupEnv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS")
+	assert.False(testSuite.T(), isSet)
 }
 
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {

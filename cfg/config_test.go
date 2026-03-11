@@ -938,7 +938,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   33,
+				expectedValue:   34,
 			},
 			{
 				name:            "profile_aiml-training",
@@ -1003,7 +1003,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.MetadataCache.StatCacheMaxSizeMb = tc.expectedValue.(int64)
 				} else {
-					c.MetadataCache.StatCacheMaxSizeMb = 33
+					c.MetadataCache.StatCacheMaxSizeMb = 34
 				}
 
 				v := viper.New()
@@ -1020,122 +1020,6 @@ func TestApplyOptimizations(t *testing.T) {
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.MetadataCache.StatCacheMaxSizeMb)
-			})
-		}
-	})
-	// Tests for metadata-cache.type-cache-max-size-mb
-	t.Run("metadata-cache.type-cache-max-size-mb", func(t *testing.T) {
-		testCases := []struct {
-			name            string
-			config          Config
-			userSetFlags    map[string]any
-			input           *OptimizationInput
-			expectOptimized bool
-			expectedValue   any
-		}{
-			{
-				name: "user_set",
-				config: Config{
-					Profile: "aiml-training",
-				},
-				userSetFlags: map[string]any{
-					"metadata-cache.type-cache-max-size-mb": 98765,
-					"machine-type":                          "a2-megagpu-16g",
-				},
-				input:           nil,
-				expectOptimized: false,
-				expectedValue:   int64(98765),
-			},
-			{
-				name:   "no_optimization",
-				config: Config{Profile: "non_existent_profile"},
-				userSetFlags: map[string]any{
-					"machine-type": "low-end-machine",
-				},
-				input:           nil,
-				expectOptimized: false,
-				expectedValue:   4,
-			},
-			{
-				name:            "profile_aiml-training",
-				config:          Config{Profile: "aiml-training"},
-				userSetFlags:    map[string]any{},
-				input:           nil,
-				expectOptimized: true,
-				expectedValue:   -1,
-			},
-			{
-				name:            "profile_aiml-serving",
-				config:          Config{Profile: "aiml-serving"},
-				userSetFlags:    map[string]any{},
-				input:           nil,
-				expectOptimized: true,
-				expectedValue:   -1,
-			},
-			{
-				name:            "profile_aiml-checkpointing",
-				config:          Config{Profile: "aiml-checkpointing"},
-				userSetFlags:    map[string]any{},
-				input:           nil,
-				expectOptimized: true,
-				expectedValue:   -1,
-			},
-			{
-				name:   "machine_group_high-performance",
-				config: Config{Profile: ""},
-				userSetFlags: map[string]any{
-					"machine-type": "a2-megagpu-16g",
-				},
-				input:           nil,
-				expectOptimized: true,
-				expectedValue:   128,
-			},
-			{
-				name:   "profile_overrides_machine_type",
-				config: Config{Profile: "aiml-training"},
-				userSetFlags: map[string]any{
-					"machine-type": "a2-megagpu-16g",
-				},
-				input:           nil,
-				expectOptimized: true,
-				expectedValue:   -1,
-			}, {
-				name:   "fallback_to_machine_type_with_non_existent_profile",
-				config: Config{Profile: "non_existent_profile"},
-				userSetFlags: map[string]any{
-					"machine-type": "a2-megagpu-16g",
-				},
-				input:           nil,
-				expectOptimized: true,
-				expectedValue:   128,
-			},
-		}
-
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				// We need a copy of the config for each test case.
-				c := tc.config
-				// Set the default or non-default value on the config object.
-				if tc.name == "user_set" {
-					c.MetadataCache.TypeCacheMaxSizeMb = tc.expectedValue.(int64)
-				} else {
-					c.MetadataCache.TypeCacheMaxSizeMb = 4
-				}
-
-				v := viper.New()
-				for key, val := range tc.userSetFlags {
-					v.Set(key, val)
-				}
-
-				optimizedFlags := c.ApplyOptimizations(v, tc.input)
-
-				if tc.expectOptimized {
-					assert.Contains(t, optimizedFlags, "metadata-cache.type-cache-max-size-mb")
-				} else {
-					assert.NotContains(t, optimizedFlags, "metadata-cache.type-cache-max-size-mb")
-				}
-				// Use EqualValues to handle the int vs int64 type mismatch for default values.
-				assert.EqualValues(t, tc.expectedValue, c.MetadataCache.TypeCacheMaxSizeMb)
 			})
 		}
 	})

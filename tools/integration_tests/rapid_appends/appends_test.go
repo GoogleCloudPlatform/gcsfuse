@@ -286,6 +286,35 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Ex
 	assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
 }
 
+func (t *SingleMountAppendsTestSuite) TestOpenAppendCloseReopenFromSingleMount() {
+	// Initially create an unfinalized object.
+	t.createUnfinalizedObject()
+	defer t.deleteUnfinalizedObject()
+	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
+
+	for i := 0; i < 3; i++ {
+		// Open file in append mode.
+		f := operations.OpenFileInMode(t.T(), filePath, fileOpenModeAppend|syscall.O_DIRECT)
+
+		// Append content.
+		appendContent := setup.GenerateRandomString(appendSize)
+		t.appendToFile(f, appendContent)
+
+		// Close the handle.
+		require.NoError(t.T(), f.Close())
+
+		// Validate file size observed by kernel.
+		fi, err := os.Stat(filePath)
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), int64(len(t.fileContent)), fi.Size())
+
+		// Validate that writes went through.
+		content, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), t.fileContent, string(content))
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Runner
 ////////////////////////////////////////////////////////////////////////

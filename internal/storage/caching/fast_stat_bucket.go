@@ -50,6 +50,7 @@ func NewFastStatBucket(
 	wrapped gcs.Bucket,
 	negativeCacheTTL time.Duration,
 	isTypeCacheDeprecated bool,
+	implicitDir bool,
 ) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
 		cache:                 cache,
@@ -58,6 +59,7 @@ func NewFastStatBucket(
 		primaryCacheTTL:       primaryCacheTTL,
 		negativeCacheTTL:      negativeCacheTTL,
 		isTypeCacheDeprecated: isTypeCacheDeprecated,
+		implicitDir:           implicitDir,
 	}
 
 	b = fsb
@@ -88,6 +90,8 @@ type fastStatBucket struct {
 
 	// Flag to enable deprecation logic of Type cache.
 	isTypeCacheDeprecated bool
+
+	implicitDir bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -122,37 +126,29 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
-	// Track object names to avoid redundant caching of prefixes
-	// that already exist as explicit objects.
-	minObjectNames := make(map[string]struct{})
-
 	// 1. Parent Directory Inference (Implicit Check)
 	// If the listing contains objects or sub-directories but the directory itself
 	// is not returned as an explicit object, we infer and cache it as an
 	// implicit directory.
 	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
 	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
-	if dirHasContents && !isDirInListing {
-		m := &gcs.MinObject{
-			Name: dirName,
-		}
-		b.cache.Insert(m, expiration)
+	if b.implicitDir && dirHasContents && !isDirInListing {
+		b.cache.InsertImplicitDir(dirName, expiration)
 	}
 
 	// 2. Cache Explicit Objects
 	for _, o := range listing.MinObjects {
 		b.cache.Insert(o, expiration)
-		minObjectNames[o.Name] = struct{}{}
+	}
+
+	// Do not cache implicit directories if the flag is not passed.
+	if !b.implicitDir {
+		return
 	}
 
 	// 3. Cache Sub-directories (Collapsed Runs)
 	// These represent folders discovered via prefixes in the ListObjects response.
 	for _, p := range listing.CollapsedRuns {
-		// Skip if this name was already cached as an explicit object.
-		if _, exists := minObjectNames[p]; exists {
-			continue
-		}
-
 		// Ensure the prefix follows directory naming conventions (trailing slash).
 		// Although 'collapsedRuns' is expected to contain only directories, we perform
 		// this defensive check to prevent processing malformed prefixes.
@@ -162,10 +158,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		}
 
 		// Cache the prefix as a minimal object (implicit directory marker).
-		m := &gcs.MinObject{
-			Name: p,
-		}
-		b.cache.Insert(m, expiration)
+		b.cache.InsertImplicitDir(p, expiration)
 	}
 }
 
@@ -336,7 +329,15 @@ func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.C
 }
 
 func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	return b.wrapped.CreateAppendableObjectWriter(ctx, req)
+	w, err := b.wrapped.CreateAppendableObjectWriter(ctx, req)
+	var precondErr *gcs.PreconditionError
+	if errors.As(err, &precondErr) {
+		// If creating a takeover writer fails with a precondition error (for e.g. offset mismatch),
+		// it indicates our local stat cache is out of sync with the remote object state.
+		// Throw away the existing record in such cases.
+		b.invalidate(req.Name)
+	}
+	return w, err
 }
 
 func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {

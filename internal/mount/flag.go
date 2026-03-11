@@ -36,6 +36,10 @@ const (
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
 	// This is equivalent of setting metadata-cache: stat-cache-max-size-mb.
 	DefaultStatCacheCapacity = 20460
+
+	// DefaultTypeCacheSizeMB is the default value for type-cache-max-size-mb.
+	// This is equivalent of setting metadata-cache: type-cache-max-size-mb.
+	DefaultTypeCacheSizeMB = 4
 )
 
 func (cp ClientProtocol) IsValid() bool {

@@ -98,12 +98,13 @@ func main() {
 		"total_size_mb", float64(manifest.TotalSize)/MiB,
 		"bak_files", len(manifest.BakFiles),
 		"tmp_files", len(manifest.TmpFiles),
+		"dirs", len(manifest.Dirs),
 		"scan_duration", manifest.ScanDuration)
 
 	// Step 2: Clean up .bak files from previous run
 	if !*dryRun {
 		removeBakFiles(manifest.BakFiles)
-	} else {
+	} else if len(manifest.BakFiles) > 0 {
 		slog.Info("DRY RUN: Would remove previously expired files", "file_count", len(manifest.BakFiles))
 		printFileInfo(manifest.BakFiles)
 	}
@@ -119,7 +120,7 @@ func main() {
 		// Step 4: Expire files in parallel (rename to .bak)
 		if !*dryRun {
 			expireFiles(filesToExpire)
-		} else {
+		} else if len(filesToExpire) > 0 {
 			slog.Info("DRY RUN: Would expire files", "file_count", len(filesToExpire))
 			printFileInfo(filesToExpire)
 		}
@@ -132,15 +133,15 @@ func main() {
 	// Step 5: Remove old .tmp files (older than 1 hour)
 	if !*dryRun {
 		removeOldTmpFiles(manifest.TmpFiles)
-	} else {
-		slog.Info("DRY RUN: Would remove old tmp files")
+	} else if len(manifest.TmpFiles) > 0 {
+		slog.Info("DRY RUN: Would remove old tmp files", "file_count", len(manifest.TmpFiles))
 		printFileInfo(manifest.TmpFiles)
 	}
 
 	// Step 6: Cleanup empty directories
 	if !*dryRun {
 		cleanupEmptyDirs(manifest.Dirs)
-	} else {
+	} else if len(manifest.Dirs) > 0 {
 		slog.Info("DRY RUN: Would cleanup empty directories", "dir_count", len(manifest.Dirs))
 		for _, dir := range manifest.Dirs {
 			slog.Debug("Directory", "path", dir)
@@ -171,8 +172,8 @@ func scanCache(cacheDir string) (*Manifest, error) {
 		Dirs:     make([]string, 0),
 	}
 
-	// Look for gcsfuse-file-cache subdirectory
-	actualCacheDir := filepath.Join(cacheDir, "gcsfuse-file-cache")
+	// Look for gcsfuse-shared-chunk-cache subdirectory
+	actualCacheDir := filepath.Join(cacheDir, "gcsfuse-shared-chunk-cache")
 	if info, err := os.Stat(actualCacheDir); err == nil && info.IsDir() {
 		cacheDir = actualCacheDir
 	}

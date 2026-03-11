@@ -66,6 +66,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 	in := NewDirInode(
 		dirInodeID,
 		NewDirName(NewRootName(""), "dir/"),
+		nil,
 		fuseops.InodeAttributes{Mode: dirMode},
 		true, // implicitDirs
 		false,
@@ -265,9 +266,9 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_ConcurrencyLimit() {
 	sem := semaphore.NewWeighted(limit)
 	blockChan := make(chan struct{})
 	ctx := context.Background()
-	p1 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
-	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
-	p3 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan))
+	p1 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan), func() bool { return true })
+	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan), func() bool { return true })
+	p3 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, blockingListFunc(blockChan), func() bool { return true })
 	// 1. Run two prefetches to fill up the limit.
 	p1.Run("dir1/obj1")
 	p2.Run("dir2/obj2")
@@ -307,13 +308,13 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_RespectsMaxParallelPrefetchesCo
 		return nil, nil, "", nil
 	}
 	ctx := context.Background()
-	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc)
+	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc, func() bool { return true })
 
 	// Trigger multiple runs on the same prefetcher (simulating different objects in same dir)
 	// and different prefetchers.
 	p.Run("a/1")
 	p.Run("a/2") // Will be skipped by atomic state check anyway
-	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc)
+	p2 := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, listFunc, func() bool { return true })
 	p2.Run("b/1") // Should be skipped by semaphore check
 
 	time.Sleep(10 * time.Millisecond)
@@ -336,7 +337,7 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
 	listCallCtr, mockListFunc := mockListFuncWithCtr()
 	sem := semaphore.NewWeighted(1)
 	ctx := context.Background()
-	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, mockListFunc, func() bool { return true })
 
 	// 1. Initial Run: Should trigger a prefetch.
 	p.Run("dir/obj1")
@@ -358,26 +359,6 @@ func (t *DirPrefetchTest) TestMetadataPrefetcher_TTLGuard() {
 	assert.Eventually(t.T(), func() bool {
 		return listCallCtr.Load() == 2
 	}, 200*time.Millisecond, 10*time.Millisecond)
-}
-
-func (t *DirPrefetchTest) TestMetadataPrefetcher_0CacheSize() {
-	ctx := context.Background()
-	listCallCtr, mockListFunc := mockListFuncWithCtr()
-	config := &cfg.Config{
-		MetadataCache: cfg.MetadataCacheConfig{
-			EnableMetadataPrefetch: true,
-			StatCacheMaxSizeMb:     0,
-			TtlSecs:                60,
-		},
-	}
-	p := NewMetadataPrefetcher(ctx, config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
-
-	p.Run("dir/obj1")
-
-	// Allow some time for any potential background work to start.
-	time.Sleep(20 * time.Millisecond)
-	// Assert that no list calls were made because stat cache size is 0.
-	assert.Equal(t.T(), int32(0), listCallCtr.Load())
 }
 
 // TestPrefetch_RaceCondition_WriteCancelsPrefetch verifies that if a write operation
@@ -402,7 +383,7 @@ func (t *DirPrefetchTest) TestPrefetch_RaceCondition_WriteCancelsPrefetch() {
 	}
 	// Initialize Prefetcher with the mock
 	// We use context.Background() as the inodeCtx for this unit test.
-	p := NewMetadataPrefetcher(context.Background(), t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(context.Background(), t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc, func() bool { return true })
 
 	// 2. Act: Trigger the prefetch
 	p.Run("dir/obj")
@@ -428,7 +409,7 @@ func (t *DirPrefetchTest) TestPrefetch_RecursiveCancellation() {
 	// Setup cancellable inode context.
 	inodeCtx, cancelInode := context.WithCancel(context.Background())
 	_, mockListFunc := mockListFuncWithCtr()
-	p := NewMetadataPrefetcher(inodeCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(inodeCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc, func() bool { return true })
 
 	// 1. Cancel the inode context (Simulate Rename/Delete Folder)
 	cancelInode()
@@ -448,7 +429,7 @@ func (t *DirPrefetchTest) TestPrefetch_NilInodeContext() {
 	// Setup with a nil inode context.
 	listCallCtr, mockListFunc := mockListFuncWithCtr()
 	var nilCtx context.Context = nil
-	p := NewMetadataPrefetcher(nilCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc)
+	p := NewMetadataPrefetcher(nilCtx, t.config, semaphore.NewWeighted(1), &t.clock, mockListFunc, func() bool { return true })
 
 	// 1. Try to run prefetch. This should not panic.
 	p.Run("dir/obj")
@@ -457,4 +438,71 @@ func (t *DirPrefetchTest) TestPrefetch_NilInodeContext() {
 	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t.T(), prefetchReady, p.state.Load(), "State should remain ready")
 	assert.Equal(t.T(), int32(0), listCallCtr.Load(), "List function should not be called")
+}
+
+// TestPrefetch_SkipIfActiveWriters verifies that if shouldRun returns false (simulating active writers),
+// the prefetch operation is skipped.
+func (t *DirPrefetchTest) TestPrefetch_SkipIfActiveWriters() {
+	listCallCtr, mockListFunc := mockListFuncWithCtr()
+	sem := semaphore.NewWeighted(1)
+	ctx := context.Background()
+	// Create prefetcher with shouldRun returning false.
+	p := NewMetadataPrefetcher(ctx, t.config, sem, &t.clock, mockListFunc, func() bool { return false })
+
+	// 1. Try to run prefetch.
+	p.Run("dir/obj1")
+
+	// 2. Assert: Prefetch should NOT start because shouldRun is false.
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t.T(), prefetchReady, p.state.Load(), "State should remain ready")
+	assert.Equal(t.T(), int32(0), listCallCtr.Load(), "List function should not be called")
+}
+
+// TestPrefetch_RaceWithDeleteChildFile verifies that a slow prefetch triggered by LookUpChild
+// does not overwrite fresh metadata created by a subsequent DeleteChildFile operation.
+func (t *DirPrefetchTest) TestPrefetch_RaceWithDeleteChildFile() {
+	mockListFunc := func(ctx context.Context, tok string, start string, limit int) (map[Name]*Core, []string, string, error) {
+		// Simulate "Stale" data being returned for "file0001".
+		// This simulates the prefetcher finding an old version of the object.
+		res := make(map[Name]*Core)
+		res[Name{objectName: "file0001"}] = &Core{}
+		time.Sleep(700 * time.Millisecond)
+		return res, nil, "", nil
+	}
+	// Initialize the inode's prefetcher with the slow list function.
+	sem := semaphore.NewWeighted(1)
+	t.in.prefetcher = NewMetadataPrefetcher(t.ctx, t.config, sem, &t.clock, mockListFunc, func() bool { return true })
+
+	// 2. Act: Trigger a prefetch and validate that the result got cached.
+	// LookUpChild will trigger p.Run() which starts the background worker.
+	_, err := t.in.LookUpChild(t.ctx, "file0001")
+	require.NoError(t.T(), err)
+	t.in.mu.RLock()
+	cachedType := t.in.cache.Get(t.clock.Now(), "file0001")
+	assert.Equal(t.T(), metadata.RegularFileType, cachedType,
+		"The fresh RegularFile entry should not be overwritten by the stale prefetch result.")
+	t.in.mu.RUnlock()
+
+	// 3. Perform a Write Operation: eg: DeleteFile.
+	// This operation is expected to finish "sooner" than the slow prefetch.
+	// It calls CancelCurrDirPrefetcher() internally.
+	var metaGen int64 = 1
+	err = t.in.DeleteChildFile(t.ctx, "file0001", 1, &metaGen)
+	require.NoError(t.T(), err)
+	// Verify DeleteChildFile correctly updated the cache with "Fresh" data.
+	t.in.mu.RLock()
+	assert.Equal(t.T(), metadata.UnknownType, t.in.cache.Get(t.clock.Now(), "file0001"))
+	t.in.mu.RUnlock()
+
+	// Wait for the prefetcher state to return to 'Ready', meaning the worker is done.
+	assert.Eventually(t.T(), func() bool {
+		return t.in.prefetcher.state.Load() == prefetchReady
+	}, 1*time.Second, 10*time.Millisecond)
+
+	// 5. Final Assertion: The "stale" data from list must NOT be written to the cache.
+	t.in.mu.RLock()
+	cachedType = t.in.cache.Get(t.clock.Now(), "file0001")
+	assert.Equal(t.T(), metadata.UnknownType, cachedType,
+		"The fresh RegularFile entry should not be overwritten by the stale prefetch result.")
+	t.in.mu.RUnlock()
 }

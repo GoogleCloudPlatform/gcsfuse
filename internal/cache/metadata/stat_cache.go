@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -36,6 +37,8 @@ type StatCache interface {
 	//
 	// The entry will expire after the supplied time.
 	Insert(m *gcs.MinObject, expiration time.Time)
+
+	InsertImplicitDir(objectName string, expiration time.Time)
 
 	// Set up a negative entry for the given name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -112,6 +115,8 @@ type entry struct {
 	f          *gcs.Folder
 	expiration time.Time
 	key        string
+	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
+	implicitDir bool
 }
 
 // Size returns the memory-size (resident set size) of the receiver entry.
@@ -195,6 +200,43 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	}
 }
 
+func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration time.Time) {
+	name := sc.key(objectName)
+
+	// Is there already a better entry?
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
+		e := existing.(entry)
+		// The ListObjects response handles directories in two ways:
+		// 1. 'MinObject' returns explicit directory objects containing full metadata.
+		// 2. 'CollapseRun' generates placeholders for these same directories; if no
+		//    explicit object exists, it treats them as "implicit" (inferred).
+		//
+		// We attempt to create implicit directories for all entries in 'CollapseRun'.
+		// However, since 'ListObject' returns explicit directories in the 'MinObject'
+		// list as well, this could result in redundant implicit entries for
+		// every explicit directory already processed.
+		//
+		// To prevent this, we check if an entry with the same name already exists
+		// with non-nil metadata. If metadata is present, we skip the implicit
+		// creation to avoid overwriting a real, explicit object with an inferred
+		// placeholder (which would lack metadata and have 'Generation 0').
+		if e.m != nil {
+			return
+		}
+	}
+
+	// Insert an entry.
+	e := entry{
+		implicitDir: true,
+		expiration:  expiration,
+		key:         name,
+	}
+
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		logger.Errorf("Failed to insert implicit dir stat cache entry for %q: %v", name, err)
+	}
+}
+
 func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
 	name := sc.key(objectName)
 
@@ -236,6 +278,9 @@ func (sc *statCacheBucketView) LookUp(
 	// Look up in the LRU cache.
 	hit, entry := sc.sharedCacheLookup(objectName, now)
 	if hit {
+		if entry.implicitDir {
+			return true, &gcs.MinObject{Name: objectName}
+		}
 		return hit, entry.m
 	}
 

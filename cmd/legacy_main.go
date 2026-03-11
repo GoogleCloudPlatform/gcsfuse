@@ -159,6 +159,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
+		GrpcPathStrategy:           newConfig.GcsConnection.GrpcPathStrategy,
 		EnableHNS:                  newConfig.EnableHns,
 		EnableGoogleLibAuth:        newConfig.EnableGoogleLibAuth,
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
@@ -410,6 +411,10 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	// The following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
 	if newConfig.MetadataCache.DeprecatedStatCacheTtl != mount.DefaultStatOrTypeCacheTTL || newConfig.MetadataCache.DeprecatedTypeCacheTtl != mount.DefaultStatOrTypeCacheTTL {
 		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
+	}
+
+	if newConfig.EnableTypeCacheDeprecation && (newConfig.MetadataCache.TypeCacheMaxSizeMb != mount.DefaultTypeCacheSizeMB || newConfig.MetadataCache.EnableNonexistentTypeCache) {
+		logger.Warnf("Type cache is deprecated. The flags 'type-cache-max-size-mb' and 'enable-nonexistent-type-cache' will be ignored. Please use 'stat-cache-max-size-mb' and 'metadata-cache-negative-ttl-secs' instead.")
 	}
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon

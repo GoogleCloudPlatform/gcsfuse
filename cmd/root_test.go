@@ -809,13 +809,14 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	}{
 		{
 			name: "Test gcs connection flags.",
-			args: []string{"gcsfuse", "--billing-project=abc", "--client-protocol=http2", "--custom-endpoint=www.abc.com", "--experimental-enable-json-read", "--experimental-grpc-conn-pool-size=20", "--http-client-timeout=20s", "--limit-bytes-per-sec=30", "--limit-ops-per-sec=10", "--max-conns-per-host=1000", "--max-idle-conns-per-host=20", "--sequential-read-size-mb=70", "abc", "pqr"},
+			args: []string{"gcsfuse", "--billing-project=abc", "--client-protocol=http2", "--custom-endpoint=www.abc.com", "--experimental-enable-json-read", "--experimental-grpc-conn-pool-size=20", "--http-client-timeout=20s", "--limit-bytes-per-sec=30", "--limit-ops-per-sec=10", "--max-conns-per-host=1000", "--max-idle-conns-per-host=20", "--sequential-read-size-mb=70", "abc", "pqr", "--grpc-path-strategy=direct-path-only"},
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "abc",
 					ClientProtocol:             "http2",
 					CustomEndpoint:             "www.abc.com",
 					ExperimentalEnableJsonRead: true,
+					GrpcPathStrategy:           "direct-path-only",
 					GrpcConnPoolSize:           20,
 					HttpClientTimeout:          20 * time.Second,
 					LimitBytesPerSec:           30,
@@ -836,6 +837,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					ClientProtocol:             "http1",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
+					GrpcPathStrategy:           "direct-path-with-fallback",
 					GrpcConnPoolSize:           1,
 					HttpClientTimeout:          0,
 					LimitBytesPerSec:           -1,
@@ -856,6 +858,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					ClientProtocol:             "http1",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
+					GrpcPathStrategy:           "direct-path-with-fallback",
 					GrpcConnPoolSize:           1,
 					HttpClientTimeout:          0,
 					LimitBytesPerSec:           -1,
@@ -1505,14 +1508,14 @@ func TestArgsParsing_EnableTypeCacheDeprecationFlags(t *testing.T) {
 		expectedEnableTypeCacheDeprecation bool
 	}{
 		{
-			name:                               "normal",
-			args:                               []string{"gcsfuse", "--enable-type-cache-deprecation=true", "abc", "pqr"},
-			expectedEnableTypeCacheDeprecation: true,
+			name:                               "explicitly_disabled",
+			args:                               []string{"gcsfuse", "--enable-type-cache-deprecation=false", "abc", "pqr"},
+			expectedEnableTypeCacheDeprecation: false,
 		},
 		{
 			name:                               "default",
 			args:                               []string{"gcsfuse", "abc", "pqr"},
-			expectedEnableTypeCacheDeprecation: false,
+			expectedEnableTypeCacheDeprecation: true,
 		},
 	}
 
@@ -1567,6 +1570,43 @@ func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedUnsupportedPathSupport, gotUnsupportedPathSupport)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
+	tests := []struct {
+		name                           string
+		args                           []string
+		expectedEnableStandardSymlinks bool
+	}{
+		{
+			name:                           "default",
+			args:                           []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableStandardSymlinks: false,
+		},
+		{
+			name:                           "normal",
+			args:                           []string{"gcsfuse", "--experimental-enable-standard-symlinks=true", "abc", "pqr"},
+			expectedEnableStandardSymlinks: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableStandardSymlinks bool
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableStandardSymlinks = mountInfo.config.ExperimentalEnableStandardSymlinks
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableStandardSymlinks, gotEnableStandardSymlinks)
 			}
 		})
 	}
@@ -1919,7 +1959,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					MetadataPrefetchMaxWorkers:          10,
 					EnableMetadataPrefetch:              false,
 					MetadataPrefetchEntriesLimit:        5000,
-					StatCacheMaxSizeMb:                  33,
+					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
@@ -1939,7 +1979,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					MetadataPrefetchMaxWorkers:          10,
 					EnableMetadataPrefetch:              false,
 					MetadataPrefetchEntriesLimit:        5000,
-					StatCacheMaxSizeMb:                  33,
+					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
@@ -1962,7 +2002,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					StatCacheMaxSizeMb:                  1024,
 					TtlSecs:                             9223372036,
 					NegativeTtlSecs:                     0,
-					TypeCacheMaxSizeMb:                  128,
+					TypeCacheMaxSizeMb:                  4,
 				},
 			},
 		},
@@ -2038,7 +2078,29 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 			args: []string{"gcsfuse", "--chunk-transfer-timeout-secs=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 30,
+					MaxRetryAttempts:         0,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
+						MinReqTimeout:       1500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
+					},
+				},
+			},
+		},
+		{
+			name: "Test with non default chunkRetryDeadline",
+			args: []string{"gcsfuse", "--chunk-retry-deadline-secs=360", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   360,
+					ChunkTransferTimeoutSecs: 10,
 					MaxRetryAttempts:         0,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
@@ -2657,7 +2719,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--machine-type=a3-highgpu-8g"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
-				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "ViperConfig.IsSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
 				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
@@ -2669,7 +2731,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
-				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "ViperConfig.IsSet should be true for implicit-dirs")
 				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
 				assert.False(t, mi.viperConfig.IsSet("metadata-cache.ttl-secs"))
 			},
@@ -2682,7 +2744,7 @@ write:
   global-max-blocks: 123`,
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
-				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "ViperConfig.IsSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
 				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
@@ -2722,7 +2784,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--machine-type=a3-highgpu-8g", "--write-global-max-blocks=123"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect CLI value 123, not optimize to 1600")
-				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "ViperConfig.IsSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
 				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
@@ -2732,7 +2794,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining, "--implicit-dirs=false"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
-				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "ViperConfig.IsSet should be true for implicit-dirs")
 				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
 				assert.False(t, mi.viperConfig.IsSet("metadata-cache.ttl-secs"))
 			},

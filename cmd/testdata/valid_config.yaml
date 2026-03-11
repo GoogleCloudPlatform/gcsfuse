@@ -36,6 +36,7 @@ gcs-connection:
   custom-endpoint: www.abc.com
   experimental-enable-json-read: true
   grpc-conn-pool-size: 200
+  grpc-path-strategy: direct-path-only
   http-client-timeout: 400s
   limit-bytes-per-sec: 20
   limit-ops-per-sec: 30
@@ -43,6 +44,7 @@ gcs-connection:
   max-idle-conns-per-host: 20
   sequential-read-size-mb: 450
 gcs-retries:
+  chunk-retry-deadline-secs: 180
   chunk-transfer-timeout-secs: 20
   read-stall:
     enable: false

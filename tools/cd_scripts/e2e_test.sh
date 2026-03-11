@@ -40,9 +40,9 @@ if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [[ ($ID == "rhel" || $ID == "rocky" || $ID == "centos") ]]; then
         
-        # Check if we are on version 8 to install 3.11
-        if [[ $VERSION_ID =~ ^8 ]]; then
-            echo "Detected version 8. Installing Python 3.11..."
+        # Check if we are on version 8 or 9 to install 3.11
+         if [[ $VERSION_ID =~ ^[89] ]]; then
+            echo "Detected version 8/9. Installing Python 3.11..."
             sudo yum install -y python311
             PYTHON_BIN="/usr/bin/python3.11"
         else
@@ -271,8 +271,8 @@ else
         # Extract VERSION_ID from /etc/os-release
         V_ID=$(awk -F= "/^VERSION_ID=/{print \$2}" /etc/os-release | tr -d "\"")
 
-        # Check if the version starts with 8
-        if [[ "$V_ID" == 8* ]]; then
+        # Check if the version starts with 8 or 9
+        if [[ "$V_ID" =~ ^[89] ]]; then
             export CLOUDSDK_PYTHON="/usr/bin/python3.11"
         else
             export CLOUDSDK_PYTHON="/usr/bin/python3"

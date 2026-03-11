@@ -43,7 +43,8 @@ func TestFastStatBucket(t *testing.T) { RunTests(t) }
 
 const primaryCacheTTL = time.Second
 const negativeCacheTTL = time.Second * 5
-const isTypeCacheDeprecated = false
+const isTypeCacheDeprecated = true
+const isImplicitDir = true
 
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
@@ -67,7 +68,8 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 		&t.clock,
 		t.wrapped,
 		negativeCacheTTL,
-		isTypeCacheDeprecated)
+		isTypeCacheDeprecated,
+		isImplicitDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -279,6 +281,26 @@ func (t *CreateAppendableObjectWriterTest) WrappedSucceeds() {
 
 	AssertEq(nil, err)
 	ExpectEq(wr, gotWr)
+}
+
+func (t *CreateAppendableObjectWriterTest) WrappedReturnsPreconditionError() {
+	const name = "taco"
+	ctx := context.TODO()
+	req := &gcs.CreateObjectChunkWriterRequest{
+		CreateObjectRequest: gcs.CreateObjectRequest{
+			Name: name,
+		},
+	}
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("precondition failed")}))
+
+	// Call
+	_, err := t.bucket.CreateAppendableObjectWriter(ctx, req)
+
+	ExpectThat(err, Error(HasSubstr("precondition failed")))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -871,6 +893,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 
 	// Insert
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(2)
+	ExpectCall(t.cache, "InsertImplicitDir")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(1)
 
 	// Call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
@@ -975,10 +998,11 @@ func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
 		&t.clock,
 		t.wrapped,
 		negativeCacheTTL,
+		true,
 		true)
 }
 
-func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject) {
+func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string) {
 	// Wrapped
 	ExpectCall(t.wrapped, "BucketType")().
 		WillOnce(Return(gcs.BucketType{Hierarchical: isHNS}))
@@ -987,6 +1011,9 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 	// Register expectations.
 	for _, obj := range expectedInserts {
 		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
+	}
+	for _, dir := range expectedImplicitDirs {
+		ExpectCall(t.cache, "InsertImplicitDir")(dir, Any())
 	}
 
 	// Call
@@ -999,8 +1026,9 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 func (t *ListObjectsTest_InsertListing) EmptyListing() {
 	listing := &gcs.Listing{}
 	expectedInserts := []*gcs.MinObject{}
+	expectedImplicitDirs := []string{}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts)
+	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
 func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
@@ -1011,25 +1039,22 @@ func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
 		},
 	}
 	expectedInserts := []*gcs.MinObject{
-		{Name: "dir/"},
 		{Name: "dir/a", Size: 1},
 		{Name: "dir/b", Size: 2},
 	}
+	expectedImplicitDirs := []string{"dir/"}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts)
+	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
 func (t *ListObjectsTest_InsertListing) CollapsedRunsOnly() {
 	listing := &gcs.Listing{
 		CollapsedRuns: []string{"dir/a/", "dir/b/"},
 	}
-	expectedInserts := []*gcs.MinObject{
-		{Name: "dir/"},
-		{Name: "dir/a/"},
-		{Name: "dir/b/"},
-	}
+	expectedImplicitDirs := []string{"dir/", "dir/a/", "dir/b/"}
+	expectedInserts := []*gcs.MinObject{}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts)
+	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
 func (t *ListObjectsTest_InsertListing) ObjectsAndCollapsedRuns() {
@@ -1040,12 +1065,11 @@ func (t *ListObjectsTest_InsertListing) ObjectsAndCollapsedRuns() {
 		CollapsedRuns: []string{"dir/b/"},
 	}
 	expectedInserts := []*gcs.MinObject{
-		{Name: "dir/"},
 		{Name: "dir/a", Size: 1},
-		{Name: "dir/b/"},
 	}
+	expectedImplicitDirs := []string{"dir/", "dir/b/"}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts)
+	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
 func (t *ListObjectsTest_InsertListing) ImplicitDir() {
@@ -1055,11 +1079,11 @@ func (t *ListObjectsTest_InsertListing) ImplicitDir() {
 		},
 	}
 	expectedInserts := []*gcs.MinObject{
-		{Name: "dir/"},
 		{Name: "dir/a", Size: 1},
 	}
+	expectedImplicitDirs := []string{"dir/"}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts)
+	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
 func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
@@ -1070,11 +1094,11 @@ func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
 		CollapsedRuns: []string{"dir/a/"},
 	}
 	expectedInserts := []*gcs.MinObject{
-		{Name: "dir/"},
 		{Name: "dir/a/", Size: 0},
 	}
+	expectedImplicitDirs := []string{"dir/", "dir/a/"}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts)
+	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
 func (t *ListObjectsTest_InsertListing) cancelledContextDoesNotUpdatesCache(isHNS bool) {
@@ -1090,8 +1114,9 @@ func (t *ListObjectsTest_InsertListing) cancelledContextDoesNotUpdatesCache(isHN
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately.
 	expectedInserts := []*gcs.MinObject{}
+	expectedImplicitDirs := []string{}
 
-	t.callAndVerify(ctx, isHNS, listing, "dir/", expectedInserts)
+	t.callAndVerify(ctx, isHNS, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
 func (t *ListObjectsTest_InsertListing) TestInsertListing_ContextCancelledDoesNotUpdatesCache_HNSBucket() {
@@ -1100,6 +1125,30 @@ func (t *ListObjectsTest_InsertListing) TestInsertListing_ContextCancelledDoesNo
 
 func (t *ListObjectsTest_InsertListing) TestInsertListing_ContextCancelledDoesNotUpdatesCache_FlatBucket() {
 	t.cancelledContextDoesNotUpdatesCache(false)
+}
+
+func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached() {
+	// Re-initialize bucket with implicitDir = false
+	t.bucket = caching.NewFastStatBucket(
+		primaryCacheTTL,
+		t.cache,
+		&t.clock,
+		t.wrapped,
+		negativeCacheTTL,
+		true,
+		false)
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/a", Size: 1},
+		},
+		CollapsedRuns: []string{"dir/b/"},
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/a", Size: 1},
+	}
+	expectedImplicitDirs := []string{}
+
+	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
 ////////////////////////////////////////////////////////////////////////

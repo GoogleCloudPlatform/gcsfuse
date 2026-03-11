@@ -277,7 +277,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 				}
 			}
 		} else {
-			logger.Warnf("Cannot apply bucket-type optimizations as IsUserSet is nil")
+			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
 		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
@@ -307,36 +307,54 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 // a shared chunk cache manager that allows multiple gcsfuse instances to share the same cache directory
 // on disk, based on the configuration.
 func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.CacheHandler, sharedChunkCacheManager *file.SharedChunkCacheManager, err error) {
-	cacheDir := string(serverCfg.NewConfig.CacheDir)
-	// Adding a new directory inside cacheDir to keep file-cache separate from
-	// metadata cache if and when we support storing metadata cache on disk in
-	// the future.
-	cacheDir = path.Join(cacheDir, cacheutil.FileCache)
-
+	baseCacheDir := string(serverCfg.NewConfig.CacheDir)
 	filePerm := cacheutil.DefaultFilePerm
 	dirPerm := cacheutil.DefaultDirPerm
 
-	cacheDirErr := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
-	if cacheDirErr != nil {
-		return nil, nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
-	}
-
 	// Shared cache with external LRU cache eviction.
 	if serverCfg.NewConfig.FileCache.EnableExperimentalSharedChunkCache {
-		sharedCacheManager, sharedErr := file.NewSharedChunkCacheManager(
-			cacheDir,
-			filePerm,
-			dirPerm,
-			&serverCfg.NewConfig.FileCache,
-		)
-		if sharedErr != nil {
-			return nil, nil, fmt.Errorf("createFileCacheHandler: while creating shared chunk cache manager: %w", sharedErr)
-		}
-		logger.Infof("File Cache: Shared chunk cache created successfully")
-		return nil, sharedCacheManager, nil
+		sharedChunkCacheManager, err := createSharedChunkCacheManager(baseCacheDir, filePerm, dirPerm, serverCfg)
+		return nil, sharedChunkCacheManager, err
 	}
 
 	// Regular gcsfuse file-cache with memory based LRU cache.
+	fileCacheHandler, err = createSingleMountFileCacheHandler(baseCacheDir, filePerm, dirPerm, serverCfg)
+	return fileCacheHandler, nil, err
+}
+
+// createSharedChunkCacheManager creates a shared chunk cache manager for multi-instance caching.
+func createSharedChunkCacheManager(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.SharedChunkCacheManager, error) {
+	// Use separate directory for shared chunk cache to avoid conflicts with regular file cache
+	cacheDir := path.Join(baseCacheDir, cacheutil.SharedChunkCache)
+
+	if err := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm); err != nil {
+		return nil, fmt.Errorf("createSharedChunkCacheManager: while creating shared chunk cache directory: %w", err)
+	}
+
+	sharedCacheManager, err := file.NewSharedChunkCacheManager(
+		cacheDir,
+		filePerm,
+		dirPerm,
+		&serverCfg.NewConfig.FileCache,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("createSharedChunkCacheManager: while creating shared chunk cache manager: %w", err)
+	}
+
+	logger.Infof("File Cache: Shared chunk cache created successfully at %s", cacheDir)
+	return sharedCacheManager, nil
+}
+
+// createSingleMountFileCacheHandler creates a file cache handler with an in-memory LRU cache specific to a single gcsfuse instance.
+func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, error) {
+	// Use separate directory for regular file cache
+	cacheDir := path.Join(baseCacheDir, cacheutil.FileCache)
+
+	if err := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm); err != nil {
+		return nil, fmt.Errorf("createSingleMountFileCacheHandler: while creating file cache directory: %w", err)
+	}
+
+	// Calculate cache size
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
@@ -347,11 +365,30 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
 		logger.Infof("File Cache: Regular cache size: %d MB (%d bytes)", serverCfg.NewConfig.FileCache.MaxSizeMb, sizeInBytes)
 	}
-	fileInfoCache := lru.NewCache(sizeInBytes)
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache)
-	return fileCacheHandler, nil, nil
+	fileInfoCache := lru.NewCache(sizeInBytes)
+	jobManager := downloader.NewJobManager(
+		fileInfoCache,
+		filePerm,
+		dirPerm,
+		cacheDir,
+		serverCfg.SequentialReadSizeMb,
+		&serverCfg.NewConfig.FileCache,
+		serverCfg.MetricHandle,
+		serverCfg.TraceHandle,
+	)
+	fileCacheHandler := file.NewCacheHandler(
+		fileInfoCache,
+		jobManager,
+		cacheDir,
+		filePerm,
+		dirPerm,
+		serverCfg.NewConfig.FileCache.ExcludeRegex,
+		serverCfg.NewConfig.FileCache.IncludeRegex,
+		serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache,
+	)
+
+	return fileCacheHandler, nil
 }
 
 func makeRootForBucket(
@@ -360,6 +397,7 @@ func makeRootForBucket(
 	return inode.NewDirInode(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
+		nil, // For root buckets, there is no parent and hence no parent context.
 		fuseops.InodeAttributes{
 			Uid:  fs.uid,
 			Gid:  fs.gid,
@@ -628,6 +666,27 @@ type fileSystem struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) findParentDirInode(childName inode.Name) inode.DirInode {
+	parentName, err := childName.ParentName()
+	if err != nil {
+		return nil
+	}
+
+	if parentInode, ok := fs.implicitDirInodes[parentName]; ok {
+		return parentInode
+	}
+	if parentInode, ok := fs.folderInodes[parentName]; ok {
+		return parentInode
+	}
+	if parentInode, ok := fs.generationBackedInodes[parentName]; ok {
+		if dirInode, ok := parentInode.(inode.DirInode); ok {
+			return dirInode
+		}
+	}
+	return nil
+}
+
 func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 	// INVARIANT: For each k/v, v.Name() == k
 	for k, v := range fs.localFileInodes {
@@ -847,10 +906,11 @@ func (fs *fileSystem) checkInvariants() {
 	}
 }
 
-func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.Core) inode.Inode {
+func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.Core, parInodeCtx context.Context) inode.Inode {
 	in := inode.NewExplicitDirInode(
 		inodeID,
 		ic.FullName,
+		parInodeCtx,
 		ic.MinObject,
 		fuseops.InodeAttributes{
 			Uid:  fs.uid,
@@ -878,7 +938,7 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 // of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
+func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in inode.Inode) {
 	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
@@ -887,13 +947,14 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	switch {
 	// Explicit directories or folders in hierarchical bucket.
 	case (ic.MinObject != nil && ic.FullName.IsDir()), ic.Folder != nil:
-		in = fs.createExplicitDirInode(id, ic)
+		in = fs.createExplicitDirInode(id, ic, parInodeCtx)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
 		in = inode.NewDirInode(
 			id,
 			ic.FullName,
+			parInodeCtx,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -957,7 +1018,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode) inode.Inode {
+func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode, parInodeCtx context.Context) inode.Inode {
 	if !ic.FullName.IsDir() {
 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
 	}
@@ -968,7 +1029,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 		in, ok := (inodes)[ic.FullName]
 		// Create a new inode when a folder is created first time, or when a folder is deleted and then recreated with the same name.
 		if !ok || in.IsUnlinked() {
-			in := fs.mintInode(ic)
+			in := fs.mintInode(ic, parInodeCtx)
 			(inodes)[in.Name()] = in.(inode.DirInode)
 			in.Lock()
 			return in
@@ -1000,7 +1061,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Inode) {
+func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context, ic inode.Core) (in inode.Inode) {
 
 	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
@@ -1020,12 +1081,12 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 	// Handle Folders in hierarchical bucket.
 	if ic.Folder != nil {
-		return fs.createDirInode(ic, fs.folderInodes)
+		return fs.createDirInode(ic, fs.folderInodes, parInodeCtx)
 	}
 
 	// Handle implicit directories.
 	if ic.MinObject == nil {
-		return fs.createDirInode(ic, fs.implicitDirInodes)
+		return fs.createDirInode(ic, fs.implicitDirInodes, parInodeCtx)
 	}
 
 	oGen := inode.Generation{
@@ -1042,7 +1103,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 		// If we have no existing record, mint an inode and return it.
 		if !ok {
-			in = fs.mintInode(ic)
+			in = fs.mintInode(ic, parInodeCtx)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			in.Lock()
@@ -1098,7 +1159,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// lock in accordance with our lock ordering rules.
 		existingInode.Unlock()
 
-		in = fs.mintInode(ic)
+		in = fs.mintInode(ic, parInodeCtx)
 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 		continue
@@ -1162,7 +1223,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		}
 
 		// Attempt to create the inode. Return if successful.
-		child = fs.lookUpOrCreateInodeIfNotStale(*core)
+		child = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *core)
 		if child != nil {
 			return
 		}
@@ -1304,6 +1365,17 @@ func (fs *fileSystem) flushFile(
 		return nil
 	}
 
+	fs.mu.Lock()
+	parInode := fs.findParentDirInode(f.Name())
+	fs.mu.Unlock()
+	if parInode != nil {
+		// Increment active writers so no new prefetch gets triggered until write operation completes.
+		parInode.IncrementActiveWriters()
+		defer parInode.DecrementActiveWriters()
+		// Cancel current directory's prefetch so stale data is not updated in cache.
+		parInode.CancelCurrDirPrefetcher()
+	}
+
 	// Flush the inode.
 	err := f.Flush(ctx)
 	if err != nil {
@@ -1332,6 +1404,17 @@ func (fs *fileSystem) syncFile(
 	// when file to be synced has been unlinked from the same mount.
 	if f.IsUnlinked() {
 		return nil
+	}
+
+	fs.mu.Lock()
+	parInode := fs.findParentDirInode(f.Name())
+	fs.mu.Unlock()
+	if parInode != nil {
+		// Increment active writers so no new prefetch gets triggered until write operation completes.
+		parInode.IncrementActiveWriters()
+		defer parInode.DecrementActiveWriters()
+		// Cancel current directory's prefetch so stale data is not updated in cache.
+		parInode.CancelCurrDirPrefetcher()
 	}
 
 	// Sync the inode.
@@ -1580,9 +1663,9 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 
 // coreToDirentPlus creates a fuseutil.DirentPlus entry from an inode core.
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core) (entryPlus *fuseutil.DirentPlus, err error) {
+func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core, parInodeCtx context.Context) (entryPlus *fuseutil.DirentPlus, err error) {
 	// Look up or create the inode for the core.
-	child := fs.lookUpOrCreateInodeIfNotStale(core)
+	child := fs.lookUpOrCreateInodeIfNotStale(parInodeCtx, core)
 	if child == nil {
 		return nil, fmt.Errorf("coreToDirentPlus: stale record for %s", path.Base(fullName.LocalName()))
 	}
@@ -1945,7 +2028,7 @@ func (fs *fileSystem) MkDir(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child := fs.lookUpOrCreateInodeIfNotStale(*result)
+	child := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if child == nil {
 		err = fmt.Errorf("newly-created record is already stale")
 		return err
@@ -2032,7 +2115,7 @@ func (fs *fileSystem) createFile(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child = fs.lookUpOrCreateInodeIfNotStale(*result)
+	child = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if child == nil {
 		err = fmt.Errorf("newly-created record is already stale")
 		return
@@ -2080,7 +2163,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	if err != nil {
 		return
 	}
-	child = fs.mintInode(core)
+	child = fs.mintInode(core, parent.Context())
 	fs.localFileInodes[child.Name()] = child
 	fileInode := child.(*inode.FileInode)
 	// Use deferred locking on filesystem so that it is locked before the defer call that unlocks the mutex and it doesn't fail.
@@ -2188,7 +2271,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child := fs.lookUpOrCreateInodeIfNotStale(*result)
+	child := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if child == nil {
 		err = fmt.Errorf("newly-created record is already stale")
 		return err
@@ -2591,7 +2674,7 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	}
 
 	// Rename old directory to the new directory, keeping both parent directories locked.
-	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName(), oldDirInode)
 	if err != nil {
 		return fmt.Errorf("failed to rename folder: %w", err)
 	}
@@ -2864,7 +2947,7 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 	// lock here has no performance overhead.
 	var entriesPlus []fuseutil.DirentPlus
 	for fullName, core := range cores {
-		entry, err := fs.coreToDirentPlus(ctx, fullName, *core)
+		entry, err := fs.coreToDirentPlus(ctx, fullName, *core, in.Context())
 		if err != nil {
 			return err
 		}

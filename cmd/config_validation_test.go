@@ -525,6 +525,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 					ClientProtocol:             "http1",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
+					GrpcPathStrategy:           "direct-path-with-fallback",
 					GrpcConnPoolSize:           1,
 					HttpClientTimeout:          0,
 					LimitBytesPerSec:           -1,
@@ -545,6 +546,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 					ClientProtocol:             "http2",
 					CustomEndpoint:             "www.abc.com",
 					ExperimentalEnableJsonRead: true,
+					GrpcPathStrategy:           "direct-path-only",
 					GrpcConnPoolSize:           200,
 					HttpClientTimeout:          400 * time.Second,
 					LimitBytesPerSec:           20,
@@ -779,7 +781,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					MetadataPrefetchMaxWorkers:          10,
 					EnableMetadataPrefetch:              false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
-					StatCacheMaxSizeMb:                  33,
+					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
@@ -831,6 +833,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 10,
 					MaxRetryAttempts:         0,
 					MaxRetrySleep:            30 * time.Second,
@@ -851,6 +854,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   180,
 					ChunkTransferTimeoutSecs: 20,
 					MaxRetryAttempts:         0,
 					MaxRetrySleep:            30 * time.Second,

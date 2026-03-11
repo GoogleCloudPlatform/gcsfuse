@@ -108,6 +108,7 @@ be interacting with the file system.`)
 		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
 		DummyIOCfg:                         newConfig.DummyIo,
 		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
+		ImplicitDir:                        newConfig.ImplicitDirs,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 

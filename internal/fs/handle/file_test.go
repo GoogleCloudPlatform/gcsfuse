@@ -95,9 +95,11 @@ func createDirInode(
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 	}
 
+	parInodeCtx := context.Background()
 	return inode.NewDirInode(
 		1,
 		inode.NewDirName(inode.NewRootName(""), testDirName),
+		parInodeCtx,
 		fuseops.InodeAttributes{
 			Uid:  0,
 			Gid:  0,

@@ -168,27 +168,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(-1),
 		},
 	},
-}, "metadata-cache.type-cache-max-size-mb": {
-	MachineBasedOptimization: []shared.MachineBasedOptimization{
-		{
-			Group: "high-performance",
-			Value: int64(128),
-		},
-	},
-	Profiles: []shared.ProfileOptimization{
-		{
-			Name:  "aiml-training",
-			Value: int64(-1),
-		},
-		{
-			Name:  "aiml-serving",
-			Value: int64(-1),
-		},
-		{
-			Name:  "aiml-checkpointing",
-			Value: int64(-1),
-		},
-	},
 }, "write.global-max-blocks": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
@@ -377,18 +356,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
-	if !v.IsSet("metadata-cache.type-cache-max-size-mb") {
-		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(int64); ok {
-				if c.MetadataCache.TypeCacheMaxSizeMb != val {
-					c.MetadataCache.TypeCacheMaxSizeMb = val
-					optimizedFlags["metadata-cache.type-cache-max-size-mb"] = result
-				}
-			}
-		}
-	}
 	if !v.IsSet("write.global-max-blocks") {
 		rules := AllFlagOptimizationRules["write.global-max-blocks"]
 		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, input, machineTypeToGroupMap)
@@ -446,6 +413,8 @@ type Config struct {
 	EnableTypeCacheDeprecation bool `yaml:"enable-type-cache-deprecation"`
 
 	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
+
+	ExperimentalEnableStandardSymlinks bool `yaml:"experimental-enable-standard-symlinks"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -603,6 +572,8 @@ type GcsConnectionConfig struct {
 
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
+	GrpcPathStrategy DirectPathStrategy `yaml:"grpc-path-strategy"`
+
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
 
 	LimitBytesPerSec float64 `yaml:"limit-bytes-per-sec"`
@@ -617,6 +588,8 @@ type GcsConnectionConfig struct {
 }
 
 type GcsRetriesConfig struct {
+	ChunkRetryDeadlineSecs int64 `yaml:"chunk-retry-deadline-secs"`
+
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
@@ -770,7 +743,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
-	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration that the HTTP client will wait for a response after making a request to upload a chunk. As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
+	flagSet.IntP("chunk-retry-deadline-secs", "", 120, "We send larger file uploads in 16 MiB (Legacy Writes) or 32MiB (Streaming Writes) chunks. This flag controls the overall duration that GCSFuse would keep retrying for a single chunk upload completion. 0 means infinity duration for chunk retries.")
+
+	if err := flagSet.MarkHidden("chunk-retry-deadline-secs"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB (Legacy Writes) or 32MiB (Streaming Writes) chunks. This flag controls the duration that the HTTP client will wait for a response after making a request to upload a chunk. As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; otherwise, it cancels the request and retries for that chunk till chunk retry deadline duration. 0 means no timeout.")
 
 	if err := flagSet.MarkHidden("chunk-transfer-timeout-secs"); err != nil {
 		return err
@@ -960,7 +939,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
+	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
 
@@ -972,7 +951,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-type-cache-deprecation", "", false, "Enables support to deprecate type cache.")
+	flagSet.BoolP("enable-type-cache-deprecation", "", true, "Enables support to deprecate type cache.")
 
 	if err := flagSet.MarkHidden("enable-type-cache-deprecation"); err != nil {
 		return err
@@ -1005,6 +984,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Enables ReadDirPlus capability")
 
 	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-standard-symlinks", "", false, "Enables the creation and reading of symbolic links using the standard GCS representation. When enabled, new symlinks created via GCSFuse mount ensure compatibility with other GCS clients like Storage Transfer Service (STS).")
+
+	if err := flagSet.MarkHidden("experimental-enable-standard-symlinks"); err != nil {
 		return err
 	}
 
@@ -1113,6 +1098,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
+
+	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).")
+
+	if err := flagSet.MarkHidden("grpc-path-strategy"); err != nil {
+		return err
+	}
 
 	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. A value of 0 indicates no timeout.")
 
@@ -1320,13 +1311,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive entry and 240 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
+	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1720 bytes, including 1464 for positive entry and 256 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
 
 	if err := flagSet.MarkDeprecated("stat-cache-capacity", "Please use --stat-cache-max-size-mb instead."); err != nil {
 		return err
 	}
 
-	flagSet.IntP("stat-cache-max-size-mb", "", 33, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
+	flagSet.IntP("stat-cache-max-size-mb", "", 34, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
 	flagSet.DurationP("stat-cache-ttl", "", 60000000000*time.Nanosecond, "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
 
@@ -1338,7 +1329,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
 
-	flagSet.IntP("type-cache-max-size-mb", "", 4, "Max size of type-cache maps which are maintained at a per-directory level.")
+	flagSet.IntP("type-cache-max-size-mb", "", 4, "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb.")
 
 	flagSet.DurationP("type-cache-ttl", "", 60000000000*time.Nanosecond, "Usage: How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
 
@@ -1398,6 +1389,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cache-dir", flagSet.Lookup("cache-dir")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.chunk-retry-deadline-secs", flagSet.Lookup("chunk-retry-deadline-secs")); err != nil {
 		return err
 	}
 
@@ -1577,6 +1572,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("experimental-enable-standard-symlinks", flagSet.Lookup("experimental-enable-standard-symlinks")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size")); err != nil {
 		return err
 	}
@@ -1674,6 +1673,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.gid", flagSet.Lookup("gid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.grpc-path-strategy", flagSet.Lookup("grpc-path-strategy")); err != nil {
 		return err
 	}
 

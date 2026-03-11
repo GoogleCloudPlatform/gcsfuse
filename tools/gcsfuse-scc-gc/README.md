@@ -86,6 +86,15 @@ sudo systemctl enable --now gcsfuse-scc-gc.timer
 **Two-phase eviction:** Files are renamed to `.bak` on the current run and deleted on the next run. This ensure no
 concurrent read and eviction of chunked file.
 
+## Cache Directory Structure
+
+The tool expects the cache to be organized in a `gcsfuse-shared-chunk-cache` subdirectory within the specified cache directory:
+- Format: `<cache-dir>/gcsfuse-shared-chunk-cache/<2-char>/<2-char>/<full-hash>/<start>_<end>.bin`
+- Automatically detects and uses this subdirectory structure
+- Uses SHA256-based hashing for cache organization
+
+**Note:** This is separate from the regular GCSFuse file cache which uses `gcsfuse-file-cache` subdirectory.
+
 ## Example
 
 ```bash

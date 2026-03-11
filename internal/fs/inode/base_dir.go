@@ -283,7 +283,7 @@ func (d *baseDirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObje
 	return nil, err
 }
 
-func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (op *gcs.Folder, err error) {
+func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string, folderInode DirInode) (op *gcs.Folder, err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -310,3 +310,7 @@ func (d *baseDirInode) Context() context.Context {
 	// is not allowed, so a nil context suffices.
 	return nil
 }
+
+func (d *baseDirInode) IncrementActiveWriters() {}
+
+func (d *baseDirInode) DecrementActiveWriters() {}
