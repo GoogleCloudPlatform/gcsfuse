@@ -1201,3 +1201,67 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_Metrics
 	}
 }
 
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_MetricsLogic() {
+	sdkProvider := sdkmetric.NewMeterProvider()
+
+	tests := []struct {
+		name              string
+		enableGrpcMetrics bool
+		isGKE             bool
+		setSDKProvider    bool
+		expectOpts        bool
+	}{
+		{
+			name:              "MetricsEnabled_GKE_WithSDKProvider",
+			enableGrpcMetrics: true,
+			isGKE:             true,
+			setSDKProvider:    true,
+			expectOpts:        true,
+		},
+		{
+			name:              "MetricsEnabled_NonGKE_WithSDKProvider",
+			enableGrpcMetrics: true,
+			isGKE:             false,
+			setSDKProvider:    true,
+			expectOpts:        true,
+		},
+		{
+			name:              "MetricsEnabled_NonGKE_NoSDKProvider",
+			enableGrpcMetrics: true,
+			isGKE:             false,
+			setSDKProvider:    false,
+			expectOpts:        true,
+		},
+		{
+			name:              "MetricsDisabled_NonGKE",
+			enableGrpcMetrics: false,
+			isGKE:             false,
+			setSDKProvider:    true,
+			expectOpts:        true,
+		},
+	}
+
+	for _, tc := range tests {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			origProvider := otel.GetMeterProvider()
+			if tc.setSDKProvider {
+				otel.SetMeterProvider(sdkProvider)
+			} else {
+				// The default provider from otel.GetMeterProvider() is usually a no-op
+				// and NOT a *sdkmetric.MeterProvider.
+			}
+			defer otel.SetMeterProvider(origProvider)
+
+			sc := storageutil.StorageClientConfig{
+				ClientProtocol:    cfg.GRPC,
+				EnableGrpcMetrics: tc.enableGrpcMetrics,
+				IsGKE:             tc.isGKE,
+			}
+
+			opts, err := createClientOptionForGRPCClient(context.Background(), &sc, false)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, opts)
+		})
+	}
+}
