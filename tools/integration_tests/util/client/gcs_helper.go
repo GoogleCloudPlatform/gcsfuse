@@ -103,8 +103,8 @@ func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *stor
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, content, t)
 }
 
-func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client,
-	testDirPath, fileName string, t *testing.T) (string, *os.File) {
+func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client, testDirPath, fileName string, t *testing.T) (string, *os.File) {
+	t.Helper()
 	filePath := path.Join(testDirPath, fileName)
 	fh := operations.CreateFile(filePath, FilePerms, t)
 	testDirName := GetDirName(testDirPath)

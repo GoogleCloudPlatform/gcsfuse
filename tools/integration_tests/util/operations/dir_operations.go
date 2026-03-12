@@ -174,6 +174,7 @@ func ReadDirectory(dirPath string, t *testing.T) (entries []os.DirEntry) {
 }
 
 func VerifyDirectoryEntry(entry os.DirEntry, dirName string, t *testing.T) {
+	t.Helper()
 	if !entry.IsDir() {
 		t.Fatalf("Expected: directory entry, Got: file entry.")
 	}
