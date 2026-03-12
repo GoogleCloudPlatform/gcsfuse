@@ -76,6 +76,52 @@ func (dsc *defaultSizeCalculator) AddDelta(delta int64) {
 	}
 }
 
+// indexer defines the interface for the underlying key-value store used by the LRU cache.
+// Implementations of this interface do not need to be thread-safe internally, as they
+// are protected by the LRU cache's global mutex.
+type indexer interface {
+	Get(key string) (*list.Element, bool)
+	Set(key string, value *list.Element)
+	Delete(key string)
+	KeysWithPrefix(prefix string) []string
+	Len() int
+}
+
+type mapIndexer struct {
+	m map[string]*list.Element
+}
+
+func newMapIndexer() *mapIndexer {
+	return &mapIndexer{m: make(map[string]*list.Element)}
+}
+
+func (mi *mapIndexer) Get(key string) (*list.Element, bool) {
+	e, ok := mi.m[key]
+	return e, ok
+}
+
+func (mi *mapIndexer) Set(key string, value *list.Element) {
+	mi.m[key] = value
+}
+
+func (mi *mapIndexer) Delete(key string) {
+	delete(mi.m, key)
+}
+
+func (mi *mapIndexer) KeysWithPrefix(prefix string) []string {
+	var keys []string
+	for k := range mi.m {
+		if strings.HasPrefix(k, prefix) {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+func (mi *mapIndexer) Len() int {
+	return len(mi.m)
+}
+
 // Cache is a LRU cache for any lru.ValueType indexed by string keys.
 // That means entry's value should be a lru.ValueType.
 type Cache struct {
@@ -103,7 +149,7 @@ type Cache struct {
 	//
 	// INVARIANT: For each k, v: v.Value.(entry).Key == k
 	// INVARIANT: Contains all and only the elements of entries
-	index map[string]*list.Element
+	index indexer
 
 	// All public methods of this Cache uses this RW mutex based locker while
 	// accessing/updating Cache's data.
@@ -124,7 +170,7 @@ type entry struct {
 func NewCache(maxSize uint64) *Cache {
 	c := &Cache{
 		maxSize:        maxSize,
-		index:          make(map[string]*list.Element),
+		index:          newMapIndexer(),
 		sizeCalculator: &defaultSizeCalculator{},
 	}
 
@@ -133,13 +179,20 @@ func NewCache(maxSize uint64) *Cache {
 	return c
 }
 
-// NewCache returns the reference of cache object by initialising the cache with
+// NewCacheWithCustomSizeCalculator returns the reference of cache object by initialising the cache with
 // (a) the supplied maxSize, which must be greater than zero
 // (b) the size-calculator.
-func NewCacheWithCustomSizeCalculator(maxSize uint64, sizeCalculator SizeCalculator) *Cache {
+func NewCacheWithCustomSizeCalculator(maxSize uint64, sizeCalculator SizeCalculator, useTrie bool) *Cache {
+	var idx indexer
+	if useTrie {
+		panic("trie indexer not yet implemented") // To be replaced when trie.go is added
+	} else {
+		idx = newMapIndexer()
+	}
+
 	c := &Cache{
 		maxSize:        maxSize,
-		index:          make(map[string]*list.Element),
+		index:          idx,
 		sizeCalculator: sizeCalculator,
 	}
 
@@ -172,15 +225,16 @@ func (c *Cache) checkInvariants() {
 
 	// INVARIANT: For each k, v: v.Value.(entry).Key == k
 	// INVARIANT: Contains all and only the elements of entries
-	if c.entries.Len() != len(c.index) {
+	if c.entries.Len() != c.index.Len() {
 		panic(fmt.Sprintf(
 			"Length mismatch: %v vs. %v",
 			c.entries.Len(),
-			len(c.index)))
+			c.index.Len()))
 	}
 
 	for e := c.entries.Front(); e != nil; e = e.Next() {
-		if c.index[e.Value.(entry).Key] != e {
+		val, ok := c.index.Get(e.Value.(entry).Key)
+		if !ok || val != e {
 			panic(fmt.Sprintf("Mismatch for key %v", e.Value.(entry).Key))
 		}
 	}
@@ -194,7 +248,7 @@ func (c *Cache) evictOne() ValueType {
 	c.sizeCalculator.EvictEntry(evictedEntry)
 
 	c.entries.Remove(e)
-	delete(c.index, key)
+	c.index.Delete(key)
 
 	return evictedEntry
 }
@@ -222,7 +276,7 @@ func (c *Cache) Insert(
 		return nil, ErrInvalidEntrySize
 	}
 
-	e, ok := c.index[key]
+	e, ok := c.index.Get(key)
 	if ok {
 		// Update an entry if already exist.
 		c.sizeCalculator.AddDelta(-int64(c.sizeCalculator.SizeOf(e.Value.(entry).Value)))
@@ -232,7 +286,7 @@ func (c *Cache) Insert(
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
-		c.index[key] = e
+		c.index.Set(key, e)
 		c.sizeCalculator.AddDelta(int64(valueSize))
 	}
 
@@ -250,7 +304,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e, ok := c.index[key]
+	e, ok := c.index.Get(key)
 	if !ok {
 		return
 	}
@@ -258,7 +312,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	deletedEntry := e.Value.(entry).Value
 	c.sizeCalculator.EvictEntry(deletedEntry)
 
-	delete(c.index, key)
+	c.index.Delete(key)
 	c.entries.Remove(e)
 
 	return deletedEntry
@@ -271,9 +325,9 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	defer c.mu.Unlock()
 
 	// Consult the index.
-	e, ok := c.index[key]
+	e, ok := c.index.Get(key)
 	if !ok {
-		return
+		return nil
 	}
 	// This is now the most recently used entry.
 	c.entries.MoveToFront(e)
@@ -293,9 +347,9 @@ func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 	defer c.mu.RUnlock()
 
 	// Consult the index.
-	e, ok := c.index[key]
+	e, ok := c.index.Get(key)
 	if !ok {
-		return
+		return nil
 	}
 
 	// Return the value.
@@ -316,7 +370,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e, ok := c.index[key]
+	e, ok := c.index.Get(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
@@ -326,7 +380,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	}
 
 	e.Value = entry{key, value}
-	c.index[key] = e
+	c.index.Set(key, e)
 
 	return nil
 }
@@ -339,7 +393,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.index[key]
+	_, ok := c.index.Get(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
@@ -353,9 +407,11 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 }
 
 func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
-	for key := range c.index {
-		if strings.HasPrefix(key, prefix) {
-			c.Erase(key)
-		}
+	c.mu.RLock()
+	keys := c.index.KeysWithPrefix(prefix)
+	c.mu.RUnlock()
+
+	for _, key := range keys {
+		c.Erase(key)
 	}
 }
