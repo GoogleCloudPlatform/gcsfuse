@@ -15,6 +15,6 @@
 package tracing
 
 const (
-	IS_CACHE_HIT = "cache.hit"
-	BYTES_READ   = "read.size"
+	IS_CACHE_HIT = "cache.hit" // Indicates if the response was served from cache or not.
+	BYTES_READ   = "read.size" // Indicates the number of bytes read from the given reader
 )

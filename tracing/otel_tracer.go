@@ -23,11 +23,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Identifies the span link as a parent relationship for proper trace visualization in GCP.
-var childLinkAttributes = []attribute.KeyValue{
-	attribute.String("gcp.cloud_trace.link_type", "PARENT_LINKED_SPAN"),
-}
-
 type otelTracer struct {
 	tracer trace.Tracer
 }
