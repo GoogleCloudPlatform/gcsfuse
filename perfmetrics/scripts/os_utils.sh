@@ -52,19 +52,47 @@ install_packages_by_os() {
 
   case "$os_id" in
     ubuntu|debian)
-      sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"
+      local retry_count=0
+      local max_retries=10
+      
+      # Loop to handle the apt lock issue
+      until sudo apt-get update; do
+        if [ $retry_count -ge $max_retries ]; then
+          echo "Error: Could not obtain apt lock after $max_retries attempts."
+          return 1
+        fi
+        
+        echo "Waiting for apt lock (Process $(fuser /var/lib/apt/lists/lock 2>/dev/null))..."
+        sleep 5
+        ((retry_count++))
+      done
+      sudo apt-get install -y "${pkgs[@]}"
       ;;
     rhel|centos|fedora|almalinux|rocky)
       # Map package names for RHEL if necessary
       local rhel_pkgs=()
+      local install_crcmod=false # Installation of crcmod is working through pip only on rhel, centos, fedora, almalinux and rocky.
       for pkg in "${pkgs[@]}"; do
         if [[ "$pkg" == "python3-dev" ]]; then
           rhel_pkgs+=("python3-devel")
+        elif [[ "$pkg" == "python3-crcmod" ]]; then
+          install_crcmod=true
+        elif [[ "$pkg" == "fuse3" ]]; then
+          rhel_pkgs+=("fuse")
         else
           rhel_pkgs+=("$pkg")
         fi
       done
+
+      if [ "$install_crcmod" = true ]; then
+        rhel_pkgs+=("python3-pip")
+      fi
+
       sudo yum install -y "${rhel_pkgs[@]}"
+
+      if [ "$install_crcmod" = true ]; then
+        sudo python3 -m pip install crcmod
+      fi
       ;;
     arch|manjaro)
       # Map package names for Arch

@@ -48,9 +48,9 @@ print_package_stats() {
     local end_sec="$5"
     local wait_min run_min status
     if [ "$exit_code" -eq 0 ]; then
-        status="PASSED"
+        status="✅PASSED"
     else
-        status="FAILED"
+        status="❌FAILED"
     fi
     wait_min=$((start_sec / 60))
     run_min=$(((end_sec - start_sec + 60) / 60))
