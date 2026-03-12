@@ -293,8 +293,8 @@ func (s *TracingTestSuite) TestTraceMkDir() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"fs.mkdir"}},
-		{"disabled", false, []string{"fs.mkdir"}},
+		{"enabled", true, []string{"fs.dir.mk"}},
+		{"disabled", false, []string{"fs.dir.mk"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -367,8 +367,8 @@ func (s *TracingTestSuite) TestTraceCreateFile() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"ffs.file.create"}},
-		{"disabled", false, []string{"ffs.file.create"}},
+		{"enabled", true, []string{"fs.file.create"}},
+		{"disabled", false, []string{"fs.file.create"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -526,8 +526,8 @@ func (s *TracingTestSuite) TestTraceRmDir() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"fs.mkdir", "fs.rmdir"}},
-		{"disabled", false, []string{"fs.mkdir", "fs.rmdir"}},
+		{"enabled", true, []string{"fs.dir.mk", "fs.dir.rm"}},
+		{"disabled", false, []string{"fs.dir.mk", "fs.dir.rm"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {
@@ -1222,8 +1222,8 @@ func (s *TracingTestSuite) TestTraceSetXattr() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"fs.inode.lookup", "fs.SetXattr"}},
-		{"disabled", false, []string{"fs.inode.lookup", "fs.SetXattr"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.set_xattr"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.set_xattr"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {

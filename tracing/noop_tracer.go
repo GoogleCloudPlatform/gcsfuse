@@ -27,10 +27,6 @@ func (*noopTracer) StartSpan(ctx context.Context, traceName string) (context.Con
 	return ctx, noop.Span{}
 }
 
-func (*noopTracer) StartSpanLink(ctx context.Context, traceName string) (context.Context, trace.Span) {
-	return ctx, noop.Span{}
-}
-
 func (*noopTracer) StartServerSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	return ctx, noop.Span{}
 }

@@ -28,11 +28,11 @@ const (
 	// FileCacheWrite tracks write or population operations into the local file cache.
 	FileCacheWrite = "file.cache.write"
 	// FileDownloadJob represents a background task responsible for fetching remote file data.
-	FileDownloadJob = "file.download.job"
+	FileDownloadJob = "file.cache.download"
 	// ReadPrefetchBlockPoolGen monitors the generation/lifecycle of the prefetch block pool.
-	ReadPrefetchBlockPoolGen = "read.prefetch.block_pool_gen"
+	ReadPrefetchBlockPoolGen = "prefetch.block_pool_gen.read"
 	// DownloadPrefetchBlock triggers a network request to pre-fill a specific data block.
-	DownloadPrefetchBlock = "download.prefetch.block"
+	DownloadPrefetchBlock = "prefetch.block.download"
 	// WaitForPrefetchBlock measures the time a process waits for a prefetch operation to complete.
 	WaitForPrefetchBlock = "prefetch.block.wait"
 	// ReadFromPrefetchBlock executes a read directly from a successfully prefetched data block.
@@ -53,14 +53,14 @@ const (
 	// ForgetInode informs the kernel that it no longer needs to track a specific inode.
 	ForgetInode = "fs.inode.forget"
 	// BatchForget allows the kernel to release multiple inode references in a single call.
-	BatchForget = "ffs.batch_forget"
+	BatchForget = "fs.batch_forget"
 
 	// --- Directory Lifecycle ---
 
 	// MkDir creates a new directory entry.
-	MkDir = "fs.mkdir"
+	MkDir = "fs.dir.mk"
 	// RmDir removes an existing, empty directory.
-	RmDir = "fs.rmdir"
+	RmDir = "fs.dir.rm"
 	// OpenDir opens a directory for content enumeration.
 	OpenDir = "fs.dir.open"
 	// ReadDir reads entries from an open directory handle.
@@ -73,7 +73,7 @@ const (
 	// --- File Lifecycle and I/O ---
 
 	// CreateFile creates and opens a new file within the filesystem.
-	CreateFile = "ffs.file.create"
+	CreateFile = "fs.file.create"
 	// OpenFile opens an existing file for reading or writing.
 	OpenFile = "fs.file.open"
 	// ReadFile executes a standard read operation from a file handle.
@@ -102,7 +102,7 @@ const (
 	// GetXattr retrieves the value of an extended attribute.
 	GetXattr = "fs.xattr.get"
 	// SetXattr sets or updates an extended attribute.
-	SetXattr = "fs.SetXattr"
+	SetXattr = "fs.set_xattr"
 	// ListXattr lists the names of extended attributes assigned to a file.
 	ListXattr = "fs.xattr.list"
 	// RemoveXattr deletes an extended attribute from a file.
