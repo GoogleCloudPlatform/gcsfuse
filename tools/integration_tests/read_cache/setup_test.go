@@ -21,6 +21,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
@@ -60,6 +61,8 @@ const (
 	offset10MiB                        = 10 * util.MiB
 	cacheCapacityForRangeReadTestInMiB = 50
 	GKETempDir                         = "/gcsfuse-tmp"
+	retryFrequency                     = 4 * time.Second // Used in poll frequency for asynchronous test expecation.
+	retryDuration                      = 2 * time.Minute // Used for poll duration for asynchronous test expecation.
 )
 
 var (
