@@ -47,7 +47,6 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-
 // StorageServer is a dummy interface for gRPC registration.
 type StorageServer interface{}
 
