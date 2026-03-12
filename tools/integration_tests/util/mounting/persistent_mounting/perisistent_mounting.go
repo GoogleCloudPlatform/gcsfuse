@@ -93,7 +93,7 @@ func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running persistent mounting tests...")
+	log.Printf("GCSFuse Log File for test: %s\n", config.LogFile)
 	successCode = executeTestsForPersistentMountingWithConfigFile(config, flagsSet, m)
-	log.Printf("Test log: %s\n", config.LogFile)
 	return successCode
 }
