@@ -1188,6 +1188,7 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_Metrics
 				ClientProtocol:    cfg.GRPC,
 				EnableGrpcMetrics: tc.enableGrpcMetrics,
 				IsGKE:             tc.isGKE,
+				AnonymousAccess:   true,
 			}
 
 			opts, err := createClientOptionForGRPCClient(context.Background(), &sc, false)
