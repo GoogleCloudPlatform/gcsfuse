@@ -382,7 +382,7 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 		}
 
 		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(scanDir, time.Duration(serverCfg.NewConfig.FileCache.ExperimentalSizeCalculationFrequencySecs)*time.Second, serverCfg.NewConfig.FileCache.ExperimentalDeleteEmptyDirs, cacheDirVolumeBlockSize)
-		fileInfoCache = lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator)
+		fileInfoCache = lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator, false)
 	} else {
 		fileInfoCache = lru.NewCache(sizeInBytes)
 	}
