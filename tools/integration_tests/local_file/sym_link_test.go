@@ -28,7 +28,7 @@ import (
 )
 
 func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File) {
-	fileName := "TestCreateSymlinkForLocalFile"
+	fileName := path.Base(t.Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
@@ -51,7 +51,7 @@ func (t *LocalFileTestSuite) TestCreateSymlinkForLocalFile() {
 }
 
 func (t *LocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
-	fileName := "TestCreateSymlinkForLocalFile"
+	fileName := path.Base(t.T().Name())
 	filePath, symlink, fh := createAndVerifySymLink(t.T())
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)
@@ -66,7 +66,7 @@ func (t *LocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 }
 
 func (t *LocalFileTestSuite) TestRenameSymlinkForLocalFile() {
-	fileName := "TestCreateSymlinkForLocalFile"
+	fileName := path.Base(t.T().Name())
 	filePath, symlinkPath, fh := createAndVerifySymLink(t.T())
 	newSymlinkPath := path.Join(testDirPath, "newSymlink")
 
