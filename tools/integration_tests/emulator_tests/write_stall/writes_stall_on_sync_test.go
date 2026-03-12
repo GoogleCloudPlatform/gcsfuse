@@ -198,14 +198,12 @@ func TestChunkRetryDeadline(t *testing.T) {
 			require.NoError(t, err)
 			setup.AppendProxyEndpointToFlagSet(&flags, port)
 			setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-
 			defer func() {
 				setup.UnmountGCSFuse(rootDir)
 				assert.NoError(t, emulator_tests.KillProxyServerProcess(proxyProcessId))
 				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 				setup.SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile, t)
 			}()
-
 			testDir := scenario.name + setup.GenerateRandomString(3)
 			testDirPath = setup.SetupTestDirectory(testDir)
 			filePath := path.Join(testDirPath, "file.txt")

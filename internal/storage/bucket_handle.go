@@ -267,7 +267,6 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 		return nil, &gcs.PreconditionError{Err: err}
 	}
 	w := &ObjectWriter{tw}
-
 	return w, err
 }
 
