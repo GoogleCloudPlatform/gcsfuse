@@ -1181,9 +1181,6 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_Metrics
 			origProvider := otel.GetMeterProvider()
 			if tc.setSDKProvider {
 				otel.SetMeterProvider(sdkProvider)
-			} else {
-				// The default provider from otel.GetMeterProvider() is usually a no-op
-				// and NOT a *sdkmetric.MeterProvider.
 			}
 			defer otel.SetMeterProvider(origProvider)
 
