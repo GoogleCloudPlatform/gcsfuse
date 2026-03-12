@@ -46,7 +46,7 @@ func TestSharedDirLocker_ConcurrentReaders(t *testing.T) {
 
 	// Act
 	wg.Add(numReaders)
-	for i := 0; i < numReaders; i++ {
+	for range numReaders {
 		go func() {
 			defer wg.Done()
 			locker.ReadLock(path)
