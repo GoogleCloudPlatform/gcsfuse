@@ -238,7 +238,7 @@ func getPortAndProcessInfoFromLogFile(logFilePath string) (int, int, error) {
 }
 
 func GetChunkRetryDeadlineFromFlags(flags []string) (int, error) {
-	deadline := 32 // Default value
+	deadline := 120 // Default value
 	for _, flag := range flags {
 		if after, ok := strings.CutPrefix(flag, "--chunk-retry-deadline-secs="); ok {
 			valueStr := after
