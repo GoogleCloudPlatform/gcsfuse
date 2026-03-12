@@ -25,6 +25,10 @@ file-cache:
   parallel-downloads-per-file: 10
   write-buffer-size: 8192
   enable-o-direct: true
+  experimental-enable-size-calculation-fix: true
+  experimental-delete-empty-dirs: false
+  experimental-size-calculation-frequency-secs: 20
+cache-dir: "/tmp"
 gcs-auth:
   anonymous-access: true
   key-file: "~/key.file"

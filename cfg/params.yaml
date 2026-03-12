@@ -306,6 +306,13 @@ params:
     usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
     default: ""
 
+  - config-path: "file-cache.experimental-delete-empty-dirs"
+    flag-name: "experimental-file-cache-delete-empty-dirs"
+    type: "bool"
+    usage: "Whether or not to delete empty directories inside cache-dir during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true."
+    default: true
+    hide-flag: true
+
   - config-path: "file-cache.experimental-enable-chunk-cache"
     flag-name: "file-cache-experimental-enable-chunk-cache"
     type: "bool"
@@ -313,12 +320,26 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-cache.experimental-enable-size-calculation-fix"
+    flag-name: "experimental-file-cache-enable-size-calculation-fix"
+    type: "bool"
+    usage: "Whether or not to scan disk sizes of file-cache cache-dir."
+    default: false
+    hide-flag: false
+
   - config-path: "file-cache.experimental-parallel-downloads-default-on"
     flag-name: "file-cache-experimental-parallel-downloads-default-on"
     type: "bool"
     usage: "Enable parallel downloads by default on experimental basis."
     default: true
     hide-flag: true
+
+  - config-path: "file-cache.experimental-size-calculation-frequency-secs"
+    flag-name: "experimental-file-cache-size-calculation-frequency-secs"
+    type: "int"
+    usage: "The duration in seconds after which the size of the file-cache cache-dir is calculated again. It should be set only when file-cache-size-scan-enable is true."
+    default: "10" # 10 seconds
+    hide-flag: false
 
   - config-path: "file-cache.include-regex"
     flag-name: "file-cache-include-regex"
