@@ -3,13 +3,13 @@ module github.com/googlecloudplatform/gcsfuse/v3
 go 1.26.1
 
 require (
-	cloud.google.com/go/auth v0.18.3-0.20260310051336-87cdcc9f7568
+	cloud.google.com/go/auth v0.18.2
 	cloud.google.com/go/auth/oauth2adapt v0.2.8
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/iam v1.5.3
 	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/secretmanager v1.16.0
-	cloud.google.com/go/storage v1.61.1
+	cloud.google.com/go/storage v1.61.2
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.31.0
 	github.com/fsouza/fake-gcs-server v1.52.2
