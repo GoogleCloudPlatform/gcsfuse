@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	testDirName                        = "ReadCacheTest"
+	testDirPrefix                      = "ReadCacheTest"
 	onlyDirMounted                     = "OnlyDirMountReadCache"
 	cacheSubDirectoryName              = "gcsfuse-file-cache"
 	smallContentSize                   = 128 * util.KiB
@@ -114,7 +114,7 @@ func setupLogFileAndCacheDir(testName string) {
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
 	setup.SetMntDir(mountDir)
-	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(ctx, storageClient, testDirPrefix)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -373,11 +373,11 @@ func TestMain(m *testing.M) {
 		mountDir = rootDir
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirPrefix))
 	}
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirPrefix))
 	os.Exit(successCode)
 }
 

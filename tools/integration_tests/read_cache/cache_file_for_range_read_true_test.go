@@ -57,7 +57,7 @@ func (s *cacheFileForRangeReadTrueTest) SetupTest() {
 	s.T().Logf("GCSFuse Log File: %s", testEnv.cfg.LogFile)
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(testEnv.cacheDirPath)
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 }
 
 func (s *cacheFileForRangeReadTrueTest) TearDownTest() {
