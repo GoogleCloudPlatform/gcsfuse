@@ -195,14 +195,10 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 }
 
 func (t *StressTest) CreateInParallel_NoTruncate() {
-	return
-	// t.Skip("Flaky test: CreateInParallel_NoTruncate")
 	fusetesting.RunCreateInParallelTest_NoTruncate(ctx, mntDir)
 }
 
 func (t *StressTest) CreateInParallel_Truncate() {
-	return
-	// t.Skip("Flaky test: CreateInParallel_Truncate")
 	fusetesting.RunCreateInParallelTest_Truncate(ctx, mntDir)
 }
 
