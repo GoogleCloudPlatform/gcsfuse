@@ -187,8 +187,8 @@ func TestChunkRetryDeadline(t *testing.T) {
 			expectedSuccess: false,
 		},
 	}
-
-	configPath := "../configs/write_stalls_four_times_60s .yaml" // 2 stalls, total timeout time spent = 10s or 40s based on timeout.
+	// 4 stalls of 60s each causing 4 retry chunk stalls and 5th retry succeeds after 40s.
+	configPath := "../configs/write_stalls_four_times_60s .yaml" 
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
