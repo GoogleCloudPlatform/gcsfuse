@@ -35,12 +35,10 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -49,100 +47,6 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-// verifyGrpcCounterMetricSubset verifies that a counter metric exists with at least the provided attributes.
-func verifyGrpcCounterMetricSubset(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, subsetAttrs []attribute.KeyValue, expectedMinLimit int64) {
-	t.Helper()
-	var rm metricdata.ResourceMetrics
-	err := reader.Collect(ctx, &rm)
-	require.NoError(t, err, "reader.Collect")
-
-	foundMetric := false
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			if m.Name == metricName {
-				foundMetric = true
-				data, ok := m.Data.(metricdata.Sum[int64])
-				require.True(t, ok, "metric %s is not a Sum[int64], but %T", metricName, m.Data)
-
-				foundDataPoint := false
-				for _, dp := range data.DataPoints {
-					matches := true
-					for _, kv := range subsetAttrs {
-						val, ok := dp.Attributes.Value(kv.Key)
-						if !ok || val.Emit() != kv.Value.Emit() {
-							matches = false
-							break
-						}
-					}
-					if matches {
-						foundDataPoint = true
-						assert.GreaterOrEqual(t, dp.Value, expectedMinLimit, "metric value too low for metric: %s", metricName)
-						break
-					}
-				}
-
-				if foundDataPoint {
-					return
-				}
-			}
-		}
-	}
-
-	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, fmt.Sprintf("Data point for subset attributes %v not found in %s metric", subsetAttrs, metricName))
-}
-
-// verifyGrpcHistogramMetricSubset verifies that a histogram metric exists with at least the provided attributes.
-func verifyGrpcHistogramMetricSubset(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, subsetAttrs []attribute.KeyValue, expectedMinCount uint64) {
-	t.Helper()
-	var rm metricdata.ResourceMetrics
-	err := reader.Collect(ctx, &rm)
-	require.NoError(t, err, "reader.Collect")
-
-	foundMetric := false
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			if m.Name == metricName {
-				foundMetric = true
-				switch data := m.Data.(type) {
-				case metricdata.Histogram[int64]:
-					for _, dp := range data.DataPoints {
-						matches := true
-						for _, kv := range subsetAttrs {
-							val, ok := dp.Attributes.Value(kv.Key)
-							if !ok || val.Emit() != kv.Value.Emit() {
-								matches = false
-								break
-							}
-						}
-						if matches {
-							assert.GreaterOrEqual(t, dp.Count, expectedMinCount, "metric count too low for metric: %s", metricName)
-							return
-						}
-					}
-				case metricdata.Histogram[float64]:
-					for _, dp := range data.DataPoints {
-						matches := true
-						for _, kv := range subsetAttrs {
-							val, ok := dp.Attributes.Value(kv.Key)
-							if !ok || val.Emit() != kv.Value.Emit() {
-								matches = false
-								break
-							}
-						}
-						if matches {
-							assert.GreaterOrEqual(t, dp.Count, expectedMinCount, "metric count too low for metric: %s", metricName)
-							return
-						}
-					}
-				}
-			}
-		}
-	}
-
-	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, fmt.Sprintf("Data point for subset attributes %v not found in %s metric", subsetAttrs, metricName))
-}
 
 // StorageServer is a dummy interface for gRPC registration.
 type StorageServer interface{}
@@ -499,12 +403,12 @@ func TestGrpcMetrics_LookUpInode(t *testing.T) {
 	time.Sleep(501 * time.Millisecond)
 
 	// Verify that grpc.client.attempt.started was emitted.
-	verifyGrpcCounterMetricSubset(t, ctx, reader, "grpc.client.attempt.started",
-		[]attribute.KeyValue{attribute.String("grpc.method", "google.storage.v2.Storage/GetObject")},
-		1)
-	verifyGrpcHistogramMetricSubset(t, ctx, reader, "grpc.client.call.duration",
-		[]attribute.KeyValue{attribute.String("grpc.method", "google.storage.v2.Storage/GetObject")},
-		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "grpc.client.attempt.started",
+		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/GetObject")),
+		1, metrics.AtLeast(), metrics.Subset())
+	metrics.VerifyHistogramMetric(t, ctx, reader, "grpc.client.call.duration",
+		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/GetObject")),
+		1, metrics.AtLeast(), metrics.Subset())
 }
 
 func TestGrpcMetrics_ReadFile(t *testing.T) {
@@ -545,12 +449,12 @@ func TestGrpcMetrics_ReadFile(t *testing.T) {
 	time.Sleep(501 * time.Millisecond)
 
 	// Verify ReadObject metric.
-	verifyGrpcCounterMetricSubset(t, ctx, reader, "grpc.client.attempt.started",
-		[]attribute.KeyValue{attribute.String("grpc.method", "google.storage.v2.Storage/ReadObject")},
-		1)
-	verifyGrpcHistogramMetricSubset(t, ctx, reader, "grpc.client.call.duration",
-		[]attribute.KeyValue{attribute.String("grpc.method", "google.storage.v2.Storage/ReadObject")},
-		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "grpc.client.attempt.started",
+		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/ReadObject")),
+		1, metrics.AtLeast(), metrics.Subset())
+	metrics.VerifyHistogramMetric(t, ctx, reader, "grpc.client.call.duration",
+		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/ReadObject")),
+		1, metrics.AtLeast(), metrics.Subset())
 }
 
 func TestGrpcMetrics_CreateFile(t *testing.T) {
@@ -585,10 +489,10 @@ func TestGrpcMetrics_CreateFile(t *testing.T) {
 	time.Sleep(501 * time.Millisecond)
 
 	// Verify BidiWriteObject metric.
-	verifyGrpcCounterMetricSubset(t, ctx, reader, "grpc.client.attempt.started",
-		[]attribute.KeyValue{attribute.String("grpc.method", "google.storage.v2.Storage/BidiWriteObject")},
-		1)
-	verifyGrpcHistogramMetricSubset(t, ctx, reader, "grpc.client.call.duration",
-		[]attribute.KeyValue{attribute.String("grpc.method", "google.storage.v2.Storage/BidiWriteObject")},
-		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "grpc.client.attempt.started",
+		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/BidiWriteObject")),
+		1, metrics.AtLeast(), metrics.Subset())
+	metrics.VerifyHistogramMetric(t, ctx, reader, "grpc.client.call.duration",
+		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/BidiWriteObject")),
+		1, metrics.AtLeast(), metrics.Subset())
 }
