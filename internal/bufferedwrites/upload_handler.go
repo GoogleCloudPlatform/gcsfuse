@@ -55,6 +55,7 @@ type UploadHandler struct {
 	bucket               gcs.Bucket
 	objectName           string
 	obj                  *gcs.Object
+	chunkRetryDeadline   int64
 	chunkTransferTimeout int64
 	blockSize            int64
 }
@@ -66,6 +67,7 @@ type CreateUploadHandlerRequest struct {
 	BlockPool                *block.GenBlockPool[block.Block]
 	MaxBlocksPerFile         int64
 	BlockSize                int64
+	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 }
 
@@ -79,6 +81,7 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		objectName:           req.ObjectName,
 		obj:                  req.Object,
 		blockSize:            req.BlockSize,
+		chunkRetryDeadline:   req.ChunkRetryDeadlineSecs,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 	}
 	return uh
@@ -102,7 +105,7 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 
 // createObjectWriter creates a GCS object writer.
 func (uh *UploadHandler) createObjectWriter() (err error) {
-	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkTransferTimeout)
+	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkRetryDeadline, uh.chunkTransferTimeout)
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	var ctx context.Context

@@ -66,6 +66,7 @@ type BucketConfig struct {
 	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
 	// periodically garbage collected.
 	AppendThreshold          int64
+	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TmpObjectPrefix          string
 	// Used in Zonal buckets to determine if objects should be finalized or not.
@@ -255,6 +256,7 @@ func (bm *bucketManager) SetUpBucket(
 	}
 	sb = NewSyncerBucket(
 		bm.config.AppendThreshold,
+		bm.config.ChunkRetryDeadlineSecs,
 		bm.config.ChunkTransferTimeoutSecs,
 		bm.config.TmpObjectPrefix,
 		b)

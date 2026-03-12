@@ -75,6 +75,7 @@ func (t *hnsDirTest) setupTestSuite(hierarchical bool) {
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{Hierarchical: hierarchical})
 	t.bucket = gcsx.NewSyncerBucket(
 		1,
+		ChunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		t.mockBucket)

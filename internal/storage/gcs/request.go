@@ -62,6 +62,7 @@ type CreateObjectRequest struct {
 	// may continue until the ChunkRetryDeadline(32s) is reached.
 	//
 	// The default value is 10 seconds.
+	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 
 	// A reader from which to obtain the contents of the object. Must be non-nil.

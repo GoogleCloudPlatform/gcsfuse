@@ -47,6 +47,7 @@ func init() { RegisterTestSuite(&SymlinkTest{}) }
 func (t *SymlinkTest) SetUp(ti *TestInfo) {
 	bucket := gcsx.NewSyncerBucket(
 		1,
+		120,
 		10, // ChunkTransferTimeoutSecs
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(timeutil.RealClock(), "some-bucket", gcs.BucketType{}),

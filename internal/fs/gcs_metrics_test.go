@@ -56,7 +56,7 @@ func (bm *fakeBucketManagerWithMetrics) SetUpBucket(
 
 	// Wrap bucket with monitor.NewMonitoringBucket to enable GCS metrics.
 	sb = gcsx.NewSyncerBucket(
-		0, 10, ".gcsfuse_tmp/",
+		0, 120, 10, ".gcsfuse_tmp/",
 		gcsx.NewContentTypeBucket(monitor.NewMonitoringBucket(bucket, mh)),
 	)
 	return sb, err
