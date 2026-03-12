@@ -15,6 +15,7 @@
 package downloader
 
 import (
+	"fmt"
 	"math"
 	"os"
 
@@ -64,6 +65,7 @@ type JobManager struct {
 	maxParallelismSem *semaphore.Weighted
 	metricHandle      metrics.MetricHandle
 	traceHandle       tracing.TraceHandle
+	sharedDirLocker   *util.SharedDirLocker
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
@@ -88,6 +90,16 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.Fi
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
 	return
+}
+
+func (jm *JobManager) SetSharedDirLocker(sharedDirLocker *util.SharedDirLocker) error {
+	jm.mu.Lock()
+	defer jm.mu.Unlock()
+	if jm.sharedDirLocker != nil {
+		return fmt.Errorf("sharedDirLocker is already set")
+	}
+	jm.sharedDirLocker = sharedDirLocker
+	return nil
 }
 
 // removeJob is a helper function to remove downloader.Job for given object and
@@ -121,7 +133,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem, jm.metricHandle, jm.traceHandle)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem, jm.metricHandle, jm.traceHandle, jm.sharedDirLocker)
 	jm.jobs[objectPath] = job
 	return job
 }

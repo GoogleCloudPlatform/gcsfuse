@@ -158,6 +158,7 @@ func (cht *cacheHandleTest) SetupTest() {
 		semaphore.NewWeighted(math.MaxInt64),
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
+		nil,
 	)
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
@@ -862,6 +863,7 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 		semaphore.NewWeighted(math.MaxInt64),
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
+		nil,
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -898,6 +900,7 @@ func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 		semaphore.NewWeighted(math.MaxInt64),
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
+		nil,
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -934,6 +937,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 		semaphore.NewWeighted(math.MaxInt64),
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
+		nil,
 	)
 
 	// Since, it's a random read, download job will not start.
