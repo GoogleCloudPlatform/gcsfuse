@@ -79,7 +79,7 @@ func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet i
 	expected := &Expected{
 		StartTimeStampSeconds: time.Now().Unix(),
 		BucketName:            setup.TestBucket(),
-		ObjectName:            path.Join(testDirName, path.Base(file.Name())),
+		ObjectName:            path.Join(path.Base(testEnv.testDirPath), path.Base(file.Name())),
 	}
 	if setup.DynamicBucketMounted() != "" {
 		expected.BucketName = setup.DynamicBucketMounted()

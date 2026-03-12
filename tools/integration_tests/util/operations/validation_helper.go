@@ -21,6 +21,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -79,4 +80,76 @@ func SkipKLCTestForUnsupportedKernelVersion(t *testing.T) {
 	if unsupported {
 		t.SkipNow()
 	}
+}
+
+// RetryUntil executes the provided operation repeatedly until it succeeds
+// (returns true as the second return value) or the retry deadline is reached.
+//
+// If the operation succeeds, the result (first return value) is returned.
+// If the deadline is exceeded, the test fails via tb.Fatalf.
+//
+// Example:
+//
+//	result := RetryUntil(ctx, t, 100*time.Millisecond, 5*time.Second, func() (int, bool) {
+//		val, err := doSomething()
+//		if err != nil {
+//			return 0, false // retry
+//		}
+//		return val, true // success
+//	})
+func RetryUntil[T any](
+	ctx context.Context,
+	tb testing.TB,
+	retryFrequency time.Duration,
+	retryDeadline time.Duration,
+	operation func() (T, bool),
+) T {
+	tb.Helper()
+
+	if retryFrequency <= 0 {
+		tb.Fatalf("retryFrequency must be greater than 0")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, retryDeadline)
+	defer cancel()
+
+	ticker := time.NewTicker(retryFrequency)
+	defer ticker.Stop()
+
+	attempt := 1
+	var finalResult T // Variable to hold the result once it succeeds
+
+	for {
+		result, ok := operation()
+		if ok {
+			// Optional: It can be helpful to know if an operation was flaky
+			// but eventually succeeded during verbose test runs.
+			if attempt > 1 {
+				tb.Logf("Operation succeeded on attempt %d", attempt)
+			}
+			finalResult = result
+			break // Exit the loop on success
+		}
+
+		select {
+		case <-ctx.Done():
+			// Log the total number of attempts in the fatal error.
+			// tb.Fatalf immediately terminates the test execution.
+			tb.Fatalf(
+				"Operation failed permanently after %d attempts (deadline: %v). Context error: %v",
+				attempt,
+				retryDeadline,
+				ctx.Err(),
+			)
+
+		case <-ticker.C:
+			// Log the failure and intent to retry.
+			// Visible only on failure or with 'go test -v'.
+			tb.Logf("Attempt %d failed. Retrying in %v...", attempt, retryFrequency)
+			attempt++
+		}
+	}
+
+	// Single exit point for a successful execution
+	return finalResult
 }

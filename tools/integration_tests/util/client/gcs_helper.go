@@ -147,6 +147,7 @@ func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client
 }
 
 func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, testDirName string) string {
+	testDirName += "_" + setup.GenerateRandomString(5)
 	testDirPath := path.Join(setup.MntDir(), testDirName)
 	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
 	if err != nil {

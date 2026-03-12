@@ -17,6 +17,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -81,7 +82,7 @@ func (s *cacheFileForIncludeRegexTest) TestCacheFileForIncludeRegexForIncludedFi
 
 func (s *cacheFileForIncludeRegexTest) TestCacheFileForIncludeRegexForNonIncludedFile() {
 	testFileName := "non-matching-regex" + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, s.T())
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, path.Base(testEnv.testDirPath), testFileName, fileSize, s.T())
 
 	// Read the file and validate that it is not cached.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, 0, s.T())
@@ -96,7 +97,7 @@ func (s *cacheFileForIncludeRegexTest) TestCacheFileForIncludeRegexForNonInclude
 func (s *cacheFileForIncludeRegexTest) TestCacheFileForIncludeRegexForIncludedAndExcludeNoOverlap() {
 	includedFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
 	excludedFileName := "non-matching-regex" + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, excludedFileName, fileSize, s.T())
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, path.Base(testEnv.testDirPath), excludedFileName, fileSize, s.T())
 
 	// Read the included file and validate that it is cached.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testEnv.testDirPath, includedFileName, true, 0, s.T())

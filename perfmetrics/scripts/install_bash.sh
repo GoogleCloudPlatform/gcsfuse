@@ -29,16 +29,16 @@ fi
 BASH_VERSION="$1"
 INSTALL_DIR="/usr/local/" # Installation directory
 
-# Function to install dependencies like gcc and make if not present
+# Function to install dependencies like gcc, make and wget if not present
 install_dependencies() {
-    if ! command -v gcc &>/dev/null || ! command -v make &>/dev/null; then
+    if ! command -v gcc &>/dev/null || ! command -v make &>/dev/null || ! command -v wget &>/dev/null; then
         echo "GCC or make not found. Attempting to install build tools..."
         if command -v apt-get &>/dev/null; then
-            sudo apt-get update && sudo apt-get install -y build-essential
+            sudo apt-get update && sudo apt-get install -y build-essential wget
         elif command -v dnf &>/dev/null; then
-            sudo dnf install -y gcc make
+            sudo dnf install -y gcc make wget
         elif command -v yum &>/dev/null; then
-            sudo yum install -y gcc make
+            sudo yum install -y gcc make wget
         else
             echo "Error: Could not find a known package manager (apt, dnf, yum)."
             echo "Please install gcc and make manually before running this script."
