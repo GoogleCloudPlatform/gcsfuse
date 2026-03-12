@@ -132,11 +132,13 @@ type objectCreator interface {
 // to GCS (for a small create, a compose, and a delete).
 func newSyncer(
 	composeThreshold int64,
+	chunkRetryDeadlineSecs int64,
 	chunkTransferTimeoutSecs int64,
 	fullCreator objectCreator,
 	composeCreator objectCreator) (os Syncer) {
 	os = &syncer{
 		composeThreshold:         composeThreshold,
+		chunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		fullCreator:              fullCreator,
 		composeCreator:           composeCreator,

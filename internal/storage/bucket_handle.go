@@ -193,6 +193,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
+	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
 	wc.ProgressFunc = req.CallBack
@@ -228,6 +229,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
 	wc.ChunkSize = chunkSize
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
+	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
@@ -265,6 +267,8 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 		return nil, &gcs.PreconditionError{Err: err}
 	}
 	w := &ObjectWriter{tw}
+	w.ChunkRetryDeadline = time.Duration(req.CreateObjectRequest.ChunkRetryDeadlineSecs) * time.Second
+	w.ChunkTransferTimeout = time.Duration(req.CreateObjectRequest.ChunkTransferTimeoutSecs) * time.Second
 	return w, err
 }
 
