@@ -65,14 +65,14 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 		buckets: make(map[string]gcsx.SyncerBucket),
 	}
 	t.bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
-		1 /* appendThreshold */,
+		1, /* appendThreshold */
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(&t.clock, "bucketA", gcs.BucketType{}),
 	)
 	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
-		1 /* appendThreshold */,
+		1, /* appendThreshold */
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",

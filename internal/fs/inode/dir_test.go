@@ -76,7 +76,7 @@ func (t *DirTest) SetupTest() {
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	bucket := fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
 	t.bucket = gcsx.NewSyncerBucket(
-		1 /* appendThreshold */,
+		1, /* appendThreshold */
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
