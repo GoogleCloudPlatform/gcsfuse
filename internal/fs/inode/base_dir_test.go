@@ -33,8 +33,10 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
-const ChunkRetryDeadlineSecs = 120
-const ChunkTransferTimeoutSecs = 10
+const (
+	chunkRetryDeadlineSecs   = 120
+	chunkTransferTimeoutSecs = 10
+)
 
 func TestBaseDir(t *testing.T) { RunTests(t) }
 
@@ -63,16 +65,16 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 		buckets: make(map[string]gcsx.SyncerBucket),
 	}
 	t.bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
-		1, // Append threshold
-		ChunkRetryDeadlineSecs,
-		ChunkTransferTimeoutSecs,
+		1 /* appendThreshold */,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(&t.clock, "bucketA", gcs.BucketType{}),
 	)
 	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
-		1, // Append threshold
-		ChunkRetryDeadlineSecs,
-		ChunkTransferTimeoutSecs,
+		1 /* appendThreshold */,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(&t.clock, "bucketB", gcs.BucketType{}),
 	)

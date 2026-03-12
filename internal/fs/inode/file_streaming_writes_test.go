@@ -113,9 +113,9 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		fileName,
 	)
 	syncerBucket := gcsx.NewSyncerBucket(
-		1, // Append threshold
-		ChunkRetryDeadlineSecs,
-		ChunkTransferTimeoutSecs,
+		1 /* appendThreshold */,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		t.bucket)
 
