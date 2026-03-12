@@ -267,8 +267,7 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 		return nil, &gcs.PreconditionError{Err: err}
 	}
 	w := &ObjectWriter{tw}
-	w.ChunkRetryDeadline = time.Duration(req.CreateObjectRequest.ChunkRetryDeadlineSecs) * time.Second
-	w.ChunkTransferTimeout = time.Duration(req.CreateObjectRequest.ChunkTransferTimeoutSecs) * time.Second
+
 	return w, err
 }
 

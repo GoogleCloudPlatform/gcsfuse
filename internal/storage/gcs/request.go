@@ -62,6 +62,8 @@ type CreateObjectRequest struct {
 	// attempted until this deadline is reached.
 	//
 	// The default value is 120 seconds.
+	//
+	// NOTE: This is not supported in gRPC (e.g. CreateAppendableObjectWriter).
 	ChunkRetryDeadlineSecs int64
 
 	// ChunkTransferTimeoutSecs sets a per-chunk request timeout for resumable uploads.
@@ -70,6 +72,8 @@ type CreateObjectRequest struct {
 	// if the request to upload a particular chunk stalls for longer than this duration.
 	//
 	// The default value is 10 seconds.
+	//
+	// NOTE: This is not supported in gRPC (e.g. CreateAppendableObjectWriter).
 	ChunkTransferTimeoutSecs int64
 
 	// A reader from which to obtain the contents of the object. Must be non-nil.
