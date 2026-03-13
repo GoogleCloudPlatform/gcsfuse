@@ -160,6 +160,12 @@ func resolveMonitoringConfig(m *MonitoringConfig) {
 	}
 }
 
+func resolveGCSRetriesConfig(c *GcsRetriesConfig) {
+	if c.MaxRetryAttempts == 0 {
+		c.MaxRetryAttempts = math.MaxInt
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -180,6 +186,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
 	resolveFileCacheAndBufferedReadConflict(v, c)
+	resolveGCSRetriesConfig(&c.GcsRetries)
 
 	return nil
 }
