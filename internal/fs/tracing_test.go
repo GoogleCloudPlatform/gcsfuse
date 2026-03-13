@@ -1222,8 +1222,8 @@ func (s *TracingTestSuite) TestTraceSetXattr() {
 		ignoreInterrupts bool
 		spans            []string
 	}{
-		{"enabled", true, []string{"fs.inode.lookup", "fs.set_xattr"}},
-		{"disabled", false, []string{"fs.inode.lookup", "fs.set_xattr"}},
+		{"enabled", true, []string{"fs.inode.lookup", "fs.xattr.set"}},
+		{"disabled", false, []string{"fs.inode.lookup", "fs.xattr.set"}},
 	}
 	for _, tt := range testCases {
 		s.Run(tt.name, func() {

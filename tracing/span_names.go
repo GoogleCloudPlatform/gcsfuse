@@ -27,8 +27,6 @@ const (
 	FileCacheRead = "file.cache.read"
 	// FileCacheWrite tracks write or population operations into the local file cache.
 	FileCacheWrite = "file.cache.write"
-	// FileDownloadJob represents a background task responsible for fetching remote file data.
-	FileDownloadJob = "file.cache.download"
 	// ReadPrefetchBlockPoolGen monitors the generation/lifecycle of the prefetch block pool.
 	ReadPrefetchBlockPoolGen = "prefetch.block_pool_gen.read"
 	// DownloadPrefetchBlock triggers a network request to pre-fill a specific data block.
@@ -102,7 +100,7 @@ const (
 	// GetXattr retrieves the value of an extended attribute.
 	GetXattr = "fs.xattr.get"
 	// SetXattr sets or updates an extended attribute.
-	SetXattr = "fs.set_xattr"
+	SetXattr = "fs.xattr.set"
 	// ListXattr lists the names of extended attributes assigned to a file.
 	ListXattr = "fs.xattr.list"
 	// RemoveXattr deletes an extended attribute from a file.

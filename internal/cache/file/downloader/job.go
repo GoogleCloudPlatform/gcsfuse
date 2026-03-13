@@ -498,11 +498,8 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 	} else if job.status.Name == NotStarted {
 		// Start the async download
 		job.status.Name = Downloading
-		// newCtx := job.traceHandle.PropagateTraceContext(context.Background(), ctx)
-		newCtx, downloadSpan := job.traceHandle.StartSpan(ctx, tracing.FileDownloadJob)
-		job.cancelCtx, job.cancelFunc = context.WithCancel(newCtx)
+		job.cancelCtx, job.cancelFunc = context.WithCancel(ctx)
 		go job.downloadObjectAsync()
-		job.traceHandle.EndSpan(downloadSpan)
 	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {
 		defer job.mu.Unlock()
 		return job.status, nil
