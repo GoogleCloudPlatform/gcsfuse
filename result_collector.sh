@@ -24,18 +24,11 @@ echo "Syncing folders from gs://$BUCKET_NAME/$PREFIX* to $OUTPUT_DIR..."
 # The wildcard after the prefix ensures it grabs all the sub-folders shown in your screenshot
 gcloud storage cp -r "gs://$BUCKET_NAME/$PREFIX*" "$OUTPUT_DIR"
 
-# 6. POST-DOWNLOAD CLEANUP: Remove all 'gcsfuse' subdirectories
-# This finds any directory named 'gcsfuse' inside the output folder and deletes it
-echo "Removing 'gcsfuse' directories from downloaded content..."
-
-if [ -d "$OUTPUT_DIR" ]; then
-    find "$OUTPUT_DIR" -type d -name "gcsfuse" -exec rm -rf {} +
-fi
 
 echo "Cleanup complete. Files are located in: $OUTPUT_DIR"
 
 # ==========================================
-# 7. PYTHON RUNNER: Create venv and analyze
+# 6. PYTHON RUNNER: Create venv and analyze
 # ==========================================
 # CHANGE THIS PATH TO POINT TO YOUR ACTUAL SCRIPT
 PYTHON_SCRIPT1_PATH="analyze_logs.py"
