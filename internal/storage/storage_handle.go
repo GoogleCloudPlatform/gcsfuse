@@ -483,7 +483,7 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	}
 
 	// When grpcPathStrategy=DirectPathWithFallback, create a http client.
-	logger.Warnf("Grpc directPath is not available due to %v, hence falling back to Http.", err)
+	logger.Warnf("Grpc directPath is not available due to %v, hence falling back to HTTP.", err)
 	if sh.httpClient == nil {
 		sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 	}
