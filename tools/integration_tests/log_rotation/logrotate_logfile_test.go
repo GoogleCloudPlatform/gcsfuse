@@ -111,9 +111,9 @@ func TestLogRotation(t *testing.T) {
 	for range 4 {
 		runParallelOperationsInMountedDirectoryTillLogRotation(t)
 	}
-	// Adding 1-second sleep here because there is slight delay in compression
+	// Adding 3-second sleep here because there is slight delay in compression
 	// of log files.
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Validate log files generated.
 	logFilesDirectory := path.Dir(cfg.LogFile)
