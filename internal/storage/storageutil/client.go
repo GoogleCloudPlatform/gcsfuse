@@ -62,6 +62,11 @@ type StorageClientConfig struct {
 	RetryMultiplier    float64
 	LocalSocketAddress string
 
+	// ImpersonateServiceAccount is the email of a service account to impersonate.
+	// When set, short-lived credentials are obtained for the target SA via the
+	// IAM Credentials API, using the caller's ambient credentials.
+	ImpersonateServiceAccount string
+
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
@@ -176,7 +181,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl, storageClientConfig.ImpersonateServiceAccount)
 }
 
 // StripScheme strips the scheme part of given url.

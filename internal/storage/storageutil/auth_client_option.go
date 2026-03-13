@@ -35,6 +35,14 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 			return nil, nil, fmt.Errorf("while fetching token source: %w", err)
 		}
 
+		// Wrap with impersonation if requested.
+		if config.ImpersonateServiceAccount != "" {
+			tokenSrc, err = auth2.NewImpersonatedTokenSource(ctx, tokenSrc, config.ImpersonateServiceAccount)
+			if err != nil {
+				return nil, nil, fmt.Errorf("while impersonating service account: %w", err)
+			}
+		}
+
 		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
 		return clientOpts, tokenSrc, nil
 	}
@@ -46,6 +54,16 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	}
 
 	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
+
+	// Wrap with impersonation if requested.
+	if config.ImpersonateServiceAccount != "" {
+		tokenSrc, err = auth2.NewImpersonatedTokenSource(ctx, tokenSrc, config.ImpersonateServiceAccount)
+		if err != nil {
+			return nil, nil, fmt.Errorf("while impersonating service account: %w", err)
+		}
+		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
+		return clientOpts, tokenSrc, nil
+	}
 
 	retryConfig := NewRetryConfig(config, DefaultRetryDeadline, DefaultTotalRetryBudget, DefaultInitialBackoff)
 
