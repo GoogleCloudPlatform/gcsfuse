@@ -17,6 +17,7 @@ package storageutil
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"time"
 
@@ -124,6 +125,7 @@ func ExecuteWithRetry[T any](
 	operationName string,
 	reqDescription string,
 	apiCall func(attemptCtx context.Context) (T, error),
+	logLevel slog.Level, // Used to log the retry logs at the supplied log level
 ) (T, error) {
 	var zero T
 	// If the context is already cancelled, return immediately.
@@ -140,9 +142,9 @@ func ExecuteWithRetry[T any](
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
 
 		if i == 0 {
-			logger.Tracef("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
+			logger.GetLogFHandler(logLevel)("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
 		} else {
-			logger.Tracef("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+			logger.GetLogFHandler(logLevel)("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
 		}
 
 		result, err := apiCall(attemptCtx)
