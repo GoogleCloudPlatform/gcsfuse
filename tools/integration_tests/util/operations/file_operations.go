@@ -106,18 +106,9 @@ func CopyFileAllowOverwrite(srcFileName, newFileName string) (err error) {
 }
 
 func ReadFile(filePath string) (content []byte, err error) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
+	content, err = os.ReadFile(filePath)
 	if err != nil {
-		err = fmt.Errorf("error in the opening the file %v", err)
-		return
-	}
-
-	// Closing file at the end.
-	defer CloseFile(file)
-
-	content, err = os.ReadFile(file.Name())
-	if err != nil {
-		err = fmt.Errorf("ReadAll: %v", err)
+		err = fmt.Errorf("ReadFile: %v", err)
 		return
 	}
 	return
@@ -292,15 +283,13 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64, flag int)
 		log.Printf("Error in opening file: %v", err)
 		return
 	}
+	defer CloseFile(file)
 
-	f, err := os.Stat(filePath)
+	f, err := file.Stat()
 	if err != nil {
 		log.Printf("Error in stating file: %v", err)
 		return
 	}
-
-	// Closing the file at the end.
-	defer CloseFile(file)
 
 	var numberOfBytes int
 
