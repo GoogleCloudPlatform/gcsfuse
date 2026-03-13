@@ -70,14 +70,42 @@ func (s *smallCacheTTLTest) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
+	type retryResult struct {
+		testFileName     string
+		expectedOutcome1 *Expected
+		expectedOutcome2 *Expected
+	}
 
-	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
-	// Modify the file.
-	modifyFile(s.ctx, s.storageClient, testFileName, s.T())
-	// Read same file again immediately.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
+	result := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() (retryResult, bool) {
+		// Truncate log file created.
+		err := os.Truncate(testEnv.cfg.LogFile, 0)
+		require.NoError(s.T(), err)
+		// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+		operations.RemoveDir(testEnv.cacheDirPath)
+		testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
+
+		startTime := time.Now()
+		testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
+
+		// Read file 1st time.
+		expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
+		// Modify the file.
+		modifyFile(s.ctx, s.storageClient, testFileName, s.T())
+
+		// Read same file again immediately.
+		expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
+
+		if time.Since(startTime) >= metadataCacheTTlInSec*time.Second {
+			return retryResult{}, false // Retry as time taken is more than metadata cache TTL so further validations are invalid.
+		}
+
+		return retryResult{testFileName, expectedOutcome1, expectedOutcome2}, true
+	})
+
+	testFileName := result.testFileName
+	expectedOutcome1 := result.expectedOutcome1
+	expectedOutcome2 := result.expectedOutcome2
+
 	validateFileSizeInCacheDirectory(testFileName, fileSize, s.T())
 	// Validate that stale data is served from cache in this case.
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
