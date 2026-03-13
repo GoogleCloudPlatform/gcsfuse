@@ -84,6 +84,10 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 	}
 }
 
+func (fc *FileCacheReader) ReaderName() string {
+	return "file_cache_reader"
+}
+
 // tryReadingFromFileCache creates the cache handle first if it doesn't exist already
 // and then use that handle to read object's content which is cached in local file.
 // For the successful read, it returns number of bytes read, and a boolean representing
@@ -101,6 +105,7 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 // fileHandle to file in cache. So, we will get the correct data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (int, bool, error) {
+	ctx, span := fc.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
 	if fc.fileCacheHandler == nil {
 		return 0, false, nil
 	}
@@ -137,6 +142,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 			readType = metrics.ReadTypeSequential
 		}
 		captureFileCacheMetrics(ctx, fc.metricHandle, metrics.ReadTypeNames[readType], bytesRead, cacheHit, executionTime)
+		fc.traceHandle.SetCacheReadAttributes(span, cacheHit, bytesRead)
+		if err != nil {
+			fc.traceHandle.RecordError(span, err)
+		}
+		fc.traceHandle.EndSpan(span)
 	}()
 
 	// Create fileCacheHandle if not already.

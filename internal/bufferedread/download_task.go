@@ -27,6 +27,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 type downloadTask struct {
@@ -34,6 +37,7 @@ type downloadTask struct {
 	object       *gcs.MinObject
 	bucket       gcs.Bucket
 	metricHandle metrics.MetricHandle
+	traceHandle  tracing.TraceHandle
 
 	// block is the block to which the data will be downloaded.
 	block block.PrefetchBlock
@@ -58,6 +62,9 @@ func (p *downloadTask) Execute() {
 	stime := time.Now()
 	var err error
 	var n int64
+	var span trace.Span
+	p.ctx, span = p.traceHandle.StartSpan(p.ctx, tracing.DownloadPrefetchBlock)
+
 	defer func() {
 		dur := time.Since(stime)
 		if err == nil {
@@ -71,6 +78,10 @@ func (p *downloadTask) Execute() {
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}
 		p.metricHandle.GcsDownloadBytesCount(n, metrics.ReadTypeBufferedAttr)
+		if err != nil {
+			p.traceHandle.RecordError(span, err)
+		}
+		p.traceHandle.EndSpan(span)
 	}()
 
 	start := uint64(startOff)
