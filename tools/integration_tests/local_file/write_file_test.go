@@ -16,31 +16,35 @@
 package local_file
 
 import (
+	"path"
+
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 func (t *LocalFileTestSuite) TestMultipleWritesToLocalFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Write some contents to file sequentially.
 	for range 3 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents+FileContents+FileContents, t.T())
+		fileName, FileContents+FileContents+FileContents, t.T())
 }
 
 func (t *LocalFileTestSuite) TestRandomWritesToLocalFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Write some contents to file randomly.
 	operations.WriteAt("string1", 0, fh, t.T())
@@ -48,19 +52,20 @@ func (t *LocalFileTestSuite) TestRandomWritesToLocalFile() {
 	operations.WriteAt("string3", 3, fh, t.T())
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, "stsstring3", t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, "stsstring3", t.T())
 }
 
 func (t *LocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Write some contents to file sequentially.
 	for range 2 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 
 	// Write at previous offset.
 	operations.WriteAt("hello", 0, fh, t.T())
@@ -68,19 +73,20 @@ func (t *LocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
 	expectedString := "hellotringtestString"
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, expectedString, t.T())
+		fileName, expectedString, t.T())
 }
 
 func (t *LocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Write some contents to file sequentially.
 	for range 2 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 
 	// Write at previous offset.
 	operations.WriteAt("hello", 15, fh, t.T())
@@ -91,13 +97,14 @@ func (t *LocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
 	expectedString := "testStringtestShello" + string(emptyBytes[:]) + "hey"
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, expectedString, t.T())
+		fileName, expectedString, t.T())
 }
 
 func (t *LocalFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Write at future offset.
 	operations.WriteAt("hello", 15, fh, t.T())
 	// Write at zero offset now.
@@ -107,5 +114,5 @@ func (t *LocalFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
 	expectedString := "hey" + string(emptyBytes[:]) + "hello"
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, expectedString, t.T())
+		fileName, expectedString, t.T())
 }
