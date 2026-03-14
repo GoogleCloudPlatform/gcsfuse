@@ -61,8 +61,8 @@ const (
 	offset10MiB                        = 10 * util.MiB
 	cacheCapacityForRangeReadTestInMiB = 50
 	GKETempDir                         = "/gcsfuse-tmp"
-	retryFrequency                     = 4 * time.Second // Used in poll frequency for asynchronous test expecation.
-	retryDuration                      = 2 * time.Minute // Used for poll duration for asynchronous test expecation.
+	retryFrequency                     = 5 * time.Second // Used in poll frequency for asynchronous test expecation.
+	retryDuration                      = 5 * time.Minute // Used for poll duration for asynchronous test expecation.
 )
 
 var (

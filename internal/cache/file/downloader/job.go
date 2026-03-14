@@ -23,6 +23,7 @@ import (
 	"os"
 	"reflect"
 	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
@@ -462,14 +463,18 @@ func (job *Job) downloadObjectAsync() {
 	// Truncate as the parallel downloads can create file with size little higher
 	// than the actual object size because writing with O_DIRECT happens in size
 	// multiple of cfg.MinimumAlignSizeForWriting.
+	startTimeTruncate := time.Now()
 	err = cacheFile.Truncate(int64(job.object.Size))
+	logger.Tracef("Job:%p (%s:/%s) downloadObjectAsync: Truncate took %v", job, job.bucket.Name(), job.object.Name, time.Since(startTimeTruncate))
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error while truncating cache file: %w", err)
 		job.handleError(err)
 		return
 	}
 
+	startTimeCRC := time.Now()
 	err = job.validateCRC()
+	logger.Tracef("Job:%p (%s:/%s) downloadObjectAsync: validateCRC took %v", job, job.bucket.Name(), job.object.Name, time.Since(startTimeCRC))
 	if err != nil {
 		job.handleError(err)
 		return

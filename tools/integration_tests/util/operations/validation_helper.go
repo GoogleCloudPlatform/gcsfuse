@@ -122,11 +122,9 @@ func RetryUntil[T any](
 	for {
 		result, ok := operation()
 		if ok {
-			// Optional: It can be helpful to know if an operation was flaky
+			// It can be helpful to know if an operation was flaky
 			// but eventually succeeded during verbose test runs.
-			if attempt > 1 {
-				tb.Logf("Operation succeeded on attempt %d", attempt)
-			}
+			tb.Logf("Operation succeeded on attempt %d", attempt)
 			finalResult = result
 			break // Exit the loop on success
 		}
