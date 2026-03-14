@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -41,6 +42,13 @@ func (o *otelTracer) EndSpan(span trace.Span) {
 func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
+}
+
+func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
+	span.SetAttributes(
+		attribute.Bool(IS_CACHE_HIT, isCacheHit),
+		attribute.Int(BYTES_READ, bytesRead),
+	)
 }
 
 func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {

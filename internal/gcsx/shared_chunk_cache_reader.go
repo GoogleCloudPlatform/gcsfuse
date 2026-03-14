@@ -62,6 +62,10 @@ func NewSharedChunkCacheReader(
 	}
 }
 
+func (r *SharedChunkCacheReader) ReaderName() string {
+	return "shared_chunk_cache_reader"
+}
+
 // ReadAt reads data at the specified offset, downloading chunks on-demand.
 // Implements the Reader interface.
 func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
