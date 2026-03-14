@@ -63,6 +63,7 @@ func (t *UploadHandlerTest) SetupTest() {
 		BlockPool:                t.blockPool,
 		MaxBlocksPerFile:         maxBlocks,
 		BlockSize:                blockSize,
+		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 	})
 }
@@ -83,6 +84,7 @@ func (t *UploadHandlerTest) createUploadHandlerWithObjectOfGivenSize(size uint64
 		BlockPool:                t.blockPool,
 		MaxBlocksPerFile:         maxBlocks,
 		BlockSize:                blockSize,
+		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 	})
 }

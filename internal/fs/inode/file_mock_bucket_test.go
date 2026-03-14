@@ -78,8 +78,9 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 		fileName,
 	)
 	syncerBucket := gcsx.NewSyncerBucket(
-		1, // Append threshold
-		ChunkTransferTimeoutSecs,
+		1, /* appendThreshold */
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		t.bucket)
 
@@ -130,8 +131,9 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 func (t *FileMockBucketTest) createGCSBackedFileInode(backingObj *gcs.MinObject) *FileInode {
 	t.T().Helper()
 	syncerBucket := gcsx.NewSyncerBucket(
-		1, // Append threshold
-		ChunkTransferTimeoutSecs,
+		1, /* appendThreshold */
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		t.bucket)
 
