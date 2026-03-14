@@ -78,7 +78,7 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     # Uploading batch files to GCS
     if upload_to_gcs_bucket:
       process = Popen(
-          'gsutil -m cp -r {}/* {}'.format(TEMPORARY_DIRECTORY,
+          'gcloud storage cp --recursive {}/* {}'.format(TEMPORARY_DIRECTORY,
                                           destination_blob_name),
           shell=True)
       process.communicate()
@@ -121,13 +121,13 @@ if __name__ == '__main__':
 
   args = parser.parse_args(argv[1:])
 
-  # Checking that gsutil is installed:
-  logmessage('Checking whether gsutil is installed.\n')
-  process = Popen('gsutil version', shell=True)
+  # Checking that gcloud is installed:
+  logmessage('Checking whether gcloud is installed.\n')
+  process = Popen('gcloud -v', shell=True)
   process.communicate()
   exit_code = process.wait()
   if(exit_code != 0):
-    print('Gsutil not installed.')
+    print('gcloud not installed.')
     subprocess.call('bash', shell=True)
 
   config = configparser.ConfigParser()
@@ -184,4 +184,3 @@ if __name__ == '__main__':
   subprocess.call(['rm', '-r', TEMPORARY_DIRECTORY])
 
   logmessage('Process complete.\n')
-
