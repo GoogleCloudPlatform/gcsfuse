@@ -18,6 +18,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -84,10 +85,9 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 		operations.RemoveDir(testEnv.cacheDirPath)
 		testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 
-		startTime := time.Now()
-		t0 := time.Now()
 		testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
-		s.T().Logf("Debugg: setupFileInTestDir took %v", time.Since(t0).Seconds())
+
+		startTime := time.Now()
 
 		// Read file 1st time.
 		t1 := time.Now()
@@ -105,7 +105,30 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 		s.T().Logf("Debugg: readFileAndGetExpectedOutcome took %v", time.Since(t3).Seconds())
 
 		if time.Since(startTime) >= metadataCacheTTlInSec*time.Second {
-			s.T().Logf("Debugg: failed because it took %v", time.Since(startTime).Seconds())
+			s.T().Logf("Debugg: failed for file %s because it took %v. Log file: %s", testFileName, time.Since(startTime).Seconds(), testEnv.cfg.LogFile)
+			artifactName := setup.GCSFuseLogFilePrefix + strings.ReplaceAll(s.T().Name(), "/", "_") + "_" + testFileName + "_retry_" + setup.GenerateRandomString(5)
+			s.T().Logf("Debugg: saved log file backup artifact as %s", artifactName)
+			setup.SaveLogFileAsArtifact(testEnv.cfg.LogFile, artifactName)
+
+			// Copy artifact to /gcsfuse-release/
+			releaseDir := "/gcsfuse-release"
+			if _, err := os.Stat(releaseDir); err == nil {
+				destPath := path.Join(releaseDir, artifactName)
+				logFileData, err := os.ReadFile(testEnv.cfg.LogFile)
+				if err != nil {
+					s.T().Logf("Debugg: failed to read log file for release copy: %v", err)
+				} else {
+					err = os.WriteFile(destPath, logFileData, 0600)
+					if err != nil {
+						s.T().Logf("Debugg: failed to copy artifact to %s: %v", releaseDir, err)
+					} else {
+						s.T().Logf("Debugg: copied artifact to %s/%s", releaseDir, artifactName)
+					}
+				}
+			} else {
+				s.T().Logf("Debugg: %s directory not found, skipping release copy.", releaseDir)
+			}
+
 			return retryResult{}, false // Retry as time taken is more than metadata cache TTL so further validations are invalid.
 		}
 		s.T().Logf("Debugg: passed because it took %v", time.Since(startTime).Seconds())
