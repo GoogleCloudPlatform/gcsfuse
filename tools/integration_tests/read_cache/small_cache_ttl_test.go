@@ -96,9 +96,10 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 		expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
 
 		if time.Since(startTime) >= metadataCacheTTlInSec*time.Second {
+			s.T().Logf("Debugg: failed because it took %v", time.Since(startTime).Seconds())
 			return retryResult{}, false // Retry as time taken is more than metadata cache TTL so further validations are invalid.
 		}
-
+		s.T().Logf("Debugg: passed because it took %v", time.Since(startTime).Seconds())
 		return retryResult{testFileName, expectedOutcome1, expectedOutcome2}, true
 	})
 
