@@ -85,15 +85,24 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 		testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 
 		startTime := time.Now()
+		t0 := time.Now()
 		testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
+		s.T().Logf("Debugg: setupFileInTestDir took %v", time.Since(t0).Seconds())
 
 		// Read file 1st time.
+		t1 := time.Now()
 		expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
+		s.T().Logf("Debugg: readFileAndValidateCacheWithGCS took %v", time.Since(t1).Seconds())
+
 		// Modify the file.
+		t2 := time.Now()
 		modifyFile(s.ctx, s.storageClient, testFileName, s.T())
+		s.T().Logf("Debugg: modifyFile took %v", time.Since(t2).Seconds())
 
 		// Read same file again immediately.
+		t3 := time.Now()
 		expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
+		s.T().Logf("Debugg: readFileAndGetExpectedOutcome took %v", time.Since(t3).Seconds())
 
 		if time.Since(startTime) >= metadataCacheTTlInSec*time.Second {
 			s.T().Logf("Debugg: failed because it took %v", time.Since(startTime).Seconds())
