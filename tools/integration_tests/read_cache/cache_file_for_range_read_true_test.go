@@ -15,6 +15,7 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -83,13 +84,13 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
 	validate(firstReadOutcome, structuredReadFalseCacheHit[0], false /* isSeq */, false /* cacheHit */, 1 /* chunkCount */, s.T())
 
 	// RetryUntil we have exactly 1 Download Job logs (downloaded till <offset>)
-	s.T().Logf("Waiting for file cache Job completion log in GCSFuse Logs")
-	JobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, bool) {
+	s.T().Logf("Waiting for exactly 1 file cache Job completion log in GCSFuse Logs")
+	JobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, error) {
 		logs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 		if len(logs) == 1 {
-			return logs, true
+			return logs, nil
 		}
-		return nil, false
+		return nil, fmt.Errorf("expected 1 Job log, found %d", len(logs))
 	})
 	assert.Equal(s.T(), structuredReadFalseCacheHit[0].ObjectName, JobLog[0].ObjectName)
 	// Read file second time from Offset 1000 and validate from gcs.

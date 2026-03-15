@@ -15,6 +15,7 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -90,14 +91,14 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithFileCached() {
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
 	// RetryUntil we have exactly 1 Download Job logs
-	s.T().Logf("Waiting for file cache Job completion log in GCSFuse Logs")
-	JobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, bool) {
+	s.T().Logf("Waiting for exactly 1 file cache Job completion log in GCSFuse Logs")
+	JobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, error) {
 		logs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 		if len(logs) == 1 {
 			s.T().Logf("Found file cache Job completion log: %v", logs[0])
-			return logs, true
+			return logs, nil
 		}
-		return nil, false
+		return nil, fmt.Errorf("expected 1 Job log, found %d", len(logs))
 	})
 	require.Equal(s.T(), expectedOutcome1.ObjectName, JobLog[0].ObjectName)
 

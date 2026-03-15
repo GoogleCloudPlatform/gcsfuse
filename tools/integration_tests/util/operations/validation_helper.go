@@ -90,19 +90,19 @@ func SkipKLCTestForUnsupportedKernelVersion(t *testing.T) {
 //
 // Example:
 //
-//	result := RetryUntil(ctx, t, 100*time.Millisecond, 5*time.Second, func() (int, bool) {
+//	result := RetryUntil(ctx, t, 100*time.Millisecond, 5*time.Second, func() (int, error) {
 //		val, err := doSomething()
 //		if err != nil {
-//			return 0, false // retry
+//			return 0, err // retry
 //		}
-//		return val, true // success
+//		return val, nil // success
 //	})
 func RetryUntil[T any](
 	ctx context.Context,
 	tb testing.TB,
 	retryFrequency time.Duration,
 	retryDeadline time.Duration,
-	operation func() (T, bool),
+	operation func() (T, error),
 ) T {
 	tb.Helper()
 
@@ -118,10 +118,11 @@ func RetryUntil[T any](
 
 	attempt := 1
 	var finalResult T // Variable to hold the result once it succeeds
+	var lastErr error // Save last error for fatal log
 
 	for {
-		result, ok := operation()
-		if ok {
+		result, err := operation()
+		if err == nil {
 			// It can be helpful to know if an operation was flaky
 			// but eventually succeeded during verbose test runs.
 			tb.Logf("Operation succeeded on attempt %d", attempt)
@@ -129,21 +130,24 @@ func RetryUntil[T any](
 			break // Exit the loop on success
 		}
 
+		lastErr = err // Save the error before select
+
 		select {
 		case <-ctx.Done():
 			// Log the total number of attempts in the fatal error.
 			// tb.Fatalf immediately terminates the test execution.
 			tb.Fatalf(
-				"Operation failed permanently after %d attempts (deadline: %v). Context error: %v",
+				"Operation failed permanently after %d attempts (deadline: %v). Last error: %v, Context error: %v",
 				attempt,
 				retryDeadline,
+				lastErr,
 				ctx.Err(),
 			)
 
 		case <-ticker.C:
 			// Log the failure and intent to retry.
 			// Visible only on failure or with 'go test -v'.
-			tb.Logf("Attempt %d failed. Retrying in %v...", attempt, retryFrequency)
+			tb.Logf("Attempt %d failed with error: %v. Retrying in %v...", attempt, lastErr, retryFrequency)
 			attempt++
 		}
 	}

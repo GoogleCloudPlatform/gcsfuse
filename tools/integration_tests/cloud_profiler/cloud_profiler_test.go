@@ -25,6 +25,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/google/uuid"
@@ -37,12 +38,14 @@ import (
 
 const (
 	testDirName     = "CloudProfilerTest"
-	testServiceName = "gcsfuse"
+	testServiceAndVersionNamePrefix = "gcsfuse-cloud-profiler" // Both service name and version name would be same.
+	retryFrequency  = 30 * time.Second
+	retryDuration   = 5 * time.Minute
 )
 
 var (
 	storageClient      *storage.Client
-	testServiceVersion string
+	testServiceAndVersionName string
 	ctx                context.Context
 )
 
@@ -66,7 +69,7 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].Configs[0].Flags = []string{
 			"--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap",
 		}
-		testServiceVersionFlag := fmt.Sprintf(" --cloud-profiler-label=%s", testServiceVersion)
+		testServiceVersionFlag := fmt.Sprintf(" --cloud-profiler-label=%s", testServiceAndVersionName)
 		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testServiceVersionFlag
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
@@ -86,16 +89,16 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.CloudProfiler[0].GKEMountedDirectory != "" {
-		testServiceVersion = setup.ExtractServiceVersionFromFlags(cfg.CloudProfiler[0].Configs[0].Flags)
+		testServiceAndVersionName = setup.ExtractServiceVersionFromFlags(cfg.CloudProfiler[0].Configs[0].Flags)
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].GKEMountedDirectory, m))
 	}
 
-	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
-	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
+	testServiceAndVersionName = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
+	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceAndVersionName)
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	cfg.CloudProfiler[0].Configs[0].Flags[0] = strings.ReplaceAll(cfg.CloudProfiler[0].Configs[0].Flags[0], "--cloud-profiler-label=", fmt.Sprintf("--cloud-profiler-label=%s", testServiceVersion))
+	cfg.CloudProfiler[0].Configs[0].Flags[0] = strings.ReplaceAll(cfg.CloudProfiler[0].Configs[0].Flags[0], "--cloud-profiler-label=", fmt.Sprintf("--cloud-profiler-label=%s", testServiceAndVersionName))
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType, "")
 
 	setup.SetUpTestDirForTestBucket(&cfg.CloudProfiler[0])

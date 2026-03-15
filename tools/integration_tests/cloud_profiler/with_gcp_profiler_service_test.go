@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	gcpProfiler "google.golang.org/api/cloudprofiler/v2"
 	"google.golang.org/api/option"
 )
@@ -52,7 +53,7 @@ func checkIfProfileExistForServiceAndVersion(
 	projectID string,
 ) bool {
 
-	t.Logf("Querying profiles for service [%s] version [%s]", testServiceName, testServiceVersion)
+	t.Logf("Querying profiles for service [%s] version [%s]", testServiceAndVersionName, testServiceAndVersionName)
 
 	listCtx, listCancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer listCancel()
@@ -69,7 +70,7 @@ func checkIfProfileExistForServiceAndVersion(
 			}
 
 			// Return if matching profile found.
-			if p.Deployment.Target == testServiceName && p.Deployment.Labels["version"] == testServiceVersion {
+			if p.Deployment.Target == testServiceAndVersionName && p.Deployment.Labels["version"] == testServiceAndVersionName {
 				t.Logf("Found matching profile: Type=%s, ID=%s", p.ProfileType, p.Deployment.Labels["version"])
 				return completedErr
 			}
@@ -90,10 +91,6 @@ func checkIfProfileExistForServiceAndVersion(
 }
 
 func TestValidateProfilerWithActualService(t *testing.T) {
-	// GCSFuse process will be started as part of mount.
-	// Allow some time to export the profile data to GCP profiler service.
-	time.Sleep(2*time.Minute + 30*time.Second)
-
 	// 1. Fetch GCP projectID.
 	// 2. Create a profiler service api client.
 	// 3. Make list call to the profiler service api client and fetch the profiles.
@@ -104,7 +101,11 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Cloud Profiler API client: %v", err)
 	}
-	if !checkIfProfileExistForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID) {
-		t.Errorf("No valid profile found for service [%s] and version [%s]", testServiceName, testServiceVersion)
-	}
+	t.Logf("Waiting for cloud profile to eventually appear for service [%s] and version [%s]", testServiceAndVersionName, testServiceAndVersionName)
+	operations.RetryUntil(apiCtx, t, retryFrequency, retryDuration, func() (bool, error) {
+		if checkIfProfileExistForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID) {
+			return true, nil
+		}
+		return false, fmt.Errorf("profile not found")
+	})
 }

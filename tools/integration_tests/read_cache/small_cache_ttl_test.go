@@ -16,6 +16,7 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -77,7 +78,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 		expectedOutcome2 *Expected
 	}
 
-	result := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() (retryResult, bool) {
+	result := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() (retryResult, error) {
 		// Truncate log file created.
 		err := os.Truncate(testEnv.cfg.LogFile, 0)
 		require.NoError(s.T(), err)
@@ -129,10 +130,10 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 				s.T().Logf("Debugg: %s directory not found, skipping release copy.", releaseDir)
 			}
 
-			return retryResult{}, false // Retry as time taken is more than metadata cache TTL so further validations are invalid.
+			return retryResult{}, fmt.Errorf("failed because it took %v", time.Since(startTime).Seconds())
 		}
 		s.T().Logf("Debugg: passed because it took %v", time.Since(startTime).Seconds())
-		return retryResult{testFileName, expectedOutcome1, expectedOutcome2}, true
+		return retryResult{testFileName, expectedOutcome1, expectedOutcome2}, nil
 	})
 
 	testFileName := result.testFileName
