@@ -91,7 +91,7 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 			EnableNewReader: true, // Not much use testing the case where it's false
 		},
 		MetricHandle: mh,
-		TraceHandle: tracing.NewNoopTracer(),
+		TraceHandle:  tracing.NewNoopTracer(),
 		CacheClock:   &timeutil.SimulatedClock{},
 		BucketName:   bucketName,
 		BucketManager: &fakeBucketManagerWithMetrics{
