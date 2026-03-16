@@ -188,7 +188,7 @@ validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
 
 # Validate test install package from path
 if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then 
-  log_error "Option --test-installed-package and --install-package-from are mutually exclusive. Please set only one"
+  log_error "Option --test-installed-package and --install-package-from-path are mutually exclusive. Please set only one"
   usage 1
 fi
 
