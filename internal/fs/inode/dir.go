@@ -272,6 +272,8 @@ type dirInode struct {
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
 
+	isStandardSymlinkRepresentationEnabled bool
+
 	isUnsupportedPathSupportEnabled bool
 
 	isEnableTypeCacheDeprecation bool
@@ -335,22 +337,23 @@ func NewDirInode(
 	ctx, cancel := context.WithCancel(parentInodeCtx)
 
 	typed := &dirInode{
-		bucket:                          bucket,
-		mtimeClock:                      mtimeClock,
-		cacheClock:                      cacheClock,
-		id:                              id,
-		implicitDirs:                    implicitDirs,
-		includeFoldersAsPrefixes:        cfg.List.EnableEmptyManagedFolders,
-		enableNonexistentTypeCache:      enableNonexistentTypeCache,
-		name:                            name,
-		attrs:                           attrs,
-		isHNSEnabled:                    cfg.EnableHns,
-		isUnsupportedPathSupportEnabled: cfg.EnableUnsupportedPathSupport,
-		isEnableTypeCacheDeprecation:    cfg.EnableTypeCacheDeprecation,
-		unlinked:                        false,
-		ctx:                             ctx,
-		cancel:                          cancel,
-		metadataCacheTtlSecs:            cfg.MetadataCache.TtlSecs,
+		bucket:                                 bucket,
+		mtimeClock:                             mtimeClock,
+		cacheClock:                             cacheClock,
+		id:                                     id,
+		implicitDirs:                           implicitDirs,
+		includeFoldersAsPrefixes:               cfg.List.EnableEmptyManagedFolders,
+		enableNonexistentTypeCache:             enableNonexistentTypeCache,
+		name:                                   name,
+		attrs:                                  attrs,
+		isHNSEnabled:                           cfg.EnableHns,
+		isStandardSymlinkRepresentationEnabled: cfg.ExperimentalEnableStandardSymlinks,
+		isUnsupportedPathSupportEnabled:        cfg.EnableUnsupportedPathSupport,
+		isEnableTypeCacheDeprecation:           cfg.EnableTypeCacheDeprecation,
+		unlinked:                               false,
+		ctx:                                    ctx,
+		cancel:                                 cancel,
+		metadataCacheTtlSecs:                   cfg.MetadataCache.TtlSecs,
 	}
 
 	// Init Prefetcher only if it is enabled, stat cache ttl != 0 and stat cache size != 0.
@@ -531,13 +534,14 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 func (d *dirInode) createNewObject(
 	ctx context.Context,
 	name Name,
-	metadata map[string]string) (o *gcs.Object, err error) {
-	// Create an empty backing object for the child, failing if it already
+	metadata map[string]string,
+	content string) (o *gcs.Object, err error) {
+	// Create a backing object for the child, failing if it already
 	// exists.
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
 		Name:                   name.GcsObjectName(),
-		Contents:               strings.NewReader(""),
+		Contents:               strings.NewReader(content),
 		GenerationPrecondition: &precond,
 		Metadata:               metadata,
 	}
@@ -1074,7 +1078,7 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}
 	fullName := NewFileName(d.Name(), name)
 
-	o, err := d.createNewObject(ctx, fullName, childMetadata)
+	o, err := d.createNewObject(ctx, fullName, childMetadata, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1157,11 +1161,21 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 	// No need to cancel prefetch here as creation of new symlink can not lead to stale data in metadata cache.
 
 	fullName := NewFileName(d.Name(), name)
-	childMetadata := map[string]string{
-		SymlinkMetadataKey: target,
+	var childMetadata map[string]string
+	var content string
+
+	if d.isStandardSymlinkRepresentationEnabled {
+		childMetadata = map[string]string{
+			StandardSymlinkMetadataKey: "true",
+		}
+		content = target
+	} else {
+		childMetadata = map[string]string{
+			SymlinkMetadataKey: target,
+		}
 	}
 
-	o, err := d.createNewObject(ctx, fullName, childMetadata)
+	o, err := d.createNewObject(ctx, fullName, childMetadata, content)
 	if err != nil {
 		return nil, err
 	}
@@ -1197,7 +1211,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	} else {
 		var o *gcs.Object
 		// For non-hierarchical buckets, create a new object.
-		o, err = d.createNewObject(ctx, fullName, nil)
+		o, err = d.createNewObject(ctx, fullName, nil, "")
 		if err != nil {
 			return nil, err
 		}

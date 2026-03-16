@@ -27,6 +27,7 @@ import (
 // treated as a symlink. For use in testing only; other users should detect
 // this with IsSymlink.
 const SymlinkMetadataKey = "gcsfuse_symlink_target"
+const StandardSymlinkMetadataKey = "goog-reserved-file-is-symlink"
 
 // IsSymlink Does the supplied object represent a symlink inode?
 func IsSymlink(m *gcs.MinObject) bool {
