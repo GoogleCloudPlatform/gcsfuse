@@ -347,7 +347,7 @@ func NewDirInode(
 		name:                                   name,
 		attrs:                                  attrs,
 		isHNSEnabled:                           cfg.EnableHns,
-		isStandardSymlinkRepresentationEnabled: cfg.EnableStandardSymlinks,
+		isStandardSymlinkRepresentationEnabled: cfg.ExperimentalEnableStandardSymlinks,
 		isUnsupportedPathSupportEnabled:        cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:           cfg.EnableTypeCacheDeprecation,
 		unlinked:                               false,
@@ -1160,26 +1160,25 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error) {
 	// No need to cancel prefetch here as creation of new symlink can not lead to stale data in metadata cache.
 
-    fullName := NewFileName(d.Name(), name)
-    
-    var childMetadata map[string]string
-    var content string
+	fullName := NewFileName(d.Name(), name)
+	var childMetadata map[string]string
+	var content string
 
-    if d.isStandardSymlinkRepresentationEnabled {
-        childMetadata = map[string]string{
-            StandardSymlinkMetadataKey: "true",
-        }
-        content = target
-    } else {
-        childMetadata = map[string]string{
-            SymlinkMetadataKey: target,
-        }
-    }
+	if d.isStandardSymlinkRepresentationEnabled {
+		childMetadata = map[string]string{
+			StandardSymlinkMetadataKey: "true",
+		}
+		content = target
+	} else {
+		childMetadata = map[string]string{
+			SymlinkMetadataKey: target,
+		}
+	}
 
-    o, err := d.createNewObject(ctx, fullName, childMetadata, content)
-    if err != nil {
-        return nil, err
-    }
+	o, err := d.createNewObject(ctx, fullName, childMetadata, content)
+	if err != nil {
+		return nil, err
+	}
 	m := storageutil.ConvertObjToMinObject(o)
 
 	if !d.IsTypeCacheDeprecated() {
