@@ -332,6 +332,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	fakeStorage := NewFakeStorageWithMockClient(testSuite.mockClient, "test-protocol")
 	testSuite.mockStorageLayout(gcs.BucketType{})
 	sh := fakeStorage.CreateStorageHandle()
+	defer fakeStorage.ShutDown()
 	assert.NotNil(testSuite.T(), sh)
 	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID, false)
 
