@@ -228,6 +228,7 @@ TEST_PACKAGES_COMMON=(
   "dentry_cache"
   "buffered_read"
   "flag_optimizations"
+  "symlink_handling"
 )
 
 # Test packages for regional buckets.

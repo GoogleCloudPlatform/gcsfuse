@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -76,6 +76,8 @@ type StandardSymlinksTestSuite struct {
 func (s *StandardSymlinksTestSuite) TestCreateSymlink() {
 	target := s.createTempFile()
 	linkName := "standard_symlink"
+
+	// Create the symlink
 	_ = s.createSymlink(linkName, target)
 
 	// Validate the underlying GCS Object
@@ -83,7 +85,7 @@ func (s *StandardSymlinksTestSuite) TestCreateSymlink() {
 	objHandle := testEnv.storageClient.Bucket(bucketName).Object(objectName)
 	attrs, err := objHandle.Attrs(testEnv.ctx)
 	s.Require().NoError(err)
-
+	// Validate the GCS Object content to be the symlink target
 	rc, err := objHandle.NewReader(testEnv.ctx)
 	s.Require().NoError(err)
 	defer rc.Close()
@@ -105,6 +107,8 @@ type LegacySymlinksTestSuite struct {
 func (s *LegacySymlinksTestSuite) TestCreateSymlink() {
 	target := s.createTempFile()
 	linkName := "legacy_symlink"
+
+	// Create the symlink
 	_ = s.createSymlink(linkName, target)
 
 	// Validate the underlying GCS Object
@@ -112,7 +116,7 @@ func (s *LegacySymlinksTestSuite) TestCreateSymlink() {
 	objHandle := testEnv.storageClient.Bucket(bucketName).Object(objectName)
 	attrs, err := objHandle.Attrs(testEnv.ctx)
 	s.Require().NoError(err)
-
+	// Validate the GCS Object content to be nil
 	s.Assert().Equal(int64(0), attrs.Size, "Legacy symlink size should be 0")
 	val, ok := attrs.Metadata[SymlinkMetadataKey]
 	s.Assert().True(ok, "Legacy symlink should have old metadata key (%s)", SymlinkMetadataKey)
