@@ -87,6 +87,9 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	// Job manager
 	jobManager := downloader.NewJobManager(cache, util.DefaultFilePerm,
 		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+	t.Cleanup(func() {
+		jobManager.Destroy()
+	})
 
 	// Mocked cached handler object.
 	isSparse := fileCacheConfig != nil && fileCacheConfig.ExperimentalEnableChunkCache

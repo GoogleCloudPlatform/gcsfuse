@@ -164,6 +164,10 @@ func (cht *cacheHandleTest) SetupTest() {
 }
 
 func (cht *cacheHandleTest) TearDownTest() {
+	if cht.cacheHandle != nil && cht.cacheHandle.fileDownloadJob != nil {
+		cht.cacheHandle.fileDownloadJob.Invalidate()
+	}
+
 	cht.fakeStorage.ShutDown()
 
 	err := cht.cacheHandle.Close()
