@@ -2086,7 +2086,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 30,
-					MaxRetryAttempts:         0,
+					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
@@ -2107,7 +2107,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ChunkRetryDeadlineSecs:   360,
 					ChunkTransferTimeoutSecs: 10,
-					MaxRetryAttempts:         0,
+					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{

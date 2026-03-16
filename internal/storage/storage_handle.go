@@ -192,16 +192,13 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 		Multiplier: clientConfig.RetryMultiplier,
 	}),
 		storage.WithPolicy(storage.RetryAlways),
+		storage.WithMaxAttempts(clientConfig.MaxRetryAttempts),
+		storage.WithMaxRetryDuration(0),
 		storage.WithErrorFunc(func(err error) bool {
 			return storageutil.ShouldRetryWithMonitoring(ctx, err, clientConfig.MetricHandle)
 		})}
 
 	sc.SetRetry(retryOpts...)
-
-	// The default MaxRetryAttempts value is 0 indicates no limit.
-	if clientConfig.MaxRetryAttempts != 0 {
-		sc.SetRetry(storage.WithMaxAttempts(clientConfig.MaxRetryAttempts))
-	}
 }
 
 // setDPDetectionRetryConfig applies a lenient retry configuration for DirectPath detection phase.

@@ -64,6 +64,42 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 	}
 }
 
+func TestRationalize_GcsRetriesConfig(t *testing.T) {
+	testCases := []struct {
+		name                     string
+		config                   *Config
+		expectedMaxRetryAttempts int
+	}{
+		{
+			name: "max-retry-attempts is 0",
+			config: &Config{
+				GcsRetries: GcsRetriesConfig{
+					MaxRetryAttempts: 0,
+				},
+			},
+			expectedMaxRetryAttempts: math.MaxInt,
+		},
+		{
+			name: "max-retry-attempts is not 0",
+			config: &Config{
+				GcsRetries: GcsRetriesConfig{
+					MaxRetryAttempts: 10,
+				},
+			},
+			expectedMaxRetryAttempts: 10,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Rationalize(viper.New(), tc.config, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedMaxRetryAttempts, int(tc.config.GcsRetries.MaxRetryAttempts))
+		})
+	}
+}
+
 func TestRationalize_ReadConfig(t *testing.T) {
 	testCases := []struct {
 		name                    string
