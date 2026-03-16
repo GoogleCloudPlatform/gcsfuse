@@ -26,8 +26,8 @@ import (
 // When this custom metadata key is present in an object record, it is to be
 // treated as a symlink. For use in testing only; other users should detect
 // this with IsSymlink.
-// Note: SymlinkMetadataKey is deprecated and retained solely for backward
-// compatibility.
+// Note: SymlinkMetadataKey is deprecated in favor of StandardSymlinkMetadataKey
+// and retained solely for backward compatibility.
 const SymlinkMetadataKey = "gcsfuse_symlink_target"
 const StandardSymlinkMetadataKey = "goog-reserved-file-is-symlink"
 
