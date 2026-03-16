@@ -50,6 +50,7 @@ func NewFastStatBucket(
 	wrapped gcs.Bucket,
 	negativeCacheTTL time.Duration,
 	isTypeCacheDeprecated bool,
+	implicitDir bool,
 ) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
 		cache:                 cache,
@@ -58,6 +59,7 @@ func NewFastStatBucket(
 		primaryCacheTTL:       primaryCacheTTL,
 		negativeCacheTTL:      negativeCacheTTL,
 		isTypeCacheDeprecated: isTypeCacheDeprecated,
+		implicitDir:           implicitDir,
 	}
 
 	b = fsb
@@ -88,6 +90,8 @@ type fastStatBucket struct {
 
 	// Flag to enable deprecation logic of Type cache.
 	isTypeCacheDeprecated bool
+
+	implicitDir bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -128,13 +132,18 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// implicit directory.
 	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
 	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
-	if dirHasContents && !isDirInListing {
+	if b.implicitDir && dirHasContents && !isDirInListing {
 		b.cache.InsertImplicitDir(dirName, expiration)
 	}
 
 	// 2. Cache Explicit Objects
 	for _, o := range listing.MinObjects {
 		b.cache.Insert(o, expiration)
+	}
+
+	// Do not cache implicit directories if the flag is not passed.
+	if !b.implicitDir {
+		return
 	}
 
 	// 3. Cache Sub-directories (Collapsed Runs)

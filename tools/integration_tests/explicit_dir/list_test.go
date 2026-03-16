@@ -15,10 +15,12 @@
 package explicit_dir_test
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -103,5 +105,30 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	if err != nil {
 		t.Errorf("error walking the path : %v\n", err)
 		return
+	}
+}
+
+func TestStatImplicitDirAfterList(t *testing.T) {
+	testDirPath := setup.SetupTestDirectory(DirForExplicitDirTests)
+	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
+	if setup.IsZonalBucketRun() {
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, DirForExplicitDirTests)
+	} else {
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForExplicitDirTests)
+	}
+
+	// List the directory
+	_, err := os.ReadDir(testDirPath)
+	if err != nil {
+		t.Fatalf("ReadDir failed: %v", err)
+	}
+
+	// Stat the implicit directory
+	implicitDirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ImplicitDirectory)
+	_, err = os.Stat(implicitDirPath)
+	if err == nil {
+		t.Errorf("expected an error for implicit directory %q, but got none", implicitDirPath)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected 'not exist' error, but got: %v", err)
 	}
 }

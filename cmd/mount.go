@@ -108,6 +108,7 @@ be interacting with the file system.`)
 		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
 		DummyIOCfg:                         newConfig.DummyIo,
 		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
+		ImplicitDir:                        newConfig.ImplicitDirs,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
@@ -187,6 +188,15 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 		// Enable async reads if enable-kernel-reader flag is set to true.
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
+	}
+
+	if newConfig.Logging.WireLog != "" {
+		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
+		if err == nil {
+			mountCfg.WireLogger = wireLog
+		} else {
+			logger.Errorf("Unable to create wire log: %v", err)
+		}
 	}
 
 	// GCSFuse to Jacobsa Fuse Log Level mapping:

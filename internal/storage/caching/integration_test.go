@@ -68,6 +68,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
+		isImplicitDir,
 	)
 }
 

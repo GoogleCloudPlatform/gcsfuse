@@ -2078,8 +2078,30 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 			args: []string{"gcsfuse", "--chunk-transfer-timeout-secs=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 30,
-					MaxRetryAttempts:         0,
+					MaxRetryAttempts:         math.MaxInt,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
+						MinReqTimeout:       1500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
+					},
+				},
+			},
+		},
+		{
+			name: "Test with non default chunkRetryDeadline",
+			args: []string{"gcsfuse", "--chunk-retry-deadline-secs=360", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   360,
+					ChunkTransferTimeoutSecs: 10,
+					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
@@ -2697,7 +2719,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--machine-type=a3-highgpu-8g"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
-				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "ViperConfig.IsSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
 				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
@@ -2709,7 +2731,7 @@ func TestArgParsing_ConfigFileOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect config file value false, not optimize to true")
-				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "ViperConfig.IsSet should be true for implicit-dirs")
 				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
 				assert.False(t, mi.viperConfig.IsSet("metadata-cache.ttl-secs"))
 			},
@@ -2722,7 +2744,7 @@ write:
   global-max-blocks: 123`,
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect config file value 123, not optimize to 1600")
-				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "ViperConfig.IsSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
 				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
@@ -2762,7 +2784,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--machine-type=a3-highgpu-8g", "--write-global-max-blocks=123"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.Equal(t, int64(123), mi.config.Write.GlobalMaxBlocks, "Should respect CLI value 123, not optimize to 1600")
-				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "isUserSet should be true for write.global-max-blocks")
+				assert.True(t, mi.viperConfig.IsSet("write.global-max-blocks"), "ViperConfig.IsSet should be true for write.global-max-blocks")
 				assert.True(t, mi.config.ImplicitDirs, "Should optimize implicit-dirs to true based on machine-type")
 				assert.False(t, mi.viperConfig.IsSet("implicit-dirs"))
 			},
@@ -2772,7 +2794,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			args: []string{"--profile=" + cfg.ProfileAIMLTraining, "--implicit-dirs=false"},
 			validate: func(t *testing.T, mi *mountInfo) {
 				assert.False(t, mi.config.ImplicitDirs, "Should respect CLI value false, not optimize to true")
-				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "isUserSet should be true for implicit-dirs")
+				assert.True(t, mi.viperConfig.IsSet("implicit-dirs"), "ViperConfig.IsSet should be true for implicit-dirs")
 				assert.Equal(t, int64(testMaxSupportedTTLInSeconds), mi.config.MetadataCache.TtlSecs, "Should optimize metadata-cache.ttl-secs to -1 based on profile")
 				assert.False(t, mi.viperConfig.IsSet("metadata-cache.ttl-secs"))
 			},

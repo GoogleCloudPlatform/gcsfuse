@@ -191,6 +191,7 @@ var machineTypeToGroupMap = map[string]string{
 	"a4-highgpu-8g-nolssd":  "high-performance",
 	"a4x-highgpu-4g":        "high-performance",
 	"a4x-highgpu-4g-nolssd": "high-performance",
+	"a4x-maxgpu-4g-metal":   "high-performance",
 	"ct5l-hightpu-8t":       "high-performance",
 	"ct5lp-hightpu-8t":      "high-performance",
 	"ct5p-hightpu-4t":       "high-performance",
@@ -588,6 +589,8 @@ type GcsConnectionConfig struct {
 }
 
 type GcsRetriesConfig struct {
+	ChunkRetryDeadlineSecs int64 `yaml:"chunk-retry-deadline-secs"`
+
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
@@ -619,6 +622,8 @@ type LoggingConfig struct {
 	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
 
 	Severity LogSeverity `yaml:"severity"`
+
+	WireLog ResolvedPath `yaml:"wire-log"`
 }
 
 type MetadataCacheConfig struct {
@@ -741,7 +746,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
-	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration that the HTTP client will wait for a response after making a request to upload a chunk. As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
+	flagSet.IntP("chunk-retry-deadline-secs", "", 120, "We send larger file uploads in 16 MiB (Legacy Writes) or 32MiB (Streaming Writes) chunks. This flag controls the overall duration that GCSFuse would keep retrying for a single chunk upload completion. 0 means infinity duration for chunk retries.")
+
+	if err := flagSet.MarkHidden("chunk-retry-deadline-secs"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB (Legacy Writes) or 32MiB (Streaming Writes) chunks. This flag controls the duration that the HTTP client will wait for a response after making a request to upload a chunk. As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; otherwise, it cancels the request and retries for that chunk till chunk retry deadline duration. 0 means no timeout.")
 
 	if err := flagSet.MarkHidden("chunk-transfer-timeout-secs"); err != nil {
 		return err
@@ -920,10 +931,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
-
-	if err := flagSet.MarkHidden("enable-metadata-prefetch"); err != nil {
-		return err
-	}
 
 	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
@@ -1173,15 +1180,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("metadata-prefetch-entries-limit", "", 5000, "The maximum number of metadata entries (files and directories) to prefetch  into the cache upon a prefetch trigger. Since a single GCS List call is capped at 5000 results, values higher than 5000 will trigger multiple sequential GCS  List calls per directory.\n")
 
-	if err := flagSet.MarkHidden("metadata-prefetch-entries-limit"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("metadata-prefetch-max-workers", "", 10, "The maximum number of concurrent goroutines (workers) allowed to perform  metadata prefetching across all directories.\n")
-
-	if err := flagSet.MarkHidden("metadata-prefetch-max-workers"); err != nil {
-		return err
-	}
 
 	flagSet.IntP("metrics-buffer-size", "", 256, "The maximum number of histogram metric updates in the queue.")
 
@@ -1337,6 +1336,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.StringP("wire-log", "", "", "The file name of the wire log. When specified, GCSFuse will serialize each FUSE operation as a JSON object and append it to this file.")
+
+	if err := flagSet.MarkHidden("wire-log"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("workload-insight-forward-merge-threshold-mb", "", 0, "The threshold in MB for merging forward sequential reads for workload insights visualization.Reads within this threshold will be merged into a single read operation. Applicable only when --visualize-workload-insight is enabled.")
 
 	if err := flagSet.MarkHidden("workload-insight-forward-merge-threshold-mb"); err != nil {
@@ -1381,6 +1386,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cache-dir", flagSet.Lookup("cache-dir")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.chunk-retry-deadline-secs", flagSet.Lookup("chunk-retry-deadline-secs")); err != nil {
 		return err
 	}
 
@@ -1909,6 +1918,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("workload-insight.visualize", flagSet.Lookup("visualize-workload-insight")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.wire-log", flagSet.Lookup("wire-log")); err != nil {
 		return err
 	}
 

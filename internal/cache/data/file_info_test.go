@@ -19,16 +19,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 )
-
-func TestFileInfo(t *testing.T) { RunTests(t) }
-
-type fileInfoTestKey struct {
-}
-
-type fileInfoTest struct {
-}
 
 const TestDataFileSize uint64 = 23
 const TestTimeInEpoch int64 = 1654041600
@@ -36,11 +28,6 @@ const TestBucketName = "test_bucket"
 const TestObjectName = "test/a.txt"
 const TestGeneration = 12345678
 const ExpectedFileInfoKey = "test_bucket1654041600test/a.txt"
-
-func init() {
-	RegisterTestSuite(&fileInfoTestKey{})
-	RegisterTestSuite(&fileInfoTest{})
-}
 
 func getTestFileInfoKey() FileInfoKey {
 	return FileInfoKey{
@@ -50,51 +37,42 @@ func getTestFileInfoKey() FileInfoKey {
 	}
 }
 
-func (t *fileInfoTestKey) TestKeyMethod() {
+func TestKeyMethod(t *testing.T) {
 	fik := getTestFileInfoKey()
 
 	key, err := fik.Key()
-	AssertEq(nil, err)
 
-	ExpectEq(ExpectedFileInfoKey, key)
+	assert.NoError(t, err)
+	unixCreationTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
+	assert.Equal(t, fik.BucketName+unixCreationTimeString+fik.ObjectName, key)
 }
 
-func (t *fileInfoTestKey) TestKeyMethodWithEmptyBucketName() {
+func TestKeyMethodWithEmptyBucketName(t *testing.T) {
 	fik := getTestFileInfoKey()
 	fik.BucketName = ""
 
 	key, err := fik.Key()
-	AssertEq(InvalidKeyAttributes, err.Error())
 
-	ExpectEq("", key)
+	assert.Equal(t, InvalidKeyAttributes, err.Error())
+	assert.Equal(t, "", key)
 }
 
-func (t *fileInfoTestKey) TestKeyMethodWithZeroBucketCreationTime() {
-	fik := getTestFileInfoKey()
-
-	key, err := fik.Key()
-
-	ExpectEq(nil, err)
-	unixCreationTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
-	ExpectEq(fik.BucketName+unixCreationTimeString+fik.ObjectName, key)
-}
-
-func (t *fileInfoTestKey) TestKeyMethodWithEmptyObjectName() {
+func TestKeyMethodWithEmptyObjectName(t *testing.T) {
 	fik := getTestFileInfoKey()
 	fik.ObjectName = ""
 
 	key, err := fik.Key()
-	AssertEq(InvalidKeyAttributes, err.Error())
 
-	ExpectEq("", key)
+	assert.Equal(t, InvalidKeyAttributes, err.Error())
+	assert.Equal(t, "", key)
 }
 
-func (t *fileInfoTest) TestSizeMethod() {
+func TestSizeMethod(t *testing.T) {
 	fi := FileInfo{
 		Key:              getTestFileInfoKey(),
 		ObjectGeneration: TestGeneration,
 		FileSize:         TestDataFileSize,
 	}
 
-	ExpectEq(TestDataFileSize, fi.Size())
+	assert.Equal(t, TestDataFileSize, fi.Size())
 }
