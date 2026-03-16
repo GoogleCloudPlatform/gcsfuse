@@ -80,6 +80,12 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 }
 
 func (dt *downloaderTest) TearDown() {
+	if dt.job != nil {
+		dt.job.Invalidate()
+	}
+	if dt.jm != nil {
+		dt.jm.Destroy()
+	}
 	dt.fakeStorage.ShutDown()
 	operations.RemoveDir(cacheDir)
 }
