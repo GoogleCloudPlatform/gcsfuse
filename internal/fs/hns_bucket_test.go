@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,6 +75,7 @@ func (t *HNSBucketTests) SetupSuite() {
 		EnableAtomicRenameObject: true,
 	}
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
+	t.serverCfg.TraceHandle = tracing.NewNoopTracer()
 	bucketType = gcs.BucketType{Hierarchical: true}
 	t.fsTest.SetUpTestSuite()
 }
