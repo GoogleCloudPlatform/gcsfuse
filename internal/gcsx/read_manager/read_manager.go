@@ -74,6 +74,10 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
 	var readers []gcsx.Reader
 
+	if config.TraceHandle == nil {
+		config.TraceHandle = tracing.NewNoopTracer()
+	}
+
 	// If a shared chunk cache handler is provided, use it
 	if config.SharedChunkCacheManager != nil {
 		// For SharedChunkCacheManager, create ShareChunkCacheReader directly
