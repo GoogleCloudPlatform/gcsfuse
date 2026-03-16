@@ -41,7 +41,7 @@ log_error() {
   echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
 }
 
-# Confirm bash version before continuing script.
+# Check or install bash version before continuing script.
 REQUIRED_BASH_MAJOR=5
 REQUIRED_BASH_MINOR=1
 
