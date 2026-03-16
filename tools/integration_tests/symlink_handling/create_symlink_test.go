@@ -64,8 +64,15 @@ func (s *BaseSymlinkSuite) createSymlink(linkName, target string) string {
 func (s *BaseSymlinkSuite) createTempFile() string {
 	targetFile, err := os.CreateTemp("", "symlink-target")
 	s.Require().NoError(err)
-	s.T().Cleanup(func() { os.Remove(targetFile.Name()) })
-	targetFile.Close()
+	s.T().Cleanup(func() {
+		if err := os.Remove(targetFile.Name()); err != nil {
+			s.T().Logf("Error removing temporary file %s: %v", targetFile.Name(), err)
+		}
+	})
+	err = targetFile.Close()
+	if err != nil {
+		s.T().Logf("Error closing temporary file %s: %v", targetFile.Name(), err)
+	}
 	return targetFile.Name()
 }
 
@@ -88,7 +95,9 @@ func (s *StandardSymlinksTestSuite) TestCreateSymlink() {
 	// Validate the GCS Object content to be the symlink target
 	rc, err := objHandle.NewReader(testEnv.ctx)
 	s.Require().NoError(err)
-	defer rc.Close()
+	defer func() {
+		s.Assert().NoError(rc.Close())
+	}()
 	content, err := io.ReadAll(rc)
 	s.Require().NoError(err)
 	s.Assert().Equal(target, string(content), "Standard symlink content should match target")
