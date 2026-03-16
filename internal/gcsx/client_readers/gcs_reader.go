@@ -55,6 +55,7 @@ type GCSReader struct {
 	// readTypeClassifier tracks the read access pattern (e.g., sequential, random)
 	// to optimize read strategies. It is shared across different reader layers.
 	readTypeClassifier *gcsx.ReadTypeClassifier
+	traceHandle        tracing.TraceHandle
 }
 
 type GCSReaderConfig struct {
@@ -72,6 +73,7 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 		rangeReader:        NewRangeReader(obj, bucket, config.Config, config.MetricHandle, config.TraceHandle),
 		mrr:                NewMultiRangeReader(obj, config.MetricHandle, config.TraceHandle, config.MrdWrapper),
 		readTypeClassifier: config.ReadTypeClassifier,
+		traceHandle:        config.TraceHandle,
 	}
 }
 
