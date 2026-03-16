@@ -381,14 +381,15 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 			scanDir = path.Join(cacheDir, serverCfg.BucketName)
 		}
 
-		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(scanDir, time.Duration(serverCfg.NewConfig.FileCache.ExperimentalSizeCalculationFrequencySecs)*time.Second, serverCfg.NewConfig.FileCache.ExperimentalDeleteEmptyDirs, cacheDirVolumeBlockSize)
-		fileInfoCache = lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator, false)
+		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(scanDir, time.Duration(serverCfg.NewConfig.FileCache.ExperimentalSizeCalculationFrequencySecs)*time.Second, serverCfg.NewConfig.FileCache.ExperimentalDeleteEmptyDirs, serverCfg.NewConfig.FileCache.ExperimentalEnableTrieSwitch, cacheDirVolumeBlockSize)
+		fileInfoCache = lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator)
 	} else {
 		fileInfoCache = lru.NewCache(sizeInBytes)
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache, diskSizeCalculator)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache, diskSizeCalculator, serverCfg.NewConfig.FileCache.ExperimentalEnableTrieSwitch, serverCfg.NewConfig.FileCache.ExperimentalDeleteEmptyDirs)
+
 	return fileCacheHandler, nil
 }
 

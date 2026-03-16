@@ -495,6 +495,8 @@ type FileCacheConfig struct {
 
 	ExperimentalEnableSizeCalculationFix bool `yaml:"experimental-enable-size-calculation-fix"`
 
+	ExperimentalEnableTrieSwitch bool `yaml:"experimental-enable-trie-switch"`
+
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
 
 	ExperimentalSizeCalculationFrequencySecs int64 `yaml:"experimental-size-calculation-frequency-secs"`
@@ -1007,6 +1009,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("experimental-file-cache-enable-size-calculation-fix", "", false, "Whether or not to scan disk sizes of file-cache cache-dir.")
+
+	flagSet.BoolP("experimental-file-cache-enable-trie-switch", "", false, "Enables trie-based memory tracking and asynchronous event-driven pruning of empty directories.")
 
 	flagSet.IntP("experimental-file-cache-size-calculation-frequency-secs", "", 10, "The duration in seconds after which the size of the file-cache cache-dir is calculated again. It should be set only when file-cache-size-scan-enable is true.")
 
@@ -1602,6 +1606,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.experimental-enable-size-calculation-fix", flagSet.Lookup("experimental-file-cache-enable-size-calculation-fix")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-enable-trie-switch", flagSet.Lookup("experimental-file-cache-enable-trie-switch")); err != nil {
 		return err
 	}
 

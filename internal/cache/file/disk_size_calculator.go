@@ -22,7 +22,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -48,7 +47,7 @@ type FileCacheDiskUtilizationCalculator struct {
 	volumeBlockSize uint64
 
 	// sharedDirLocker is used to acquire locks on directories during scanning and deletion.
-	sharedDirLocker *cacheutil.SharedDirLocker
+	sharedDirLocker baseutil.DirLocker
 
 	// stopCh is used to signal the background goroutine to stop.
 	stopCh chan struct{}
@@ -56,9 +55,9 @@ type FileCacheDiskUtilizationCalculator struct {
 	wg sync.WaitGroup
 }
 
-// NewFileCacheDiskUtilizationCalculator creates a new calculator and starts the
-// background directory size calculation.
-func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, deleteEmptyDirs bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
+// NewFileCacheDiskUtilizationCalculator creates a new FileCacheDiskUtilizationCalculator
+// and starts a background goroutine to periodically calculate the disk usage.
+func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Duration, deleteEmptyDirs bool, useTrie bool, volumeBlockSize uint64) *FileCacheDiskUtilizationCalculator {
 	if frequency <= 0 {
 		frequency = time.Duration(DefaultFileCacheSizeScanFrequencySeconds) * time.Second
 	}
@@ -66,7 +65,7 @@ func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Durat
 		cacheDir:        cacheDir,
 		frequency:       frequency,
 		includeFiles:    false,
-		deleteEmptyDirs: deleteEmptyDirs,
+		deleteEmptyDirs: deleteEmptyDirs && !useTrie,
 		volumeBlockSize: volumeBlockSize,
 		stopCh:          make(chan struct{}),
 	}
@@ -75,7 +74,7 @@ func NewFileCacheDiskUtilizationCalculator(cacheDir string, frequency time.Durat
 	return c
 }
 
-func (c *FileCacheDiskUtilizationCalculator) SetSharedDirLocker(sharedDirLocker *cacheutil.SharedDirLocker) error {
+func (c *FileCacheDiskUtilizationCalculator) SetSharedDirLocker(sharedDirLocker baseutil.DirLocker) error {
 	if c.sharedDirLocker != nil {
 		return fmt.Errorf("sharedDirLocker is already set")
 	}
@@ -103,11 +102,7 @@ func (c *FileCacheDiskUtilizationCalculator) periodicSizeScan() {
 
 func (c *FileCacheDiskUtilizationCalculator) clearEmptyDirsAndRescanSize() {
 	// Use sharedDirLocker if available, otherwise nil (no locking).
-	// Note: (*SharedDirLocker)(nil) satisfies the interface but we want the interface value to be nil if the pointer is nil.
-	var locker baseutil.DirLocker
-	if c.sharedDirLocker != nil {
-		locker = c.sharedDirLocker
-	}
+	locker := c.sharedDirLocker
 
 	start := time.Now()
 

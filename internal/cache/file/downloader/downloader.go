@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sync/semaphore"
@@ -65,7 +66,7 @@ type JobManager struct {
 	maxParallelismSem *semaphore.Weighted
 	metricHandle      metrics.MetricHandle
 	traceHandle       tracing.TraceHandle
-	sharedDirLocker   *util.SharedDirLocker
+	sharedDirLocker   baseutil.DirLocker
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
@@ -92,7 +93,7 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.Fi
 	return
 }
 
-func (jm *JobManager) SetSharedDirLocker(sharedDirLocker *util.SharedDirLocker) error {
+func (jm *JobManager) SetSharedDirLocker(sharedDirLocker baseutil.DirLocker) error {
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
 	if jm.sharedDirLocker != nil {

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
@@ -72,9 +73,65 @@ type CacheHandler struct {
 
 	// sharedDirLocker provides locking for cache directories.
 	sharedDirLocker *util.SharedDirLocker
+
+	// enableTrieSwitch indicates if the trie based file cache is enabled
+	enableTrieSwitch bool
+
+	// emptyDirPruner handles the asynchronous deletion of empty directories
+	emptyDirPruner *emptyDirPruner
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, diskSizeCalculator *FileCacheDiskUtilizationCalculator) *CacheHandler {
+// emptyDirPruner manages a bounded worker pool for asynchronous directory deletion.
+type emptyDirPruner struct {
+	cacheDir        string
+	sharedDirLocker baseutil.DirLocker
+	fileInfoCache   *lru.Cache
+	queue           chan string
+}
+
+func newEmptyDirPruner(cacheDir string, sharedDirLocker baseutil.DirLocker, fileInfoCache *lru.Cache) *emptyDirPruner {
+	pruner := &emptyDirPruner{
+		cacheDir:        cacheDir,
+		sharedDirLocker: sharedDirLocker,
+		fileInfoCache:   fileInfoCache,
+		queue:           make(chan string, 10000),
+	}
+
+	// Start fixed worker pool
+	for i := 0; i < 5; i++ {
+		go pruner.worker()
+	}
+	return pruner
+}
+
+// QueueEmptyDir adds a directory path to the asynchronous pruning queue.
+// If the queue is full, the request is dropped gracefully.
+func (p *emptyDirPruner) QueueEmptyDir(dirPath string) {
+	select {
+	case p.queue <- dirPath:
+	default:
+		// Queue full, gracefully drop the request. The directory will remain on disk.
+	}
+}
+
+// worker constantly polls the queue and executes disk deletions.
+func (p *emptyDirPruner) worker() {
+	for dirPath := range p.queue {
+		fullPath := filepath.Join(p.cacheDir, dirPath)
+
+		// Attempt deletion
+		p.sharedDirLocker.WriteLock(fullPath)
+		err := os.Remove(fullPath)
+		p.sharedDirLocker.WriteUnlock(fullPath)
+
+		if err == nil {
+			// Successfully removed from disk. Tell the LRU to remove it from the Trie.
+			p.fileInfoCache.RemoveDirNode(dirPath)
+		}
+	}
+}
+
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, diskSizeCalculator *FileCacheDiskUtilizationCalculator, enableTrieSwitch bool, deleteEmptyDirs bool) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
@@ -101,7 +158,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		}
 	}
 
-	return &CacheHandler{
+	chr := &CacheHandler{
 		fileInfoCache:      fileInfoCache,
 		jobManager:         jobManager,
 		cacheDir:           cacheDir,
@@ -114,6 +171,29 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		volumeBlockSize:    volumeBlockSize,
 		diskSizeCalculator: diskSizeCalculator,
 		sharedDirLocker:    sharedDirLocker,
+		enableTrieSwitch:   enableTrieSwitch,
+	}
+
+	if enableTrieSwitch {
+		if deleteEmptyDirs {
+			chr.emptyDirPruner = newEmptyDirPruner(cacheDir, sharedDirLocker, fileInfoCache)
+		}
+
+		var onEmptyDir func(string)
+		if deleteEmptyDirs {
+			onEmptyDir = chr.QueueEmptyDir
+		}
+		fileInfoCache.SetIndexer(lru.NewFileCacheTrieIndexer(onEmptyDir))
+	}
+
+	return chr
+}
+
+// QueueEmptyDir adds a directory path to the asynchronous pruning queue.
+// It acts as a wrapper around the internal emptyDirPruner's method.
+func (chr *CacheHandler) QueueEmptyDir(dirPath string) {
+	if chr.emptyDirPruner != nil {
+		chr.emptyDirPruner.QueueEmptyDir(dirPath)
 	}
 }
 

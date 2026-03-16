@@ -328,6 +328,13 @@ params:
     default: false
     hide-flag: false
 
+  - config-path: "file-cache.experimental-enable-trie-switch"
+    flag-name: "experimental-file-cache-enable-trie-switch"
+    type: "bool"
+    usage: "Enables trie-based memory tracking and asynchronous event-driven pruning of empty directories."
+    default: false
+    hide-flag: false
+
   - config-path: "file-cache.experimental-parallel-downloads-default-on"
     flag-name: "file-cache-experimental-parallel-downloads-default-on"
     type: "bool"

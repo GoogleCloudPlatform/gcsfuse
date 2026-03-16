@@ -16,6 +16,7 @@ package data
 
 import (
 	"fmt"
+	"path"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ const TestTimeInEpoch int64 = 1654041600
 const TestBucketName = "test_bucket"
 const TestObjectName = "test/a.txt"
 const TestGeneration = 12345678
-const ExpectedFileInfoKey = "test_bucket1654041600test/a.txt"
+const ExpectedFileInfoKey = "test_bucket/1654041600/test/a.txt"
 
 func getTestFileInfoKey() FileInfoKey {
 	return FileInfoKey{
@@ -44,7 +45,7 @@ func TestKeyMethod(t *testing.T) {
 
 	assert.NoError(t, err)
 	unixCreationTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
-	assert.Equal(t, fik.BucketName+unixCreationTimeString+fik.ObjectName, key)
+	assert.Equal(t, path.Join(fik.BucketName, unixCreationTimeString, fik.ObjectName), key)
 }
 
 func TestKeyMethodWithEmptyBucketName(t *testing.T) {

@@ -79,10 +79,11 @@ func (dsc *defaultSizeCalculator) AddDelta(delta int64) {
 // indexer defines the interface for the underlying key-value store used by the LRU cache.
 // Implementations of this interface do not need to be thread-safe internally, as they
 // are protected by the LRU cache's global mutex.
-type indexer interface {
+type Indexer interface {
 	Get(key string) (*list.Element, bool)
 	Set(key string, value *list.Element)
 	Delete(key string)
+	DeleteDirIfEmpty(dirPath string)
 	KeysWithPrefix(prefix string) []string
 	Len() int
 }
@@ -106,6 +107,10 @@ func (mi *mapIndexer) Set(key string, value *list.Element) {
 
 func (mi *mapIndexer) Delete(key string) {
 	delete(mi.m, key)
+}
+
+func (mi *mapIndexer) DeleteDirIfEmpty(dirPath string) {
+	// No-op for mapIndexer, as it does not track directories.
 }
 
 func (mi *mapIndexer) KeysWithPrefix(prefix string) []string {
@@ -149,7 +154,7 @@ type Cache struct {
 	//
 	// INVARIANT: For each k, v: v.Value.(entry).Key == k
 	// INVARIANT: Contains all and only the elements of entries
-	index indexer
+	index Indexer
 
 	// All public methods of this Cache uses this RW mutex based locker while
 	// accessing/updating Cache's data.
@@ -182,23 +187,23 @@ func NewCache(maxSize uint64) *Cache {
 // NewCacheWithCustomSizeCalculator returns the reference of cache object by initialising the cache with
 // (a) the supplied maxSize, which must be greater than zero
 // (b) the size-calculator.
-func NewCacheWithCustomSizeCalculator(maxSize uint64, sizeCalculator SizeCalculator, useTrie bool) *Cache {
-	var idx indexer
-	if useTrie {
-		panic("trie indexer not yet implemented") // To be replaced when trie.go is added
-	} else {
-		idx = newMapIndexer()
-	}
-
+func NewCacheWithCustomSizeCalculator(maxSize uint64, sizeCalculator SizeCalculator) *Cache {
 	c := &Cache{
 		maxSize:        maxSize,
-		index:          idx,
+		index:          newMapIndexer(),
 		sizeCalculator: sizeCalculator,
 	}
 
 	// Set up invariant checking.
 	c.mu = locker.NewRW("LRUCache", c.checkInvariants)
 	return c
+}
+
+// SetIndexer overrides the default map-based indexer with a custom implementation.
+func (c *Cache) SetIndexer(idx Indexer) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.index = idx
 }
 
 // checkInvariants panic if any internal invariants have been violated.
@@ -318,6 +323,15 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	return deletedEntry
 }
 
+// RemoveDirNode removes an empty directory node from the underlying indexer.
+// This is a specialized operation primarily used when the cache is backed by a Trie,
+// to prune directory nodes after the physical directory has been deleted from disk.
+func (c *Cache) RemoveDirNode(dirPath string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.index.DeleteDirIfEmpty(dirPath)
+}
+
 // LookUp a previously-inserted value for the given key. Return nil if no
 // value is present.
 func (c *Cache) LookUp(key string) (value ValueType) {
@@ -406,6 +420,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	return nil
 }
 
+// EraseEntriesWithGivenPrefix erases all entries with the given prefix.
 func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
 	c.mu.RLock()
 	keys := c.index.KeysWithPrefix(prefix)

@@ -112,16 +112,15 @@ var _ TearDownTestSuiteInterface = &fsTest{}
 
 func defaultFileCacheConfig() cfg.FileCacheConfig {
 	return cfg.FileCacheConfig{
-		CacheFileForRangeRead:    false,
-		DownloadChunkSizeMb:      50,
-		EnableCrc:                false,
-		EnableParallelDownloads:  false,
-		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
-		MaxSizeMb:                -1,
-		ParallelDownloadsPerFile: 16,
-		SizeScanEnable:           false,
-		SizeScanFiles:            false,
-		SizeScanFrequencySeconds: 10,
+		CacheFileForRangeRead:                    false,
+		DownloadChunkSizeMb:                      50,
+		EnableCrc:                                false,
+		EnableParallelDownloads:                  false,
+		MaxParallelDownloads:                     int64(max(16, 2*runtime.NumCPU())),
+		MaxSizeMb:                                -1,
+		ParallelDownloadsPerFile:                 16,
+		ExperimentalEnableSizeCalculationFix:     false,
+		ExperimentalSizeCalculationFrequencySecs: 10,
 	}
 }
 

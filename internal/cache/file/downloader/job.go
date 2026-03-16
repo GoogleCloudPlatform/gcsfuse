@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 
@@ -107,7 +108,7 @@ type Job struct {
 	// This is used for sparse files.
 	inflightChunks map[uint64]chan struct{}
 
-	sharedDirLocker *cacheutil.SharedDirLocker
+	sharedDirLocker baseutil.DirLocker
 }
 
 // JobStatus represents the status of job.
@@ -135,7 +136,7 @@ func NewJob(
 	maxParallelismSem *semaphore.Weighted,
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
-	sharedDirLocker *cacheutil.SharedDirLocker,
+	sharedDirLocker baseutil.DirLocker,
 ) (job *Job) {
 	if traceHandle == nil {
 		traceHandle = tracing.NewNoopTracer()

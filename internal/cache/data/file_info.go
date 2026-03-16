@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"time"
 )
 
@@ -40,7 +41,7 @@ func GetFileInfoKeyName(objectName string, bucketCreationTime time.Time, bucketN
 		return "", errors.New(InvalidKeyAttributes)
 	}
 	unixTimeString := fmt.Sprintf("%d", bucketCreationTime.Unix())
-	return bucketName + unixTimeString + objectName, nil
+	return path.Join(bucketName, unixTimeString, objectName), nil
 }
 
 type FileInfo struct {
@@ -58,6 +59,12 @@ func (fi FileInfo) Size() uint64 {
 		return fi.DownloadedChunks.TotalBytes()
 	}
 	return fi.FileSize
+}
+
+// Path returns the physical path of the file relative to the cache directory.
+// This implements the Pathable interface allowing the Trie to mirror the disk.
+func (fi FileInfo) Path() string {
+	return path.Join(fi.Key.BucketName, fi.Key.ObjectName)
 }
 
 type FileSpec struct {

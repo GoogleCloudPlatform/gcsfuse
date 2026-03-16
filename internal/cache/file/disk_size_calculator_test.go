@@ -74,7 +74,7 @@ func TestFileCacheDiskUtilizationCalculator_ClearEmptyDirsAndRescanSize(t *testi
 	f, err := os.Create(filepath.Join(nonEmptyDir, "file"))
 	require.NoError(t, err)
 	f.Close()
-	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, false, true, 4096)
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, true, false, 4096)
 	defer calc.Stop()
 
 	// Initial check
@@ -94,25 +94,66 @@ func TestFileCacheDiskUtilizationCalculator_ClearEmptyDirsAndRescanSize(t *testi
 	assert.GreaterOrEqual(t, newSize, initialSize)
 }
 
-func TestFileCacheDiskUtilizationCalculator_FullScan(t *testing.T) {
+func Test_NewFileCacheDiskUtilizationCalculator_OnlyRescanSize_1(t *testing.T) {
 	tmpDir := t.TempDir()
-	f, err := os.CreateTemp(tmpDir, "testfile")
-	require.NoError(t, err)
-	_, err = f.Write([]byte("hello"))
+	// Create empty dirs
+	emptyDir := filepath.Join(tmpDir, "empty")
+	require.NoError(t, os.Mkdir(emptyDir, 0755))
+	// Create non-empty dir
+	nonEmptyDir := filepath.Join(tmpDir, "nonEmpty")
+	require.NoError(t, os.Mkdir(nonEmptyDir, 0755))
+	f, err := os.Create(filepath.Join(nonEmptyDir, "file"))
 	require.NoError(t, err)
 	f.Close()
-
-	// Use includeFiles=true
-	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, true, false, 4096)
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, false, false, 4096)
 	defer calc.Stop()
 
-	// Wait for update
+	// Initial check
+	initialSize := calc.GetCurrentSize()
+	// Wait for update (ticker is 50ms)
 	time.Sleep(100 * time.Millisecond)
 
-	size := calc.GetCurrentSize()
-	// Should include file size (4096 on most FS due to block size).
-	// On tmpfs, directory might be 0, file 4096.
-	assert.GreaterOrEqual(t, size, uint64(4096))
+	// Verify empty dir is still there
+	_, err = os.Stat(emptyDir)
+	assert.NoError(t, err)
+	// Verify non-empty dir exists
+	_, err = os.Stat(nonEmptyDir)
+	assert.NoError(t, err, "Non-empty directory should exist")
+	newSize := calc.GetCurrentSize()
+	// Depending on FS, newSize might be same or larger.
+	// We at least verify it doesn't crash and returns valid value.
+	assert.GreaterOrEqual(t, newSize, initialSize)
+}
+
+func Test_NewFileCacheDiskUtilizationCalculator_OnlyRescanSize_2(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create empty dirs
+	emptyDir := filepath.Join(tmpDir, "empty")
+	require.NoError(t, os.Mkdir(emptyDir, 0755))
+	// Create non-empty dir
+	nonEmptyDir := filepath.Join(tmpDir, "nonEmpty")
+	require.NoError(t, os.Mkdir(nonEmptyDir, 0755))
+	f, err := os.Create(filepath.Join(nonEmptyDir, "file"))
+	require.NoError(t, err)
+	f.Close()
+	calc := NewFileCacheDiskUtilizationCalculator(tmpDir, 50*time.Millisecond, true, true, 4096)
+	defer calc.Stop()
+
+	// Initial check
+	initialSize := calc.GetCurrentSize()
+	// Wait for update (ticker is 50ms)
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify empty dir is still there
+	_, err = os.Stat(emptyDir)
+	assert.NoError(t, err)
+	// Verify non-empty dir exists
+	_, err = os.Stat(nonEmptyDir)
+	assert.NoError(t, err, "Non-empty directory should exist")
+	newSize := calc.GetCurrentSize()
+	// Depending on FS, newSize might be same or larger.
+	// We at least verify it doesn't crash and returns valid value.
+	assert.GreaterOrEqual(t, newSize, initialSize)
 }
 
 func TestFileCacheDiskUtilizationCalculator_AddDelta(t *testing.T) {
