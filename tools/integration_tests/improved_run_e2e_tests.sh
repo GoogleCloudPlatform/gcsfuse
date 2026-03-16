@@ -44,18 +44,17 @@ log_error() {
 # Check or install bash version before continuing script.
 REQUIRED_BASH_MAJOR=5
 REQUIRED_BASH_MINOR=1
+BASH_TO_INSTALL_VERSION="5.3"
+NEW_BASH_PATH="/usr/local/bin/bash"
 
 if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
   log_info "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) is older than required (${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR})."
-  local BASH_TO_INSTALL_VERSION="5.3"
-  local NEW_BASH_PATH="/usr/local/bin/bash"
-
   log_info "Installing Bash ${BASH_TO_INSTALL_VERSION}..."
-  
+
   # Dynamically find the repo root so we can locate the install script safely
   SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
   REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
-  
+
   # Run the installation script
   "${REPO_ROOT}/perfmetrics/scripts/install_bash.sh" "${BASH_TO_INSTALL_VERSION}"
   if [[ ! -x "${NEW_BASH_PATH}" ]]; then
