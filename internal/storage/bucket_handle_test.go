@@ -64,6 +64,8 @@ func minObjectsToMinObjectNames(minObjects []*gcs.MinObject) (objectNames []stri
 
 func createBucketHandle(testSuite *BucketHandleTest, resp *controlpb.StorageLayout) {
 	var err error
+	testSuite.mockClient.ExpectedCalls = nil
+	testSuite.mockClient.Calls = nil
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(resp, nil)
 	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
@@ -89,6 +91,7 @@ func (testSuite *BucketHandleTest) SetupTest() {
 	testSuite.mockClient = new(MockStorageControlClient)
 	testSuite.fakeStorage = NewFakeStorageWithMockClient(testSuite.mockClient, cfg.HTTP2)
 	testSuite.storageHandle = testSuite.fakeStorage.CreateStorageHandle()
+	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 }
 
 func (testSuite *BucketHandleTest) TearDownTest() {
@@ -284,7 +287,6 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithReadHand
 }
 
 func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	err := testSuite.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
 			Name:                       TestObjectName,
@@ -317,7 +319,6 @@ func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithMissingGeneration()
 }
 
 func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithZeroGeneration() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	// Note: fake-gcs-server doesn't respect Generation or other conditions in
 	// delete operations. This unit test will be helpful when fake-gcs-server
 	// start respecting these conditions, or we move to other testing framework.
@@ -416,8 +417,6 @@ func (testSuite *BucketHandleTest) TestCopyObjectMethodWithInvalidGeneration() {
 }
 
 func (testSuite *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
-
 	content := "Creating a new object"
 	obj, err := testSuite.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
@@ -431,8 +430,6 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
 }
 
 func (testSuite *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
-
 	content := "Creating a new object"
 	var generation int64 = 0
 	obj, err := testSuite.bucketHandle.CreateObject(context.Background(),
@@ -448,8 +445,6 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() 
 }
 
 func (testSuite *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectAlreadyExists() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
-
 	content := "Creating a new object"
 	var generation int64 = 0
 	var precondition *gcs.PreconditionError
@@ -476,8 +471,6 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhe
 }
 
 func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
-
 	var precondition *gcs.PreconditionError
 	content := "Creating a new object"
 	var crc32 uint32 = 45
@@ -496,8 +489,6 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObje
 }
 
 func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
-
 	var generation0 int64 = 0
 	var generationNon0 int64 = 786
 	var metaGeneration0 int64 = 0
@@ -573,8 +564,6 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 }
 
 func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
-
 	var generation0 int64 = 0
 
 	tests := []struct {
@@ -610,8 +599,6 @@ func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 }
 
 func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObjectAlreadyExists() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
-
 	// Pre-create the object (creating writer and finalizing upload).
 	objName := "pre_created_test_object"
 	var generation int64 = 0
@@ -656,13 +643,16 @@ func (testSuite *BucketHandleTest) TestFlushPendingWritesFails() {
 	// integrated with GRPC.
 	var generation0 int64 = 0
 	tests := []struct {
-		bucketType string
+		bucketType  string
+		expectedErr string
 	}{
 		{
-			bucketType: "multiregion",
+			bucketType:  "multiregion",
+			expectedErr: "Flush not supported unless client uses gRPC and Append is set to true",
 		},
 		{
-			bucketType: "zone",
+			bucketType:  "zone",
+			expectedErr: "append not supported on HTTP Client",
 		},
 	}
 
@@ -676,7 +666,7 @@ func (testSuite *BucketHandleTest) TestFlushPendingWritesFails() {
 			_, err := testSuite.bucketHandle.FlushPendingWrites(context.Background(), wr)
 
 			require.Error(t, err)
-			assert.ErrorContains(testSuite.T(), err, "Flush not supported unless client uses gRPC and Append is set to true")
+			assert.ErrorContains(t, err, tt.expectedErr)
 		})
 	}
 }
@@ -923,13 +913,10 @@ func (testSuite *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 
 // Read content of an object and return
 func (testSuite *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
-	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(ctx, &gcs.ReadObjectRequest{
-		Name:  req.Name,
-		Range: req.Range})
-
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(ctx, req)
 	assert.Nil(testSuite.T(), err)
 	defer rc.Close()
-	buf := make([]byte, req.Range.Limit)
+	buf := make([]byte, req.Range.Limit-req.Range.Start)
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)
 	return string(buf[:])
@@ -1006,7 +993,6 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 }
 
 func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	var notfound *gcs.NotFoundError
 	// Checking that dstObject does not exist
 	_, _, err := testSuite.bucketHandle.StatObject(context.Background(),
@@ -1070,7 +1056,6 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 }
 
 func (testSuite *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	var notfound *gcs.NotFoundError
 	_, _, err := testSuite.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
@@ -1332,7 +1317,6 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotEx
 
 func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() {
 	// Checking source object 1 exists. This will also be the destination object.
-	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	srcMinObj1, _, err := testSuite.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
@@ -1473,6 +1457,8 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 	var x *controlpb.StorageLayout
 	var err error
 	// Test when the client returns an error.
+	testSuite.mockClient.ExpectedCalls = nil
+	testSuite.mockClient.Calls = nil
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(x, errors.New("mocked error"))
 	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
 
@@ -1482,6 +1468,8 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 
 func (testSuite *BucketHandleTest) TestBucketHandleWithRapidAppendsEnabled() {
 	var err error
+	testSuite.mockClient.ExpectedCalls = nil
+	testSuite.mockClient.Calls = nil
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(&controlpb.StorageLayout{}, nil)
 	testSuite.mockClient.On("getClient", mock.Anything, mock.Anything).Return(&storage.Client{}, nil)
 
