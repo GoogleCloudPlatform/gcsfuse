@@ -42,30 +42,30 @@ log_error() {
 }
 
 # Check or install bash version before continuing script.
-REQUIRED_BASH_MAJOR=5
-REQUIRED_BASH_MINOR=1
-BASH_TO_INSTALL_VERSION="5.3"
-NEW_BASH_PATH="/usr/local/bin/bash"
+readonly REQUIRED_BASH_MAJOR=5
+readonly REQUIRED_BASH_MINOR=1
+readonly BASH_INSTALL_VERSION="5.3"
+readonly BASH_INSTALLATION_PATH="/usr/local/bin/bash" # Using 5.3 for installation as bash 5.1 has an installation bug.
 
 if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
   log_info "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) is older than required (${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR})."
-  log_info "Installing Bash ${BASH_TO_INSTALL_VERSION}..."
+  log_info "Installing Bash ${BASH_INSTALL_VERSION}..."
 
   # Dynamically find the repo root so we can locate the install script safely
   SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
   REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
 
   # Run the installation script
-  "${REPO_ROOT}/perfmetrics/scripts/install_bash.sh" "${BASH_TO_INSTALL_VERSION}"
-  if [[ ! -x "${NEW_BASH_PATH}" ]]; then
-    log_error "Failed to locate the newly installed bash at ${NEW_BASH_PATH}"
+  "${REPO_ROOT}/perfmetrics/scripts/install_bash.sh" "${BASH_INSTALL_VERSION}"
+  if [[ ! -x "${BASH_INSTALLATION_PATH}" ]]; then
+    log_error "Failed to locate the newly installed bash at ${BASH_INSTALLATION_PATH}"
     exit 1
   fi
 
-  log_info "Re-executing the e2e script using the newly installed Bash ${BASH_TO_INSTALL_VERSION}..."
+  log_info "Re-executing the e2e script using the newly installed Bash ${BASH_INSTALL_VERSION}..."
   # The 'exec' command completely replaces the current old-bash process 
   # with the new bash process, passing along the script name ($0) and all arguments ($@).
-  exec "${NEW_BASH_PATH}" "$0" "$@"
+  exec "${BASH_INSTALLATION_PATH}" "$0" "$@"
 fi
 log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
