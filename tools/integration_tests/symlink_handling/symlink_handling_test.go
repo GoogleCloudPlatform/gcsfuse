@@ -58,12 +58,12 @@ func TestMain(m *testing.M) {
 		cfg.SymlinkHandling[0].Configs = make([]test_suite.ConfigItem, 2)
 
 		// 1. TestStandardSymlinksTestSuite
-		cfg.SymlinkHandling[0].Configs[0].Flags = []string{"--enable-standard-symlinks=true"}
+		cfg.SymlinkHandling[0].Configs[0].Flags = []string{"--experimental-enable-standard-symlinks=true"}
 		cfg.SymlinkHandling[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.SymlinkHandling[0].Configs[0].Run = "TestStandardSymlinksTestSuite"
 
 		// 2. TestLegacySymlinksTestSuite
-		cfg.SymlinkHandling[0].Configs[1].Flags = []string{"--enable-standard-symlinks=false"}
+		cfg.SymlinkHandling[0].Configs[1].Flags = []string{"--experimental-enable-standard-symlinks=false"}
 		cfg.SymlinkHandling[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.SymlinkHandling[0].Configs[1].Run = "TestLegacySymlinksTestSuite"
 	}
@@ -78,7 +78,11 @@ func TestMain(m *testing.M) {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-	defer testEnv.storageClient.Close()
+	defer func() {
+		if err := testEnv.storageClient.Close(); err != nil {
+			log.Printf("Error closing storage client: %v\n", err)
+		}
+	}()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
