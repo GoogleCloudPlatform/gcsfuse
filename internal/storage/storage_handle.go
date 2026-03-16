@@ -164,8 +164,6 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
 			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
 			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
-		} else {
-			clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 		}
 	} else if !clientConfig.EnableGrpcMetrics {
 		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
