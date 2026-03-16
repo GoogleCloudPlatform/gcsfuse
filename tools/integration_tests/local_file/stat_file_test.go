@@ -17,6 +17,7 @@ package local_file
 
 import (
 	"os"
+	"path"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -25,41 +26,43 @@ import (
 )
 
 func (t *LocalFileTestSuite) TestStatOnLocalFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Stat the local file.
 	operations.VerifyStatFile(filePath, 0, FilePerms, t.T())
 
 	// Writing contents to local file shouldn't create file on GCS.
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, fileName, t.T())
 
 	// Stat the local file again to check if new content is written.
 	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents, t.T())
+		fileName, FileContents, t.T())
 }
 
 func (t *LocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuffix() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Stat the local file.
 	operations.VerifyStatFile(filePath+inode.ConflictingFileNameSuffix, 0, FilePerms, t.T())
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, "", t.T())
+		fileName, "", t.T())
 }
 
 func (t *LocalFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	fileName := FileName1 + setup.GenerateRandomString(5)
+	fileName := path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Writing contents to local file .
 	operations.WriteWithoutClose(fh, FileContents, t.T())

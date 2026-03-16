@@ -24,26 +24,30 @@ import (
 )
 
 func (t *LocalFileTestSuite) TestStatOnUnlinkedLocalFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Unlink the local file.
 	operations.RemoveFile(filePath)
 
 	// Stat the local file and validate error.
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, FileName1))
+	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, fileName))
 
 	// Close the file and validate that file is not created on GCS.
 	operations.CloseFileShouldNotThrowError(t.T(), fh)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 }
 
 func (t *LocalFileTestSuite) TestReadDirContainingUnlinkedLocalFiles() {
+	fileName1 := path.Base(t.T().Name()) + "1"
+	fileName2 := path.Base(t.T().Name()) + "2"
+	fileName3 := path.Base(t.T().Name()) + "3"
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local files.
-	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName2, t.T())
-	filepath3, fh3 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName3, t.T())
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName1, t.T())
+	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName2, t.T())
+	filepath3, fh3 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName3, t.T())
 	// Unlink local file 3.
 	operations.RemoveFile(filepath3)
 
@@ -52,25 +56,26 @@ func (t *LocalFileTestSuite) TestReadDirContainingUnlinkedLocalFiles() {
 
 	// Verify unlinked entries are not listed.
 	operations.VerifyCountOfDirectoryEntries(2, len(entries), t.T())
-	operations.VerifyFileEntry(entries[0], FileName1, 0, t.T())
-	operations.VerifyFileEntry(entries[1], FileName2, 0, t.T())
+	operations.VerifyFileEntry(entries[0], fileName1, 0, t.T())
+	operations.VerifyFileEntry(entries[1], fileName2, 0, t.T())
 	// Close the local files and validate they are written to GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName,
-		FileName1, "", t.T())
+		fileName1, "", t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh2, testDirName,
-		FileName2, "", t.T())
+		fileName2, "", t.T())
 	// Verify unlinked file is not written to GCS.
 	operations.CloseFileShouldNotThrowError(t.T(), fh3)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName3, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName3, t.T())
 }
 
 func (t *LocalFileTestSuite) TestWriteOnUnlinkedLocalFileSucceeds() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file.
-	filepath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	filepath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Verify unlink operation succeeds.
 	operations.RemoveFile(filepath)
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, FileName1))
+	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, fileName))
 
 	// Write to unlinked local file.
 	operations.WriteWithoutClose(fh, FileContents, t.T())
@@ -78,31 +83,33 @@ func (t *LocalFileTestSuite) TestWriteOnUnlinkedLocalFileSucceeds() {
 	// Validate flush file does not throw error.
 	operations.CloseFileShouldNotThrowError(t.T(), fh)
 	// Validate unlinked file is not written to GCS.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 }
 
 func (t *LocalFileTestSuite) TestSyncOnUnlinkedLocalFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file.
-	filepath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	filepath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Attempt to unlink local file.
 	operations.RemoveFile(filepath)
 
 	// Verify unlink operation succeeds.
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, FileName1))
+	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, fileName))
 	// Validate sync operation does not write to GCS after unlink.
 	operations.SyncFile(fh, t.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 	// Close the local file and validate it is not present on GCS.
 	operations.CloseFileShouldNotThrowError(t.T(), fh)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 }
 
 func (t *LocalFileTestSuite) TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSync() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Write some content.
 	operations.WriteWithoutClose(fh, FileContents, t.T())
 	// Remove and close the file.
@@ -110,37 +117,38 @@ func (t *LocalFileTestSuite) TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSy
 	// Currently flush calls returns error if unlinked. Ignoring that error here.
 	_ = fh.Close()
 	// Validate that file is not created on  GCS
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 	// Verify unlink operation succeeds.
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, FileName1))
+	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, fileName))
 
 	// Create a local file.
-	_, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	newContents := "newContents"
 	operations.WriteWithoutClose(fh, newContents, t.T())
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, newContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, newContents, t.T())
 }
 
 func (t *LocalFileTestSuite) TestFileWithSameNameCanBeCreatedAfterDelete() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Write some content.
 	operations.WriteWithoutClose(fh, FileContents, t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents, t.T())
+		fileName, FileContents, t.T())
 	// Remove  the file.
 	operations.RemoveFile(filePath)
 	// Validate that file id deleted from GCS
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 	// Verify unlink operation succeeds.
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, FileName1))
+	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, fileName))
 
 	// Create a local file.
-	_, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	newContents := "newContents"
 	operations.WriteWithoutClose(fh, newContents, t.T())
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, newContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, newContents, t.T())
 }

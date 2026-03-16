@@ -32,22 +32,19 @@ import (
 )
 
 const (
-	FileName1              = "foo1"
-	FileName2              = "foo2"
-	FileName3              = "foo3"
-	ExplicitDirName        = "explicit"
-	ExplicitFileName1      = "explicitFile1"
-	ExplicitLocalFileName1 = "explicitLocalFile1"
-	ImplicitDirName        = "implicit"
-	ImplicitFileName1      = "implicitFile1"
-	FileContents           = "testString"
-	SizeOfFileContents     = 10
-	GCSFileContent         = "GCSteststring"
-	GCSFileSize            = 13
-	FilePerms              = 0644
-	SmallerSizeTruncate    = 5
-	NewFileName            = "newName"
-	NewDirName             = "newDirName"
+	FileName1           = "foo1"
+	FileName2           = "foo2"
+	ExplicitDirName     = "explicit"
+	ExplicitFileName1   = "explicitFile1"
+	ImplicitDirName     = "implicit"
+	ImplicitFileName1   = "implicitFile1"
+	FileContents        = "testString"
+	SizeOfFileContents  = 10
+	GCSFileContent      = "GCSteststring"
+	GCSFileSize         = 13
+	FilePerms           = 0644
+	SmallerSizeTruncate = 5
+	NewDirName          = "newDirName"
 )
 
 func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,
@@ -103,8 +100,8 @@ func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *stor
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, content, t)
 }
 
-func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client,
-	testDirPath, fileName string, t *testing.T) (string, *os.File) {
+func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client, testDirPath, fileName string, t *testing.T) (string, *os.File) {
+	t.Helper()
 	filePath := path.Join(testDirPath, fileName)
 	fh := operations.CreateFile(filePath, FilePerms, t)
 	testDirName := GetDirName(testDirPath)
