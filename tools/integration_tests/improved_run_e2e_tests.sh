@@ -44,10 +44,26 @@ log_error() {
 # Confirm bash version before continuing script.
 REQUIRED_BASH_MAJOR=5
 REQUIRED_BASH_MINOR=1
+
 if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
-    log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
-    log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+  log_info "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) is older than required (${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR})."
+  log_info "Installing Bash 5.3..."
+  
+  # Dynamically find the repo root so we can locate the install script safely
+  SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+  REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
+  
+  # Run the installation script
+  "${REPO_ROOT}/perfmetrics/scripts/install_bash.sh" "5.3"
+  if [[ ! -x "/usr/local/bin/bash" ]]; then
+    log_error "Failed to locate the newly installed bash at /usr/local/bin/bash"
     exit 1
+  fi
+
+  log_info "Re-executing the e2e script using the newly installed Bash 5.3..."
+  # The 'exec' command completely replaces the current old-bash process 
+  # with the new bash process, passing along the script name ($0) and all arguments ($@).
+  exec /usr/local/bin/bash "$0" "$@"
 fi
 log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
