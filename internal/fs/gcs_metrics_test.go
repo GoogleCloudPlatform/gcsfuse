@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -90,6 +91,7 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 			EnableNewReader: true, // Not much use testing the case where it's false
 		},
 		MetricHandle: mh,
+		TraceHandle: tracing.NewNoopTracer(),
 		CacheClock:   &timeutil.SimulatedClock{},
 		BucketName:   bucketName,
 		BucketManager: &fakeBucketManagerWithMetrics{

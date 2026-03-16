@@ -182,6 +182,6 @@ func TestSpanCreation(t *testing.T) {
 
 	ss := ex.GetSpans()
 	require.Len(t, ss, 1)
-	assert.Equal(t, "StatFS", ss[0].Name)
+	assert.Equal(t, "fs.stats_fs", ss[0].Name)
 	assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
 }

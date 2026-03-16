@@ -62,6 +62,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 		SequentialReadSizeMB:  sequentialReadSizeInMb,
 		CacheFileForRangeRead: false,
 		MetricHandle:          metrics.NewNoopMetrics(),
+		TraceHandle:           tracing.NewNoopTracer(),
 		MrdWrapper:            nil,
 		Config: &cfg.Config{
 			Read: cfg.ReadConfig{
@@ -339,6 +340,7 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 		object:             t.object,
 		readers:            []gcsx.Reader{mockReader1, mockReader2},
 		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0),
+		traceHandle:        tracing.NewNoopTracer(),
 	}
 	mockReader1.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
 	mockReader1.On("Destroy").Once()
@@ -366,6 +368,7 @@ func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
 		object:             t.object,
 		readers:            []gcsx.Reader{mockBufferedReader, mockGCSReader},
 		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0),
+		traceHandle:        tracing.NewNoopTracer(),
 	}
 	mockBufferedReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
 	mockBufferedReader.On("Destroy").Once()
