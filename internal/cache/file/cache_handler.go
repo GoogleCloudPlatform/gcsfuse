@@ -20,6 +20,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -121,12 +122,17 @@ func (p *emptyDirPruner) worker() {
 
 		// Attempt deletion
 		p.sharedDirLocker.WriteLock(fullPath)
+		start := time.Now()
 		err := os.Remove(fullPath)
+		duration := time.Since(start)
 		p.sharedDirLocker.WriteUnlock(fullPath)
 
 		if err == nil {
+			logger.Debugf("Trie emptyDirPruner: Successfully deleted empty directory %q in %v", fullPath, duration)
 			// Successfully removed from disk. Tell the LRU to remove it from the Trie.
 			p.fileInfoCache.RemoveDirNode(dirPath)
+		} else {
+			logger.Debugf("Trie emptyDirPruner: Failed to delete directory %q (took %v). It might not be empty or was already deleted: %v", fullPath, duration, err)
 		}
 	}
 }
