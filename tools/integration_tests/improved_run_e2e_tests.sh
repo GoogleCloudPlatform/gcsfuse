@@ -624,7 +624,7 @@ install_package_from_path() {
     return 1
   fi
   local package_path="$1"
-  log_info "Downloading ${package_name}..."
+  log_info "Downloading $(basename "${package_path}")..."
   gcloud storage cp "${package_path}" /tmp/ --quiet || return 1
   if [ -f /etc/os-release ]; then
     # We source in a subshell to prevent variable pollution, 
