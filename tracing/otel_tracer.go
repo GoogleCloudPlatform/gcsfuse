@@ -31,6 +31,7 @@ var (
 	bytesReadKey = attribute.Key(BYTES_READ)
 	cacheHit     = attribute.Bool(IS_CACHE_HIT, true)
 	cacheMiss    = attribute.Bool(IS_CACHE_HIT, false)
+	ch           chan []attribute.KeyValue
 )
 
 func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
@@ -51,12 +52,15 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 }
 
 func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
-	bytesReadAttr := bytesReadKey.Int(bytesRead)
+	attrSet := <-ch
+	attrSet[0] = bytesReadKey.Int(bytesRead)
 	if isCacheHit {
-		span.SetAttributes(cacheHit, bytesReadAttr)
+		attrSet[1] = cacheHit
 	} else {
-		span.SetAttributes(cacheMiss, bytesReadAttr)
+		attrSet[1] = cacheMiss
 	}
+	span.SetAttributes(attrSet...)
+	ch <- attrSet
 }
 
 func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
@@ -65,6 +69,11 @@ func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx contex
 }
 
 func NewOTELTracer() TraceHandle {
+	ch = make(chan []attribute.KeyValue, 5)
+	for i := 0; i < cap(ch); i++ {
+		ch <- make([]attribute.KeyValue, 2)
+	}
+
 	return &otelTracer{
 		tracer: otel.Tracer(name),
 	}
