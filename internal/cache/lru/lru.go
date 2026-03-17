@@ -125,6 +125,20 @@ func (c *Cache) checkInvariants() {
 	}
 }
 
+// Size returns the sum of entry.Value.Size() of all the entries in the cache.
+func (c *Cache) Size() uint64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.currentSize
+}
+
+// Count returns the number of entries in the cache.
+func (c *Cache) Count() uint64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return uint64(len(c.index))
+}
+
 func (c *Cache) evictOne() ValueType {
 	e := c.entries.Back()
 	key := e.Value.(entry).Key

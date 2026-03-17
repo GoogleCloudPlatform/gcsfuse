@@ -60,6 +60,12 @@ type TypeCache interface {
 	// If entry doesn't exist in the cache, then
 	// UnknownType is returned.
 	Get(now time.Time, name string) Type
+
+	// Size returns the memory footprint (RSS) in bytes of the type cache.
+	Size() uint64
+
+	// Count returns the number of entries in the type cache.
+	Count() uint64
 }
 
 type cacheEntry struct {
@@ -165,6 +171,20 @@ func (tc *typeCache) Erase(name string) {
 	if tc.entries != nil { // only if caching is enabled
 		tc.entries.Erase(name)
 	}
+}
+
+func (tc *typeCache) Size() uint64 {
+	if tc.entries == nil {
+		return 0
+	}
+	return tc.entries.Size()
+}
+
+func (tc *typeCache) Count() uint64 {
+	if tc.entries == nil {
+		return 0
+	}
+	return tc.entries.Count()
 }
 
 func (tc *typeCache) Get(now time.Time, name string) Type {

@@ -220,3 +220,51 @@ func (m *mockStatCache) InsertImplicitDir(p0 string, p1 time.Time) {
 		panic(fmt.Sprintf("mockStatCache.InsertImplicitDir: invalid return values: %v", retVals))
 	}
 }
+
+func (m *mockStatCache) Size() (o0 uint64) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"Size",
+		file,
+		line,
+		[]any{})
+
+	if len(retVals) != 1 {
+		panic(fmt.Sprintf("mockStatCache.Size: invalid return values: %v", retVals))
+	}
+
+	// o0 uint64
+	if retVals[0] != nil {
+		o0 = retVals[0].(uint64)
+	}
+
+	return
+}
+
+func (m *mockStatCache) Count() (o0 uint64) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"Count",
+		file,
+		line,
+		[]any{})
+
+	if len(retVals) != 1 {
+		panic(fmt.Sprintf("mockStatCache.Count: invalid return values: %v", retVals))
+	}
+
+	// o0 uint64
+	if retVals[0] != nil {
+		o0 = retVals[0].(uint64)
+	}
+
+	return
+}

@@ -116,6 +116,23 @@ func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) 
 		sharedStatCache: c,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
+
+	if bm.sharedStatCache != nil {
+		go func() {
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-bm.gcCtx.Done():
+					return
+				case <-ticker.C:
+					logger.Infof("Metadata cache (stat cache) size: %d bytes, count: %d", bm.sharedStatCache.Size(), bm.sharedStatCache.Count())
+				}
+			}
+		}()
+	}
+
 	return bm
 }
 

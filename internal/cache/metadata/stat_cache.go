@@ -81,6 +81,12 @@ type StatCache interface {
 	// Then it will invalidate entries a, a/b, a/d/c
 	// Entry d will remain in cache.
 	EraseEntriesWithGivenPrefix(prefix string)
+
+	// Size returns the memory footprint (RSS) in bytes of the stat cache.
+	Size() uint64
+
+	// Count returns the number of entries in the stat cache.
+	Count() uint64
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -335,4 +341,12 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 func (sc *statCacheBucketView) EraseEntriesWithGivenPrefix(prefix string) {
 	prefix = sc.key(prefix)
 	sc.sharedCache.EraseEntriesWithGivenPrefix(prefix)
+}
+
+func (sc *statCacheBucketView) Size() uint64 {
+	return sc.sharedCache.Size()
+}
+
+func (sc *statCacheBucketView) Count() uint64 {
+	return sc.sharedCache.Count()
 }
