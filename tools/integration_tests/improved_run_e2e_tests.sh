@@ -585,18 +585,20 @@ test_package() {
   test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
   # Run the package test command and capture log output with runtime stats.
   log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
+
+  local status_dir
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
     log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
-    local dest_dir="${OUTPUT_DIR}/failed_package_logs/${bucket_type}"
-    mkdir -p "$dest_dir"
-    cp "$test_package_log_file" "$dest_dir/${package_name}.txt"
+    status_dir="failed_package_logs"
   else
-    log_info "Passed test package [$package_name]"
-    local dest_dir="${OUTPUT_DIR}/success_package_logs/${bucket_type}"
-    mkdir -p "$dest_dir"
-    cp "$test_package_log_file" "$dest_dir/${package_name}.txt"
+    log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
+    status_dir="success_package_logs"
   fi
+
+  local dest_dir="${OUTPUT_DIR}/${status_dir}/${bucket_type}"
+  mkdir -p "$dest_dir"
+  cp "$test_package_log_file" "$dest_dir/${package_name}.txt"
   local end=$SECONDS
 
   # Add the package stats to the file.
@@ -747,16 +749,30 @@ run_test_group() {
 
 run_e2e_tests_for_emulator() {
   log_info_locked "Started running e2e tests for emulator."
+  local emulator_test_log
   emulator_test_log=$(create_file_helper "running_package_logs/emulator_package.txt")
+  
+  local status_dir
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
     acquire_lock "$LOG_LOCK_FILE"
-    log_error ""
-    log_error "--- Emulator Tests Failed ---"
-    cat "$emulator_test_log"
+    log_error "Failed to run e2e tests for emulator."
     release_lock "$LOG_LOCK_FILE"
-    return 1
+    status_dir="failed_package_logs"
+  else
+    acquire_lock "$LOG_LOCK_FILE"
+    log_info_locked "Passed running e2e tests for emulator."
+    release_lock "$LOG_LOCK_FILE"
+    status_dir="success_package_logs"
   fi
-  log_info_locked "Emulator tests successful."
+
+  local dest_dir="${OUTPUT_DIR}/${status_dir}"
+  mkdir -p "$dest_dir"
+  cp "$emulator_test_log" "$dest_dir/emulator_package.txt"
+  rm -f "$emulator_test_log"
+  
+  if [[ "$status_dir" == "failed_package_logs" ]]; then
+      return 1
+  fi
   return 0
 }
 
