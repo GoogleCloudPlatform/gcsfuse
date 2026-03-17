@@ -998,7 +998,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 
 			// Assert
 			require.NotNil(testSuite.T(), controlClient)
-			var underlyingControlClient StorageControlClient = controlClient
+			underlyingControlClient := controlClient
 			if tc.billingProject != "" {
 				billingProjectWrapper, ok := controlClient.(*storageControlClientWithBillingProject)
 				require.True(testSuite.T(), ok, "Expected a billing project wrapper")
