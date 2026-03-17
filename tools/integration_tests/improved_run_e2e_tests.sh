@@ -187,7 +187,7 @@ OUTPUT_DIR=$(mktemp -d "${BASE_PATH%/}/gcsfuse-e2e-run-XXXXXXXX") || {
     log_error "Failed to create unique output directory in '$BASE_PATH'";
     exit 1
 }
-log_info "Ouput directory for the e2e run is set to '$OUTPUT_DIR'"
+log_info "Output directory for the e2e run is set to '$OUTPUT_DIR'"
 
 # Validate long options which require values.
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
@@ -274,7 +274,7 @@ TEST_PACKAGES_COMMON=(
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
+EST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
