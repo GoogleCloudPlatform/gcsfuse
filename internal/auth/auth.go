@@ -21,6 +21,8 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/impersonate"
+	"google.golang.org/api/option"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -85,11 +87,15 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 // for key-file and default-credential flow.
 // It also supports generating the self-signed JWT tokenSource for key-file authentication which can be
 // used by custom-endpoint(e.g. TPC).
+// When impersonateServiceAccount is non-empty, the base token source is wrapped
+// with service account impersonation so that all requests use short-lived
+// credentials for the target SA.
 func GetTokenSource(
 	ctx context.Context,
 	keyFile string,
 	tokenUrl string,
 	reuseTokenFromUrl bool,
+	impersonateServiceAccount string,
 ) (tokenSrc oauth2.TokenSource, err error) {
 	// Create the oauth2 token source.
 	const scope = storagev1.DevstorageFullControlScope
@@ -110,5 +116,32 @@ func GetTokenSource(
 		err = fmt.Errorf("%s: %w", method, err)
 		return
 	}
+
+	// If impersonation is requested, wrap the base token source.
+	if impersonateServiceAccount != "" {
+		tokenSrc, err = NewImpersonatedTokenSource(ctx, tokenSrc, impersonateServiceAccount)
+		if err != nil {
+			err = fmt.Errorf("NewImpersonatedTokenSource: %w", err)
+			return nil, err
+		}
+	}
+
 	return
+}
+
+// NewImpersonatedTokenSource creates a token source that impersonates the given
+// service account using the provided base token source for authentication.
+// It uses the IAM Credentials API to generate short-lived access tokens that
+// are automatically refreshed. The baseTokenSource is used as the source
+// credential for making the impersonation request, rather than falling back
+// to Application Default Credentials.
+func NewImpersonatedTokenSource(ctx context.Context, baseTokenSource oauth2.TokenSource, targetServiceAccount string) (oauth2.TokenSource, error) {
+	ts, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
+		TargetPrincipal: targetServiceAccount,
+		Scopes:          []string{storagev1.DevstorageFullControlScope},
+	}, option.WithTokenSource(baseTokenSource))
+	if err != nil {
+		return nil, fmt.Errorf("impersonate.CredentialsTokenSource(%s): %w", targetServiceAccount, err)
+	}
+	return ts, nil
 }

@@ -551,6 +551,8 @@ type FileSystemConfig struct {
 type GcsAuthConfig struct {
 	AnonymousAccess bool `yaml:"anonymous-access"`
 
+	ImpersonateServiceAccount string `yaml:"impersonate-service-account"`
+
 	KeyFile ResolvedPath `yaml:"key-file"`
 
 	ReuseTokenFromUrl bool `yaml:"reuse-token-from-url"`
@@ -1109,6 +1111,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations.")
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
+
+	flagSet.StringP("impersonate-service-account", "", "", "Email address of a service account to impersonate using short-lived credentials. The caller must have the iam.serviceAccountTokenCreator role on the target service account.")
 
 	flagSet.IntP("inactive-mrd-cache-size", "", 1000, "Sets the cache-size of inactive (no open file) MRD instances. When this limit is exceeded, the least recently inactive MRD instances will be closed. Set to 0 to disable the cache, which will keep all the inactive MRD instances open forever.")
 
@@ -1698,6 +1702,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.kernel-params-file", flagSet.Lookup("kernel-params-file")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-auth.impersonate-service-account", flagSet.Lookup("impersonate-service-account")); err != nil {
 		return err
 	}
 

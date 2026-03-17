@@ -560,6 +560,12 @@ params:
     usage: "This flag disables authentication."
     default: false
 
+  - config-path: "gcs-auth.impersonate-service-account"
+    flag-name: "impersonate-service-account"
+    type: "string"
+    usage: "Email address of a service account to impersonate using short-lived credentials. The caller must have the iam.serviceAccountTokenCreator role on the target service account."
+    default: ""
+
   - config-path: "gcs-auth.key-file"
     flag-name: "key-file"
     type: "resolvedPath"

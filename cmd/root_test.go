@@ -728,10 +728,11 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--anonymous-access", "--key-file=key.file", "--reuse-token-from-url", "--token-url=www.abc.com", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsAuth: cfg.GcsAuthConfig{
-					AnonymousAccess:   true,
-					KeyFile:           cfg.ResolvedPath(path.Join(wd, "key.file")),
-					ReuseTokenFromUrl: true,
-					TokenUrl:          "www.abc.com",
+					AnonymousAccess:           true,
+					KeyFile:                   cfg.ResolvedPath(path.Join(wd, "key.file")),
+					ReuseTokenFromUrl:         true,
+					TokenUrl:                  "www.abc.com",
+					ImpersonateServiceAccount: "",
 				},
 			},
 		},
@@ -740,10 +741,24 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsAuth: cfg.GcsAuthConfig{
-					AnonymousAccess:   false,
-					KeyFile:           "",
-					ReuseTokenFromUrl: true,
-					TokenUrl:          "",
+					AnonymousAccess:           false,
+					KeyFile:                   "",
+					ReuseTokenFromUrl:         true,
+					TokenUrl:                  "",
+					ImpersonateServiceAccount: "",
+				},
+			},
+		},
+		{
+			name: "Test impersonate-service-account flag.",
+			args: []string{"gcsfuse", "--impersonate-service-account=sa-a@project.iam.gserviceaccount.com", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsAuth: cfg.GcsAuthConfig{
+					AnonymousAccess:           false,
+					KeyFile:                   "",
+					ReuseTokenFromUrl:         true,
+					TokenUrl:                  "",
+					ImpersonateServiceAccount: "sa-a@project.iam.gserviceaccount.com",
 				},
 			},
 		},
