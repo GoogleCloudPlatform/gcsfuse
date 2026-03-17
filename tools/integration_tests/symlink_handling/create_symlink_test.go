@@ -69,10 +69,7 @@ func (s *BaseSymlinkSuite) createTempFile() string {
 			s.T().Logf("Error removing temporary file %s: %v", targetFile.Name(), err)
 		}
 	})
-	err = targetFile.Close()
-	if err != nil {
-		s.T().Logf("Error closing temporary file %s: %v", targetFile.Name(), err)
-	}
+	s.Require().NoError(targetFile.Close())
 	return targetFile.Name()
 }
 

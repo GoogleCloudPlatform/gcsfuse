@@ -982,7 +982,7 @@ symlink_handling:
     mounted_directory_secondary: "${MOUNTED_DIR_SECONDARY}"
     test_bucket: "${BUCKET_NAME}"
     configs:
-      - run: TestStandardSymlinks
+      - run: TestStandardSymlinksTestSuite
         flags:
           - "--experimental-enable-standard-symlinks=true"
         compatible:
@@ -990,7 +990,7 @@ symlink_handling:
           hns: true
           zonal: true
         run_on_gke: true
-      - run: TestLegacySymlinks
+      - run: TestLegacySymlinksTestSuite
         flags:
           - "--experimental-enable-standard-symlinks=false"
         compatible:
