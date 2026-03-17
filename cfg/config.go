@@ -33,6 +33,7 @@ type Config struct {
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
 	DisableListAccessCheck bool `yaml:"disable-list-access-check"`
+
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
