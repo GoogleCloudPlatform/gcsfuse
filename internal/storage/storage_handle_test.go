@@ -922,128 +922,108 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NilControlC
 	assert.Nil(testSuite.T(), controlClient)
 }
 
-func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_ZonalBucket_NoBillingProject() {
-	// Arrange
-	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
-	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
-	sh := &storageClient{
-		rawStorageControlClientWithoutGaxRetries: mockRawControlClientWithoutRetries,
-		rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
-		clientConfig:                             clientConfig,
+func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
+	tests := []struct {
+		name                 string
+		isZonal              bool
+		billingProject       string
+		folderAPIStallRetry  bool
+		expectFolderRetries  bool
+		expectGaxRetriesUsed bool
+	}{
+		{
+			name:                 "ZonalBucket_NoBillingProject",
+			isZonal:              true,
+			billingProject:       "",
+			expectFolderRetries:  true,
+			expectGaxRetriesUsed: false,
+		},
+		{
+			name:                 "ZonalBucket_WithBillingProject",
+			isZonal:              true,
+			billingProject:       "test-project",
+			expectFolderRetries:  true,
+			expectGaxRetriesUsed: false,
+		},
+		{
+			name:                 "NonZonalBucket_NoBillingProject_NoFolderApiStallRetryFix",
+			isZonal:              false,
+			billingProject:       "",
+			folderAPIStallRetry:  false,
+			expectFolderRetries:  false,
+			expectGaxRetriesUsed: true,
+		},
+		{
+			name:                 "NonZonalBucket_WithBillingProject_NoFolderApiStallRetryFix",
+			isZonal:              false,
+			billingProject:       "test-project",
+			folderAPIStallRetry:  false,
+			expectFolderRetries:  false,
+			expectGaxRetriesUsed: true,
+		},
+		{
+			name:                 "NonZonalBucket_NoBillingProject_WithFolderApiStallRetryFix",
+			isZonal:              false,
+			billingProject:       "",
+			folderAPIStallRetry:  true,
+			expectFolderRetries:  true,
+			expectGaxRetriesUsed: false,
+		},
+		{
+			name:                 "NonZonalBucket_WithBillingProject_WithFolderApiStallRetryFix",
+			isZonal:              false,
+			billingProject:       "test-project",
+			folderAPIStallRetry:  true,
+			expectFolderRetries:  true,
+			expectGaxRetriesUsed: false,
+		},
 	}
-	bucketType := &gcs.BucketType{Zonal: true}
 
-	// Act
-	controlClient := sh.controlClientForBucketHandle(bucketType, "")
+	for _, tc := range tests {
+		testSuite.Run(tc.name, func() {
+			// Arrange
+			clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+			clientConfig.ExperimentalNonrapidFolderApiStallRetry = tc.folderAPIStallRetry
+			mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
+			mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
+			sh := &storageClient{
+				rawStorageControlClientWithoutGaxRetries: mockRawControlClientWithoutRetries,
+				rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
+				clientConfig:                             clientConfig,
+			}
+			bucketType := &gcs.BucketType{Zonal: tc.isZonal}
 
-	// Assert
-	require.NotNil(testSuite.T(), controlClient)
-	retryWrapper, ok := controlClient.(*storageControlClientWithRetry)
-	require.True(testSuite.T(), ok, "Expected a retry wrapper for zonal bucket")
-	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, retryWrapper.raw)
-	assert.True(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should be enabled for all APIs on zonal buckets")
-	assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout APIs on zonal buckets")
+			// Act
+			controlClient := sh.controlClientForBucketHandle(bucketType, tc.billingProject)
+
+			// Assert
+			require.NotNil(testSuite.T(), controlClient)
+			var underlyingControlClient StorageControlClient = controlClient
+			if tc.billingProject != "" {
+				billingProjectWrapper, ok := controlClient.(*storageControlClientWithBillingProject)
+				require.True(testSuite.T(), ok, "Expected a billing project wrapper")
+				assert.Equal(testSuite.T(), tc.billingProject, billingProjectWrapper.billingProject)
+				underlyingControlClient = billingProjectWrapper.raw
+			} else {
+				_, isBillingWrapper := controlClient.(*storageControlClientWithBillingProject)
+				assert.False(testSuite.T(), isBillingWrapper, "Did not expect a billing project wrapper")
+			}
+			retryWrapper, ok := underlyingControlClient.(*storageControlClientWithRetry)
+			require.True(testSuite.T(), ok, "Expected a retry wrapper")
+			assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should always be enabled for storage layout APIs")
+			assert.Equal(testSuite.T(), tc.expectFolderRetries, retryWrapper.enableRetriesOnFolderAPIs)
+			gaxClient, ok := retryWrapper.raw.(*control.StorageControlClient)
+			require.True(testSuite.T(), ok)
+			if tc.expectGaxRetriesUsed {
+				assert.Same(testSuite.T(), mockRawControlClientWithRetries, gaxClient)
+			} else {
+				assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, gaxClient)
+			}
+		})
+	}
 }
 
-func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_ZonalBucket_WithBillingProject() {
-	// Arrange
-	billingProject := "test-project"
-	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
-	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
-	sh := &storageClient{
-		rawStorageControlClientWithoutGaxRetries: mockRawControlClientWithoutRetries,
-		rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
-		clientConfig:                             clientConfig,
-	}
-	bucketType := &gcs.BucketType{Zonal: true}
-
-	// Act
-	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
-
-	// Assert
-	require.NotNil(testSuite.T(), controlClient)
-	// Verify that the returned control-client wraps over the billing project, then storageControlClientWithRetry, in that order.
-	billingProjectWrapper, ok := controlClient.(*storageControlClientWithBillingProject)
-	require.True(testSuite.T(), ok, "Expected a billing project wrapper")
-	assert.Equal(testSuite.T(), billingProject, billingProjectWrapper.billingProject)
-	retryWrapper, ok := billingProjectWrapper.raw.(*storageControlClientWithRetry)
-	require.True(testSuite.T(), ok, "Expected a retry wrapper for zonal bucket")
-	assert.True(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on zonal buckets")
-	assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout APIs on zonal buckets")
-	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, retryWrapper.raw)
-}
-
-func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_WithoutBillingProject_NoExperimentalStallRetry() {
-	// Arrange
-	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
-	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
-	sh := &storageClient{
-		rawStorageControlClientWithoutGaxRetries: mockRawControlClientWithoutRetries,
-		rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
-		clientConfig:                             clientConfig,
-	}
-	bucketType := &gcs.BucketType{Zonal: false}
-
-	// Act
-	controlClient := sh.controlClientForBucketHandle(bucketType, "")
-
-	// Assert
-	require.NotNil(testSuite.T(), controlClient)
-	// It should be the raw client with GAX retries, not the billing project wrapper.
-	_, isBillingWrapper := controlClient.(*storageControlClientWithBillingProject)
-	assert.False(testSuite.T(), isBillingWrapper)
-	// It should be an enhanced storage control client with retries for GetStorageLayout.
-	controlClientWithStorageLayoutRetries, ok := controlClient.(*storageControlClientWithRetry)
-	assert.True(testSuite.T(), ok, "Expected a control client with retry")
-	assert.NotNil(testSuite.T(), controlClientWithStorageLayoutRetries)
-	assert.True(testSuite.T(), controlClientWithStorageLayoutRetries.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on non-zonal buckets")
-	assert.False(testSuite.T(), controlClientWithStorageLayoutRetries.enableRetriesOnFolderAPIs, "Retries should not be enabled for folder APIs on non-zonal buckets")
-	// Check if it's the GAX-retries-added client
-	gaxClient, ok := controlClientWithStorageLayoutRetries.raw.(*control.StorageControlClient)
-	require.True(testSuite.T(), ok)
-	require.Same(testSuite.T(), mockRawControlClientWithRetries, gaxClient)
-}
-
-func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_WithBillingProject_NoExperimentalStallRetry() {
-	// Arrange
-	billingProject := "test-project"
-	mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
-	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
-	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	mockControlClient := withBillingProject(mockRawControlClientWithRetries, billingProject)
-	mockControlClient = withRetryOnStorageLayout(mockControlClient, &clientConfig)
-	sh := &storageClient{
-		storageControlClient:                     mockControlClient,
-		rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
-		rawStorageControlClientWithoutGaxRetries: mockRawControlClientWithoutRetries,
-		clientConfig:                             clientConfig,
-	}
-	bucketType := &gcs.BucketType{Zonal: false}
-
-	// Act
-	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
-
-	// Assert
-	require.NotNil(testSuite.T(), controlClient)
-	billingWrapper, ok := controlClient.(*storageControlClientWithBillingProject)
-	require.True(testSuite.T(), ok, "Expected a billing project wrapper")
-	assert.Equal(testSuite.T(), billingProject, billingWrapper.billingProject)
-	// Check that the underlying control client is a storageControlClientWithRetry and also uses GAX retries.
-	controlClientWithAllRetriesNonZB, ok := billingWrapper.raw.(*storageControlClientWithRetry)
-	require.True(testSuite.T(), ok)
-	require.NotNil(testSuite.T(), controlClientWithAllRetriesNonZB)
-	assert.True(testSuite.T(), controlClientWithAllRetriesNonZB.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on non-zonal buckets")
-	assert.False(testSuite.T(), controlClientWithAllRetriesNonZB.enableRetriesOnFolderAPIs, "Retries should not be enabled for folder APIs on non-zonal buckets")
-	// Check that the inner client has GAX retries
-	gaxClient, ok := controlClientWithAllRetriesNonZB.raw.(*control.StorageControlClient)
-	require.True(testSuite.T(), ok)
-	require.Same(testSuite.T(), mockRawControlClientWithRetries, gaxClient)
-}
-
-func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_ThenZonalBucket_WithoutBillingProject_NoExperimentalStallRetry() {
+func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_ThenZonalBucket_WithoutBillingProject_NoFolderApiStallRetryFix() {
 	// Arrange
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 	mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
@@ -1085,7 +1065,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	require.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
 }
 
-func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_ThenZonalBucket_WithBillingProject_NoExperimentalStallRetry() {
+func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_ThenZonalBucket_WithBillingProject_NoFolderApiStallRetryFix() {
 	// Arrange
 	billingProject := "test-project"
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
@@ -1135,67 +1115,4 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on zonal buckets")
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on zonal buckets")
 	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
-}
-
-func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_WithoutBillingProject_WithExperimentalStallRetry() {
-	// Arrange
-	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	clientConfig.ExperimentalNonrapidFolderApiStallRetry = true
-	mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
-	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
-	sh := &storageClient{
-		rawStorageControlClientWithoutGaxRetries: mockRawControlClientWithoutRetries,
-		rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
-		clientConfig:                             clientConfig,
-	}
-	bucketType := &gcs.BucketType{Zonal: false}
-
-	// Act
-	controlClient := sh.controlClientForBucketHandle(bucketType, "")
-
-	// Assert
-	require.NotNil(testSuite.T(), controlClient)
-	// It should be the raw client without GAX retries, wrapped with retry on all APIs
-	_, isBillingWrapper := controlClient.(*storageControlClientWithBillingProject)
-	assert.False(testSuite.T(), isBillingWrapper)
-	// It should be an enhanced storage control client with retries for all APIs.
-	controlClientWithAllRetries, ok := controlClient.(*storageControlClientWithRetry)
-	assert.True(testSuite.T(), ok, "Expected a control client with retry")
-	assert.NotNil(testSuite.T(), controlClientWithAllRetries)
-	assert.True(testSuite.T(), controlClientWithAllRetries.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on non-zonal buckets with experimental flag")
-	assert.True(testSuite.T(), controlClientWithAllRetries.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on non-zonal buckets with experimental flag")
-	// Check if it's the without-GAX-retries-added client
-	gaxClient, ok := controlClientWithAllRetries.raw.(*control.StorageControlClient)
-	require.True(testSuite.T(), ok)
-	require.Same(testSuite.T(), mockRawControlClientWithoutRetries, gaxClient)
-}
-
-func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_WithBillingProject_WithExperimentalStallRetry() {
-	// Arrange
-	billingProject := "test-project"
-	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	clientConfig.ExperimentalNonrapidFolderApiStallRetry = true
-	mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
-	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
-	sh := &storageClient{
-		rawStorageControlClientWithoutGaxRetries: mockRawControlClientWithoutRetries,
-		rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
-		clientConfig:                             clientConfig,
-	}
-	bucketType := &gcs.BucketType{Zonal: false}
-
-	// Act
-	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
-
-	// Assert
-	require.NotNil(testSuite.T(), controlClient)
-	// Verify that the returned control-client wraps over the billing project, then storageControlClientWithRetry, in that order.
-	billingProjectWrapper, ok := controlClient.(*storageControlClientWithBillingProject)
-	require.True(testSuite.T(), ok, "Expected a billing project wrapper")
-	assert.Equal(testSuite.T(), billingProject, billingProjectWrapper.billingProject)
-	retryWrapper, ok := billingProjectWrapper.raw.(*storageControlClientWithRetry)
-	require.True(testSuite.T(), ok, "Expected a retry wrapper for non-zonal bucket with experimental flag")
-	assert.True(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on non-zonal buckets with experimental flag")
-	assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout APIs on non-zonal buckets with experimental flag")
-	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, retryWrapper.raw)
 }
