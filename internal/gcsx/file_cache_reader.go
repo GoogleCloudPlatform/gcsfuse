@@ -73,6 +73,10 @@ type FileCacheReader struct {
 }
 
 func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, handleID fuseops.HandleID) *FileCacheReader {
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
+
 	return &FileCacheReader{
 		object:                o,
 		bucket:                bucket,
@@ -105,10 +109,10 @@ func (fc *FileCacheReader) ReaderName() string {
 // fileHandle to file in cache. So, we will get the correct data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (int, bool, error) {
-	ctx, span := fc.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
 	if fc.fileCacheHandler == nil {
 		return 0, false, nil
 	}
+	ctx, span := fc.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
 
 	// By default, consider read type random if the offset is non-zero.
 	isSequential := offset == 0

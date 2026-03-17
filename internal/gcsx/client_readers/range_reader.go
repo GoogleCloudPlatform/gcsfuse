@@ -68,6 +68,10 @@ type RangeReader struct {
 }
 
 func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle) *RangeReader {
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
+
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,

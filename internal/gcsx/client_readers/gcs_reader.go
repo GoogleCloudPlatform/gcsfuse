@@ -67,6 +67,10 @@ type GCSReaderConfig struct {
 }
 
 func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig) *GCSReader {
+	if config.TraceHandle == nil {
+		config.TraceHandle = tracing.NewNoopTracer()
+	}
+
 	return &GCSReader{
 		object:             obj,
 		bucket:             bucket,

@@ -44,6 +44,9 @@ type MultiRangeReader struct {
 }
 
 func NewMultiRangeReader(object *gcs.MinObject, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *MultiRangeReader {
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
 	return &MultiRangeReader{
 		object:       object,
 		metricHandle: metricHandle,

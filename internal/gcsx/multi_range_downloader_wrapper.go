@@ -263,6 +263,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		return 0, nil
 	}
 
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
+
 	mrdWrapper.mu.RLock()
 	err = mrdWrapper.ensureMultiRangeDownloader(ctx, traceHandle, forceCreateMRD)
 	if err != nil {

@@ -109,6 +109,10 @@ const (
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config, handleID fuseops.HandleID) RandomReader {
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
+
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
