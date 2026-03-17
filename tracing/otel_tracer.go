@@ -16,6 +16,7 @@ package tracing
 
 import (
 	"context"
+	"sync"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -24,14 +25,14 @@ import (
 )
 
 type otelTracer struct {
-	tracer trace.Tracer
+	tracer    trace.Tracer
+	slicePool *sync.Pool
 }
 
 var (
 	bytesReadKey = attribute.Key(BYTES_READ)
 	cacheHit     = attribute.Bool(IS_CACHE_HIT, true)
 	cacheMiss    = attribute.Bool(IS_CACHE_HIT, false)
-	ch           chan []attribute.KeyValue
 )
 
 func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
@@ -52,7 +53,7 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 }
 
 func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
-	attrSet := <-ch
+	attrSet := o.slicePool.Get().([]attribute.KeyValue)
 	attrSet[0] = bytesReadKey.Int(bytesRead)
 	if isCacheHit {
 		attrSet[1] = cacheHit
@@ -60,7 +61,7 @@ func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, by
 		attrSet[1] = cacheMiss
 	}
 	span.SetAttributes(attrSet...)
-	ch <- attrSet
+	o.slicePool.Put(attrSet)
 }
 
 func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
@@ -69,12 +70,14 @@ func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx contex
 }
 
 func NewOTELTracer() TraceHandle {
-	ch = make(chan []attribute.KeyValue, 5)
-	for i := 0; i < cap(ch); i++ {
-		ch <- make([]attribute.KeyValue, 2)
+	slicePool := sync.Pool{
+		New: func() interface{} {
+			return make([]attribute.KeyValue, 2)
+		},
 	}
 
 	return &otelTracer{
-		tracer: otel.Tracer(name),
+		tracer:    otel.Tracer(name),
+		slicePool: &slicePool,
 	}
 }

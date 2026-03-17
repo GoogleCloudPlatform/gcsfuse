@@ -134,6 +134,10 @@ func NewJob(
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
 ) (job *Job) {
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
+
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
@@ -498,7 +502,8 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 	} else if job.status.Name == NotStarted {
 		// Start the async download
 		job.status.Name = Downloading
-		job.cancelCtx, job.cancelFunc = context.WithCancel(ctx)
+		spanCtx := job.traceHandle.PropagateTraceContext(context.Background(), ctx)
+		job.cancelCtx, job.cancelFunc = context.WithCancel(spanCtx)
 		go job.downloadObjectAsync()
 	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {
 		defer job.mu.Unlock()
