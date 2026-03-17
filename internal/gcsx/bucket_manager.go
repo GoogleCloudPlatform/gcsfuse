@@ -127,7 +127,7 @@ func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) 
 				case <-bm.gcCtx.Done():
 					return
 				case <-ticker.C:
-					logger.Infof("Metadata cache (stat cache) size: %d bytes, count: %d", bm.sharedStatCache.Size(), bm.sharedStatCache.Count())
+					logger.Infof("Metadata cache (stat cache) estimated RSS: %d bytes, count: %d, OS-level RSS: %d bytes", bm.sharedStatCache.Size(), bm.sharedStatCache.Count(), getOSLevelRSS())
 				}
 			}
 		}()
