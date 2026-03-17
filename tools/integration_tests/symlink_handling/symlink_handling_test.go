@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package symlink_handling_test
+package symlink_handling
 
 import (
 	"context"
