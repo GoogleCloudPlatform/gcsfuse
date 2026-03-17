@@ -53,7 +53,9 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 }
 
 func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
-	attrSet := o.slicePool.Get().([]attribute.KeyValue)
+	attrSetPtr := o.slicePool.Get().(*[]attribute.KeyValue)
+	attrSet := *attrSetPtr
+	defer o.slicePool.Put(attrSetPtr)
 	attrSet[0] = bytesReadKey.Int(bytesRead)
 	if isCacheHit {
 		attrSet[1] = cacheHit
@@ -61,7 +63,6 @@ func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, by
 		attrSet[1] = cacheMiss
 	}
 	span.SetAttributes(attrSet...)
-	o.slicePool.Put(attrSet)
 }
 
 func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
@@ -72,7 +73,8 @@ func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx contex
 func NewOTELTracer() TraceHandle {
 	slicePool := sync.Pool{
 		New: func() interface{} {
-			return make([]attribute.KeyValue, 2)
+			s := make([]attribute.KeyValue, 2)
+			return &s
 		},
 	}
 
