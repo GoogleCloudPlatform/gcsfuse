@@ -23,8 +23,6 @@ readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly EXECUTE_ORBAX_BENCHMARK_LABEL="execute-orbax-benchmark"
 readonly EXECUTE_MACHINE_TYPE_TEST_LABEL="execute-machine-type-test"
 readonly BUCKET_LOCATION=us-west4
-readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
-readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
@@ -128,22 +126,6 @@ then
  python3 ./perfmetrics/scripts/presubmit/print_results.py
 fi
 
-# Check and install required bash version for e2e script.
-BASH_EXECUTABLE="bash"
-REQUIRED_BASH_MAJOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f1)
-REQUIRED_BASH_MINOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f2)
-
-echo "Current Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
-echo "Required Bash version for e2e script: ${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}"
-
-if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
-    echo "Current Bash version is older than the required version. Installing Bash ${INSTALL_BASH_VERSION}..."
-    ./perfmetrics/scripts/install_bash.sh "$INSTALL_BASH_VERSION"
-    BASH_EXECUTABLE="/usr/local/bin/bash"
-else
-    echo "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) meets or exceeds the required version (${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}). Skipping Bash installation."
-fi
-
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
 then
@@ -151,7 +133,7 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on zonal bucket(s) ..."
-  ${BASH_EXECUTABLE} ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -161,7 +143,7 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
-  ${BASH_EXECUTABLE} ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
 fi
 
 # Execute package build tests.

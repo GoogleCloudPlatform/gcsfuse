@@ -28,10 +28,11 @@ import (
 )
 
 func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File) {
+	fileName := path.Base(t.Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
+	filePath, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, fileName, t)
 
 	// Create the symlink.
 	symlink = path.Join(testDirPath, "bar")
@@ -44,16 +45,18 @@ func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File
 }
 
 func (t *LocalFileTestSuite) TestCreateSymlinkForLocalFile() {
+	fileName := path.Base(t.T().Name())
 	_, _, fh := createAndVerifySymLink(t.T())
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, FileContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents, t.T())
 }
 
 func (t *LocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
+	fileName := path.Base(t.T().Name())
 	filePath, symlink, fh := createAndVerifySymLink(t.T())
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)
 	operations.CloseFileShouldNotThrowError(t.T(), fh)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t.T())
 
 	// Reading symlink should fail.
 	_, err := os.Stat(symlink)
@@ -63,6 +66,7 @@ func (t *LocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 }
 
 func (t *LocalFileTestSuite) TestRenameSymlinkForLocalFile() {
+	fileName := path.Base(t.T().Name())
 	filePath, symlinkPath, fh := createAndVerifySymLink(t.T())
 	newSymlinkPath := path.Join(testDirPath, "newSymlink")
 
@@ -74,5 +78,5 @@ func (t *LocalFileTestSuite) TestRenameSymlinkForLocalFile() {
 	assert.True(t.T(), os.IsNotExist(err), "Old symlink should not exist after rename. err: %v", err)
 	operations.VerifyReadLink(filePath, newSymlinkPath, t.T())
 	operations.VerifyReadFile(newSymlinkPath, FileContents, t.T())
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, FileContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents, t.T())
 }

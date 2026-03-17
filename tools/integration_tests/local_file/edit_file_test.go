@@ -25,44 +25,46 @@ import (
 )
 
 func (t *LocalFileTestSuite) TestEditsToNewlyCreatedFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Write some contents to file sequentially.
 	for range 3 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
 	// Close the file and validate that the file is created on GCS.
 	expectedContent := FileContents + FileContents + FileContents
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, expectedContent, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, expectedContent, t.T())
 
 	// Perform edit
-	fhNew := operations.OpenFile(path.Join(testDirPath, FileName1), t.T())
+	fhNew := operations.OpenFile(path.Join(testDirPath, fileName), t.T())
 	newContent := "newContent"
 	_, err := fhNew.WriteAt([]byte(newContent), 0)
 
 	require.Nil(t.T(), err)
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fhNew, testDirName, FileName1, newContent+FileContents+FileContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fhNew, testDirName, fileName, newContent+FileContents+FileContents, t.T())
 }
 
 func (t *LocalFileTestSuite) TestAppendsToNewlyCreatedFile() {
+	fileName := path.Base(t.T().Name())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Write some contents to file sequentially.
 	for range 3 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
 	// Close the file and validate that the file is created on GCS.
 	expectedContent := FileContents + FileContents + FileContents
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, expectedContent, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, expectedContent, t.T())
 
 	// Append to the file.
-	fhNew, err := os.OpenFile(path.Join(testDirPath, FileName1), os.O_RDWR|os.O_APPEND, operations.FilePermission_0777)
+	fhNew, err := os.OpenFile(path.Join(testDirPath, fileName), os.O_RDWR|os.O_APPEND, operations.FilePermission_0777)
 	require.Nil(t.T(), err)
 	appendedContent := "appendedContent"
 	_, err = fhNew.Write([]byte(appendedContent))
 
 	require.Nil(t.T(), err)
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fhNew, testDirName, FileName1, expectedContent+appendedContent, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fhNew, testDirName, fileName, expectedContent+appendedContent, t.T())
 }

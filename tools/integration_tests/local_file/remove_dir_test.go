@@ -28,11 +28,13 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 func (t *LocalFileTestSuite) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
+	syncedFileName := path.Base(t.T().Name()) + "synced"
+	localFileName := path.Base(t.T().Name()) + "local"
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create explicit directory with one synced and one local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
-	syncedFile := path.Join(ExplicitDirName, FileName1)
-	localFile := path.Join(ExplicitDirName, FileName2)
+	syncedFile := path.Join(ExplicitDirName, syncedFileName)
+	localFile := path.Join(ExplicitDirName, localFileName)
 	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, syncedFile, t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName, syncedFile, "", t.T())
 	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile, t.T())
@@ -53,11 +55,13 @@ func (t *LocalFileTestSuite) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
 }
 
 func (t *LocalFileTestSuite) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
+	localFile1Name := path.Base(t.T().Name()) + "1"
+	localFile2Name := path.Base(t.T().Name()) + "2"
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a directory with two local files.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
-	localFile1 := path.Join(ExplicitDirName, FileName1)
-	localFile2 := path.Join(ExplicitDirName, FileName2)
+	localFile1 := path.Join(ExplicitDirName, localFile1Name)
+	localFile2 := path.Join(ExplicitDirName, localFile2Name)
 	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile1, t.T())
 	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile2, t.T())
 

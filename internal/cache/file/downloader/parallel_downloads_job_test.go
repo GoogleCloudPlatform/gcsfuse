@@ -66,6 +66,7 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	removeCallback := func() { callbackExecuted.Store(true) }
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), removeCallback)
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
+	defer dt.job.cancelFunc()
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	AssertEq(nil, err)
@@ -119,6 +120,7 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
+	defer dt.job.cancelFunc()
 	// Add subscriber
 	subscribedOffset := int64(1 * util.MiB)
 	notificationC := dt.job.subscribe(subscribedOffset)

@@ -937,6 +937,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				PrometheusPort:                 0,
 				Workers:                        3,
 				BufferSize:                     256,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 		{
@@ -946,6 +947,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				CloudMetricsExportIntervalSecs: 10,
 				Workers:                        10,
 				BufferSize:                     128,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 	}

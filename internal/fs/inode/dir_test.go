@@ -1568,6 +1568,64 @@ func (t *DirTest) TestCreateChildSymlink_TypeCaching() {
 	assert.Equal(t.T(), dirObjName, result.MinObject.Name)
 }
 
+func (t *DirTest) TestCreateChildSymlink_StandardSymlinkEnabled() {
+	// Re-create inode with standard symlinks enabled.
+	t.in.Unlock()
+	config := &cfg.Config{
+		List:                               cfg.ListConfig{EnableEmptyManagedFolders: true},
+		MetadataCache:                      cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
+		EnableHns:                          false,
+		EnableUnsupportedPathSupport:       true,
+		EnableTypeCacheDeprecation:         isTypeCacheDeprecationEnabled,
+		ExperimentalEnableStandardSymlinks: true,
+	}
+	parInodeCtx := context.Background()
+	t.in = NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		parInodeCtx,
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		false, // implicitDirs
+		false, // enableNonexistentTypeCache
+		typeCacheTTL,
+		&t.bucket,
+		&t.clock,
+		&t.clock,
+		semaphore.NewWeighted(10),
+		config,
+	)
+	d := t.in.(*dirInode)
+	t.tc = d.cache
+	t.in.Lock()
+	const name = "qux"
+	const target = "taco"
+	objName := path.Join(dirInodeName, name)
+
+	// Call the inode.
+	result, err := t.in.CreateChildSymlink(t.ctx, name, target)
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), result)
+	require.NotNil(t.T(), result.MinObject)
+	assert.Equal(t.T(), metadata.SymlinkType, t.getTypeFromCache(name))
+	assert.Equal(t.T(), t.bucket.Name(), result.Bucket.Name())
+	assert.Equal(t.T(), result.FullName.GcsObjectName(), result.MinObject.Name)
+	assert.Equal(t.T(), objName, result.MinObject.Name)
+	// Check metadata for standard symlink
+	assert.Equal(t.T(), "true", result.MinObject.Metadata[StandardSymlinkMetadataKey])
+	// Check that the old metadata key is NOT present
+	_, ok := result.MinObject.Metadata[SymlinkMetadataKey]
+	assert.False(t.T(), ok)
+	// Check content for standard symlink (should be target)
+	content, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), target, string(content))
+}
+
 func (t *DirTest) TestDeleteChildFile_Succeeds_TypeCacheEvicted() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)

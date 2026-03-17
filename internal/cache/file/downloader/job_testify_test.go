@@ -94,6 +94,7 @@ func (t *JobTestifyTest) Test_downloadObjectToFile_WithReadHandle() {
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	t.initReadCacheTestifyTest(objectName, objectContent, 5, uint64(2*objectSize), func() {})
 	t.job.cancelCtx, t.job.cancelFunc = context.WithCancel(context.Background())
+	defer t.job.cancelFunc()
 	file, err := util.CreateFile(data.FileSpec{Path: t.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	defer func() {
