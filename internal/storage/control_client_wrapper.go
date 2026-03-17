@@ -225,3 +225,23 @@ func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClient
 		}),
 	}
 }
+
+// addGaxRetriesForFolderAPIs updates the passed raw control client
+// to add gax retries according to the given config in-place.
+func addGaxRetriesForFolderAPIs(rawControlClient *control.StorageControlClient,
+	clientConfig *storageutil.StorageClientConfig) error {
+	if rawControlClient == nil || clientConfig == nil {
+		return fmt.Errorf("invalid input: %v, %v", rawControlClient, clientConfig)
+	}
+	if rawControlClient.CallOptions == nil {
+		return fmt.Errorf("cannot apply gax retries for folder APIs to raw control client: CallOptions is nil")
+	}
+
+	*rawControlClient.CallOptions = control.StorageControlCallOptions{}
+	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
+	rawControlClient.CallOptions.RenameFolder = gaxRetryOptions
+	rawControlClient.CallOptions.GetFolder = gaxRetryOptions
+	rawControlClient.CallOptions.CreateFolder = gaxRetryOptions
+	rawControlClient.CallOptions.DeleteFolder = gaxRetryOptions
+	return nil
+}
