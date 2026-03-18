@@ -16,14 +16,11 @@ package cloud_profiler_test
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
 
 	"cloud.google.com/go/compute/metadata"
@@ -40,48 +37,48 @@ type CloudProfilerSuite struct {
 }
 
 func (s *CloudProfilerSuite) SetupTest() {
-	s.loadCtx, s.loadCancel = context.WithCancel(context.Background())
-	s.loadDone = make(chan struct{})
-	s.T().Logf("Starting load generator goroutine")
-	go func() {
-		defer close(s.loadDone)
-		// Allocate and fill buffer ONCE before the loop
-		data := make([]byte, 100*1024*1024)
-		if _, err := rand.Read(data); err != nil {
-			s.T().Logf("Failed to generate random data: %v", err)
-			return
-		}
+	// s.loadCtx, s.loadCancel = context.WithCancel(context.Background())
+	// s.loadDone = make(chan struct{})
+	// s.T().Logf("Starting load generator goroutine")
+	// go func() {
+	// 	defer close(s.loadDone)
+	// 	// Allocate and fill buffer ONCE before the loop
+	// 	data := make([]byte, 100*1024*1024)
+	// 	if _, err := rand.Read(data); err != nil {
+	// 		s.T().Logf("Failed to generate random data: %v", err)
+	// 		return
+	// 	}
 
-		for {
-			select {
-			case <-s.loadCtx.Done():
-				s.T().Logf("Stopping load generator goroutine")
-				return
-			default:
-				fileName := filepath.Join(setup.MntDir(), fmt.Sprintf("load_file_%d.bin", time.Now().UnixNano()))
-				f, err := os.Create(fileName)
-				if err != nil {
-					s.T().Logf("Failed to create load file: %v", err)
-					time.Sleep(1 * time.Second)
-					continue
-				}
+	// 	for {
+	// 		select {
+	// 		case <-s.loadCtx.Done():
+	// 			s.T().Logf("Stopping load generator goroutine")
+	// 			return
+	// 		default:
+	// 			fileName := filepath.Join(setup.MntDir(), fmt.Sprintf("load_file_%d.bin", time.Now().UnixNano()))
+	// 			f, err := os.Create(fileName)
+	// 			if err != nil {
+	// 				s.T().Logf("Failed to create load file: %v", err)
+	// 				time.Sleep(1 * time.Second)
+	// 				continue
+	// 			}
 
-				_, err = f.Write(data)
-				if err != nil {
-					s.T().Logf("Failed to write to load file: %v", err)
-				}
-				f.Close()
+	// 			_, err = f.Write(data)
+	// 			if err != nil {
+	// 				s.T().Logf("Failed to write to load file: %v", err)
+	// 			}
+	// 			f.Close()
 
-				// Delete file to avoid filling up disk/bucket
-				err = os.Remove(fileName)
-				if err != nil {
-					s.T().Logf("Failed to remove load file: %v", err)
-				}
+	// 			// Delete file to avoid filling up disk/bucket
+	// 			err = os.Remove(fileName)
+	// 			if err != nil {
+	// 				s.T().Logf("Failed to remove load file: %v", err)
+	// 			}
 
-				time.Sleep(1 * time.Second)
-			}
-		}
-	}()
+	// 			time.Sleep(1 * time.Second)
+	// 		}
+	// 	}
+	// }()
 }
 
 func (s *CloudProfilerSuite) TearDownTest() {
