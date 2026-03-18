@@ -16,15 +16,24 @@ package tracing
 
 import (
 	"context"
+	"sync"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type otelTracer struct {
-	tracer trace.Tracer
+	tracer    trace.Tracer
+	slicePool *sync.Pool
 }
+
+var (
+	bytesReadKey = attribute.Key(BYTES_READ)
+	cacheHit     = attribute.Bool(IS_CACHE_HIT, true)
+	cacheMiss    = attribute.Bool(IS_CACHE_HIT, false)
+)
 
 func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
 	return o.tracer.Start(ctx, traceName)
@@ -43,13 +52,34 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.SetStatus(codes.Error, err.Error())
 }
 
+func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
+	attrSetPtr := o.slicePool.Get().(*[]attribute.KeyValue)
+	attrSet := *attrSetPtr
+	defer o.slicePool.Put(attrSetPtr)
+	attrSet[0] = bytesReadKey.Int(bytesRead)
+	if isCacheHit {
+		attrSet[1] = cacheHit
+	} else {
+		attrSet[1] = cacheMiss
+	}
+	span.SetAttributes(attrSet...)
+}
+
 func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
 	span := trace.SpanFromContext(oldCtx)
 	return trace.ContextWithSpan(newCtx, span)
 }
 
 func NewOTELTracer() TraceHandle {
+	slicePool := sync.Pool{
+		New: func() interface{} {
+			s := make([]attribute.KeyValue, 2)
+			return &s
+		},
+	}
+
 	return &otelTracer{
-		tracer: otel.Tracer(name),
+		tracer:    otel.Tracer(name),
+		slicePool: &slicePool,
 	}
 }

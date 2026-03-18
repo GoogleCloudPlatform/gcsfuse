@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -46,6 +47,7 @@ func (t *KernelListCacheTestWithZeroTtl) SetupSuite() {
 	}
 	t.serverCfg.RenameDirLimit = 10
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
+	t.serverCfg.TraceHandle = tracing.NewNoopTracer()
 	t.fsTest.SetUpTestSuite()
 }
 

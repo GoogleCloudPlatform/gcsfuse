@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -45,6 +46,7 @@ func (t *ImplicitDirsWithCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.DirTypeCacheTTL = time.Minute * 3
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
+	t.serverCfg.TraceHandle = tracing.NewNoopTracer()
 	t.fsTest.SetUpTestSuite()
 }
 

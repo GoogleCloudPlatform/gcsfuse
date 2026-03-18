@@ -74,6 +74,10 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
 	var readers []gcsx.Reader
 
+	if config.TraceHandle == nil {
+		config.TraceHandle = tracing.NewNoopTracer()
+	}
+
 	// If a shared chunk cache handler is provided, use it
 	if config.SharedChunkCacheManager != nil {
 		// For SharedChunkCacheManager, create ShareChunkCacheReader directly
@@ -137,6 +141,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		bucket,
 		&clientReaders.GCSReaderConfig{
 			MetricHandle:       config.MetricHandle,
+			TraceHandle:        config.TraceHandle,
 			MrdWrapper:         config.MrdWrapper,
 			Config:             config.Config,
 			ReadTypeClassifier: readClassifier,
@@ -151,6 +156,10 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		readTypeClassifier: readClassifier,
 		traceHandle:        config.TraceHandle,
 	}
+}
+
+func (rr *ReadManager) ReaderName() string {
+	return "read_manager"
 }
 
 func (rr *ReadManager) Object() *gcs.MinObject {
@@ -184,7 +193,9 @@ func (rr *ReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.
 
 	var err error
 	for _, r := range rr.readers {
+		ctx, span := rr.traceHandle.StartSpan(ctx, r.ReaderName())
 		readResponse, err = r.ReadAt(ctx, req)
+		rr.traceHandle.EndSpan(span)
 		if err == nil {
 			rr.readTypeClassifier.RecordRead(req.Offset, int64(readResponse.Size))
 			return readResponse, nil

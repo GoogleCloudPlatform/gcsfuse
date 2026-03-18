@@ -109,6 +109,10 @@ const (
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config, handleID fuseops.HandleID) RandomReader {
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
+
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -237,7 +241,14 @@ func (rr *randomReader) CheckInvariants() {
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {
-
+	ctx, span := rr.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
+	defer func() {
+		rr.traceHandle.SetCacheReadAttributes(span, cacheHit, n)
+		if err != nil {
+			rr.traceHandle.RecordError(span, err)
+		}
+		rr.traceHandle.EndSpan(span)
+	}()
 	if rr.fileCacheHandler == nil {
 		return
 	}
@@ -489,9 +500,9 @@ func (rr *randomReader) readFull(
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
-func (rr *randomReader) startRead(start int64, end int64, readType int64) (err error) {
+func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, readType int64) (err error) {
 	// Begin the read.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(rr.traceHandle.PropagateTraceContext(context.Background(), ctx))
 
 	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
 		rr.reader, err = NewInactiveTimeoutReader(
@@ -704,7 +715,7 @@ func (rr *randomReader) readFromExistingRangeReader(ctx context.Context, p []byt
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
-		err = rr.startRead(offset, end, readType)
+		err = rr.startRead(ctx, offset, end, readType)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return
@@ -771,7 +782,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		rr.mrdWrapper.IncrementRefCount()
 	}
 
-	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle, false)
+	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle, rr.traceHandle, false)
 	rr.totalReadBytes.Add(uint64(bytesRead))
 	rr.updateExpectedOffset(offset + int64(bytesRead))
 	return

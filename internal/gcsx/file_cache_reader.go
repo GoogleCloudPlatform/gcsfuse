@@ -73,6 +73,10 @@ type FileCacheReader struct {
 }
 
 func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, handleID fuseops.HandleID) *FileCacheReader {
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
+
 	return &FileCacheReader{
 		object:                o,
 		bucket:                bucket,
@@ -82,6 +86,10 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 		traceHandle:           traceHandle,
 		handleID:              handleID,
 	}
+}
+
+func (fc *FileCacheReader) ReaderName() string {
+	return "file_cache_reader"
 }
 
 // tryReadingFromFileCache creates the cache handle first if it doesn't exist already
@@ -104,6 +112,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	if fc.fileCacheHandler == nil {
 		return 0, false, nil
 	}
+	ctx, span := fc.traceHandle.StartSpan(ctx, tracing.FileCacheRead)
 
 	// By default, consider read type random if the offset is non-zero.
 	isSequential := offset == 0
@@ -137,6 +146,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 			readType = metrics.ReadTypeSequential
 		}
 		captureFileCacheMetrics(ctx, fc.metricHandle, metrics.ReadTypeNames[readType], bytesRead, cacheHit, executionTime)
+		fc.traceHandle.SetCacheReadAttributes(span, cacheHit, bytesRead)
+		if err != nil {
+			fc.traceHandle.RecordError(span, err)
+		}
+		fc.traceHandle.EndSpan(span)
 	}()
 
 	// Create fileCacheHandle if not already.
