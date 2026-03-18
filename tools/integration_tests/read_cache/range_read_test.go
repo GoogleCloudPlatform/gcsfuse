@@ -15,6 +15,7 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -53,7 +54,7 @@ func (s *rangeReadTest) SetupTest() {
 	require.NoError(s.T(), err)
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(testEnv.cacheDirPath)
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 }
 
 func (s *rangeReadTest) TearDownTest() {
@@ -89,12 +90,25 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithFileCached() {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, s.T())
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
-	validateFileInCacheDirectory(testFileName, largeFileSize, testEnv.ctx, s.storageClient, s.T())
+	// RetryUntil we have exactly 1 Download Job logs
+	s.T().Logf("Waiting for exactly 1 file cache Job completion log in GCSFuse Logs")
+	JobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, error) {
+		logs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+		if len(logs) == 1 {
+			s.T().Logf("Found file cache Job completion log: %v", logs[0])
+			return logs, nil
+		}
+		return nil, fmt.Errorf("expected 1 Job log, found %d", len(logs))
+	})
+	require.Equal(s.T(), expectedOutcome1.ObjectName, JobLog[0].ObjectName)
+
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset10MiB, s.T())
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
+
+	validateFileInCacheDirectory(testFileName, largeFileSize, testEnv.ctx, s.storageClient, s.T())
 	validateCacheSizeWithinLimit(largeFileCacheCapacity, s.T())
 }
 

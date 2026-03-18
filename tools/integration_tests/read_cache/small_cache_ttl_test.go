@@ -16,8 +16,10 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -54,7 +56,7 @@ func (s *smallCacheTTLTest) SetupTest() {
 	require.NoError(s.T(), err)
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(testEnv.cacheDirPath)
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 }
 
 func (s *smallCacheTTLTest) TearDownTest() {
@@ -70,14 +72,74 @@ func (s *smallCacheTTLTest) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
+	type retryResult struct {
+		testFileName     string
+		expectedOutcome1 *Expected
+		expectedOutcome2 *Expected
+	}
 
-	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
-	// Modify the file.
-	modifyFile(s.ctx, s.storageClient, testFileName, s.T())
-	// Read same file again immediately.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
+	result := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() (retryResult, error) {
+		// Truncate log file created.
+		err := os.Truncate(testEnv.cfg.LogFile, 0)
+		require.NoError(s.T(), err)
+		// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+		operations.RemoveDir(testEnv.cacheDirPath)
+		testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
+
+		testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
+
+		startTime := time.Now()
+
+		// Read file 1st time.
+		t1 := time.Now()
+		expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
+		s.T().Logf("Debugg: readFileAndValidateCacheWithGCS took %v", time.Since(t1).Seconds())
+
+		// Modify the file.
+		t2 := time.Now()
+		modifyFile(s.ctx, s.storageClient, testFileName, s.T())
+		s.T().Logf("Debugg: modifyFile took %v", time.Since(t2).Seconds())
+
+		// Read same file again immediately.
+		t3 := time.Now()
+		expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
+		s.T().Logf("Debugg: readFileAndGetExpectedOutcome took %v", time.Since(t3).Seconds())
+
+		if time.Since(startTime) >= metadataCacheTTlInSec*time.Second {
+			s.T().Logf("Debugg: failed for file %s because it took %v. Log file: %s", testFileName, time.Since(startTime).Seconds(), testEnv.cfg.LogFile)
+			artifactName := setup.GCSFuseLogFilePrefix + strings.ReplaceAll(s.T().Name(), "/", "_") + "_" + testFileName + "_retry_" + setup.GenerateRandomString(5)
+			s.T().Logf("Debugg: saved log file backup artifact as %s", artifactName)
+			setup.SaveLogFileAsArtifact(testEnv.cfg.LogFile, artifactName)
+
+			// Copy artifact to /gcsfuse-release/
+			releaseDir := "/gcsfuse-release"
+			if _, err := os.Stat(releaseDir); err == nil {
+				destPath := path.Join(releaseDir, artifactName)
+				logFileData, err := os.ReadFile(testEnv.cfg.LogFile)
+				if err != nil {
+					s.T().Logf("Debugg: failed to read log file for release copy: %v", err)
+				} else {
+					err = os.WriteFile(destPath, logFileData, 0600)
+					if err != nil {
+						s.T().Logf("Debugg: failed to copy artifact to %s: %v", releaseDir, err)
+					} else {
+						s.T().Logf("Debugg: copied artifact to %s/%s", releaseDir, artifactName)
+					}
+				}
+			} else {
+				s.T().Logf("Debugg: %s directory not found, skipping release copy.", releaseDir)
+			}
+
+			return retryResult{}, fmt.Errorf("failed because it took %v", time.Since(startTime).Seconds())
+		}
+		s.T().Logf("Debugg: passed because it took %v", time.Since(startTime).Seconds())
+		return retryResult{testFileName, expectedOutcome1, expectedOutcome2}, nil
+	})
+
+	testFileName := result.testFileName
+	expectedOutcome1 := result.expectedOutcome1
+	expectedOutcome2 := result.expectedOutcome2
+
 	validateFileSizeInCacheDirectory(testFileName, fileSize, s.T())
 	// Validate that stale data is served from cache in this case.
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {

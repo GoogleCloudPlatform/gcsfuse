@@ -21,13 +21,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path"
-	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
@@ -36,15 +36,38 @@ import (
 )
 
 const (
-	testDirName     = "CloudProfilerTest"
-	testServiceName = "gcsfuse"
+	testDirName           = "CloudProfilerTest"
+	testVersionPrefix     = "cloud-profiler-test"
+	testServiceNamePrefix = "cloud-profiler-test"
+	retryFrequency        = 30 * time.Second
+	retryDuration         = 30 * time.Minute
 )
 
 var (
-	storageClient      *storage.Client
-	testServiceVersion string
-	ctx                context.Context
+	storageClient   *storage.Client
+	testVersionName string
+	testServiceName string
+	ctx             context.Context
 )
+
+// The alphabet defines the sort order: 0 is smallest, z is largest.
+const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+const fixedLength = 13 // math.MaxInt64 in base 36 fits in 13 characters.
+
+// getDecreasingString generates a string that decreases lexicographically as time increases, making newer items appear earlier in sorted results.
+func getDecreasingString() string {
+	// Calculate the decreasing value
+	val := uint64(math.MaxInt64 - time.Now().UnixNano())
+
+	// Map the value to our 36-character alphabet
+	res := make([]byte, fixedLength)
+	for i := fixedLength - 1; i >= 0; i-- {
+		res[i] = alphabet[val%36]
+		val /= 36
+	}
+
+	return string(res)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -52,7 +75,9 @@ var (
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-
+	suffix := getDecreasingString()
+	testServiceName = fmt.Sprintf("%s-%s", testServiceNamePrefix, suffix)
+	testVersionName = fmt.Sprintf("%s-%s", testVersionPrefix, suffix)
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.CloudProfiler) == 0 {
@@ -64,10 +89,11 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.CloudProfiler[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.CloudProfiler[0].Configs[0].Flags = []string{
-			"--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap",
+			"--log-severity=TRACE --enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap",
 		}
-		testServiceVersionFlag := fmt.Sprintf(" --cloud-profiler-label=%s", testServiceVersion)
-		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testServiceVersionFlag
+		testVersionFlag := fmt.Sprintf(" --cloud-profiler-label=%s", testVersionName)
+		testServiceNameFlag := fmt.Sprintf(" --cloud-profiler-service-name=%s", testServiceName)
+		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testVersionFlag + testServiceNameFlag
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
@@ -86,16 +112,15 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.CloudProfiler[0].GKEMountedDirectory != "" {
-		testServiceVersion = setup.ExtractServiceVersionFromFlags(cfg.CloudProfiler[0].Configs[0].Flags)
+		testVersionName = setup.ExtractServiceVersionFromFlags(cfg.CloudProfiler[0].Configs[0].Flags)
+		testServiceName = setup.CloudProfilerServiceNameFromFlags(cfg.CloudProfiler[0].Configs[0].Flags)
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].GKEMountedDirectory, m))
 	}
 
-	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
-	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
+	logger.Infof("Enabling cloud profiler with Service Name: %s and version: %s", testServiceName, testVersionName)
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	cfg.CloudProfiler[0].Configs[0].Flags[0] = strings.ReplaceAll(cfg.CloudProfiler[0].Configs[0].Flags[0], "--cloud-profiler-label=", fmt.Sprintf("--cloud-profiler-label=%s", testServiceVersion))
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType, "")
 
 	setup.SetUpTestDirForTestBucket(&cfg.CloudProfiler[0])
