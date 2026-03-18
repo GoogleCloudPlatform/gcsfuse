@@ -1196,8 +1196,8 @@ func TestArgsParsing_DisableListAccessCheckFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotDisableListAccessCheck bool
-			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
-				gotDisableListAccessCheck = mountInfo.config.DisableListAccessCheck
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotDisableListAccessCheck = cfg.DisableListAccessCheck
 				return nil
 			})
 			require.Nil(t, err)
