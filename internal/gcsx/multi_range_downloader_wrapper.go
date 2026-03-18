@@ -270,7 +270,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	mrdWrapper.mu.RLock()
 	err = mrdWrapper.ensureMultiRangeDownloader(ctx, traceHandle, forceCreateMRD)
 	if err != nil {
-		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
+		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %w", err)
 		mrdWrapper.mu.RUnlock()
 		return
 	}
