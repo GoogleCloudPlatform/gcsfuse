@@ -356,6 +356,7 @@ type Config struct {
 	DisableListAccessCheck bool `yaml:"disable-list-access-check"`
 
 	DummyIo DummyIoConfig `yaml:"dummy-io"`
+
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
