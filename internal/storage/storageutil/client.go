@@ -52,15 +52,16 @@ type StorageClientConfig struct {
 	/** Common client parameters. */
 
 	// ClientProtocol decides the go-sdk client to create.
-	ClientProtocol     cfg.Protocol
-	UserAgent          string
-	CustomEndpoint     string
-	KeyFile            string
-	TokenUrl           string
-	ReuseTokenFromUrl  bool
-	MaxRetrySleep      time.Duration
-	RetryMultiplier    float64
-	LocalSocketAddress string
+	ClientProtocol                          cfg.Protocol
+	UserAgent                               string
+	CustomEndpoint                          string
+	KeyFile                                 string
+	TokenUrl                                string
+	ReuseTokenFromUrl                       bool
+	ExperimentalNonrapidFolderApiStallRetry bool
+	MaxRetrySleep                           time.Duration
+	RetryMultiplier                         float64
+	LocalSocketAddress                      string
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int

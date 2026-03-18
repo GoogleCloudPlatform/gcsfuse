@@ -702,6 +702,13 @@ params:
     default: "10"
     hide-flag: true
 
+  - config-path: "gcs-retries.experimental-nonrapid-folder-api-stall-retry"
+    flag-name: "experimental-nonrapid-folder-api-stall-retry"
+    type: "bool"
+    usage: "Enables stall-retry-fix for folder APIs for non-rapid buckets."
+    default: false
+    hide-flag: true
+
   - config-path: "gcs-retries.max-retry-attempts"
     flag-name: "max-retry-attempts"
     type: "int"
