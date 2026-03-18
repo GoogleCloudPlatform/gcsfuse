@@ -156,6 +156,9 @@ func isValidMetadataCache(v *viper.Viper, c *MetadataCacheConfig) error {
 	if c.TypeCacheMaxSizeMb < -1 {
 		return fmt.Errorf("the value of type-cache-max-size-mb for metadata-cache can't be less than -1")
 	}
+	if c.TypeCacheMaxSizeMb > int64(maxSupportedStatCacheMaxSizeMB) {
+		return fmt.Errorf("the value of type-cache-max-size-mb for metadata-cache is too high! Max supported: %v", maxSupportedStatCacheMaxSizeMB)
+	}
 
 	// Validate stat-cache-max-size-mb.
 	if v.IsSet(StatCacheMaxSizeConfigKey) {

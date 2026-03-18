@@ -367,6 +367,10 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 			configFile: "testdata/metadata_cache/metadata_cache_config_stat-cache-max-size-mb_too_high.yaml",
 		},
 		{
+			name:       "type_cache_size_too_high",
+			configFile: "testdata/metadata_cache/metadata_cache_config_type-cache-max-size-mb_too_high.yaml",
+		},
+		{
 			name:       "metadata_cache_size_too_high",
 			configFile: "testdata/metadata_cache/metadata_cache_config_ttl_too_high.yaml",
 		},

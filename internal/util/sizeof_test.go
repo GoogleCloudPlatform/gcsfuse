@@ -317,3 +317,20 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 
 	assert.Equal(t.T(), expectedSize, NestedSizeOfGcsMinObject(&m))
 }
+
+func (t *SizeofTest) TestNestedSizeOfGcsFolder() {
+	// A nil folder has 0 size.
+	t.Equal(0, NestedSizeOfGcsFolder(nil))
+
+	// An empty folder has size of the struct alone.
+	f1 := &gcs.Folder{}
+	expectedSizeF1 := UnsafeSizeOf(f1)
+	t.Equal(expectedSizeF1, NestedSizeOfGcsFolder(f1))
+
+	// A folder with a name has the struct size + name string length.
+	f2 := &gcs.Folder{
+		Name: "folder/name/",
+	}
+	expectedSizeF2 := UnsafeSizeOf(f2) + len("folder/name/")
+	t.Equal(expectedSizeF2, NestedSizeOfGcsFolder(f2))
+}

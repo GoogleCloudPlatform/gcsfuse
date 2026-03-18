@@ -186,3 +186,19 @@ func NestedSizeOfGcsMinObject(m *gcs.MinObject) (size int) {
 
 	return
 }
+
+// NestedSizeOfGcsFolder returns the full nested memory size
+// of the gcs.Folder pointed by the passed pointer.
+func NestedSizeOfGcsFolder(f *gcs.Folder) (size int) {
+	if f == nil {
+		return
+	}
+
+	// Get raw size of the structure.
+	size = UnsafeSizeOf(f)
+
+	// Account for string members.
+	size += contentSizeOfString(&f.Name)
+
+	return
+}
