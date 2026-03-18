@@ -593,6 +593,8 @@ type GcsRetriesConfig struct {
 
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
+	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
+
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
 	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
@@ -1007,6 +1009,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
 
 	if err := flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-nonrapid-folder-api-stall-retry", "", false, "Enables stall-retry-fix for folder APIs for non-rapid buckets.")
+
+	if err := flagSet.MarkHidden("experimental-nonrapid-folder-api-stall-retry"); err != nil {
 		return err
 	}
 
@@ -1582,6 +1590,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.experimental-nonrapid-folder-api-stall-retry", flagSet.Lookup("experimental-nonrapid-folder-api-stall-retry")); err != nil {
 		return err
 	}
 
