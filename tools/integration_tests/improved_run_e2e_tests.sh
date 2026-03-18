@@ -101,7 +101,7 @@ log_info "Running e2e script as '$(whoami)'"
 log_info "Current directory is '$(pwd)'"
 # If HOME is not set, find it dynamically and export it
 if [ -z "$HOME" ]; then
-    HOME=$(getent passwd "$(whoami)" | cut -d: -f6); export HOME
+    export HOME=$(getent passwd "$(whoami)" | cut -d: -f6)
 fi
 log_info "HOME is set to '$HOME'"
 
