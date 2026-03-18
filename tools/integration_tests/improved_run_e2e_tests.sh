@@ -274,7 +274,7 @@ TEST_PACKAGES_COMMON=(
 )
 
 # Test packages for regional buckets.
-EST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
@@ -754,14 +754,10 @@ run_e2e_tests_for_emulator() {
   
   local status_dir
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
-    acquire_lock "$LOG_LOCK_FILE"
-    log_error "Failed to run e2e tests for emulator."
-    release_lock "$LOG_LOCK_FILE"
+    log_error_locked "Failed to run e2e tests for emulator."
     status_dir="failed_package_logs"
   else
-    acquire_lock "$LOG_LOCK_FILE"
     log_info_locked "Passed running e2e tests for emulator."
-    release_lock "$LOG_LOCK_FILE"
     status_dir="success_package_logs"
   fi
 
