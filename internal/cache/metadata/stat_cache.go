@@ -136,7 +136,7 @@ func (e entry) Size() (size uint64) {
 	}
 
 	if e.f != nil {
-		size += uint64(util.UnsafeSizeOf(&e.f))
+		size += uint64(util.NestedSizeOfGcsFolder(e.f))
 	}
 
 	// Convert heap-size to RSS (resident set size).

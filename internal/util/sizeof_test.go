@@ -317,3 +317,38 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 
 	assert.Equal(t.T(), expectedSize, NestedSizeOfGcsMinObject(&m))
 }
+
+func (t *SizeofTest) TestNestedSizeOfGcsFolder() {
+	f1 := &gcs.Folder{}
+	f2 := &gcs.Folder{
+		Name: "folder/name/",
+	}
+
+	testCases := []struct {
+		name     string
+		folder   *gcs.Folder
+		expected int
+	}{
+		{
+			name:     "NilFolder",
+			folder:   nil,
+			expected: 0,
+		},
+		{
+			name:     "EmptyFolder",
+			folder:   f1,
+			expected: UnsafeSizeOf(f1),
+		},
+		{
+			name:     "FolderWithName",
+			folder:   f2,
+			expected: UnsafeSizeOf(f2) + len(f2.Name),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(st *testing.T) {
+			assert.Equal(st, tc.expected, NestedSizeOfGcsFolder(tc.folder))
+		})
+	}
+}
