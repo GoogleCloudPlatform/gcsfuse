@@ -20,6 +20,8 @@ usage() {
   echo ""
   echo "Options:"
   echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
+  echo "    --install-package-from-path   <path>         Google Cloud Storage bucket path for GCSFuse package for testing (e.g. gs://<bucket-name>/my-gcsfuse-package.rpm)"
+  echo "                                                 This option is mutually exclusive with --test-installed-package. (Default: "")"
   echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
   echo "    --test-on-tpc-endpoint                       Run tests on TPC endpoint. (Default: false)"
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
@@ -108,6 +110,7 @@ fi
 # Set default values for optional arguments
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 TEST_INSTALLED_PACKAGE=false
+INSTALL_PACKAGE_FROM_PATH=""
 RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
@@ -117,7 +120,7 @@ PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parall
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
+LONG=bucket-location:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -144,6 +147,10 @@ while (( $# >= 1 )); do
         --test-installed-package)
             TEST_INSTALLED_PACKAGE=true
             shift 
+            ;;
+        --install-package-from-path)
+            INSTALL_PACKAGE_FROM_PATH="$2"
+            shift 2
             ;;
         --skip-non-essential-tests)
             SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
@@ -196,6 +203,12 @@ validate_option_value() {
 # Validate long options which require values.
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
+
+# Validate test install package from path
+if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then 
+  log_error "Option --test-installed-package and --install-package-from-path are mutually exclusive. Please set only one"
+  usage 1
+fi
 
 # Zonal Bucket location validation.
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
@@ -623,6 +636,35 @@ generate_test_log_artifacts() {
   return 0
 }
 
+install_package_from_path() {
+  if [[ $# -ne 1 ]]; then
+    log_error_locked "install_package_from_path() called with incorrect number of arguments."
+    return 1
+  fi
+  local package_path="$1"
+  log_info "Downloading $(basename "${package_path}")..."
+  gcloud storage cp "${package_path}" /tmp/ --quiet || return 1
+  if [ -f /etc/os-release ]; then
+    # We source in a subshell to prevent variable pollution, 
+    # then capture only the ID and ID_LIKE fields.
+    DISTRO_DATA=$( (source /etc/os-release; echo "${ID:-} ${ID_LIKE:-}") )
+    # Check for debian or ubuntu in the ID or the ID_LIKE chain
+    if [[ "$DISTRO_DATA" == *"debian"* ]] || [[ "$DISTRO_DATA" == *"ubuntu"* ]]; then
+      sudo dpkg -i "/tmp/$(basename "${package_path}")"
+    elif [[ "$DISTRO_DATA" == *"rhel"* ]] || [[ "$DISTRO_DATA" == *"centos"* ]]; then
+      sudo yum -y localinstall "/tmp/$(basename "${package_path}")"
+    else
+        log_error "This script only supports Debian/Ubuntu/rhel/centos based distributions."
+        log_info "Your distribution is:"
+        cat /etc/os-release
+        exit 1
+    fi
+  else
+    log_error "/etc/os-release not found. Unable to determine distribution"
+    exit 1
+  fi
+}
+
 build_gcsfuse_once() {
   local build_output_dir # For the final gcsfuse binaries
   build_output_dir=$(mktemp -d -t gcsfuse_e2e_run_build_XXXXXX)
@@ -748,8 +790,16 @@ main() {
   log_info "------ Started running E2E test packages ------"
   log_info ""
 
-  # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
-  if (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
+   # Decide whether to install a package from a path or build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
+  if [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then
+    log_info "Installing package from the path '${INSTALL_PACKAGE_FROM_PATH}'"
+    if ! install_package_from_path "$INSTALL_PACKAGE_FROM_PATH"; then 
+      log_error "Unable to install the package from path '${INSTALL_PACKAGE_FROM_PATH}'. Exiting."
+      exit 1
+    fi
+    # Setting test installed package to true
+    TEST_INSTALLED_PACKAGE=true
+  elif (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
     log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
     log_info "Building GCSFuse inside script..."
     if ! build_gcsfuse_once; then
