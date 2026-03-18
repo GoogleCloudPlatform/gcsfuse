@@ -126,11 +126,11 @@ type entry struct {
 // To account for those, we are adding a fixed constant of 515 bytes (deduced from
 // benchmark runs) to heap-size per positive stat-cache entry
 // to calculate a size closer to the actual memory utilization.
-func (e entry) Size() (size uint64) {
+func (e entry) Size() uint64 {
 	// First, calculate size on heap (including folder size also in case of hns buckets, in case of non-hns buckets 0 will be added as e.f will be Nil ).
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
 	// struct stored in the cache map and in the cache linked-list.
-	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
+	size := uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
 		size += 515
 	}
@@ -142,7 +142,7 @@ func (e entry) Size() (size uint64) {
 	// Convert heap-size to RSS (resident set size).
 	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
 
-	return
+	return size
 }
 
 // Should the supplied object for a new positive entry replace the given
