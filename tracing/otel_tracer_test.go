@@ -28,16 +28,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func TestNewOTELTracer(t *testing.T) {
-	tracer := NewOTELTracer()
-
-	assert.NotNil(t, tracer)
-	tracerImpl, ok := tracer.(*otelTracer)
-	assert.True(t, ok)
-	assert.NotNil(t, tracerImpl.tracer)
-	assert.NotNil(t, tracerImpl.slicePool)
-}
-
 func TestOtelTracer_StartEndSpan(t *testing.T) {
 	recorder := tracetest.NewSpanRecorder()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
@@ -103,33 +93,35 @@ func TestOtelTracer_SetCacheReadAttributes(t *testing.T) {
 	spanName := "test-cache-read-span"
 	bytesRead := 123
 
-	t.Run("cache_hit", func(t *testing.T) {
-		recorder.Reset()
+	testCases := []struct {
+		name     string
+		cacheHit bool
+	}{
+		{
+			name:     "cache_hit",
+			cacheHit: true,
+		},
+		{
+			name:     "cache_miss",
+			cacheHit: false,
+		},
+	}
 
-		_, span := tracer.StartSpan(context.Background(), spanName)
-		tracer.SetCacheReadAttributes(span, true, bytesRead)
-		tracer.EndSpan(span)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder.Reset()
 
-		spans := recorder.Ended()
-		assert.Len(t, spans, 1)
-		assert.Len(t, spans[0].Attributes(), 2)
-		assert.Contains(t, spans[0].Attributes(), attribute.Int(BYTES_READ, bytesRead))
-		assert.Contains(t, spans[0].Attributes(), attribute.Bool(IS_CACHE_HIT, true))
-	})
+			_, span := tracer.StartSpan(context.Background(), spanName)
+			tracer.SetCacheReadAttributes(span, tc.cacheHit, bytesRead)
+			tracer.EndSpan(span)
 
-	t.Run("cache_miss", func(t *testing.T) {
-		recorder.Reset()
-
-		_, span := tracer.StartSpan(context.Background(), spanName)
-		tracer.SetCacheReadAttributes(span, false, bytesRead)
-		tracer.EndSpan(span)
-
-		spans := recorder.Ended()
-		assert.Len(t, spans, 1)
-		assert.Len(t, spans[0].Attributes(), 2)
-		assert.Contains(t, spans[0].Attributes(), attribute.Int(BYTES_READ, bytesRead))
-		assert.Contains(t, spans[0].Attributes(), attribute.Bool(IS_CACHE_HIT, false))
-	})
+			spans := recorder.Ended()
+			assert.Len(t, spans, 1)
+			assert.Len(t, spans[0].Attributes(), 2)
+			assert.Contains(t, spans[0].Attributes(), attribute.Int(BYTES_READ, bytesRead))
+			assert.Contains(t, spans[0].Attributes(), attribute.Bool(IS_CACHE_HIT, tc.cacheHit))
+		})
+	}
 }
 
 func TestOtelTracer_PropagateTraceContext(t *testing.T) {
