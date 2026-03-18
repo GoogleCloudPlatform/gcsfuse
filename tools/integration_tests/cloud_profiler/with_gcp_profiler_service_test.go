@@ -16,16 +16,80 @@ package cloud_profiler_test
 
 import (
 	"context"
-	"errors"
+	"crypto/rand"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/suite"
+
 	"cloud.google.com/go/compute/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	gcpProfiler "google.golang.org/api/cloudprofiler/v2"
 	"google.golang.org/api/option"
 )
+
+type CloudProfilerSuite struct {
+	suite.Suite
+	loadCtx    context.Context
+	loadCancel context.CancelFunc
+	loadDone   chan struct{}
+}
+
+func (s *CloudProfilerSuite) SetupTest() {
+	s.loadCtx, s.loadCancel = context.WithCancel(context.Background())
+	s.loadDone = make(chan struct{})
+	s.T().Logf("Starting load generator goroutine")
+	go func() {
+		defer close(s.loadDone)
+		// Allocate and fill buffer ONCE before the loop
+		data := make([]byte, 100*1024*1024)
+		if _, err := rand.Read(data); err != nil {
+			s.T().Logf("Failed to generate random data: %v", err)
+			return
+		}
+
+		for {
+			select {
+			case <-s.loadCtx.Done():
+				s.T().Logf("Stopping load generator goroutine")
+				return
+			default:
+				fileName := filepath.Join(setup.MntDir(), fmt.Sprintf("load_file_%d.bin", time.Now().UnixNano()))
+				f, err := os.Create(fileName)
+				if err != nil {
+					s.T().Logf("Failed to create load file: %v", err)
+					time.Sleep(1 * time.Second)
+					continue
+				}
+
+				_, err = f.Write(data)
+				if err != nil {
+					s.T().Logf("Failed to write to load file: %v", err)
+				}
+				f.Close()
+
+				// Delete file to avoid filling up disk/bucket
+				err = os.Remove(fileName)
+				if err != nil {
+					s.T().Logf("Failed to remove load file: %v", err)
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}()
+}
+
+func (s *CloudProfilerSuite) TearDownTest() {
+	if s.loadCancel != nil {
+		s.loadCancel()
+		<-s.loadDone
+	}
+}
 
 func getGCPProjectID(t *testing.T) string {
 	fetchProjectCtx, fetchProjectCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -50,15 +114,15 @@ func checkIfProfileExistForServiceAndVersion(
 	t *testing.T, // Pass testing.T for logging within the helper
 	profilerAPIClient *gcpProfiler.Service,
 	projectID string,
-) bool {
+) (bool, error) {
 
-	t.Logf("Querying profiles for service [%s] version [%s]", testServiceName, testServiceVersion)
+	t.Logf("Querying profiles for service [%s] with version [%s]", testServiceName, testVersionName)
 
 	listCtx, listCancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer listCancel()
 
 	pagesFetched := 0
-	completedErr := errors.New("completed")
+	profileFound := false
 	listCall := profilerAPIClient.Projects.Profiles.List(fmt.Sprintf("projects/%s", projectID))
 	err := listCall.Pages(listCtx, func(resp *gcpProfiler.ListProfilesResponse) error {
 		pagesFetched++
@@ -67,32 +131,27 @@ func checkIfProfileExistForServiceAndVersion(
 			if p.Deployment == nil || p.Deployment.Labels == nil {
 				continue
 			}
-
+			// Break early as test service name is lexicographically smaller than any other service name.
+			if p.Deployment.Target > testServiceName {
+				return fmt.Errorf("Didn't find matching profile after fetching %d pages, profile not yet available.", pagesFetched)
+			}
 			// Return if matching profile found.
-			if p.Deployment.Target == testServiceName && p.Deployment.Labels["version"] == testServiceVersion {
-				t.Logf("Found matching profile: Type=%s, ID=%s", p.ProfileType, p.Deployment.Labels["version"])
-				return completedErr
+			if p.Deployment.Target == testServiceName && p.Deployment.Labels["version"] == testVersionName {
+				t.Logf("Found matching profile: Type=%s, ServiceName=%s, Version=%s", p.ProfileType, p.Deployment.Target, p.Deployment.Labels["version"])
+				profileFound = true
+				return fmt.Errorf("Returning error on success to break pagination early")
 			}
 		}
-		return nil // Continue to the next page
+		return nil
 	})
-	if err != nil && err != completedErr {
-		t.Logf("while listing: %v", err)
-		return false
+	if profileFound {
+		return true, nil
 	}
-
-	if pagesFetched == 0 {
-		t.Logf("No profiles found")
-		return false
-	}
-
-	return true
+	return false, err
 }
 
-func TestValidateProfilerWithActualService(t *testing.T) {
-	// GCSFuse process will be started as part of mount.
-	// Allow some time to export the profile data to GCP profiler service.
-	time.Sleep(2*time.Minute + 30*time.Second)
+func (s *CloudProfilerSuite) TestValidateProfilerWithActualService() {
+	t := s.T()
 
 	// 1. Fetch GCP projectID.
 	// 2. Create a profiler service api client.
@@ -104,7 +163,12 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Cloud Profiler API client: %v", err)
 	}
-	if !checkIfProfileExistForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID) {
-		t.Errorf("No valid profile found for service [%s] and version [%s]", testServiceName, testServiceVersion)
-	}
+	t.Logf("Waiting for cloud profile to eventually appear for service [%s] and version [%s]", testServiceName, testVersionName)
+	operations.RetryUntil(apiCtx, t, retryFrequency, retryDuration, func() (bool, error) {
+		return checkIfProfileExistForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID)
+	})
+}
+
+func TestCloudProfilerSuite(t *testing.T) {
+	suite.Run(t, new(CloudProfilerSuite))
 }

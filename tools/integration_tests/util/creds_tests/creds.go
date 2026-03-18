@@ -70,7 +70,7 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 	// Service account id format is name@project-id.iam.gserviceaccount.com
 	serviceAccount = NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
 
-	localKeyFilePath = path.Join(os.Getenv("HOME"), "creds.json")
+	localKeyFilePath = path.Join(os.TempDir(), "creds.json")
 
 	// Download credentials
 	client, err := secretmanager.NewClient(ctx)

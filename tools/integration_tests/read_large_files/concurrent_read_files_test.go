@@ -34,17 +34,25 @@ func TestReadFilesConcurrently(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForReadLargeFilesTests)
 
 	filesInLocalDisk := [NumberOfFilesInLocalDiskForConcurrentRead]string{FileOne, FileTwo, FileThree}
-	var filesPathInLocalDisk []string
-	var filesPathInMntDir []string
+	filesPathInLocalDisk := make([]string, NumberOfFilesInLocalDiskForConcurrentRead)
+	filesPathInMntDir := make([]string, NumberOfFilesInLocalDiskForConcurrentRead)
 
+	var creationGroup errgroup.Group
 	for i := range NumberOfFilesInLocalDiskForConcurrentRead {
-		fileInLocalDisk := path.Join(os.Getenv("HOME"), filesInLocalDisk[i])
-		filesPathInLocalDisk = append(filesPathInLocalDisk, fileInLocalDisk)
+		fileIndex := i
+		creationGroup.Go(func() error {
+			fileInLocalDisk := path.Join(os.Getenv("HOME"), filesInLocalDisk[fileIndex])
+			filesPathInLocalDisk[fileIndex] = fileInLocalDisk
 
-		file := path.Join(testDir, filesInLocalDisk[i])
-		filesPathInMntDir = append(filesPathInMntDir, file)
+			file := path.Join(testDir, filesInLocalDisk[fileIndex])
+			filesPathInMntDir[fileIndex] = file
 
-		operations.CreateFileOnDiskAndCopyToMntDir(t, fileInLocalDisk, file, FiveHundredMB)
+			operations.CreateFileOnDiskAndCopyToMntDir(t, fileInLocalDisk, file, FiveHundredMB)
+			return nil
+		})
+	}
+	if err := creationGroup.Wait(); err != nil {
+		t.Fatalf("Error creating files: %v", err)
 	}
 
 	var eG errgroup.Group
