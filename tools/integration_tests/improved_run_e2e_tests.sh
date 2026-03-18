@@ -213,18 +213,18 @@ validate_option_value() {
 }
 
 if [[ -z "$BUCKET_LOCATION" ]]; then
-  log_info "Bucket Location is not provided using GCE VM Location '$GCE_VM_LOCATION' as bucket location."
+  log_info "Bucket Location is not provided, using GCE VM Location '$GCE_VM_LOCATION' as bucket location."
   BUCKET_LOCATION="$GCE_VM_LOCATION"
 fi
 
 if [[ -z "$PROJECT_ID" ]]; then 
-  log_info "Project ID is not provided using GCE VM Project ID '$GCE_VM_PROJECT_ID' as project ID."
+  log_info "Project ID is not provided, using GCE VM Project ID '$GCE_VM_PROJECT_ID' as Project ID."
   PROJECT_ID="$GCE_VM_PROJECT_ID"
 fi
 
 # Check if it contains "cloudtop"
 if [[ "$PROJECT_ID" == *"cloudtop"* ]]; then
-  log_info "You are running this script on cloudtop. Manually overriding the project to gcs-fuse-test."
+  log_info "You are running this script on cloudtop. Manually overriding the Project ID to 'gcs-fuse-test'."
   PROJECT_ID="gcs-fuse-test"
 fi
 
