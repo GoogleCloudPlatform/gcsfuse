@@ -101,7 +101,6 @@ func TestGRPCValidationSuite(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (g *gRPCValidation) TestGRPCDirectPathConnections() {
-	g.T().Skip("b/493768036: Skipping the dp check e2e test for now and enable it once gRPC server starts rejecting the cloud-path connections.")
 	testCases := []struct {
 		name                 string
 		bucketName           string
