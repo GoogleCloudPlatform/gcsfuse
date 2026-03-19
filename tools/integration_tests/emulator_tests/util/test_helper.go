@@ -236,3 +236,41 @@ func getPortAndProcessInfoFromLogFile(logFilePath string) (int, int, error) {
 		}
 	}
 }
+
+// VerifyHeaderInProxyLog checks if a specific header was validated by the proxy server
+// by examining the proxy server log file. It looks for header validation messages
+// and optionally checks if the expected value is present in the log.
+//
+// Parameters:
+//   - t: Testing instance for reporting errors.
+//   - logFilePath: Path to the proxy server log file.
+//   - headerName: Name of the header to check for.
+//   - expectedValue: Optional expected value or pattern in the header (can be empty).
+//
+// Returns:
+//   - bool: true if the header validation message is found, false otherwise.
+func VerifyHeaderInProxyLog(t *testing.T, logFilePath string, headerName string, expectedValue string) bool {
+	t.Helper()
+
+	content, err := operations.ReadFile(logFilePath)
+	if err != nil {
+		t.Logf("Failed to read proxy log file: %v", err)
+		return false
+	}
+
+	logStr := string(content)
+	headerValidationMsg := fmt.Sprintf("Header validation passed: %s", headerName)
+
+	if !strings.Contains(logStr, headerValidationMsg) {
+		t.Logf("Header validation message not found in proxy logs")
+		return false
+	}
+
+	if expectedValue != "" && !strings.Contains(logStr, expectedValue) {
+		t.Logf("Expected value '%s' not found in proxy logs", expectedValue)
+		return false
+	}
+
+	return true
+}
+

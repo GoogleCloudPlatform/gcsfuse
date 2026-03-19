@@ -182,6 +182,14 @@ func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth
 
 // StripScheme strips the scheme part of given url.
 func StripScheme(url string) string {
+	// For localhost/testing endpoints, convert google-c2p:/// to dns:/// scheme
+	// because c2p resolver doesn't work with localhost
+	if strings.HasPrefix(url, "google-c2p:///localhost") || strings.HasPrefix(url, "google-c2p:///127.0.0.1") {
+		// Replace google-c2p:/// with dns:/// for localhost
+		url = strings.Replace(url, "google-c2p:///", "dns:///", 1)
+		return url
+	}
+
 	// Don't strip off the scheme part for google-internal schemes.
 	if strings.HasPrefix(url, "dns:///") || strings.HasPrefix(url, "google-c2p:///") || strings.HasPrefix(url, "google:///") {
 		return url

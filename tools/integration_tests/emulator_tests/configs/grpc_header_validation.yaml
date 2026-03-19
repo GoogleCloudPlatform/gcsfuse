@@ -1,0 +1,6 @@
+proxyType: grpc
+targetHost: storage.googleapis.com:443
+headerValidation:
+  - headerName: "x-goog-request-params"
+    expectedPattern: "force_direct_connectivity=ENFORCED"
+    failOnMismatch: true

@@ -26,8 +26,11 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 const PortAndProxyProcessIdInfoLogFormat = "Listening Proxy Server On Port [%s] with Process ID [%d]"
@@ -35,15 +38,13 @@ const PortAndProxyProcessIdInfoLogFormat = "Listening Proxy Server On Port [%s] 
 var (
 	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
-	// Flag to turn on/off fDebug logs.
-	fDebug = flag.Bool("debug", true, "Enable proxy server fDebug logs.")
 	// Log file to write proxy server logs.
 	fLogFilePath = flag.String("log-file", "", "Path to the log file")
+	// Enable debug logging
+	fDebug = flag.Bool("debug", false, "Enable debug logging")
 	// Initialized before the server gets started.
 	gConfig    *Config
 	gOpManager *OperationManager
-	// Port number assigned to listener.
-	gPort string
 )
 
 type ProxyHandler struct {
@@ -70,13 +71,9 @@ func logRequestAndType(req *http.Request, r RequestType) {
 // This function is used to simulate error scenarios for testing retry mechanisms.
 func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
 	plantOp := gOpManager.retrieveOperation(r.RequestType)
-	if *fDebug {
-		logRequestAndType(req, r.RequestType)
-		if plantOp != "" {
-			log.Println("Planting operation: ", plantOp)
-		}
-	}
 	if plantOp != "" {
+		logRequestAndType(req, r.RequestType)
+		log.Println("Planting operation: ", plantOp)
 		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
 		if err != nil {
 			return fmt.Errorf("CreateRetryTest: %v", err)
@@ -101,6 +98,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Add(name, value)
 		}
 	}
+
 	// Determine the request type and instruction (e.g., read, write, metadata) based on the incoming request.
 	reqTypeAndInstruction := deduceRequestTypeAndInstruction(r)
 
@@ -113,9 +111,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Send the request to the target server
 	client := &http.Client{}
-	start := time.Now()
 	resp, err := client.Do(req)
-	elapsed := time.Since(start)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -133,7 +129,8 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		u.Host = "localhost:" + gPort
+		// Use the Host from the incoming request to reconstruct the location
+		u.Host = r.Host
 		resp.Header.Set("Location", u.String())
 	}
 
@@ -151,10 +148,6 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
 		log.Printf("Error in coping response body: %v", err)
-	}
-	if *fDebug {
-		log.Printf("Respnse Status: %d\n", resp.StatusCode)
-		log.Printf("Elapsed Time: %.3fs\n", elapsed.Seconds())
 	}
 }
 
@@ -178,11 +171,11 @@ func (ps *ProxyServer) Start() {
 	if err != nil {
 		log.Fatalf("Error on listening: %v", err)
 	}
-	gPort = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 	// Log port number and proxy process Id for the proxy server.
-	log.Printf(PortAndProxyProcessIdInfoLogFormat, gPort, os.Getpid())
+	log.Printf(PortAndProxyProcessIdInfoLogFormat, port, os.Getpid())
 	ps.server = &http.Server{
-		Addr:    ":" + gPort,
+		Addr:    ":" + port,
 		Handler: ProxyHandler{},
 	}
 
@@ -232,12 +225,58 @@ func main() {
 	defer logFile.Close()
 	log.SetOutput(logFile)
 
-	if *fDebug {
-		printConfig(*gConfig)
-	}
-
 	gOpManager = NewOperationManager(*gConfig)
 
-	ps := NewProxyServer()
-	ps.Start()
+	// Determine proxy type from config (default to http if not specified)
+	proxyType := strings.ToLower(gConfig.ProxyType)
+	if proxyType == "" {
+		proxyType = "http"
+	}
+
+	if proxyType == "grpc" {
+		log.Println("Starting gRPC proxy server...")
+		gs := NewGRPCProxyServer()
+		gs.Start()
+	} else {
+		log.Println("Starting HTTP proxy server...")
+		ps := NewProxyServer()
+		ps.Start()
+	}
+}
+
+// GRPCProxyServer represents a gRPC proxy server
+type GRPCProxyServer struct {
+	shutdown chan os.Signal
+}
+
+// NewGRPCProxyServer creates a new GRPCProxyServer instance
+func NewGRPCProxyServer() *GRPCProxyServer {
+	return &GRPCProxyServer{
+		shutdown: make(chan os.Signal, 1),
+	}
+}
+
+// Start starts the gRPC proxy server
+func (gs *GRPCProxyServer) Start() {
+	// Create a listener on random available port
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Fatalf("Error on listening: %v", err)
+	}
+	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	log.Printf(PortAndProxyProcessIdInfoLogFormat, port, os.Getpid())
+
+	// Start gRPC server in goroutine
+	go func() {
+		if err := startGRPCProxy(listener, gConfig.TargetHost, gConfig.HeaderValidation); err != nil && err != grpc.ErrServerStopped {
+			log.Fatalf("gRPC server error: %v", err)
+		}
+	}()
+
+	// Handle graceful shutdown
+	signal.Notify(gs.shutdown, syscall.SIGINT, syscall.SIGTERM)
+	<-gs.shutdown
+	log.Println("Shutting down gRPC proxy server...")
+	listener.Close()
+	log.Println("gRPC proxy server exited")
 }
