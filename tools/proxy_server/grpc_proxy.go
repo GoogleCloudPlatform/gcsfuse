@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"strings"
@@ -24,9 +25,38 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+// rawCodec is a Codec that passes through raw bytes without any encoding/decoding
+type rawCodec struct{}
+
+func (rawCodec) Marshal(v interface{}) ([]byte, error) {
+	out, ok := v.(*[]byte)
+	if !ok {
+		return nil, fmt.Errorf("failed to marshal, message is %T, want *[]byte", v)
+	}
+	return *out, nil
+}
+
+func (rawCodec) Unmarshal(data []byte, v interface{}) error {
+	dst, ok := v.(*[]byte)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal, message is %T, want *[]byte", v)
+	}
+	*dst = data
+	return nil
+}
+
+func (rawCodec) Name() string {
+	return "raw-proxy-codec"
+}
+
+func init() {
+	encoding.RegisterCodec(rawCodec{})
+}
 
 // validateGRPCMetadata validates gRPC metadata based on configured header validations
 func validateGRPCMetadata(md metadata.MD, validations []HeaderValidation) error {
@@ -103,8 +133,12 @@ func streamInterceptor(validations []HeaderValidation) grpc.StreamServerIntercep
 
 // startGRPCProxy creates a transparent gRPC proxy that validates metadata and forwards all requests to the target
 func startGRPCProxy(listener net.Listener, targetHost string, validations []HeaderValidation) error {
-	// Create connection to target for forwarding
-	targetConn, err := grpc.NewClient(targetHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// Create connection to target for forwarding with raw codec to avoid unmarshaling
+	targetConn, err := grpc.NewClient(
+		targetHost,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.ForceCodec(rawCodec{})),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to connect to target %s: %w", targetHost, err)
 	}
@@ -138,43 +172,84 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 			StreamName:    fullMethodName,
 			ServerStreams: true,
 			ClientStreams: true,
-		}, fullMethodName)
+		}, fullMethodName, grpc.ForceCodec(rawCodec{}))
 		if err != nil {
 			return status.Errorf(codes.Internal, "failed to create target stream: %v", err)
 		}
 
-		// Proxy messages bidirectionally (simplified - handles unary as special case of stream)
+		// Proxy messages bidirectionally using raw bytes
+		// Create channels for error handling
+		clientToServer := make(chan error, 1)
+		serverToClient := make(chan error, 1)
+
 		// Receive from client, send to target
 		go func() {
 			for {
-				var req interface{}
-				if err := stream.RecvMsg(&req); err != nil {
-					clientStream.CloseSend()
+				req := new([]byte)
+				if err := stream.RecvMsg(req); err != nil {
+					if err == io.EOF {
+						clientStream.CloseSend()
+						clientToServer <- nil
+						return
+					}
+					clientToServer <- fmt.Errorf("receiving from client: %w", err)
 					return
 				}
 				if err := clientStream.SendMsg(req); err != nil {
+					clientToServer <- fmt.Errorf("sending to server: %w", err)
 					return
 				}
 			}
 		}()
 
 		// Receive from target, send to client
-		for {
-			var resp interface{}
-			if err := clientStream.RecvMsg(&resp); err != nil {
-				return err
+		go func() {
+			for {
+				resp := new([]byte)
+				if err := clientStream.RecvMsg(resp); err != nil {
+					if err == io.EOF {
+						serverToClient <- nil
+						return
+					}
+					serverToClient <- fmt.Errorf("receiving from server: %w", err)
+					return
+				}
+				if err := stream.SendMsg(resp); err != nil {
+					serverToClient <- fmt.Errorf("sending to client: %w", err)
+					return
+				}
 			}
-			if err := stream.SendMsg(resp); err != nil {
-				return err
+		}()
+
+		// Wait for BOTH directions to complete
+		// This is important for both unary and streaming RPCs
+		var err1, err2 error
+		for i := 0; i < 2; i++ {
+			select {
+			case err := <-clientToServer:
+				if err != nil {
+					log.Printf("Client to server error: %v", err)
+					err1 = err
+				}
+			case err := <-serverToClient:
+				if err != nil {
+					log.Printf("Server to client error: %v", err)
+					err2 = err
+				}
 			}
 		}
+
+		// Return first error encountered, or nil if both succeeded
+		if err1 != nil {
+			return err1
+		}
+		return err2
 	}
 
-	// Create gRPC server with interceptors and unknown service handler
+	// Create gRPC server with unknown service handler and raw codec
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(unaryInterceptor(validations)),
-		grpc.StreamInterceptor(streamInterceptor(validations)),
 		grpc.UnknownServiceHandler(unknownHandler),
+		grpc.ForceServerCodec(rawCodec{}),
 	}
 	grpcServer := grpc.NewServer(opts...)
 

@@ -132,6 +132,5 @@ then
     exit 1
 fi
 
-sleep 100
 # Run all emulator test packages in parallel.
-# go test ./tools/integration_tests/emulator_tests/grpc_header_validation/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=TRUE
+go test ./tools/integration_tests/emulator_tests/grpc_header_validation/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE

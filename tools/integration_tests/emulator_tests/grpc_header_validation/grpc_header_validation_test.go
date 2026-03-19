@@ -129,7 +129,7 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 	// Verify gRPC calls were made for different operations
 	getObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/GetObject")
 	readObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/ReadObject")
-	writeObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/WriteObject")
+	writeObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/BidiWriteObject")
 	listObjectsCount := strings.Count(logStr, "/google.storage.v2.Storage/ListObjects")
 
 	totalGRPCCalls := getObjectCount + readObjectCount + writeObjectCount + listObjectsCount
