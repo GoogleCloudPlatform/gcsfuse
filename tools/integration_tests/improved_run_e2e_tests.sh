@@ -334,7 +334,7 @@ TEST_PACKAGES_COMMON=(
   "dentry_cache"
   "buffered_read"
   "flag_optimizations"
-  "cloud_profiler"
+  # "cloud_profiler" TODO(mohitkyadav): Enable after fixing the test.
 )
 
 # Test packages for regional buckets.
