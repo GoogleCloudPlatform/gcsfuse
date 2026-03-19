@@ -16,11 +16,25 @@
 # Print commands and their arguments as they are executed.
 set -x
 
+# Install common dependencies (Python 3.11, wget, tar)
+# This is required for gcloud to function correctly (needs Python 3.10+) 
+# and for the script to download/extract the SDK.
+if [ -f /etc/debian_version ]; then
+  sudo apt-get update
+  sudo apt-get install -y python3.11 wget tar
+elif [ -f /etc/redhat-release ] || [ -f /etc/os-release ]; then
+  # Use dnf for RHEL/Rocky/CentOS; falls back to yum if dnf is missing
+  sudo command -v dnf >/dev/null 2>&1 && sudo dnf install -y python3.11 wget tar || sudo yum install -y python3.11 wget tar
+fi
+
+# Ensure gcloud uses the newly installed Python 3.11
+export CLOUDSDK_PYTHON=/usr/bin/python3.11
+
 echo "Upgrade gcloud version"
 gcloud version
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-sudo /usr/local/google-cloud-sdk/install.sh
+sudo /usr/local/google-cloud-sdk/install.sh --quiet
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
 
@@ -93,7 +107,6 @@ if grep -q $installed_version details.txt; then
 else
     echo "Failure detected in to be released gcsfuse version installation." &>> ~/logs.txt
 fi
-
 
 # Uninstall gcsfuse and install old version.
 if grep -q ubuntu details.txt || grep -q debian details.txt;
