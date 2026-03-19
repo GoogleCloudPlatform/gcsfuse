@@ -37,8 +37,8 @@ import (
 
 const (
 	testDirName           = "CloudProfilerTest"
-	testVersionPrefix     = "cloud-profiler-test"
-	testServiceNamePrefix = "cloud-profiler-test"
+	testVersionSuffix     = "cloud-profiler-test"
+	testServiceNameSuffix = "cloud-profiler-test"
 	retryFrequency        = 30 * time.Second
 	retryDuration         = 30 * time.Minute
 )
@@ -75,9 +75,9 @@ func getDecreasingString() string {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	suffix := getDecreasingString()
-	testServiceName = fmt.Sprintf("%s-%s", testServiceNamePrefix, suffix)
-	testVersionName = fmt.Sprintf("%s-%s", testVersionPrefix, suffix)
+	prefix := getDecreasingString()
+	testServiceName = fmt.Sprintf("%s-%s", prefix, testServiceNameSuffix)
+	testVersionName = fmt.Sprintf("%s-%s", prefix, testVersionSuffix)
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.CloudProfiler) == 0 {
