@@ -267,3 +267,11 @@ The full error log would be something like: `Error: The repository 'https://pack
 This occurs when the gcsfuse package corresponding to OS version returned by `lsb_release` (say x) is not in the [list of supported OS versions](https://cloud.google.com/storage/docs/cloud-storage-fuse/overview#frameworks-os-architectures) .
 
 **Workaround**: Install GCSFuse for the closest supported OS version (say y), by running `export GCSFUSE_REPO="gcsfuse-y"` and retrying installation. An example of this is in https://github.com/GoogleCloudPlatform/gcsfuse/issues/3779, with x=`trixie` (for debian-13), and y=`bookworm` (for debian-12).  
+
+### fuse: writeMessage: no such file or directory error
+
+This error indicates that the GCSFuse process attempted to write a response (such as an "OK" status for a pending I/O request) back to the kernel, but the underlying communication channel—the FUSE file descriptor—was already closed.
+
+The primary cause is typically a concurrent or premature `unmount` syscall that tears down the mount point while active I/O is still being finalized. When the mount is unmounted, the kernel closes the FUSE device file descriptor, causing subsequent attempts by GCSFuse to send response back to the kernel to fail with "no such file or directory".
+
+To fix the issue, ensure that unmount operations are only initiated after all application processes have completely finished using the filesystem.
