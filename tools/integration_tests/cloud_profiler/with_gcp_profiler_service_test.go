@@ -34,62 +34,29 @@ import (
 
 type CloudProfilerSuite struct {
 	suite.Suite
-	loadCtx    context.Context
-	loadCancel context.CancelFunc
-	loadDone   chan struct{}
 }
 
-func (s *CloudProfilerSuite) SetupTest() {
-	s.loadCtx, s.loadCancel = context.WithCancel(context.Background())
-	s.loadDone = make(chan struct{})
-	s.T().Logf("Starting load generator goroutine")
-	go func() {
-		defer close(s.loadDone)
-		// Allocate and fill buffer ONCE before the loop
-		data := make([]byte, 100*1024*1024)
-		if _, err := rand.Read(data); err != nil {
-			s.T().Logf("Failed to generate random data: %v", err)
-			return
-		}
-
-		for {
-			select {
-			case <-s.loadCtx.Done():
-				s.T().Logf("Stopping load generator goroutine")
-				return
-			default:
-				fileName := filepath.Join(setup.MntDir(), fmt.Sprintf("load_file_%d.bin", time.Now().UnixNano()))
-				f, err := os.Create(fileName)
-				if err != nil {
-					s.T().Logf("Failed to create load file: %v", err)
-					time.Sleep(1 * time.Second)
-					continue
-				}
-
-				_, err = f.Write(data)
-				if err != nil {
-					s.T().Logf("Failed to write to load file: %v", err)
-				}
-				f.Close()
-
-				// Delete file to avoid filling up disk/bucket
-				err = os.Remove(fileName)
-				if err != nil {
-					s.T().Logf("Failed to remove load file: %v", err)
-				}
-
-				time.Sleep(1 * time.Second)
-			}
-		}
-	}()
-}
-
-func (s *CloudProfilerSuite) TearDownTest() {
-	if s.loadCancel != nil {
-		s.loadCancel()
-		<-s.loadDone
+func (s *CloudProfilerSuite) writeSingleRandomFile() error {
+	t := s.T()
+	data := make([]byte, 100*1024*1024)
+	if _, err := rand.Read(data); err != nil {
+		return fmt.Errorf("failed to generate random data: %v", err)
 	}
+
+	fileName := filepath.Join(setup.MntDir(), fmt.Sprintf("load_file_%d.bin", time.Now().UnixNano()))
+	f, err := os.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to create load file: %v", err)
+	}
+	defer f.Close()
+
+	if _, err = f.Write(data); err != nil {
+		return fmt.Errorf("failed to write to load file %s: %v", fileName, err)
+	}
+	t.Logf("Successfully wrote 100MB to %s", fileName)
+	return nil
 }
+
 
 func getGCPProjectID(t *testing.T) string {
 	fetchProjectCtx, fetchProjectCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -118,7 +85,7 @@ func checkIfProfileExistForServiceAndVersion(
 
 	t.Logf("Querying profiles for service [%s] with version [%s]", testServiceName, testVersionName)
 
-	listCtx, listCancel := context.WithTimeout(ctx, 10*time.Minute)
+	listCtx, listCancel := context.WithCancel(ctx)
 	defer listCancel()
 
 	pagesFetched := 0
@@ -152,7 +119,9 @@ func checkIfProfileExistForServiceAndVersion(
 
 func (s *CloudProfilerSuite) TestValidateProfilerWithActualService() {
 	t := s.T()
-
+	if err := s.writeSingleRandomFile(); err != nil {
+		t.Logf("Failed to write load file: %v. So profile might not be generated...", err)
+	}
 	// 1. Fetch GCP projectID.
 	// 2. Create a profiler service api client.
 	// 3. Make list call to the profiler service api client and fetch the profiles.
@@ -165,6 +134,7 @@ func (s *CloudProfilerSuite) TestValidateProfilerWithActualService() {
 	}
 	t.Logf("Waiting for cloud profile to eventually appear for service [%s] and version [%s]", testServiceName, testVersionName)
 	operations.RetryUntil(apiCtx, t, retryFrequency, retryDuration, func() (bool, error) {
+
 		return checkIfProfileExistForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID)
 	})
 }

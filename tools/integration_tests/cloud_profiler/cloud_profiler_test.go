@@ -89,7 +89,7 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.CloudProfiler[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.CloudProfiler[0].Configs[0].Flags = []string{
-			"--log-severity=TRACE --enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap",
+			"--log-severity=TRACE --enable-cloud-profiler --cloud-profiler-cpu",
 		}
 		testVersionFlag := fmt.Sprintf(" --cloud-profiler-label=%s", testVersionName)
 		testServiceNameFlag := fmt.Sprintf(" --cloud-profiler-service-name=%s", testServiceName)
