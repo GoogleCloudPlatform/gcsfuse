@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -30,7 +29,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// rawCodec is a Codec that passes through raw bytes without any encoding/decoding
+// rawCodec is a Codec that passes through raw bytes without any encoding/decoding.
 type rawCodec struct{}
 
 func (rawCodec) Marshal(v interface{}) ([]byte, error) {
@@ -93,44 +92,6 @@ func validateGRPCMetadata(md metadata.MD, validations []HeaderValidation) error 
 	return nil
 }
 
-// unaryInterceptor intercepts unary gRPC calls for metadata validation
-func unaryInterceptor(validations []HeaderValidation) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		// Extract and validate metadata
-		md, ok := metadata.FromIncomingContext(ctx)
-		if ok {
-			if err := validateGRPCMetadata(md, validations); err != nil {
-				log.Printf("Metadata validation failed: %v", err)
-				return nil, err
-			}
-		} else if len(validations) > 0 {
-			log.Println("Warning: No metadata found in request")
-		}
-
-		// Forward the call to the handler
-		return handler(ctx, req)
-	}
-}
-
-// streamInterceptor intercepts streaming gRPC calls for metadata validation
-func streamInterceptor(validations []HeaderValidation) grpc.StreamServerInterceptor {
-	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		// Extract and validate metadata
-		md, ok := metadata.FromIncomingContext(ss.Context())
-		if ok {
-			if err := validateGRPCMetadata(md, validations); err != nil {
-				log.Printf("Metadata validation failed: %v", err)
-				return err
-			}
-		} else if len(validations) > 0 {
-			log.Println("Warning: No metadata found in stream")
-		}
-
-		// Forward the call to the handler
-		return handler(srv, ss)
-	}
-}
-
 // startGRPCProxy creates a transparent gRPC proxy that validates metadata and forwards all requests to the target
 func startGRPCProxy(listener net.Listener, targetHost string, validations []HeaderValidation) error {
 	// Create connection to target for forwarding with raw codec to avoid unmarshaling
@@ -188,8 +149,8 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 				req := new([]byte)
 				if err := stream.RecvMsg(req); err != nil {
 					if err == io.EOF {
-						clientStream.CloseSend()
-						clientToServer <- nil
+						err = clientStream.CloseSend()
+						clientToServer <- err
 						return
 					}
 					clientToServer <- fmt.Errorf("receiving from client: %w", err)

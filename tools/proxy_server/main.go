@@ -38,11 +38,10 @@ const PortAndProxyProcessIdInfoLogFormat = "Listening Proxy Server On Port [%s] 
 var (
 	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
-	// Flag to turn on/off fDebug logs.
-	fDebug = flag.Bool("debug", true, "Enable proxy server fDebug logs.")
+	// Flag to turn on/off debug logs.
+	fDebug = flag.Bool("debug", true, "Enable proxy server debug logs.")
 	// Log file to write proxy server logs.
 	fLogFilePath = flag.String("log-file", "", "Path to the log file")
-	// Enable debug logging
 	// Initialized before the server gets started.
 	gConfig    *Config
 	gOpManager *OperationManager
@@ -293,6 +292,9 @@ func (gs *GRPCProxyServer) Start() {
 	signal.Notify(gs.shutdown, syscall.SIGINT, syscall.SIGTERM)
 	<-gs.shutdown
 	log.Println("Shutting down gRPC proxy server...")
-	listener.Close()
-	log.Println("gRPC proxy server exited")
+	if err = listener.Close(); err != nil {
+		log.Printf("Error closing listener: %v", err)
+	} else {
+		log.Println("gRPC proxy server exited")
+	}
 }

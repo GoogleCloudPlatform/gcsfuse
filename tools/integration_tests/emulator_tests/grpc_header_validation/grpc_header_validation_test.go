@@ -62,15 +62,13 @@ func (g *grpcHeaderValidation) TestGRPCClientSendsExpectedHeaders() {
 	// GCSFuse mount itself triggers gRPC calls for DirectPath verification, we
 	// just need to verify the proxy logs contain the expected header.
 
+	// Assert: read and confirm the required headers.
 	logContent, err := os.ReadFile(g.proxyServerLogFile)
 	require.NoError(g.T(), err)
 	logStr := string(logContent)
-	// Verify metadata validation passed and x-goog-request-params contains force_direct_connectivity=ENFORCED
-	// Note: With anonymous-access, direct_connectivity_diagnostic=no_auth is also present
 	assert.Contains(g.T(), logStr, "Metadata validation passed")
 	assert.Contains(g.T(), logStr, "x-goog-request-params")
 	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
-	// Verify direct_connectivity_diagnostic header is present
 	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
 	assert.Contains(g.T(), logStr, "/google.storage.v2.Storage/GetObject")
 }
@@ -80,62 +78,30 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 	testFilePath := path.Join(rootDir, "test_file_for_grpc.txt")
 	testContent := []byte("This is test content to validate gRPC headers across different operations.")
 
-	// 1. Create and write a file (triggers WriteObject gRPC call)
-	err := os.WriteFile(testFilePath, testContent, 0644)
-	if err == nil {
-		g.T().Logf("Successfully created and wrote file: %s", testFilePath)
-		
-		// 2. Read the file (triggers ReadObject gRPC call)
-		readContent, err := os.ReadFile(testFilePath)
-		if err == nil {
-			g.T().Logf("Successfully read file, read %d bytes", len(readContent))
-			assert.Equal(g.T(), testContent, readContent, "File content should match")
-		} else {
-			g.T().Logf("File read failed (continuing with validation): %v", err)
-		}
-		
-		// 3. Stat the file (triggers GetObject gRPC call for metadata)
-		fileInfo, err := os.Stat(testFilePath)
-		if err == nil {
-			g.T().Logf("Successfully stat'd file: size=%d bytes", fileInfo.Size())
-		} else {
-			g.T().Logf("File stat failed (continuing with validation): %v", err)
-		}
-	} else {
-		g.T().Logf("File write failed (continuing with validation): %v", err)
-	}
+	// Action
+	err := os.WriteFile(testFilePath, testContent, 0644) // Trigger (GetObject + BidiWriteObject)
+	require.NoError(g.T(), err)
+	readContent, err := os.ReadFile(testFilePath) // Triggers (GetObject + ReadObject)
+	require.NoError(g.T(), err)
+	require.Equal(g.T(), testContent, readContent, "File content should match")
+	_, err = os.Stat(testFilePath) // Triggers (GetObject)
+	require.NoError(g.T(), err)
+	entries, err := os.ReadDir(rootDir) // Triggers ListObjects
+	require.NoError(g.T(), err)
+	g.T().Logf("Listed %d entries in root directory", len(entries))
 
-	// 4. List directory (triggers bucket/folder listing gRPC calls)
-	entries, err := os.ReadDir(rootDir)
-	if err == nil {
-		g.T().Logf("Listed %d entries in root directory", len(entries))
-	} else {
-		g.T().Logf("ReadDir failed (continuing with validation): %v", err)
-	}
-
-	// Read and verify proxy logs - this is the main validation
+	// Assert: read and verify proxy logs.
 	logContent, err := os.ReadFile(g.proxyServerLogFile)
 	require.NoError(g.T(), err)
 	logStr := string(logContent)
-
-	// Verify metadata was validated successfully across multiple operations
 	validationCount := strings.Count(logStr, "Metadata validation passed")
 	assert.Greater(g.T(), validationCount, 0, "Expected at least one successful metadata validation")
 	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
-
-	// Verify direct_connectivity_diagnostic header is present in all operations
 	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
-
-	// Verify gRPC calls were made for different operations
-	getObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/GetObject")
-	readObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/ReadObject")
-	writeObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/BidiWriteObject")
-	listObjectsCount := strings.Count(logStr, "/google.storage.v2.Storage/ListObjects")
-
-	totalGRPCCalls := getObjectCount + readObjectCount + writeObjectCount + listObjectsCount
-	assert.Greater(g.T(), totalGRPCCalls, 0, "Expected at least one gRPC storage call")
-	g.T().Logf("gRPC calls observed - GetObject: %d, ReadObject: %d, WriteObject: %d, ListObjects: %d (Total: %d)",
-		getObjectCount, readObjectCount, writeObjectCount, listObjectsCount, totalGRPCCalls)
+	assert.Equal(g.T(), 3, strings.Count(logStr, "/google.storage.v2.Storage/GetObject"), "Expected 3 GetObject calls (1 for each operation)")
+	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/BidiWriteObject"), "Expected 1 BidiWriteObject call for writing the file")
+	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/ReadObject"), "Expected 1 ReadObject call for reading the file")
+	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/ListObjects"), "Expected 1 ListObjects call for listing the directory")
 }
 
 func TestGRPCHeaderValidation(t *testing.T) {
@@ -144,7 +110,7 @@ func TestGRPCHeaderValidation(t *testing.T) {
 	// The Go Storage SDK automatically adds force_direct_connectivity=ENFORCED
 	// to x-goog-request-params when experimental.WithDirectConnectivityEnforced() is used.
 	// The gRPC proxy intercepts and validates this metadata.
-	// 
+	//
 	// NOTE: This test requires:
 	// 1. gRPC testbench server running on localhost:8888 (started by emulator_tests.sh)
 	// 2. Bucket named "test-bucket" created in the testbench
