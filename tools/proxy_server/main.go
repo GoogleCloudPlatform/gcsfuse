@@ -38,13 +38,16 @@ const PortAndProxyProcessIdInfoLogFormat = "Listening Proxy Server On Port [%s] 
 var (
 	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
+	// Flag to turn on/off fDebug logs.
+	fDebug = flag.Bool("debug", true, "Enable proxy server fDebug logs.")
 	// Log file to write proxy server logs.
 	fLogFilePath = flag.String("log-file", "", "Path to the log file")
 	// Enable debug logging
-	fDebug = flag.Bool("debug", false, "Enable debug logging")
 	// Initialized before the server gets started.
 	gConfig    *Config
 	gOpManager *OperationManager
+	// Port number assigned to listener.
+	gPort string
 )
 
 type ProxyHandler struct {
@@ -71,9 +74,14 @@ func logRequestAndType(req *http.Request, r RequestType) {
 // This function is used to simulate error scenarios for testing retry mechanisms.
 func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
 	plantOp := gOpManager.retrieveOperation(r.RequestType)
-	if plantOp != "" {
+	if *fDebug {
 		logRequestAndType(req, r.RequestType)
-		log.Println("Planting operation: ", plantOp)
+		if plantOp != "" {
+			log.Println("Planting operation: ", plantOp)
+		}
+	}
+
+	if plantOp != "" {
 		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
 		if err != nil {
 			return fmt.Errorf("CreateRetryTest: %v", err)
@@ -98,7 +106,6 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Add(name, value)
 		}
 	}
-
 	// Determine the request type and instruction (e.g., read, write, metadata) based on the incoming request.
 	reqTypeAndInstruction := deduceRequestTypeAndInstruction(r)
 
@@ -111,7 +118,9 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Send the request to the target server
 	client := &http.Client{}
+	start := time.Now()
 	resp, err := client.Do(req)
+	elapsed := time.Since(start)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -129,8 +138,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Use the Host from the incoming request to reconstruct the location
-		u.Host = r.Host
+		u.Host = "localhost:" + gPort
 		resp.Header.Set("Location", u.String())
 	}
 
@@ -148,6 +156,10 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
 		log.Printf("Error in coping response body: %v", err)
+	}
+	if *fDebug {
+		log.Printf("Respnse Status: %d\n", resp.StatusCode)
+		log.Printf("Elapsed Time: %.3fs\n", elapsed.Seconds())
 	}
 }
 
@@ -171,11 +183,11 @@ func (ps *ProxyServer) Start() {
 	if err != nil {
 		log.Fatalf("Error on listening: %v", err)
 	}
-	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	gPort = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 	// Log port number and proxy process Id for the proxy server.
-	log.Printf(PortAndProxyProcessIdInfoLogFormat, port, os.Getpid())
+	log.Printf(PortAndProxyProcessIdInfoLogFormat, gPort, os.Getpid())
 	ps.server = &http.Server{
-		Addr:    ":" + port,
+		Addr:    ":" + gPort,
 		Handler: ProxyHandler{},
 	}
 
@@ -225,6 +237,10 @@ func main() {
 	defer logFile.Close()
 	log.SetOutput(logFile)
 
+	if *fDebug {
+		printConfig(*gConfig)
+	}
+
 	gOpManager = NewOperationManager(*gConfig)
 
 	// Determine proxy type from config (default to http if not specified)
@@ -263,8 +279,8 @@ func (gs *GRPCProxyServer) Start() {
 	if err != nil {
 		log.Fatalf("Error on listening: %v", err)
 	}
-	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-	log.Printf(PortAndProxyProcessIdInfoLogFormat, port, os.Getpid())
+	gPort = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	log.Printf(PortAndProxyProcessIdInfoLogFormat, gPort, os.Getpid())
 
 	// Start gRPC server in goroutine
 	go func() {

@@ -41,6 +41,7 @@ type grpcHeaderValidation struct {
 func (g *grpcHeaderValidation) SetupTest() {
 	g.configPath = "../configs/grpc_header_validation.yaml"
 	g.proxyServerLogFile = setup.CreateProxyServerLogFile(g.T())
+	g.T().Logf("Proxy server log file: %s", g.proxyServerLogFile)
 	var err error
 	g.port, g.proxyProcessId, err = emulator_tests.StartProxyServer(g.configPath, g.proxyServerLogFile)
 	require.NoError(g.T(), err)
@@ -75,6 +76,11 @@ func (g *grpcHeaderValidation) TestGRPCClientSendsExpectedHeaders() {
 	assert.Contains(g.T(), logStr, "Metadata validation passed")
 	assert.Contains(g.T(), logStr, "x-goog-request-params")
 	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
+	
+	// Verify direct_connectivity_diagnostic header is present
+	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic")
+	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
+	
 	assert.Contains(g.T(), logStr, "/google.storage.v2.Storage/GetObject")
 }
 
@@ -92,6 +98,9 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 	validationCount := strings.Count(logStr, "Metadata validation passed")
 	assert.Greater(g.T(), validationCount, 0, "Expected at least one successful metadata validation")
 	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
+	
+	// Verify direct_connectivity_diagnostic header is present in all operations
+	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
 
 	// Verify multiple gRPC calls were made
 	grpcCallCount := strings.Count(logStr, "/google.storage.v2.Storage/GetObject")
