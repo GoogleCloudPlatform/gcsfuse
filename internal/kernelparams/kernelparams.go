@@ -150,9 +150,48 @@ func writeValue(path, value string) error {
 	return err
 }
 
+// ensureFusectlMounted checks if /sys/fs/fuse/connections is empty and attempts to mount fusectl if it is.
+func ensureFusectlMounted() {
+	connectionsDir := "/sys/fs/fuse/connections"
+	dirs, err := os.ReadDir(connectionsDir)
+	if err != nil {
+		logger.Warnf("Failed to read %s due to err %v", connectionsDir, err)
+		return
+	}
+
+	if len(dirs) > 0 {
+		return
+	}
+
+	logger.Infof("%s is empty, attempting to mount fusectl...", connectionsDir)
+
+	// Try direct mount first
+	cmd := exec.Command("mount", "-t", "fusectl", "none", connectionsDir)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		logger.Warnf("Direct mount of fusectl failed with error: %v, Attempting to mount using sudo...", err)
+		// -n: non-interactive mode.
+		sudoCmd := exec.Command("sudo", "-n", "mount", "-t", "fusectl", "none", connectionsDir)
+
+		var sudoStderr bytes.Buffer
+		sudoCmd.Stderr = &sudoStderr
+
+		if sudoErr := sudoCmd.Run(); sudoErr != nil {
+			logger.Warnf("Sudo mount of fusectl failed with error: %v, stderr: %q", sudoErr, strings.TrimSpace(sudoStderr.String()))
+			return
+		}
+		logger.Infof("Successfully mounted fusectl using sudo")
+	} else {
+		logger.Infof("Successfully mounted fusectl")
+	}
+}
+
 // applyDirectly iterates through all parameters in the config, resolves their
 // system paths, and attempts to apply them to the current host using writeValue helper.
 func (c *KernelParamsConfig) applyDirectly(mountPoint string) {
+	ensureFusectlMounted()
 	major, minor, err := getDeviceMajorMinor(mountPoint)
 	if err != nil {
 		logger.Warnf("Failed to apply kernel parameters directly on mount point %q due to err %v", mountPoint, err)
