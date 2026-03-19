@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
@@ -59,7 +58,7 @@ type Cache struct {
 	//
 	// INVARIANT: For each k, v: v.Value.(entry).Key == k
 	// INVARIANT: Contains all and only the elements of entries
-	index map[string]*list.Element
+	index *pathTrie
 
 	// All public methods of this Cache uses this RW mutex based locker while
 	// accessing/updating Cache's data.
@@ -80,7 +79,7 @@ type entry struct {
 func NewCache(maxSize uint64) *Cache {
 	c := &Cache{
 		maxSize: maxSize,
-		index:   make(map[string]*list.Element),
+		index:   newPathTrie(),
 	}
 
 	// Set up invariant checking.
@@ -111,15 +110,16 @@ func (c *Cache) checkInvariants() {
 
 	// INVARIANT: For each k, v: v.Value.(entry).Key == k
 	// INVARIANT: Contains all and only the elements of entries
-	if c.entries.Len() != len(c.index) {
+	if c.entries.Len() != c.index.len() {
 		panic(fmt.Sprintf(
 			"Length mismatch: %v vs. %v",
 			c.entries.Len(),
-			len(c.index)))
+			c.index.len()))
 	}
 
 	for e := c.entries.Front(); e != nil; e = e.Next() {
-		if c.index[e.Value.(entry).Key] != e {
+		element, ok := c.index.lookup(e.Value.(entry).Key)
+		if !ok || element != e {
 			panic(fmt.Sprintf("Mismatch for key %v", e.Value.(entry).Key))
 		}
 	}
@@ -133,7 +133,7 @@ func (c *Cache) evictOne() ValueType {
 	c.currentSize -= evictedEntry.Size()
 
 	c.entries.Remove(e)
-	delete(c.index, key)
+	c.index.delete(key)
 
 	return evictedEntry
 }
@@ -160,7 +160,7 @@ func (c *Cache) Insert(
 		return nil, ErrInvalidEntrySize
 	}
 
-	e, ok := c.index[key]
+	e, ok := c.index.lookup(key)
 	if ok {
 		// Update an entry if already exist.
 		c.currentSize -= e.Value.(entry).Value.Size()
@@ -170,7 +170,7 @@ func (c *Cache) Insert(
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
-		c.index[key] = e
+		c.index.insert(key, e)
 		c.currentSize += valueSize
 	}
 
@@ -188,7 +188,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e, ok := c.index[key]
+	e, ok := c.index.lookup(key)
 	if !ok {
 		return
 	}
@@ -196,7 +196,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	deletedEntry := e.Value.(entry).Value
 	c.currentSize -= deletedEntry.Size()
 
-	delete(c.index, key)
+	c.index.delete(key)
 	c.entries.Remove(e)
 
 	return deletedEntry
@@ -209,7 +209,7 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	defer c.mu.Unlock()
 
 	// Consult the index.
-	e, ok := c.index[key]
+	e, ok := c.index.lookup(key)
 	if !ok {
 		return
 	}
@@ -231,7 +231,7 @@ func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 	defer c.mu.RUnlock()
 
 	// Consult the index.
-	e, ok := c.index[key]
+	e, ok := c.index.lookup(key)
 	if !ok {
 		return
 	}
@@ -254,7 +254,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e, ok := c.index[key]
+	e, ok := c.index.lookup(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
@@ -264,7 +264,6 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	}
 
 	e.Value = entry{key, value}
-	c.index[key] = e
 
 	return nil
 }
@@ -277,7 +276,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.index[key]
+	_, ok := c.index.lookup(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
@@ -291,9 +290,13 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 }
 
 func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
-	for key := range c.index {
-		if strings.HasPrefix(key, prefix) {
-			c.Erase(key)
-		}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	deletedElements := c.index.erasePrefix(prefix)
+	for _, e := range deletedElements {
+		deletedEntry := e.Value.(entry).Value
+		c.currentSize -= deletedEntry.Size()
+		c.entries.Remove(e)
 	}
 }

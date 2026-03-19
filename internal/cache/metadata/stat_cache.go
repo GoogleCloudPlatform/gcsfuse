@@ -114,23 +114,28 @@ type entry struct {
 	m          *gcs.MinObject
 	f          *gcs.Folder
 	expiration time.Time
-	key        string
 	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
+	size        uint64
 }
 
 // Size returns the memory-size (resident set size) of the receiver entry.
+func (e entry) Size() uint64 {
+	return e.size
+}
+
+// calculateSize returns the memory-size (resident set size) of the entry.
 // The size calculated by the unsafe.Sizeof calls, and
 // NestedSizeOfGcsMinObject etc. does not account for
 // hidden members in data structures like maps, slices, linked-lists etc.
 // To account for those, we are adding a fixed constant of 515 bytes (deduced from
 // benchmark runs) to heap-size per positive stat-cache entry
 // to calculate a size closer to the actual memory utilization.
-func (e entry) Size() (size uint64) {
+func calculateSize(e entry, key string) (size uint64) {
 	// First, calculate size on heap (including folder size also in case of hns buckets, in case of non-hns buckets 0 will be added as e.f will be Nil ).
-	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
-	// struct stored in the cache map and in the cache linked-list.
-	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
+	// Additional 2*util.UnsafeSizeOf(&key) is to account for the copies of string
+	// struct stored in the cache map/trie and in the cache linked-list.
+	size = uint64(util.UnsafeSizeOf(&e) + len(key) + 2*util.UnsafeSizeOf(&key) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
 		size += 515
 	}
@@ -192,8 +197,8 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	e := entry{
 		m:          m,
 		expiration: expiration,
-		key:        name,
 	}
+	e.size = calculateSize(e, name)
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
@@ -229,8 +234,8 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	e := entry{
 		implicitDir: true,
 		expiration:  expiration,
-		key:         name,
 	}
+	e.size = calculateSize(e, name)
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		logger.Errorf("Failed to insert implicit dir stat cache entry for %q: %v", name, err)
@@ -244,8 +249,8 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	e := entry{
 		m:          nil,
 		expiration: expiration,
-		key:        name,
 	}
+	e.size = calculateSize(e, name)
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
@@ -259,8 +264,8 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	e := entry{
 		f:          nil,
 		expiration: expiration,
-		key:        name,
 	}
+	e.size = calculateSize(e, name)
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
@@ -323,8 +328,8 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 	e := entry{
 		f:          f,
 		expiration: expiration,
-		key:        name,
 	}
+	e.size = calculateSize(e, name)
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
