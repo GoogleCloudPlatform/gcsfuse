@@ -22,6 +22,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -112,7 +113,7 @@ func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Conte
 		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
 
-	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, apiCall, logger.LevelInfo)
 }
 
 func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
@@ -127,7 +128,7 @@ func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
 		return struct{}{}, err
 	}
 
-	_, err := storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "DeleteFolder", req.Name, apiCall)
+	_, err := storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "DeleteFolder", req.Name, apiCall, logger.LevelTrace)
 	return err
 }
 
@@ -142,7 +143,7 @@ func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
 		return sccwros.raw.GetFolder(attemptCtx, req, opts...)
 	}
 
-	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "GetFolder", req.Name, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "GetFolder", req.Name, apiCall, logger.LevelTrace)
 }
 
 func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
@@ -157,7 +158,7 @@ func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
 	}
 
 	reqDescription := fmt.Sprintf("%q to %q", req.Name, req.DestinationFolderId)
-	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "RenameFolder", reqDescription, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "RenameFolder", reqDescription, apiCall, logger.LevelTrace)
 }
 
 func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
@@ -172,7 +173,7 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 	}
 
 	reqDescription := fmt.Sprintf("%q in %q", req.FolderId, req.Parent)
-	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "CreateFolder", reqDescription, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "CreateFolder", reqDescription, apiCall, logger.LevelTrace)
 }
 
 // newRetryWrapper creates a new StorageControlClient with retry capabilities.
