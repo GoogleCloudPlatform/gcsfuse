@@ -82,6 +82,7 @@ type Config struct {
 	Monitoring            []TestConfig `yaml:"monitoring"`
 	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`
 	UnsupportedPath       []TestConfig `yaml:"unsupported_path"`
+	SharedChunkCache      []TestConfig `yaml:"shared_chunk_cache"`
 }
 
 // ReadConfigFile returns a Config struct from the YAML file.
