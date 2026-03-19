@@ -42,6 +42,8 @@ type BucketConfig struct {
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 	StatCacheMaxSizeMB                 uint64
+	// StatCacheUseTrieDict denotes whether to use Trie dict for LRU Index
+	StatCacheUseTrieDict bool
 	// Config for TTL of entries for existing file in stat cache
 	StatCacheTTL time.Duration
 	// Config for TTL of entries for non-existing file in stat cache
@@ -107,7 +109,7 @@ type bucketManager struct {
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c *lru.Cache
 	if config.StatCacheMaxSizeMB > 0 {
-		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		c = lru.NewCacheWithIndex(util.MiBsToBytes(config.StatCacheMaxSizeMB), config.StatCacheUseTrieDict)
 	}
 
 	bm := &bucketManager{

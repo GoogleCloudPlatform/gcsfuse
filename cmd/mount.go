@@ -97,6 +97,7 @@ be interacting with the file system.`)
 		EgressBandwidthLimitBytesPerSecond: newConfig.GcsConnection.LimitBytesPerSec,
 		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
 		StatCacheMaxSizeMB:                 uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
+		StatCacheUseTrieDict:               newConfig.MetadataCache.UseTrieDict,
 		StatCacheTTL:                       time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
 		NegativeStatCacheTTL:               time.Duration(newConfig.MetadataCache.NegativeTtlSecs) * time.Second,
 		EnableMonitoring:                   cfg.IsMetricsEnabled(&newConfig.Metrics),

@@ -42,7 +42,7 @@ func init() { RegisterTestSuite(&CacheTest{}) }
 
 func (t *CacheTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
-	t.cache = lru.NewCache(MaxSize)
+	t.cache = lru.NewCacheWithIndex(MaxSize, true)
 }
 
 type testData struct {

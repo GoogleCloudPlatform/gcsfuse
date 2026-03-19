@@ -652,6 +652,8 @@ type MetadataCacheConfig struct {
 	TtlSecs int64 `yaml:"ttl-secs"`
 
 	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb"`
+
+	UseTrieDict bool `yaml:"use-trie-dict"`
 }
 
 type MetricsConfig struct {
@@ -1185,6 +1187,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("metadata-cache-negative-ttl-secs", "", 5, "The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled negative entries in metadata-cache. Any value set below -1 will throw an error.")
 
 	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
+
+	flagSet.BoolP("metadata-cache-use-trie-dict", "", true, "When true, the LRU cache uses a Trie-based dictionary instead of a map  for indexing. This reduces memory usage and speeds up folder eviction.")
 
 	flagSet.IntP("metadata-prefetch-entries-limit", "", 5000, "The maximum number of metadata entries (files and directories) to prefetch  into the cache upon a prefetch trigger. Since a single GCS List call is capped at 5000 results, values higher than 5000 will trigger multiple sequential GCS  List calls per directory.\n")
 
@@ -1782,6 +1786,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.use-trie-dict", flagSet.Lookup("metadata-cache-use-trie-dict")); err != nil {
 		return err
 	}
 

@@ -1029,6 +1029,14 @@ params:
     usage: "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb."
     default: "4"
 
+  - config-path: "metadata-cache.use-trie-dict"
+    flag-name: "metadata-cache-use-trie-dict"
+    type: "bool"
+    usage: >-
+      When true, the LRU cache uses a Trie-based dictionary instead of a map
+      for indexing. This reduces memory usage and speeds up folder eviction.
+    default: true
+
   - config-path: "metrics.buffer-size"
     flag-name: "metrics-buffer-size"
     type: "int"

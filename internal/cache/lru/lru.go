@@ -58,7 +58,7 @@ type Cache struct {
 	//
 	// INVARIANT: For each k, v: v.Value.(entry).Key == k
 	// INVARIANT: Contains all and only the elements of entries
-	index *pathTrie
+	index Index
 
 	// All public methods of this Cache uses this RW mutex based locker while
 	// accessing/updating Cache's data.
@@ -76,10 +76,22 @@ type entry struct {
 
 // NewCache returns the reference of cache object by initialising the cache with
 // the supplied maxSize, which must be greater than zero.
+// This initializes the Cache with a map-based dictionary index.
 func NewCache(maxSize uint64) *Cache {
+	return NewCacheWithIndex(maxSize, false)
+}
+
+// NewCacheWithIndex allows initializing the Cache with an option to use a Trie-based
+// dictionary index which consumes less memory and is faster for prefix operations.
+func NewCacheWithIndex(maxSize uint64, useTrie bool) *Cache {
 	c := &Cache{
 		maxSize: maxSize,
-		index:   newPathTrie(),
+	}
+
+	if useTrie {
+		c.index = newPathTrie()
+	} else {
+		c.index = newMapIndex()
 	}
 
 	// Set up invariant checking.
