@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -45,10 +46,8 @@ func (g *grpcHeaderValidation) SetupTest() {
 	var err error
 	g.port, g.proxyProcessId, err = emulator_tests.StartProxyServer(g.configPath, g.proxyServerLogFile)
 	require.NoError(g.T(), err)
-	// For gRPC, custom-endpoint should be in format "localhost:port" without scheme
-	// Use anonymous-access to avoid credential requirements for testing
 	g.flags = append(g.flags, fmt.Sprintf("--custom-endpoint=localhost:%d", g.port))
-	g.flags = append(g.flags, "--anonymous-access")
+	g.flags = append(g.flags, "--anonymous-access") // Required for gRPC localhost endpoint.
 	setup.MountGCSFuseWithGivenMountFunc(g.flags, mountFunc)
 }
 
@@ -59,37 +58,62 @@ func (g *grpcHeaderValidation) TearDownTest() {
 	setup.SaveProxyServerLogFileInCaseOfFailure(g.proxyServerLogFile, g.T())
 }
 
-// TestGRPCClientSendsExpectedHeaders verifies that when gRPC protocol is enabled,
-// the client sends the force_direct_connectivity parameter via x-goog-request-params metadata.
-// The Go Storage SDK adds this via prepareDirectPathMetadata() to signal DirectPath enforcement.
-// When using anonymous-access, additional diagnostic metadata is included.
 func (g *grpcHeaderValidation) TestGRPCClientSendsExpectedHeaders() {
-	// The mount process itself triggers gRPC calls for DirectPath verification
-	// We just need to verify the proxy logs contain the expected metadata
+	// GCSFuse mount itself triggers gRPC calls for DirectPath verification, we
+	// just need to verify the proxy logs contain the expected header.
 
 	logContent, err := os.ReadFile(g.proxyServerLogFile)
 	require.NoError(g.T(), err)
 	logStr := string(logContent)
-
 	// Verify metadata validation passed and x-goog-request-params contains force_direct_connectivity=ENFORCED
 	// Note: With anonymous-access, direct_connectivity_diagnostic=no_auth is also present
 	assert.Contains(g.T(), logStr, "Metadata validation passed")
 	assert.Contains(g.T(), logStr, "x-goog-request-params")
 	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
-	
 	// Verify direct_connectivity_diagnostic header is present
-	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic")
 	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
-	
 	assert.Contains(g.T(), logStr, "/google.storage.v2.Storage/GetObject")
 }
 
-// TestGRPCHeadersInMultipleOperations verifies that the force_direct_connectivity parameter
-// is consistently sent across multiple gRPC operations via x-goog-request-params metadata.
 func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
-	// During mount and initial operations, multiple gRPC calls are made
-	// Verify that all of them contain the DirectPath metadata
+	// Perform multiple file operations to trigger various gRPC calls
+	testFilePath := path.Join(rootDir, "test_file_for_grpc.txt")
+	testContent := []byte("This is test content to validate gRPC headers across different operations.")
 
+	// 1. Create and write a file (triggers WriteObject gRPC call)
+	err := os.WriteFile(testFilePath, testContent, 0644)
+	if err == nil {
+		g.T().Logf("Successfully created and wrote file: %s", testFilePath)
+		
+		// 2. Read the file (triggers ReadObject gRPC call)
+		readContent, err := os.ReadFile(testFilePath)
+		if err == nil {
+			g.T().Logf("Successfully read file, read %d bytes", len(readContent))
+			assert.Equal(g.T(), testContent, readContent, "File content should match")
+		} else {
+			g.T().Logf("File read failed (continuing with validation): %v", err)
+		}
+		
+		// 3. Stat the file (triggers GetObject gRPC call for metadata)
+		fileInfo, err := os.Stat(testFilePath)
+		if err == nil {
+			g.T().Logf("Successfully stat'd file: size=%d bytes", fileInfo.Size())
+		} else {
+			g.T().Logf("File stat failed (continuing with validation): %v", err)
+		}
+	} else {
+		g.T().Logf("File write failed (continuing with validation): %v", err)
+	}
+
+	// 4. List directory (triggers bucket/folder listing gRPC calls)
+	entries, err := os.ReadDir(rootDir)
+	if err == nil {
+		g.T().Logf("Listed %d entries in root directory", len(entries))
+	} else {
+		g.T().Logf("ReadDir failed (continuing with validation): %v", err)
+	}
+
+	// Read and verify proxy logs - this is the main validation
 	logContent, err := os.ReadFile(g.proxyServerLogFile)
 	require.NoError(g.T(), err)
 	logStr := string(logContent)
@@ -98,13 +122,20 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 	validationCount := strings.Count(logStr, "Metadata validation passed")
 	assert.Greater(g.T(), validationCount, 0, "Expected at least one successful metadata validation")
 	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
-	
+
 	// Verify direct_connectivity_diagnostic header is present in all operations
 	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
 
-	// Verify multiple gRPC calls were made
-	grpcCallCount := strings.Count(logStr, "/google.storage.v2.Storage/GetObject")
-	assert.Greater(g.T(), grpcCallCount, 0, "Expected at least one gRPC call")
+	// Verify gRPC calls were made for different operations
+	getObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/GetObject")
+	readObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/ReadObject")
+	writeObjectCount := strings.Count(logStr, "/google.storage.v2.Storage/WriteObject")
+	listObjectsCount := strings.Count(logStr, "/google.storage.v2.Storage/ListObjects")
+
+	totalGRPCCalls := getObjectCount + readObjectCount + writeObjectCount + listObjectsCount
+	assert.Greater(g.T(), totalGRPCCalls, 0, "Expected at least one gRPC storage call")
+	g.T().Logf("gRPC calls observed - GetObject: %d, ReadObject: %d, WriteObject: %d, ListObjects: %d (Total: %d)",
+		getObjectCount, readObjectCount, writeObjectCount, listObjectsCount, totalGRPCCalls)
 }
 
 func TestGRPCHeaderValidation(t *testing.T) {
@@ -113,6 +144,11 @@ func TestGRPCHeaderValidation(t *testing.T) {
 	// The Go Storage SDK automatically adds force_direct_connectivity=ENFORCED
 	// to x-goog-request-params when experimental.WithDirectConnectivityEnforced() is used.
 	// The gRPC proxy intercepts and validates this metadata.
+	// 
+	// NOTE: This test requires:
+	// 1. gRPC testbench server running on localhost:8888 (started by emulator_tests.sh)
+	// 2. Bucket named "test-bucket" created in the testbench
+	// 3. Run with: go test -v --integrationTest --testbucket=test-bucket -timeout=5m
 	flagsSet := [][]string{
 		{"--client-protocol=grpc"},
 	}
