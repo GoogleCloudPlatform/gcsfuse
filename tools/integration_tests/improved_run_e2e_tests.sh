@@ -723,12 +723,16 @@ install_packages() {
   # Execute install_go.sh using the absolute path
   bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
+  export USER=$(whoami)
+  export GOPATH="$(eval echo ~$USER)/go"
+  export GOMODCACHE="$GOPATH/pkg/mod"
+  export GOCACHE="$GOPATH/.cache/go-build"
   
   # Install latest gcloud version.
   bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
-  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
-  export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+  export CLOUDSDK_PYTHON="/usr/local/bin/python3.11"
+  export PATH="/usr/local/python-3.11.9/bin:$PATH"
   if ${KOKORO_DIR_AVAILABLE} ; then
     # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
