@@ -424,8 +424,8 @@ read_cache:
         run: TestRemountTest
         run_on_gke: false
       - flags:
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
           - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
         compatible:
@@ -435,7 +435,7 @@ read_cache:
         run: TestCacheFileForIncludeRegexTest
         run_on_gke: true
       - flags:
-          - "--file-cache-experimental-enable-chunk-cache=true,--file-cache-download-chunk-size-mb=10,--cache-dir=/gcsfuse-tmp/TestChunkCacheTest,--log-file=/gcsfuse-tmp/TestChunkCacheTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
+          - "--file-cache-experimental-enable-chunk-cache=true,--file-cache-download-chunk-size-mb=10,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestChunkCacheTest,--log-file=/gcsfuse-tmp/TestChunkCacheTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: true
@@ -443,7 +443,7 @@ read_cache:
         run: TestChunkCacheTest
         run_on_gke: true
       - flags:
-          - "--file-cache-experimental-enable-chunk-cache=false,--cache-dir=/gcsfuse-tmp/TestChunkCacheDisabledTest,--log-file=/gcsfuse-tmp/TestChunkCacheDisabledTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
+          - "--file-cache-experimental-enable-chunk-cache=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestChunkCacheDisabledTest,--log-file=/gcsfuse-tmp/TestChunkCacheDisabledTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: true
@@ -750,9 +750,9 @@ flag_optimizations:
         # Tests that kernel reader is used by default and takes precedence over buffered reader and file cache.
         flags:
           - "--implicit-dirs,--log-severity=trace"
-          - "--implicit-dirs,--log-severity=trace,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache"
+          - "--implicit-dirs,--log-severity=trace,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache"
           - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true"
-          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both"
+          - "--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both"
         compatible:
           flat: false
           hns: false
@@ -761,7 +761,7 @@ flag_optimizations:
       - run: TestFileCache_KernelReaderDisabled
         # Tests that file cache is used when kernel reader is explicitly disabled.
         flags:
-          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"
+          - "--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"
         compatible:
           flat: false
           hns: false
@@ -921,7 +921,7 @@ monitoring:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-        - "--prometheus-port=9190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--log-file=/gcsfuse-tmp/monitoring.log,--enable-kernel-reader=false"
+        - "--prometheus-port=9190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/monitoring.log,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: false
@@ -929,7 +929,7 @@ monitoring:
         run: "TestPromOTELSuite"
         run_on_gke: true
       - flags:
-        - "--prometheus-port=10190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--log-file=/gcsfuse-tmp/monitoring_hns.log,--enable-kernel-reader=false"
+        - "--prometheus-port=10190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/monitoring_hns.log,--enable-kernel-reader=false"
         compatible:
           flat: false
           hns: true
@@ -953,7 +953,7 @@ monitoring:
         run: "TestPromBufferedReadSuite"
         run_on_gke: true
       - flags:
-        - "--client-protocol=grpc,--experimental-enable-grpc-metrics,--prometheus-port=9192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--log-file=/gcsfuse-tmp/prom_grpc_metrics.log,--enable-kernel-reader=false"
+        - "--client-protocol=grpc,--experimental-enable-grpc-metrics,--prometheus-port=9192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/prom_grpc_metrics.log,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: false
@@ -961,7 +961,7 @@ monitoring:
         run: "TestPromGrpcMetricsSuite"
         run_on_gke: true
       - flags:
-        - "--client-protocol=grpc,--experimental-enable-grpc-metrics,--prometheus-port=10192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log,--enable-kernel-reader=false"
+        - "--client-protocol=grpc,--experimental-enable-grpc-metrics,--prometheus-port=10192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/prom_grpc_metrics_hns.log,--enable-kernel-reader=false"
         compatible:
           flat: false
           hns: true
