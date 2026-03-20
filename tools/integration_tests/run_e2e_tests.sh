@@ -256,7 +256,7 @@ function upgrade_gcloud_version() {
 
 function install_packages() {
   # Install required go version.
-  ./perfmetrics/scripts/install_go.sh "1.24.11"
+  ./perfmetrics/scripts/install_go.sh "1.26.1"
   export PATH="/usr/local/go/bin:$PATH"
   
   sudo apt-get update
