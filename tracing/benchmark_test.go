@@ -38,7 +38,6 @@ func BenchmarkOtelTracerSetCacheReadAttributesParallel(b *testing.B) {
 	_, span := OtelTraceHandle.StartSpan(ctx, "TestSpanName")
 
 	b.RunParallel(func(pb *testing.PB) {
-		// Each goroutine runs this loop independently
 		for pb.Next() {
 			OtelTraceHandle.SetCacheReadAttributes(span, true, 100)
 		}
