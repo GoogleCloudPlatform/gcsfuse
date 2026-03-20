@@ -236,6 +236,16 @@
     - "OTHER_ERRORS"
     - "STALLED_READ_REQUEST"
 
+- metric-name: "gcsfuse/memory_bytes"
+  description: "The cumulative memory usage of GCSFuse."
+  unit: "By"
+  type: "int_up_down_counter"
+  attributes:
+  - attribute-name: component
+    attribute-type: string
+    values:
+    - "BlockPool"
+
 - metric-name: "test/updown_counter"
   description: "Test metric for updown counters."
   type: "int_up_down_counter"
