@@ -102,6 +102,7 @@ be interacting with the file system.`)
 		EnableMonitoring:                   cfg.IsMetricsEnabled(&newConfig.Metrics),
 		LogSeverity:                        newConfig.Logging.Severity,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
+		ChunkRetryDeadlineSecs:             newConfig.GcsRetries.ChunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,

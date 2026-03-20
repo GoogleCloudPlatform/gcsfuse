@@ -140,8 +140,9 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		fileName,
 	)
 	syncerBucket := gcsx.NewSyncerBucket(
-		1, // Append threshold
-		ChunkTransferTimeoutSecs,
+		1, /* appendThreshold */
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		t.bucket)
 
