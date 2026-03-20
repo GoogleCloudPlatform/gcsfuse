@@ -976,3 +976,25 @@ monitoring:
           zonal: true
         run: "TestPromKernelReaderSuite"
         run_on_gke: false
+
+symlink_handling:
+  - mounted_directory: "${MOUNTED_DIR}"
+    mounted_directory_secondary: "${MOUNTED_DIR_SECONDARY}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - run: TestStandardSymlinksTestSuite
+        flags:
+          - "--experimental-enable-standard-symlinks=true"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: true
+      - run: TestLegacySymlinksTestSuite
+        flags:
+          - "--experimental-enable-standard-symlinks=false"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: true
