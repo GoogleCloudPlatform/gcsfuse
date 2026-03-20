@@ -33,7 +33,7 @@ func BenchmarkOtelTracerSetCacheReadAttributes(b *testing.B) {
 	OtelTraceHandle.EndSpan(span)
 }
 
-func BenchmarkNoOpTracerSetCacheReadAttributesParallel(b *testing.B) {
+func BenchmarkOtelTracerSetCacheReadAttributesParallel(b *testing.B) {
 	ctx := context.Background()
 	_, span := OtelTraceHandle.StartSpan(ctx, "TestSpanName")
 
