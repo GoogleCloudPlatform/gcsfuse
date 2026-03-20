@@ -4,4 +4,4 @@
 
 perfmetrics/scripts/testing_on_gke/ @gargnitingoogle @kislaykishore @tulsishah @charith87 @GoogleCloudPlatform/gcsfuse-codeowners
 perfmetrics/scripts/ @meet2mky @tulsishah @GoogleCloudPlatform/gcsfuse-codeowners
-tools/ @tulsishah @GoogleCloudPlatform/gcsfuse-codeowners
+tools/ @meet2mky @tulsishah @GoogleCloudPlatform/gcsfuse-codeowners
