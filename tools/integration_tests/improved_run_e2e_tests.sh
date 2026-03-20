@@ -15,10 +15,11 @@
 
 # Script Usage Documentation
 usage() {
-  echo "Usage: $0 --bucket-location <bucket-location> [options]"
-  echo "    --bucket-location            <location>      The Google Cloud Storage bucket location (e.g., 'us-central1')."
-  echo ""
+  echo "Usage: $0 [options]"
   echo "Options:"
+  echo "    --bucket-location             <location>     Google Cloud Storage bucket location (e.g, 'us-central1') (Defaults to VM region if not provided)."
+  echo "    --project-id                  <project-id>   Google Cloud Project ID in which the bucket should be created. (e.g., 'gcs-fuse-test')"
+  echo "                                                 (Defaults to VM project if not provided or gcs-fuse-test if running on cloudtop)."
   echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
   echo "    --install-package-from-path   <path>         Google Cloud Storage bucket path for GCSFuse package for testing (e.g. gs://<bucket-name>/my-gcsfuse-package.rpm)"
   echo "                                                 This option is mutually exclusive with --test-installed-package. (Default: "")"
@@ -73,7 +74,6 @@ log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
 readonly GO_VERSION=$(cat .go-version)
-readonly DEFAULT_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
@@ -90,8 +90,21 @@ readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
 
-# Set default project id for tests.
-PROJECT_ID="${DEFAULT_PROJECT_ID}"
+# Extract GCE VM Project and Location.
+ZONE=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
+ZONE_NAME=$(basename "$ZONE")
+GCE_VM_LOCATION="${ZONE_NAME%-*}"
+GCE_VM_PROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id)
+log_info "Project ID from GCE VM: '$GCE_VM_PROJECT_ID'"
+log_info "Location from GCE VM: '$GCE_VM_LOCATION'"
+log_info "Running e2e script as '$(whoami)'"
+log_info "Current directory is '$(pwd)'"
+# If HOME is not set, find it dynamically and export it
+if [ -z "$HOME" ]; then
+    export HOME=$(getent passwd "$(whoami)" | cut -d: -f6)
+fi
+log_info "HOME is set to '$HOME'"
+
 # This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 
@@ -110,6 +123,8 @@ fi
 # Set default values for optional arguments
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 TEST_INSTALLED_PACKAGE=false
+BUCKET_LOCATION=""
+PROJECT_ID=""
 INSTALL_PACKAGE_FROM_PATH=""
 RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
@@ -120,7 +135,7 @@ PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parall
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -138,6 +153,10 @@ while (( $# >= 1 )); do
     case "$1" in
         --bucket-location)
             BUCKET_LOCATION="$2"
+            shift 2
+            ;;
+        --project-id)
+            PROJECT_ID="$2"
             shift 2
             ;;
         --package-level-parallelism)
@@ -200,8 +219,25 @@ validate_option_value() {
   fi
 }
 
-# Validate long options which require values.
+if [[ -z "$BUCKET_LOCATION" ]]; then
+  log_info "Bucket Location is not provided, using GCE VM Location '$GCE_VM_LOCATION' as bucket location."
+  BUCKET_LOCATION="$GCE_VM_LOCATION"
+fi
+
+if [[ -z "$PROJECT_ID" ]]; then 
+  log_info "Project ID is not provided, using GCE VM Project ID '$GCE_VM_PROJECT_ID' as Project ID."
+  PROJECT_ID="$GCE_VM_PROJECT_ID"
+fi
+
+# Check if it contains "cloudtop"
+if [[ "$PROJECT_ID" == *"cloudtop"* ]]; then
+  log_info "You are running this script on cloudtop. Manually overriding the Project ID to 'gcs-fuse-test'."
+  PROJECT_ID="gcs-fuse-test"
+fi
+
+# Validate long options which need values(default or user provided).
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
+validate_option_value "--project-id" "$PROJECT_ID"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
 
 # Validate test install package from path
