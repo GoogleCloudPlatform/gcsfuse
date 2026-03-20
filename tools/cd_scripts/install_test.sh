@@ -24,7 +24,11 @@ if [ -f /etc/debian_version ]; then
   sudo apt-get install -y python3.11 wget tar
 elif [ -f /etc/redhat-release ] || [ -f /etc/os-release ]; then
   # Use dnf for RHEL/Rocky/CentOS; falls back to yum if dnf is missing
-  sudo command -v dnf >/dev/null 2>&1 && sudo dnf install -y python3.11 wget tar || sudo yum install -y python3.11 wget tar
+  if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y python3.11 wget tar
+  else
+    sudo yum install -y python3.11 wget tar
+  fi
 fi
 
 # Ensure gcloud uses the newly installed Python 3.11
