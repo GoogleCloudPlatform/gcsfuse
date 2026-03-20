@@ -22,7 +22,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -70,7 +69,6 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 	// Service account id format is name@project-id.iam.gserviceaccount.com
 	serviceAccount = NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
 
-	localKeyFilePath = path.Join(os.TempDir(), "creds.json")
 
 	// Download credentials
 	client, err := secretmanager.NewClient(ctx)
@@ -87,7 +85,11 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 	}
 
 	// Create and write creds to local file.
-	file, err := os.Create(localKeyFilePath)
+	file, err := os.CreateTemp("", "creds-*.json")
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while creating temp credentials file %v", err))
+	}
+	localKeyFilePath = file.Name()
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while creating credentials file %v", err))
 	}
@@ -155,6 +157,7 @@ func RevokeCustomRoleFromServiceAccountOnBucket(ctx context.Context, storageClie
 
 func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
+	defer os.Remove(localKeyFilePath)
 	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 	defer RevokePermission(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 
