@@ -72,6 +72,7 @@ elif [ -f /etc/redhat-release ]; then
 fi
 
 export STORAGE_EMULATOR_HOST="http://localhost:9000"
+export STORAGE_EMULATOR_HOST_GRPC="localhost:8888"
 
 DEFAULT_IMAGE_NAME='gcr.io/cloud-devrel-public-resources/storage-testbench'
 DEFAULT_IMAGE_TAG='latest'
@@ -106,6 +107,7 @@ function cleanup() {
     echo "Cleanup testbench"
     sudo docker stop $CONTAINER_NAME
     unset STORAGE_EMULATOR_HOST;
+    unset STORAGE_EMULATOR_HOST_GRPC;
 }
 trap cleanup EXIT
 
@@ -119,6 +121,16 @@ curl -X POST --data-binary @test.json \
     -H "Content-Type: application/json" \
     "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
 rm test.json
+
+# Start the gRPC server on port 8888.
+echo "Starting the gRPC server on port 8888"
+response=$(curl -w "%{http_code}\n" --retry 5 --retry-max-time 40 -o /dev/null "$STORAGE_EMULATOR_HOST/start_grpc?port=8888")
+
+if [[ $response != 200 ]]
+then
+    echo "Testbench gRPC server did not start correctly"
+    exit 1
+fi
 
 # Run all emulator test packages in parallel.
 go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
