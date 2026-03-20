@@ -119,17 +119,21 @@ type entry struct {
 	implicitDir bool
 }
 
-// Size returns the memory-size (resident set size) of the receiver entry.
-// The size calculated by the unsafe.Sizeof calls, and
-// NestedSizeOfGcsMinObject etc. does not account for
-// hidden members in data structures like maps, slices, linked-lists etc.
-// To account for those, we are adding a fixed constant of 515 bytes (deduced from
-// benchmark runs) to heap-size per positive stat-cache entry
-// to calculate a size closer to the actual memory utilization.
+// Size returns the approximate memory-size (resident set size) of the receiver entry.
+// It estimates the memory consumption on the heap and converts it to an estimated RSS:
+//  1. util.UnsafeSizeOf(&e): The base size of the entry struct itself.
+//  2. len(e.key): The content length of the entry's key string.
+//  3. 2 * util.UnsafeSizeOf(&e.key): The string header overhead of the key string. One
+//     copy is stored in the cache map, and another in the linked list.
+//  4. util.NestedSizeOfGcsMinObject(e.m): The deep size of the gcs.MinObject, if present.
+//  5. util.NestedSizeOfGcsFolder(e.f): The deep size of the gcs.Folder, if present.
+//  6. A fixed 515-byte constant is added for positive MinObject entries. Because
+//     unsafe.Sizeof and NestedSizeOfGcsMinObject do not account for hidden allocations
+//     in nested structures (like maps, slices, linked-lists etc.), this constant
+//     was deduced from benchmark runs to approximate actual memory utilization.
+//  7. The final heap size is multiplied by util.HeapSizeToRssConversionFactor to
+//     estimate the Resident Set Size (RSS).
 func (e entry) Size() uint64 {
-	// First, calculate size on heap (including folder size also in case of hns buckets, in case of non-hns buckets 0 will be added as e.f will be Nil ).
-	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
-	// struct stored in the cache map and in the cache linked-list.
 	size := uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
 		size += 515
