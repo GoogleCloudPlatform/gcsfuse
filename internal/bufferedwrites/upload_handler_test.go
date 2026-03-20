@@ -15,6 +15,7 @@
 package bufferedwrites
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"errors"
 	"fmt"
 	"strconv"
@@ -64,6 +65,7 @@ func (t *UploadHandlerTest) SetupTest() {
 		MaxBlocksPerFile:         maxBlocks,
 		BlockSize:                blockSize,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		TraceHandle:              tracing.NewNoopTracer(),
 	})
 }
 
@@ -84,6 +86,7 @@ func (t *UploadHandlerTest) createUploadHandlerWithObjectOfGivenSize(size uint64
 		MaxBlocksPerFile:         maxBlocks,
 		BlockSize:                blockSize,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		TraceHandle:              tracing.NewNoopTracer(),
 	})
 }
 
