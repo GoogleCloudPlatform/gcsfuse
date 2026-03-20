@@ -41,6 +41,7 @@ var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted 
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
+var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
@@ -265,6 +266,10 @@ func ParseSetUpFlags() {
 
 	if !*integrationTest {
 		log.Print("Pass --integrationTest flag to run the tests.")
+		os.Exit(0)
+	}
+	if *isZonalBucketRun {
+		log.Printf("Skipping package run because at GCSFuse version 2.5.3 we are not supporting zonal buckets.")
 		os.Exit(0)
 	}
 }
