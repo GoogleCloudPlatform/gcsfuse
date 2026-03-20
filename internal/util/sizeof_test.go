@@ -43,7 +43,7 @@ var (
 	sizeOfEmptyStringIntMap = int(unsafe.Sizeof(stringIntMap))
 
 	sizeOfEmptyMinObject = int(unsafe.Sizeof(gcs.MinObject{}))
-	sizeOfEmptyStruct = int(unsafe.Sizeof(struct{}{}))
+	sizeOfEmptyStruct    = int(unsafe.Sizeof(struct{}{}))
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -283,18 +283,36 @@ func TestNestedSizeOfGcsMinObject(t *testing.T) {
 }
 
 func TestNestedSizeOfGcsFolder(t *testing.T) {
-	// A nil folder has 0 size.
-	assert.Equal(t, 0, NestedSizeOfGcsFolder(nil))
-
-	// An empty folder has size of the struct alone.
 	f1 := &gcs.Folder{}
-	expectedSizeF1 := UnsafeSizeOf(f1)
-	assert.Equal(t, expectedSizeF1, NestedSizeOfGcsFolder(f1))
-
-	// A folder with a name has the struct size + name string length.
 	f2 := &gcs.Folder{
 		Name: "folder/name/",
 	}
-	expectedSizeF2 := UnsafeSizeOf(f2) + len("folder/name/")
-	assert.Equal(t, expectedSizeF2, NestedSizeOfGcsFolder(f2))
+
+	testCases := []struct {
+		name     string
+		folder   *gcs.Folder
+		expected int
+	}{
+		{
+			name:     "NilFolder",
+			folder:   nil,
+			expected: 0,
+		},
+		{
+			name:     "EmptyFolder",
+			folder:   f1,
+			expected: UnsafeSizeOf(f1),
+		},
+		{
+			name:     "FolderWithName",
+			folder:   f2,
+			expected: UnsafeSizeOf(f2) + len(f2.Name),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(st *testing.T) {
+			assert.Equal(st, tc.expected, NestedSizeOfGcsFolder(tc.folder))
+		})
+	}
 }
