@@ -308,4 +308,3 @@ func TestNestedSizeOfGcsFolder(t *testing.T) {
 	expectedSizeF2 := UnsafeSizeOf(f2) + len("folder/name/")
 	assert.Equal(t, expectedSizeF2, NestedSizeOfGcsFolder(f2))
 }
-
