@@ -149,15 +149,15 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].Configs[8].Run = "TestKernelReader_DefaultAndPrecedence"
 		cfg.FlagOptimizations[0].Configs[8].Flags = []string{
 			"--implicit-dirs --log-severity=trace",
-			"--implicit-dirs --log-severity=trace --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache",
+			"--implicit-dirs --log-severity=trace --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache",
 			"--implicit-dirs --log-severity=trace --enable-buffered-read=true",
-			"--implicit-dirs --log-severity=trace --enable-buffered-read=true --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both",
+			"--implicit-dirs --log-severity=trace --enable-buffered-read=true --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both",
 		}
 		cfg.FlagOptimizations[0].Configs[8].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[8].RunOnGKE = false
 
 		cfg.FlagOptimizations[0].Configs[9].Run = "TestFileCache_KernelReaderDisabled"
-		cfg.FlagOptimizations[0].Configs[9].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"}
+		cfg.FlagOptimizations[0].Configs[9].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"}
 		cfg.FlagOptimizations[0].Configs[9].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[9].RunOnGKE = false
 
