@@ -176,13 +176,17 @@ func interestingNames() (names []string) {
 	// All codepoints in Unicode general categories C* (control and special) and
 	// Z* (space), except for:
 	//
-	//  *  Cn (non-character and reserved), which is not included in unicode.C.
+	//  *  Cn (non-character and reserved), which is large.
 	//  *  Co (private usage), which is large.
 	//  *  Cs (surrages), which is large.
 	//  *  U+000A and U+000D, which are forbidden by the docs.
 	//
 	for r := rune(0); r <= unicode.MaxRune; r++ {
 		if !unicode.In(r, unicode.C) && !unicode.In(r, unicode.Z) {
+			continue
+		}
+
+		if unicode.In(r, unicode.Cn) {
 			continue
 		}
 
