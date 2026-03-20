@@ -984,6 +984,13 @@ params:
         - name: "aiml-checkpointing"
           value: 0
 
+  - config-path: "metadata-cache.stat-cache-trie"
+    flag-name: "stat-cache-trie"
+    type: "bool"
+    usage: >-
+      Use radix-trie based data structure to implement the stat_cache. The default is false.
+    default: "false"
+
   - config-path: "metadata-cache.stat-cache-max-size-mb"
     flag-name: "stat-cache-max-size-mb"
     type: "int"
