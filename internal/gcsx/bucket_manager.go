@@ -42,6 +42,7 @@ type BucketConfig struct {
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 	StatCacheMaxSizeMB                 uint64
+	StatCacheTrie                      bool
 	// Config for TTL of entries for existing file in stat cache
 	StatCacheTTL time.Duration
 	// Config for TTL of entries for non-existing file in stat cache
@@ -98,6 +99,7 @@ type bucketManager struct {
 	config          BucketConfig
 	storageHandle   storage.StorageHandle
 	sharedStatCache *lru.Cache
+	sharedStatTrie  metadata.StatCache
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -106,7 +108,10 @@ type bucketManager struct {
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c *lru.Cache
-	if config.StatCacheMaxSizeMB > 0 {
+	var ct metadata.StatCache
+	if config.StatCacheTrie && config.StatCacheMaxSizeMB > 0 {
+		ct = metadata.NewStatCacheTrie(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+	} else if config.StatCacheMaxSizeMB > 0 {
 		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
 	}
 
@@ -114,6 +119,7 @@ func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) 
 		config:          config,
 		storageHandle:   storageHandle,
 		sharedStatCache: c,
+		sharedStatTrie:  ct,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -230,12 +236,20 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Enable cached StatObject results based on stat cache config.
 	// Disabling stat cache with below config also disables negative stat cache.
-	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
+	if bm.config.StatCacheTTL != 0 && (bm.sharedStatCache != nil || bm.sharedStatTrie != nil) {
 		var statCache metadata.StatCache
-		if isMultibucketMount {
-			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name)
+		if bm.sharedStatTrie != nil {
+			if isMultibucketMount {
+				statCache = metadata.NewStatCacheTrieBucketView(bm.sharedStatTrie, name)
+			} else {
+				statCache = metadata.NewStatCacheTrieBucketView(bm.sharedStatTrie, "")
+			}
 		} else {
-			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, "")
+			if isMultibucketMount {
+				statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name)
+			} else {
+				statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, "")
+			}
 		}
 
 		b = caching.NewFastStatBucket(
