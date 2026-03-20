@@ -26,6 +26,11 @@ const (
 	// setting. This is more than sufficient to saturate the 200 Gbps network bandwidth
 	// on a single VM. Revise the numbers if you plan to support higher bandwidth VMs.
 	maxBackgroundLimit = 192
+
+	// DefaultFileCacheSizeScanFrequencySecs is default period in seconds
+	// after which the scanning and empty-dir deletion of the cache-dir
+	// should be repeated.
+	DefaultFileCacheSizeScanFrequencySecs = 10
 )
 
 func DefaultMaxBackground() int {
