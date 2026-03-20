@@ -78,6 +78,10 @@ const (
 	ReadFile = "fs.file.read"
 	// WriteFile executes a standard write operation to a file handle.
 	WriteFile = "fs.file.write"
+	// WriteFileStaged traces a write operation using the legacy staged writes.
+	WriteFileStaged = "fs.file.write.staged"
+	// WriteFileStreaming traces a write operation using the buffered writes handler.
+	WriteFileStreaming = "fs.file.write.streaming"
 	// SyncFile flushes buffered data for a specific file to stable storage.
 	SyncFile = "fs.file.sync"
 	// FlushFile is called on every close of a file descriptor to flush changes.
@@ -114,4 +118,17 @@ const (
 	Fallocate = "fs.fallocate"
 	// SyncFS flushes all buffered data for the entire filesystem to disk.
 	SyncFS = "fs.sync_fs"
+
+	// --- Streaming Upload Operations ---
+
+	// SyncFileStaged traces the synchronization of the staged temp file to GCS.
+	SyncFileStaged = "fs.file.sync.staged"
+	// SyncFileStreaming traces the synchronization of buffered writes to GCS.
+	SyncFileStreaming = "fs.file.sync.streaming"
+	// StreamingUploadBlock traces the upload of a single streaming block to GCS.
+	StreamingUploadBlock = "streaming.block.upload"
+	// StreamingUploadFinalize traces the finalization of the streaming upload.
+	StreamingUploadFinalize = "streaming.upload.finalize"
+	// StreamingUploadFlush traces the flushing of pending streaming writes.
+	StreamingUploadFlush = "streaming.upload.flush"
 )
