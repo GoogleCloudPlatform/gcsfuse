@@ -33,19 +33,6 @@ func BenchmarkOtelTracerSetCacheReadAttributes(b *testing.B) {
 	OtelTraceHandle.EndSpan(span)
 }
 
-func BenchmarkOtelTracerSetCacheReadAttributesParallel(b *testing.B) {
-	ctx := context.Background()
-	_, span := OtelTraceHandle.StartSpan(ctx, "TestSpanName")
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			OtelTraceHandle.SetCacheReadAttributes(span, true, 100)
-		}
-	})
-
-	OtelTraceHandle.EndSpan(span)
-}
-
 // Noop Trace Handle benchmark tests
 
 var NoopTraceHandle = NewNoopTracer()
