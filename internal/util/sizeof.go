@@ -16,6 +16,7 @@ package util
 
 import (
 	"reflect"
+	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"google.golang.org/api/googleapi"
@@ -93,11 +94,17 @@ func init() {
 // For e.g. if an int is 8 bytes and an empty string is 16 bytes,
 // then UnsafeSizeOf(&struct{int, string})
 // return 24 (8+16).
+// Warning: This function uses generics and unsafe.Sizeof directly
+// without reflection for performance reasons. It MUST ONLY be called
+// with a pointer to a concrete type (e.g. *gcs.Folder). If it is
+// called with a pointer to an interface (e.g. *any), it will return
+// the size of the interface header (16 bytes) rather than the size
+// of the underlying concrete type.
 func UnsafeSizeOf[T any](ptr *T) int {
 	if ptr == nil {
 		return 0
 	}
-	return int(reflect.TypeOf(*ptr).Size())
+	return int(unsafe.Sizeof(*ptr))
 }
 
 func contentSizeOfString(s *string) int {

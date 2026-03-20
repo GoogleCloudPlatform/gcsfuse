@@ -22,21 +22,10 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/googleapi"
 )
 
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type SizeofTest struct {
-	suite.Suite
-}
-
-func TestSizeOfSuite(t *testing.T) {
-	suite.Run(t, new(SizeofTest))
-}
+// //////////////////////////////////////////////////////////////////////
 
 var (
 	i            int
@@ -45,105 +34,80 @@ var (
 	b            byte
 	stringIntMap map[string]int
 
-	sizeOfInt               int
-	sizeOfIntPtr            int
-	sizeOfUInt32            int
-	sizeOfUInt32Ptr         int
-	sizeOfByte              int
-	sizeOfEmptyIntArray     int
-	sizeOfEmptyStringIntMap int
-	sizeOfEmptyStruct       int
-	sizeOfEmptyMinObject    int
-)
-
-func (t *SizeofTest) SetupTest() {
-	type emptyStruct struct{}
-
-	sizeOfInt = int(unsafe.Sizeof(i))
-	sizeOfIntPtr = int(unsafe.Sizeof(&i))
-	sizeOfUInt32 = int(unsafe.Sizeof(ui32))
-	sizeOfUInt32Ptr = int(unsafe.Sizeof(&ui32))
-	sizeOfByte = int(unsafe.Sizeof(b))
-	sizeOfEmptyIntArray = int(unsafe.Sizeof(intArray))
+	sizeOfInt               = int(unsafe.Sizeof(i))
+	sizeOfIntPtr            = int(unsafe.Sizeof(&i))
+	sizeOfUInt32            = int(unsafe.Sizeof(ui32))
+	sizeOfUInt32Ptr         = int(unsafe.Sizeof(&ui32))
+	sizeOfByte              = int(unsafe.Sizeof(b))
+	sizeOfEmptyIntArray     = int(unsafe.Sizeof(intArray))
 	sizeOfEmptyStringIntMap = int(unsafe.Sizeof(stringIntMap))
 
-	sizeOfEmptyStruct = int(unsafe.Sizeof(emptyStruct{}))
-	assert.Equal(t.T(), 0, sizeOfEmptyStruct)
-
 	sizeOfEmptyMinObject = int(unsafe.Sizeof(gcs.MinObject{}))
-}
+	sizeOfEmptyStruct    = int(unsafe.Sizeof(struct{}{}))
+)
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *SizeofTest) TestUnsafeSizeOf() {
-	for _, tc := range []struct {
-		t             any
-		expected_size int
-	}{
-		{
-			t:             i,
-			expected_size: sizeOfInt,
-		},
-		{
-			t:             &i,
-			expected_size: sizeOfIntPtr,
-		},
-		{
-			t:             ui32,
-			expected_size: sizeOfUInt32,
-		},
-		{
-			t:             &ui32,
-			expected_size: sizeOfUInt32Ptr,
-		},
-		{
-			t: struct {
-			}{},
-			expected_size: sizeOfEmptyStruct,
-		},
-		{
-			t: struct {
-				x int
-			}{},
-			expected_size: sizeOfEmptyStruct + sizeOfInt,
-		},
-		{
-			t: struct {
-				a          int
-				b1, b2, b3 byte
-				c          string
-			}{},
-			expected_size: sizeOfEmptyStruct + sizeOfInt + 3*sizeOfByte + 5 /*for-padding-for-alignment*/ + emptyStringSize,
-		},
-		{
-			t:             "",
-			expected_size: emptyStringSize,
-		},
-		{
-			t:             "hello",
-			expected_size: emptyStringSize,
-		},
-		{
-			t:             []int{1, 2, 3},
-			expected_size: sizeOfEmptyIntArray,
-		},
-		{
-			t:             []string{"few ", "fewfgwe", "", "fewawef"},
-			expected_size: emptyStringArraySize,
-		},
-		{
-			t:             map[string]int{"few ": 432, "fewfgwe": -21, "": 1, "fewawef": 0},
-			expected_size: sizeOfEmptyStringIntMap,
-		},
-	} {
-		calculatedSize := UnsafeSizeOf(&tc.t)
-		assert.Equal(t.T(), tc.expected_size, calculatedSize)
+func TestUnsafeSizeOf(t *testing.T) {
+	assert.Equal(t, sizeOfInt, UnsafeSizeOf(&i))
+
+	ptrToI := &i
+	assert.Equal(t, sizeOfIntPtr, UnsafeSizeOf(&ptrToI))
+
+	assert.Equal(t, sizeOfUInt32, UnsafeSizeOf(&ui32))
+
+	ptrToUi32 := &ui32
+	assert.Equal(t, sizeOfUInt32Ptr, UnsafeSizeOf(&ptrToUi32))
+
+	var emptyStructVal struct{}
+	assert.Equal(t, sizeOfEmptyStruct, UnsafeSizeOf(&emptyStructVal))
+
+	var structVal1 struct {
+		x int
 	}
+	assert.Equal(t, sizeOfEmptyStruct+sizeOfInt, UnsafeSizeOf(&structVal1))
+
+	var structVal2 struct {
+		a          int
+		b1, b2, b3 byte
+		c          string
+	}
+	assert.Equal(t, sizeOfEmptyStruct+sizeOfInt+3*sizeOfByte+5 /*for-padding-for-alignment*/ +emptyStringSize, UnsafeSizeOf(&structVal2))
+
+	emptyStr := ""
+	assert.Equal(t, emptyStringSize, UnsafeSizeOf(&emptyStr))
+
+	helloStr := "hello"
+	assert.Equal(t, emptyStringSize, UnsafeSizeOf(&helloStr))
+
+	intArrayVal := []int{1, 2, 3}
+	assert.Equal(t, sizeOfEmptyIntArray, UnsafeSizeOf(&intArrayVal))
+
+	stringArrayVal := []string{"few ", "fewfgwe", "", "fewawef"}
+	assert.Equal(t, emptyStringArraySize, UnsafeSizeOf(&stringArrayVal))
+
+	stringIntMapVal := map[string]int{"few ": 432, "fewfgwe": -21, "": 1, "fewawef": 0}
+	assert.Equal(t, sizeOfEmptyStringIntMap, UnsafeSizeOf(&stringIntMapVal))
+
+	var emptyMinObj gcs.MinObject
+	assert.Equal(t, int(unsafe.Sizeof(emptyMinObj)), UnsafeSizeOf(&emptyMinObj))
+
+	ptrToM := &emptyMinObj
+	assert.Equal(t, int(unsafe.Sizeof(ptrToM)), UnsafeSizeOf(&ptrToM))
+
+	var emptyFolder gcs.Folder
+	assert.Equal(t, int(unsafe.Sizeof(emptyFolder)), UnsafeSizeOf(&emptyFolder))
+
+	ptrToF := &emptyFolder
+	assert.Equal(t, int(unsafe.Sizeof(ptrToF)), UnsafeSizeOf(&ptrToF))
+
+	var nilInt *int = nil
+	assert.Equal(t, 0, UnsafeSizeOf(nilInt))
 }
 
-func (t *SizeofTest) TestContentSizeOfString() {
+func TestContentSizeOfString(t *testing.T) {
 	for _, tc := range []struct {
 		str                   string
 		expected_content_size int
@@ -162,11 +126,11 @@ func (t *SizeofTest) TestContentSizeOfString() {
 			expected_content_size: 11,
 		},
 	} {
-		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfString(&tc.str))
+		assert.Equal(t, tc.expected_content_size, contentSizeOfString(&tc.str))
 	}
 }
 
-func (t *SizeofTest) TestContentSizeOfArrayOfStrings() {
+func TestContentSizeOfArrayOfStrings(t *testing.T) {
 	for _, tc := range []struct {
 		strs                  []string
 		expected_content_size int
@@ -192,11 +156,11 @@ func (t *SizeofTest) TestContentSizeOfArrayOfStrings() {
 			expected_content_size: 2*emptyStringSize + 5 + 11,
 		},
 	} {
-		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfArrayOfStrings(&tc.strs))
+		assert.Equal(t, tc.expected_content_size, contentSizeOfArrayOfStrings(&tc.strs))
 	}
 }
 
-func (t *SizeofTest) TestContentSizeOfStringToStringMap() {
+func TestContentSizeOfStringToStringMap(t *testing.T) {
 	for _, tc := range []struct {
 		m                     map[string]string
 		expected_content_size int
@@ -222,11 +186,11 @@ func (t *SizeofTest) TestContentSizeOfStringToStringMap() {
 			expected_content_size: emptyStringSize + 1 + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringSize + 5,
 		},
 	} {
-		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfStringToStringMap(&tc.m))
+		assert.Equal(t, tc.expected_content_size, contentSizeOfStringToStringMap(&tc.m))
 	}
 }
 
-func (t *SizeofTest) TestContentSizeOfStringToStringArrayMap() {
+func TestContentSizeOfStringToStringArrayMap(t *testing.T) {
 	for _, tc := range []struct {
 		m                     map[string][]string
 		expected_content_size int
@@ -252,11 +216,11 @@ func (t *SizeofTest) TestContentSizeOfStringToStringArrayMap() {
 			expected_content_size: emptyStringSize + 1 + emptyStringArraySize + emptyStringSize + 2 + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringArraySize + emptyStringSize + 5 + emptyStringSize + 4,
 		},
 	} {
-		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfStringToStringArrayMap(&tc.m))
+		assert.Equal(t, tc.expected_content_size, contentSizeOfStringToStringArrayMap(&tc.m))
 	}
 }
 
-func (t *SizeofTest) TestContentSizeOfServerResponse() {
+func TestContentSizeOfServerResponse(t *testing.T) {
 	for _, tc := range []struct {
 		sr                    googleapi.ServerResponse
 		expected_content_size int
@@ -282,11 +246,11 @@ func (t *SizeofTest) TestContentSizeOfServerResponse() {
 			expected_content_size: emptyStringSize + 1 + emptyStringArraySize + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringArraySize + emptyStringSize + 5,
 		},
 	} {
-		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfServerResponse(&tc.sr))
+		assert.Equal(t, tc.expected_content_size, contentSizeOfServerResponse(&tc.sr))
 	}
 }
 
-func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
+func TestNestedSizeOfGcsMinObject(t *testing.T) {
 	const name string = "my-object"
 	const contentEncoding string = "gzip/none"
 	var generation int64 = 858734898
@@ -315,10 +279,10 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 	expectedSize += len(name) + len(contentEncoding) + sizeOfUInt32
 	expectedSize += customMetadataFieldsContentSize
 
-	assert.Equal(t.T(), expectedSize, NestedSizeOfGcsMinObject(&m))
+	assert.Equal(t, expectedSize, NestedSizeOfGcsMinObject(&m))
 }
 
-func (t *SizeofTest) TestNestedSizeOfGcsFolder() {
+func TestNestedSizeOfGcsFolder(t *testing.T) {
 	f1 := &gcs.Folder{}
 	f2 := &gcs.Folder{
 		Name: "folder/name/",
@@ -347,7 +311,7 @@ func (t *SizeofTest) TestNestedSizeOfGcsFolder() {
 	}
 
 	for _, tc := range testCases {
-		t.T().Run(tc.name, func(st *testing.T) {
+		t.Run(tc.name, func(st *testing.T) {
 			assert.Equal(st, tc.expected, NestedSizeOfGcsFolder(tc.folder))
 		})
 	}
