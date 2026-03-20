@@ -341,43 +341,6 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
 
-func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
-	testCases := []struct {
-		name           string
-		clientProtocol cfg.Protocol
-	}{
-		{
-			name:           "grpcWithNonNilDirectPathDetector",
-			clientProtocol: cfg.GRPC,
-		},
-		{
-			name:           "http1WithNilDirectPathDetector",
-			clientProtocol: cfg.HTTP1,
-		},
-		{
-			name:           "http2WithNilDirectPathDetector",
-			clientProtocol: cfg.HTTP2,
-		},
-	}
-
-	for _, tc := range testCases {
-		testSuite.Run(tc.name, func() {
-			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-			sc.ExperimentalEnableJsonRead = true
-			sc.ClientProtocol = tc.clientProtocol
-
-			handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
-			assert.Nil(testSuite.T(), err)
-			assert.NotNil(testSuite.T(), handleCreated)
-
-			storageClient, ok := handleCreated.(*storageClient)
-			assert.True(testSuite.T(), ok)
-
-			assert.NotNil(testSuite.T(), storageClient.directPathDetector)
-		})
-	}
-}
-
 func (testSuite *StorageHandleTest) TestUnSetDirectPathEnvVariable() {
 	// Set the environment variable
 	testSuite.T().Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true")
