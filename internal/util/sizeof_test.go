@@ -42,17 +42,7 @@ var (
 	sizeOfEmptyIntArray     = int(unsafe.Sizeof(intArray))
 	sizeOfEmptyStringIntMap = int(unsafe.Sizeof(stringIntMap))
 
-	m = gcs.MinObject{
-		Name:            "",
-		Size:            0,
-		Generation:      0,
-		MetaGeneration:  0,
-		Updated:         time.Time{},
-		Metadata:        map[string]string{},
-		ContentEncoding: "",
-	}
-	sizeOfEmptyGcsMinObject = int(unsafe.Sizeof(m))
-
+	sizeOfEmptyMinObject = int(unsafe.Sizeof(gcs.MinObject{}))
 	sizeOfEmptyStruct = int(unsafe.Sizeof(struct{}{}))
 )
 
@@ -84,7 +74,7 @@ func TestUnsafeSizeOf(t *testing.T) {
 		b1, b2, b3 byte
 		c          string
 	}
-	assert.Equal(t, sizeOfEmptyStruct+sizeOfInt+3*sizeOfByte+5+emptyStringSize, UnsafeSizeOf(&structVal2))
+	assert.Equal(t, sizeOfEmptyStruct+sizeOfInt+3*sizeOfByte+5 /*for-padding-for-alignment*/ +emptyStringSize, UnsafeSizeOf(&structVal2))
 
 	emptyStr := ""
 	assert.Equal(t, emptyStringSize, UnsafeSizeOf(&emptyStr))
@@ -285,7 +275,7 @@ func TestNestedSizeOfGcsMinObject(t *testing.T) {
 		CRC32C:          &crc32,
 	}
 
-	var expectedSize int = sizeOfEmptyGcsMinObject
+	var expectedSize int = sizeOfEmptyMinObject
 	expectedSize += len(name) + len(contentEncoding) + sizeOfUInt32
 	expectedSize += customMetadataFieldsContentSize
 
