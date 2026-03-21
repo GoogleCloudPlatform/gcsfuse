@@ -86,25 +86,34 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize() {
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
 }
 
+// TestRangeReadsBeyondReadChunkSizeWithFileCached verifies that read operations beyond the first 8MiB chunk
+// result in a cache hit if the file was previously cached by a background download job.
 func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithFileCached() {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, s.T())
 
+	// Read first chunk (0-128KB) to trigger the background file cache download job.
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
-	// RetryUntil we have exactly 1 Download Job logs
-	s.T().Logf("Waiting for exactly 1 file cache Job completion log in GCSFuse Logs")
+
+	// Wait until the background job downloads both the first 8MiB chunk and the second 8MiB-15MiB chunk.
+	// This ensures the read at 10MiB is always a cache hit, making the test deterministic.
+	s.T().Logf("Waiting for file cache Job with 2 download entries in GCSFuse Logs")
 	JobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, error) {
 		logs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
-		if len(logs) == 1 {
-			s.T().Logf("Found file cache Job completion log: %v", logs[0])
+		if len(logs) == 1 && len(logs[0].JobEntries) == 2 {
+			s.T().Logf("Found file cache Job with 2 entries: %v", logs[0])
 			return logs, nil
 		}
-		return nil, fmt.Errorf("expected 1 Job log, found %d", len(logs))
+		return nil, fmt.Errorf("expected 1 Job with 2 entries, found %d jobs", len(logs))
 	})
 	require.Equal(s.T(), expectedOutcome1.ObjectName, JobLog[0].ObjectName)
 
+	// Read the second chunk at offset 10MiB. This should be a cache hit since the background job
+	// was verified to have downloaded the second chunk (reaching up to 15MiB).
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset10MiB, s.T())
 
+	// Validate results for both reads, verifying the second one is a cache hit.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+	require.Len(s.T(), structuredReadLogs, 2, "Should have exactly 2 read records in logs")
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
 
