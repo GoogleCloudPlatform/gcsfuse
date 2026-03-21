@@ -31,9 +31,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -88,35 +88,44 @@ func validateInactiveReaderClosedLog(t *testing.T, logFile, objectName string, s
 	// Be specific about the object name in the expected message.
 	expectedMsgSubstring := fmt.Sprintf("Closing reader for object %q due to inactivity.", objectName)
 
-	file, err := os.Open(logFile)
-	require.NoError(t, err, "Failed to open log file")
-	defer file.Close()
+	checkFn := func() (bool, error) {
+		file, err := os.Open(logFile)
+		if err != nil {
+			return false, fmt.Errorf("failed to open log file: %w", err)
+		}
+		defer file.Close()
 
-	logLines, err := loadLogLines(file)
-	require.NoError(t, err, "Failed to read log file")
+		logLines, err := loadLogLines(file)
+		if err != nil {
+			return false, fmt.Errorf("failed to read log file: %w", err)
+		}
 
-	found := false
-	for _, line := range logLines {
-		logEntry, err := read_logs.ParseJsonLogLineIntoLogEntryStruct(line) // Assuming read_logs can parse general log lines too or a more generic parser is available.
-		// If parsing fails, it might be a non-JSON line or a different structured log.
-		// For this specific message, we expect it to be in the "Message" field of a structured log.
-
-		if err == nil && logEntry != nil {
-			// Check if the log entry's timestamp is within the expected window.
-			if (logEntry.Timestamp.After(startTime) || logEntry.Timestamp.Equal(startTime)) &&
-				(logEntry.Timestamp.Before(endTime) || logEntry.Timestamp.Equal(endTime)) {
-				if strings.Contains(logEntry.Message, expectedMsgSubstring) {
-					found = true
-					break
+		found := false
+		for _, line := range logLines {
+			logEntry, err := read_logs.ParseJsonLogLineIntoLogEntryStruct(line)
+			if err == nil && logEntry != nil {
+				if (logEntry.Timestamp.After(startTime) || logEntry.Timestamp.Equal(startTime)) &&
+					(logEntry.Timestamp.Before(endTime) || logEntry.Timestamp.Equal(endTime)) {
+					if strings.Contains(logEntry.Message, expectedMsgSubstring) {
+						found = true
+						break
+					}
 				}
 			}
 		}
+		if found {
+			return true, nil
+		}
+		return false, fmt.Errorf("expected log message substring %q not found between %s and %s", expectedMsgSubstring, startTime, endTime)
 	}
 
 	if shouldBePresent {
-		require.True(t, found, "Expected log message substring '%s' not found between %v and %v", expectedMsgSubstring, startTime, endTime)
+		_ = operations.RetryUntil(context.Background(), t, 500*time.Millisecond, 5*time.Second, checkFn)
 	} else {
-		require.False(t, found, "Unexpected log message substring '%s' found between %v and %v", expectedMsgSubstring, startTime, endTime)
+		found, err := checkFn()
+		if found {
+			t.Fatalf("Unexpected log message found: %v", err)
+		}
 	}
 }
 

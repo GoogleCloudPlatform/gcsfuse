@@ -848,18 +848,30 @@ run_test_group() {
 }
 
 run_e2e_tests_for_emulator() {
+  local package_name="emulator_tests"
+  local bucket_type="emulator"
+  local start=$SECONDS exit_code=0
+
   log_info_locked "Started running e2e tests for emulator."
-  emulator_test_log=$(create_file_helper "running_package_logs/emulator_package.txt")
+  emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
-    acquire_lock "$LOG_LOCK_FILE"
-    log_error ""
-    log_error "--- Emulator Tests Failed ---"
-    cat "$emulator_test_log"
-    release_lock "$LOG_LOCK_FILE"
-    return 1
+    exit_code=1
+    log_info_locked "Failed e2e tests for emulator."
+    local dest_dir="${OUTPUT_DIR}/failed_package_logs/${bucket_type}"
+    mkdir -p "$dest_dir"
+    cp "$emulator_test_log" "$dest_dir/${package_name}.txt"
+  else
+    log_info_locked "Emulator tests successful."
+    local dest_dir="${OUTPUT_DIR}/success_package_logs/${bucket_type}"
+    mkdir -p "$dest_dir"
+    cp "$emulator_test_log" "$dest_dir/${package_name}.txt"
   fi
-  log_info_locked "Emulator tests successful."
-  return 0
+
+  local end=$SECONDS
+  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  rm -rf "$emulator_test_log"
+
+  return "$exit_code"
 }
 
 main() {
