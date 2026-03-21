@@ -150,8 +150,8 @@ func writeValue(path, value string) error {
 	return err
 }
 
-// ensureFusectlMounted checks if /sys/fs/fuse/connections is empty and attempts to mount fusectl if it is.
-func ensureFusectlMounted() {
+// EnsureFusectlMounted checks if /sys/fs/fuse/connections is empty and attempts to mount fusectl if it is.
+func EnsureFusectlMounted() {
 	connectionsDir := "/sys/fs/fuse/connections"
 	dirs, err := os.ReadDir(connectionsDir)
 	if err != nil {
@@ -191,7 +191,6 @@ func ensureFusectlMounted() {
 // applyDirectly iterates through all parameters in the config, resolves their
 // system paths, and attempts to apply them to the current host using writeValue helper.
 func (c *KernelParamsConfig) applyDirectly(mountPoint string) {
-	ensureFusectlMounted()
 	major, minor, err := getDeviceMajorMinor(mountPoint)
 	if err != nil {
 		logger.Warnf("Failed to apply kernel parameters directly on mount point %q due to err %v", mountPoint, err)

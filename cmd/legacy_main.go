@@ -379,6 +379,10 @@ func logGCSFuseMountInformation(mountInfo *mountInfo) {
 
 func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	newConfig := mountInfo.config
+
+	// Ensure fusectl is mounted for all mounts (VM/BareMetal users with sudo).
+	kernelparams.EnsureFusectlMounted()
+
 	// Ideally this call to UpdateDefaultLogger (which internally creates a
 	// new defaultLogger with user provided log-format and custom attribute 'fsName-MountInstanceID')
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
