@@ -96,14 +96,18 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithFileCached() {
 
 	// Wait until the background job downloads both the first 8MiB chunk and the second 8MiB-15MiB chunk.
 	// This ensures the read at 10MiB is always a cache hit, making the test deterministic.
-	s.T().Logf("Waiting for file cache Job with 2 download entries in GCSFuse Logs")
+	s.T().Logf("Waiting for file cache Job with data reaching %d bytes", largeFileSize)
 	JobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, error) {
 		logs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
-		if len(logs) == 1 && len(logs[0].JobEntries) == 2 {
-			s.T().Logf("Found file cache Job with 2 entries: %v", logs[0])
-			return logs, nil
+		if len(logs) == 1 {
+			for _, entry := range logs[0].JobEntries {
+				if entry.Offset >= largeFileSize {
+					s.T().Logf("Found file cache Job with sufficient data (offset %d): %v", entry.Offset, logs[0])
+					return logs, nil
+				}
+			}
 		}
-		return nil, fmt.Errorf("expected 1 Job with 2 entries, found %d jobs", len(logs))
+		return nil, fmt.Errorf("expected 1 Job with an entry >= %d bytes, found %d jobs", largeFileSize, len(logs))
 	})
 	require.Equal(s.T(), expectedOutcome1.ObjectName, JobLog[0].ObjectName)
 
