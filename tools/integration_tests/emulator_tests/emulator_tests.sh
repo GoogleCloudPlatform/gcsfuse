@@ -40,35 +40,39 @@ if [ "$minor_ver" -lt "$min_minor_ver" ]; then
 fi
 
 # Install dependencies
-# Ubuntu/Debian based machine.
-if [ -f /etc/debian_version ]; then
-  if grep -q "Ubuntu" /etc/os-release; then
-    os="ubuntu"
-  elif grep -q "Debian" /etc/os-release; then
-    os="debian"
-  fi
+if sudo docker ps > /dev/null 2>&1; then
+  echo "Docker is already installed and usable. Skipping installation steps."
+else
+  # Ubuntu/Debian based machine.
+  if [ -f /etc/debian_version ]; then
+    if grep -q "Ubuntu" /etc/os-release; then
+      os="ubuntu"
+    elif grep -q "Debian" /etc/os-release; then
+      os="debian"
+    fi
 
-  sudo apt-get update
-  sudo apt-get install -y ca-certificates curl
-  sudo install -m 0755 -d /etc/apt/keyrings
-  sudo curl -fsSL https://download.docker.com/linux/${os}/gpg -o /etc/apt/keyrings/docker.asc
-  sudo chmod a+r /etc/apt/keyrings/docker.asc
-  # Add the repository to Apt sources:
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${os} \
-    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  sudo apt-get install -y lsof
-# RHEL/CentOS based machine.
-elif [ -f /etc/redhat-release ]; then
-    sudo dnf -y install dnf-plugins-core
-    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-    sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    sudo usermod -aG docker $USER
-    sudo systemctl start docker
-    sudo yum -y install lsof
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/${os}/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+    # Add the repository to Apt sources:
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${os} \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo apt-get install -y lsof
+  # RHEL/CentOS based machine.
+  elif [ -f /etc/redhat-release ]; then
+      sudo dnf -y install dnf-plugins-core
+      sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+      sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      sudo usermod -aG docker $USER
+      sudo systemctl start docker
+      sudo yum -y install lsof
+  fi
 fi
 
 export STORAGE_EMULATOR_HOST="http://localhost:9000"
@@ -96,10 +100,28 @@ if [[ -n "$CONTAINER_ID" ]]; then
   sudo docker stop $CONTAINER_ID
 fi
 
+wait_for_emulator() {
+  local timeout=30
+  local count=0
+  echo "Waiting for emulator to be ready..."
+  while [ $count -lt $timeout ]; do
+    if curl -s "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project" > /dev/null; then
+      echo "Emulator is ready!"
+      return 0
+    fi
+    sleep 1
+    count=$((count+1))
+  done
+  echo "Emulator failed to become ready after $timeout seconds."
+  return 1
+}
+
 # Start the testbench
 sudo docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
-echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
-sleep 5
+echo "Docker logs are saved at: $(pwd)/emulator_container.log"
+sudo docker logs -f $CONTAINER_NAME > emulator_container.log 2>&1 &
+
+wait_for_emulator
 
 # Stop the testbench & cleanup environment variables
 function cleanup() {
@@ -115,9 +137,12 @@ cat << EOF > test.json
 EOF
 
 # Execute the curl command to create bucket on storagetestbench server.
-curl -X POST --data-binary @test.json \
+if ! curl -X POST --data-binary @test.json \
     -H "Content-Type: application/json" \
-    "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
+    "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"; then
+  echo "Failed to create bucket test-bucket"
+  exit 1
+fi
 rm test.json
 
 # Run all emulator test packages in parallel.
