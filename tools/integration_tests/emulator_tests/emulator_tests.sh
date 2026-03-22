@@ -128,6 +128,8 @@ function cleanup() {
     echo "Cleanup testbench"
     sudo docker stop $CONTAINER_NAME
     unset STORAGE_EMULATOR_HOST;
+    echo "Printing Emulator Container Logs..."
+    cat emulator_container.log
 }
 trap cleanup EXIT
 
@@ -146,4 +148,4 @@ fi
 rm test.json
 
 # Run all emulator test packages in parallel.
-go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+go test -p 1 ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 20m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
