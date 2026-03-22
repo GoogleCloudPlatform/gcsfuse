@@ -117,7 +117,7 @@ wait_for_emulator() {
 }
 
 # Start the testbench
-sudo docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
+sudo docker run --name $CONTAINER_NAME -e GUNICORN_CMD_ARGS="--timeout 600" --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 echo "Docker logs are saved at: $(pwd)/emulator_container.log"
 sudo docker logs -f $CONTAINER_NAME > emulator_container.log 2>&1 &
 
