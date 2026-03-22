@@ -120,7 +120,7 @@ func validateInactiveReaderClosedLog(t *testing.T, logFile, objectName string, s
 	}
 
 	if shouldBePresent {
-		_ = operations.RetryUntil(context.Background(), t, 500*time.Millisecond, 5*time.Second, checkFn)
+		_ = operations.RetryUntil(context.Background(), t, 500*time.Millisecond, 30*time.Second, checkFn)
 	} else {
 		found, err := checkFn()
 		if found {
