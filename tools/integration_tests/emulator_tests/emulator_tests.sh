@@ -13,16 +13,74 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Fail on any error
-set -eo pipefail
-
-# Display commands being run
+# Exit on error, treat unset variables as errors, and propagate pipeline errors.
+set -euo pipefail
 set -x
+
+# Script Usage Documentation
+usage() {
+  echo "Usage: $0 [options]"
+  echo "Options:"
+  echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
+  echo "    --gcsfuse_prebuilt_dir   <path>              Path to pre-built gcsfuse binary for testing (e.g. /path/to/gcsfuse/binary)"
+  echo "                                                 This option is mutually exclusive with --test-installed-package. (Default: "")"
+  echo "    --help                                       Display this help and exit."
+  exit "$1"
+}
+
+# Logging Helpers
+log_info() {
+  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+}
+
+log_error() {
+  echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+}
+
+TEST_INSTALLED_PACKAGE=false
+GCSFUSE_PREBUILT_DIR=""
+# Define options for getopt
+# A long option name followed by a colon indicates it requires an argument.
+LONG=test-installed-package,gcsfuse_prebuilt_dir:,help
+
+# Parse the options using getopt
+# --options "" specifies that there are no short options.
+if ! PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@"); then
+    usage 1
+fi
+
+# Read the parsed options back into the positional parameters.
+eval set -- "$PARSED"
+
+# Loop through the options and assign values to our variables
+while (( $# >= 1 )); do
+    case "$1" in
+        --test-installed-package)
+            TEST_INSTALLED_PACKAGE=true
+            shift 
+            ;;
+        --gcsfuse_prebuilt_dir)
+            GCSFUSE_PREBUILT_DIR="$2"
+            shift 2
+            ;;
+        --help)
+            usage 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            log_error "Unrecognized arguments [$*]."
+            usage 1
+            ;;
+    esac
+done
 
 uname=$(uname -m)
 if [ $uname == "aarch64" ];then
   # TODO: Remove this when we have an ARM64 image for the storage test bench.(b/384388821)
-  echo "These tests will not run for arm64 machine..."
+  log_info "These tests will not run for arm64 machine..."
   exit 0
 fi
 
@@ -147,5 +205,5 @@ if ! curl -X POST --data-binary @test.json \
 fi
 rm test.json
 
-# Run all emulator test packages in parallel.
-go test -p 1 ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 20m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+# Run all emulator test packages sequentially.
+go test -p 1 ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 20m --testInstalledPackage=$TEST_INSTALLED_PACKAGE --gcsfuse_prebuilt_dir=$GCSFUSE_PREBUILT_DIR

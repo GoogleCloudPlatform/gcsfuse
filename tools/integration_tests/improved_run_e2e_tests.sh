@@ -854,7 +854,15 @@ run_e2e_tests_for_emulator() {
 
   log_info_locked "Started running e2e tests for emulator."
   emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
-  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
+  local emulator_args=()
+  if ${TEST_INSTALLED_PACKAGE}; then
+    emulator_args+=("--test-installed-package")
+  fi
+  if [[ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]]; then
+    emulator_args+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
+  fi
+
+  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "${emulator_args[@]}" > "$emulator_test_log" 2>&1; then
     exit_code=1
     log_info_locked "Failed e2e tests for emulator."
     local dest_dir="${OUTPUT_DIR}/failed_package_logs/${bucket_type}"
