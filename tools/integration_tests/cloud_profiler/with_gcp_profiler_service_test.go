@@ -119,9 +119,6 @@ func checkIfProfileExistForServiceAndVersion(
 
 func (s *CloudProfilerSuite) TestValidateProfilerWithActualService() {
 	t := s.T()
-	if err := s.writeSingleRandomFile(); err != nil {
-		t.Logf("Failed to write load file: %v. So profile might not be generated...", err)
-	}
 	// 1. Fetch GCP projectID.
 	// 2. Create a profiler service api client.
 	// 3. Make list call to the profiler service api client and fetch the profiles.
@@ -134,7 +131,9 @@ func (s *CloudProfilerSuite) TestValidateProfilerWithActualService() {
 	}
 	t.Logf("Waiting for cloud profile to eventually appear for service [%s] and version [%s]", testServiceName, testVersionName)
 	operations.RetryUntil(apiCtx, t, retryFrequency, retryDuration, func() (bool, error) {
-
+		if err := s.writeSingleRandomFile(); err != nil {
+			t.Logf("Failed to write load file: %v. So profile generation may be affected...", err)
+		}
 		return checkIfProfileExistForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID)
 	})
 }
