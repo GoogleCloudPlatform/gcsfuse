@@ -28,6 +28,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // UploadHandler is responsible for synchronized uploads of the filled blocks
@@ -57,6 +59,7 @@ type UploadHandler struct {
 	obj                  *gcs.Object
 	chunkTransferTimeout int64
 	blockSize            int64
+	traceHandle          tracing.TraceHandle
 }
 
 type CreateUploadHandlerRequest struct {
@@ -67,6 +70,7 @@ type CreateUploadHandlerRequest struct {
 	MaxBlocksPerFile         int64
 	BlockSize                int64
 	ChunkTransferTimeoutSecs int64
+	TraceHandle              tracing.TraceHandle
 }
 
 // newUploadHandler creates the UploadHandler struct.
@@ -80,6 +84,7 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		obj:                  req.Object,
 		blockSize:            req.BlockSize,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
+		traceHandle:          req.TraceHandle,
 	}
 	return uh
 }
@@ -145,6 +150,20 @@ func (uh *UploadHandler) uploader() {
 // If there is already an error in uploadError, it returns without doing anything.
 // If there is an error during upload, it returns after storing the error in uploadError.
 func (uh *UploadHandler) uploadBlock(b block.Block) {
+	var span trace.Span
+	if uh.traceHandle != nil {
+		_, span = uh.traceHandle.StartSpan(context.Background(), tracing.StreamingUploadBlock)
+	}
+	var uploadErr error
+	defer func() {
+		if uh.traceHandle != nil && span != nil {
+			if uploadErr != nil {
+				uh.traceHandle.RecordError(span, uploadErr)
+			}
+			uh.traceHandle.EndSpan(span)
+		}
+	}()
+
 	if b == nil {
 		logger.Warnf("uploadBlock: received nil block for object %s", uh.objectName)
 		return
@@ -156,9 +175,9 @@ func (uh *UploadHandler) uploadBlock(b block.Block) {
 
 	// Reset the readSeek to 0 before uploading.
 	if off, err := b.Seek(0, io.SeekStart); err != nil || off != 0 {
-		err := fmt.Errorf("buffered write upload failed for object %s: error in block.Seek: %v with offset: %d", uh.objectName, err, off)
-		uh.uploadError.Store(&err)
-		logger.Errorf("uploadBlock: %v", err)
+		uploadErr = fmt.Errorf("buffered write upload failed for object %s: error in block.Seek: %v with offset: %d", uh.objectName, err, off)
+		uh.uploadError.Store(&uploadErr)
+		logger.Errorf("uploadBlock: %v", uploadErr)
 		return
 	}
 
@@ -170,25 +189,39 @@ func (uh *UploadHandler) uploadBlock(b block.Block) {
 		err = nil
 	}
 	if err != nil {
-		err = gcs.GetGCSError(err)
-		uh.uploadError.Store(&err)
-		logger.Errorf("uploadBlock: failed for object %s: error in io.Copy: %v", uh.objectName, err)
+		uploadErr = gcs.GetGCSError(err)
+		uh.uploadError.Store(&uploadErr)
+		logger.Errorf("uploadBlock: failed for object %s: error in io.Copy: %v", uh.objectName, uploadErr)
 	}
 }
 
 // Finalize finalizes the upload.
-func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
+func (uh *UploadHandler) Finalize() (obj *gcs.MinObject, err error) {
+	ctx := context.Background()
+	var span trace.Span
+	if uh.traceHandle != nil {
+		ctx, span = uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadFinalize)
+	}
+	defer func() {
+		if uh.traceHandle != nil && span != nil {
+			if err != nil {
+				uh.traceHandle.RecordError(span, err)
+			}
+			uh.traceHandle.EndSpan(span)
+		}
+	}()
+
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
 	// Writer may not have been created for empty file creation flow or for very
 	// small writes of size less than 1 block.
-	err := uh.ensureWriter()
+	err = uh.ensureWriter()
 	if err != nil {
 		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
 
-	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
+	obj, err = uh.bucket.FinalizeUpload(ctx, uh.writer)
 	if err != nil {
 		// FinalizeUpload already returns GCSerror so no need to convert again.
 		uh.uploadError.Store(&err)
@@ -208,17 +241,31 @@ func (uh *UploadHandler) ensureWriter() error {
 }
 
 // FlushPendingWrites uploads any data in the write buffer.
-func (uh *UploadHandler) FlushPendingWrites() (*gcs.MinObject, error) {
+func (uh *UploadHandler) FlushPendingWrites() (o *gcs.MinObject, err error) {
+	ctx := context.Background()
+	var span trace.Span
+	if uh.traceHandle != nil {
+		ctx, span = uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadFlush)
+	}
+	defer func() {
+		if uh.traceHandle != nil && span != nil {
+			if err != nil {
+				uh.traceHandle.RecordError(span, err)
+			}
+			uh.traceHandle.EndSpan(span)
+		}
+	}()
+
 	uh.wg.Wait()
 
 	// Writer may not have been created for empty file creation flow or for very
 	// small writes of size less than 1 block.
-	err := uh.ensureWriter()
+	err = uh.ensureWriter()
 	if err != nil {
 		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
 
-	o, err := uh.bucket.FlushPendingWrites(context.Background(), uh.writer)
+	o, err = uh.bucket.FlushPendingWrites(ctx, uh.writer)
 	if err != nil {
 		// FlushUpload already returns GCS error so no need to convert again.
 		uh.uploadError.Store(&err)

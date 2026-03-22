@@ -15,6 +15,7 @@
 package bufferedwrites
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"context"
 	"errors"
 	"strings"
@@ -62,6 +63,7 @@ func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.Bucke
 		MaxBlocksPerFile:         10,
 		GlobalMaxBlocksSem:       testSuite.globalSemaphore,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		TraceHandle:              tracing.NewNoopTracer(),
 	})
 	require.Nil(testSuite.T(), err)
 	testSuite.bwh = bwh
