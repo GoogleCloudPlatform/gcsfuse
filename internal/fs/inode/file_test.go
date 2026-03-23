@@ -35,6 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -164,7 +165,8 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		local,
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
-		nil)
+		nil,
+		tracing.NewNoopTracer())
 
 	t.in.Lock()
 }
