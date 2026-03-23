@@ -313,7 +313,7 @@ TEST_PACKAGES_COMMON=(
   "operations"
   "read_large_files"
   "concurrent_operations"
-  # "read_cache"
+  "read_cache"
   "list_large_dir"
   "mount_timeout"
   "write_large_files"
@@ -344,7 +344,7 @@ TEST_PACKAGES_COMMON=(
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
