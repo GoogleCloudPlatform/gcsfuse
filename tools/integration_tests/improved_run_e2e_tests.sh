@@ -401,10 +401,13 @@ log_error_locked() {
   release_lock "$LOG_LOCK_FILE"
 }
 
-# Helper method to organize the test log file based on exit code and remove the original.
-process_test_log() {
-  if [[ $# -lt 3 ]]; then
-    log_error "process_test_log() called with incorrect number of arguments."
+# Helper method to organize the test log file based on exit code and bucket type.
+# It organizes the log files in the following directory.
+# ${OUTPUT_DIR}/failed_package_logs/${BUCKET_TYPE}/...
+# ${OUTPUT_DIR}/success_package_logs/${BUCKET_TYPE}/...
+organize_test_logfile() {
+  if [[ $# -ne 4 ]]; then
+    log_error "organize_test_logfile() called with incorrect number of arguments."
     return 1
   fi
   local exit_code="$1"
@@ -697,7 +700,7 @@ test_package() {
   # Generate Kokoro artifacts(log) files.
   generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
   # Call the helper to organize logs and cleanup the original file
-  process_test_log "$exit_code" "$test_package_log_file" "$package_name" "$bucket_type"
+  organize_test_logfile "$exit_code" "$test_package_log_file" "$package_name" "$bucket_type"
   return "$exit_code"
 }
 
@@ -871,7 +874,7 @@ run_test_group() {
 run_e2e_tests_for_emulator() {
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log
-  emulator_test_log=$(create_file_helper "running_package_logs/emulator_package.txt")
+  emulator_test_log=$(create_file_helper "running_package_logs/emulator/emulator.txt")
 
   local exit_code=0
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
@@ -882,7 +885,7 @@ run_e2e_tests_for_emulator() {
   fi
 
   # Call the helper to organize logs and cleanup the original file
-  process_test_log "$exit_code" "$emulator_test_log" "emulator_package"
+  organize_test_logfile "$exit_code" "$emulator_test_log" "emulator" "emulator" 
 
   return "$exit_code"
 }
