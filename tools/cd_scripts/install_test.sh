@@ -16,23 +16,49 @@
 # Print commands and their arguments as they are executed.
 set -x
 
+PYTHON_VERSION=3.11.9
+INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"
+
 # Install common dependencies (Python 3.11, wget, tar)
 # This is required for gcloud to function correctly (needs Python 3.10+) 
 # and for the script to download/extract the SDK.
-if [ -f /etc/debian_version ]; then
-  sudo apt-get update
-  sudo apt-get install -y python3.11 wget tar
-elif [ -f /etc/redhat-release ] || [ -f /etc/os-release ]; then
-  # Use dnf for RHEL/Rocky/CentOS; falls back to yum if dnf is missing
-  if command -v dnf >/dev/null 2>&1; then
-    sudo dnf install -y python3.11 wget tar
-  else
-    sudo yum install -y python3.11 wget tar
-  fi
+if command -v apt-get &> /dev/null; then
+  sudo apt-get update -y > /dev/null
+  sudo apt-get install -y \
+      build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
+      libssl-dev libreadline-dev libffi-dev curl libsqlite3-dev \
+      libbz2-dev liblzma-dev tk-dev uuid-dev wget tar > /dev/null
+elif command -v yum &> /dev/null; then
+    # For RHEL-based systems, use 'yum' to install packages.
+    # The "Development Tools" group is equivalent to 'build-essential' on Debian.
+    # The '-devel' packages provide the necessary header files for compilation.
+    sudo yum -y groupinstall "Development Tools" > /dev/null
+    sudo yum -y install \
+          zlib-devel ncurses-devel nss-devel openssl-devel \
+          readline-devel libffi-devel curl sqlite-devel bzip2-devel \
+          xz-devel tk-devel libuuid-devel wget > /dev/null
 fi
 
+# Download and build Python locally
+cd /tmp
+wget -q https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
+tar -xf Python-${PYTHON_VERSION}.tgz
+cd Python-${PYTHON_VERSION}
+
+echo "Configuring Python build for local install..."
+./configure --enable-optimizations --prefix="$INSTALL_PREFIX" > /dev/null
+
+echo "Building Python $PYTHON_VERSION..."
+make -j"$(nproc)" > /dev/null
+
+echo "Installing Python $PYTHON_VERSION locally at $INSTALL_PREFIX..."
+make altinstall > /dev/null
+
+echo "Python $PYTHON_VERSION installed at $INSTALL_PREFIX/bin/python3.11"
+"$INSTALL_PREFIX/bin/python3.11" --version
+
 # Ensure gcloud uses the newly installed Python 3.11
-export CLOUDSDK_PYTHON=/usr/bin/python3.11
+export CLOUDSDK_PYTHON="$INSTALL_PREFIX/bin/python3.11"
 
 echo "Upgrade gcloud version"
 gcloud version
@@ -79,8 +105,8 @@ then
     fi
 
     sudo apt-get update
-    # Install to be released gcsfuse version
-    sudo apt-get install -y gcsfuse="$to_release_version" >> ~/logs.txt
+    # Install to be released gcsfuse version (It can be a patch to older version so allow downgrades)
+    sudo apt-get install -y --allow-downgrades gcsfuse="$to_release_version" >> ~/logs.txt
 else
 #  For rhel and centos
     sudo yum install fuse
@@ -100,7 +126,8 @@ repo_gpgcheck=0
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
-sudo yum install -y gcsfuse-"$to_release_version" >> ~/logs.txt
+# Attempt a install first, falling back to a standard downgrade if to be released is older version than already installed (patch releases).
+sudo yum install -y gcsfuse-"$to_release_version" || sudo yum downgrade -y gcsfuse-"$to_release_version" >> ~/logs.txt
 fi
 
 # Verify gcsfuse version (successful installation)
