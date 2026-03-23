@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache
@@ -62,14 +63,35 @@ type CacheHandler struct {
 
 	// isSparse indicates whether sparse file mode is enabled
 	isSparse bool
+
+	// sizeCalcFix indicates whether to use block-level physical disk accounting
+	sizeCalcFix bool
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, sizeCalcFix bool) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
 	compiledExcludeRegex = compileRegex(excludeRegex)
 	compiledIncludeRegex = compileRegex(includeRegex)
+
+	if sizeCalcFix {
+		volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
+		if err != nil {
+			logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default 4096.", cacheDir, err)
+			volumeBlockSize = 4096
+		}
+
+		fileInfoCache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
+			if fi, ok := v.(data.FileInfo); ok {
+				if fi.SparseMode {
+					return baseutil.GetSpeculativeFileSizeOnDisk(fi.Size(), volumeBlockSize)
+				}
+				return baseutil.GetSpeculativeFileSizeOnDisk(fi.FileSize, volumeBlockSize)
+			}
+			return v.Size()
+		})
+	}
 
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
@@ -81,6 +103,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		excludeRegex:  compiledExcludeRegex,
 		includeRegex:  compiledIncludeRegex,
 		isSparse:      isSparse,
+		sizeCalcFix:   sizeCalcFix,
 	}
 }
 

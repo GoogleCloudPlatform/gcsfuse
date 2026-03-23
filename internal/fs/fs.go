@@ -386,6 +386,7 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 		serverCfg.NewConfig.FileCache.ExcludeRegex,
 		serverCfg.NewConfig.FileCache.IncludeRegex,
 		serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache,
+		!serverCfg.NewConfig.FileCache.ExperimentalDisableSizeCalculationFix,
 	)
 
 	return fileCacheHandler, nil
