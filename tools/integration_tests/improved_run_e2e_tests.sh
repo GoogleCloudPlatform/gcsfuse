@@ -15,11 +15,14 @@
 
 # Script Usage Documentation
 usage() {
-  echo "Usage: $0 --bucket-location <bucket-location> [options]"
-  echo "    --bucket-location            <location>      The Google Cloud Storage bucket location (e.g., 'us-central1')."
-  echo ""
+  echo "Usage: $0 [options]"
   echo "Options:"
+  echo "    --bucket-location             <location>     Google Cloud Storage bucket location (e.g, 'us-central1') (Defaults to VM region if not provided)."
+  echo "    --project-id                  <project-id>   Google Cloud Project ID in which the bucket should be created. (e.g., 'gcs-fuse-test')"
+  echo "                                                 (Defaults to VM project if not provided or gcs-fuse-test if running on cloudtop)."
   echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
+  echo "    --install-package-from-path   <path>         Google Cloud Storage bucket path for GCSFuse package for testing (e.g. gs://<bucket-name>/my-gcsfuse-package.rpm)"
+  echo "                                                 This option is mutually exclusive with --test-installed-package. (Default: "")"
   echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
   echo "    --test-on-tpc-endpoint                       Run tests on TPC endpoint. (Default: false)"
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
@@ -42,19 +45,36 @@ log_error() {
   echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
 }
 
-# Confirm bash version before continuing script.
-REQUIRED_BASH_MAJOR=5
-REQUIRED_BASH_MINOR=1
+# Check or install bash version before continuing script.
+readonly REQUIRED_BASH_MAJOR=5
+readonly REQUIRED_BASH_MINOR=1
+readonly BASH_INSTALL_VERSION="5.3"
+readonly BASH_INSTALLATION_PATH="/usr/local/bin/bash" # Using 5.3 for installation as bash 5.1 has an installation bug.
+
 if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
-    log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
-    log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+  log_info "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) is older than required (${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR})."
+  log_info "Installing Bash ${BASH_INSTALL_VERSION}..."
+
+  # Dynamically find the repo root so we can locate the install script safely
+  SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+  REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
+
+  # Run the installation script
+  "${REPO_ROOT}/perfmetrics/scripts/install_bash.sh" "${BASH_INSTALL_VERSION}"
+  if [[ ! -x "${BASH_INSTALLATION_PATH}" ]]; then
+    log_error "Failed to locate the newly installed bash at ${BASH_INSTALLATION_PATH}"
     exit 1
+  fi
+
+  log_info "Re-executing the e2e script using the newly installed Bash ${BASH_INSTALL_VERSION}..."
+  # The 'exec' command completely replaces the current old-bash process 
+  # with the new bash process, passing along the script name ($0) and all arguments ($@).
+  exec "${BASH_INSTALLATION_PATH}" "$0" "$@"
 fi
 log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
 readonly GO_VERSION=$(cat .go-version)
-readonly DEFAULT_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
@@ -71,8 +91,21 @@ readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
 
-# Set default project id for tests.
-PROJECT_ID="${DEFAULT_PROJECT_ID}"
+# Extract GCE VM Project and Location.
+ZONE=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
+ZONE_NAME=$(basename "$ZONE")
+GCE_VM_LOCATION="${ZONE_NAME%-*}"
+GCE_VM_PROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id)
+log_info "Project ID from GCE VM: '$GCE_VM_PROJECT_ID'"
+log_info "Location from GCE VM: '$GCE_VM_LOCATION'"
+log_info "Running e2e script as '$(whoami)'"
+log_info "Current directory is '$(pwd)'"
+# If HOME is not set, find it dynamically and export it
+if [ -z "$HOME" ]; then
+    export HOME=$(getent passwd "$(whoami)" | cut -d: -f6)
+fi
+log_info "HOME is set to '$HOME'"
+
 # This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 
@@ -88,6 +121,9 @@ fi
 # Set default values for optional arguments
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 TEST_INSTALLED_PACKAGE=false
+BUCKET_LOCATION=""
+PROJECT_ID=""
+INSTALL_PACKAGE_FROM_PATH=""
 RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
@@ -97,7 +133,7 @@ PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parall
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -117,6 +153,10 @@ while (( $# >= 1 )); do
             BUCKET_LOCATION="$2"
             shift 2
             ;;
+        --project-id)
+            PROJECT_ID="$2"
+            shift 2
+            ;;
         --package-level-parallelism)
             PACKAGE_LEVEL_PARALLELISM="$2"
             shift 2
@@ -124,6 +164,10 @@ while (( $# >= 1 )); do
         --test-installed-package)
             TEST_INSTALLED_PACKAGE=true
             shift 
+            ;;
+        --install-package-from-path)
+            INSTALL_PACKAGE_FROM_PATH="$2"
+            shift 2
             ;;
         --skip-non-essential-tests)
             SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
@@ -189,9 +233,32 @@ OUTPUT_DIR=$(mktemp -d "${BASE_PATH%/}/gcsfuse-e2e-run-XXXXXXXX") || {
 }
 log_info "Output directory for the e2e run is set to '$OUTPUT_DIR'"
 
-# Validate long options which require values.
+if [[ -z "$BUCKET_LOCATION" ]]; then
+  log_info "Bucket Location is not provided, using GCE VM Location '$GCE_VM_LOCATION' as bucket location."
+  BUCKET_LOCATION="$GCE_VM_LOCATION"
+fi
+
+if [[ -z "$PROJECT_ID" ]]; then 
+  log_info "Project ID is not provided, using GCE VM Project ID '$GCE_VM_PROJECT_ID' as Project ID."
+  PROJECT_ID="$GCE_VM_PROJECT_ID"
+fi
+
+# Check if it contains "cloudtop"
+if [[ "$PROJECT_ID" == *"cloudtop"* ]]; then
+  log_info "You are running this script on cloudtop. Manually overriding the Project ID to 'gcs-fuse-test'."
+  PROJECT_ID="gcs-fuse-test"
+fi
+
+# Validate long options which need values(default or user provided).
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
+validate_option_value "--project-id" "$PROJECT_ID"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
+
+# Validate test install package from path
+if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then 
+  log_error "Option --test-installed-package and --install-package-from-path are mutually exclusive. Please set only one"
+  usage 1
+fi
 
 # Zonal Bucket location validation.
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
@@ -652,6 +719,35 @@ generate_test_log_artifacts() {
   return 0
 }
 
+install_package_from_path() {
+  if [[ $# -ne 1 ]]; then
+    log_error_locked "install_package_from_path() called with incorrect number of arguments."
+    return 1
+  fi
+  local package_path="$1"
+  log_info "Downloading $(basename "${package_path}")..."
+  gcloud storage cp "${package_path}" /tmp/ --quiet || return 1
+  if [ -f /etc/os-release ]; then
+    # We source in a subshell to prevent variable pollution, 
+    # then capture only the ID and ID_LIKE fields.
+    DISTRO_DATA=$( (source /etc/os-release; echo "${ID:-} ${ID_LIKE:-}") )
+    # Check for debian or ubuntu in the ID or the ID_LIKE chain
+    if [[ "$DISTRO_DATA" == *"debian"* ]] || [[ "$DISTRO_DATA" == *"ubuntu"* ]]; then
+      sudo dpkg -i "/tmp/$(basename "${package_path}")"
+    elif [[ "$DISTRO_DATA" == *"rhel"* ]] || [[ "$DISTRO_DATA" == *"centos"* ]]; then
+      sudo yum -y localinstall "/tmp/$(basename "${package_path}")"
+    else
+        log_error "This script only supports Debian/Ubuntu/rhel/centos based distributions."
+        log_info "Your distribution is:"
+        cat /etc/os-release
+        exit 1
+    fi
+  else
+    log_error "/etc/os-release not found. Unable to determine distribution"
+    exit 1
+  fi
+}
+
 build_gcsfuse_once() {
   local build_output_dir # For the final gcsfuse binaries
   build_output_dir=$(mktemp -d -t gcsfuse_e2e_run_build_XXXXXX)
@@ -787,8 +883,16 @@ main() {
   log_info "------ Started running E2E test packages ------"
   log_info ""
 
-  # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
-  if (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
+   # Decide whether to install a package from a path or build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
+  if [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then
+    log_info "Installing package from the path '${INSTALL_PACKAGE_FROM_PATH}'"
+    if ! install_package_from_path "$INSTALL_PACKAGE_FROM_PATH"; then 
+      log_error "Unable to install the package from path '${INSTALL_PACKAGE_FROM_PATH}'. Exiting."
+      exit 1
+    fi
+    # Setting test installed package to true
+    TEST_INSTALLED_PACKAGE=true
+  elif (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
     log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
     log_info "Building GCSFuse inside script..."
     if ! build_gcsfuse_once; then

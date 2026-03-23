@@ -25,74 +25,126 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
-// VerifyCounterMetric finds a counter metric and verifies that the data point
-// matching the provided attributes has the expected value.
-func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedValue int64) {
-	t.Helper()
-	var rm metricdata.ResourceMetrics
-	err := reader.Collect(ctx, &rm)
-	require.NoError(t, err, "reader.Collect")
-	encoder := attribute.DefaultEncoder()
-	expectedKey := attrs.Encoded(encoder)
-
-	require.Len(t, rm.ScopeMetrics, 1, "expected 1 scope metric")
-	require.NotEmpty(t, rm.ScopeMetrics[0].Metrics, "expected at least 1 metric")
-
-	foundMetric := false
-	for _, m := range rm.ScopeMetrics[0].Metrics {
-		if m.Name == metricName {
-			foundMetric = true
-			data, ok := m.Data.(metricdata.Sum[int64])
-			require.True(t, ok, "metric %s is not a Sum[int64], but %T", metricName, m.Data)
-
-			foundDataPoint := false
-			for _, dp := range data.DataPoints {
-				if dp.Attributes.Encoded(encoder) == expectedKey {
-					foundDataPoint = true
-					assert.Equal(t, expectedValue, dp.Value, "metric value mismatch for attributes: %s", attrs.Encoded(encoder))
-					break
-				}
-			}
-
-			require.True(t, foundDataPoint, "Data point for attributes %v not found in %s metric", attrs, metricName)
-			break
-		}
-	}
-
-	require.True(t, foundMetric, "metric %s not found", metricName)
+type verifyConfig struct {
+	atLeast bool
+	subset  bool
 }
 
-// VerifyHistogramMetric finds a histogram metric and verifies that the data point
-// matching the provided attributes has the expected count.
-func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedCount uint64) {
+// VerifyOption defines functional options for metric verification.
+type VerifyOption func(*verifyConfig)
+
+// AtLeast changes the verification to check if the metric value is greater or equal
+// to the expected value, rather than exactly equal.
+func AtLeast() VerifyOption {
+	return func(c *verifyConfig) { c.atLeast = true }
+}
+
+// Subset changes the verification to check if the provided attributes are a subset
+// of the recorded attributes, rather than an exact match.
+func Subset() VerifyOption {
+	return func(c *verifyConfig) { c.subset = true }
+}
+
+func matchesAttributes(dpAttrs attribute.Set, targetAttrs attribute.Set, subset bool, encoder attribute.Encoder) bool {
+	if !subset {
+		return dpAttrs.Encoded(encoder) == targetAttrs.Encoded(encoder)
+	}
+	// Subset matching
+	for _, targetKV := range targetAttrs.ToSlice() {
+		val, ok := dpAttrs.Value(targetKV.Key)
+		if !ok || val.Emit() != targetKV.Value.Emit() {
+			return false
+		}
+	}
+	return true
+}
+
+func verifyValue[T int64 | uint64](t *testing.T, actual T, expected T, atLeast bool, metricName string, attrs attribute.Set) {
+	if atLeast {
+		assert.GreaterOrEqual(t, actual, expected, "metric value too low for %s with attributes %v", metricName, attrs)
+	} else {
+		assert.Equal(t, expected, actual, "metric value mismatch for %s with attributes %v", metricName, attrs)
+	}
+}
+
+// VerifyCounterMetric finds a counter metric across all scopes and verifies its value.
+// By default, it requires an exact attribute match and an exact value match.
+// Use AtLeast() or Subset() options to relax these requirements.
+func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedValue int64, options ...VerifyOption) {
 	t.Helper()
+	cfg := &verifyConfig{}
+	for _, opt := range options {
+		opt(cfg)
+	}
+
 	var rm metricdata.ResourceMetrics
 	err := reader.Collect(ctx, &rm)
 	require.NoError(t, err, "reader.Collect")
 	encoder := attribute.DefaultEncoder()
-	expectedKey := attrs.Encoded(encoder)
-
-	require.Len(t, rm.ScopeMetrics, 1, "expected 1 scope metric")
-	require.NotEmpty(t, rm.ScopeMetrics[0].Metrics, "expected at least 1 metric")
 
 	foundMetric := false
-	for _, m := range rm.ScopeMetrics[0].Metrics {
-		if m.Name == metricName {
-			foundMetric = true
-			data, ok := m.Data.(metricdata.Histogram[int64])
-			require.True(t, ok, "metric %s is not a Histogram[int64], but %T", metricName, m.Data)
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == metricName {
+				foundMetric = true
+				data, ok := m.Data.(metricdata.Sum[int64])
+				require.True(t, ok, "metric %s is not a Sum[int64], but %T", metricName, m.Data)
 
-			foundDataPoint := false
-			for _, dp := range data.DataPoints {
-				if dp.Attributes.Encoded(encoder) == expectedKey {
-					foundDataPoint = true
-					assert.Equal(t, expectedCount, dp.Count, "metric count mismatch for attributes: %s", attrs.Encoded(encoder))
-					break
+				for _, dp := range data.DataPoints {
+					if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+						verifyValue(t, dp.Value, expectedValue, cfg.atLeast, metricName, attrs)
+						return
+					}
 				}
 			}
-			require.True(t, foundDataPoint, "Data point for attributes %v not found in %s metric", attrs, metricName)
-			break
+		}
+	}
+
+	require.True(t, foundMetric, "metric %s not found", metricName)
+	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+}
+
+// VerifyHistogramMetric finds a histogram metric across all scopes and verifies its count.
+// By default, it requires an exact attribute match and an exact count match.
+// Use AtLeast() or Subset() options to relax these requirements.
+func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedCount uint64, options ...VerifyOption) {
+	t.Helper()
+	cfg := &verifyConfig{}
+	for _, opt := range options {
+		opt(cfg)
+	}
+
+	var rm metricdata.ResourceMetrics
+	err := reader.Collect(ctx, &rm)
+	require.NoError(t, err, "reader.Collect")
+	encoder := attribute.DefaultEncoder()
+
+	foundMetric := false
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == metricName {
+				foundMetric = true
+				switch data := m.Data.(type) {
+				case metricdata.Histogram[int64]:
+					for _, dp := range data.DataPoints {
+						if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+							verifyValue(t, dp.Count, expectedCount, cfg.atLeast, metricName, attrs)
+							return
+						}
+					}
+				case metricdata.Histogram[float64]:
+					for _, dp := range data.DataPoints {
+						if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+							verifyValue(t, dp.Count, expectedCount, cfg.atLeast, metricName, attrs)
+							return
+						}
+					}
+				default:
+					require.Fail(t, "metric %s is not an expected histogram type, but %T", metricName, m.Data)
+				}
+			}
 		}
 	}
 	require.True(t, foundMetric, "metric %s not found", metricName)
+	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
 }

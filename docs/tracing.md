@@ -57,31 +57,31 @@ Common Spans recorded and what each of them signifies
 | Span Name (as visible in trace explorer) | Description (of what the underlying span traces) |
 | :---- | :---- |
 | **FUSE Operations** | |
-| **StatFS** | Retrieves file system-wide statistics, such as total blocks, free blocks, and block size. |
-| **LookUpInode** | Look up a directory entry by name within a parent directory to find the corresponding inode. This is fundamental for path resolution. |
-| **GetInodeAttributes** | Retrieves the attributes of an inode, such as its size, permissions, and modification times. |
-| **SetInodeAttributes** | Modifies the attributes of an inode, for example, changing its size (**truncate**), permissions (**chmod**), or owner (**chown**). |
-| **ForgetInode** | Informs the file system that the kernel is no longer referencing a particular inode, allowing the file system to reclaim resources associated with it. |
-| **BatchForget** | A batch version of **ForgetInode** that allows the kernel to inform the file system about multiple inodes that are no longer in use. |
-| **MkDir** | Creates a new directory. |
-| **MkNode** | Creates a new file system node, which can be a regular file, a device file, or a named pipe. |
-| **CreateFile** | Creates and opens a new regular file. |
-| **CreateLink** | Creates a **hard link** to an existing file. |
-| **CreateSymlink** | Creates a **symbolic link**. |
-| **Rename** | Renames a file or directory, potentially moving it to a different directory. |
-| **RmDir** | Removes an empty directory. |
-| **Unlink** | Removes a file (deletes a name from the file system). If that name was the last link to a file and no processes have the file open, the file is deleted and the space it was using is made available for reuse. |
-| **OpenDir** | Open a directory for reading its contents. |
-| **ReadDir** | Reads entries from an open directory. |
-| **ReadDirPlus** | Similar to **ReadDir**, but it can also return the attributes of the entries, which can be more efficient than calling **LookUpInode** and **GetInodeAttributes** for each entry. |
-| **ReleaseDirHandle** | Releases an open directory handle, called when a process is done reading a directory. |
-| **OpenFile** | Open a file for reading or writing. |
-| **ReadFile** | Reads data from an open file. |
-| **WriteFile** | Writes data to an open file. |
-| **SyncFile** | Requests that any cached data for an open file be written to the underlying storage. |
-| **FlushFile** | Called when a file handle is being closed. This is an opportunity to flush any cached data. |
-| **ReleaseFileHandle** | Releases an open file handle, called when a process closes a file. |
-| **ReadSymlink** | Reads the target of a symbolic link. |
+| **fs.stat_fs** | Retrieves file system-wide statistics, such as total blocks, free blocks, and block size. |
+| **fs.inode.lookup** | Look up a directory entry by name within a parent directory to find the corresponding inode. This is fundamental for path resolution. |
+| **fs.inode.get_attributes** | Retrieves the attributes of an inode, such as its size, permissions, and modification times. |
+| **fs.inode.set_attributes** | Modifies the attributes of an inode, for example, changing its size (**truncate**), permissions (**chmod**), or owner (**chown**). |
+| **fs.inode.forget** | Informs the file system that the kernel is no longer referencing a particular inode, allowing the file system to reclaim resources associated with it. |
+| **fs.batch_forget** | A batch version of **ForgetInode** that allows the kernel to inform the file system about multiple inodes that are no longer in use. |
+| **fs.dir.mk** | Creates a new directory. |
+| **fs.mknode** | Creates a new file system node, which can be a regular file, a device file, or a named pipe. |
+| **fs.file.create** | Creates and opens a new regular file. |
+| **fs.link.create** | Creates a **hard link** to an existing file. |
+| **fs.symlink.create** | Creates a **symbolic link**. |
+| **fs.rename** | Renames a file or directory, potentially moving it to a different directory. |
+| **fs.dir.rm** | Removes an empty directory. |
+| **fs.unlink** | Removes a file (deletes a name from the file system). If that name was the last link to a file and no processes have the file open, the file is deleted and the space it was using is made available for reuse. |
+| **fs.dir.open** | Open a directory for reading its contents. |
+| **fs.dir.read** | Reads entries from an open directory. |
+| **fs.dir.read_plus** | Similar to **ReadDir**, but it can also return the attributes of the entries, which can be more efficient than calling **LookUpInode** and **GetInodeAttributes** for each entry. |
+| **fs.dir.release_handle** | Releases an open directory handle, called when a process is done reading a directory. |
+| **fs.file.open** | Open a file for reading or writing. |
+| **fs.file.read** | Reads data from an open file. |
+| **fs.file.write** | Writes data to an open file. |
+| **fs.file.sync** | Requests that any cached data for an open file be written to the underlying storage. |
+| **fs.file.flush** | Called when a file handle is being closed. This is an opportunity to flush any cached data. |
+| **fs.file.release_handle** | Releases an open file handle, called when a process closes a file. |
+| **fs.symlink.read** | Reads the target of a symbolic link. |
 | **GCS Operations (gRPC)** | |
 | **google.storage.v2.Storage/ListObjects** | The gRPC call to list a collection of objects (like a directory listing) within a Google Cloud Storage bucket. |
 | **cloud.google.com/go/storage.grpcStorageClient.ObjectsListCall** | The gRPC client-side function call within the Go library that initiates the object listing operation. |

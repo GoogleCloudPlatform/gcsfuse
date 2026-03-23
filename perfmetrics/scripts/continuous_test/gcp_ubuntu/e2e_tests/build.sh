@@ -23,8 +23,6 @@ if [[ $# -gt 0 ]]; then
 fi
 
 readonly BUCKET_LOCATION="us-central1"
-readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
-readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
@@ -36,25 +34,9 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 # To execute tests for a specific commitId, ensure you've checked out from that commitId first.
 git checkout $commitId
 
-# Check and install required bash version for e2e script.
-BASH_EXECUTABLE="bash"
-REQUIRED_BASH_MAJOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f1)
-REQUIRED_BASH_MINOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f2)
-
-echo "Current Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
-echo "Required Bash version for e2e script: ${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}"
-
-if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
-    echo "Current Bash version is older than the required version. Installing Bash ${INSTALL_BASH_VERSION}..."
-    ./perfmetrics/scripts/install_bash.sh "$INSTALL_BASH_VERSION"
-    BASH_EXECUTABLE="/usr/local/bin/bash"
-else
-    echo "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) meets or exceeds the required version (${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}). Skipping Bash installation."
-fi
-
 if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET-}" == "true" ]]; then
     echo "Running zonal e2e tests on installed package...."
-    "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
+    bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
 else
     if [[ -n "${RUN_TESTS_WITH_ZONAL_BUCKET-}" ]]; then
         echo "Warning: RUN_TESTS_WITH_ZONAL_BUCKET is set to '${RUN_TESTS_WITH_ZONAL_BUCKET}', which is not 'true'. Running regional tests."
@@ -62,5 +44,5 @@ else
         echo "RUN_TESTS_WITH_ZONAL_BUCKET is not set. Running regional tests by default."
     fi
     echo "Running regional e2e tests on installed package...."
-    "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package
+    bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package
 fi

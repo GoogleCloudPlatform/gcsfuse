@@ -78,6 +78,30 @@ func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsNotPresent() {
 	AssertEq(false, inode.IsSymlink(&m))
 }
 
+func (t *SymlinkTest) TestIsSymLinkWhenStandardMetadataKeyIsPresent() {
+	metadata := map[string]string{
+		inode.StandardSymlinkMetadataKey: "true",
+	}
+	m := gcs.MinObject{
+		Name:     "test",
+		Metadata: metadata,
+	}
+
+	AssertEq(true, inode.IsSymlink(&m))
+}
+
+func (t *SymlinkTest) TestIsSymLinkWhenStandardMetadataKeyIsFalse() {
+	metadata := map[string]string{
+		inode.StandardSymlinkMetadataKey: "false",
+	}
+	m := gcs.MinObject{
+		Name:     "test",
+		Metadata: metadata,
+	}
+
+	AssertEq(false, inode.IsSymlink(&m))
+}
+
 func (t *SymlinkTest) TestIsSymLinkForNilObject() {
 	AssertEq(false, inode.IsSymlink(nil))
 }

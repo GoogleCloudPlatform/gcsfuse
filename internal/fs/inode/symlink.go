@@ -26,6 +26,8 @@ import (
 // When this custom metadata key is present in an object record, it is to be
 // treated as a symlink. For use in testing only; other users should detect
 // this with IsSymlink.
+// Note: SymlinkMetadataKey is deprecated in favor of StandardSymlinkMetadataKey
+// and retained solely for backward compatibility.
 const SymlinkMetadataKey = "gcsfuse_symlink_target"
 const StandardSymlinkMetadataKey = "goog-reserved-file-is-symlink"
 
@@ -34,9 +36,15 @@ func IsSymlink(m *gcs.MinObject) bool {
 	if m == nil {
 		return false
 	}
-
-	_, ok := m.Metadata[SymlinkMetadataKey]
-	return ok
+	// 1. Check legacy/custom key presence
+	if _, ok := m.Metadata[SymlinkMetadataKey]; ok {
+		return true
+	}
+	// 2. Check standard reserved key value
+	if val, ok := m.Metadata[StandardSymlinkMetadataKey]; ok {
+		return val == "true"
+	}
+	return false
 }
 
 type SymlinkInode struct {

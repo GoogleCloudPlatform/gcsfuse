@@ -61,6 +61,7 @@ func (t *ParallelDownloaderJobTestifyTest) Test_ParallelDownloadObjectToFile_New
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	t.initReadCacheTestifyTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
 	t.job.cancelCtx, t.job.cancelFunc = context.WithCancel(context.Background())
+	defer t.job.cancelFunc()
 	// Add subscriber
 	subscribedOffset := int64(1 * util.MiB)
 	notificationC := t.job.subscribe(subscribedOffset)

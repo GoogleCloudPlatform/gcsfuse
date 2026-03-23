@@ -26,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -47,6 +48,7 @@ func init() {
 func (t *ImplicitDirsTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
+	t.serverCfg.TraceHandle = tracing.NewNoopTracer()
 	t.fsTest.SetUpTestSuite()
 }
 

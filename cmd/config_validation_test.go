@@ -855,11 +855,12 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
-					ChunkRetryDeadlineSecs:   180,
-					ChunkTransferTimeoutSecs: 20,
-					MaxRetryAttempts:         math.MaxInt,
-					MaxRetrySleep:            30 * time.Second,
-					Multiplier:               2,
+					ExperimentalNonrapidFolderApiStallRetry: true,
+					ChunkRetryDeadlineSecs:                  180,
+					ChunkTransferTimeoutSecs:                20,
+					MaxRetryAttempts:                        math.MaxInt,
+					MaxRetrySleep:                           30 * time.Second,
+					Multiplier:                              2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              false,
 						MinReqTimeout:       10 * time.Second,
@@ -937,6 +938,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				PrometheusPort:                 0,
 				Workers:                        3,
 				BufferSize:                     256,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 		{
@@ -946,6 +948,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				CloudMetricsExportIntervalSecs: 10,
 				Workers:                        10,
 				BufferSize:                     128,
+				ExperimentalEnableGrpcMetrics:  true,
 			},
 		},
 	}

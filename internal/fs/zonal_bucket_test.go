@@ -19,6 +19,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -33,6 +34,7 @@ func TestZonalBucketTests(t *testing.T) { suite.Run(t, new(ZonalBucketTests)) }
 func (t *ZonalBucketTests) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = false
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
+	t.serverCfg.TraceHandle = tracing.NewNoopTracer()
 	bucketType = gcs.BucketType{Zonal: true}
 	t.fsTest.SetUpTestSuite()
 }

@@ -36,6 +36,13 @@ type TraceHandle interface {
 	// Record an error on the span for export in case of failure
 	RecordError(span trace.Span, err error)
 
+	// A handle interface method to set attributes for file cache read
+	// attribute creation and generic interface using variadic operator is a costly affair both from memory allocation and CPU time perspectives - (3.883 ns/op	       0 B/op	       0 allocs/op) vs (90.21 ns/op	     128 B/op	       1 allocs/op)
+	// This method is specifically created so that the caller doesn't have to create the attributes themselves.
+	// Instead the implementation of the TraceHandle that's chosen decides whether to create the attributes.
+	// This allows skipping the attribute creation entirely in case of noop tracer which is selected when tracing is disabled.
+	SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int)
+
 	// A handle interface method to retain relevant span data in new context from the older context
 	PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context
 }

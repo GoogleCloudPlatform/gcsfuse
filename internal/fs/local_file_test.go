@@ -35,6 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -864,6 +865,7 @@ func (t *LocalFileTest) TestStatFailsOnNewFileAfterDeletion() {
 		Logging: cfg.DefaultLoggingConfig(),
 	}
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
+	t.serverCfg.TraceHandle = tracing.NewNoopTracer()
 	filePath := path.Join(mntDir, "test.txt")
 	f1, err := os.Create(filePath)
 	require.NoError(t.T(), err)
