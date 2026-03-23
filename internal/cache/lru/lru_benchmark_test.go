@@ -17,6 +17,7 @@ package lru_test
 import (
 	"fmt"
 	"testing"
+	"strconv"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 )
@@ -62,3 +63,41 @@ func BenchmarkEraseEntriesWithGivenPrefix_Concurrent(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkEraseEntriesWithGivenPrefixOneMillion(b *testing.B) {
+	const totalEntries = 2000000
+	const entriesToDelete = 1000000
+	const prefix = "delete_me_"
+
+	// Pre-generate keys to avoid allocation overhead during benchmark iterations
+	keepKeys := make([]string, totalEntries-entriesToDelete)
+	for j := 0; j < totalEntries-entriesToDelete; j++ {
+		keepKeys[j] = "keep_me_" + strconv.Itoa(j)
+	}
+
+	deleteKeys := make([]string, entriesToDelete)
+	for j := 0; j < entriesToDelete; j++ {
+		deleteKeys[j] = prefix + strconv.Itoa(j)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		cache := lru.NewCache(uint64(totalEntries))
+
+		// Insert entries to keep
+		for j := 0; j < totalEntries-entriesToDelete; j++ {
+			cache.Insert(keepKeys[j], testData{Value: int64(j), DataSize: 1})
+		}
+
+		// Insert entries to delete
+		for j := 0; j < entriesToDelete; j++ {
+			cache.Insert(deleteKeys[j], testData{Value: int64(j), DataSize: 1})
+		}
+
+		b.StartTimer()
+		cache.EraseEntriesWithGivenPrefix(prefix)
+	}
+}
+
