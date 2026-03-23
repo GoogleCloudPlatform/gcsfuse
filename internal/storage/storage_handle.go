@@ -53,8 +53,7 @@ const (
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
-	zonalLocationType         = "zone"
-	stallTimeoutForDirectPath = 60 * time.Second
+	zonalLocationType = "zone"
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts      = 5
@@ -83,22 +82,6 @@ type storageClient struct {
 	rawStorageControlClientWithGaxRetries *control.StorageControlClient
 	// storageControlClient is with retry for GetStorageLayout and with handling for billing project.
 	storageControlClient StorageControlClient
-	directPathDetector   *gRPCDirectPathDetector
-}
-
-type gRPCDirectPathDetector struct {
-	clientOptions []option.ClientOption
-}
-
-// isDirectPathPossible checks if gRPC direct connectivity is available for a specific bucket
-// from the environment where the client is running. A `nil` error represents Direct Connectivity was
-// detected.
-func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) error {
-	newCtx, cancel := context.WithTimeout(ctx, stallTimeoutForDirectPath)
-	defer cancel()
-
-	// The storage library will see the timeout in 'newCtx' and abort the request if it takes too long.
-	return storage.CheckDirectConnectivitySupported(newCtx, bucketName, pd.clientOptions...)
 }
 
 // Return clientOpts for both gRPC client and control client.
@@ -432,7 +415,6 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		rawStorageControlClientWithGaxRetries:    rawStorageControlClientWithGaxRetries,
 		storageControlClient:                     controlClient,
 		clientConfig:                             clientConfig,
-		directPathDetector:                       &gRPCDirectPathDetector{clientOptions: clientOpts},
 	}
 	return
 }
@@ -524,17 +506,6 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	client, err = sh.getClient(ctx, bucketType.Zonal, bucketName)
 	if err != nil {
 		return nil, err
-	}
-
-	if bucketType.Zonal || sh.clientConfig.ClientProtocol == cfg.GRPC {
-		if sh.directPathDetector != nil {
-			logger.Infof("Checking for DirectPath connectivity for bucket %q", bucketName)
-			if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
-				logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)
-			} else {
-				logger.Infof("Successfully connected over gRPC DirectPath for %s", bucketName)
-			}
-		}
 	}
 
 	storageBucketHandle := client.Bucket(bucketName)
