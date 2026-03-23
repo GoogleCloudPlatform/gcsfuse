@@ -20,67 +20,67 @@ import (
 	"testing"
 )
 
-var traceHandlers = map[string]TraceHandle{
-	"otel": NewOTELTracer(),
-	"noop": NewNoopTracer(),
-}
+func BenchmarkTrace(b *testing.B) {
+	traceHandlers := []struct {
+		prefix      string
+		traceHandle TraceHandle
+	}{
+		{
+			prefix:      "Otel",
+			traceHandle: NewOTELTracer(),
+		},
+		{
+			prefix:      "Noop",
+			traceHandle: NewNoopTracer(),
+		},
+	}
+	for _, tc := range traceHandlers {
+		th := tc.traceHandle
+		prefix := tc.prefix
 
-func runTraceHandleBenchmarks(b *testing.B, benchFn func(b *testing.B, th TraceHandle)) {
-	for name, th := range traceHandlers {
-		b.Run(name, func(b *testing.B) {
-			benchFn(b, th)
+		b.Run(fmt.Sprintf("BenchmarkStartSpan_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+
+			for b.Loop() {
+				_, span := th.StartSpan(ctx, "TestSpanName")
+				th.EndSpan(span)
+			}
+		})
+
+		b.Run(fmt.Sprintf("BenchmarkStartServerSpan_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+
+			for b.Loop() {
+				_, span := th.StartServerSpan(ctx, "TestSpanName")
+				th.EndSpan(span)
+			}
+		})
+
+		b.Run(fmt.Sprintf("BenchmarkRecordError_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+
+			for b.Loop() {
+				_, span := th.StartServerSpan(ctx, "TestSpanName")
+				th.EndSpan(span)
+			}
+		})
+
+		b.Run(fmt.Sprintf("BenchmarkSetCacheReadAttributes_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+
+			_, span := th.StartSpan(ctx, "TestSpanName")
+			for b.Loop() {
+				th.SetCacheReadAttributes(span, true, 100)
+			}
+			th.EndSpan(span)
+		})
+
+		b.Run(fmt.Sprintf("BenchmarkPropagateTraceContext_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+
+			for b.Loop() {
+				_ = th.PropagateTraceContext(ctx, ctx)
+			}
 		})
 	}
-}
-
-func BenchmarkStartSpan(b *testing.B) {
-	ctx := context.Background()
-	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
-		for b.Loop() {
-			_, span := th.StartSpan(ctx, "TestSpanName")
-			th.EndSpan(span)
-		}
-	})
-}
-
-func BenchmarkStartServerSpan(b *testing.B) {
-	ctx := context.Background()
-	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
-		for b.Loop() {
-			_, span := th.StartServerSpan(ctx, "TestSpanName")
-			th.EndSpan(span)
-		}
-	})
-}
-
-func BenchmarkRecordError(b *testing.B) {
-	ctx := context.Background()
-	err := fmt.Errorf("test error")
-	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
-		_, span := th.StartSpan(ctx, "TestSpanName")
-		for b.Loop() {
-			th.RecordError(span, err)
-		}
-		th.EndSpan(span)
-	})
-}
-
-func BenchmarkSetCacheReadAttributes(b *testing.B) {
-	ctx := context.Background()
-	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
-		_, span := th.StartSpan(ctx, "TestSpanName")
-		for b.Loop() {
-			th.SetCacheReadAttributes(span, true, 100)
-		}
-		th.EndSpan(span)
-	})
-}
-
-func BenchmarkPropagateTraceContext(b *testing.B) {
-	ctx := context.Background()
-	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
-		for b.Loop() {
-			_ = th.PropagateTraceContext(ctx, ctx)
-		}
-	})
 }
