@@ -439,7 +439,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 					WriteBufferSize:                        8192,
 					EnableODirect:                          true,
 					ExperimentalParallelDownloadsDefaultOn: true,
-					ExperimentalDisableSizeCalculationFix:  false,
+					ExperimentalDisableSizeCalculationFix:  true,
 				},
 			},
 		},

@@ -570,8 +570,8 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 		expectedConfig *cfg.Config
 	}{
 		{
-			name: "Test file cache flags.",
-			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-exclude-regex=.*", "--file-cache-include-regex=.*", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
+			name: "Test_file_cache_flags",
+			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-exclude-regex=.*", "--file-cache-include-regex=.*", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "--experimental-file-cache-disable-size-calculation-fix=true", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				CacheDir: "/some/valid/dir",
 				FileCache: cfg.FileCacheConfig{
@@ -588,12 +588,12 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					SharedCacheChunkSizeMb:                 8,
 					WriteBufferSize:                        4 * 1024 * 1024,
 					EnableODirect:                          false,
-					ExperimentalDisableSizeCalculationFix:  false,
+					ExperimentalDisableSizeCalculationFix:  true,
 				},
 			},
 		},
 		{
-			name: "Test default file cache flags.",
+			name: "Test_default_file_cache_flags",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{

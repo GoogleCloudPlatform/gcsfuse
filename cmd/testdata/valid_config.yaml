@@ -25,6 +25,7 @@ file-cache:
   parallel-downloads-per-file: 10
   write-buffer-size: 8192
   enable-o-direct: true
+  experimental-disable-size-calculation-fix: true
 gcs-auth:
   anonymous-access: true
   key-file: "~/key.file"
