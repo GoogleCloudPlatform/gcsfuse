@@ -85,9 +85,9 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		fileInfoCache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
 			if fi, ok := v.(data.FileInfo); ok {
 				if fi.SparseMode {
-					return baseutil.GetSpeculativeFileSizeOnDisk(fi.Size(), volumeBlockSize)
+					return v.Size() // Do not apply block-size rounding to sparse files
 				}
-				return baseutil.GetSpeculativeFileSizeOnDisk(fi.FileSize, volumeBlockSize)
+				return baseutil.GetSpeculativeFileSizeOnDisk(v.Size(), volumeBlockSize)
 			}
 			return v.Size()
 		})

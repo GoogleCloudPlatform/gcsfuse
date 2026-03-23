@@ -46,7 +46,7 @@ type Cache struct {
 	// Mutable state
 	/////////////////////////
 
-	// Sum of entry.Value.Size() of all the entries in the cache.
+	// Sum of size of all the entries in the cache.
 	currentSize uint64
 
 	// Function to calculate the actual cost of a single entry towards currentSize
@@ -177,7 +177,7 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.currentSize -= e.Value.(entry).Value.Size()
+		c.currentSize -= c.sizeCalcFunc(e.Value.(entry).Value)
 		c.currentSize += valueSize
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
