@@ -58,11 +58,14 @@ func BenchmarkTrace(b *testing.B) {
 
 		b.Run(fmt.Sprintf("BenchmarkRecordError_%s", prefix), func(b *testing.B) {
 			ctx := context.Background()
+			err := fmt.Errorf("TestError")
+			_, span := th.StartSpan(ctx, "TestSpanName")
 
 			for b.Loop() {
-				_, span := th.StartServerSpan(ctx, "TestSpanName")
-				th.EndSpan(span)
+				th.RecordError(span, err)
 			}
+
+			th.EndSpan(span)
 		})
 
 		b.Run(fmt.Sprintf("BenchmarkSetCacheReadAttributes_%s", prefix), func(b *testing.B) {
