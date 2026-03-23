@@ -337,8 +337,15 @@ func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
 }
 
 // SetSizeCalcFunc overrides the default size calculation logic for the LRU entries.
+// This method MUST be called on an empty cache before any entries are inserted.
+// Calling it on a non-empty cache will panic to prevent size accounting inconsistencies.
 func (c *Cache) SetSizeCalcFunc(sizeCalcFunc func(ValueType) uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if c.entries.Len() > 0 {
+		panic("SetSizeCalcFunc must only be called on an empty cache")
+	}
+
 	c.sizeCalcFunc = sizeCalcFunc
 }

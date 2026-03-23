@@ -16,6 +16,8 @@ package util
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetSpeculativeFileSizeOnDisk(t *testing.T) {
@@ -66,9 +68,7 @@ func TestGetSpeculativeFileSizeOnDisk(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			actualSize := GetSpeculativeFileSizeOnDisk(tc.fileContentSize, tc.volumeBlockSize)
-			if actualSize != tc.expectedSize {
-				t.Errorf("GetSpeculativeFileSizeOnDisk(%d, %d) = %d; expected %d", tc.fileContentSize, tc.volumeBlockSize, actualSize, tc.expectedSize)
-			}
+			assert.Equal(t, tc.expectedSize, actualSize)
 		})
 	}
 }
@@ -78,13 +78,7 @@ func TestGetVolumeBlockSize(t *testing.T) {
 	tempDir := t.TempDir()
 
 	blockSize, err := GetVolumeBlockSize(tempDir)
-	if err != nil {
-		t.Fatalf("GetVolumeBlockSize failed: %v", err)
-	}
 
-	// Assuming a standard block size like 4096 for most modern filesystems
-	// This might fail on specific edge-case filesystems, but should work for common CI environments
-	if blockSize <= 0 {
-		t.Errorf("Expected positive block size, got: %d", blockSize)
-	}
+	assert.NoError(t, err)
+	assert.True(t, blockSize == 0 || (blockSize&(blockSize-1)) == 0, "Block-size of a directory should be either 0, or a power of 2. %d is neither", blockSize)
 }

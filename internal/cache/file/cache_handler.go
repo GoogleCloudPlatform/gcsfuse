@@ -30,6 +30,8 @@ import (
 	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
+const defaultCacheDirVolumeBlockSize = 4096
+
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache
 // for a given object in the bucket. CacheHandle contains reference to download job and
 // file handle to file in cache.
@@ -78,8 +80,8 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	if sizeCalcFix {
 		volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
 		if err != nil {
-			logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default 4096.", cacheDir, err)
-			volumeBlockSize = 4096
+			logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default %d.", cacheDir, err, defaultCacheDirVolumeBlockSize)
+			volumeBlockSize = defaultCacheDirVolumeBlockSize
 		}
 
 		fileInfoCache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
