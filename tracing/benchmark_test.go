@@ -16,65 +16,71 @@ package tracing
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
-// Otel Trace Handle benchmark tests
-
-var OtelTraceHandle = NewOTELTracer()
-
-func BenchmarkOtelTracerSetCacheReadAttributes(b *testing.B) {
-	ctx := context.Background()
-	_, span := OtelTraceHandle.StartSpan(ctx, "TestSpanName")
-
-	for b.Loop() {
-		OtelTraceHandle.SetCacheReadAttributes(span, true, 100)
-	}
-	OtelTraceHandle.EndSpan(span)
+var traceHandlers = map[string]TraceHandle{
+	"otel": NewOTELTracer(),
+	"noop": NewNoopTracer(),
 }
 
-// Noop Trace Handle benchmark tests
-
-var NoopTraceHandle = NewNoopTracer()
-
-func BenchmarkNoopTracerStartSpan(b *testing.B) {
-	ctx := context.Background()
-	for b.Loop() {
-		_, span := NoopTraceHandle.StartSpan(ctx, "TestSpanName")
-		NoopTraceHandle.EndSpan(span)
+func runTraceHandleBenchmarks(b *testing.B, benchFn func(b *testing.B, th TraceHandle)) {
+	for name, th := range traceHandlers {
+		b.Run(name, func(b *testing.B) {
+			benchFn(b, th)
+		})
 	}
 }
 
-func BenchmarkNoopTracerStartServerSpan(b *testing.B) {
+func BenchmarkStartSpan(b *testing.B) {
 	ctx := context.Background()
-	for b.Loop() {
-		_, span := NoopTraceHandle.StartServerSpan(ctx, "TestSpanName")
-		NoopTraceHandle.EndSpan(span)
-	}
+	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
+		for b.Loop() {
+			_, span := th.StartSpan(ctx, "TestSpanName")
+			th.EndSpan(span)
+		}
+	})
 }
 
-func BenchmarkNoopTracerRecordError(b *testing.B) {
+func BenchmarkStartServerSpan(b *testing.B) {
 	ctx := context.Background()
-	_, span := NoopTraceHandle.StartSpan(ctx, "TestSpanName")
-	for b.Loop() {
-		NoopTraceHandle.RecordError(span, nil)
-	}
-	NoopTraceHandle.EndSpan(span)
+	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
+		for b.Loop() {
+			_, span := th.StartServerSpan(ctx, "TestSpanName")
+			th.EndSpan(span)
+		}
+	})
 }
 
-func BenchmarkNoopTracerSetCacheReadAttributes(b *testing.B) {
+func BenchmarkRecordError(b *testing.B) {
 	ctx := context.Background()
-	_, span := NoopTraceHandle.StartSpan(ctx, "TestSpanName")
-
-	for b.Loop() {
-		NoopTraceHandle.SetCacheReadAttributes(span, true, 100)
-	}
-	NoopTraceHandle.EndSpan(span)
+	err := fmt.Errorf("test error")
+	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
+		_, span := th.StartSpan(ctx, "TestSpanName")
+		for b.Loop() {
+			th.RecordError(span, err)
+		}
+		th.EndSpan(span)
+	})
 }
 
-func BenchmarkNoopTracerPropagateTraceContext(b *testing.B) {
+func BenchmarkSetCacheReadAttributes(b *testing.B) {
 	ctx := context.Background()
-	for b.Loop() {
-		_ = NoopTraceHandle.PropagateTraceContext(ctx, ctx)
-	}
+	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
+		_, span := th.StartSpan(ctx, "TestSpanName")
+		for b.Loop() {
+			th.SetCacheReadAttributes(span, true, 100)
+		}
+		th.EndSpan(span)
+	})
+}
+
+func BenchmarkPropagateTraceContext(b *testing.B) {
+	ctx := context.Background()
+	runTraceHandleBenchmarks(b, func(b *testing.B, th TraceHandle) {
+		for b.Loop() {
+			_ = th.PropagateTraceContext(ctx, ctx)
+		}
+	})
 }
