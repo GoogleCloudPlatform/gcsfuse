@@ -77,7 +77,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	compiledExcludeRegex = compileRegex(excludeRegex)
 	compiledIncludeRegex = compileRegex(includeRegex)
 
-	if sizeCalcFix {
+	if sizeCalcFix && !isSparse {
 		volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
 		if err != nil {
 			logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default %d.", cacheDir, err, defaultCacheDirVolumeBlockSize)
@@ -85,10 +85,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		}
 
 		fileInfoCache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
-			if fi, ok := v.(data.FileInfo); ok {
-				if fi.SparseMode {
-					return v.Size() // Do not apply block-size rounding to sparse files
-				}
+			if _, ok := v.(data.FileInfo); ok {
 				return baseutil.GetSpeculativeFileSizeOnDisk(v.Size(), volumeBlockSize)
 			}
 			return v.Size()
