@@ -576,7 +576,6 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	return FlatBucket, nil
 }
 
-
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
 // bucketType should be "flat", "hns", or "zonal".
 // The run parameter filters flag sets based on the 'Run' field in the test
