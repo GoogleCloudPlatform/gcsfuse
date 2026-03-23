@@ -881,7 +881,7 @@ run_e2e_tests_for_emulator() {
     log_info_locked "Passed e2e tests for emulator."
   fi
 
-  # Call the helper to copy log to the right status directory and delete the original log
+  # Call the helper to organize logs and cleanup the original file
   process_test_log "$exit_code" "$emulator_test_log" "emulator_package"
 
   return "$exit_code"
