@@ -1064,7 +1064,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
-	flagSet.BoolP("file-cache-experimental-disable-size-calculation-fix", "", false, "Disable the fix that accounts for volume block size in file cache usage limits.")
+	flagSet.BoolP("file-cache-experimental-disable-size-calculation-fix", "", false, "Disable the fix in calculation of disk-utilization of file-cache.")
 
 	if err := flagSet.MarkHidden("file-cache-experimental-disable-size-calculation-fix"); err != nil {
 		return err

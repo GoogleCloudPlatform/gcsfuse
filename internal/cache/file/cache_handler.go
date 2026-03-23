@@ -77,19 +77,23 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	compiledExcludeRegex = compileRegex(excludeRegex)
 	compiledIncludeRegex = compileRegex(includeRegex)
 
-	if sizeCalcFix && !isSparse {
-		volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
-		if err != nil {
-			logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default %d.", cacheDir, err, defaultCacheDirVolumeBlockSize)
-			volumeBlockSize = defaultCacheDirVolumeBlockSize
-		}
-
-		fileInfoCache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
-			if _, ok := v.(data.FileInfo); ok {
-				return baseutil.GetSpeculativeFileSizeOnDisk(v.Size(), volumeBlockSize)
+	if sizeCalcFix {
+		if !isSparse {
+			volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
+			if err != nil {
+				logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default %d.", cacheDir, err, defaultCacheDirVolumeBlockSize)
+				volumeBlockSize = defaultCacheDirVolumeBlockSize
 			}
-			return v.Size()
-		})
+
+			fileInfoCache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
+				if _, ok := v.(data.FileInfo); ok {
+					return baseutil.GetSpeculativeFileSizeOnDisk(v.Size(), volumeBlockSize)
+				}
+				return v.Size()
+			})
+		}
+	} else {
+		logger.Info("file-cache disk-utilization fix disabled because sparse-mode is on.")
 	}
 
 	return &CacheHandler{

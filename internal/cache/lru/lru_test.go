@@ -72,6 +72,20 @@ func (t *CacheTest) insertAndAssert(key string, val lru.ValueType, evictedValues
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// expectCallToPanic is a helper function to assert that a function call panics.
+func expectCallToPanic(f func()) {
+	defer func() {
+		if r := recover(); r == nil {
+			panic("The code did not panic as expected")
+		}
+	}()
+	f()
+}
+
+////////////////////////////////////////////////////////////////////////
 // Test functions
 ////////////////////////////////////////////////////////////////////////
 
@@ -475,14 +489,4 @@ func (t *CacheTest) TestCustomSizeCalcFunc_UpdateSize() {
 	// Verify item1 was evicted and item2 remains.
 	ExpectEq(nil, t.cache.LookUp("item1"))
 	ExpectEq(2, t.cache.LookUp("item2").(testData).Value)
-}
-
-// expectCallToPanic is a helper function to assert that a function call panics.
-func expectCallToPanic(f func()) {
-	defer func() {
-		if r := recover(); r == nil {
-			panic("The code did not panic as expected")
-		}
-	}()
-	f()
 }

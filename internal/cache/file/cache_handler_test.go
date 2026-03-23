@@ -1126,13 +1126,10 @@ func Test_Destroy(t *testing.T) {
 func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100)
-
 	// Create with sizeCalcFix = true, isSparse = false
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, true)
-
 	// Verify SetSizeCalcFunc was successfully configured
 	require.NotNil(t, handler)
-
 	// To verify the size calc func correctly rounds up to block sizes, we insert a small file.
 	// Since cache max is 100 bytes, a single block (e.g. 4096) will overflow it instantly.
 	fi := data.FileInfo{
@@ -1146,6 +1143,7 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	// Inserting should immediately fail because 4096 > 100.
 	// If the size calc fix was OFF, 1 byte would easily fit in the 100 byte cache.
 	_, err := cache.Insert("test_key", fi)
+
 	require.Error(t, err)
 	require.ErrorIs(t, err, lru.ErrInvalidEntrySize)
 }
@@ -1153,11 +1151,10 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 func Test_NewCacheHandler_WithSizeCalcFix_SparseFallback(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100) // Small max cache size
-
 	// Create with sizeCalcFix = true, isSparse = true
+	// sizeCalcFix will be internally disabled by isSparse.
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", true, true)
 	require.NotNil(t, handler)
-
 	// Because isSparse is true, NewCacheHandler skips configuring the block-size up-rounding.
 	// Therefore, an object with 5 bytes should easily fit in a 100-byte cache limit.
 	fi := data.FileInfo{
@@ -1170,6 +1167,7 @@ func Test_NewCacheHandler_WithSizeCalcFix_SparseFallback(t *testing.T) {
 
 	// Since 5 bytes < 100 bytes, this should fit cleanly without overflowing.
 	evicted, err := cache.Insert("sparse_key", fi)
+
 	require.NoError(t, err)
 	require.Empty(t, evicted)
 }
