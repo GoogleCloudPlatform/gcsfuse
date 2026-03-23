@@ -78,7 +78,9 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	compiledIncludeRegex = compileRegex(includeRegex)
 
 	if sizeCalcFix {
-		if !isSparse {
+		if isSparse {
+			logger.Info("file-cache disk-utilization fix is not supported with sparse-mode and is disabled.")
+		} else {
 			volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
 			if err != nil {
 				logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default %d.", cacheDir, err, defaultCacheDirVolumeBlockSize)
@@ -92,8 +94,6 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 				return v.Size()
 			})
 		}
-	} else {
-		logger.Info("file-cache disk-utilization fix disabled because sparse-mode is on.")
 	}
 
 	return &CacheHandler{
