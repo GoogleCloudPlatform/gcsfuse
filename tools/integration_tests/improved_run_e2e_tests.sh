@@ -90,6 +90,8 @@ readonly DELAY_BETWEEN_BUCKET_CREATION=6
 readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
+readonly SUCCESS_DIR_NAME="success_package_logs"
+readonly FAILED_DIR_NAME="failed_package_logs"
 
 # Extract GCE VM Project and Location.
 ZONE=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
@@ -399,6 +401,35 @@ log_error_locked() {
   release_lock "$LOG_LOCK_FILE"
 }
 
+# Helper method to organize the test log file based on exit code and remove the original.
+process_test_log() {
+  if [[ $# -lt 3 ]]; then
+    log_error "process_test_log() called with incorrect number of arguments."
+    return 1
+  fi
+  local exit_code="$1"
+  local log_file="$2"
+  local base_filename="$3"
+  local bucket_type="$4"
+
+  local status_dir
+  if [[ "$exit_code" -eq 0 ]]; then
+    status_dir="${SUCCESS_DIR_NAME}"
+  else
+    status_dir="${FAILED_DIR_NAME}"
+  fi
+
+  local dest_dir="${OUTPUT_DIR}/${status_dir}"
+  if [[ -n "$bucket_type" ]]; then
+    dest_dir="${dest_dir}/${bucket_type}"
+  fi
+
+  mkdir -p "$dest_dir"
+  cp "$log_file" "$dest_dir/${base_filename}.txt"
+  rm -f "$log_file"
+}
+
+
 # Helper method to create "flat", "hns" or "zonal" bucket.
 create_bucket() {
   if [[ $# -ne 2 ]]; then
@@ -657,10 +688,8 @@ test_package() {
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
     log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
-    status_dir="failed_package_logs"
   else
     log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
-    status_dir="success_package_logs"
   fi
 
   local dest_dir="${OUTPUT_DIR}/${status_dir}/${bucket_type}"
@@ -672,7 +701,8 @@ test_package() {
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
   # Generate Kokoro artifacts(log) files.
   generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
-  rm -rf "$test_package_log_file"
+  # Call the helper to organize logs and cleanup the original file
+  process_test_log "$exit_code" "$test_package_log_file" "$package_name" "$bucket_type"
   return "$exit_code"
 }
 
@@ -847,25 +877,19 @@ run_e2e_tests_for_emulator() {
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log
   emulator_test_log=$(create_file_helper "running_package_logs/emulator_package.txt")
-  
-  local status_dir
+
+  local exit_code=0
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
-    log_error_locked "Failed to run e2e tests for emulator."
-    status_dir="failed_package_logs"
+    log_error_locked "Failed e2e tests for emulator."
+    exit_code=1
   else
-    log_info_locked "Passed running e2e tests for emulator."
-    status_dir="success_package_logs"
+    log_info_locked "Passed e2e tests for emulator."
   fi
 
-  local dest_dir="${OUTPUT_DIR}/${status_dir}"
-  mkdir -p "$dest_dir"
-  cp "$emulator_test_log" "$dest_dir/emulator_package.txt"
-  rm -f "$emulator_test_log"
-  
-  if [[ "$status_dir" == "failed_package_logs" ]]; then
-      return 1
-  fi
-  return 0
+  # Call the helper to copy log to the right status directory and delete the original log
+  process_test_log "$exit_code" "$emulator_test_log" "emulator_package"
+
+  return "$exit_code"
 }
 
 main() {
