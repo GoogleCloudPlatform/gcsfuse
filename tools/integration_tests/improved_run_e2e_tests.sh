@@ -429,7 +429,6 @@ process_test_log() {
   rm -f "$log_file"
 }
 
-
 # Helper method to create "flat", "hns" or "zonal" bucket.
 create_bucket() {
   if [[ $# -ne 2 ]]; then
@@ -684,7 +683,6 @@ test_package() {
   # Run the package test command and capture log output with runtime stats.
   log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
 
-  local status_dir
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
     log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
@@ -692,9 +690,6 @@ test_package() {
     log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
   fi
 
-  local dest_dir="${OUTPUT_DIR}/${status_dir}/${bucket_type}"
-  mkdir -p "$dest_dir"
-  cp "$test_package_log_file" "$dest_dir/${package_name}.txt"
   local end=$SECONDS
 
   # Add the package stats to the file.
