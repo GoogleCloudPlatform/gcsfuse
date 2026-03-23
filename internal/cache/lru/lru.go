@@ -183,11 +183,10 @@ func (c *Cache) Insert(
 	return evictedValues, nil
 }
 
-// Erase any entry for the supplied key, also returns the value of erased key.
-func (c *Cache) Erase(key string) (value ValueType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+// eraseInternal removes any entry for the supplied key from the cache without acquiring locks.
+// It returns the value of the erased key, or nil if not present.
+// LOCKS_REQUIRED(c.mu)
+func (c *Cache) eraseInternal(key string) (value ValueType) {
 	e, ok := c.index[key]
 	if !ok {
 		return
@@ -200,6 +199,24 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	c.entries.Remove(e)
 
 	return deletedEntry
+}
+
+// eraseKeys removes a list of keys from the cache.
+func (c *Cache) eraseKeys(keys []string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, key := range keys {
+		c.eraseInternal(key)
+	}
+}
+
+// Erase any entry for the supplied key, also returns the value of erased key.
+func (c *Cache) Erase(key string) (value ValueType) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.eraseInternal(key)
 }
 
 // LookUp a previously-inserted value for the given key. Return nil if no
@@ -291,9 +308,16 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 }
 
 func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
+	c.mu.RLock()
+	var keysToDelete []string
 	for key := range c.index {
 		if strings.HasPrefix(key, prefix) {
-			c.Erase(key)
+			keysToDelete = append(keysToDelete, key)
 		}
+	}
+	c.mu.RUnlock()
+
+	if len(keysToDelete) > 0 {
+		c.eraseKeys(keysToDelete)
 	}
 }
