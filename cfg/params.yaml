@@ -308,7 +308,7 @@ params:
     default: ""
 
   - config-path: "file-cache.experimental-disable-size-calculation-fix"
-    flag-name: "experimental-file-cache-disable-size-calculation-fix"
+    flag-name: "file-cache-experimental-disable-size-calculation-fix"
     type: "bool"
     usage: "Disable the fix that accounts for volume block size in file cache usage limits."
     default: false

@@ -996,12 +996,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-file-cache-disable-size-calculation-fix", "", false, "Disable the fix that accounts for volume block size in file cache usage limits.")
-
-	if err := flagSet.MarkHidden("experimental-file-cache-disable-size-calculation-fix"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("experimental-grpc-conn-pool-size", "", 1, "The number of gRPC channel in grpc client.")
 
 	if err := flagSet.MarkDeprecated("experimental-grpc-conn-pool-size", "Experimental flag: can be removed in a minor release."); err != nil {
@@ -1069,6 +1063,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
 	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
+
+	flagSet.BoolP("file-cache-experimental-disable-size-calculation-fix", "", false, "Disable the fix that accounts for volume block size in file cache usage limits.")
+
+	if err := flagSet.MarkHidden("file-cache-experimental-disable-size-calculation-fix"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("file-cache-experimental-enable-chunk-cache", "", false, "Enable chunk cache mode for random I/O optimization that downloads only requested blocks.")
 
@@ -1589,10 +1589,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-cache.experimental-disable-size-calculation-fix", flagSet.Lookup("experimental-file-cache-disable-size-calculation-fix")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size")); err != nil {
 		return err
 	}
@@ -1646,6 +1642,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.exclude-regex", flagSet.Lookup("file-cache-exclude-regex")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-disable-size-calculation-fix", flagSet.Lookup("file-cache-experimental-disable-size-calculation-fix")); err != nil {
 		return err
 	}
 
