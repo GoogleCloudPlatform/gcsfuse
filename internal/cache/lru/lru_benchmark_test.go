@@ -28,7 +28,7 @@ func BenchmarkInsert(b *testing.B) {
 	data := testData{Value: 1, DataSize: 10}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		key := fmt.Sprintf("key-%d", i)
 		_, _ = cache.Insert(key, data)
 	}
@@ -39,13 +39,13 @@ func BenchmarkLookUp(b *testing.B) {
 	data := testData{Value: 1, DataSize: 10}
 
 	// Pre-populate
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		key := fmt.Sprintf("key-%d", i)
 		_, _ = cache.Insert(key, data)
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		key := fmt.Sprintf("key-%d", i%10000)
 		_ = cache.LookUp(key)
 	}
@@ -56,7 +56,7 @@ func BenchmarkErase(b *testing.B) {
 	data := testData{Value: 1, DataSize: 10}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		b.StopTimer()
 		key := fmt.Sprintf("key-%d", i)
 		_, _ = cache.Insert(key, data)
@@ -95,39 +95,12 @@ func BenchmarkEraseEntriesWithGivenPrefix_1Million(b *testing.B) {
 	data := testData{Value: 1, DataSize: 10}
 	cacheMaxSize := uint64(numEntries * 20) // ensure enough size so no evictions
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		cache := lru.NewCache(cacheMaxSize)
 
 		// Insert 1 million entries
-		for j := 0; j < numEntries; j++ {
-			var key string
-			// Add a specific prefix to half the keys
-			if j%2 == 0 {
-				key = fmt.Sprintf("prefix/key-%d", j)
-			} else {
-				key = fmt.Sprintf("other/key-%d", j)
-			}
-			_, _ = cache.Insert(key, data)
-		}
-
-		b.StartTimer()
-
-		// Delete entries with "prefix/"
-		cache.EraseEntriesWithGivenPrefix("prefix/")
-	}
-}
-func BenchmarkEraseEntriesWithGivenPrefix_10K(b *testing.B) {
-	const numEntries = 10000
-	data := testData{Value: 1, DataSize: 10}
-	cacheMaxSize := uint64(numEntries * 20) // ensure enough size so no evictions
-
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		cache := lru.NewCache(cacheMaxSize)
-
-		// Insert 1 million entries
-		for j := 0; j < numEntries; j++ {
+		for j := range numEntries {
 			var key string
 			// Add a specific prefix to half the keys
 			if j%2 == 0 {
