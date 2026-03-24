@@ -71,7 +71,7 @@ func (dt *downloaderTest) setupHelper() {
 	ExpectEq(nil, err)
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})
-	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, dt.defaultFileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, dt.defaultFileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
 }
 
 func (dt *downloaderTest) SetUp(*TestInfo) {

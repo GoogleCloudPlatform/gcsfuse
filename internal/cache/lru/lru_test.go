@@ -72,20 +72,6 @@ func (t *CacheTest) insertAndAssert(key string, val lru.ValueType, evictedValues
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-// expectCallToPanic is a helper function to assert that a function call panics.
-func expectCallToPanic(f func()) {
-	defer func() {
-		if r := recover(); r == nil {
-			panic("The code did not panic as expected")
-		}
-	}()
-	f()
-}
-
-////////////////////////////////////////////////////////////////////////
 // Test functions
 ////////////////////////////////////////////////////////////////////////
 
@@ -402,65 +388,4 @@ func (t *CacheTest) Test_EraseEntriesWithGivenPrefix_Concurrent() {
 	}()
 
 	wg.Wait()
-}
-
-func (t *CacheTest) TestCustomSizeCalcFunc_RoundUp() {
-	// Override the sizeCalcFunc to round up to the next multiple of 10 bytes.
-	t.cache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
-		size := v.Size()
-		if size%10 != 0 {
-			size = size + (10 - (size % 10))
-		}
-		return size
-	})
-
-	// Insert an item with size 4. With the custom function, it should count as 10.
-	t.insertAndAssert("item1", testData{Value: 1, DataSize: 4}, []int64{}, nil)
-	// Insert an item with size 35. It should count as 40.
-	// Total cache size is now 50 (10 + 40). MaxSize is 50.
-	t.insertAndAssert("item2", testData{Value: 2, DataSize: 35}, []int64{}, nil)
-	// Insert an item with size 2. It should count as 10.
-	// Total cache size would be 60. This exceeds MaxSize (50).
-	// "item1" (the LRU) should be evicted.
-	t.insertAndAssert("item3", testData{Value: 3, DataSize: 2}, []int64{1}, nil)
-
-	// item1 got evicted because insertion of item3 required space.
-	// This eviction would not have happened if SizeCalcFunc was not applied.
-	ExpectEq(nil, t.cache.LookUp("item1"))
-	ExpectEq(2, t.cache.LookUp("item2").(testData).Value)
-	ExpectEq(3, t.cache.LookUp("item3").(testData).Value)
-}
-
-func (t *CacheTest) TestSetSizeCalcFunc_PanicOnNonEmptyCache() {
-	// Insert an item so the cache is not empty
-	t.insertAndAssert("item1", testData{Value: 1, DataSize: 4}, []int64{}, nil)
-
-	// Attempting to set the size calc function on a non-empty cache should panic
-	expectCallToPanic(func() {
-		t.cache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
-			return v.Size() * 2
-		})
-	})
-}
-
-func (t *CacheTest) TestCustomSizeCalcFunc_UpdateSize() {
-	// Set a custom size func that multiplies the raw size by 2
-	t.cache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
-		return v.Size() * 2
-	})
-	// Insert an item with DataSize 10. Computed size becomes 20.
-	t.insertAndAssert("item1", testData{Value: 1, DataSize: 10}, []int64{}, nil)
-
-	// Explicitly increment the size of the cache entry by 10 bytes (simulating a sparse file chunk).
-	// The LRU's currentSize goes from 20 to 30. (MaxSize is 50).
-	err := t.cache.UpdateSize("item1", 10)
-	AssertEq(nil, err)
-	// Insert a new item with DataSize 15 (Computed size becomes 30).
-	// Total cache size will be: 30 (item1) + 30 (item2) = 60.
-	// Since 60 > 50 (MaxSize), item1 MUST be evicted.
-	t.insertAndAssert("item2", testData{Value: 2, DataSize: 15}, []int64{1}, nil)
-
-	// Verify item1 was evicted and item2 remains.
-	ExpectEq(nil, t.cache.LookUp("item1"))
-	ExpectEq(2, t.cache.LookUp("item2").(testData).Value)
 }

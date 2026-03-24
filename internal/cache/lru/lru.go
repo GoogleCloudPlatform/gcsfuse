@@ -46,11 +46,8 @@ type Cache struct {
 	// Mutable state
 	/////////////////////////
 
-	// Sum of the effective sizes of all the entries in the cache.
+	// Sum of entry.Value.Size() of all the entries in the cache.
 	currentSize uint64
-
-	// Function to calculate the actual contribution of the given entry towards currentSize.
-	sizeCalcFunc func(ValueType) uint64
 
 	// List of cache entries, with least recently used at the tail.
 	//
@@ -78,23 +75,12 @@ type entry struct {
 	Value ValueType
 }
 
-func defaultSizeCalc(v ValueType) uint64 {
-	return v.Size()
-}
-
 // NewCache returns the reference of cache object by initialising the cache with
 // the supplied maxSize, which must be greater than zero.
 func NewCache(maxSize uint64) *Cache {
-	return NewCacheWithCustomSizeCalc(maxSize, defaultSizeCalc)
-}
-
-// NewCacheWithCustomSizeCalc returns a cache object that uses the passed custom
-// function to calculate the size footprint of each entry in the cache.
-func NewCacheWithCustomSizeCalc(maxSize uint64, sizeCalcFunc func(ValueType) uint64) *Cache {
 	c := &Cache{
-		maxSize:      maxSize,
-		index:        make(map[string]*list.Element),
-		sizeCalcFunc: sizeCalcFunc,
+		maxSize: maxSize,
+		index:   make(map[string]*list.Element),
 	}
 
 	// Set up invariant checking.
@@ -144,7 +130,7 @@ func (c *Cache) evictOne() ValueType {
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry).Value
-	c.currentSize -= c.sizeCalcFunc(evictedEntry)
+	c.currentSize -= evictedEntry.Size()
 
 	c.entries.Remove(e)
 	delete(c.index, key)
@@ -169,7 +155,7 @@ func (c *Cache) Insert(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	valueSize := c.sizeCalcFunc(value)
+	valueSize := value.Size()
 	if valueSize > c.maxSize {
 		return nil, ErrInvalidEntrySize
 	}
@@ -177,7 +163,7 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.currentSize -= c.sizeCalcFunc(e.Value.(entry).Value)
+		c.currentSize -= e.Value.(entry).Value.Size()
 		c.currentSize += valueSize
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
@@ -207,7 +193,7 @@ func (c *Cache) eraseInternal(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry).Value
-	c.currentSize -= c.sizeCalcFunc(deletedEntry)
+	c.currentSize -= deletedEntry.Size()
 
 	delete(c.index, key)
 	c.entries.Remove(e)
@@ -290,7 +276,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 		return ErrEntryNotExist
 	}
 
-	if c.sizeCalcFunc(value) != c.sizeCalcFunc(e.Value.(entry).Value) {
+	if value.Size() != e.Value.(entry).Value.Size() {
 		return ErrInvalidUpdateEntrySize
 	}
 
@@ -334,18 +320,4 @@ func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
 	if len(keysToDelete) > 0 {
 		c.eraseKeys(keysToDelete)
 	}
-}
-
-// SetSizeCalcFunc overrides the default size calculation logic for the LRU entries.
-// This method MUST be called on an empty cache before any entries are inserted.
-// Calling it on a non-empty cache will panic to prevent size accounting inconsistencies.
-func (c *Cache) SetSizeCalcFunc(sizeCalcFunc func(ValueType) uint64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.entries.Len() > 0 {
-		panic("SetSizeCalcFunc must only be called on an empty cache")
-	}
-
-	c.sizeCalcFunc = sizeCalcFunc
 }

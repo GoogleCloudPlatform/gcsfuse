@@ -71,7 +71,7 @@ func verifyFileInfoEntry(t *testing.T, mockBucket *storage.TestifyMockBucket, ob
 	assert.True(t, fileInfo != nil)
 	assert.Equal(t, object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
 	assert.LessOrEqual(t, offset, fileInfo.(data.FileInfo).Offset)
-	assert.Equal(t, object.Size, fileInfo.(data.FileInfo).Size())
+	assert.Equal(t, object.Size, fileInfo.(data.FileInfo).ContentSize())
 }
 
 func getFileInfo(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache *lru.Cache) lru.ValueType {

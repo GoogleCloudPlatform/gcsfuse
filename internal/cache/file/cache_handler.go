@@ -67,6 +67,9 @@ type CacheHandler struct {
 
 	// isSparse indicates whether sparse file mode is enabled
 	isSparse bool
+
+	// volumeBlockSize caches the block size of the local volume for speculative size accounting
+	volumeBlockSize uint64
 }
 
 func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse, sizeCalcFix bool) *CacheHandler {
@@ -76,35 +79,31 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	compiledExcludeRegex = compileRegex(excludeRegex)
 	compiledIncludeRegex = compileRegex(includeRegex)
 
+	var volumeBlockSize uint64 = 1 // 1 means speculative block-size accounting is disabled (exact byte tracking)
 	if sizeCalcFix {
 		if isSparse {
 			logger.Info("file-cache disk-utilization fix is not supported with sparse-mode and is disabled.")
 		} else {
-			volumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
+			var err error
+			volumeBlockSize, err = baseutil.GetVolumeBlockSize(cacheDir)
 			if err != nil {
 				logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default %d.", cacheDir, err, defaultCacheDirVolumeBlockSize)
 				volumeBlockSize = defaultCacheDirVolumeBlockSize
 			}
-
-			fileInfoCache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
-				if _, ok := v.(data.FileInfo); ok {
-					return baseutil.GetSpeculativeFileSizeOnDisk(v.Size(), volumeBlockSize)
-				}
-				return v.Size()
-			})
 		}
 	}
 
 	return &CacheHandler{
-		fileInfoCache: fileInfoCache,
-		jobManager:    jobManager,
-		cacheDir:      cacheDir,
-		filePerm:      filePerm,
-		dirPerm:       dirPerm,
-		mu:            locker.New("FileCacheHandler", func() {}),
-		excludeRegex:  compiledExcludeRegex,
-		includeRegex:  compiledIncludeRegex,
-		isSparse:      isSparse,
+		fileInfoCache:   fileInfoCache,
+		jobManager:      jobManager,
+		cacheDir:        cacheDir,
+		filePerm:        filePerm,
+		dirPerm:         dirPerm,
+		mu:              locker.New("FileCacheHandler", func() {}),
+		excludeRegex:    compiledExcludeRegex,
+		includeRegex:    compiledIncludeRegex,
+		isSparse:        isSparse,
+		volumeBlockSize: volumeBlockSize,
 	}
 }
 
@@ -217,12 +216,13 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 
 	if addEntryToCache {
 		newFileInfo := data.FileInfo{
-			Key:              fileInfoKey,
-			ObjectGeneration: object.Generation,
-			Offset:           0,
-			FileSize:         object.Size,
-			SparseMode:       chr.isSparse,
-			DownloadedChunks: nil,
+			Key:                     fileInfoKey,
+			ObjectGeneration:        object.Generation,
+			Offset:                  0,
+			FileSize:                object.Size,
+			SparseMode:              chr.isSparse,
+			DownloadedChunks:        nil,
+			CacheDirVolumeBlockSize: chr.volumeBlockSize,
 		}
 		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
 		// sparse mode, so Offset < requiredOffset checks always fail

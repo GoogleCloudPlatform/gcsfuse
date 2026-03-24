@@ -367,6 +367,17 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 	}
 
 	fileInfoCache := lru.NewCache(sizeInBytes)
+
+	var cacheDirVolumeBlockSize uint64 = 1
+	if !serverCfg.NewConfig.FileCache.ExperimentalDisableSizeCalculationFix && !serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache {
+		var err error
+		cacheDirVolumeBlockSize, err = util.GetVolumeBlockSize(cacheDir)
+		if err != nil {
+			logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default 4096.", cacheDir, err)
+			cacheDirVolumeBlockSize = 4096
+		}
+	}
+
 	jobManager := downloader.NewJobManager(
 		fileInfoCache,
 		filePerm,
@@ -376,6 +387,7 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 		&serverCfg.NewConfig.FileCache,
 		serverCfg.MetricHandle,
 		serverCfg.TraceHandle,
+		cacheDirVolumeBlockSize,
 	)
 	fileCacheHandler := file.NewCacheHandler(
 		fileInfoCache,
