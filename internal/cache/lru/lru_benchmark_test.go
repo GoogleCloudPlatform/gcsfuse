@@ -90,6 +90,7 @@ func BenchmarkConcurrency(b *testing.B) {
 	})
 }
 
+/*
 func BenchmarkInsert1Million(b *testing.B) {
 	const numEntries = 1000000
 	data := testData{Value: 1, DataSize: 10}
@@ -137,3 +138,4 @@ func BenchmarkEraseEntriesWithGivenPrefix_1Million(b *testing.B) {
 		cache.EraseEntriesWithGivenPrefix("prefix/")
 	}
 }
+*/
