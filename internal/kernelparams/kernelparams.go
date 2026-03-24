@@ -225,6 +225,132 @@ func (m *KernelParamsManager) SetCongestionWindowThreshold(threshold int) {
 	}
 }
 
+// getParamValue returns the value of a parameter if it exists, otherwise returns empty string
+func (m *KernelParamsManager) getParamValue(name ParamName) string {
+	for _, p := range m.Parameters {
+		if p.Name == name {
+			return p.Value
+		}
+	}
+	return ""
+}
+
+// EnhanceForBatchRead enhances existing kernel parameters for optimal batch read performance.
+// This method augments the already-set parameters rather than replacing them,
+// ensuring batch reads have the necessary async capabilities.
+//
+// It will:
+//   - Ensure max_background is at least 128 (if not already higher)
+//   - Adjust congestion_threshold to ~75% of max_background if needed
+//   - Set read_ahead based on batchReadAheadMb if provided
+//
+// Parameters:
+//   - batchReadAheadMb: read-ahead size in MB for batch operations (0 = use existing config)
+func (m *KernelParamsManager) EnhanceForBatchRead(batchReadAheadMb int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Ensure max_background is sufficient for batch reads (minimum 128)
+	const minBatchMaxBackground = 128
+	maxBgStr := m.getParamValue(MaxBackgroundRequests)
+	if maxBgStr != "" {
+		currentVal := 0
+		fmt.Sscanf(maxBgStr, "%d", &currentVal)
+		if currentVal < minBatchMaxBackground {
+			// Update to minimum required for batch read
+			for i, p := range m.Parameters {
+				if p.Name == MaxBackgroundRequests {
+					m.Parameters[i].Value = fmt.Sprintf("%d", minBatchMaxBackground)
+					logger.Infof("Enhanced max_background from %d to %d for batch read", currentVal, minBatchMaxBackground)
+					break
+				}
+			}
+		}
+	}
+
+	// Recalculate congestion_threshold to be ~75% of max_background
+	maxBgStr = m.getParamValue(MaxBackgroundRequests)
+	if maxBgStr != "" {
+		maxBg := 0
+		fmt.Sscanf(maxBgStr, "%d", &maxBg)
+		congestionThreshold := (maxBg * 3) / 4
+
+		// Update or add congestion threshold
+		found := false
+		for i, p := range m.Parameters {
+			if p.Name == CongestionWindowThreshold {
+				m.Parameters[i].Value = fmt.Sprintf("%d", congestionThreshold)
+				found = true
+				break
+			}
+		}
+		if !found {
+			m.Parameters = append(m.Parameters, KernelParam{
+				Name:  CongestionWindowThreshold,
+				Value: fmt.Sprintf("%d", congestionThreshold),
+			})
+		}
+	}
+
+	// Set read_ahead based on batch read configuration if provided
+	if batchReadAheadMb > 0 {
+		readAheadKb := batchReadAheadMb * 1024
+		found := false
+		for i, p := range m.Parameters {
+			if p.Name == MaxReadAheadKb {
+				m.Parameters[i].Value = fmt.Sprintf("%d", readAheadKb)
+				found = true
+				logger.Infof("Enhanced read_ahead_kb to %d for batch read", readAheadKb)
+				break
+			}
+		}
+		if !found {
+			m.Parameters = append(m.Parameters, KernelParam{
+				Name:  MaxReadAheadKb,
+				Value: fmt.Sprintf("%d", readAheadKb),
+			})
+			logger.Infof("Set read_ahead_kb to %d for batch read", readAheadKb)
+		}
+	}
+}
+
+// ConfigureForBatchRead applies optimal kernel parameters for batch read operations.
+// This configures async reads with appropriate max_background, congestion_threshold,
+// and read_ahead_kb values to maximize batch read performance.
+//
+// Deprecated: Use SetReadAheadKb, SetMaxBackgroundRequests, SetCongestionWindowThreshold
+// followed by EnhanceForBatchRead instead for better composability.
+//
+// Parameters:
+//   - readAheadMb: read-ahead size in MB (typically 64 or 128)
+//   - maxBackground: max number of background requests (typically 128 or 256)
+//
+// If maxBackground is 0, it defaults to 128.
+// If readAheadMb is 0, it defaults to 64.
+func (m *KernelParamsManager) ConfigureForBatchRead(readAheadMb int, maxBackground int) {
+	// Set defaults if not provided
+	if maxBackground == 0 {
+		maxBackground = 128
+	}
+	if readAheadMb == 0 {
+		readAheadMb = 64
+	}
+
+	// Set max_background for async reads
+	m.SetMaxBackgroundRequests(maxBackground)
+
+	// Set congestion_threshold to ~75% of max_background
+	congestionThreshold := (maxBackground * 3) / 4
+	m.SetCongestionWindowThreshold(congestionThreshold)
+
+	// Convert MB to KB for read_ahead_kb
+	readAheadKb := readAheadMb * 1024
+	m.SetReadAheadKb(readAheadKb)
+
+	logger.Infof("Configured kernel parameters for batch read: max_background=%d, congestion_threshold=%d, read_ahead_kb=%d",
+		maxBackground, congestionThreshold, readAheadKb)
+}
+
 // ApplyGKE atomically writes the KernelParamsConfig to a JSON file at the specified path.
 // This is used in GKE environments where CSI Driver (privileged) reads the file
 // to apply settings.

@@ -20,11 +20,13 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
@@ -60,6 +62,13 @@ type FileHandle struct {
 	// MrdKernelReader is a reader that uses an MRD instance to read data from a GCS
 	// object. This reader is kernel-optimized & reads whatever is requested as is.
 	mrdKernelReader *gcsx.MrdKernelReader
+
+	// batchReader is used for batch read operations when batch read is enabled.
+	// It implements the batch read algorithm with the central registry.
+	//
+	// GUARDED_BY(mu)
+	batchReader gcsx.Reader
+
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
 	// Exactly one of these should be set:
@@ -85,6 +94,10 @@ type FileHandle struct {
 	// that can be allocated for buffered read across all files in the file system.
 	globalMaxReadBlocksSem *semaphore.Weighted
 
+	// batchReadRegistry is the global batch read registry shared across all file handles.
+	// It is used to coordinate batch reads across multiple concurrent readers.
+	batchReadRegistry *bufferedread.BatchReadRegistry
+
 	// HandleID is an opaque 64-bit number used to create this File Handle, used for logging.
 	handleID fuseops.HandleID
 }
@@ -101,6 +114,7 @@ func NewFileHandle(
 	c *cfg.Config,
 	bufferedReadWorkerPool workerpool.WorkerPool,
 	globalMaxReadBlocksSem *semaphore.Weighted,
+	batchReadRegistry *bufferedread.BatchReadRegistry,
 	handleID fuseops.HandleID,
 ) (fh *FileHandle) {
 	fh = &FileHandle{
@@ -114,6 +128,7 @@ func NewFileHandle(
 		config:                  c,
 		bufferedReadWorkerPool:  bufferedReadWorkerPool,
 		globalMaxReadBlocksSem:  globalMaxReadBlocksSem,
+		batchReadRegistry:       batchReadRegistry,
 		handleID:                handleID,
 	}
 
@@ -146,6 +161,10 @@ func (fh *FileHandle) Destroy() {
 	if fh.mrdKernelReader != nil {
 		fh.mrdKernelReader.Destroy()
 		fh.mrdKernelReader = nil
+	}
+	if fh.batchReader != nil {
+		fh.batchReader.Destroy()
+		fh.batchReader = nil
 	}
 }
 
@@ -302,6 +321,84 @@ func (fh *FileHandle) ReadWithMrdKernelReader(ctx context.Context, req *gcsx.Rea
 	return fh.mrdKernelReader.ReadAt(ctx, req)
 }
 
+// ReadWithBatchReader reads data at the given offset using the batch reader.
+// Batch reader implements the batch read algorithm with central registry
+// for improved performance with sequential reads.
+//
+// LOCKS_REQUIRED(fh.inode.mu)
+// UNLOCK_FUNCTION(fh.inode.mu)
+func (fh *FileHandle) ReadWithBatchReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
+	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
+		fh.inode.Unlock()
+		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
+	}
+
+	if !fh.inode.SourceGenerationIsAuthoritative() {
+		// Read from inode if source generation is not authoritative
+		defer fh.inode.Unlock()
+		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
+		return gcsx.ReadResponse{Size: n}, err
+	}
+
+	fh.lockHandleAndRelockInode(true)
+	defer fh.mu.RUnlock()
+
+	// If batchReader is not initialized or invalid, create it
+	if fh.isValidBatchReader() {
+		fh.inode.Unlock()
+	} else {
+		minObj := fh.inode.Source()
+		bucket := fh.inode.Bucket()
+		mrdInstance := fh.inode.GetMRDInstance()
+
+		// Acquire a RWLock on file handle as we will update batchReader
+		fh.unlockHandleAndInode(true)
+		fh.mu.Lock()
+
+		fh.destroyBatchReader()
+
+		// Create batch read infrastructure if not exists
+		// Get the global batch read registry
+		registry := fh.batchReadRegistry
+		if registry == nil {
+			fh.mu.Unlock()
+			return gcsx.ReadResponse{}, fmt.Errorf("batch read registry not available")
+		}
+
+		var err error
+		fh.batchReader, err = fh.createBatchReader(minObj, bucket, mrdInstance, registry)
+		if err != nil {
+			fh.mu.Unlock()
+			return gcsx.ReadResponse{}, fmt.Errorf("failed to create batch reader: %w", err)
+		}
+
+		// Release RWLock and take RLock on file handle again. Inode lock is not needed now.
+		fh.mu.Unlock()
+		fh.mu.RLock()
+	}
+
+	// For unfinalized objects, we may need to read past the known size.
+	// Update the request to skip size checks if required.
+	req.SkipSizeChecks = fh.shouldSkipSizeChecks(req)
+
+	// Use the batch reader to read data.
+	var readResponse gcsx.ReadResponse
+	readResponse, err := fh.batchReader.ReadAt(ctx, req)
+	switch {
+	case errors.Is(err, io.EOF):
+		if err != io.EOF {
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+		}
+		return gcsx.ReadResponse{}, io.EOF
+
+	case err != nil:
+		return gcsx.ReadResponse{}, fmt.Errorf("fh.batchReader.ReadAt: %w", err)
+	}
+
+	return readResponse, nil
+}
+
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
 // more efficient.
 //
@@ -445,6 +542,69 @@ func (fh *FileHandle) isValidReader() bool {
 	return false
 }
 
+// destroyBatchReader is a helper function to safely destroy the batch reader and set it to nil.
+// LOCKS_REQUIRED(fh.mu)
+func (fh *FileHandle) destroyBatchReader() {
+	if fh.batchReader == nil {
+		return
+	}
+	fh.batchReader.Destroy()
+	fh.batchReader = nil
+}
+
+// isValidBatchReader is a helper function which validates & returns whether the
+// current batch reader is valid or not.
+// LOCKS_REQUIRED(fh.mu.RLock)
+// LOCKS_REQUIRED(fh.inode.mu)
+func (fh *FileHandle) isValidBatchReader() bool {
+	// If we already have a batchReader and it's initialized, we can use it
+	// Note: batch reader doesn't track generation like other readers since it
+	// uses fallback readers that handle generation changes
+	return fh.batchReader != nil
+}
+
+// createBatchReader creates a new batch reader with the specified configuration.
+// LOCKS_REQUIRED(fh.mu)
+func (fh *FileHandle) createBatchReader(minObj *gcs.MinObject, bucket gcs.Bucket, mrdInstance *gcsx.MrdInstance, registry *bufferedread.BatchReadRegistry) (gcsx.Reader, error) {
+	// Use the provided global batch read registry
+	if registry == nil {
+		return nil, fmt.Errorf("batch read registry cannot be nil")
+	}
+
+	// Create a fallback reader using read_manager (which implements gcsx.Reader interface)
+	fallbackReader := read_manager.NewReadManager(
+		minObj,
+		bucket,
+		&read_manager.ReadManagerConfig{
+			SequentialReadSizeMB:    int32(fh.config.GcsConnection.SequentialReadSizeMb),
+			FileCacheHandler:        fh.fileCacheHandler,
+			SharedChunkCacheManager: fh.SharedChunkCacheManager,
+			CacheFileForRangeRead:   fh.cacheFileForRangeRead,
+			MetricHandle:            fh.metricHandle,
+			TraceHandle:             fh.traceHandle,
+			MrdWrapper:              fh.inode.MRDWrapper,
+			Config:                  fh.config,
+			GlobalMaxBlocksSem:      fh.globalMaxReadBlocksSem,
+			WorkerPool:              fh.bufferedReadWorkerPool,
+			HandleID:                fh.handleID,
+			InitialOffset:           0,
+		},
+	)
+
+	// Create the batch reader
+	batchReaderOpts := &bufferedread.BatchReaderOptions{
+		Registry:       registry,
+		Bucket:         bucket,
+		Object:         minObj,
+		FallbackReader: fallbackReader,
+		MrdInstance:    mrdInstance,
+		MetricHandle:   fh.metricHandle,
+		TraceHandle:    fh.traceHandle,
+	}
+
+	return bufferedread.NewBatchReader(batchReaderOpts)
+}
+
 func (fh *FileHandle) OpenMode() util.OpenMode {
 	return fh.openMode
 }
@@ -454,7 +614,18 @@ func (fh *FileHandle) OpenMode() util.OpenMode {
 // the known object size. This allows reading from an object that is being
 // concurrently written to.
 func (fh *FileHandle) shouldSkipSizeChecks(req *gcsx.ReadRequest) bool {
-	if !fh.readManager.Object().IsUnfinalized() {
+	// Get object information - from readManager if available, or from inode source
+	var minObj *gcs.MinObject
+	if fh.readManager != nil {
+		minObj = fh.readManager.Object()
+	} else if fh.inode != nil {
+		minObj = fh.inode.Source()
+	} else {
+		// No object information available
+		return false
+	}
+
+	if minObj == nil || !minObj.IsUnfinalized() {
 		return false
 	}
 	if !fh.OpenMode().IsDirect() {
@@ -463,7 +634,7 @@ func (fh *FileHandle) shouldSkipSizeChecks(req *gcsx.ReadRequest) bool {
 	if req.Offset < 0 {
 		return false
 	}
-	if req.Offset+int64(len(req.Buffer)) <= int64(fh.readManager.Object().Size) {
+	if req.Offset+int64(len(req.Buffer)) <= int64(minObj.Size) {
 		return false
 	}
 

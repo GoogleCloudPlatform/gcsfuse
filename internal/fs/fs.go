@@ -40,6 +40,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -243,6 +244,20 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		}
 	}
 
+	// Initialize global batch read registry if batch read is enabled
+	if serverCfg.NewConfig.Read.EnableBatchRead {
+		batchConfig := &bufferedread.BatchReadConfig{
+			MaxReadSizeMb:      serverCfg.NewConfig.Read.BatchReadMaxSizeMb,
+			ReadAheadMb:        serverCfg.NewConfig.Read.BatchReadAheadMb,
+			WaitTimeMs:         serverCfg.NewConfig.Read.BatchReadWaitMs,
+			BlockSizeMb:        serverCfg.NewConfig.Read.BatchReadBlockSizeMb,
+			CleanupIntervalSec: 60, // Default cleanup interval
+		}
+		fs.batchReadRegistry = bufferedread.NewBatchReadRegistry(batchConfig)
+		logger.Infof("Batch read registry initialized with config: MaxReadSizeMb=%d, ReadAheadMb=%d, WaitTimeMs=%d, BlockSizeMb=%d",
+			batchConfig.MaxReadSizeMb, batchConfig.ReadAheadMb, batchConfig.WaitTimeMs, batchConfig.BlockSizeMb)
+	}
+
 	// Set up root bucket
 	var root inode.DirInode
 	if serverCfg.BucketName == "" || serverCfg.BucketName == "_" {
@@ -279,14 +294,20 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
-		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
+		// Write post mount kernel settings for Zonal Buckets when kernel reader or batch read is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
 		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
-		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && (serverCfg.NewConfig.FileSystem.EnableKernelReader || serverCfg.NewConfig.Read.EnableBatchRead) {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
 			kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
+
+			// For batch read, enhance kernel parameters with optimal values if not already set
+			if serverCfg.NewConfig.Read.EnableBatchRead {
+				kernelParams.EnhanceForBatchRead(int(serverCfg.NewConfig.Read.BatchReadAheadMb))
+			}
+
 			kernelParams.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
 		}
 		root = makeRootForBucket(fs, syncerBucket)
@@ -657,6 +678,10 @@ type fileSystem struct {
 	// Limits the max number of metadata prefetch background workers across file system when
 	// metadata prefetching is enabled.
 	globalMetadataPrefetchSem *semaphore.Weighted
+
+	// Global batch read registry shared across all file handles
+	// Only initialized if batch read is enabled
+	batchReadRegistry *bufferedread.BatchReadRegistry
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
@@ -2222,6 +2247,7 @@ func (fs *fileSystem) CreateFile(
 		fs.newConfig,
 		fs.bufferedReadWorkerPool,
 		fs.globalMaxReadBlocksSem,
+		fs.batchReadRegistry,
 		op.Handle,
 	)
 
@@ -3022,6 +3048,7 @@ func (fs *fileSystem) OpenFile(
 		fs.newConfig,
 		fs.bufferedReadWorkerPool,
 		fs.globalMaxReadBlocksSem,
+		fs.batchReadRegistry,
 		op.Handle,
 	)
 
@@ -3069,7 +3096,18 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
-	if fs.newConfig.FileSystem.EnableKernelReader {
+	if fs.newConfig.Read.EnableBatchRead {
+		// Use batch read for improved sequential read performance
+		var resp gcsx.ReadResponse
+		req := &gcsx.ReadRequest{
+			Buffer: op.Dst,
+			Offset: op.Offset,
+		}
+		resp, err = fh.ReadWithBatchReader(ctx, req)
+		op.BytesRead = resp.Size
+		op.Data = resp.Data
+		op.Callback = resp.Callback
+	} else if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
 		req := &gcsx.ReadRequest{
 			Buffer: op.Dst,
@@ -3263,4 +3301,10 @@ func (fs *fileSystem) SyncFS(
 	ctx context.Context,
 	op *fuseops.SyncFSOp) error {
 	return syscall.ENOSYS
+}
+
+// GetBatchReadRegistry returns the global batch read registry for this filesystem.
+// Returns nil if batch read is not enabled.
+func (fs *fileSystem) GetBatchReadRegistry() *bufferedread.BatchReadRegistry {
+	return fs.batchReadRegistry
 }

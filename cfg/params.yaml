@@ -1120,6 +1120,45 @@ params:
     usage: "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing"
     default: ""
 
+  - config-path: "read.batch-read-ahead-mb"
+    flag-name: "batch-read-ahead-mb"
+    type: "int"
+    usage: >-
+      Specifies the read-ahead size in MiB for batch read operations. This controls
+      how much data is prefetched when batch reads are enabled. Higher values can
+      improve sequential read performance but increase memory usage.
+    default: 64
+    hide-flag: true
+
+  - config-path: "read.batch-read-block-size-mb"
+    flag-name: "batch-read-block-size-mb"
+    type: "int"
+    usage: >-
+      Specifies the block size in MiB for batch read operations. This determines
+      the granularity at which reads are batched together. The value should be more than 0.
+    default: 16
+    hide-flag: true
+
+  - config-path: "read.batch-read-max-size-mb"
+    flag-name: "batch-read-max-size-mb"
+    type: "int"
+    usage: >-
+      Specifies the minimum read size threshold in MiB for using batch read optimization.
+      Read requests smaller than this threshold will use the fallback reader directly.
+      This prevents overhead from batching small requests.
+    default: 1
+    hide-flag: true
+
+  - config-path: "read.batch-read-wait-ms"
+    flag-name: "batch-read-wait-ms"
+    type: "int"
+    usage: >-
+      Specifies the wait time in milliseconds for collecting multiple read requests
+      into a batch. This allows concurrent reads to the same block to be served by
+      a single GCS request. Higher values increase batching opportunity but add latency.
+    default: 1
+    hide-flag: true
+
   - config-path: "read.block-size-mb"
     flag-name: "read-block-size-mb"
     type: "int"
@@ -1127,6 +1166,17 @@ params:
       Specifies the block size for buffered reads. The value should be more than
       0. This is used to read data in chunks from GCS.
     default: 16
+    hide-flag: true
+
+  - config-path: "read.enable-batch-read"
+    flag-name: "enable-batch-read"
+    type: "bool"
+    usage: >-
+      Enables batch read optimization for kernel-initiated reads. When enabled,
+      multiple concurrent read requests to the same file block are combined into
+      a single GCS request, reducing API calls and improving performance for
+      workloads with high read concurrency.
+    default: false
     hide-flag: true
 
   - config-path: "read.enable-buffered-read"

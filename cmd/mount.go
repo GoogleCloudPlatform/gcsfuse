@@ -187,7 +187,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// attributes in a single operation.
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 		// Enable async reads if enable-kernel-reader flag is set to true.
-		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
+		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader || newConfig.Read.EnableBatchRead,
 	}
 
 	if newConfig.Logging.WireLog != "" {

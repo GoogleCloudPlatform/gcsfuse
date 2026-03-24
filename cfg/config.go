@@ -683,7 +683,17 @@ type MrdConfig struct {
 }
 
 type ReadConfig struct {
+	BatchReadAheadMb int64 `yaml:"batch-read-ahead-mb"`
+
+	BatchReadBlockSizeMb int64 `yaml:"batch-read-block-size-mb"`
+
+	BatchReadMaxSizeMb int64 `yaml:"batch-read-max-size-mb"`
+
+	BatchReadWaitMs int64 `yaml:"batch-read-wait-ms"`
+
 	BlockSizeMb int64 `yaml:"block-size-mb"`
+
+	EnableBatchRead bool `yaml:"enable-batch-read"`
 
 	EnableBufferedRead bool `yaml:"enable-buffered-read"`
 
@@ -743,6 +753,30 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("anonymous-access", "", false, "This flag disables authentication.")
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
+
+	flagSet.IntP("batch-read-ahead-mb", "", 64, "Specifies the read-ahead size in MiB for batch read operations. This controls how much data is prefetched when batch reads are enabled. Higher values can improve sequential read performance but increase memory usage.")
+
+	if err := flagSet.MarkHidden("batch-read-ahead-mb"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("batch-read-block-size-mb", "", 16, "Specifies the block size in MiB for batch read operations. This determines the granularity at which reads are batched together. The value should be more than 0.")
+
+	if err := flagSet.MarkHidden("batch-read-block-size-mb"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("batch-read-max-size-mb", "", 1, "Specifies the minimum read size threshold in MiB for using batch read optimization. Read requests smaller than this threshold will use the fallback reader directly. This prevents overhead from batching small requests.")
+
+	if err := flagSet.MarkHidden("batch-read-max-size-mb"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("batch-read-wait-ms", "", 1, "Specifies the wait time in milliseconds for collecting multiple read requests into a batch. This allows concurrent reads to the same block to be served by a single GCS request. Higher values increase batching opportunity but add latency.")
+
+	if err := flagSet.MarkHidden("batch-read-wait-ms"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\".")
 
@@ -883,6 +917,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-atomic-rename-object", "", true, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-batch-read", "", false, "Enables batch read optimization for kernel-initiated reads. When enabled, multiple concurrent read requests to the same file block are combined into a single GCS request, reducing API calls and improving performance for workloads with high read concurrency.")
+
+	if err := flagSet.MarkHidden("enable-batch-read"); err != nil {
 		return err
 	}
 
@@ -1389,6 +1429,22 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("read.batch-read-ahead-mb", flagSet.Lookup("batch-read-ahead-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.batch-read-block-size-mb", flagSet.Lookup("batch-read-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.batch-read-max-size-mb", flagSet.Lookup("batch-read-max-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.batch-read-wait-ms", flagSet.Lookup("batch-read-wait-ms")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-connection.billing-project", flagSet.Lookup("billing-project")); err != nil {
 		return err
 	}
@@ -1490,6 +1546,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.enable-batch-read", flagSet.Lookup("enable-batch-read")); err != nil {
 		return err
 	}
 
