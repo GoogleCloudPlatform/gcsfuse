@@ -90,6 +90,28 @@ func BenchmarkConcurrency(b *testing.B) {
 	})
 }
 
+func BenchmarkInsert1Million(b *testing.B) {
+	const numEntries = 1000000
+	data := testData{Value: 1, DataSize: 10}
+	cacheMaxSize := uint64(numEntries * 20) // ensure enough size so no evictions
+
+	for range b.N {
+		b.StopTimer()
+		cache := lru.NewCache(cacheMaxSize)
+
+		// Insert 1 million entries
+		for j := range numEntries {
+			var key string
+			// Add a specific prefix to half the keys
+			key = fmt.Sprintf("prefix/key-%d", j)
+			_, _ = cache.Insert(key, data)
+		}
+
+		b.StartTimer()
+
+	}
+}
+
 func BenchmarkEraseEntriesWithGivenPrefix_1Million(b *testing.B) {
 	const numEntries = 1000000
 	data := testData{Value: 1, DataSize: 10}
