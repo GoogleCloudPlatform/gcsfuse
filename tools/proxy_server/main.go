@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -29,8 +30,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"google.golang.org/grpc"
 )
 
 const PortAndProxyProcessIdInfoLogFormat = "Listening Proxy Server On Port [%s] with Process ID [%d]"
@@ -243,19 +242,13 @@ func main() {
 	gOpManager = NewOperationManager(*gConfig)
 
 	// Determine proxy type from config (default to http if not specified)
-	proxyType := strings.ToLower(gConfig.ProxyType)
-	if proxyType == "" {
-		proxyType = "http"
-	}
-
-	if proxyType == "grpc" {
+	switch strings.ToLower(gConfig.ProxyType) {
+	case "grpc":
 		log.Println("Starting gRPC proxy server...")
-		gs := NewGRPCProxyServer()
-		gs.Start()
-	} else {
+		NewGRPCProxyServer().Start()
+	default:
 		log.Println("Starting HTTP proxy server...")
-		ps := NewProxyServer()
-		ps.Start()
+		NewProxyServer().Start()
 	}
 }
 
@@ -283,7 +276,7 @@ func (gs *GRPCProxyServer) Start() {
 
 	// Start gRPC server in goroutine
 	go func() {
-		if err := startGRPCProxy(listener, gConfig.TargetHost, gConfig.HeaderValidation); err != nil && err != grpc.ErrServerStopped {
+		if err := startGRPCProxy(listener, gConfig.TargetHost, gConfig.HeaderValidation); err != nil && !errors.Is(err, net.ErrClosed) {
 			log.Fatalf("gRPC server error: %v", err)
 		}
 	}()
