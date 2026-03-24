@@ -156,8 +156,7 @@ func (uh *UploadHandler) uploader() {
 // If there is already an error in uploadError, it returns without doing anything.
 // If there is an error during upload, it returns after storing the error in uploadError.
 func (uh *UploadHandler) uploadBlock(b block.Block) {
-	ctx := context.Background()
-	ctx, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadBlock)
+	_, span := uh.traceHandle.StartSpan(context.Background(), tracing.StreamingUploadBlock)
 	defer func() {
 		uh.traceHandle.EndSpan(span)
 	}()
