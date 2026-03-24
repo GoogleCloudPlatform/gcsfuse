@@ -167,7 +167,7 @@ func (t *SymlinkTest) TestSource() {
 		MetaGeneration: 2,
 		Size:           100,
 		Metadata:       map[string]string{inode.StandardSymlinkMetadataKey: "true"},
-		Updated:        time.Now(),
+		Updated:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
