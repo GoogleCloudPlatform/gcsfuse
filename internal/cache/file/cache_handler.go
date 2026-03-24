@@ -288,6 +288,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) error {
+	logger.Tracef("clearing from cache")
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucketName,
 		ObjectName: objectName,

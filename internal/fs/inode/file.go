@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
@@ -126,7 +127,8 @@ type FileInode struct {
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
-	mrdInstance *gcsx.MrdInstance
+	mrdInstance      *gcsx.MrdInstance
+	fileCacheHandler *file.CacheHandler
 }
 
 var _ Inode = &FileInode{}
@@ -151,7 +153,7 @@ func NewFileInode(
 	localFile bool,
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
-	mrdCache *lru.Cache) (f *FileInode) {
+	mrdCache *lru.Cache, fileCacheHandler *file.CacheHandler) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -170,6 +172,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
+		fileCacheHandler:        fileCacheHandler,
 	}
 
 	if f.bucket.BucketType().Zonal {
@@ -473,22 +476,21 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) RegisterFileHandle(readOnly bool) {
-	if !readOnly {
-		f.writeHandleCount++
-	}
+	f.writeHandleCount++
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
-	if readOnly {
-		return
-	}
 
 	if f.writeHandleCount <= 0 {
 		logger.Errorf("Mismatch in number of write file handles for inode :%d", f.id)
 	}
 
 	f.writeHandleCount--
+
+	if f.writeHandleCount == 0 {
+		f.fileCacheHandler.InvalidateCache(f.bucket.Name(), f.bucket.GCSName(&f.src))
+	}
 
 	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
 	if f.writeHandleCount == 0 && f.bwh != nil {
