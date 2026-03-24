@@ -227,6 +227,19 @@ VERSION=$(sed -n 1p ~/details.txt)
 COMMIT_HASH=$(sed -n 2p ~/details.txt)
 VM_INSTANCE_NAME=$(sed -n 3p ~/details.txt)
 
+VERSION_CLEAN=$(echo "$VERSION" | sed 's/^v//')
+GO_TEST_SHORT_FLAG=""
+
+# The -short flag was removed in v2.6.0. To ensure backward compatibility when 
+# testing older versions with newer CD scripts, we conditionally add it.
+if [[ "$VERSION_CLEAN" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+    major="${BASH_REMATCH[1]}"
+    minor="${BASH_REMATCH[2]}"
+    if [[ "$major" -lt 2 ]] || [[ "$major" -eq 2 && "$minor" -lt 6 ]]; then
+        GO_TEST_SHORT_FLAG="-short"
+    fi
+fi
+
 # Based on the os type in detail.txt, run the following commands for setup
 
 if grep -q ubuntu details.txt || grep -q debian details.txt;
@@ -465,7 +478,7 @@ function run_non_parallel_tests() {
     local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE" # Use double quotes for log_file
     if [[ -d "$test_path_non_parallel" ]]; then
-      GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
+      GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" $GO_TEST_SHORT_FLAG -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
       exit_code_non_parallel=$?
     else
       echo "Test path $test_path_non_parallel does not exist. Skipping tests." >> "$log_file"
@@ -506,7 +519,7 @@ function run_parallel_tests() {
     local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE"
     if [[ -d "$test_path_parallel" ]]; then
-      GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
+      GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" $GO_TEST_SHORT_FLAG -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
       pid=$!
       pids+=("$pid")
     else
