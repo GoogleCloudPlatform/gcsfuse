@@ -1,6 +1,6 @@
 // Copyright 2025 Google LLC
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
+// Licensed under the Apache License, Version 2.0 (the "License")
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -47,6 +47,7 @@ type BufferedReadConfig struct {
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
 	RandomSeekThreshold     int64 // Seek count threshold to switch another reader
+	RetiredBlocksPerHandle  int64 // Number of retired blocks to keep for a file handle.
 }
 
 const (
@@ -116,6 +117,12 @@ type BufferedReader struct {
 	// readTypeClassifier tracks the read access pattern (e.g., sequential, random)
 	// to optimize read strategies. It is shared across different reader layers.
 	readTypeClassifier *gcsx.ReadTypeClassifier
+
+	// retiredBlocks is an LRU cache that stores blocks that have been consumed
+	// from the prefetch queue but are kept for a short period to handle
+	// out-of-order or concurrent reads without treating them as random seeks.
+	// GUARDED by (mu)
+	retiredBlocks RetiredBlockCache
 }
 
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
@@ -166,8 +173,50 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		readTypeClassifier:       opts.ReadTypeClassifier,
 	}
 
+	// The retiredBlocks cache holds blocks that have been consumed but are kept
+	// to handle potential out-of-order reads. Its size is set to be the same as
+	// the maximum number of prefetch blocks to provide a reasonable buffer for
+	// such reads. If `read.retired-blocks-per-handle` is 0, this feature is disabled.
+	if opts.Config.RetiredBlocksPerHandle > 0 {
+		reader.retiredBlocks = NewLruRetiredBlockCache(uint64(opts.Config.RetiredBlocksPerHandle * opts.Config.PrefetchBlockSizeBytes))
+	} else {
+		reader.retiredBlocks = &NoOpRetiredBlockCache{}
+	}
+
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
+}
+
+// retireBlock moves a block from the active prefetch queue to the retired
+// blocks LRU cache. If the cache is full, it evicts the least recently used
+// block and releases it back to the pool.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
+	// If the retired blocks feature is disabled (using the no-op cache),
+	// we treat the block as if it were immediately evicted.
+	if _, ok := p.retiredBlocks.(*NoOpRetiredBlockCache); ok {
+		entry.cancelAndWait()
+		p.releaseOrMarkEvicted(entry)
+		return
+	}
+
+	blockIndex := entry.block.AbsStartOff() / p.config.PrefetchBlockSizeBytes
+	evicted, err := p.retiredBlocks.Insert(blockIndex, entry)
+	if err != nil {
+		// An error occurred (e.g., entry is too large for the cache). The block
+		// was not inserted, so we treat it as if it were immediately evicted.
+		logger.Warnf("BufferedReader.retireBlock: failed to insert block %d into retired cache: %v", blockIndex, err)
+		entry.cancelAndWait()
+		p.releaseOrMarkEvicted(entry)
+		// There should be no evictions if insertion failed, but we proceed just in case.
+	}
+
+	for _, evictedEntry := range evicted {
+		// This block is being evicted from the retired cache. Cancel its download
+		// if still running, and release it or mark it for delayed release.
+		evictedEntry.cancelAndWait()
+		p.releaseOrMarkEvicted(evictedEntry)
+	}
 }
 
 func (p *BufferedReader) ReaderName() string {
@@ -201,12 +250,10 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	p.randomSeekCount++
 
 	// When a random seek is detected, the prefetched blocks in the queue become
-	// irrelevant. We must clear the queue, cancel any ongoing downloads, and
-	// release the blocks back to the pool.
+	// irrelevant. We must clear the queue and move the blocks to the retired cache.
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
-		entry.cancelAndWait()
-		p.releaseOrMarkEvicted(entry)
+		p.retireBlock(entry)
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
@@ -227,6 +274,11 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 // isRandomSeek checks if the read for the given offset is random or not.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) isRandomSeek(offset int64) bool {
+	blockIndex := offset / p.config.PrefetchBlockSizeBytes
+	if p.retiredBlocks.LookUp(blockIndex) != nil {
+		return false
+	}
+
 	if p.blockQueue.IsEmpty() {
 		return offset != 0
 	}
@@ -255,9 +307,9 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 
 		if offset < blockStart || offset >= blockEnd {
 			// Offset is either before or beyond this block – discard.
+			// The block is moved to the retired cache.
 			p.blockQueue.Pop()
-			entry.cancelAndWait()
-			p.releaseOrMarkEvicted(entry)
+			p.retireBlock(entry)
 		} else {
 			break
 		}
@@ -327,6 +379,56 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	var dataSlices [][]byte
 	var entriesToCallback []*blockQueueEntry
 	for bytesRead < len(req.Buffer) {
+		// Check if the required block is in the retired cache.
+		blockIndex := readOffset / p.config.PrefetchBlockSizeBytes
+		if entry := p.retiredBlocks.LookUp(blockIndex); entry != nil {
+			blk := entry.block
+
+			status, waitErr := blk.AwaitReady(ctx)
+			if waitErr != nil {
+				err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady from retired: %w", waitErr)
+				break
+			}
+
+			if status.State != block.BlockStateDownloaded {
+				p.retiredBlocks.Erase(blockIndex)
+				entry.cancelAndWait()
+				p.releaseOrMarkEvicted(entry)
+
+				switch status.State {
+				case block.BlockStateDownloadFailed:
+					err = fmt.Errorf("BufferedReader.ReadAt: download failed from retired: %w", status.Err)
+				default:
+					err = fmt.Errorf("BufferedReader.ReadAt: retired block not downloaded, state: %d", status.State)
+				}
+				break
+			}
+
+			relOff := readOffset - blk.AbsStartOff()
+			bytesToRead := len(req.Buffer) - bytesRead
+			dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
+			sliceLen := len(dataSlice)
+			bytesRead += sliceLen
+			readOffset += int64(sliceLen)
+
+			if readErr != nil && !errors.Is(readErr, io.EOF) {
+				err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAtSlice from retired: %w", readErr)
+				break
+			}
+
+			if sliceLen > 0 {
+				dataSlices = append(dataSlices, dataSlice)
+				p.inflightCallbackWg.Add(1)
+				blk.IncRef()
+				entriesToCallback = append(entriesToCallback, entry)
+			}
+
+			if readOffset >= int64(p.object.Size) {
+				break
+			}
+			continue
+		}
+
 		p.prepareQueueForOffset(readOffset)
 
 		if p.blockQueue.IsEmpty() {
@@ -386,7 +488,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 
 		if readOffset >= blk.AbsStartOff()+blk.Size() {
 			entry := p.blockQueue.Pop()
-			p.releaseOrMarkEvicted(entry)
+			p.retireBlock(entry)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -551,6 +653,16 @@ func (p *BufferedReader) Destroy() {
 		bqe.cancelAndWait()
 		p.releaseOrMarkEvicted(bqe)
 	}
+
+	// Clear the retired blocks cache and release all blocks.
+	if p.retiredBlocks != nil {
+		evictedEntries := p.retiredBlocks.Clear()
+		for _, evictedEntry := range evictedEntries {
+			evictedEntry.cancelAndWait()
+			p.releaseOrMarkEvicted(evictedEntry)
+		}
+		p.retiredBlocks = nil
+	}
 	p.mu.Unlock()
 
 	// Wait for any remaining operations where data slices were returned directly
@@ -632,6 +744,10 @@ func (p *BufferedReader) CheckInvariants() {
 	// The random seek count should never exceed randomReadsThreshold.
 	if p.randomSeekCount > p.randomReadsThreshold {
 		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
+	}
+
+	if p.retiredBlocks == nil {
+		panic("BufferedReader: retiredBlocks is nil")
 	}
 }
 

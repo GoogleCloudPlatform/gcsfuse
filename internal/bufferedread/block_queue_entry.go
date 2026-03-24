@@ -33,6 +33,11 @@ type blockQueueEntry struct {
 	wasEvicted bool
 }
 
+// Size returns the size of the block in bytes to implement lru.ValueType.
+func (bqe *blockQueueEntry) Size() uint64 {
+	return uint64(bqe.block.Cap())
+}
+
 // cancelAndWait cancels the download context for the entry and waits for the
 // download goroutine to finish. It logs a warning if the download terminates
 // with an error other than context.Canceled.
