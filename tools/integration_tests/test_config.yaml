@@ -979,7 +979,6 @@ monitoring:
 
 symlink_handling:
   - mounted_directory: "${MOUNTED_DIR}"
-    mounted_directory_secondary: "${MOUNTED_DIR_SECONDARY}"
     test_bucket: "${BUCKET_NAME}"
     configs:
       - run: TestStandardSymlinksTestSuite
