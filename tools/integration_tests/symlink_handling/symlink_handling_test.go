@@ -86,7 +86,6 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		// If using config, GKEMountedDirectorySecondary should be set.
 		testEnv.cfg.GCSFuseMountedDirectory = testEnv.cfg.GKEMountedDirectory
 		os.Exit(m.Run())
 	}
