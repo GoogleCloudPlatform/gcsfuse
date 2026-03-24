@@ -67,9 +67,6 @@ type CacheHandler struct {
 
 	// isSparse indicates whether sparse file mode is enabled
 	isSparse bool
-
-	// sizeCalcFix indicates whether to use block-level physical disk accounting
-	sizeCalcFix bool
 }
 
 func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, sizeCalcFix bool) *CacheHandler {
@@ -108,7 +105,6 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		excludeRegex:  compiledExcludeRegex,
 		includeRegex:  compiledIncludeRegex,
 		isSparse:      isSparse,
-		sizeCalcFix:   sizeCalcFix,
 	}
 }
 
