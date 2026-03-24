@@ -101,7 +101,7 @@ func BenchmarkInsert1Million(b *testing.B) {
 
 		// Insert 1 million entries
 		for j := range numEntries {
-			key = fmt.Sprintf("prefix/key-%d", j)
+			key := fmt.Sprintf("prefix/key-%d", j)
 			_, _ = cache.Insert(key, data)
 		}
 
