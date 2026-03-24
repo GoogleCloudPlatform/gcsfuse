@@ -32,19 +32,37 @@ type RetryConfig struct {
 	SkipCount int `yaml:"skipCount"`
 }
 
+type HeaderValidation struct {
+	// Header name to validate (e.g., "user-agent", "x-goog-api-client").
+	HeaderName string `yaml:"headerName"`
+	// Expected value or pattern to find in the header.
+	ExpectedPattern string `yaml:"expectedPattern"`
+	// Whether to fail requests if header is missing or doesn't match.
+	FailOnMismatch bool `yaml:"failOnMismatch"`
+}
+
 type Config struct {
+	// ProxyType specifies the protocol: "http" or "grpc"
+	ProxyType string `yaml:"proxyType"`
 	// TargetHost is the address of emulator server to which proxy server interacts.
-	TargetHost  string        `yaml:"targetHost"`
-	RetryConfig []RetryConfig `yaml:"retryConfig"`
+	TargetHost       string             `yaml:"targetHost"`
+	RetryConfig      []RetryConfig      `yaml:"retryConfig"`
+	HeaderValidation []HeaderValidation `yaml:"headerValidation"`
 }
 
 func printConfig(config Config) {
+	log.Println("Proxy Type:", config.ProxyType)
 	log.Println("Target Host:", config.TargetHost)
 	for _, retry := range config.RetryConfig {
 		log.Println("Method:", retry.Method)
 		log.Println("Retry instructions:", retry.RetryInstruction)
 		log.Println("Retry Count:", retry.RetryCount)
 		log.Println("Skip Count:", retry.SkipCount)
+	}
+	for _, header := range config.HeaderValidation {
+		log.Println("Header Validation - Name:", header.HeaderName)
+		log.Println("Header Validation - Expected Pattern:", header.ExpectedPattern)
+		log.Println("Header Validation - Fail On Mismatch:", header.FailOnMismatch)
 	}
 }
 
