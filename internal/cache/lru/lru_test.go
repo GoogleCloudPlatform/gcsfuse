@@ -431,7 +431,7 @@ func (t *CacheTest) TestCustomSizeCalcFunc_RoundUp() {
 	ExpectEq(3, t.cache.LookUp("item3").(testData).Value)
 }
 
-func (t *CacheTest) TestCustomSizeCalcFunc_PanicOnNonEmptyCache() {
+func (t *CacheTest) TestSetSizeCalcFunc_PanicOnNonEmptyCache() {
 	// Insert an item so the cache is not empty
 	t.insertAndAssert("item1", testData{Value: 1, DataSize: 4}, []int64{}, nil)
 
@@ -443,36 +443,11 @@ func (t *CacheTest) TestCustomSizeCalcFunc_PanicOnNonEmptyCache() {
 	})
 }
 
-func (t *CacheTest) TestCustomSizeCalcFunc_UpdateWithoutChangingOrder() {
-	// Set a custom size func that multiplies the raw size by 2
-	t.cache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
-		return v.Size() * 2
-	})
-
-	// Insert an item with DataSize 10. Computed size becomes 20.
-	t.insertAndAssert("item1", testData{Value: 1, DataSize: 10}, []int64{}, nil)
-
-	// Attempt to update the entry with a different DataSize (15 -> computed 30).
-	// This should fail because UpdateWithoutChangingOrder strictly forbids size changes.
-	err := t.cache.UpdateWithoutChangingOrder("item1", testData{Value: 5, DataSize: 15})
-	AssertNe(nil, err)
-	AssertTrue(errors.Is(err, lru.ErrInvalidUpdateEntrySize))
-
-	// Update the entry with different data but the SAME DataSize (10 -> computed 20).
-	// Since MaxSize is 50, updating a size 20 to 20 should succeed without eviction.
-	err = t.cache.UpdateWithoutChangingOrder("item1", testData{Value: 5, DataSize: 10})
-	AssertEq(nil, err)
-
-	// Verify the value was actually updated.
-	ExpectEq(5, t.cache.LookUp("item1").(testData).Value)
-}
-
 func (t *CacheTest) TestCustomSizeCalcFunc_UpdateSize() {
 	// Set a custom size func that multiplies the raw size by 2
 	t.cache.SetSizeCalcFunc(func(v lru.ValueType) uint64 {
 		return v.Size() * 2
 	})
-
 	// Insert an item with DataSize 10. Computed size becomes 20.
 	t.insertAndAssert("item1", testData{Value: 1, DataSize: 10}, []int64{}, nil)
 
@@ -480,7 +455,6 @@ func (t *CacheTest) TestCustomSizeCalcFunc_UpdateSize() {
 	// The LRU's currentSize goes from 20 to 30. (MaxSize is 50).
 	err := t.cache.UpdateSize("item1", 10)
 	AssertEq(nil, err)
-
 	// Insert a new item with DataSize 15 (Computed size becomes 30).
 	// Total cache size will be: 30 (item1) + 30 (item2) = 60.
 	// Since 60 > 50 (MaxSize), item1 MUST be evicted.

@@ -1148,7 +1148,7 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	require.ErrorIs(t, err, lru.ErrInvalidEntrySize)
 }
 
-func Test_NewCacheHandler_WithSizeCalcFix_SparseFallback(t *testing.T) {
+func Test_NewCacheHandler_WithSizeCalcFixDisabledBySparseMode(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100) // Small max cache size
 	// Create with sizeCalcFix = true, isSparse = true

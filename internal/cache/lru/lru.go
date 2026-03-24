@@ -46,10 +46,10 @@ type Cache struct {
 	// Mutable state
 	/////////////////////////
 
-	// Sum of size of all the entries in the cache.
+	// Sum of the effective sizes of all the entries in the cache.
 	currentSize uint64
 
-	// Function to calculate the actual cost of a single entry towards currentSize
+	// Function to calculate the actual contribution of the given entry towards currentSize.
 	sizeCalcFunc func(ValueType) uint64
 
 	// List of cache entries, with least recently used at the tail.
@@ -88,7 +88,7 @@ func NewCache(maxSize uint64) *Cache {
 	return NewCacheWithCustomSizeCalc(maxSize, defaultSizeCalc)
 }
 
-// NewCacheWithCustomSizeCalc returns a cache object that uses a custom
+// NewCacheWithCustomSizeCalc returns a cache object that uses the passed custom
 // function to calculate the size footprint of each entry in the cache.
 func NewCacheWithCustomSizeCalc(maxSize uint64, sizeCalcFunc func(ValueType) uint64) *Cache {
 	c := &Cache{

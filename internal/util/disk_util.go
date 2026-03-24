@@ -22,7 +22,7 @@ import (
 // GetSpeculativeFileSizeOnDisk calculates the theoretical disk space a file will
 // consume given its actual content size and the filesystem's block size. It rounds
 // up the content size to the nearest block boundary to simulate block allocation.
-func GetSpeculativeFileSizeOnDisk(fileContentSize uint64, volumeBlockSize uint64) uint64 {
+func GetSpeculativeFileSizeOnDisk(fileContentSize, volumeBlockSize uint64) uint64 {
 	if volumeBlockSize == 0 {
 		return 0
 	}
@@ -30,8 +30,8 @@ func GetSpeculativeFileSizeOnDisk(fileContentSize uint64, volumeBlockSize uint64
 	return numBlocks * volumeBlockSize
 }
 
-// GetVolumeBlockSize retrieves the block size of the file system containing the given path.
-// It returns the block size in bytes (e.g., 4096).
+// GetVolumeBlockSize retrieves the block size of the file system containing the given path
+// using statfs sys-call. The block-size can be 0 or 2^n. The most common value is 4096.
 func GetVolumeBlockSize(path string) (uint64, error) {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(path, &stat); err != nil {

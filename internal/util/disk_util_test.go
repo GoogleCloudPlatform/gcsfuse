@@ -28,37 +28,37 @@ func TestGetSpeculativeFileSizeOnDisk(t *testing.T) {
 		expectedSize    uint64
 	}{
 		{
-			name:            "Zero Block Size",
+			name:            "Zero_Block_Size",
 			fileContentSize: 100,
 			volumeBlockSize: 0,
 			expectedSize:    0,
 		},
 		{
-			name:            "Zero File Size",
+			name:            "Zero_File_Size",
 			fileContentSize: 0,
 			volumeBlockSize: 4096,
 			expectedSize:    0,
 		},
 		{
-			name:            "File Size Less Than Block Size",
+			name:            "File_Size_Less_Than_Block_Size",
 			fileContentSize: 1,
 			volumeBlockSize: 4096,
 			expectedSize:    4096,
 		},
 		{
-			name:            "File Size Equal To Block Size",
+			name:            "File_Size_Equal_To_Block_Size",
 			fileContentSize: 4096,
 			volumeBlockSize: 4096,
 			expectedSize:    4096,
 		},
 		{
-			name:            "File Size Greater Than Block Size",
+			name:            "File_Size_Greater_Than_Block_Size",
 			fileContentSize: 4097,
 			volumeBlockSize: 4096,
 			expectedSize:    8192,
 		},
 		{
-			name:            "File Size Much Greater Than Block Size",
+			name:            "File_Size_Much_Greater_Than_Block_Size",
 			fileContentSize: 10000,
 			volumeBlockSize: 4096,
 			expectedSize:    12288,
