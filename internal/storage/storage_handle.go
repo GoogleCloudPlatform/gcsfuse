@@ -126,9 +126,9 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	}
 
 	// Additional client options.
-	if enableBidiConfig {
-		clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
-	}
+	// if enableBidiConfig {
+	clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
+	// }
 
 	if clientConfig.LocalSocketAddress != "" {
 		dialer := &net.Dialer{}

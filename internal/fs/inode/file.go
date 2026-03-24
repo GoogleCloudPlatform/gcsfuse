@@ -172,14 +172,14 @@ func NewFileInode(
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 
-	if f.bucket.BucketType().Zonal {
-		var err error
-		f.mrdInstance = gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg)
-		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
-		if err != nil {
-			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
-		}
+	// if f.bucket.BucketType().Zonal {
+	var err error
+	f.mrdInstance = gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg)
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
+	if err != nil {
+		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
+	// }
 
 	f.lc.Init(id)
 

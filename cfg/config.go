@@ -31,6 +31,10 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			BucketType: "zonal",
 			Value:      int64(DefaultCongestionThreshold()),
 		},
+		{
+			BucketType: "hierarchical",
+			Value:      int64(DefaultCongestionThreshold()),
+		},
 	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
@@ -84,12 +88,20 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			BucketType: "zonal",
 			Value:      int64(DefaultMaxBackground()),
 		},
+		{
+			BucketType: "hierarchical",
+			Value:      int64(DefaultMaxBackground()),
+		},
 	},
 }, "file-system.max-read-ahead-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
 			Value:      int64(16384),
+		},
+		{
+			BucketType: "hierarchical",
+			Value:      int64(65536),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {

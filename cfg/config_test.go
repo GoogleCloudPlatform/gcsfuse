@@ -63,6 +63,14 @@ func TestApplyOptimizations(t *testing.T) {
 				expectOptimized: true,
 				expectedValue:   DefaultCongestionThreshold(),
 			},
+			{
+				name:            "bucket_type_hierarchical",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
+				expectOptimized: true,
+				expectedValue:   DefaultCongestionThreshold(),
+			},
 		}
 
 		for _, tc := range testCases {
@@ -467,6 +475,14 @@ func TestApplyOptimizations(t *testing.T) {
 				expectOptimized: true,
 				expectedValue:   DefaultMaxBackground(),
 			},
+			{
+				name:            "bucket_type_hierarchical",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
+				expectOptimized: true,
+				expectedValue:   DefaultMaxBackground(),
+			},
 		}
 
 		for _, tc := range testCases {
@@ -535,6 +551,14 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   16384,
+			},
+			{
+				name:            "bucket_type_hierarchical",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
+				expectOptimized: true,
+				expectedValue:   65536,
 			},
 		}
 
