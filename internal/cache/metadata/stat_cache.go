@@ -114,7 +114,6 @@ type entry struct {
 	m          *gcs.MinObject
 	f          *gcs.Folder
 	expiration time.Time
-	key        string
 	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
 }
@@ -122,19 +121,16 @@ type entry struct {
 // Size returns the approximate memory-size (resident set size) of the receiver entry.
 // It estimates the memory consumption on the heap and converts it to an estimated RSS:
 //  1. util.UnsafeSizeOf(&e): The base size of the entry struct itself.
-//  2. len(e.key): The content length of the entry's key string.
-//  3. 2 * util.UnsafeSizeOf(&e.key): The string header overhead of the key string. One
-//     copy is stored in the cache map, and another in the linked list.
-//  4. util.NestedSizeOfGcsMinObject(e.m): The deep size of the gcs.MinObject, if present.
-//  5. util.NestedSizeOfGcsFolder(e.f): The deep size of the gcs.Folder, if present.
-//  6. A fixed 515-byte constant is added for positive MinObject entries. Because
+//  2. util.NestedSizeOfGcsMinObject(e.m): The deep size of the gcs.MinObject, if present.
+//  3. util.NestedSizeOfGcsFolder(e.f): The deep size of the gcs.Folder, if present.
+//  4. A fixed 515-byte constant is added for positive MinObject entries. Because
 //     unsafe.Sizeof and NestedSizeOfGcsMinObject do not account for hidden allocations
 //     in nested structures (like maps, slices, linked-lists etc.), this constant
 //     was deduced from benchmark runs to approximate actual memory utilization.
-//  7. The final heap size is multiplied by util.HeapSizeToRssConversionFactor to
+//  5. The final heap size is multiplied by util.HeapSizeToRssConversionFactor to
 //     estimate the Resident Set Size (RSS).
 func (e entry) Size() uint64 {
-	size := uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
+	size := uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
 		size += 515
 	}
@@ -196,7 +192,6 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	e := entry{
 		m:          m,
 		expiration: expiration,
-		key:        name,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -233,7 +228,6 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	e := entry{
 		implicitDir: true,
 		expiration:  expiration,
-		key:         name,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -248,7 +242,6 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	e := entry{
 		m:          nil,
 		expiration: expiration,
-		key:        name,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -263,7 +256,6 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	e := entry{
 		f:          nil,
 		expiration: expiration,
-		key:        name,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -327,7 +319,6 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 	e := entry{
 		f:          f,
 		expiration: expiration,
-		key:        name,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
