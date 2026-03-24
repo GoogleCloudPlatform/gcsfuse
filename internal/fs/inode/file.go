@@ -489,7 +489,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 	f.writeHandleCount--
 
 	if f.writeHandleCount == 0 {
-		f.fileCacheHandler.InvalidateCache(f.bucket.Name(), f.bucket.GCSName(&f.src))
+		f.fileCacheHandler.InvalidateCache(f.src.Name, f.bucket.Name())
 	}
 
 	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
