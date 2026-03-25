@@ -482,6 +482,16 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 			entriesToCallback = append(entriesToCallback, entry)
 		}
 
+		if !entry.prefetchTriggered {
+			entry.prefetchTriggered = true
+			if !prefetchTriggered {
+				prefetchTriggered = true
+				if pfErr := p.prefetch(); pfErr != nil {
+					logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
+				}
+			}
+		}
+
 		if readOffset >= int64(p.object.Size) {
 			break
 		}
@@ -489,13 +499,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		if readOffset >= blk.AbsStartOff()+blk.Size() {
 			entry := p.blockQueue.Pop()
 			p.retireBlock(entry)
-
-			if !prefetchTriggered {
-				prefetchTriggered = true
-				if pfErr := p.prefetch(); pfErr != nil {
-					logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
-				}
-			}
 		}
 	}
 

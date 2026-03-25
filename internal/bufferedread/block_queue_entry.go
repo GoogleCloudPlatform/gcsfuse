@@ -31,6 +31,9 @@ type blockQueueEntry struct {
 	// wasEvicted is true if the block has been removed from the block queue but
 	// still has outstanding references.
 	wasEvicted bool
+
+	// prefetchTriggered is true if reading this block has already triggered a subsequent prefetch.
+	prefetchTriggered bool
 }
 
 // Size returns the size of the block in bytes to implement lru.ValueType.
