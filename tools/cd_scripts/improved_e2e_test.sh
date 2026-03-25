@@ -51,9 +51,7 @@ LONG=local-run,zonal,release-version:,output-dir:,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
-PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@")
-if [[ $? -ne 0 ]]; then
-    # getopt will have already printed an error message
+if ! PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@"); then
     usage 1
 fi
 
@@ -75,7 +73,7 @@ while (( $# >= 1 )); do
             # $      : End of string
             RE="^[0-9]+\.[0-9]+\.[0-9]+$"
             if [[ ! $RELEASE_VERSION =~ $RE ]]; then
-                log_error "--release-version is incorrectly formatted."
+                log_error "--release-version value '$RELEASE_VERSION' is incorrectly formatted."
                 usage 1
             fi
             ;;
@@ -149,7 +147,7 @@ else
     fi
 fi
 
-# Set parallelism to 4
+# Set parallelism to 4 as it is optimal for all of the release VM(s).
 ARGS+=( "--package-level-parallelism=4")
 
 # Set --zonal arg if required
