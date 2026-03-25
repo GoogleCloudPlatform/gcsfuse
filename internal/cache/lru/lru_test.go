@@ -16,6 +16,7 @@ package lru_test
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -358,6 +359,32 @@ func (t *CacheTest) TestRaceCondition() {
 				DataSize: uint64(rand.Intn(MaxSize)),
 			})
 		}
+	}()
+
+	wg.Wait()
+}
+
+func (t *CacheTest) Test_EraseEntriesWithGivenPrefix_Concurrent() {
+	c := lru.NewCache(100000)
+
+	// Pre-fill the cache
+	for i := range 1000 {
+		_, _ = c.Insert(fmt.Sprintf("dir1/file%d", i), testData{10, 10})
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 1000; i < 2000; i++ {
+			_, _ = c.Insert(fmt.Sprintf("dir2/file%d", i), testData{10, 10})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		c.EraseEntriesWithGivenPrefix("dir1/")
 	}()
 
 	wg.Wait()
