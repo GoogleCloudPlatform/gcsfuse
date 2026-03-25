@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
@@ -162,7 +163,12 @@ func (s *SymlinkInode) resolveSymlinkTarget(ctx context.Context) (string, error)
 		if err != nil {
 			return "", fmt.Errorf("openReader: %w", err)
 		}
-		defer rc.Close()
+		defer func() {
+			closeErr := rc.Close()
+			if closeErr != nil {
+				logger.Warnf("Error closing reader for symlink object %q: %v", s.name.GcsObjectName(), closeErr)
+			}
+		}()
 
 		content, err := io.ReadAll(rc)
 		if err != nil {
@@ -176,6 +182,8 @@ func (s *SymlinkInode) resolveSymlinkTarget(ctx context.Context) (string, error)
 		return target, nil
 	}
 
+	// If none of the metadata keys are present, return error since target of symlink
+	// cannot be resolved.
 	return "", fmt.Errorf("symlink target could not be resolved")
 }
 
