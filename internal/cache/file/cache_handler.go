@@ -107,19 +107,37 @@ func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName
 	return util.CreateFile(fileSpec, os.O_RDONLY)
 }
 
+func (chr *CacheHandler) cleanUpEvictedFileUsingKey(key data.FileInfoKey) error {
+
+	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
+
+	localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
+
+	err := util.TruncateAndRemoveFile(localFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logger.Warnf("cleanUpEvictedFile: file was not present at the time of clean up: %v", err)
+			return nil
+		}
+		return fmt.Errorf("cleanUpEvictedFile: error while cleaning up file: %s, error: %w", localFilePath, err)
+	}
+
+	return nil
+}
+
 // cleanUpEvictedFile is a utility method called for the evicted/deleted fileInfo.
 // As part of execution, it (a) stops and removes the download job (b) truncates
 // and deletes the file in cache.
 func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
-	/*	key := fileInfo.Key
-		_, err := key.Key()
-		if err != nil {
-			return fmt.Errorf("cleanUpEvictedFile: while creating key: %w", err)
-		}
+	key := fileInfo.Key
+	_, err := key.Key()
+	if err != nil {
+		return fmt.Errorf("cleanUpEvictedFile: while creating key: %w", err)
+	}
 
-		chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)*/
+	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
 
-	/*localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
+	localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
 
 	err = util.TruncateAndRemoveFile(localFilePath)
 	if err != nil {
@@ -128,7 +146,7 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 			return nil
 		}
 		return fmt.Errorf("cleanUpEvictedFile: error while cleaning up file: %s, error: %w", localFilePath, err)
-	}*/
+	}
 
 	return nil
 }
@@ -302,8 +320,13 @@ func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) e
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
-	//_ = chr.fileInfoCache.Erase(fileInfoKeyName)
-	/*if erasedVal != nil {
+	err = chr.cleanUpEvictedFileUsingKey(fileInfoKey)
+	if err != nil {
+		return fmt.Errorf("InvalidateCache: while performing clean-up for evicted  %s object, error: %w", fileInfoKey.ObjectName, err)
+	}
+
+	/*//_ = chr.fileInfoCache.Erase(fileInfoKeyName)
+	if erasedVal != nil {
 		fileInfo := erasedVal.(data.FileInfo)
 		err := chr.cleanUpEvictedFile(&fileInfo)
 		if err != nil {
