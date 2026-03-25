@@ -117,7 +117,7 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 		return fmt.Errorf("cleanUpEvictedFile: while creating key: %w", err)
 	}
 
-	//chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
+	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
 
 	localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
 	err = util.TruncateAndRemoveFile(localFilePath)
