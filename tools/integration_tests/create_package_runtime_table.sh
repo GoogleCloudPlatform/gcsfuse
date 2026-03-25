@@ -46,15 +46,20 @@ print_package_stats() {
     local exit_code="$3"
     local start_sec="$4"
     local end_sec="$5"
+    local attempt="${6:-0}"
     local wait_min run_min status
     if [ "$exit_code" -eq 0 ]; then
-        status="✅PASSED"
+        if [ "$attempt" -gt 0 ]; then
+            status="✅FLAKY (Attempt $attempt)"
+        else
+            status="✅PASSED"
+        fi
     else
         status="❌FAILED"
     fi
     wait_min=$((start_sec / 60))
     run_min=$(((end_sec - start_sec + 60) / 60))
-    package_stats=$(printf "| %-25s | %-15s | %-8s | %-10s |%-60s|\n" \
+    package_stats=$(printf "| %-25s | %-15s | %-23s | %-10s |%-60s|\n" \
         "$package_name" \
         "$bucket_type" \
         "$status" \
@@ -69,12 +74,12 @@ echo "Timings for the e2e test packages run are listed below."
 echo "_ is 1 min wait"
 echo "> is 1 min run"
 # Add Table headers
-echo "+---------------------------+-----------------+----------+------------+------------------------------------------------------------+"
-echo "| Package Name              | Bucket Type     | Status   | Total Time |0 min                      runtime                    60 min|"
+echo "+---------------------------+-----------------+-------------------------+------------+------------------------------------------------------------+"
+echo "| Package Name              | Bucket Type     | Status                  | Total Time |0 min                      runtime                    60 min|"
 # Read the file line by line and print stats.
 while IFS= read -r line || [[ -n "$line" ]]; do # Process even if last line has no newline
-    echo "+---------------------------+-----------------+----------+------------+------------------------------------------------------------+"
+    echo "+---------------------------+-----------------+-------------------------+------------+------------------------------------------------------------+"
     print_package_stats $line
 done <"$PACKAGE_RUNTIME_STATS"
-echo "+---------------------------+-----------------+----------+------------+------------------------------------------------------------+"
+echo "+---------------------------+-----------------+-------------------------+------------+------------------------------------------------------------+"
 echo ""
