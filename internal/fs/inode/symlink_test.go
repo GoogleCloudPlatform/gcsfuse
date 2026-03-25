@@ -18,6 +18,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
@@ -157,4 +158,27 @@ func (t *SymlinkTest) TestUpdateSize() {
 	s.UpdateSize(200)
 
 	AssertEq(uint64(200), s.SourceGeneration().Size)
+}
+
+func (t *SymlinkTest) TestSource() {
+	m := &gcs.MinObject{
+		Name:           "test",
+		Generation:     1,
+		MetaGeneration: 2,
+		Size:           100,
+		Metadata:       map[string]string{inode.StandardSymlinkMetadataKey: "true"},
+		Updated:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	attrs := fuseops.InodeAttributes{}
+	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
+	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
+
+	source := s.Source()
+
+	AssertEq(m.Name, source.Name)
+	AssertEq(m.Generation, source.Generation)
+	AssertEq(m.MetaGeneration, source.MetaGeneration)
+	AssertEq(m.Size, source.Size)
+	AssertEq(m.Metadata, source.Metadata)
+	AssertEq(0, m.Updated.Compare(source.Updated))
 }
