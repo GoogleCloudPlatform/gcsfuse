@@ -111,13 +111,13 @@ func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName
 // As part of execution, it (a) stops and removes the download job (b) truncates
 // and deletes the file in cache.
 func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
-	key := fileInfo.Key
-	_, err := key.Key()
-	if err != nil {
-		return fmt.Errorf("cleanUpEvictedFile: while creating key: %w", err)
-	}
+	/*	key := fileInfo.Key
+		_, err := key.Key()
+		if err != nil {
+			return fmt.Errorf("cleanUpEvictedFile: while creating key: %w", err)
+		}
 
-	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
+		chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)*/
 
 	/*localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
 
