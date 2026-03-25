@@ -99,7 +99,7 @@ func (t *fileCacheReaderTest) SetupTest() {
 	}
 
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, true)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
 	t.reader_unfinalized_object = NewFileCacheReader(t.unfinalized_object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
 	t.ctx = context.Background()

@@ -369,12 +369,16 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
 	var cacheDirVolumeBlockSize uint64 = 1
-	if !serverCfg.NewConfig.FileCache.ExperimentalDisableSizeCalculationFix && !serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache {
-		var err error
-		cacheDirVolumeBlockSize, err = util.GetVolumeBlockSize(cacheDir)
-		if err != nil {
-			logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default 4096.", cacheDir, err)
-			cacheDirVolumeBlockSize = 4096
+	if !serverCfg.NewConfig.FileCache.ExperimentalDisableSizeCalculationFix {
+		if serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache {
+			logger.Info("file-cache disk-utilization fix is not supported with sparse-mode and is disabled.")
+		} else {
+			var err error
+			cacheDirVolumeBlockSize, err = util.GetVolumeBlockSize(cacheDir)
+			if err != nil {
+				logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default %d.", cacheDir, err, file.DefaultCacheDirVolumeBlockSize)
+				cacheDirVolumeBlockSize = file.DefaultCacheDirVolumeBlockSize
+			}
 		}
 	}
 
@@ -398,7 +402,7 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 		serverCfg.NewConfig.FileCache.ExcludeRegex,
 		serverCfg.NewConfig.FileCache.IncludeRegex,
 		serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache,
-		!serverCfg.NewConfig.FileCache.ExperimentalDisableSizeCalculationFix,
+		cacheDirVolumeBlockSize,
 	)
 
 	return fileCacheHandler, nil

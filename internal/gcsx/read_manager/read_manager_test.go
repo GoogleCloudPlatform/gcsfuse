@@ -92,7 +92,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 		}
 
 		jobManager := downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
-		config.FileCacheHandler = file.NewCacheHandler(lruCache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, true)
+		config.FileCacheHandler = file.NewCacheHandler(lruCache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	} else {
 		config.FileCacheHandler = nil
 	}

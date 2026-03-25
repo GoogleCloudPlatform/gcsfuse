@@ -189,7 +189,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	}
 
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, true)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), nil, nil, 0)

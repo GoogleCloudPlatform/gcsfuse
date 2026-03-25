@@ -35,6 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
@@ -92,7 +93,11 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	})
 	// Mocked cached handler object.
 	isSparse := fileCacheConfig != nil && fileCacheConfig.ExperimentalEnableChunkCache
-	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse, true)
+	cacheDirVolumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
+	if err != nil {
+		cacheDirVolumeBlockSize = DefaultCacheDirVolumeBlockSize
+	}
+	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse, cacheDirVolumeBlockSize)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)
@@ -1127,8 +1132,14 @@ func Test_Destroy(t *testing.T) {
 func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100)
-	// Create with sizeCalcFix = true, isSparse = false
-	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, true)
+
+	cacheDirVolumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
+	if err != nil {
+		cacheDirVolumeBlockSize = DefaultCacheDirVolumeBlockSize
+	}
+
+	// Create with volumeBlockSize
+	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
 	// The handler should configure the block size (default 4096 in testing if statfs isn't mocked properly,
 	// or the actual tmpdir block size, which is usually 4096).
@@ -1144,7 +1155,7 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	}
 
 	// Inserting should immediately fail because volumeBlockSize (e.g. 4096) > 100.
-	_, err := cache.Insert("test_key", fi)
+	_, err = cache.Insert("test_key", fi)
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, lru.ErrInvalidEntrySize)
@@ -1153,8 +1164,8 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 func Test_NewCacheHandler_WithoutSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100)
-	// Create with sizeCalcFix = false, isSparse = false
-	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, false)
+	// Create with volumeBlockSize = 1
+	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, 1)
 	require.NotNil(t, handler)
 	// The handler should configure the block size to 1.
 	require.Equal(t, handler.volumeBlockSize, uint64(1))
@@ -1173,29 +1184,4 @@ func Test_NewCacheHandler_WithoutSizeCalcFix(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Nil(t, evicted)
-}
-
-func Test_NewCacheHandler_WithSizeCalcFixDisabledBySparseMode(t *testing.T) {
-	cacheDir := t.TempDir()
-	cache := lru.NewCache(100) // Small max cache size
-	// Create with sizeCalcFix = true, isSparse = true
-	// sizeCalcFix will be internally disabled by isSparse.
-	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", true, true)
-	require.NotNil(t, handler)
-	// Because isSparse is true, NewCacheHandler disables the block-size up-rounding by setting it to 1.
-	require.Equal(t, uint64(1), handler.volumeBlockSize)
-	fi := data.FileInfo{
-		Key: data.FileInfoKey{
-			ObjectName: "sparse_test.txt",
-		},
-		FileSize:                5,
-		CacheDirVolumeBlockSize: handler.volumeBlockSize,
-		SparseMode:              true,
-	}
-
-	// Since 5 bytes * 1 (block size 1) = 5 bytes < 100 bytes, this should fit cleanly without overflowing.
-	evicted, err := cache.Insert("sparse_key", fi)
-
-	require.NoError(t, err)
-	require.Empty(t, evicted)
 }
