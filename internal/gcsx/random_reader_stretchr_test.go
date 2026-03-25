@@ -76,11 +76,7 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}
-	cacheDirVolumeBlockSize, err := testutil.GetVolumeBlockSize(t.cacheDir)
-	if err != nil {
-		cacheDirVolumeBlockSize = 4096
-	}
-
+	cacheDirVolumeBlockSize := testutil.GetVolumeBlockSize(t.cacheDir)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 

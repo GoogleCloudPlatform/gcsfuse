@@ -345,6 +345,18 @@ func createSharedChunkCacheManager(baseCacheDir string, filePerm, dirPerm os.Fil
 	return sharedCacheManager, nil
 }
 
+func cacheDirVolumeBlockSize(serverCfg *ServerConfig, cacheDir string) uint64 {
+	var cacheDirVolumeBlockSize uint64 = 1
+	if !serverCfg.NewConfig.FileCache.ExperimentalDisableSizeCalculationFix {
+		if serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache {
+			logger.Info("file-cache disk-utilization fix is not supported with sparse-mode, so is disabled.")
+		} else {
+			cacheDirVolumeBlockSize = util.GetVolumeBlockSize(cacheDir)
+		}
+	}
+	return cacheDirVolumeBlockSize
+}
+
 // createSingleMountFileCacheHandler creates a file cache handler with an in-memory LRU cache specific to a single gcsfuse instance.
 func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, error) {
 	// Use separate directory for regular file cache
@@ -367,21 +379,7 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 	}
 
 	fileInfoCache := lru.NewCache(sizeInBytes)
-
-	var cacheDirVolumeBlockSize uint64 = 1
-	if !serverCfg.NewConfig.FileCache.ExperimentalDisableSizeCalculationFix {
-		if serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache {
-			logger.Info("file-cache disk-utilization fix is not supported with sparse-mode and is disabled.")
-		} else {
-			var err error
-			cacheDirVolumeBlockSize, err = util.GetVolumeBlockSize(cacheDir)
-			if err != nil {
-				logger.Warnf("Failed to get volume block size for cacheDir %q: %v. Using default %d.", cacheDir, err, file.DefaultCacheDirVolumeBlockSize)
-				cacheDirVolumeBlockSize = file.DefaultCacheDirVolumeBlockSize
-			}
-		}
-	}
-
+	cacheDirVolumeBlockSize := cacheDirVolumeBlockSize(serverCfg, cacheDir)
 	jobManager := downloader.NewJobManager(
 		fileInfoCache,
 		filePerm,

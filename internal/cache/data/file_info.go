@@ -55,7 +55,7 @@ type FileInfo struct {
 	// CacheDirVolumeBlockSize is used to round-up the FileSize to calculate the speculative
 	// disk utilization of this file in cache-directory.
 	// Speculative size = Round-up of FileSize to the next multiple of CacheDirVolumeBlockSize.
-	// 0 means speculative size is 0. 1 means size in cache-dir is same as FileSize.
+	// 0 or 1 mean size in cache-dir is same as FileSize.
 	CacheDirVolumeBlockSize uint64
 }
 
@@ -70,8 +70,7 @@ func (fi FileInfo) ContentSize() uint64 {
 }
 
 // Size returns the speculative physical size on disk, rounded up to the volume block size.
-// If CacheDirVolumeBlockSize is 0, this returns 0 (no disk consumption).
-// If CacheDirVolumeBlockSize is 1, it returns the exact logical ContentSize.
+// If CacheDirVolumeBlockSize is 0 or 1, it returns the exact logical ContentSize.
 // This satisfies the LRU ValueType interface for eviction accounting.
 func (fi FileInfo) Size() uint64 {
 	return baseutil.GetSpeculativeFileSizeOnDisk(fi.ContentSize(), fi.CacheDirVolumeBlockSize)

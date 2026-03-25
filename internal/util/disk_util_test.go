@@ -31,7 +31,7 @@ func TestGetSpeculativeFileSizeOnDisk(t *testing.T) {
 			name:            "Zero_Block_Size",
 			fileContentSize: 100,
 			volumeBlockSize: 0,
-			expectedSize:    0,
+			expectedSize:    100,
 		},
 		{
 			name:            "Block_Size_One",
@@ -83,8 +83,7 @@ func TestGetVolumeBlockSize(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
-	blockSize, err := GetVolumeBlockSize(tempDir)
+	blockSize := GetVolumeBlockSize(tempDir)
 
-	assert.NoError(t, err)
 	assert.True(t, blockSize == 0 || (blockSize&(blockSize-1)) == 0, "Block-size of a directory should be either 0, or a power of 2. %d is neither", blockSize)
 }

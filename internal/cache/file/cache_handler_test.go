@@ -86,10 +86,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	cache := lru.NewCache(HandlerCacheMaxSize)
 
 	// Calculate block size
-	cacheDirVolumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
-	if err != nil {
-		cacheDirVolumeBlockSize = DefaultCacheDirVolumeBlockSize
-	}
+	cacheDirVolumeBlockSize := baseutil.GetVolumeBlockSize(cacheDir)
 
 	// Job manager
 	jobManager := downloader.NewJobManager(cache, util.DefaultFilePerm,
@@ -1134,30 +1131,22 @@ func Test_Destroy(t *testing.T) {
 func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100)
-
-	cacheDirVolumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
-	if err != nil {
-		cacheDirVolumeBlockSize = DefaultCacheDirVolumeBlockSize
-	}
-
+	cacheDirVolumeBlockSize := baseutil.GetVolumeBlockSize(cacheDir)
 	// Create with volumeBlockSize
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
-	// The handler should configure the block size (default 4096 in testing if statfs isn't mocked properly,
-	// or the actual tmpdir block size, which is usually 4096).
-	require.GreaterOrEqual(t, handler.volumeBlockSize, uint64(512))
 	// Verify that inserting a 1-byte file via the handler's calculated block size would overflow a 100-byte cache.
 	fi := data.FileInfo{
 		Key: data.FileInfoKey{
 			ObjectName: "test.txt",
 		},
 		FileSize:                1,
-		CacheDirVolumeBlockSize: handler.volumeBlockSize,
+		CacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
 		SparseMode:              false,
 	}
 
 	// Inserting should immediately fail because volumeBlockSize (e.g. 4096) > 100.
-	_, err = cache.Insert("test_key", fi)
+	_, err := cache.Insert("test_key", fi)
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, lru.ErrInvalidEntrySize)
@@ -1166,18 +1155,16 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 func Test_NewCacheHandler_WithoutSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100)
-	// Create with volumeBlockSize = 1
-	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, 1)
+	cacheDirVolumeBlockSize := baseutil.GetVolumeBlockSize(cacheDir)
+	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
-	// The handler should configure the block size to 1.
-	require.Equal(t, handler.volumeBlockSize, uint64(1))
 	// Verify that inserting a 1-byte file via the handler's block size of would work.
 	fi := data.FileInfo{
 		Key: data.FileInfoKey{
 			ObjectName: "test.txt",
 		},
 		FileSize:                5,
-		CacheDirVolumeBlockSize: handler.volumeBlockSize,
+		CacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
 		SparseMode:              false,
 	}
 

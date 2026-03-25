@@ -29,10 +29,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-// DefaultCacheDirVolumeBlockSize is the block-size used for cache-dir in case
-// statfs call fails for it.
-const DefaultCacheDirVolumeBlockSize = 4096
-
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache
 // for a given object in the bucket. CacheHandle contains reference to download job and
 // file handle to file in cache.

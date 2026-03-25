@@ -75,11 +75,10 @@ func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
 		ObjectName: TestObjectName,
 	}
 	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        cht.object.Generation,
-		FileSize:                cht.object.Size,
-		CacheDirVolumeBlockSize: 1,
-		Offset:                  0,
+		Key:              fileInfoKey,
+		ObjectGeneration: cht.object.Generation,
+		FileSize:         cht.object.Size,
+		Offset:           0,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
@@ -372,11 +371,10 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoPresent() 
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        cht.object.Generation,
-		FileSize:                cht.object.Size,
-		CacheDirVolumeBlockSize: 1,
-		Offset:                  cht.object.Size,
+		Key:              fileInfoKey,
+		ObjectGeneration: cht.object.Generation,
+		FileSize:         cht.object.Size,
+		Offset:           cht.object.Size,
 	}
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -408,11 +406,10 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGeneration
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        cht.object.Generation + 1,
-		FileSize:                cht.object.Size,
-		CacheDirVolumeBlockSize: 1,
-		Offset:                  cht.object.Size,
+		Key:              fileInfoKey,
+		ObjectGeneration: cht.object.Generation + 1,
+		FileSize:         cht.object.Size,
+		Offset:           cht.object.Size,
 	}
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -430,11 +427,10 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLess
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        cht.object.Generation,
-		FileSize:                cht.object.Size,
-		CacheDirVolumeBlockSize: 1,
-		Offset:                  10, // Insert offset less than required
+		Key:              fileInfoKey,
+		ObjectGeneration: cht.object.Generation,
+		FileSize:         cht.object.Size,
+		Offset:           10, // Insert offset less than required
 	}
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -457,11 +453,10 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        1, // Adding random generation.
-		FileSize:                CacheMaxSize - cht.object.Size,
-		CacheDirVolumeBlockSize: 1, // This makes cache size full.
-		Offset:                  1, // Insert offset less than required
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,                              // Adding random generation.
+		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
+		Offset:           1,                              // Insert offset less than required
 	}
 	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -480,11 +475,10 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 	fileInfoKeyName, err = fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo = data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        1,
-		FileSize:                1,
-		CacheDirVolumeBlockSize: 1,
-		Offset:                  1,
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,
+		FileSize:         1,
+		Offset:           1,
 	}
 	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -504,11 +498,10 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        1, // Adding random generation.
-		FileSize:                CacheMaxSize - cht.object.Size,
-		CacheDirVolumeBlockSize: 1, // This makes cache size full.
-		Offset:                  1, // Insert offset less than required
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,                              // Adding random generation.
+		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
+		Offset:           1,                              // Insert offset less than required
 	}
 	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -526,11 +519,10 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 	fileInfoKeyName, err = fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo = data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        1,
-		FileSize:                1,
-		CacheDirVolumeBlockSize: 1,
-		Offset:                  1,
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,
+		FileSize:         1,
+		Offset:           1,
 	}
 	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -685,11 +677,10 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        1, // Adding random generation.
-		FileSize:                CacheMaxSize - cht.object.Size,
-		CacheDirVolumeBlockSize: 1, // This makes cache size full.
-		Offset:                  1, // Insert offset less than required
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,                              // Adding random generation.
+		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
+		Offset:           1,                              // Insert offset less than required
 	}
 	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)
@@ -717,11 +708,10 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 	fileInfoKeyName, err = fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
 	fileInfo = data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        1,
-		FileSize:                1,
-		CacheDirVolumeBlockSize: 1,
-		Offset:                  1,
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,
+		FileSize:         1,
+		Offset:           1,
 	}
 	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	assert.Nil(cht.T(), err)

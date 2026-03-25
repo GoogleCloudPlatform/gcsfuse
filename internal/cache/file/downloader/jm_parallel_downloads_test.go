@@ -81,11 +81,10 @@ func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, bucket gcs.
 		ObjectName: objectName,
 	}
 	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        minObj.Generation,
-		FileSize:                minObj.Size,
-		CacheDirVolumeBlockSize: 1,
-		Offset:                  0,
+		Key:              fileInfoKey,
+		ObjectGeneration: minObj.Generation,
+		FileSize:         minObj.Size,
+		Offset:           0,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
