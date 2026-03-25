@@ -482,3 +482,68 @@ func TestSetupMountUUID_Success(t *testing.T) {
 		})
 	}
 }
+
+func TestGetLogFHandler(t *testing.T) {
+	testCases := []struct {
+		name        string
+		level       slog.Level
+		levelString string
+		message     string
+	}{
+		{
+			name:        "Trace level",
+			level:       LevelTrace,
+			levelString: "TRACE",
+			message:     "trace message",
+		},
+		{
+			name:        "Debug level",
+			level:       LevelDebug,
+			levelString: "DEBUG",
+			message:     "debug message",
+		},
+		{
+			name:        "Info level",
+			level:       LevelInfo,
+			levelString: "INFO",
+			message:     "info message",
+		},
+		{
+			name:        "Warn level",
+			level:       LevelWarn,
+			levelString: "WARNING",
+			message:     "warn message",
+		},
+		{
+			name:        "Error level",
+			level:       LevelError,
+			levelString: "ERROR",
+			message:     "error message",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			defaultLoggerFactory.format = "text"
+			var buf bytes.Buffer
+			// redirect logs to buffer and set level to TRACE to see all logs.
+			redirectLogsToGivenBuffer(&buf, cfg.TRACE)
+
+			// Act
+			logFn := GetLogFHandler(tc.level)
+			logFn(tc.message)
+
+			// Assert
+			expectedRegex := expectedLogRegex(t, "text", tc.levelString, tc.message)
+			actualLog := buf.String()
+			assert.Regexp(t, expectedRegex, actualLog)
+		})
+	}
+
+	t.Run("Unsupported level panics", func(t *testing.T) {
+		assert.Panics(t, func() {
+			GetLogFHandler(slog.Level(99))
+		})
+	})
+}
