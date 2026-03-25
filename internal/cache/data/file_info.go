@@ -81,3 +81,17 @@ type FileSpec struct {
 	FilePerm os.FileMode
 	DirPerm  os.FileMode
 }
+
+// NewFileInfo creates and returns a new FileInfo struct, ensuring that
+// the CacheDirVolumeBlockSize field is explicitly provided.
+func NewFileInfo(key FileInfoKey, objectGeneration int64, fileSize uint64, offset uint64, sparseMode bool, downloadedChunks *ByteRangeMap, cacheDirVolumeBlockSize uint64) FileInfo {
+	return FileInfo{
+		Key:                     key,
+		ObjectGeneration:        objectGeneration,
+		FileSize:                fileSize,
+		Offset:                  offset,
+		SparseMode:              sparseMode,
+		DownloadedChunks:        downloadedChunks,
+		CacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
+	}
+}

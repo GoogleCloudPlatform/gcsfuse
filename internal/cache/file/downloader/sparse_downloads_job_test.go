@@ -124,14 +124,7 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload() {
 			ObjectName: dt.job.object.Name,
 		}
 		chunkSizeBytes := uint64(tt.chunkSizeMb) * util.MiB
-		fileInfo := data.FileInfo{
-			Key:              fileInfoKey,
-			ObjectGeneration: dt.job.object.Generation,
-			Offset:           ^uint64(0),
-			FileSize:         tt.objectSize,
-			SparseMode:       true,
-			DownloadedChunks: data.NewByteRangeMap(chunkSizeBytes, tt.objectSize),
-		}
+		fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, tt.objectSize, ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, tt.objectSize), 1)
 
 		chunks, _, err := dt.job.getChunksToDownload(fileInfo, tt.offset, tt.requiredOffset)
 
@@ -165,14 +158,7 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload_WithInflight() {
 		ObjectName: dt.job.object.Name,
 	}
 	chunkSizeBytes := uint64(20) * 1024 * 1024
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: dt.job.object.Generation,
-		Offset:           ^uint64(0),
-		FileSize:         uint64(objectSize),
-		SparseMode:       true,
-		DownloadedChunks: data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)),
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
 
 	chunks, waitChans, err := dt.job.getChunksToDownload(fileInfo, 0, 60*util.MiB)
 
@@ -225,14 +211,7 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 	AssertEq(nil, err)
 
 	chunkSizeBytes := uint64(20) * 1024 * 1024
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: dt.object.Generation,
-		Offset:           ^uint64(0), // MaxUint64 for sparse mode
-		FileSize:         uint64(objectSize),
-		SparseMode:       true,
-		DownloadedChunks: data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)),
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
@@ -278,14 +257,7 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_AlreadyDownloaded() {
 	downloadedRanges := data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize))
 	downloadedRanges.AddRange(0, 40*util.MiB) // Mark first 40MB as downloaded
 
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: dt.object.Generation,
-		Offset:           ^uint64(0),
-		FileSize:         uint64(objectSize),
-		SparseMode:       true,
-		DownloadedChunks: downloadedRanges,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, downloadedRanges, 1)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
@@ -325,14 +297,7 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 	AssertEq(nil, err)
 
 	chunkSizeBytes := uint64(20) * 1024 * 1024
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: dt.object.Generation,
-		Offset:           ^uint64(0),
-		FileSize:         uint64(objectSize),
-		SparseMode:       true,
-		DownloadedChunks: data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)),
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 

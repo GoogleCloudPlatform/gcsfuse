@@ -80,12 +80,7 @@ func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, bucket gcs.
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
 	}
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: minObj.Generation,
-		FileSize:         minObj.Size,
-		Offset:           0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, minObj.Generation, minObj.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
 		t.Fatalf("Error occurred while retrieving fileInfoKey: %v", err)

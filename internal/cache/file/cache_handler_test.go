@@ -144,13 +144,7 @@ func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.Min
 		BucketName: bucketName,
 		ObjectName: object.Name,
 	}
-	fileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        object.Generation,
-		FileSize:                object.Size,
-		CacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
-		Offset:                  0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, object.Generation, object.Size, 0, false, nil, cacheDirVolumeBlockSize)
 
 	fileInfoKeyName, err := fileInfoKey.Key()
 	require.NoError(t, err)

@@ -68,23 +68,13 @@ func TestKeyMethodWithEmptyObjectName(t *testing.T) {
 }
 
 func TestContentSizeMethod(t *testing.T) {
-	fi := FileInfo{
-		Key:                     getTestFileInfoKey(),
-		ObjectGeneration:        TestGeneration,
-		FileSize:                TestDataFileSize,
-		CacheDirVolumeBlockSize: 4096,
-	}
+	fi := NewFileInfo(getTestFileInfoKey(), TestGeneration, TestDataFileSize, 0, false, nil, 4096)
 
 	assert.Equal(t, TestDataFileSize, fi.ContentSize())
 }
 
 func TestSizeMethod(t *testing.T) {
-	fi := FileInfo{
-		Key:                     getTestFileInfoKey(),
-		ObjectGeneration:        TestGeneration,
-		FileSize:                TestDataFileSize,
-		CacheDirVolumeBlockSize: 4096,
-	}
+	fi := NewFileInfo(getTestFileInfoKey(), TestGeneration, TestDataFileSize, 0, false, nil, 4096)
 
-	assert.Equal(t, 4096, fi.Size())
+	assert.Equal(t, uint64(4096), fi.Size())
 }

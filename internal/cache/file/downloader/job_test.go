@@ -69,12 +69,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
 	}
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: dt.object.Generation,
-		FileSize:         dt.object.Size,
-		Offset:           0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, dt.object.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
@@ -241,12 +236,7 @@ func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 		BucketName: storage.TestBucketName,
 		ObjectName: DefaultObjectName,
 	}
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: dt.job.object.Generation,
-		FileSize:         dt.job.object.Size,
-		Offset:           0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, dt.job.object.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
@@ -298,12 +288,7 @@ func (dt *downloaderTest) Test_updateStatusOffset_Fail() {
 		BucketName: storage.TestBucketName,
 		ObjectName: DefaultObjectName,
 	}
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: dt.job.object.Generation,
-		FileSize:         dt.job.object.Size,
-		Offset:           0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, dt.job.object.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)

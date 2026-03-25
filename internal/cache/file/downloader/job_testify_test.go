@@ -72,12 +72,7 @@ func (t *JobTestifyTest) initReadCacheTestifyTest(objectName string, objectConte
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
 	}
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: t.object.Generation,
-		FileSize:         t.object.Size,
-		Offset:           0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, t.object.Generation, t.object.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Equal(t.T(), nil, err)
 	_, err = t.cache.Insert(fileInfoKeyName, fileInfo)

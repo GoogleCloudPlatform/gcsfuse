@@ -291,13 +291,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 		return err
 	}
 
-	updatedFileInfo := data.FileInfo{
-		Key:                     fileInfoKey,
-		ObjectGeneration:        job.object.Generation,
-		FileSize:                job.object.Size,
-		Offset:                  uint64(downloadedOffset),
-		CacheDirVolumeBlockSize: job.cacheDirVolumeBlockSize,
-	}
+	updatedFileInfo := data.NewFileInfo(fileInfoKey, job.object.Generation, job.object.Size, uint64(downloadedOffset), false, nil, job.cacheDirVolumeBlockSize)
 
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err == nil {
