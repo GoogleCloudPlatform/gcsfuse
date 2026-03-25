@@ -34,6 +34,12 @@ func TestGetSpeculativeFileSizeOnDisk(t *testing.T) {
 			expectedSize:    0,
 		},
 		{
+			name:            "Block_Size_One",
+			fileContentSize: 100,
+			volumeBlockSize: 1,
+			expectedSize:    100,
+		},
+		{
 			name:            "Zero_File_Size",
 			fileContentSize: 0,
 			volumeBlockSize: 4096,
