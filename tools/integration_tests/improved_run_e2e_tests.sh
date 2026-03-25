@@ -23,6 +23,7 @@ usage() {
   echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
   echo "    --install-package-from-path   <path>         Google Cloud Storage bucket path for GCSFuse package for testing (e.g. gs://<bucket-name>/my-gcsfuse-package.rpm)"
   echo "                                                 This option is mutually exclusive with --test-installed-package. (Default: "")"
+  echo "    --migrated-run                               Run migrated test packages using the config file method. (Default: false)"
   echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
   echo "    --test-on-tpc-endpoint                       Run tests on TPC endpoint. (Default: false)"
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
@@ -124,6 +125,7 @@ fi
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 TEST_INSTALLED_PACKAGE=false
 BUCKET_LOCATION=""
+MIGRATED_RUN=false
 PROJECT_ID=""
 INSTALL_PACKAGE_FROM_PATH=""
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -135,7 +137,7 @@ PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parall
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,migrated-run,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -170,6 +172,10 @@ while (( $# >= 1 )); do
         --install-package-from-path)
             INSTALL_PACKAGE_FROM_PATH="$2"
             shift 2
+            ;;
+        --migrated-run)
+            MIGRATED_RUN=true
+            shift
             ;;
         --skip-non-essential-tests)
             SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
@@ -349,6 +355,18 @@ TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cl
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
+
+# Packages that have not yet been migrated to the new config file method.
+readonly UNMIGRATED_PACKAGES=(
+  "buffered_read"
+  "negative_stat_cache"
+  "readonly_creds"
+  "mount_timeout"
+  "managed_folders"
+  "concurrent_operations"
+  "interrupt"
+  "mounting"
+)
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
@@ -653,16 +671,34 @@ test_package() {
   local bucket_name="$2"
   local bucket_type="$3"
 
+  local is_migrated=true
+  for unmigrated in "${UNMIGRATED_PACKAGES[@]}"; do
+    if [[ "$package_name" == "$unmigrated" ]]; then
+      is_migrated=false
+      break
+    fi
+  done
+
   # Build go package test command.
-  local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
-  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
-    go_test_cmd_parts+=("-short")
+  local go_test_cmd_parts=()
+  if ${MIGRATED_RUN} && ${is_migrated}; then
+    go_test_cmd_parts+=("BUCKET_NAME=${bucket_name}")
   fi
+  go_test_cmd_parts+=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
   if [[ "$package_name" == "benchmarking" ]]; then
     go_test_cmd_parts+=("-bench=." "-benchtime=100x")
   fi
   # Test Binary flags after this.
-  go_test_cmd_parts+=("-args" "--integrationTest" "--testbucket=${bucket_name}")
+  go_test_cmd_parts+=("-args" "--integrationTest")
+
+  if ${MIGRATED_RUN} && ${is_migrated}; then
+    local config_file_path
+    config_file_path=$(realpath "${INTEGRATION_TEST_PACKAGE_DIR}/test_config.yaml")
+    go_test_cmd_parts+=("--config-file=${config_file_path}")
+  else
+    go_test_cmd_parts+=("--testbucket=${bucket_name}")
+  fi
+
   if ${TEST_INSTALLED_PACKAGE}; then
     go_test_cmd_parts+=("--testInstalledPackage")
   fi
