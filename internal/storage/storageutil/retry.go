@@ -115,10 +115,11 @@ func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetry
 	}
 }
 
-// ExecuteWithRetry encapsulates the retry logic over a given operation.
+// ExecuteWithRetryAtLogLevel encapsulates the retry logic over a given operation.
 // It performs time-bound, exponential backoff retries for a given API call.
 // It is expected that the given apiCall returns a structure, and not an HTTP response,
 // so that it does not leave behind any trace of a pending operation on server.
+// It also has an option to control the log level of the logs during retry
 func ExecuteWithRetryAtLogLevel[T any](
 	ctx context.Context,
 	config *RetryConfig,
@@ -173,6 +174,7 @@ func ExecuteWithRetryAtLogLevel[T any](
 	}
 }
 
+// ExecuteWithRetry retries a given operation but logs all logs at trace level
 func ExecuteWithRetry[T any](
 	ctx context.Context,
 	config *RetryConfig,
