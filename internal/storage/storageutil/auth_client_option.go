@@ -54,7 +54,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		return d, err
 	}
 
-	domain, err := ExecuteWithRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall, logger.LevelInfo)
+	domain, err := ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall, logger.LevelInfo)
 	if err != nil {
 		logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)
 		// Setting default universe domain to googleapis.com in case we are unable to fetch the domain.

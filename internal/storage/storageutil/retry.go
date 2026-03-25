@@ -119,7 +119,7 @@ func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetry
 // It performs time-bound, exponential backoff retries for a given API call.
 // It is expected that the given apiCall returns a structure, and not an HTTP response,
 // so that it does not leave behind any trace of a pending operation on server.
-func ExecuteWithRetry[T any](
+func ExecuteWithRetryAtLogLevel[T any](
 	ctx context.Context,
 	config *RetryConfig,
 	operationName string,
@@ -171,4 +171,14 @@ func ExecuteWithRetry[T any](
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
 		}
 	}
+}
+
+func ExecuteWithRetry[T any](
+	ctx context.Context,
+	config *RetryConfig,
+	operationName string,
+	reqDescription string,
+	apiCall func(attemptCtx context.Context) (T, error),
+) (T, error) {
+	return ExecuteWithRetryAtLogLevel(ctx, config, operationName, reqDescription, apiCall, logger.LevelTrace)
 }
