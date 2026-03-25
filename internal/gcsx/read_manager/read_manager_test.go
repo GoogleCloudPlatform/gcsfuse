@@ -38,6 +38,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
@@ -86,7 +87,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 		cacheDir := path.Join(os.Getenv("HOME"), "test_cache_dir")
 		lruCache := lru.NewCache(cacheMaxSize)
 		fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: false, ExperimentalDisableSizeCalculationFix: true}
-		cacheDirVolumeBlockSize := testUtil.GetVolumeBlockSize(cacheDir)
+		cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(cacheDir)
 		jobManager := downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
 		config.FileCacheHandler = file.NewCacheHandler(lruCache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	} else {

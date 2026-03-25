@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package diskutil
 
 import (
 	"syscall"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 // DefaultCacheDirVolumeBlockSize is the block-size used for cache-dir in case
@@ -38,6 +40,7 @@ func GetSpeculativeFileSizeOnDisk(fileContentSize, volumeBlockSize uint64) uint6
 func GetVolumeBlockSize(path string) uint64 {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(path, &stat); err != nil {
+		logger.Errorf("statsfs failed for %q. Defaulting to block-size %d for this directory.", path, DefaultVolumeBlockSize)
 		return DefaultVolumeBlockSize
 	}
 	// Bsize is int64, casting it to uint64.

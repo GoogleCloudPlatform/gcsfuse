@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
@@ -35,7 +37,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
@@ -86,7 +87,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	cache := lru.NewCache(HandlerCacheMaxSize)
 
 	// Calculate block size
-	cacheDirVolumeBlockSize := baseutil.GetVolumeBlockSize(cacheDir)
+	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(cacheDir)
 
 	// Job manager
 	jobManager := downloader.NewJobManager(cache, util.DefaultFilePerm,
@@ -1125,7 +1126,7 @@ func Test_Destroy(t *testing.T) {
 func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100)
-	cacheDirVolumeBlockSize := baseutil.GetVolumeBlockSize(cacheDir)
+	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(cacheDir)
 	// Create with volumeBlockSize
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
@@ -1149,7 +1150,7 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 func Test_NewCacheHandler_WithoutSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
 	cache := lru.NewCache(100)
-	cacheDirVolumeBlockSize := baseutil.GetVolumeBlockSize(cacheDir)
+	cacheDirVolumeBlockSize := uint64(1)
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
 	// Verify that inserting a 1-byte file via the handler's block size of would work.

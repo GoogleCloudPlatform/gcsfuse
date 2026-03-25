@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package diskutil_test
 
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,7 +74,7 @@ func TestGetSpeculativeFileSizeOnDisk(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			actualSize := GetSpeculativeFileSizeOnDisk(tc.fileContentSize, tc.volumeBlockSize)
+			actualSize := diskutil.GetSpeculativeFileSizeOnDisk(tc.fileContentSize, tc.volumeBlockSize)
 			assert.Equal(t, tc.expectedSize, actualSize)
 		})
 	}
@@ -83,7 +84,7 @@ func TestGetVolumeBlockSize(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
-	blockSize := GetVolumeBlockSize(tempDir)
+	blockSize := diskutil.GetVolumeBlockSize(tempDir)
 
 	assert.True(t, blockSize == 0 || (blockSize&(blockSize-1)) == 0, "Block-size of a directory should be either 0, or a power of 2. %d is neither", blockSize)
 }

@@ -18,8 +18,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -55,7 +56,7 @@ func (suite *FsInternalTestSuite) TestCacheDirVolumeBlockSize_SizeCalcFixEnabled
 		},
 	}
 
-	actualBlockSize := util.GetVolumeBlockSize(suite.cacheDir)
+	actualBlockSize := diskutil.GetVolumeBlockSize(suite.cacheDir)
 
 	blockSize := cacheDirVolumeBlockSize(serverCfg, suite.cacheDir)
 	assert.Equal(suite.T(), actualBlockSize, blockSize)

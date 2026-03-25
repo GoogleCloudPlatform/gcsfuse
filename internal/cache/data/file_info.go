@@ -20,7 +20,7 @@ import (
 	"os"
 	"time"
 
-	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 )
 
 const InvalidKeyAttributes = "key attributes not initialised"
@@ -73,7 +73,7 @@ func (fi FileInfo) ContentSize() uint64 {
 // If CacheDirVolumeBlockSize is 0 or 1, it returns the exact logical ContentSize.
 // This satisfies the LRU ValueType interface for eviction accounting.
 func (fi FileInfo) Size() uint64 {
-	return baseutil.GetSpeculativeFileSizeOnDisk(fi.ContentSize(), fi.CacheDirVolumeBlockSize)
+	return diskutil.GetSpeculativeFileSizeOnDisk(fi.ContentSize(), fi.CacheDirVolumeBlockSize)
 }
 
 type FileSpec struct {

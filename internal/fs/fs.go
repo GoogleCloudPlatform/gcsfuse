@@ -30,6 +30,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
@@ -351,7 +353,7 @@ func cacheDirVolumeBlockSize(serverCfg *ServerConfig, cacheDir string) uint64 {
 		if serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache {
 			logger.Info("file-cache disk-utilization fix is not supported with sparse-mode, so is disabled.")
 		} else {
-			cacheDirVolumeBlockSize = util.GetVolumeBlockSize(cacheDir)
+			cacheDirVolumeBlockSize = diskutil.GetVolumeBlockSize(cacheDir)
 		}
 	}
 	return cacheDirVolumeBlockSize
