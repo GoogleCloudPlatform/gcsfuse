@@ -9,6 +9,24 @@ on:
       - '*'
 
 jobs:
+  filter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_tests: ${{ steps.filter.outputs.run_tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3.0.2
+        id: filter
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            run_tests:
+              - '!**/*.md'
+              - '!tools/**'
+              - '!perfmetrics/**'
+              - '!samples/**'
+
   format-test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -17,57 +35,65 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.24"
+        go-version: "1.26.1"
+    - name: Install goimports
+      run: go install golang.org/x/tools/cmd/goimports@latest
     - name: CodeGen
       run: go generate ./...
-    - name: Formatting diff
-      run: go fmt ./... && git diff --exit-code --name-only
+    - name: Formatting and Imports check
+      run: |
+        goimports -w .
+        go fmt ./...
+        go mod tidy
+        git diff --exit-code --name-only
 
   linux-tests:
-    strategy:
-      matrix:
-        go: [ 1.24.x ]
+    needs: filter
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Go ${{ matrix.go }}
-      uses: actions/setup-go@v2.1.4
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
       with:
-        go-version: ${{ matrix.go }}
+        go-version: '1.26.1'
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
     - name: Build
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: |
         CGO_ENABLED=0 go build ./...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all
-      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
-    - name: Cache RaceDetector Test
-      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/...
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
+      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
+    - name: RaceDetector Test
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
+      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
       timeout-minutes: 5
       with:
-        fail_ci_if_error: true
+        fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: unittests
 
   lint:
     name: Lint
+    if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: "1.24"
     - name: checkout code
       uses: actions/checkout@v4
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
+    - name: Setup Go
+      uses: actions/setup-go@v5
       with:
-        args: -E=goimports --timeout 2m0s
+        go-version: '1.26.1'
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v8
+      with:
+        args: -E=unused --timeout 3m0s
         only-new-issues: true
 

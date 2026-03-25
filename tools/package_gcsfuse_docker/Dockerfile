@@ -12,26 +12,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build an image with gcsfuse packages:
-#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
-# Copy the gcsfuse packages to the host:
-#   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
+# This Dockerfile builds gcsfuse DEB and RPM packages for different linux architectures.
+#
+# Build Arguments:
+#   GCSFUSE_VERSION  - Version string for the package (required, e.g., "0.39.2")
+#   BRANCH_NAME      - Git commit, branch or tag to build from (default: "v${GCSFUSE_VERSION}")
+#   ARCHITECTURE     - Target architecture: "amd64" or "arm64" (default: "amd64")
+#   GCSFUSE_REPO     - Repository URL (default: https://github.com/googlecloudplatform/gcsfuse/)
+#
+# Examples:
+#
+#   Build from version tag (standard release):
+#     docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
+#
+#   Build from specific branch/commit/tag (e.g., for testing unreleased changes):
+#     docker build . -t gcsfuse-release \
+#       --build-arg GCSFUSE_VERSION=0.40.0 \
+#       --build-arg BRANCH_NAME=<commit_hash_or_branch_name>
+#
+#   Build for ARM64 architecture:
+#     docker build . -t gcsfuse-release \
+#       --build-arg GCSFUSE_VERSION=0.39.2 \
+#       --build-arg ARCHITECTURE=arm64
+#
+#   Extract packages from the container to host:
+#     docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
+#
+# Output:
+#   - /packages/gcsfuse_{VERSION}_{ARCH}.deb
+#   - /packages/gcsfuse-{VERSION}-1.x86_64.rpm (or aarch64 for arm64)
 
-FROM golang:1.24.0 as builder
+FROM golang:1.24.5 as builder
 
-RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler -v "2.4.12"
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential && gem install --no-document bundler -v "2.4.12"
+RUN apt-get install -y rpm wget
+ARG ARCHITECTURE="amd64"
+RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; then \
+    echo "Architecture should be amd64 or arm64"; \
+    exit 1; \
+    fi
+
+ARG GCSFUSE_VERSION
+ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
+ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+RUN git clone ${GCSFUSE_REPO} && \
+    cd gcsfuse && \
+    git checkout ${BRANCH_NAME}
+RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}"
+
+RUN rm -rf /usr/local/go && \
+    GO_VERSION=1.26.1 && \
+    wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q && \
+    tar -C /usr/local -xzf go_tar.tar.gz && \
+    rm go_tar.tar.gz
+RUN PATH=$PATH:/usr/local/go/bin
+RUN go version
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GO111MODULE=auto
 
-ARG GCSFUSE_VERSION
-ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git clone ${GCSFUSE_REPO} 
 ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
-RUN git checkout ${BRANCH_NAME}
 
 ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
 ARG DEBFULLNAME="GCSFuse Team"
@@ -39,11 +81,6 @@ ARG DEBFULLNAME="GCSFuse Team"
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
-ARG ARCHITECTURE="amd64"
-RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; then \
-    echo "Architecture should be amd64 or arm64"; \
-    exit 1; \
-fi
 ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
 ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
 WORKDIR ${GCSFUSE_PATH}/tools/build_gcsfuse
@@ -84,6 +121,7 @@ RUN fpm \
     -C ${GCSFUSE_BIN} \
     -v ${GCSFUSE_VERSION} \
     -d fuse \
+    --exclude DEBIAN \
     --rpm-digest sha256 \
     --license Apache-2.0 \
     --vendor "" \
