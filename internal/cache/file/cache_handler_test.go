@@ -85,22 +85,24 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	// fileInfoCache with testFileInfoEntry
 	cache := lru.NewCache(HandlerCacheMaxSize)
 
+	// Calculate block size
+	cacheDirVolumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
+	if err != nil {
+		cacheDirVolumeBlockSize = DefaultCacheDirVolumeBlockSize
+	}
+
 	// Job manager
 	jobManager := downloader.NewJobManager(cache, util.DefaultFilePerm,
-		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
+		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
 	t.Cleanup(func() {
 		jobManager.Destroy()
 	})
 	// Mocked cached handler object.
 	isSparse := fileCacheConfig != nil && fileCacheConfig.ExperimentalEnableChunkCache
-	cacheDirVolumeBlockSize, err := baseutil.GetVolumeBlockSize(cacheDir)
-	if err != nil {
-		cacheDirVolumeBlockSize = DefaultCacheDirVolumeBlockSize
-	}
 	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse, cacheDirVolumeBlockSize)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
-	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)
+	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName, cacheDirVolumeBlockSize)
 	downloadPath := util.GetDownloadPath(cacheHandler.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
 	_, err = util.CreateFile(data.FileSpec{Path: downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
 	t.Cleanup(func() {
@@ -138,7 +140,7 @@ func createObject(t *testing.T, bucket gcs.Bucket, objName string, objContent []
 	return minObject
 }
 
-func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.MinObject, bucketName string) string {
+func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.MinObject, bucketName string, cacheDirVolumeBlockSize uint64) string {
 	t.Helper()
 	// Add an entry into
 	fileInfoKey := data.FileInfoKey{
@@ -149,7 +151,7 @@ func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.Min
 		Key:                     fileInfoKey,
 		ObjectGeneration:        object.Generation,
 		FileSize:                object.Size,
-		CacheDirVolumeBlockSize: 1,
+		CacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
 		Offset:                  0,
 	}
 
