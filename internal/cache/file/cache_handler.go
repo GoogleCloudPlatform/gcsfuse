@@ -120,14 +120,17 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
 
 	localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
-	err = util.TruncateAndRemoveFile(localFilePath)
+	if localFilePath == "" {
+		return fmt.Errorf("cleanUpEvictedFile: error while cleaning up file: %s, error: %w", localFilePath, err)
+	}
+	/*err = util.TruncateAndRemoveFile(localFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Warnf("cleanUpEvictedFile: file was not present at the time of clean up: %v", err)
 			return nil
 		}
 		return fmt.Errorf("cleanUpEvictedFile: error while cleaning up file: %s, error: %w", localFilePath, err)
-	}
+	}*/
 
 	return nil
 }
