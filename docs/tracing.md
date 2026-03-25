@@ -88,6 +88,12 @@ Common Spans recorded and what each of them signifies
 | **google.storage.v2.Storage/ReadObject** | The gRPC call to stream the content (data) of a specific GCS object. |
 | **google.storage.v2.Storage/GetObject** | The gRPC call to retrieve the **metadata/attributes** (not the data content) of a single GCS object. |
 | **google.storage.control.v2.StorageControl/GetFolder** | A specific gRPC call to retrieve metadata for a GCS Folder (using the Storage Control API). |
+| **Read flow traces** | |
+| **buffered_reader** | Indicates the read is served by the in-memory buffered reader, which prefetches data from GCS. |
+| **file_cache_reader** | Indicates the read is served from the on-disk file cache. |
+| **gcs_reader** | Indicates the read is served by making a direct request to GCS, bypassing other local caches. |
+| **file.cache.read** | Tracks read operations specifically from the local file cache. |
+| **file.cache.write** | Tracks write or population operations into the local file cache. |
 | **GCS Operations (HTTP)** | |
 | **HTTP GET** | An entire end-to-end trace for a client's GET request. |
 | **HTTP POST** | An entire end-to-end trace for a client's POST request. |
@@ -142,3 +148,19 @@ This ratio is a floating-point number between 0.0 (no traces exported) and 1.0 (
 | **1.0** | Exports **100%** of all GCSFuse operations (Highest detail, highest cost/overhead). |
 | **0.1** | Exports **10%** of all GCSFuse operations (Good for production monitoring, balances detail and cost). |
 | **0.01** | Exports **1%** of all GCSFuse operations (Used for high-volume traffic/low-cost scenarios). |
+
+### Analyzing Latency with Span Groups
+
+When analyzing a trace, the total time taken for an operation is the sum of time spent in various components. By grouping spans, you can identify where the majority of the time is being spent. This helps pinpoint whether a latency bottleneck is within GCSFuse, the GCS client library, the network, or the GCS service itself.
+
+Here is a breakdown of span groups and what they represent:
+
+| Span Group | Span Name Examples | What it Measures |
+| :--- | :--- | :--- |
+| **GCSFuse Kernel/FUSE Layer** | `fs.inode.lookup`, `fs.file.read` | The time taken for the FUSE server in GCSFuse to process an operation received from the kernel. This is the top-level span for any file system operation. |
+| **GCSFuse Internal Caching & Buffering** | `buffered_reader`, `file_cache_reader`, `file.cache.read` | Time spent in GCSFuse's internal mechanisms like read-ahead buffering or file content caching. High latency here might indicate cache misses or inefficient buffering. |
+| **GCS Client Library (Go)** | `cloud.google.com/go/storage...` | The time spent within the official Google Cloud Storage Go client library. This includes logic for preparing and parsing requests/responses, but not the network time. |
+| **GCS API Calls (Network)** | `google.storage.v2...`, `HTTP GET`/`POST` | The end-to-end time for a network call to the GCS API, as measured from the client side. This includes network latency, time spent processing on the GCS server, and data transfer time. If this is high, the bottleneck is likely network-related or on the GCS service side. |
+| **Low-Level Network (HTTP only)** | `http.dns`, `http.tls`, `http.getconn` | For HTTP-based traffic, these spans break down the network time into its constituent parts: DNS lookup, TLS handshake, and connection acquisition. High latency in these spans points to specific network or infrastructure issues. |
+
+By examining the waterfall view of a trace, you can visually see how these spans nest and which ones contribute most to the overall latency of the parent FUSE operation.
