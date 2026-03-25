@@ -169,4 +169,4 @@ mkdir -p "$OUTPUT_DIR" || {
 ARGS+=("--output-dir=$OUTPUT_DIR")
 
 # Run the main e2e script
-"${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"
+bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"
