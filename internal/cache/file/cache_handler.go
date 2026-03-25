@@ -302,7 +302,7 @@ func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) e
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
-	_ = chr.fileInfoCache.Erase(fileInfoKeyName)
+	//_ = chr.fileInfoCache.Erase(fileInfoKeyName)
 	/*if erasedVal != nil {
 		fileInfo := erasedVal.(data.FileInfo)
 		err := chr.cleanUpEvictedFile(&fileInfo)
