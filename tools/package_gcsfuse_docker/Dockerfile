@@ -17,9 +17,16 @@
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
-FROM golang:1.24.0 as builder
+FROM golang:1.26.1 as builder
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler -v "2.4.12"
+ARG ARCHITECTURE="amd64"
+RUN rm -rf /usr/local/go && \
+    GO_VERSION=1.26.1 && \
+    wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q && \
+    tar -C /usr/local -xzf go_tar.tar.gz && \
+    rm go_tar.tar.gz
+ENV PATH=$PATH:/usr/local/go/bin
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
@@ -84,6 +91,7 @@ RUN fpm \
     -C ${GCSFUSE_BIN} \
     -v ${GCSFUSE_VERSION} \
     -d fuse \
+    --exclude DEBIAN \
     --rpm-digest sha256 \
     --license Apache-2.0 \
     --vendor "" \
