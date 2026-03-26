@@ -222,6 +222,26 @@ func Error(error string) {
 	}
 }
 
+type logFunc func(string, ...any)
+
+var logFHandlers = map[slog.Level]logFunc{
+	LevelTrace: Tracef,
+	LevelDebug: Debugf,
+	LevelInfo:  Infof,
+	LevelWarn:  Warnf,
+	LevelError: Errorf,
+}
+
+func GetLogFHandler(level slog.Level) logFunc {
+	if fn, ok := logFHandlers[level]; ok {
+		return fn
+	}
+
+	Warnf("logger: unsupported log level: %v", level)
+
+	return logFHandlers[LevelTrace]
+}
+
 // Fatal prints an error log and exits with non-zero exit code.
 func Fatal(format string, v ...any) {
 	Errorf(format, v...)

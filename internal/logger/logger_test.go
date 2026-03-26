@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
@@ -39,6 +41,7 @@ const (
 
 func expectedLogRegex(t *testing.T, format, severity, message string) string {
 	t.Helper()
+	message = regexp.QuoteMeta(message)
 	switch format {
 	case "text":
 		return fmt.Sprintf(textLogPattern, severity, message)
@@ -481,4 +484,85 @@ func TestSetupMountUUID_Success(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetLogFHandler(t *testing.T) {
+	testCases := []struct {
+		name        string
+		level       slog.Level
+		levelString string
+		message     string
+	}{
+		{
+			name:        "Trace level",
+			level:       LevelTrace,
+			levelString: "TRACE",
+			message:     "trace message",
+		},
+		{
+			name:        "Debug level",
+			level:       LevelDebug,
+			levelString: "DEBUG",
+			message:     "debug message",
+		},
+		{
+			name:        "Info level",
+			level:       LevelInfo,
+			levelString: "INFO",
+			message:     "info message",
+		},
+		{
+			name:        "Warn level",
+			level:       LevelWarn,
+			levelString: "WARNING",
+			message:     "warn message",
+		},
+		{
+			name:        "Error level",
+			level:       LevelError,
+			levelString: "ERROR",
+			message:     "error message",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			defaultLoggerFactory.format = "text"
+			var buf bytes.Buffer
+			// redirect logs to buffer and set level to TRACE to see all logs.
+			redirectLogsToGivenBuffer(&buf, cfg.TRACE)
+
+			// Act
+			logFn := GetLogFHandler(tc.level)
+			logFn(tc.message)
+
+			// Assert
+			expectedRegex := expectedLogRegex(t, "text", tc.levelString, tc.message)
+			actualLog := buf.String()
+			assert.Regexp(t, expectedRegex, actualLog)
+		})
+	}
+
+	t.Run("Unsupported level returns trace logger", func(t *testing.T) {
+		// Arrange
+		defaultLoggerFactory.format = "text"
+		var buf bytes.Buffer
+		// redirect logs to buffer and set level to TRACE to see all logs.
+		redirectLogsToGivenBuffer(&buf, cfg.TRACE)
+		message := "unsupported level message"
+		unsupportedLevel := slog.Level(99)
+
+		// Act
+		logFn := GetLogFHandler(unsupportedLevel)
+		logFn(message)
+
+		// Assert
+		logs := strings.Split(strings.TrimSpace(buf.String()), "\n")
+		require.Len(t, logs, 2)
+		expectedWarningRegex := expectedLogRegex(t, "text", "WARNING", fmt.Sprintf("logger: unsupported log level: %v", unsupportedLevel))
+		assert.Regexp(t, expectedWarningRegex, logs[0])
+		expectedTraceRegex := expectedLogRegex(t, "text", "TRACE", message)
+		assert.Regexp(t, expectedTraceRegex, logs[1])
+	})
 }

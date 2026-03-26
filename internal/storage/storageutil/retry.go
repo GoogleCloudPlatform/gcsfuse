@@ -17,6 +17,7 @@ package storageutil
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"time"
 
@@ -114,16 +115,18 @@ func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetry
 	}
 }
 
-// ExecuteWithRetry encapsulates the retry logic over a given operation.
+// ExecuteWithRetryAtLogLevel encapsulates the retry logic over a given operation.
 // It performs time-bound, exponential backoff retries for a given API call.
 // It is expected that the given apiCall returns a structure, and not an HTTP response,
 // so that it does not leave behind any trace of a pending operation on server.
-func ExecuteWithRetry[T any](
+// It also has an option to control the log level of the logs during retry
+func ExecuteWithRetryAtLogLevel[T any](
 	ctx context.Context,
 	config *RetryConfig,
 	operationName string,
 	reqDescription string,
 	apiCall func(attemptCtx context.Context) (T, error),
+	logLevel slog.Level, // Used to log the retry logs at the supplied log level
 ) (T, error) {
 	var zero T
 	// If the context is already cancelled, return immediately.
@@ -140,9 +143,9 @@ func ExecuteWithRetry[T any](
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
 
 		if i == 0 {
-			logger.Tracef("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
+			logger.GetLogFHandler(logLevel)("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
 		} else {
-			logger.Tracef("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+			logger.GetLogFHandler(logLevel)("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
 		}
 
 		result, err := apiCall(attemptCtx)
@@ -169,4 +172,15 @@ func ExecuteWithRetry[T any](
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
 		}
 	}
+}
+
+// ExecuteWithRetry retries a given operation but logs all logs at trace level
+func ExecuteWithRetry[T any](
+	ctx context.Context,
+	config *RetryConfig,
+	operationName string,
+	reqDescription string,
+	apiCall func(attemptCtx context.Context) (T, error),
+) (T, error) {
+	return ExecuteWithRetryAtLogLevel(ctx, config, operationName, reqDescription, apiCall, logger.LevelTrace)
 }
