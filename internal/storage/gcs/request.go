@@ -70,6 +70,7 @@ type CreateObjectRequest struct {
 	//
 	// For resumable uploads, the Writer will terminate the request and attempt a retry
 	// if the request to upload a particular chunk stalls for longer than this duration.
+	// Retries will continue until ChunkRetryDeadlineSecs is reached.
 	//
 	// The default value is 10 seconds.
 	//

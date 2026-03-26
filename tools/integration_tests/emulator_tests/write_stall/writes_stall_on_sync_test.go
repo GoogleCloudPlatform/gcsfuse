@@ -187,7 +187,9 @@ func TestChunkRetryDeadline(t *testing.T) {
 			expectedSuccess: false,
 		},
 	}
-	// 4 stalls of 60s each causing 4 retry chunk stalls and 5th retry succeeds after 40s.
+	// The proxy is configured to stall the first 4 requests (4 stalls).
+	// With a 10s chunk-transfer-timeout, the client will timeout after 10s for each of the first 4 attempts.
+	// This results in 40s of total elapsed time before the 5th attempt (which is the 4th retry) succeeds.
 	configPath := "../configs/write_stalls_four_times_60s.yaml"
 
 	for _, scenario := range scenarios {
