@@ -71,8 +71,9 @@ func (t *SymlinkInternalTest) createSymlinkInode(name string, target string, leg
 		m.Metadata[StandardSymlinkMetadataKey] = "true"
 	}
 	syncerBucket := gcsx.NewSyncerBucket(
-		1,
-		10, // ChunkTransferTimeoutSecs
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
 	)

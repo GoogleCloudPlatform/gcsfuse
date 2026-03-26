@@ -370,6 +370,7 @@ func currentGid() uint32 {
 type fakeBucketManager struct {
 	buckets                  map[string]gcs.Bucket
 	appendThreshold          int64
+	chunkRetryDeadlineSecs   int64
 	chunkTransferTimeoutSecs int64
 	tmpObjectPrefix          string
 }
@@ -383,6 +384,7 @@ func (bm *fakeBucketManager) SetUpBucket(
 	if ok {
 		sb = gcsx.NewSyncerBucket(
 			bm.appendThreshold,
+			bm.chunkRetryDeadlineSecs,
 			bm.chunkTransferTimeoutSecs,
 			bm.tmpObjectPrefix,
 			gcsx.NewContentTypeBucket(bucket),
