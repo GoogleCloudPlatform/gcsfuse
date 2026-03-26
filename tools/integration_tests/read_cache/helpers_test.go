@@ -50,7 +50,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, readFullFile bo
 	expected := &Expected{
 		StartTimeStampSeconds: time.Now().Unix(),
 		BucketName:            setup.TestBucket(),
-		ObjectName:            path.Join(testDirName, fileName),
+		ObjectName:            path.Join(path.Base(testEnv.testDirPath), fileName),
 	}
 	if setup.DynamicBucketMounted() != "" {
 		expected.BucketName = setup.DynamicBucketMounted()
@@ -115,7 +115,7 @@ func getCachedFilePath(fileName string) string {
 	if setup.DynamicBucketMounted() != "" {
 		bucketName = setup.DynamicBucketMounted()
 	}
-	return path.Join(testEnv.cacheDirPath, cacheSubDirectoryName, bucketName, testDirName, fileName)
+	return path.Join(testEnv.cacheDirPath, cacheSubDirectoryName, bucketName, path.Base(testEnv.testDirPath), fileName)
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
@@ -145,7 +145,7 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	validateFileSizeInCacheDirectory(fileName, filesize, t)
 
-	gcsCRC, err := client.GetCRCFromGCS(path.Join(testDirName, fileName), ctx, storageClient)
+	gcsCRC, err := client.GetCRCFromGCS(path.Join(path.Base(testEnv.testDirPath), fileName), ctx, storageClient)
 	require.NoError(t, err)
 	maxRetries := 20
 	retryDelay := 500 * time.Millisecond
@@ -200,7 +200,7 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	if err != nil {
 		t.Errorf("CalculateCRC32 Failed: %v", err)
 	}
-	gcsCRC, err := client.GetCRCFromGCS(path.Join(testDirName, filename), ctx, storageClient)
+	gcsCRC, err := client.GetCRCFromGCS(path.Join(path.Base(testEnv.testDirPath), filename), ctx, storageClient)
 	if err != nil || gcsCRC != gotCRC32Value {
 		t.Errorf("Content served CRC mismatch: %v", err)
 	}
@@ -219,7 +219,7 @@ func readChunkAndValidateObjectContentsFromGCS(ctx context.Context, storageClien
 	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testEnv.testDirPath, filename, false, offset, t)
 	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, filename, offset, chunkSizeToRead,
+	client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testEnv.testDirPath), filename, offset, chunkSizeToRead,
 		expectedOutcome.content, t)
 
 	return expectedOutcome
@@ -232,15 +232,15 @@ func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *stor
 	validateFileIsNotCached(fileName, t)
 	// validate the content read matches the content on GCS.
 	if readFullFile {
-		client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, expectedOutcome.content, t)
+		client.ValidateObjectContentsFromGCS(ctx, storageClient, path.Base(testEnv.testDirPath), fileName, expectedOutcome.content, t)
 	} else {
-		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, fileName, offset, chunkSizeToRead, expectedOutcome.content, t)
+		client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testEnv.testDirPath), fileName, offset, chunkSizeToRead, expectedOutcome.content, t)
 	}
 	return expectedOutcome
 }
 
 func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName string, t *testing.T) {
-	objectName := path.Join(testDirName, testFileName)
+	objectName := path.Join(path.Base(testEnv.testDirPath), testFileName)
 	smallContent, err := operations.GenerateRandomData(smallContentSize)
 	if err != nil {
 		t.Errorf("Could not generate random data to modify file: %v", err)
@@ -263,7 +263,7 @@ func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
 
 func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) {
 	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
+	client.SetupFileInTestDirectory(ctx, storageClient, path.Base(testEnv.testDirPath), testFileName, fileSize, t)
 
 	return testFileName
 }
@@ -321,7 +321,7 @@ func validateContent(t *testing.T, fileName string, start, end int64) {
 	require.NoError(t, err)
 
 	// Read from GCS
-	objectName := path.Join(testDirName, fileName)
+	objectName := path.Join(path.Base(testEnv.testDirPath), fileName)
 	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(objectName)
 	rc, err := testEnv.storageClient.Bucket(bucketName).Object(objectName).NewRangeReader(testEnv.ctx, start, size)
 	require.NoError(t, err)

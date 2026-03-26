@@ -125,6 +125,13 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "cloud-profiler.service-name"
+    flag-name: "cloud-profiler-service-name"
+    type: "string"
+    usage: "The service name for cloud-profiler. This only works when --enable-cloud-profiler is set to true."
+    default: "gcsfuse"
+    hide-flag: true
+
   - config-path: "debug.exit-on-invariant-violation"
     flag-name: "debug_invariants"
     type: "bool"

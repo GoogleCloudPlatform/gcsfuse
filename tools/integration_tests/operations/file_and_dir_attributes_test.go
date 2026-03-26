@@ -16,6 +16,8 @@
 package operations_test
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -25,72 +27,86 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
-const DirAttrTest = "dirAttrTest"
-const PrefixFileInDirAttrTest = "fileInDirAttrTest"
-const NumberOfFilesInDirAttrTest = 2
-const BytesWrittenInFile = 14
+const (
+	DirAttrTest                = "dirAttrTest"
+	PrefixFileInDirAttrTest    = "fileInDirAttrTest"
+	NumberOfFilesInDirAttrTest = 2
+	BytesWrittenInFile         = 14
+	retryFrequency             = 10 * time.Second
+	retryDuration              = 3 * time.Minute
+)
 
-func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, byteSize int64, t *testing.T) {
+func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, byteSize int64, t *testing.T) error {
 	oStat, err := os.Stat(objName)
 
 	if err != nil {
-		t.Errorf("os.Stat error: %s, %v", objName, err)
+		return fmt.Errorf("os.Stat error: %s, %v", objName, err)
 	}
 	statObjName := path.Join(setup.MntDir(), DirForOperationTests, oStat.Name())
 	if objName != statObjName {
-		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statObjName, objName)
+		return fmt.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statObjName, objName)
 	}
 
 	statModTime := oStat.ModTime()
 	if (preCreateTime.After(statModTime)) || (postCreateTime.Before(statModTime)) {
-		t.Errorf("File modification time not in the expected time-range")
+		return fmt.Errorf("File modification time not in the expected time-range")
 	}
 
 	if oStat.Size() != byteSize {
-		t.Errorf("File size is not %v bytes, found size: %d bytes", BytesWrittenInFile, oStat.Size())
+		return fmt.Errorf("File size is not %v bytes, found size: %d bytes", BytesWrittenInFile, oStat.Size())
 	}
+	return nil
 }
 
 func TestFileAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	// kernel time can be slightly out of sync of time.Now(), so using
-	// operations.TimeSlop to adjust pre and post create time.
-	// Ref: https://github.com/golang/go/issues/33510
-	preCreateTime := time.Now().Add(-operations.TimeSlop)
-	fileName := path.Join(testDir, tempFileName)
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
-	postCreateTime := time.Now().Add(+operations.TimeSlop)
+	operations.RetryUntil(context.Background(), t, retryFrequency, retryDuration, func() (bool, error) {
+		fileName := path.Join(testDir, operations.GetRandomName(t))
+		// kernel time can be slightly out of sync of time.Now(), so using
+		// operations.TimeSlop to adjust pre and post create time.
+		// Ref: https://github.com/golang/go/issues/33510
+		preCreateTime := time.Now().Add(-operations.TimeSlop)
+		operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+		postCreateTime := time.Now().Add(+operations.TimeSlop)
 
-	// The file size in createTempFile() is BytesWrittenInFile bytes
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
-	checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, BytesWrittenInFile, t)
+		// The file size in createTempFile() is BytesWrittenInFile bytes
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
+		err := checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, BytesWrittenInFile, t)
+		return err == nil, err
+	})
 }
 
 func TestEmptyDirAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	// kernel time can be slightly out of sync of time.Now(), so using
-	// operations.TimeSlop to adjust pre and post create time.
-	// Ref: https://github.com/golang/go/issues/33510
-	preCreateTime := time.Now().Add(-operations.TimeSlop)
-	dirName := path.Join(testDir, DirAttrTest)
-	operations.CreateDirectoryWithNFiles(0, dirName, "", t)
-	postCreateTime := time.Now().Add(operations.TimeSlop)
+	operations.RetryUntil(context.Background(), t, retryFrequency, retryDuration, func() (bool, error) {
+		dirName := path.Join(testDir, operations.GetRandomName(t))
+		// kernel time can be slightly out of sync of time.Now(), so using
+		// operations.TimeSlop to adjust pre and post create time.
+		// Ref: https://github.com/golang/go/issues/33510
+		preCreateTime := time.Now().Add(-operations.TimeSlop)
+		operations.CreateDirectoryWithNFiles(0, dirName, "", t)
+		postCreateTime := time.Now().Add(operations.TimeSlop)
 
-	checkIfObjectAttrIsCorrect(path.Join(testDir, DirAttrTest), preCreateTime, postCreateTime, 0, t)
+		err := checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
+		return err == nil, err
+	})
 }
 
 func TestNonEmptyDirAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	// kernel time can be slightly out of sync of time.Now(), so using
-	// operations.TimeSlop to adjust pre and post create time.
-	// Ref: https://github.com/golang/go/issues/33510
-	preCreateTime := time.Now().Add(-operations.TimeSlop)
-	dirName := path.Join(testDir, DirAttrTest)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, t)
-	postCreateTime := time.Now().Add(operations.TimeSlop)
+	operations.RetryUntil(context.Background(), t, retryFrequency, retryDuration, func() (bool, error) {
+		dirName := path.Join(testDir, operations.GetRandomName(t))
+		// kernel time can be slightly out of sync of time.Now(), so using
+		// operations.TimeSlop to adjust pre and post create time.
+		// Ref: https://github.com/golang/go/issues/33510
+		preCreateTime := time.Now().Add(-operations.TimeSlop)
+		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, t)
+		postCreateTime := time.Now().Add(operations.TimeSlop)
 
-	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
+		err := checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
+		return err == nil, err
+	})
 }

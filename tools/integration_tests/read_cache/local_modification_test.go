@@ -52,7 +52,7 @@ func (s *localModificationTest) SetupTest() {
 	require.NoError(s.T(), err)
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(testEnv.cacheDirPath)
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 }
 
 func (s *localModificationTest) TearDownTest() {
@@ -68,7 +68,7 @@ func (s *localModificationTest) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss() {
-	testFileName := testDirName + setup.GenerateRandomString(testFileNameSuffixLength)
+	testFileName := testDirPrefix + setup.GenerateRandomString(testFileNameSuffixLength)
 	operations.CreateFileOfSize(fileSize, path.Join(testEnv.testDirPath, testFileName), s.T())
 
 	// Read file 1st time.
