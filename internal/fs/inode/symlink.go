@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
@@ -80,11 +81,12 @@ var _ Inode = &SymlinkInode{}
 //
 // REQUIRES: IsSymlink(o)
 func NewSymlinkInode(
+	ctx context.Context,
 	id fuseops.InodeID,
 	name Name,
 	bucket *gcsx.SyncerBucket,
 	m *gcs.MinObject,
-	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
+	attrs fuseops.InodeAttributes) (s *SymlinkInode, err error) {
 	// Create the inode.
 	s = &SymlinkInode{
 		id:     id,
@@ -104,14 +106,18 @@ func NewSymlinkInode(
 			Ctime: m.Updated,
 			Mtime: m.Updated,
 		},
-		target:   m.Metadata[SymlinkMetadataKey],
 		metadata: m.Metadata,
 	}
 
 	// Set up lookup counting.
 	s.lc.Init(id)
 
-	return
+	s.target, err = s.resolveSymlinkTarget(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -141,6 +147,44 @@ func (s *SymlinkInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 		err = fmt.Errorf("NewReader: %w", err)
 	}
 	return rc, err
+}
+
+// resolveSymlinkTarget retrieves the target path of the symlink.
+//
+// It handles two types of symlinks:
+//  1. Standard Symlinks: Identified by the "goog-reserved-file-is-symlink" metadata key.
+//     The target path is stored as the object's content.
+//  2. Legacy Symlinks: Identified by the "gcsfuse_symlink_target" metadata key.
+//     The target path is stored directly in the metadata value.
+func (s *SymlinkInode) resolveSymlinkTarget(ctx context.Context) (string, error) {
+	// Check for standard symlink representation where the target is stored in the object content.
+	if val, ok := s.metadata[StandardSymlinkMetadataKey]; ok && val == "true" {
+		rc, err := s.openReader(ctx)
+		if err != nil {
+			return "", fmt.Errorf("openReader: %w", err)
+		}
+		defer func() {
+			closeErr := rc.Close()
+			if closeErr != nil {
+				logger.Warnf("Error closing reader for symlink object %q: %v", s.name.GcsObjectName(), closeErr)
+			}
+		}()
+
+		content, err := io.ReadAll(rc)
+		if err != nil {
+			return "", fmt.Errorf("ReadAll: %w", err)
+		}
+		return string(content), nil
+	}
+
+	// Check for legacy symlink representation where the target is stored in metadata.
+	if target, ok := s.metadata[SymlinkMetadataKey]; ok {
+		return target, nil
+	}
+
+	// If none of the metadata keys are present, return error since target of symlink
+	// cannot be resolved.
+	return "", fmt.Errorf("symlink target could not be resolved")
 }
 
 ////////////////////////////////////////////////////////////////////////

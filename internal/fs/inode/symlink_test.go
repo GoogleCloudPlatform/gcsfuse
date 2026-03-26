@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
@@ -121,7 +122,8 @@ func (t *SymlinkTest) TestAttributes() {
 		Mode: 0777 | os.ModeSymlink,
 	}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
+	AssertEq(nil, err)
 	tests := []struct {
 		name           string
 		clobberedCheck bool
@@ -153,7 +155,8 @@ func (t *SymlinkTest) TestUpdateSize() {
 	}
 	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
+	AssertEq(nil, err)
 
 	s.UpdateSize(200)
 
@@ -161,17 +164,20 @@ func (t *SymlinkTest) TestUpdateSize() {
 }
 
 func (t *SymlinkTest) TestSource() {
-	m := &gcs.MinObject{
-		Name:           "test",
-		Generation:     1,
-		MetaGeneration: 2,
-		Size:           100,
-		Metadata:       map[string]string{inode.StandardSymlinkMetadataKey: "true"},
-		Updated:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
+	obj, err := storageutil.CreateObject(
+		context.Background(),
+		t.bucket,
+		"test", // The name of the object in GCS
+		[]byte("target_path"),
+	)
+	AssertEq(nil, err)
+	m := storageutil.ConvertObjToMinObject(obj)
+	m.Metadata = map[string]string{inode.StandardSymlinkMetadataKey: "true"}
+	m.Updated = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC) // Explicitly set Updated time for consistent testing.
 	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
+	AssertEq(nil, err)
 
 	source := s.Source()
 
