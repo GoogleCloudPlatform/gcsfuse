@@ -188,9 +188,14 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
+	// Create a shallow copy of MinObject and set its Name to empty string
+	// to avoid holding on to the string memory.
+	mCopy := *m
+	mCopy.Name = ""
+
 	// Insert an entry.
 	e := entry{
-		m:          m,
+		m:          &mCopy,
 		expiration: expiration,
 		key:        name,
 	}
@@ -281,7 +286,12 @@ func (sc *statCacheBucketView) LookUp(
 		if entry.implicitDir {
 			return true, &gcs.MinObject{Name: objectName}
 		}
-		return hit, entry.m
+		if entry.m != nil {
+			mCopy := *entry.m
+			mCopy.Name = objectName
+			return hit, &mCopy
+		}
+		return hit, nil
 	}
 
 	return false, nil
@@ -294,7 +304,12 @@ func (sc *statCacheBucketView) LookUpFolder(
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
-		return hit, entry.f
+		if entry.f != nil {
+			fCopy := *entry.f
+			fCopy.Name = folderName
+			return hit, &fCopy
+		}
+		return hit, nil
 	}
 
 	return false, nil
@@ -320,8 +335,13 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
+	// Create a shallow copy of Folder and set its Name to empty string
+	// to avoid holding on to the string memory.
+	fCopy := *f
+	fCopy.Name = ""
+
 	e := entry{
-		f:          f,
+		f:          &fCopy,
 		expiration: expiration,
 		key:        name,
 	}
