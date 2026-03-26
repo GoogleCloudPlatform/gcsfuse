@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
@@ -39,6 +41,7 @@ const (
 
 func expectedLogRegex(t *testing.T, format, severity, message string) string {
 	t.Helper()
+	message = regexp.QuoteMeta(message)
 	switch format {
 	case "text":
 		return fmt.Sprintf(textLogPattern, severity, message)
@@ -548,14 +551,18 @@ func TestGetLogFHandler(t *testing.T) {
 		// redirect logs to buffer and set level to TRACE to see all logs.
 		redirectLogsToGivenBuffer(&buf, cfg.TRACE)
 		message := "unsupported level message"
+		unsupportedLevel := slog.Level(99)
 
 		// Act
-		logFn := GetLogFHandler(slog.Level(99))
+		logFn := GetLogFHandler(unsupportedLevel)
 		logFn(message)
 
 		// Assert
-		expectedRegex := expectedLogRegex(t, "text", "TRACE", message)
-		actualLog := buf.String()
-		assert.Regexp(t, expectedRegex, actualLog)
+		logs := strings.Split(strings.TrimSpace(buf.String()), "\n")
+		require.Len(t, logs, 2)
+		expectedWarningRegex := expectedLogRegex(t, "text", "WARNING", fmt.Sprintf("logger: unsupported log level: %v", unsupportedLevel))
+		assert.Regexp(t, expectedWarningRegex, logs[0])
+		expectedTraceRegex := expectedLogRegex(t, "text", "TRACE", message)
+		assert.Regexp(t, expectedTraceRegex, logs[1])
 	})
 }
