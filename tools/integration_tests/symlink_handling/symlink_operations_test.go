@@ -133,8 +133,8 @@ func (s *BaseSymlinkSuite) testListDirViaSymlink(prefix string, createSymlinkFun
 	s.Assert().Equal(fileName, entries[0].Name())
 }
 
-// testMoveSymlink tests moving a symlink.
-func (s *BaseSymlinkSuite) testMoveSymlink(prefix string, createSymlinkFunc func(linkName, targetName string)) {
+// testRenameSymlink tests renaming a symlink.
+func (s *BaseSymlinkSuite) testRenameSymlink(prefix string, createSymlinkFunc func(linkName, targetName string)) {
 	targetName := prefix + "target.txt"
 	linkName := prefix + "link"
 	newLinkName := prefix + "new_link"
@@ -147,7 +147,7 @@ func (s *BaseSymlinkSuite) testMoveSymlink(prefix string, createSymlinkFunc func
 	linkPath := path.Join(s.testDirPath, linkName)
 	newLinkPath := path.Join(s.testDirPath, newLinkName)
 
-	// Move the symlink.
+	// Rename the symlink.
 	err = os.Rename(linkPath, newLinkPath)
 	s.Require().NoError(err)
 
@@ -248,7 +248,7 @@ func (s *StandardSymlinksTestSuite) TestListDirViaSymlink() {
 }
 
 func (s *StandardSymlinksTestSuite) TestRenameSymlink() {
-	s.testMoveSymlink("move_standard_", func(linkName, target string) {
+	s.testRenameSymlink("rename_standard_", func(linkName, target string) {
 		s.createGCSSymlinkObject(linkName, target, map[string]string{
 			StandardSymlinkMetadataKey: "true",
 		})
@@ -311,7 +311,7 @@ func (s *LegacySymlinksTestSuite) TestListDirViaSymlink() {
 }
 
 func (s *LegacySymlinksTestSuite) TestRenameSymlink() {
-	s.testMoveSymlink("move_legacy_", func(linkName, target string) {
+	s.testRenameSymlink("rename_legacy_", func(linkName, target string) {
 		s.createGCSSymlinkObject(linkName, "", map[string]string{
 			SymlinkMetadataKey: target,
 		})
