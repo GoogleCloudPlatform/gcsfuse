@@ -1320,8 +1320,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("stat-cache-max-size-mb", "", 34, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
-
-
 	flagSet.BoolP("stat-cache-trie", "", false, "Use radix-trie based data structure to implement the stat_cache. The default is false.")
 
 	flagSet.DurationP("stat-cache-ttl", "", 60000000000*time.Nanosecond, "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
@@ -1910,8 +1908,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	if err := v.BindPFlag("metadata-cache.stat-cache-max-size-mb", flagSet.Lookup("stat-cache-max-size-mb")); err != nil {
 		return err
 	}
-
-
 
 	if err := v.BindPFlag("metadata-cache.stat-cache-trie", flagSet.Lookup("stat-cache-trie")); err != nil {
 		return err

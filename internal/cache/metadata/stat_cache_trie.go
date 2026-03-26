@@ -54,7 +54,7 @@ type trieNode struct {
 
 func newTrieNode(prefix string) *trieNode {
 	return &trieNode{
-		prefix:   prefix,
+		prefix: prefix,
 	}
 }
 
