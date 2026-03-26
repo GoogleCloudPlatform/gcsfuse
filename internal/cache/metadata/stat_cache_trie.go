@@ -248,8 +248,11 @@ func (sc *statCacheTrie) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
+	mCopy := *m
+	mCopy.Name = ""
+
 	e := entry{
-		m:          m,
+		m:          &mCopy,
 		expiration: expiration,
 		key:        name,
 	}
@@ -344,16 +347,24 @@ func (sc *statCacheTrie) LookUp(name string, now time.Time) (bool, *gcs.MinObjec
 		return true, &gcs.MinObject{Name: name}
 	}
 
-	clone := node.val.m
-	return true, clone
+	if node.val.m != nil {
+		mCopy := *node.val.m
+		mCopy.Name = name
+		return true, &mCopy
+	}
+
+	return true, nil
 }
 
 func (sc *statCacheTrie) InsertFolder(f *gcs.Folder, expiration time.Time) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 
+	fCopy := *f
+	fCopy.Name = ""
+
 	e := entry{
-		f:          f,
+		f:          &fCopy,
 		expiration: expiration,
 		key:        f.Name,
 	}
@@ -379,9 +390,13 @@ func (sc *statCacheTrie) LookUpFolder(folderName string, now time.Time) (bool, *
 		sc.entries.MoveToFront(node.lruElem)
 	}
 
+	if node.val.f != nil {
+		fCopy := *node.val.f
+		fCopy.Name = folderName
+		return true, &fCopy
+	}
 
-	clone := node.val.f
-	return true, clone
+	return true, nil
 }
 
 func (sc *statCacheTrie) dfsErase(node *trieNode) {
