@@ -856,15 +856,15 @@ func ParseLogFileFromFlags(flags []string) string {
 
 func SetUpLogFilePath(flags []string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
 	var logFilePath string
-	parsedFileName := ParseLogFileFromFlags(flags)
+	parsedLogFileName := ParseLogFileFromFlags(flags)
 	if cfg.GKEMountedDirectory != "" { // GKE path
-		logFilePath = path.Join(GKETempDir, parsedFileName) + ".log"
+		logFilePath = path.Join(GKETempDir, parsedLogFileName) + ".log"
 		if ConfigFile() == "" {
 			// TODO: clean this up when GKE test migration completes.
 			logFilePath = OldGKElogFilePath
 		}
 	} else {
-		logFilePath = path.Join(TestDir(), GKETempDir, parsedFileName) + ".log"
+		logFilePath = path.Join(TestDir(), GKETempDir, parsedLogFileName) + ".log"
 	}
 	cfg.LogFile = logFilePath
 	SetLogFile(logFilePath)
