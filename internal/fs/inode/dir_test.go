@@ -2228,7 +2228,7 @@ func (t *DirTest) Test_IsTypeCacheDeprecated_true() {
 func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
 	mockBucket := new(storagemock.TestifyMockBucket)
 	mockBucket.On("BucketType").Return(gcs.BucketType{})
-	syncerBucket := gcsx.NewSyncerBucket(/*appendThreshold=*/ 1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
+	syncerBucket := gcsx.NewSyncerBucket( /*appendThreshold=*/ 1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
 	oldBucket := t.bucket
 	t.bucket = syncerBucket
 	defer func() { t.bucket = oldBucket }()
@@ -2273,7 +2273,7 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
 func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 	mockBucket := new(storagemock.TestifyMockBucket)
 	mockBucket.On("BucketType").Return(gcs.BucketType{})
-	syncerBucket := gcsx.NewSyncerBucket(/*appendThreshold=*/ 1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
+	syncerBucket := gcsx.NewSyncerBucket( /*appendThreshold=*/ 1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", mockBucket)
 	oldBucket := t.bucket
 	t.bucket = syncerBucket
 	defer func() { t.bucket = oldBucket }()

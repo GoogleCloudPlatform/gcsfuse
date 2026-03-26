@@ -59,7 +59,7 @@ func init() { RegisterTestSuite(&DirHandleTest{}) }
 func (t *DirHandleTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.bucket = gcsx.NewSyncerBucket(
-		/*appendThreshold=*/ 1, /*chunkRetryDeadlineSecs=*/ 120, /*chunkTransferTimeoutSecs=*/ 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{}))
+		/*appendThreshold=*/ 1 /*chunkRetryDeadlineSecs=*/, 120 /*chunkTransferTimeoutSecs=*/, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{}))
 	t.clock.SetTime(time.Date(2022, 8, 15, 22, 56, 0, 0, time.Local))
 	t.resetDirHandle()
 }
