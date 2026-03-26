@@ -237,6 +237,8 @@ func GetLogFHandler(level slog.Level) logFunc {
 		return fn
 	}
 
+	Warnf("logger: unsupported log level: %v", level)
+
 	return logFHandlers[LevelTrace]
 }
 
