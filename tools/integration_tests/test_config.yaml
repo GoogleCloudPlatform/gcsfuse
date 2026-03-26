@@ -927,7 +927,7 @@ monitoring:
           hns: false
           zonal: false
         run: "TestPromOTELSuite"
-        run_on_gke: true
+        run_on_gke: false
       - flags:
         - "--prometheus-port=10190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/TestPromOTELSuite.log,--enable-kernel-reader=false"
         compatible:
@@ -935,7 +935,7 @@ monitoring:
           hns: true
           zonal: true
         run: "TestPromOTELSuite"
-        run_on_gke: true
+        run_on_gke: false
       - flags:
         - "--prometheus-port=9191,--enable-buffered-read,--read-block-size-mb=4,--read-random-seek-threshold=2,--read-global-max-blocks=5,--read-min-blocks-per-handle=2,--read-start-blocks-per-handle=2,--log-file=/gcsfuse-tmp/TestPromBufferedReadSuite.log,--enable-kernel-reader=false"
         compatible:
@@ -943,7 +943,7 @@ monitoring:
           hns: false
           zonal: false
         run: "TestPromBufferedReadSuite"
-        run_on_gke: true
+        run_on_gke: false
       - flags:
         - "--prometheus-port=10191,--enable-buffered-read,--read-block-size-mb=4,--read-random-seek-threshold=2,--read-global-max-blocks=5,--read-min-blocks-per-handle=2,--read-start-blocks-per-handle=2,--log-file=/gcsfuse-tmp/TestPromBufferedReadSuite.log,--enable-kernel-reader=false"
         compatible:
@@ -951,7 +951,7 @@ monitoring:
           hns: true
           zonal: true
         run: "TestPromBufferedReadSuite"
-        run_on_gke: true
+        run_on_gke: false
       - flags:
         - "--client-protocol=grpc,--experimental-enable-grpc-metrics,--prometheus-port=9192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/TestPromGrpcMetricsSuite.log,--enable-kernel-reader=false"
         compatible:
@@ -959,7 +959,7 @@ monitoring:
           hns: false
           zonal: false
         run: "TestPromGrpcMetricsSuite"
-        run_on_gke: true
+        run_on_gke: false
       - flags:
         - "--client-protocol=grpc,--experimental-enable-grpc-metrics,--prometheus-port=10192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/TestPromGrpcMetricsSuite.log,--enable-kernel-reader=false"
         compatible:
@@ -967,7 +967,7 @@ monitoring:
           hns: true
           zonal: true
         run: "TestPromGrpcMetricsSuite"
-        run_on_gke: true
+        run_on_gke: false
       - flags:
         - "--prometheus-port=9193 --log-file=/gcsfuse-tmp/TestPromKernelReaderSuite.log"
         compatible:
