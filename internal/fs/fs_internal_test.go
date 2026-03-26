@@ -15,82 +15,55 @@
 package fs
 
 import (
-	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
-type FsInternalTestSuite struct {
-	suite.Suite
-	cacheDir string
-}
+func TestCacheDirVolumeBlockSize(t *testing.T) {
+	cacheDir := t.TempDir()
+	actualBlockSize := diskutil.GetVolumeBlockSize(cacheDir)
 
-func TestFsInternalTestSuite(t *testing.T) {
-	suite.Run(t, new(FsInternalTestSuite))
-}
-
-func (suite *FsInternalTestSuite) SetupTest() {
-	var err error
-	suite.cacheDir, err = os.MkdirTemp("", "fs_internal_test")
-	require.NoError(suite.T(), err)
-}
-
-func (suite *FsInternalTestSuite) TearDownTest() {
-	if suite.cacheDir != "" {
-		_ = os.RemoveAll(suite.cacheDir)
-	}
-}
-
-func (suite *FsInternalTestSuite) TestCacheDirVolumeBlockSize_SizeCalcFixEnabled_NotSparse() {
-	serverCfg := &ServerConfig{
-		NewConfig: &cfg.Config{
-			FileCache: cfg.FileCacheConfig{
-				ExperimentalDisableSizeCalculationFix: false,
-				ExperimentalEnableChunkCache:          false,
-			},
+	for _, tc := range []struct {
+		name                         string
+		disableSizeCalculationFix    bool
+		enableExperimentalChunkCache bool
+		expectedBlockSize            uint64
+	}{
+		{
+			name:                         "SizeCalcFixEnabled_NotSparse",
+			disableSizeCalculationFix:    false,
+			enableExperimentalChunkCache: false,
+			expectedBlockSize:            actualBlockSize,
 		},
-	}
-
-	actualBlockSize := diskutil.GetVolumeBlockSize(suite.cacheDir)
-	blockSize := cacheDirVolumeBlockSize(serverCfg, suite.cacheDir)
-
-	assert.Equal(suite.T(), actualBlockSize, blockSize)
-}
-
-func (suite *FsInternalTestSuite) TestCacheDirVolumeBlockSize_SizeCalcFixDisabled() {
-	serverCfg := &ServerConfig{
-		NewConfig: &cfg.Config{
-			FileCache: cfg.FileCacheConfig{
-				ExperimentalDisableSizeCalculationFix: true,
-				ExperimentalEnableChunkCache:          false,
-			},
+		{
+			name:                         "SizeCalcFixDisabled",
+			disableSizeCalculationFix:    true,
+			enableExperimentalChunkCache: false,
+			expectedBlockSize:            1,
 		},
-	}
-
-	// Because the size calculation fix is completely disabled, the block size returned should be 1
-	blockSize := cacheDirVolumeBlockSize(serverCfg, suite.cacheDir)
-
-	assert.Equal(suite.T(), uint64(1), blockSize)
-}
-
-func (suite *FsInternalTestSuite) TestCacheDirVolumeBlockSize_SparseModeEnabled() {
-	serverCfg := &ServerConfig{
-		NewConfig: &cfg.Config{
-			FileCache: cfg.FileCacheConfig{
-				ExperimentalDisableSizeCalculationFix: false,
-				ExperimentalEnableChunkCache:          true,
-			},
+		{
+			name:                         "SparseModeEnabled",
+			disableSizeCalculationFix:    false,
+			enableExperimentalChunkCache: true,
+			expectedBlockSize:            1,
 		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			serverCfg := &ServerConfig{
+				NewConfig: &cfg.Config{
+					FileCache: cfg.FileCacheConfig{
+						ExperimentalDisableSizeCalculationFix: tc.disableSizeCalculationFix,
+						ExperimentalEnableChunkCache:          tc.enableExperimentalChunkCache,
+					},
+				},
+			}
+
+			blockSize := cacheDirVolumeBlockSize(serverCfg, cacheDir)
+
+			assert.Equal(t, tc.expectedBlockSize, blockSize)
+		})
 	}
-
-	// Sparse mode overrides and explicitly disables block size up-rounding
-	blockSize := cacheDirVolumeBlockSize(serverCfg, suite.cacheDir)
-
-	assert.Equal(suite.T(), uint64(1), blockSize)
 }
