@@ -541,9 +541,21 @@ func TestGetLogFHandler(t *testing.T) {
 		})
 	}
 
-	t.Run("Unsupported level panics", func(t *testing.T) {
-		assert.Panics(t, func() {
-			GetLogFHandler(slog.Level(99))
-		})
+	t.Run("Unsupported level returns trace logger", func(t *testing.T) {
+		// Arrange
+		defaultLoggerFactory.format = "text"
+		var buf bytes.Buffer
+		// redirect logs to buffer and set level to TRACE to see all logs.
+		redirectLogsToGivenBuffer(&buf, cfg.TRACE)
+		message := "unsupported level message"
+
+		// Act
+		logFn := GetLogFHandler(slog.Level(99))
+		logFn(message)
+
+		// Assert
+		expectedRegex := expectedLogRegex(t, "text", "TRACE", message)
+		actualLog := buf.String()
+		assert.Regexp(t, expectedRegex, actualLog)
 	})
 }
