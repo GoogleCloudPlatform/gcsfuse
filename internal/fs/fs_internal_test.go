@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -37,7 +38,7 @@ func TestFsInternalTestSuite(t *testing.T) {
 func (suite *FsInternalTestSuite) SetupTest() {
 	var err error
 	suite.cacheDir, err = os.MkdirTemp("", "fs_internal_test")
-	assert.NoError(suite.T(), err)
+	require.NoError(suite.T(), err)
 }
 
 func (suite *FsInternalTestSuite) TearDownTest() {
@@ -57,8 +58,8 @@ func (suite *FsInternalTestSuite) TestCacheDirVolumeBlockSize_SizeCalcFixEnabled
 	}
 
 	actualBlockSize := diskutil.GetVolumeBlockSize(suite.cacheDir)
-
 	blockSize := cacheDirVolumeBlockSize(serverCfg, suite.cacheDir)
+
 	assert.Equal(suite.T(), actualBlockSize, blockSize)
 }
 
@@ -74,6 +75,7 @@ func (suite *FsInternalTestSuite) TestCacheDirVolumeBlockSize_SizeCalcFixDisable
 
 	// Because the size calculation fix is completely disabled, the block size returned should be 1
 	blockSize := cacheDirVolumeBlockSize(serverCfg, suite.cacheDir)
+
 	assert.Equal(suite.T(), uint64(1), blockSize)
 }
 
@@ -89,5 +91,6 @@ func (suite *FsInternalTestSuite) TestCacheDirVolumeBlockSize_SparseModeEnabled(
 
 	// Sparse mode overrides and explicitly disables block size up-rounding
 	blockSize := cacheDirVolumeBlockSize(serverCfg, suite.cacheDir)
+
 	assert.Equal(suite.T(), uint64(1), blockSize)
 }

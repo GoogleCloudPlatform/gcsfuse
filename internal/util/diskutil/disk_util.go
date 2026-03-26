@@ -22,7 +22,7 @@ import (
 
 // DefaultCacheDirVolumeBlockSize is the block-size used for cache-dir in case
 // statfs call fails for it.
-const DefaultVolumeBlockSize = 4096
+const defaultVolumeBlockSize = 4096
 
 // GetSpeculativeFileSizeOnDisk calculates the theoretical disk space a file will
 // consume given its actual content size and the filesystem's block size. It rounds
@@ -40,8 +40,8 @@ func GetSpeculativeFileSizeOnDisk(fileContentSize, volumeBlockSize uint64) uint6
 func GetVolumeBlockSize(path string) uint64 {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(path, &stat); err != nil {
-		logger.Errorf("statsfs failed for %q. Defaulting to block-size %d for this directory.", path, DefaultVolumeBlockSize)
-		return DefaultVolumeBlockSize
+		logger.Errorf("statsfs failed for %q. Defaulting to block-size %d for this directory.", path, defaultVolumeBlockSize)
+		return defaultVolumeBlockSize
 	}
 	// Bsize is int64, casting it to uint64.
 	return uint64(stat.Bsize)
