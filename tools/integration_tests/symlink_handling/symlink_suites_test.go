@@ -132,7 +132,7 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName string, content strin
 
 	w, err := client.NewWriter(testEnv.ctx, objHandle, testEnv.storageClient)
 	s.Require().NoError(err)
-	w.ObjectAttrs.Metadata = metadata
+	w.Metadata = metadata
 	_, err = w.Write([]byte(content))
 	s.Require().NoError(err)
 	s.Require().NoError(w.Close())
