@@ -64,7 +64,7 @@ type PromTestBase struct {
 }
 
 func (p *PromTestBase) SetupSuite() {
-	setup.SetUpLogFilePath(p.suiteName, gkeTempDir, "", testEnv.cfg)
+	setup.SetUpLogFilePath(p.flags, gkeTempDir, "", testEnv.cfg)
 	mountGCSFuseAndSetupTestDir(p.flags, testEnv.ctx, testEnv.storageClient)
 }
 

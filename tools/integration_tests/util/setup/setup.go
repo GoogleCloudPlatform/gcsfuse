@@ -841,16 +841,30 @@ func OverrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath str
 	}
 }
 
-func SetUpLogFilePath(testName string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
+func ParseLogFileFromFlags(flags []string) string {
+	for _, flagStr := range flags {
+		parts := strings.Fields(flagStr)
+		for _, part := range parts {
+			if strings.HasPrefix(part, "--log-file=") {
+				// Get just the filename from the path
+				return path.Base(strings.TrimPrefix(part, "--log-file="))
+			}
+		}
+	}
+	return ""
+}
+
+func SetUpLogFilePath(flags []string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
 	var logFilePath string
+	parsedFileName := ParseLogFileFromFlags(flags)
 	if cfg.GKEMountedDirectory != "" { // GKE path
-		logFilePath = path.Join(GKETempDir, testName) + ".log"
+		logFilePath = path.Join(GKETempDir, parsedFileName) + ".log"
 		if ConfigFile() == "" {
 			// TODO: clean this up when GKE test migration completes.
 			logFilePath = OldGKElogFilePath
 		}
 	} else {
-		logFilePath = path.Join(TestDir(), GKETempDir, testName) + ".log"
+		logFilePath = path.Join(TestDir(), GKETempDir, parsedFileName) + ".log"
 	}
 	cfg.LogFile = logFilePath
 	SetLogFile(logFilePath)

@@ -38,7 +38,7 @@ type timeoutDisabledSuite struct {
 }
 
 func (s *timeoutDisabledSuite) SetupSuite() {
-	setup.SetUpLogFilePath(s.baseTestName, GKETempDir, OldGKElogFilePath, testEnv.cfg)
+	setup.SetUpLogFilePath(s.flags, GKETempDir, OldGKElogFilePath, testEnv.cfg)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 

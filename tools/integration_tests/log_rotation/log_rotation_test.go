@@ -21,7 +21,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -100,7 +99,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// 6. Override GKE specific paths with GCSFuse paths if running in GCE environment.
-	overrideFilePathsInFlagSet(cfg, setup.TestDir())
+	setup.OverrideFilePathsInFlagSet(cfg, setup.TestDir())
 
 	flags := setup.BuildFlagSets(*cfg, bucketType, "")
 	setupLogFilePath(testDirName)
@@ -110,13 +109,4 @@ func TestMain(m *testing.M) {
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
-}
-
-func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
-	for _, flags := range t.Configs {
-		for i := range flags.Flags {
-			// Iterate over the indices of the flags slice
-			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
-		}
-	}
 }
