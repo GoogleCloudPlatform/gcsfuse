@@ -93,7 +93,7 @@ func (s *BaseSymlinkSuite) testWriteFileViaSymlink(prefix string, createSymlinkF
 	targetPath := path.Join(s.testDirPath, targetName)
 	f, err := os.Create(targetPath)
 	s.Require().NoError(err)
-	f.Close()
+	s.Require().NoError(f.Close())
 	// Create a symlink to the target file.
 	createSymlinkFunc(linkName, targetName)
 	linkPath := path.Join(s.testDirPath, linkName)
