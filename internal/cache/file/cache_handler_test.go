@@ -1131,14 +1131,16 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
 	// Verify that inserting a 1-byte file via the handler's calculated block size would overflow a 100-byte cache.
-	fi := data.FileInfo{
-		Key: data.FileInfoKey{
+	fi := data.NewFileInfo(
+		data.FileInfoKey{
 			ObjectName: "test.txt",
 		},
-		FileSize:                1,
-		CacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
-		SparseMode:              false,
-	}
+		1,     // dummy generation number
+		1,     // file-size
+		0,     // offset
+		false, // sparse-mode
+		nil,   // ranges
+		cacheDirVolumeBlockSize)
 
 	// Inserting should immediately fail because volumeBlockSize (e.g. 4096) > 100.
 	_, err := cache.Insert("test_key", fi)
@@ -1153,15 +1155,17 @@ func Test_NewCacheHandler_WithoutSizeCalcFix(t *testing.T) {
 	cacheDirVolumeBlockSize := uint64(1)
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
-	// Verify that inserting a 1-byte file via the handler's block size of would work.
-	fi := data.FileInfo{
-		Key: data.FileInfoKey{
+	// Verify that inserting a 5-byte file via the handler's block size of would work.
+	fi := data.NewFileInfo(
+		data.FileInfoKey{
 			ObjectName: "test.txt",
 		},
-		FileSize:                5,
-		CacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
-		SparseMode:              false,
-	}
+		1,     // dummy generation number
+		5,     // file-size
+		0,     // offset
+		false, // sparse-mode
+		nil,   // ranges
+		cacheDirVolumeBlockSize)
 
 	// Inserting should work because Max(volumeBlockSize (1), item-size(5)) <= cache-size (100).
 	evicted, err := cache.Insert("test_key", fi)
