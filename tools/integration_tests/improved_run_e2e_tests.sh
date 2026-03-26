@@ -878,7 +878,7 @@ run_e2e_tests_for_emulator() {
   emulator_test_log=$(create_file_helper "running_package_logs/emulator/emulator.txt")
 
   local exit_code=0
-  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
+  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
     log_error_locked "Failed e2e tests for emulator."
     exit_code=1
   else

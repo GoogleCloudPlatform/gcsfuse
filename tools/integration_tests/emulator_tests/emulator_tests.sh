@@ -13,20 +13,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Fail on any error
-set -eo pipefail
-
-# Display commands being run
+# Exit on error, treat unset variables as errors, and propagate pipeline errors.
+set -euo pipefail
 set -x
+
+# Script uses positional arguments:
+#   $1: testInstalledPackage (default: false)
+#   $2: gcsfuse prebuilt directory (default: "")
+
+# Logging Helpers
+log_info() {
+  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+}
+
+log_error() {
+  echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+}
+
+
+
+TEST_INSTALLED_PACKAGE=${1:-false}
+GCSFUSE_PREBUILT_DIR=${2:-""}
+
+if [[ "$TEST_INSTALLED_PACKAGE" == "true" ]] && [[ -n "$GCSFUSE_PREBUILT_DIR" ]]; then
+  log_error "test_installed_package=true and gcsfuse_prebuilt_dir are mutually exclusive."
+  exit 1
+fi
+
 
 uname=$(uname -m)
 if [ $uname == "aarch64" ];then
   # TODO: Remove this when we have an ARM64 image for the storage test bench.(b/384388821)
-  echo "These tests will not run for arm64 machine..."
+  log_info "These tests will not run for arm64 machine..."
   exit 0
 fi
 
-RUN_E2E_TESTS_ON_PACKAGE=$1
 # Only run on Go 1.17+
 min_minor_ver=17
 
@@ -35,40 +56,44 @@ comps=(${v//./ })
 minor_ver=${comps[1]}
 
 if [ "$minor_ver" -lt "$min_minor_ver" ]; then
-    echo minor version $minor_ver, skipping
+    log_info "minor version $minor_ver, skipping"
     exit 0
 fi
 
 # Install dependencies
-# Ubuntu/Debian based machine.
-if [ -f /etc/debian_version ]; then
-  if grep -q "Ubuntu" /etc/os-release; then
-    os="ubuntu"
-  elif grep -q "Debian" /etc/os-release; then
-    os="debian"
-  fi
+if sudo docker ps > /dev/null 2>&1; then
+  log_info "Docker is already installed and usable. Skipping installation steps."
+else
+  # Ubuntu/Debian based machine.
+  if [ -f /etc/debian_version ]; then
+    if grep -q "Ubuntu" /etc/os-release; then
+      os="ubuntu"
+    elif grep -q "Debian" /etc/os-release; then
+      os="debian"
+    fi
 
-  sudo apt-get update
-  sudo apt-get install -y ca-certificates curl
-  sudo install -m 0755 -d /etc/apt/keyrings
-  sudo curl -fsSL https://download.docker.com/linux/${os}/gpg -o /etc/apt/keyrings/docker.asc
-  sudo chmod a+r /etc/apt/keyrings/docker.asc
-  # Add the repository to Apt sources:
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${os} \
-    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  sudo apt-get install -y lsof
-# RHEL/CentOS based machine.
-elif [ -f /etc/redhat-release ]; then
-    sudo dnf -y install dnf-plugins-core
-    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-    sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    sudo usermod -aG docker $USER
-    sudo systemctl start docker
-    sudo yum -y install lsof
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/${os}/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+    # Add the repository to Apt sources:
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${os} \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo apt-get install -y lsof
+  # RHEL/CentOS based machine.
+  elif [ -f /etc/redhat-release ]; then
+      sudo dnf -y install dnf-plugins-core
+      sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+      sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      sudo usermod -aG docker $USER
+      sudo systemctl start docker
+      sudo yum -y install lsof
+  fi
 fi
 
 export STORAGE_EMULATOR_HOST="http://localhost:9000"
@@ -92,24 +117,49 @@ sudo docker pull $DOCKER_IMAGE
 # Remove the docker container if it's already running.
 CONTAINER_ID=$(sudo docker ps -aqf "name=$CONTAINER_NAME")
 if [[ -n "$CONTAINER_ID" ]]; then
-  echo "Container with ID:[$CONTAINER_ID] is already running with name:[$CONTAINER_NAME]"
-  echo "Stoping container...."
+  log_info "Container with ID:[$CONTAINER_ID] is already running with name:[$CONTAINER_NAME]"
+  log_info "Stopping container...."
   sudo docker stop $CONTAINER_ID
 fi
 
-# Start the testbench
-sudo docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
-echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
-sleep 5
+wait_for_emulator() {
+  local timeout=60
+  local count=0
+  log_info "Waiting for emulator to be ready..."
+  while [ $count -lt $timeout ]; do
+    if curl -s "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project" > /dev/null; then
+      log_info "Emulator is ready!"
+      return 0
+    fi
+    sleep 1
+    count=$((count+1))
+  done
+  log_error "Emulator failed to become ready after $timeout seconds."
+  return 1
+}
+
+# Run the emulator container in the background and stream its logs to a file.
+# GUNICORN_CMD_ARGS="--timeout 600" is used to increase the Gunicorn timeout from the default 30 seconds
+# to 10 minutes, preventing workers from dying during high load which causes emulator test flakiness.
+sudo docker run --name $CONTAINER_NAME -e GUNICORN_CMD_ARGS="--timeout 600" --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
+log_info "Emulator docker container logs are saved at: $(pwd)/emulator_container.log"
+sudo docker logs -f $CONTAINER_NAME > emulator_container.log 2>&1 &
 
 # Stop the testbench & cleanup environment variables
 function cleanup() {
-    echo "Cleanup testbench"
-    sudo docker stop $CONTAINER_NAME
+    log_info "Cleanup testbench"
+    sudo docker stop $CONTAINER_NAME || true
     unset STORAGE_EMULATOR_HOST;
     unset STORAGE_EMULATOR_HOST_GRPC;
+    log_info "Printing emulator docker container Logs..."
+    log_info "========================================================================"
+    cat emulator_container.log || true
+    log_info "========================================================================"
+    rm -f test.json || true
 }
 trap cleanup EXIT
+
+wait_for_emulator
 
 # Create the JSON file to create bucket
 cat << EOF > test.json
@@ -117,20 +167,29 @@ cat << EOF > test.json
 EOF
 
 # Execute the curl command to create bucket on storagetestbench server.
-curl -X POST --data-binary @test.json \
+if ! curl -X POST --data-binary @test.json \
     -H "Content-Type: application/json" \
-    "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
+    "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"; then
+  log_error "Failed to create bucket test-bucket"
+  exit 1
+fi
 rm test.json
 
 # Start the gRPC server on port 8888.
-echo "Starting the gRPC server on port 8888"
+log_info "Starting the gRPC server on port 8888"
 response=$(curl -w "%{http_code}\n" --retry 5 --retry-max-time 40 -o /dev/null "$STORAGE_EMULATOR_HOST/start_grpc?port=8888")
 
 if [[ $response != 200 ]]
 then
-    echo "Testbench gRPC server did not start correctly"
+    log_error "Testbench gRPC server did not start correctly"
     exit 1
 fi
 
-# Run all emulator test packages in parallel.
-go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+args=("--testInstalledPackage=$TEST_INSTALLED_PACKAGE")
+
+if [[ -n "$GCSFUSE_PREBUILT_DIR" ]]; then
+  args+=("--gcsfuse_prebuilt_dir=$GCSFUSE_PREBUILT_DIR")
+fi
+
+# Run all emulator test packages in sequence to avoid high cpu usage.
+go test -v -p 1 -timeout 10m ./tools/integration_tests/emulator_tests/... --integrationTest --testbucket=test-bucket "${args[@]}"
