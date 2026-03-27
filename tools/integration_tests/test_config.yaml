@@ -657,7 +657,6 @@ interrupt:
 log_rotation:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # To be removed
     configs:
       - flags:
           - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2,--log-rotate-backup-file-count=2,--log-rotate-compress=false,--log-severity=trace"
@@ -789,7 +788,6 @@ unsupported_path:
 - mounted_directory: "${MOUNTED_DIR}"
   test_bucket: "${BUCKET_NAME}"
   only_dir: "${ONLY_DIR}"
-  log_file: # Optional
   configs:
   - flags:
     - "--implicit-dirs,--client-protocol=grpc,--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
@@ -997,3 +995,29 @@ symlink_handling:
           hns: true
           zonal: true
         run_on_gke: true
+
+concurrent_operations:
+ - mounted_directory: "${MOUNTED_DIR}"
+   test_bucket: "${BUCKET_NAME}"
+   configs:
+     - flags:
+       - ""
+       - "--file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --enable-kernel-reader=false --cache-dir=/gcsfuse-tmp/read_large_files"
+       - "--enable-buffered-read --enable-kernel-reader=false --enable-metadata-prefetch"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestConcurrentRead
+       run_on_gke: true
+     - flags:
+       - "--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch"
+       - "--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch --client-protocol=grpc"
+       - "--kernel-list-cache-ttl-secs=-1"
+       - "--kernel-list-cache-ttl-secs=-1 --client-protocol=grpc"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestConcurrentListing
+       run_on_gke: true
