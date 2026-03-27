@@ -1066,38 +1066,38 @@ func TestValidateMonitoringSuccessScenarios(t *testing.T) {
 		{
 			name: "verify_tracing_modes_exact_match",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"stdout", "gcptrace"},
-				ExperimentalTracingSamplingRatio: 0.2,
+				TraceExporters:     []string{"stdout", "gcptrace"},
+				TraceSamplingRatio: 0.2,
 			},
 		},
 		{
 			name: "verify_tracing_modes_unnecessary_space_match",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"stdout", "  gcptrace"},
-				ExperimentalTracingSamplingRatio: 0.4,
+				TraceExporters:     []string{"stdout", "  gcptrace"},
+				TraceSamplingRatio: 0.4,
 			},
 		},
 		{
 			name: "verify_tracing_modes_case_insensitive",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"STDout", "  Gcptrace"},
-				ExperimentalTracingSamplingRatio: 0.7,
+				TraceExporters:     []string{"STDout", "  Gcptrace"},
+				TraceSamplingRatio: 0.7,
 			},
 		},
 		{
 			name: "verify_complete_tracing_config_success_case",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"gcptrace"},
-				ExperimentalTracingProjectId:     "test-gcloud-project",
-				ExperimentalTracingSamplingRatio: 0.3,
+				TraceExporters:     []string{"gcptrace"},
+				TraceProjectId:     "test-gcloud-project",
+				TraceSamplingRatio: 0.3,
 			},
 		},
 		{
 			name: "invalid_tracing_sampling_ratio_success_empty_mode",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{},
-				ExperimentalTracingProjectId:     "test-gcloud-project",
-				ExperimentalTracingSamplingRatio: 1.4,
+				TraceExporters:     []string{},
+				TraceProjectId:     "test-gcloud-project",
+				TraceSamplingRatio: 1.4,
 			},
 		},
 	}
@@ -1123,15 +1123,15 @@ func TestValidateMonitoringFailureScenarios(t *testing.T) {
 		{
 			name: "invalid_tracing_mode_failure",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode: []string{"stdout", "  random_export"},
+				TraceExporters: []string{"stdout", "  random_export"},
 			},
 		},
 		{
 			name: "invalid_tracing_sampling_ratio_failure",
 			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"stdout"},
-				ExperimentalTracingProjectId:     "test-gcloud-project",
-				ExperimentalTracingSamplingRatio: 1.4,
+				TraceExporters:     []string{"stdout"},
+				TraceProjectId:     "test-gcloud-project",
+				TraceSamplingRatio: 1.4,
 			},
 		},
 	}

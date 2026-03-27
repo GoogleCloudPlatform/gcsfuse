@@ -1079,24 +1079,24 @@ params:
     default: "3"
     hide-flag: true
 
-  - config-path: "monitoring.experimental-tracing-mode"
-    flag-name: "experimental-tracing-mode"
+  - config-path: "monitoring.trace-exporters"
+    flag-name: "trace-exporters"
     type: "[]string"
-    usage: "Experimental: specify comma separated value of tracing modes"
+    usage: "Specify comma separated value of trace exporters"
     default: '"gcptrace"'
     hide-flag: true
 
-  - config-path: "monitoring.experimental-tracing-project-id"
-    flag-name: "experimental-tracing-project-id"
+  - config-path: "monitoring.trace-project-id"
+    flag-name: "trace-project-id"
     type: "string"
-    usage: "Experimental: specify the GCP project-id to which traces will be exported. When unset, a project-id will be inferred as per the default credential detection process"
+    usage: "Specify the GCP project id to which traces will be exported. When unset, a project id will be inferred as per the default credential detection process"
     default: ""
     hide-flag: true
 
-  - config-path: "monitoring.experimental-tracing-sampling-ratio"
-    flag-name: "experimental-tracing-sampling-ratio"
+  - config-path: "monitoring.trace-sampling-ratio"
+    flag-name: "trace-sampling-ratio"
     type: "float64"
-    usage: "Experimental: Trace sampling ratio"
+    usage: "Fraction of traces to export(0.0 to 1.0). A value of 1.0 will export all traces where as a value of 0.0 doesn't export any traces. Control amount of tracing using this flag to keep the trace log size under control for export"
     default: 0
     hide-flag: true
 

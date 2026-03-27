@@ -188,8 +188,8 @@ func TestIsTracingEnabled(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, tc.expected, IsTracingEnabled(&Config{Monitoring: MonitoringConfig{
-				ExperimentalTracingMode:          tc.traceMode,
-				ExperimentalTracingSamplingRatio: tc.traceSamplingRatio,
+				TraceExporters:     tc.traceMode,
+				TraceSamplingRatio: tc.traceSamplingRatio,
 			}}))
 		})
 	}
