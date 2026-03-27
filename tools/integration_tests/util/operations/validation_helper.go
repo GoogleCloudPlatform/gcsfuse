@@ -102,7 +102,7 @@ func RetryUntil[T any](
 	tb testing.TB,
 	retryFrequency time.Duration,
 	retryDeadline time.Duration,
-	operation func(ctx context.Context) (T, error),
+	operation func() (T, error),
 ) T {
 	tb.Helper()
 
@@ -121,7 +121,7 @@ func RetryUntil[T any](
 	var lastErr error // Save last error for fatal log
 
 	for {
-		result, err := operation(ctx)
+		result, err := operation()
 		if err == nil {
 			// It can be helpful to know if an operation was flaky
 			// but eventually succeeded during verbose test runs.
