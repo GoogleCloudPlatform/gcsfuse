@@ -108,7 +108,8 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
-
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
+	
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
