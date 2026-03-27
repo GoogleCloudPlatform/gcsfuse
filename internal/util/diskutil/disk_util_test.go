@@ -81,33 +81,21 @@ func TestGetSpeculativeFileSizeOnDisk(t *testing.T) {
 	}
 }
 
-func TestGetVolumeBlockSize(t *testing.T) {
-	for _, tc := range []struct {
-		name                    string
-		cachedir                string
-		expectedVolumeBlockSize uint64
-	}{
-		{
-			// expect actual block-size (which is positive and power of 2) if directory exists and is proper.
-			name:                    "proper_dir",
-			cachedir:                t.TempDir(),
-			expectedVolumeBlockSize: 0,
-		},
-		{
-			// expect default value if directory doesn't exist.
-			name:                    "invalid_dir",
-			cachedir:                "/path/that/does/not/exist",
-			expectedVolumeBlockSize: 4096,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			blockSize := diskutil.GetVolumeBlockSize(tc.cachedir)
+func TestGetVolumeBlockSize_ProperDir(t *testing.T) {
+	dir := t.TempDir()
 
-			if tc.expectedVolumeBlockSize == 0 {
-				assert.True(t, blockSize > 0 && ((blockSize&(blockSize-1)) == 0), "Block-size of a directory should be a power of 2. Got: %d", blockSize)
-			} else {
-				assert.Equal(t, tc.expectedVolumeBlockSize, blockSize)
-			}
-		})
-	}
+	blockSize := diskutil.GetVolumeBlockSize(dir)
+
+	// expect actual block-size (which is positive and power of 2) if directory exists and is proper.
+	assert.True(t, blockSize > 0 && ((blockSize&(blockSize-1)) == 0), "Block-size of a directory should be a power of 2. Got: %d", blockSize)
+}
+
+func TestGetVolumeBlockSize_InvalidDir(t *testing.T) {
+	dir := "/path/that/does/not/exist"
+	expectedVolumeBlockSize := uint64(4096)
+
+	blockSize := diskutil.GetVolumeBlockSize(dir)
+
+	// expect default value if directory doesn't exist.
+	assert.Equal(t, expectedVolumeBlockSize, blockSize)
 }
