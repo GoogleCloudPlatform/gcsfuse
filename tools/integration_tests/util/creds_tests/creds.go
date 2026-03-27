@@ -152,7 +152,11 @@ func RevokeCustomRoleFromServiceAccountOnBucket(ctx context.Context, storageClie
 
 func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
-	defer os.Remove(localKeyFilePath)
+	defer func() {
+		if err := os.Remove(localKeyFilePath); err != nil {
+			log.Printf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
+		}
+	}()
 	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 	defer RevokePermission(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 
