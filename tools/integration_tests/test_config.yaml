@@ -1111,3 +1111,29 @@ managed_folders:
           hns: true
           zonal: true
         run_on_gke: false
+
+concurrent_operations:
+ - mounted_directory: "${MOUNTED_DIR}"
+   test_bucket: "${BUCKET_NAME}"
+   configs:
+     - flags:
+       - ""
+       - "--file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --enable-kernel-reader=false"
+       - "--enable-buffered-read --enable-kernel-reader=false --enable-metadata-prefetch"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestConcurrentRead
+       run_on_gke: true
+     - flags:
+       - "--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch"
+       - "--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch --client-protocol=grpc"
+       - "--kernel-list-cache-ttl-secs=-1"
+       - "--kernel-list-cache-ttl-secs=-1 --client-protocol=grpc"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestConcurrentListing
+       run_on_gke: true
