@@ -36,10 +36,10 @@ import (
 )
 
 const (
-	testDirName           = "CloudProfilerTest"
-	testSuffix            = "cloud-profiler-test"
-	retryFrequency        = 30 * time.Second
-	retryDuration         = 10 * time.Minute
+	testDirName    = "CloudProfilerTest"
+	testSuffix     = "cloud-profiler-test"
+	retryFrequency = 30 * time.Second
+	retryDuration  = 10 * time.Minute
 )
 
 var (

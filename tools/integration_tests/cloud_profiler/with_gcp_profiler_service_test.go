@@ -57,7 +57,6 @@ func (s *CloudProfilerSuite) writeSingleRandomFile() error {
 	return nil
 }
 
-
 func getGCPProjectID(t *testing.T) string {
 	fetchProjectCtx, fetchProjectCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer fetchProjectCancel()
