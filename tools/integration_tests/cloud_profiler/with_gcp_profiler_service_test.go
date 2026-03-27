@@ -48,11 +48,14 @@ func (s *CloudProfilerSuite) writeSingleRandomFile() error {
 	if err != nil {
 		return fmt.Errorf("failed to create load file: %v", err)
 	}
-	defer f.Close()
-
 	if _, err = f.Write(data); err != nil {
 		return fmt.Errorf("failed to write to load file %s: %v", fileName, err)
 	}
+
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("failed to close load file %s: %v", fileName, err)
+	}
+
 	t.Logf("Successfully wrote 100MB to %s", fileName)
 	return nil
 }
