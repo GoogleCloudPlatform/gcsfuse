@@ -25,7 +25,7 @@ const (
 	// 4 KiB
 	defaultVolumeBlockSize uint64 = 4096
 
-	// maxVolumeBlockSize is the max block-size supported for sanity. Beyond this, block-size returned by statfs.Bsize will be considered suspiciously large and will be truncated.
+	// maxVolumeBlockSize is the max block-size supported for sanity. Beyond this, block-size returned by statfs will be considered suspiciously large and will be set to defaultVolumeBlockSize.
 	// 1 MiB
 	maxVolumeBlockSize uint64 = 1024 * 1024
 )
@@ -54,14 +54,14 @@ func GetVolumeBlockSize(path string) uint64 {
 	if stat.Frsize > 0 {
 		blockSize = uint64(stat.Frsize)
 	}
-	// Sanity check: If the value is 0 or suspiciously large, fallback to default or max
+	// Sanity check: If the value is 0 or suspiciously large, fallback to default.
 	if blockSize == 0 {
 		logger.Errorf("statfs for %q returned Bsize = 0, so defaulting to %d", path, defaultVolumeBlockSize)
 		return defaultVolumeBlockSize
 	}
 	if blockSize > maxVolumeBlockSize {
-		logger.Errorf("statfs for %q returned Bsize (%d), which is too high, so truncating it to %d", path, blockSize, maxVolumeBlockSize)
-		return maxVolumeBlockSize
+		logger.Errorf("statfs for %q returned Bsize (%d), which is too high, so defaulting to %d", path, blockSize, defaultVolumeBlockSize)
+		return defaultVolumeBlockSize
 	}
 	return blockSize
 }
