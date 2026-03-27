@@ -1008,7 +1008,8 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			ic.Local,
 			fs.newConfig,
 			fs.globalMaxWriteBlocksSem,
-			fs.mrdCache)
+			fs.mrdCache,
+			fs.traceHandle)
 	}
 
 	// Place it in our map of IDs to inodes.

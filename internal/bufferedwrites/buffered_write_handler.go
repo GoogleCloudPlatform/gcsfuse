@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -97,6 +98,7 @@ type CreateBWHandlerRequest struct {
 	MaxBlocksPerFile         int64
 	GlobalMaxBlocksSem       *semaphore.Weighted
 	ChunkTransferTimeoutSecs int64
+	TraceHandle              tracing.TraceHandle
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
@@ -121,6 +123,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			MaxBlocksPerFile:         req.MaxBlocksPerFile,
 			BlockSize:                req.BlockSize,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+			TraceHandle:              req.TraceHandle,
 		}),
 		totalSize:     size,
 		mtime:         time.Now(),

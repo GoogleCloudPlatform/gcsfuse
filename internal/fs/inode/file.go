@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -127,6 +128,7 @@ type FileInode struct {
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance *gcsx.MrdInstance
+	traceHandle tracing.TraceHandle
 }
 
 var _ Inode = &FileInode{}
@@ -151,8 +153,12 @@ func NewFileInode(
 	localFile bool,
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
-	mrdCache *lru.Cache) (f *FileInode) {
+	mrdCache *lru.Cache,
+	traceHandle tracing.TraceHandle) (f *FileInode) {
 	// Set up the basic struct.
+	if traceHandle == nil {
+		traceHandle = tracing.NewNoopTracer()
+	}
 	var minObj gcs.MinObject
 	if m != nil {
 		minObj = *m
@@ -170,6 +176,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
+		traceHandle:             traceHandle,
 	}
 
 	if f.bucket.BucketType().Zonal {
@@ -675,6 +682,13 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
+	_, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStaged)
+	defer func() {
+		if err != nil {
+			f.traceHandle.RecordError(span, err)
+		}
+		f.traceHandle.EndSpan(span)
+	}()
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -693,6 +707,10 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (bool, error) {
+	_, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStreaming)
+	defer func() {
+		f.traceHandle.EndSpan(span)
+	}()
 	err := f.bwh.Write(data, offset)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
@@ -707,11 +725,13 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
+			f.traceHandle.RecordError(span, err)
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
 		return true, f.writeUsingTempFile(ctx, data, offset)
 	}
 	if err != nil {
+		f.traceHandle.RecordError(span, err)
 		return false, fmt.Errorf("write to buffered write handler failed: %w", err)
 	}
 	return false, nil
@@ -922,7 +942,14 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 // object, syncs the content and updates the inode state.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) syncUsingContent(ctx context.Context) error {
+func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
+	_, span := f.traceHandle.StartSpan(ctx, tracing.SyncFileStaged)
+	defer func() {
+		if err != nil {
+			f.traceHandle.RecordError(span, err)
+		}
+		f.traceHandle.EndSpan(span)
+	}()
 	var latestGcsObj *gcs.Object
 	if !f.local {
 		var err error
@@ -1146,6 +1173,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+			TraceHandle:              f.traceHandle,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Warnf("File %s will use legacy staged writes because concurrent streaming write "+
