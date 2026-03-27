@@ -50,6 +50,7 @@ func GetVolumeBlockSize(path string) uint64 {
 		return defaultVolumeBlockSize
 	}
 	// Prefer Frsize (fragment size) over Bsize for actual disk allocation if available.
+	// Refer https://github.com/cockroachdb/pebble/pull/1072.
 	blockSize := uint64(stat.Bsize)
 	if stat.Frsize > 0 {
 		blockSize = uint64(stat.Frsize)
