@@ -21,7 +21,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -111,46 +110,51 @@ func TestLogRotation(t *testing.T) {
 	for range 4 {
 		runParallelOperationsInMountedDirectoryTillLogRotation(t)
 	}
-	// Adding 1-second sleep here because there is slight delay in compression
-	// of log files.
-	time.Sleep(1 * time.Second)
-
-	// Validate log files generated.
 	logFilesDirectory := path.Dir(cfg.LogFile)
-	dirEntries := operations.ReadDirectory(logFilesDirectory, t)
-
-	if len(dirEntries) != logFileCount {
-		t.Errorf("Expected log files in dirEntries folder: %d, got: %d",
-			logFileCount, len(dirEntries))
-	}
-
-	// Get the base name of the log file from the setup.
 	activeLogFileName := t.Name() + ".log"
-	rotatedCompressedFileCtr := 0
-	logFileCtr := 0
-	rotatedUncompressedFileCtr := 0
+
+	// Validate log files are eventually generated as expected.
+	dirEntries := operations.RetryUntil(ctx, t, retryFrequency, retryTimeout, func() ([]os.DirEntry, error) {
+		entries := operations.ReadDirectory(logFilesDirectory, t)
+
+		var rotatedCompressedFileCtr, logFileCtr, rotatedUncompressedFileCtr int
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			if entry.Name() == activeLogFileName {
+				logFileCtr++
+			} else if strings.HasSuffix(entry.Name(), ".log.gz") {
+				rotatedCompressedFileCtr++
+			} else if !strings.HasSuffix(entry.Name(), ".stderr") {
+				rotatedUncompressedFileCtr++
+			}
+		}
+
+		rotatedLogFiles := rotatedCompressedFileCtr + rotatedUncompressedFileCtr
+		if len(entries) != logFileCount {
+			return nil, fmt.Errorf("Expected log files in dirEntries folder: %d, got: %d", logFileCount, len(entries))
+		}
+		if logFileCtr != activeLogFileCount {
+			return nil, fmt.Errorf("expected countOfLogFile: %d, got: %d", activeLogFileCount, logFileCtr)
+		}
+		if rotatedLogFiles != backupLogFileCount {
+			return nil, fmt.Errorf("expected rotated files: %d, got: %d", backupLogFileCount, rotatedLogFiles)
+		}
+
+		return entries, nil
+	})
+
+	// Validate sizes for individual files
 	for _, entry := range dirEntries {
-		// Skip directories created by the test setup.
 		if entry.IsDir() {
 			continue
 		}
 		if entry.Name() == activeLogFileName {
-			logFileCtr++
 			validateLogFileSize(t, entry)
-		} else if strings.HasSuffix(entry.Name(), ".log.gz") {
-			rotatedCompressedFileCtr++
-		} else if !strings.HasSuffix(entry.Name(), ".stderr") {
-			rotatedUncompressedFileCtr++
+		} else if !strings.HasSuffix(entry.Name(), ".log.gz") && !strings.HasSuffix(entry.Name(), ".stderr") {
 			validateLogFileSize(t, entry)
 		}
 	}
 
-	if logFileCtr != activeLogFileCount {
-		t.Errorf("expected countOfLogFile: %d, got: %d", activeLogFileCount, logFileCtr)
-	}
-
-	rotatedLogFiles := rotatedCompressedFileCtr + rotatedUncompressedFileCtr
-	if rotatedLogFiles != backupLogFileCount {
-		t.Errorf("expected rotated files: %d, got: %d", backupLogFileCount, rotatedLogFiles)
-	}
 }
