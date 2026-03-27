@@ -57,6 +57,7 @@ func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
 		AllocatedHeap: false,
 		Heap:          true,
 		Goroutines:    false,
+		ServiceName:   "gcsfuse",
 	}
 
 	err := setupCloudProfiler(cloudProfilerConfig, profilerStart)
