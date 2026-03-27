@@ -816,6 +816,22 @@ func ExtractServiceVersionFromFlags(flags []string) string {
 	return ""
 }
 
+// CloudProfilerServiceNameFromFlags parses the cloud-profiler-service-name from a slice of flag strings.
+func CloudProfilerServiceNameFromFlags(flags []string) string {
+	// Regex to find --cloud-profiler-service-name=some_value or --cloud-profiler-service-name some_value
+	re := regexp.MustCompile(`--cloud-profiler-service-name[=\s]([^\s]+)`)
+	for _, flagSet := range flags {
+		matches := re.FindStringSubmatch(flagSet)
+		// matches[0] is the full match, e.g., "--cloud-profiler-service-name=v1"
+		// matches[1] is the first capturing group, e.g., "v1"
+		if len(matches) > 1 {
+			return matches[1]
+		}
+	}
+	// If not provided then return default value for profiler service name.
+	return "gcsfuse"
+}
+
 func OverrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
 	for _, flags := range t.Configs {
 		for i := range flags.Flags {
