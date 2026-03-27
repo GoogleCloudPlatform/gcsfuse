@@ -233,18 +233,18 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	return nil
 }
 
-func isValidMonitoringConfig(m *MonitoringConfig) error {
-	validExporters := []string{"stdout", "gcptrace"}
+func isValidTraceConfig(t *TraceConfig) error {
+	validExporters := []string{"stdout", "gcpexporter"}
 
-	if len(m.ExperimentalTracingMode) == 0 {
+	if len(t.Exporters) == 0 {
 		return nil
 	}
 
-	if m.ExperimentalTracingSamplingRatio > 1 || m.ExperimentalTracingSamplingRatio < 0 {
-		return fmt.Errorf("invalid tracing sampling ratio: %f, tracing sampling ratio should be in the range [0.0, 1.0]", m.ExperimentalTracingSamplingRatio)
+	if t.SamplingRatio > 1 || t.SamplingRatio < 0 {
+		return fmt.Errorf("invalid tracing sampling ratio: %f, tracing sampling ratio should be in the range [0.0, 1.0]", t.SamplingRatio)
 	}
 
-	for _, e := range m.ExperimentalTracingMode {
+	for _, e := range t.Exporters {
 		if !slices.Contains(validExporters, strings.TrimSpace(strings.ToLower(e))) {
 			return fmt.Errorf("encountered invalid/unsupported tracing mode: %s", e)
 		}
@@ -373,7 +373,7 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 		return fmt.Errorf("error parsing metrics config: %w", err)
 	}
 
-	if err = isValidMonitoringConfig(&config.Monitoring); err != nil {
+	if err = isValidTraceConfig(&config.Trace); err != nil {
 		return fmt.Errorf("error parsing monitoring config: %w", err)
 	}
 
