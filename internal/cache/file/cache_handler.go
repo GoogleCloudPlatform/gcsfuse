@@ -62,9 +62,12 @@ type CacheHandler struct {
 
 	// isSparse indicates whether sparse file mode is enabled
 	isSparse bool
+
+	// volumeBlockSize caches the block size of the local volume for speculative size accounting
+	volumeBlockSize uint64
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, volumeBlockSize uint64) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
@@ -72,15 +75,16 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	compiledIncludeRegex = compileRegex(includeRegex)
 
 	return &CacheHandler{
-		fileInfoCache: fileInfoCache,
-		jobManager:    jobManager,
-		cacheDir:      cacheDir,
-		filePerm:      filePerm,
-		dirPerm:       dirPerm,
-		mu:            locker.New("FileCacheHandler", func() {}),
-		excludeRegex:  compiledExcludeRegex,
-		includeRegex:  compiledIncludeRegex,
-		isSparse:      isSparse,
+		fileInfoCache:   fileInfoCache,
+		jobManager:      jobManager,
+		cacheDir:        cacheDir,
+		filePerm:        filePerm,
+		dirPerm:         dirPerm,
+		mu:              locker.New("FileCacheHandler", func() {}),
+		excludeRegex:    compiledExcludeRegex,
+		includeRegex:    compiledIncludeRegex,
+		isSparse:        isSparse,
+		volumeBlockSize: volumeBlockSize,
 	}
 }
 
@@ -192,14 +196,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	}
 
 	if addEntryToCache {
-		newFileInfo := data.FileInfo{
-			Key:              fileInfoKey,
-			ObjectGeneration: object.Generation,
-			Offset:           0,
-			FileSize:         object.Size,
-			SparseMode:       chr.isSparse,
-			DownloadedChunks: nil,
-		}
+		newFileInfo := data.NewFileInfo(fileInfoKey, object.Generation, object.Size, 0, chr.isSparse, nil, chr.volumeBlockSize)
 		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
 		// sparse mode, so Offset < requiredOffset checks always fail
 		if chr.isSparse {

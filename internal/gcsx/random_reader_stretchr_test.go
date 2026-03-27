@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -76,8 +78,9 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false)
+	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(t.cacheDir)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), nil, nil, 0)

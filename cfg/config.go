@@ -489,6 +489,8 @@ type FileCacheConfig struct {
 
 	ExcludeRegex string `yaml:"exclude-regex"`
 
+	ExperimentalDisableSizeCalculationFix bool `yaml:"experimental-disable-size-calculation-fix"`
+
 	ExperimentalEnableChunkCache bool `yaml:"experimental-enable-chunk-cache"`
 
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
@@ -1062,6 +1064,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
+	flagSet.BoolP("file-cache-experimental-disable-size-calculation-fix", "", false, "Disable the fix in calculation of disk-utilization of file-cache.")
+
+	if err := flagSet.MarkHidden("file-cache-experimental-disable-size-calculation-fix"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("file-cache-experimental-enable-chunk-cache", "", false, "Enable chunk cache mode for random I/O optimization that downloads only requested blocks.")
 
 	if err := flagSet.MarkHidden("file-cache-experimental-enable-chunk-cache"); err != nil {
@@ -1634,6 +1642,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.exclude-regex", flagSet.Lookup("file-cache-exclude-regex")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-disable-size-calculation-fix", flagSet.Lookup("file-cache-experimental-disable-size-calculation-fix")); err != nil {
 		return err
 	}
 

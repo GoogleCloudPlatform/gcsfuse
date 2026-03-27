@@ -22,6 +22,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
@@ -66,17 +68,13 @@ func (t *JobTestifyTest) initReadCacheTestifyTest(objectName string, objectConte
 		DirPerm:  util.DefaultDirPerm,
 	}
 	t.cache = lru.NewCache(lruCacheSize)
-	t.job = NewJob(&t.object, t.mockBucket, t.cache, sequentialReadSize, t.fileSpec, removeCallback, t.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64), metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(t.fileSpec.Path)
+	t.job = NewJob(&t.object, t.mockBucket, t.cache, sequentialReadSize, t.fileSpec, removeCallback, t.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
 	}
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: t.object.Generation,
-		FileSize:         t.object.Size,
-		Offset:           0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, t.object.Generation, t.object.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Equal(t.T(), nil, err)
 	_, err = t.cache.Insert(fileInfoKeyName, fileInfo)

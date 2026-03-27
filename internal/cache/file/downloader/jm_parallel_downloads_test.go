@@ -80,12 +80,7 @@ func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, bucket gcs.
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
 	}
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: minObj.Generation,
-		FileSize:         minObj.Size,
-		Offset:           0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, minObj.Generation, minObj.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
 		t.Fatalf("Error occurred while retrieving fileInfoKey: %v", err)
@@ -157,7 +152,7 @@ func TestParallelDownloads(t *testing.T) {
 				WriteBufferSize:      4 * 1024 * 1024,
 				EnableODirect:        tc.enableODirect,
 			}
-			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
 			t.Cleanup(func() { jm.Destroy() })
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
 			subscriberC := job.subscribe(tc.subscribedOffset)
@@ -201,7 +196,7 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 		MaxParallelDownloads:     2,
 		WriteBufferSize:          4 * 1024 * 1024,
 	}
-	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
 	t.Cleanup(func() { jm.Destroy() })
 	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
 	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)

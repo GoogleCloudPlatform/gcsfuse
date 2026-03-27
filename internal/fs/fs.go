@@ -30,6 +30,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
@@ -345,6 +347,17 @@ func createSharedChunkCacheManager(baseCacheDir string, filePerm, dirPerm os.Fil
 	return sharedCacheManager, nil
 }
 
+func cacheDirVolumeBlockSize(serverCfg *ServerConfig, cacheDir string) uint64 {
+	if serverCfg.NewConfig.FileCache.ExperimentalDisableSizeCalculationFix {
+		return 1
+	}
+	if serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache {
+		logger.Info("file-cache disk-utilization fix is not supported with sparse-mode, so is disabled.")
+		return 1
+	}
+	return diskutil.GetVolumeBlockSize(cacheDir)
+}
+
 // createSingleMountFileCacheHandler creates a file cache handler with an in-memory LRU cache specific to a single gcsfuse instance.
 func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os.FileMode, serverCfg *ServerConfig) (*file.CacheHandler, error) {
 	// Use separate directory for regular file cache
@@ -367,6 +380,7 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 	}
 
 	fileInfoCache := lru.NewCache(sizeInBytes)
+	cacheDirVolumeBlockSize := cacheDirVolumeBlockSize(serverCfg, cacheDir)
 	jobManager := downloader.NewJobManager(
 		fileInfoCache,
 		filePerm,
@@ -376,6 +390,7 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 		&serverCfg.NewConfig.FileCache,
 		serverCfg.MetricHandle,
 		serverCfg.TraceHandle,
+		cacheDirVolumeBlockSize,
 	)
 	fileCacheHandler := file.NewCacheHandler(
 		fileInfoCache,
@@ -386,6 +401,7 @@ func createSingleMountFileCacheHandler(baseCacheDir string, filePerm, dirPerm os
 		serverCfg.NewConfig.FileCache.ExcludeRegex,
 		serverCfg.NewConfig.FileCache.IncludeRegex,
 		serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache,
+		cacheDirVolumeBlockSize,
 	)
 
 	return fileCacheHandler, nil

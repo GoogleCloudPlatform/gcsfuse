@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 )
 
 const InvalidKeyAttributes = "key attributes not initialised"
@@ -50,9 +52,16 @@ type FileInfo struct {
 	FileSize         uint64
 	SparseMode       bool          // Whether this file is using sparse file mode
 	DownloadedChunks *ByteRangeMap // For sparse files: tracks which chunks have been downloaded
+	// CacheDirVolumeBlockSize is used to round-up the FileSize to calculate the speculative
+	// disk utilization of this file in cache-directory.
+	// Speculative size = Round-up of FileSize to the next multiple of CacheDirVolumeBlockSize.
+	// 0 or 1 mean size in cache-dir is same as FileSize.
+	CacheDirVolumeBlockSize uint64
 }
 
-func (fi FileInfo) Size() uint64 {
+// ContentSize returns the logical size of the given file, or in other words, the size
+// of the corresponding GCS object.
+func (fi FileInfo) ContentSize() uint64 {
 	// For sparse files, return actual downloaded bytes, not full file size
 	if fi.SparseMode && fi.DownloadedChunks != nil {
 		return fi.DownloadedChunks.TotalBytes()
@@ -60,8 +69,29 @@ func (fi FileInfo) Size() uint64 {
 	return fi.FileSize
 }
 
+// Size returns the speculative physical size on disk, rounded up to the volume block size.
+// If CacheDirVolumeBlockSize is 0 or 1, it returns the exact logical ContentSize.
+// This satisfies the LRU ValueType interface for eviction accounting.
+func (fi FileInfo) Size() uint64 {
+	return diskutil.GetSpeculativeFileSizeOnDisk(fi.ContentSize(), fi.CacheDirVolumeBlockSize)
+}
+
 type FileSpec struct {
 	Path     string
 	FilePerm os.FileMode
 	DirPerm  os.FileMode
+}
+
+// NewFileInfo creates and returns a new FileInfo struct, ensuring that
+// the CacheDirVolumeBlockSize field is explicitly provided.
+func NewFileInfo(key FileInfoKey, objectGeneration int64, fileSize uint64, offset uint64, sparseMode bool, downloadedChunks *ByteRangeMap, cacheDirVolumeBlockSize uint64) FileInfo {
+	return FileInfo{
+		Key:                     key,
+		ObjectGeneration:        objectGeneration,
+		FileSize:                fileSize,
+		Offset:                  offset,
+		SparseMode:              sparseMode,
+		DownloadedChunks:        downloadedChunks,
+		CacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
+	}
 }

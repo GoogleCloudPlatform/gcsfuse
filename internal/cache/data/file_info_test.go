@@ -67,12 +67,25 @@ func TestKeyMethodWithEmptyObjectName(t *testing.T) {
 	assert.Equal(t, "", key)
 }
 
-func TestSizeMethod(t *testing.T) {
-	fi := FileInfo{
-		Key:              getTestFileInfoKey(),
-		ObjectGeneration: TestGeneration,
-		FileSize:         TestDataFileSize,
-	}
+func TestContentSizeMethod(t *testing.T) {
+	fileContentSize := uint64(23)
+	blockSize := uint64(4096)
+	fi := NewFileInfo(getTestFileInfoKey(), TestGeneration, fileContentSize, 0, false, nil, blockSize)
 
-	assert.Equal(t, TestDataFileSize, fi.Size())
+	contentSize := fi.ContentSize()
+
+	// ContentSize() always returns content-size.
+	assert.Equal(t, fileContentSize, contentSize)
+}
+
+func TestSizeMethod(t *testing.T) {
+	fileContentSize := uint64(23)
+	blockSize := uint64(4096)
+	fi := NewFileInfo(getTestFileInfoKey(), TestGeneration, fileContentSize, 0, false, nil, blockSize)
+
+	size := fi.Size()
+
+	// Size() returns size on disk, which is always multiples of block-size. So,
+	// if content-size < block-size, then Size() return block-size.
+	assert.Equal(t, blockSize, size)
 }

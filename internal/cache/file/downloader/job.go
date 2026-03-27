@@ -57,12 +57,13 @@ type Job struct {
 	// Constant data
 	/////////////////////////
 
-	object               *gcs.MinObject
-	bucket               gcs.Bucket
-	fileInfoCache        *lru.Cache
-	sequentialReadSizeMb int32
-	fileSpec             data.FileSpec
-	fileCacheConfig      *cfg.FileCacheConfig
+	object                  *gcs.MinObject
+	bucket                  gcs.Bucket
+	fileInfoCache           *lru.Cache
+	sequentialReadSizeMb    int32
+	fileSpec                data.FileSpec
+	fileCacheConfig         *cfg.FileCacheConfig
+	cacheDirVolumeBlockSize uint64
 
 	/////////////////////////
 	// Mutable state
@@ -133,22 +134,24 @@ func NewJob(
 	maxParallelismSem *semaphore.Weighted,
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
+	cacheDirVolumeBlockSize uint64,
 ) (job *Job) {
 	if traceHandle == nil {
 		traceHandle = tracing.NewNoopTracer()
 	}
 
 	job = &Job{
-		object:               object,
-		bucket:               bucket,
-		fileInfoCache:        fileInfoCache,
-		sequentialReadSizeMb: sequentialReadSizeMb,
-		fileSpec:             fileSpec,
-		removeJobCallback:    removeJobCallback,
-		fileCacheConfig:      fileCacheConfig,
-		maxParallelismSem:    maxParallelismSem,
-		metricsHandle:        metricHandle,
-		traceHandle:          traceHandle,
+		object:                  object,
+		bucket:                  bucket,
+		fileInfoCache:           fileInfoCache,
+		sequentialReadSizeMb:    sequentialReadSizeMb,
+		fileSpec:                fileSpec,
+		removeJobCallback:       removeJobCallback,
+		fileCacheConfig:         fileCacheConfig,
+		maxParallelismSem:       maxParallelismSem,
+		metricsHandle:           metricHandle,
+		traceHandle:             traceHandle,
+		cacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -288,10 +291,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 		return err
 	}
 
-	updatedFileInfo := data.FileInfo{
-		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
-		FileSize: job.object.Size, Offset: uint64(downloadedOffset),
-	}
+	updatedFileInfo := data.NewFileInfo(fileInfoKey, job.object.Generation, job.object.Size, uint64(downloadedOffset), false, nil, job.cacheDirVolumeBlockSize)
 
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err == nil {

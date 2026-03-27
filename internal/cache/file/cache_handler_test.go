@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
@@ -84,18 +86,21 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	// fileInfoCache with testFileInfoEntry
 	cache := lru.NewCache(HandlerCacheMaxSize)
 
+	// Calculate block size
+	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(cacheDir)
+
 	// Job manager
 	jobManager := downloader.NewJobManager(cache, util.DefaultFilePerm,
-		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer())
+		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
 	t.Cleanup(func() {
 		jobManager.Destroy()
 	})
 	// Mocked cached handler object.
 	isSparse := fileCacheConfig != nil && fileCacheConfig.ExperimentalEnableChunkCache
-	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse)
+	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse, cacheDirVolumeBlockSize)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
-	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)
+	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName, cacheDirVolumeBlockSize)
 	downloadPath := util.GetDownloadPath(cacheHandler.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
 	_, err = util.CreateFile(data.FileSpec{Path: downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
 	t.Cleanup(func() {
@@ -133,19 +138,14 @@ func createObject(t *testing.T, bucket gcs.Bucket, objName string, objContent []
 	return minObject
 }
 
-func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.MinObject, bucketName string) string {
+func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.MinObject, bucketName string, cacheDirVolumeBlockSize uint64) string {
 	t.Helper()
 	// Add an entry into
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucketName,
 		ObjectName: object.Name,
 	}
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: object.Generation,
-		FileSize:         object.Size,
-		Offset:           0,
-	}
+	fileInfo := data.NewFileInfo(fileInfoKey, object.Generation, object.Size, 0, false, nil, cacheDirVolumeBlockSize)
 
 	fileInfoKeyName, err := fileInfoKey.Key()
 	require.NoError(t, err)
@@ -1121,4 +1121,55 @@ func Test_Destroy(t *testing.T) {
 			assert.Nil(t, chTestArgs.jobManager.GetJob(minObject2.Name, chTestArgs.bucket.Name()))
 		})
 	}
+}
+
+func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
+	cacheDir := t.TempDir()
+	cache := lru.NewCache(100)
+	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(cacheDir)
+	// Create with volumeBlockSize
+	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
+	require.NotNil(t, handler)
+	// Verify that inserting a 1-byte file via the handler's calculated block size would overflow a 100-byte cache.
+	fi := data.NewFileInfo(
+		data.FileInfoKey{
+			ObjectName: "test.txt",
+		},
+		1,     // dummy generation number
+		1,     // file-size
+		0,     // offset
+		false, // sparse-mode
+		nil,   // ranges
+		cacheDirVolumeBlockSize)
+
+	// Inserting should immediately fail because volumeBlockSize (e.g. 4096) > 100.
+	_, err := cache.Insert("test_key", fi)
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, lru.ErrInvalidEntrySize)
+}
+
+func Test_NewCacheHandler_WithoutSizeCalcFix(t *testing.T) {
+	cacheDir := t.TempDir()
+	cache := lru.NewCache(100)
+	cacheDirVolumeBlockSize := uint64(1)
+	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
+	require.NotNil(t, handler)
+	// Verify that inserting a 5-byte file via the handler's block size of would work.
+	fi := data.NewFileInfo(
+		data.FileInfoKey{
+			ObjectName: "test.txt",
+		},
+		1,     // dummy generation number
+		5,     // file-size
+		0,     // offset
+		false, // sparse-mode
+		nil,   // ranges
+		cacheDirVolumeBlockSize)
+
+	// Inserting should work because Max(volumeBlockSize (1), item-size(5)) <= cache-size (100).
+	evicted, err := cache.Insert("test_key", fi)
+
+	require.NoError(t, err)
+	require.Nil(t, evicted)
 }

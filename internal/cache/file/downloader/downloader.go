@@ -59,16 +59,17 @@ type JobManager struct {
 	// concatenation of bucket name, "/", and object name. e.g. object path for an
 	// object named "a/b/foo.txt" in bucket named "test_bucket" would be
 	// "test_bucket/a/b/foo.txt"
-	jobs              map[string]*Job
-	mu                locker.Locker
-	maxParallelismSem *semaphore.Weighted
-	metricHandle      metrics.MetricHandle
-	traceHandle       tracing.TraceHandle
+	jobs                    map[string]*Job
+	mu                      locker.Locker
+	maxParallelismSem       *semaphore.Weighted
+	metricHandle            metrics.MetricHandle
+	traceHandle             tracing.TraceHandle
+	cacheDirVolumeBlockSize uint64
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
 	cacheDir string, sequentialReadSizeMb int32, c *cfg.FileCacheConfig,
-	metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle) (jm *JobManager) {
+	metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, cacheDirVolumeBlockSize uint64) (jm *JobManager) {
 	maxParallelDownloads := int64(math.MaxInt64)
 	if c.MaxParallelDownloads > 0 {
 		maxParallelDownloads = c.MaxParallelDownloads
@@ -81,9 +82,10 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.Fi
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileCacheConfig:      c,
 		// Shared between jobs - Limits the overall concurrency of downloads.
-		maxParallelismSem: semaphore.NewWeighted(maxParallelDownloads),
-		metricHandle:      metricHandle,
-		traceHandle:       traceHandle,
+		maxParallelismSem:       semaphore.NewWeighted(maxParallelDownloads),
+		metricHandle:            metricHandle,
+		traceHandle:             traceHandle,
+		cacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
 	}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
@@ -121,7 +123,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem, jm.metricHandle, jm.traceHandle)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem, jm.metricHandle, jm.traceHandle, jm.cacheDirVolumeBlockSize)
 	jm.jobs[objectPath] = job
 	return job
 }

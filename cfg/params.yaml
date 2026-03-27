@@ -307,6 +307,13 @@ params:
     usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
     default: ""
 
+  - config-path: "file-cache.experimental-disable-size-calculation-fix"
+    flag-name: "file-cache-experimental-disable-size-calculation-fix"
+    type: "bool"
+    usage: "Disable the fix in calculation of disk-utilization of file-cache."
+    default: false
+    hide-flag: true
+
   - config-path: "file-cache.experimental-enable-chunk-cache"
     flag-name: "file-cache-experimental-enable-chunk-cache"
     type: "bool"

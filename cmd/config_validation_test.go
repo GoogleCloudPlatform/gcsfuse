@@ -65,6 +65,7 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 		SharedCacheChunkSizeMb:                 8,
 		WriteBufferSize:                        4 * 1024 * 1024,
 		EnableODirect:                          false,
+		ExperimentalDisableSizeCalculationFix:  false,
 	}
 }
 
@@ -438,6 +439,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 					WriteBufferSize:                        8192,
 					EnableODirect:                          true,
 					ExperimentalParallelDownloadsDefaultOn: true,
+					ExperimentalDisableSizeCalculationFix:  true,
 				},
 			},
 		},
