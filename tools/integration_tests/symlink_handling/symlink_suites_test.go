@@ -21,7 +21,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
 )
@@ -121,6 +123,20 @@ func (s *BaseSymlinkSuite) validateBackingGCSObjectForSymlink(linkName, target s
 		_, ok = attrs.Metadata[StandardSymlinkMetadataKey]
 		s.Assert().False(ok, "Legacy symlink should not have new metadata key (%s)", StandardSymlinkMetadataKey)
 	}
+}
+
+func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName string, content string, metadata map[string]string) {
+	fullLinkPath := path.Join(TestDirName, linkName)
+	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(fullLinkPath)
+	objHandle := testEnv.storageClient.Bucket(bucketName).Object(objectName)
+
+	w, err := client.NewWriter(testEnv.ctx, objHandle, testEnv.storageClient)
+	s.Require().NoError(err)
+	w.Metadata = metadata
+	_, err = w.Write([]byte(content))
+	s.Require().NoError(err)
+	s.Require().NoError(w.Close())
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
 }
 
 ////////////////////////////////////////////////////////////////////////
