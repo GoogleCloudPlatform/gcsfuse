@@ -80,6 +80,11 @@ func (pr *PooledRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (Read
 func (pr *PooledRangeReader) Destroy() {
 }
 
+// Destroy releases resources.
+func (pr *PooledRangeReader) ReaderName() string {
+	return "PooledRangeReader"
+}
+
 // Object returns the object metadata.
 func (pr *PooledRangeReader) Object() *gcs.MinObject {
 	return pr.object

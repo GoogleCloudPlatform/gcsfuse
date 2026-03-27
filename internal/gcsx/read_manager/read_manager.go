@@ -22,11 +22,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fuseops"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -78,61 +75,61 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	}
 
 	// If a shared chunk cache handler is provided, use it
-	if config.SharedChunkCacheManager != nil {
-		// For SharedChunkCacheManager, create ShareChunkCacheReader directly
-		reader := gcsx.NewSharedChunkCacheReader(
-			config.SharedChunkCacheManager,
-			bucket,
-			object,
-			config.MetricHandle,
-			config.TraceHandle,
-			config.HandleID,
-		)
-		readers = append(readers, reader)
-	} else if config.FileCacheHandler != nil {
-		// For traditional cache handler, use FileCacheReader
-		fileCacheReader := gcsx.NewFileCacheReader(
-			object,
-			bucket,
-			config.FileCacheHandler,
-			config.CacheFileForRangeRead,
-			config.MetricHandle,
-			config.TraceHandle,
-			config.HandleID,
-		)
-		readers = append(readers, fileCacheReader)
-	}
+	// if config.SharedChunkCacheManager != nil {
+	// 	// For SharedChunkCacheManager, create ShareChunkCacheReader directly
+	// 	reader := gcsx.NewSharedChunkCacheReader(
+	// 		config.SharedChunkCacheManager,
+	// 		bucket,
+	// 		object,
+	// 		config.MetricHandle,
+	// 		config.TraceHandle,
+	// 		config.HandleID,
+	// 	)
+	// 	readers = append(readers, reader)
+	// } else if config.FileCacheHandler != nil {
+	// 	// For traditional cache handler, use FileCacheReader
+	// 	fileCacheReader := gcsx.NewFileCacheReader(
+	// 		object,
+	// 		bucket,
+	// 		config.FileCacheHandler,
+	// 		config.CacheFileForRangeRead,
+	// 		config.MetricHandle,
+	// 		config.TraceHandle,
+	// 		config.HandleID,
+	// 	)
+	// 	readers = append(readers, fileCacheReader)
+	// }
 
 	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB), config.InitialOffset)
 
-	// If buffered read is enabled, initialize the buffered reader and add it to the readers.
-	if config.Config.Read.EnableBufferedRead {
-		readConfig := config.Config.Read
-		bufferedReadConfig := &bufferedread.BufferedReadConfig{
-			MaxPrefetchBlockCnt:     readConfig.MaxBlocksPerHandle,
-			PrefetchBlockSizeBytes:  readConfig.BlockSizeMb * util.MiB,
-			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
-			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
-			RandomSeekThreshold:     readConfig.RandomSeekThreshold,
-		}
-		opts := &bufferedread.BufferedReaderOptions{
-			Object:             object,
-			Bucket:             bucket,
-			Config:             bufferedReadConfig,
-			GlobalMaxBlocksSem: config.GlobalMaxBlocksSem,
-			WorkerPool:         config.WorkerPool,
-			MetricHandle:       config.MetricHandle,
-			TraceHandle:        config.TraceHandle,
-			ReadTypeClassifier: readClassifier,
-			HandleID:           config.HandleID,
-		}
-		bufferedReader, err := bufferedread.NewBufferedReader(opts)
-		if err != nil {
-			logger.Tracef("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
-		} else {
-			readers = append(readers, bufferedReader)
-		}
-	}
+	// // If buffered read is enabled, initialize the buffered reader and add it to the readers.
+	// if config.Config.Read.EnableBufferedRead {
+	// 	readConfig := config.Config.Read
+	// 	bufferedReadConfig := &bufferedread.BufferedReadConfig{
+	// 		MaxPrefetchBlockCnt:     readConfig.MaxBlocksPerHandle,
+	// 		PrefetchBlockSizeBytes:  readConfig.BlockSizeMb * util.MiB,
+	// 		InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
+	// 		MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
+	// 		RandomSeekThreshold:     readConfig.RandomSeekThreshold,
+	// 	}
+	// 	opts := &bufferedread.BufferedReaderOptions{
+	// 		Object:             object,
+	// 		Bucket:             bucket,
+	// 		Config:             bufferedReadConfig,
+	// 		GlobalMaxBlocksSem: config.GlobalMaxBlocksSem,
+	// 		WorkerPool:         config.WorkerPool,
+	// 		MetricHandle:       config.MetricHandle,
+	// 		TraceHandle:        config.TraceHandle,
+	// 		ReadTypeClassifier: readClassifier,
+	// 		HandleID:           config.HandleID,
+	// 	}
+	// 	bufferedReader, err := bufferedread.NewBufferedReader(opts)
+	// 	if err != nil {
+	// 		logger.Tracef("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
+	// 	} else {
+	// 		readers = append(readers, bufferedReader)
+	// 	}
+	// }
 
 	// Initialize the GCS reader, which is always present.
 	// gcsReader := clientReaders.NewGCSReader(
