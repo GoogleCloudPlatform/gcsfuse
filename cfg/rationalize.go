@@ -155,8 +155,8 @@ func resolveLoggingConfig(config *Config) {
 }
 
 func resolveMonitoringConfig(m *MonitoringConfig) {
-	for i, s := range m.ExperimentalTracingMode {
-		m.ExperimentalTracingMode[i] = strings.ToLower(strings.TrimSpace(s))
+	for i, s := range m.TraceExporters {
+		m.TraceExporters[i] = strings.ToLower(strings.TrimSpace(s))
 	}
 }
 

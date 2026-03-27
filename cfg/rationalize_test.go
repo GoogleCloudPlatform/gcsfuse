@@ -607,9 +607,9 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 			name: "all_params_filled",
 			config: &Config{
 				Monitoring: MonitoringConfig{
-					ExperimentalTracingMode:          []string{"stdout"},
-					ExperimentalTracingProjectId:     "test-gcp-project",
-					ExperimentalTracingSamplingRatio: 0.2,
+					TraceExporters:     []string{"stdout"},
+					TraceProjectId:     "test-gcp-project",
+					TraceSamplingRatio: 0.2,
 				},
 			},
 			expected: []string{"stdout"},
@@ -618,9 +618,9 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 			name: "missing_project_id",
 			config: &Config{
 				Monitoring: MonitoringConfig{
-					ExperimentalTracingMode:          []string{"stdout"},
-					ExperimentalTracingProjectId:     "test-gcp-project",
-					ExperimentalTracingSamplingRatio: 0.2,
+					TraceExporters:     []string{"stdout"},
+					TraceProjectId:     "test-gcp-project",
+					TraceSamplingRatio: 0.2,
 				},
 			},
 			expected: []string{"stdout"},
@@ -629,9 +629,9 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 			name: "multiple_tracing_modes",
 			config: &Config{
 				Monitoring: MonitoringConfig{
-					ExperimentalTracingMode:          []string{"stdout ", " gcptrace "},
-					ExperimentalTracingProjectId:     "test-gcp-project",
-					ExperimentalTracingSamplingRatio: 0.2,
+					TraceExporters:     []string{"stdout ", " gcptrace "},
+					TraceProjectId:     "test-gcp-project",
+					TraceSamplingRatio: 0.2,
 				},
 			},
 			expected: []string{"stdout", "gcptrace"},
@@ -640,9 +640,9 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 			name: "multiple_tracing_modes",
 			config: &Config{
 				Monitoring: MonitoringConfig{
-					ExperimentalTracingMode:          []string{"STDout ", " GcPTraCe "},
-					ExperimentalTracingProjectId:     "test-gcp-project",
-					ExperimentalTracingSamplingRatio: 0.2,
+					TraceExporters:     []string{"STDout ", " GcPTraCe "},
+					TraceProjectId:     "test-gcp-project",
+					TraceSamplingRatio: 0.2,
 				},
 			},
 			expected: []string{"stdout", "gcptrace"},
@@ -656,7 +656,7 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 			err := Rationalize(viper.New(), tc.config, []string{})
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.expected, tc.config.Monitoring.ExperimentalTracingMode)
+			assert.Equal(t, tc.expected, tc.config.Monitoring.TraceExporters)
 		})
 	}
 }
