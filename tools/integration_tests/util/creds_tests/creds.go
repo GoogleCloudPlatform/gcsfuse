@@ -19,7 +19,6 @@ package creds_tests
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"slices"
@@ -89,7 +88,7 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 		setup.LogAndExit(fmt.Sprintf("Error while creating temp credentials file %v", err))
 	}
 	localKeyFilePath = file.Name()
-	_, err = io.Writer.Write(file, creds.Payload.Data)
+	_, err = file.Write(creds.Payload.Data)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while writing credentials to local file %v", err))
 	}
