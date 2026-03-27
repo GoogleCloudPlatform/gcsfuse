@@ -15,6 +15,7 @@
 package concurrent_operations
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -22,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
@@ -49,27 +51,29 @@ const (
 // the degree of parallelism. By default it uses GOMAXPROCS.
 // Ref: https://stackoverflow.com/questions/24375966/does-go-test-run-unit-tests-concurrently
 type concurrentListingTest struct {
+	flags         []string
+	storageClient *storage.Client
+	ctx           context.Context
+	baseTestName  string
 	suite.Suite
 }
 
-func (s *concurrentListingTest) SetupTest() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
+func (s *concurrentListingTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
-
-func (s *concurrentListingTest) TearDownTest() {}
 
 // createDirectoryStructureForTestCase creates initial directory structure in the
 // given testCaseDir.
 // bucket
 //
-//	  explicitDir/
-//		explicitDir/file1.txt
-//		explicitDir/file2.txt
+//	explicitDir/
+//	explicitDir/file1.txt
+//	explicitDir/file2.txt
 func createDirectoryStructureForTestCase(t *testing.T, testCaseDir string) {
-	operations.CreateDirectory(path.Join(testDirPath, testCaseDir), t)
+	operations.CreateDirectory(path.Join(testEnv.testDirPath, testCaseDir), t)
 
 	// Create explicitDir structure
-	explicitDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	explicitDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	operations.CreateDirectory(explicitDir, t)
 	operations.CreateFileOfSize(5, path.Join(explicitDir, "file1.txt"), t)
 	operations.CreateFileOfSize(10, path.Join(explicitDir, "file2.txt"), t)
@@ -85,7 +89,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_OpenDirAndLookUp"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(2)
 	// Fails if the operation takes more than timeout.
@@ -132,7 +136,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ReadDirAndLookUp"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 200 * time.Second
@@ -182,7 +186,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_MultipleConcurrentReadDir"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	goroutineCount := 10 // Number of concurrent goroutines
 	wg.Add(goroutineCount)
@@ -227,7 +231,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ReadDirAndFileOperations"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 400 * time.Second // Adjust timeout as needed
@@ -293,7 +297,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ReadDirAndDirOperations"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 200 * time.Second
@@ -356,7 +360,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ListDirAndFileEdit"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 400 * time.Second
@@ -418,7 +422,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_MultipleConcurrentOperations"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(5)
 	timeout := 400 * time.Second
@@ -523,7 +527,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_ListWithMoveFile"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 400 * time.Second // Adjust timeout as needed
@@ -548,14 +552,14 @@ func (s *concurrentListingTest) Test_ListWithMoveFile() {
 		for range iterationsForHeavyOperations { // Adjust iteration count if needed
 			fileName := setup.GenerateRandomString(5) + "move_file.txt"
 			// Create file
-			err := os.WriteFile(path.Join(testDirPath, fileName), []byte("Hello, world!"), setup.FilePermission_0600)
+			err := os.WriteFile(path.Join(testEnv.testDirPath, fileName), []byte("Hello, world!"), setup.FilePermission_0600)
 			require.NoError(s.T(), err)
 
 			// Move File in the target directory
-			err = operations.Move(path.Join(testDirPath, fileName), path.Join(targetDir, fileName))
+			err = operations.Move(path.Join(testEnv.testDirPath, fileName), path.Join(targetDir, fileName))
 			require.NoError(s.T(), err)
 			// Move File out of the target directory
-			err = operations.Move(path.Join(targetDir, fileName), path.Join(testDirPath, fileName))
+			err = operations.Move(path.Join(targetDir, fileName), path.Join(testEnv.testDirPath, fileName))
 			require.NoError(s.T(), err)
 		}
 	}()
@@ -581,7 +585,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir() {
 	s.T().Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_ListWithMoveDir"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 400 * time.Second // Adjust timeout as needed
@@ -606,14 +610,14 @@ func (s *concurrentListingTest) Test_ListWithMoveDir() {
 		for range iterationsForHeavyOperations { // Adjust iteration count if needed
 			dirName := setup.GenerateRandomString(5) + "move_dir"
 			// Create Dir
-			err := os.Mkdir(path.Join(testDirPath, dirName), setup.DirPermission_0755)
+			err := os.Mkdir(path.Join(testEnv.testDirPath, dirName), setup.DirPermission_0755)
 			require.NoError(s.T(), err)
 
 			// Move Dir in the target dir
-			err = operations.Move(path.Join(testDirPath, dirName), path.Join(targetDir, dirName))
+			err = operations.Move(path.Join(testEnv.testDirPath, dirName), path.Join(targetDir, dirName))
 			require.NoError(s.T(), err)
 			// Move Dir out of the target dir
-			err = operations.Move(path.Join(targetDir, dirName), path.Join(testDirPath, dirName))
+			err = operations.Move(path.Join(targetDir, dirName), path.Join(testEnv.testDirPath, dirName))
 			require.NoError(s.T(), err)
 		}
 	}()
@@ -639,7 +643,7 @@ func (s *concurrentListingTest) Test_StatWithNewFileWrite() {
 	s.T().Parallel()
 	testCaseDir := "Test_StatWithNewFileWrite"
 	createDirectoryStructureForTestCase(s.T(), testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	targetDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 400 * time.Second // Adjust timeout as needed
@@ -686,30 +690,38 @@ func (s *concurrentListingTest) Test_StatWithNewFileWrite() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestConcurrentListing(t *testing.T) {
-	ts := &concurrentListingTest{}
-
 	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		ts := &concurrentListingTest{
+			ctx:           context.Background(),
+			storageClient: testEnv.storageClient,
+			baseTestName:  t.Name(),
+		}
 		suite.Run(t, ts)
 		return
 	}
 
-	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=0", "--enable-metadata-prefetch"}, {"--kernel-list-cache-ttl-secs=-1"},
-	}
-
-	if !testing.Short() {
-		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "", "--client-protocol=grpc")
-	}
-
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
-		mountGCSFuseAndSetupTestDir(flags, testDirName, t)
+		ts := &concurrentListingTest{
+			ctx:           context.Background(),
+			storageClient: testEnv.storageClient,
+			baseTestName:  t.Name(),
+			flags:         flags,
+		}
+
+		// Mount logic must remain OUTSIDE of the test methods so the mount stays alive
+		setup.SetUpLogFilePath(flags, GKETempDir, "", testEnv.cfg)
+		mountGCSFuseAndSetupTestDir(flags, ts.ctx, ts.storageClient)
+
 		// Parallel subtest execution is suspended until its calling test function has
 		// returned. Hence invoking RunTest inside another test, otherwise unmount will
 		// happen before the subtest execution starts.
 		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
 			suite.Run(t, ts)
 		})
-		setup.UnmountGCSFuse(setup.MntDir())
+
+		// Safely unmount AFTER the wrapper t.Run completes (which waits for all parallel subtests)
+		setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 	}
 }
