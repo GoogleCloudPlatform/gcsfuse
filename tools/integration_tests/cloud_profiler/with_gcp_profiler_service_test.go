@@ -132,11 +132,11 @@ func (s *CloudProfilerSuite) TestValidateProfilerWithActualService() {
 		t.Fatalf("Failed to create Cloud Profiler API client: %v", err)
 	}
 	t.Logf("Waiting for cloud profile to eventually appear for service [%s] and version [%s]", testServiceName, testVersionName)
-	operations.RetryUntil(apiCtx, t, retryFrequency, retryDuration, func() (bool, error) {
+	operations.RetryUntil(apiCtx, t, retryFrequency, retryDuration, func(ctx context.Context) (bool, error) {
 		if err := s.writeSingleRandomFile(); err != nil {
 			t.Logf("Failed to write load file: %v. So profile generation may be affected...", err)
 		}
-		return checkIfProfileExistForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID)
+		return checkIfProfileExistForServiceAndVersion(ctx, t, profilerAPIClient, projectID)
 	})
 }
 
