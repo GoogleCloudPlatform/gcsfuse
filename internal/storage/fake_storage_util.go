@@ -38,7 +38,7 @@ const MetaDataKey string = "key"
 const TestGzipObjectName string = "gcsfuse/test_gzip.txt"
 
 // ContentInTestGzipObjectCompressed is a gzip-compressed content for gzip tests.
-// It was created by uploading a small file to GCS using `gsutil cp -Z` and then
+// It was created by uploading a small file to GCS using `gcloud storage cp --gzip-local-all` and then
 // downloading it as it is (compressed as present on GCS) using go storage client
 // library. To view/change it, open it in a gzip.newReader() ur using a gzip plugin
 // in the IDE. If you do change it, remember to update ContentInTestGzipObjectDecompressed

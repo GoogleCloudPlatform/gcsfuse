@@ -41,6 +41,6 @@ sudo umount $MOUNT_POINT
 
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
-gsutil cp gs://periodic-perf-tests/creds.json gsheet
+gcloud storage cp gs://periodic-perf-tests/creds.json gsheet
 echo Fetching results..
 python3 fetch_and_upload_metrics.py "fio-output${EXPERIMENT_NUMBER}.json" $UPLOAD_FLAGS --spreadsheet_id=$SPREADSHEET_ID

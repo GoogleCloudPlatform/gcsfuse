@@ -74,8 +74,8 @@ cd gcsfuse/tools/package_gcsfuse_docker/
 git checkout "$COMMIT_HASH"
 echo "Building docker for ${architecture} ..."
 sudo docker buildx build --load . -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=${architecture} --build-arg BRANCH_NAME="$COMMIT_HASH" &> docker_${architecture}.log
-gsutil cp docker_${architecture}.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
+gcloud storage cp docker_${architecture}.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
 sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" cp -r /packages/. /release/v"$RELEASE_VERSION"
 
 echo "Upload files in the bucket ..."
-gsutil cp -r $HOME/gcsfuse/release/v"$RELEASE_VERSION" gs://"$UPLOAD_BUCKET"/
+gcloud storage cp --recursive $HOME/gcsfuse/release/v"$RELEASE_VERSION" gs://"$UPLOAD_BUCKET"/
