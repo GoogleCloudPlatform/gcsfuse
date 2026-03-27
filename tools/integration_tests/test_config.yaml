@@ -1118,7 +1118,7 @@ concurrent_operations:
    configs:
      - flags:
        - ""
-       - "--file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --enable-kernel-reader=false"
+       - "--file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --enable-kernel-reader=false --cache-dir=/gcsfuse-tmp/read_large_files"
        - "--enable-buffered-read --enable-kernel-reader=false --enable-metadata-prefetch"
        compatible:
          flat: true
