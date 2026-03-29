@@ -247,20 +247,41 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 		}
 		return prepSummary, prepErr
 	}
-	// --- Warm-up ---
+	// --- Single goroutine pool for warmup + measurement ---
+	// Goroutines are started once and run continuously through both phases.
+	// At the warmup→measurement boundary we atomically reset all stats while
+	// the goroutines keep running — no teardown or re-spawn between phases.
+	totalDuration := e.bCfg.WarmupDuration + e.bCfg.Duration
+	runCtx, cancelRun := context.WithTimeout(ctx, totalDuration)
+	defer cancelRun()
+
+	var wg sync.WaitGroup
+	for i, ts := range e.trackState {
+		n := goroutinesForTrack(e.bCfg, i)
+		for j := 0; j < n; j++ {
+			wg.Add(1)
+			go func(ts *trackState) {
+				defer wg.Done()
+				e.runWorker(runCtx, ts)
+			}(ts)
+		}
+	}
+
+	// --- Warm-up phase ---
 	if e.bCfg.WarmupDuration > 0 {
 		logger.Infof("Warming up for %s...\n", e.bCfg.WarmupDuration)
-		warmupCtx, cancel := context.WithTimeout(ctx, e.bCfg.WarmupDuration)
-		stopWarmupProgress := e.startProgressReporter(warmupCtx, "warmup", e.bCfg.WarmupDuration)
-		if err := e.runPhase(warmupCtx); err != nil && err != context.DeadlineExceeded {
+		stopWarmupProgress := e.startProgressReporter(runCtx, "warmup", e.bCfg.WarmupDuration)
+		select {
+		case <-runCtx.Done():
+			// Outer context cancelled during warmup — abort cleanly.
 			stopWarmupProgress()
-			cancel()
-			return RunSummary{}, fmt.Errorf("warmup: %w", err)
+			wg.Wait()
+			return RunSummary{}, ctx.Err()
+		case <-time.After(e.bCfg.WarmupDuration):
 		}
 		stopWarmupProgress()
-		cancel()
 
-		// Reset histograms and counters so warmup data is discarded.
+		// Reset all stats — goroutines keep running without interruption.
 		for _, ts := range e.trackState {
 			ts.hists.Reset()
 			ts.totalOps.Store(0)
@@ -269,17 +290,11 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 		}
 	}
 
-	// --- Measurement ---
+	// --- Measurement phase ---
 	logger.Infof("Measuring for %s...\n", e.bCfg.Duration)
 	start := time.Now()
-	measCtx, cancel := context.WithTimeout(ctx, e.bCfg.Duration)
-	defer cancel()
-
-	stopMeasProgress := e.startProgressReporter(measCtx, "bench", e.bCfg.Duration)
-	if err := e.runPhase(measCtx); err != nil && err != context.DeadlineExceeded {
-		stopMeasProgress()
-		return RunSummary{}, fmt.Errorf("measurement: %w", err)
-	}
+	stopMeasProgress := e.startProgressReporter(runCtx, "bench", e.bCfg.Duration)
+	wg.Wait() // goroutines exit when runCtx expires (≈ e.bCfg.Duration after the reset)
 	stopMeasProgress()
 	elapsed := time.Since(start)
 
@@ -339,25 +354,6 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 		summary.Tracks = append(summary.Tracks, stat)
 	}
 	return summary, nil
-}
-
-// runPhase runs goroutines for each track until ctx is done.
-func (e *Engine) runPhase(ctx context.Context) error {
-	var wg sync.WaitGroup
-
-	for i, ts := range e.trackState {
-		concurrency := goroutinesForTrack(e.bCfg, i)
-		for j := 0; j < concurrency; j++ {
-			wg.Add(1)
-			go func(ts *trackState) {
-				defer wg.Done()
-				e.runWorker(ctx, ts)
-			}(ts)
-		}
-	}
-
-	wg.Wait()
-	return ctx.Err()
 }
 
 // goroutinesForTrack computes the number of goroutines for track i.
