@@ -70,12 +70,14 @@ func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metr
 	if !retry {
 		return false
 	}
-	// Record metrics
-	val := metrics.RetryErrorCategoryOTHERERRORSAttr
-	if errors.Is(err, context.DeadlineExceeded) {
-		val = metrics.RetryErrorCategorySTALLEDREADREQUESTAttr
+	// Record metrics (metricHandle may be nil when running without the full
+	// gcsfuse metrics stack, e.g. gcs-bench standalone).
+	if metricHandle != nil {
+		val := metrics.RetryErrorCategoryOTHERERRORSAttr
+		if errors.Is(err, context.DeadlineExceeded) {
+			val = metrics.RetryErrorCategorySTALLEDREADREQUESTAttr
+		}
+		metricHandle.GcsRetryCount(1, val)
 	}
-
-	metricHandle.GcsRetryCount(1, val)
 	return retry
 }
