@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync"
 
 	hdrhistogram "github.com/HdrHistogram/hdrhistogram-go"
@@ -161,4 +162,22 @@ func decodeSnapshot(b64 string) (*hdrhistogram.Histogram, error) {
 		return nil, fmt.Errorf("json unmarshal snapshot: %w", err)
 	}
 	return hdrhistogram.Import(&snap), nil
+}
+
+// WritePercentileDistribution writes the full HDR percentile distribution for
+// both the TTFB and total-latency histograms to the provided writers, using
+// the standard HdrHistogram text format (compatible with hgrplot and similar
+// tools at https://hdrhistogram.github.io/HdrHistogram/plotFiles.html).
+// All values are reported in milliseconds (scaled from µs internal storage).
+// ticksPerHalfDistance=5 is the standard resolution.
+func (h *TrackHistograms) WritePercentileDistribution(ttfbW, totalW io.Writer) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, err := h.ttfb.PercentilesPrint(ttfbW, 5, 1000.0); err != nil {
+		return fmt.Errorf("TTFB percentile distribution: %w", err)
+	}
+	if _, err := h.totalLat.PercentilesPrint(totalW, 5, 1000.0); err != nil {
+		return fmt.Errorf("total latency percentile distribution: %w", err)
+	}
+	return nil
 }

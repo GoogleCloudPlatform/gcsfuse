@@ -1182,9 +1182,9 @@ Use the `-v` flag (repeat for more detail) to increase verbosity:
 
 | Flag | Level | What you see |
 |------|-------|--------------|
-| _(none)_ | WARN | Only errors; first 3 errors per track are shown inline |
-| `-v` | INFO | RAPID detection + confirmation, DirectPath verification, phase transitions, live 10 s throughput ticks during warmup and measurement, prepare progress |
-| `-vv` | DEBUG | Same as `-v` plus elapsed/remaining time, total-ops, and total-errs in every throughput tick |
+| _(none)_ | WARN | Live 10 s throughput ticks (interval-ops + GiB/s + total-ops) for warmup and measurement; errors when they occur |
+| `-v` | INFO | Same ticks + RAPID detection/confirmation, DirectPath verification, phase-transition messages |
+| `-vv` | DEBUG | Ticks include elapsed, remaining, total-ops, and total-errs; all INFO messages above |
 | `-vvv` | TRACE | Every individual GCS call — op type, object name, elapsed time, bytes |
 
 All output is in plain-text format (never JSON) regardless of verbosity level.

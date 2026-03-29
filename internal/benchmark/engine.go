@@ -22,6 +22,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -742,14 +743,15 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 					tputGiB := (dBytes / interval) / (1024 * 1024 * 1024)
 
 					if e.verbosity >= 2 {
-						// –vv: elapsed, remaining, interval stats, running totals
+						// -vv: extended format with elapsed/remaining via logger
 						logger.Infof("[%s] track=%q  elapsed=%s  remaining=%s  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d  total-errs=%d\n",
 							phase, ts.cfg.Name,
 							elapsed.Round(time.Second), remaining.Round(time.Second),
 							dOps, tputGiB, cur.ops, cur.errs)
 					} else {
-						// –v: compact one-liner
-						logger.Infof("[%s] track=%q  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d\n",
+						// Default: always print compact line directly to stderr, bypassing
+						// the logger severity filter so progress is visible without -v.
+						fmt.Fprintf(os.Stderr, "[%s] track=%q  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d\n",
 							phase, ts.cfg.Name, dOps, tputGiB, cur.ops)
 					}
 				}
@@ -757,4 +759,15 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 		}
 	}()
 	return func() { close(stopCh) }
+}
+
+// Histograms returns the per-track histogram objects after a completed Run().
+// The returned slice is in the same order as RunSummary.Tracks.
+// Call only after Run() has returned.
+func (e *Engine) Histograms() []*TrackHistograms {
+	result := make([]*TrackHistograms, len(e.trackState))
+	for i, ts := range e.trackState {
+		result[i] = ts.hists
+	}
+	return result
 }

@@ -267,6 +267,11 @@ func newBenchmarkRootCmd() *cobra.Command {
 				return fmt.Errorf("benchmark run: %w", err)
 			}
 
+			// Write HDR histogram .hgrm files for plotting (always, alongside other outputs).
+			if err := benchmark.ExportHgrm(summary, engine.Histograms(), benchCfg.OutputPath); err != nil {
+				fmt.Printf("Warning: could not write histogram files: %v\n", err)
+			}
+
 			// --- Output ---
 			// Prepare mode omits the console summary table (progress already printed
 			// live) but always writes the result file so runs are traceable.

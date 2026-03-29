@@ -301,3 +301,56 @@ func writeHumanText(summary RunSummary, path string) error {
 	fmt.Printf("Results written to %s\n", path)
 	return nil
 }
+
+// ExportHgrm writes HDR percentile distribution files (.hgrm) for each track,
+// one file each for TTFB and total-latency. The format is the standard
+// HdrHistogram text output compatible with hgrplot and HdrHistogram's plotting
+// page at https://hdrhistogram.github.io/HdrHistogram/plotFiles.html.
+// Values in .hgrm files are in milliseconds (converted from µs storage).
+// File names follow the bench-YYYYMMDD-HHMMSS-<track>-{ttfb,total-latency}.hgrm
+// pattern alongside the .txt/.yaml/.tsv files.
+func ExportHgrm(summary RunSummary, hists []*TrackHistograms, outputPath string) error {
+	if len(hists) == 0 {
+		return nil
+	}
+	if outputPath == "" {
+		var err error
+		outputPath, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("getwd: %w", err)
+		}
+	}
+	if err := os.MkdirAll(outputPath, 0755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", outputPath, err)
+	}
+	timestamp := summary.StartTime.UTC().Format("20060102-150405")
+	stem := filepath.Join(outputPath, "bench-"+timestamp)
+	for i, t := range summary.Tracks {
+		if i >= len(hists) {
+			break
+		}
+		safeName := strings.NewReplacer("/", "_", " ", "_").Replace(t.TrackName)
+		ttfbPath := stem + "-" + safeName + "-ttfb.hgrm"
+		totalPath := stem + "-" + safeName + "-total-latency.hgrm"
+
+		ttfbF, err := os.Create(ttfbPath)
+		if err != nil {
+			return fmt.Errorf("create %s: %w", ttfbPath, err)
+		}
+		totalF, err := os.Create(totalPath)
+		if err != nil {
+			ttfbF.Close()
+			return fmt.Errorf("create %s: %w", totalPath, err)
+		}
+
+		werr := hists[i].WritePercentileDistribution(ttfbF, totalF)
+		ttfbF.Close()
+		totalF.Close()
+		if werr != nil {
+			return fmt.Errorf("track %q histogram write: %w", t.TrackName, werr)
+		}
+		fmt.Printf("Results written to %s\n", ttfbPath)
+		fmt.Printf("Results written to %s\n", totalPath)
+	}
+	return nil
+}
