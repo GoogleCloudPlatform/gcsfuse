@@ -115,7 +115,7 @@ func runMergeResults(paths []string, outputPath, outputFormat string) error {
 
 	// Print merged results.
 	fmt.Printf("\n=== Merged Results (%d workers) ===\n", len(workers))
-	benchmark.PrintSummary(merged)
+	benchmark.PrintSummary(os.Stdout, merged)
 
 	// Print per-worker comparison table.
 	printWorkerComparison(workers, paths)
@@ -124,7 +124,7 @@ func runMergeResults(paths []string, outputPath, outputFormat string) error {
 	if outputFormat == "" {
 		outputFormat = "yaml"
 	}
-	if err := benchmark.Export(merged, outputPath, outputFormat); err != nil {
+	if err := benchmark.Export(merged, outputPath, outputFormat, os.Stdout); err != nil {
 		return fmt.Errorf("export merged results: %w", err)
 	}
 

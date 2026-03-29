@@ -40,22 +40,22 @@ import (
 //
 // Returns a non-nil error only when a condition is detected that will
 // certainly cause the test to fail (cannot list, cannot write in prepare mode).
-func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mode string) error {
+func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mode string, out io.Writer) error {
 	isPrepare := strings.ToLower(mode) == "prepare"
 	totalChecks := 1
 	if isPrepare {
 		totalChecks = 5
 	}
 
-	fmt.Println()
-	fmt.Println("=== Pre-flight check ===")
-	fmt.Println()
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "=== Pre-flight check ===")
+	fmt.Fprintln(out)
 
 	// ------------------------------------------------------------------
 	// Check 1: LIST the prefix — verifies connectivity and credentials.
 	// ------------------------------------------------------------------
 	displayPath := fmt.Sprintf("gs://%s/%s", bucketName, prefix)
-	fmt.Printf("  [%d/%d] LIST %s ... ", 1, totalChecks, displayPath)
+	fmt.Fprintf(out, "  [%d/%d] LIST %s ... ", 1, totalChecks, displayPath)
 
 	listStart := time.Now()
 	listing, err := bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
@@ -65,11 +65,11 @@ func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mo
 	listElapsed := time.Since(listStart)
 
 	if err != nil {
-		fmt.Printf("FAIL [%s]\n", listElapsed.Round(time.Millisecond))
-		fmt.Printf("         Error: %v\n", err)
-		fmt.Println()
-		fmt.Println("  Pre-flight: FAILED — cannot list bucket prefix. Check credentials and bucket name.")
-		fmt.Println()
+		fmt.Fprintf(out, "FAIL [%s]\n", listElapsed.Round(time.Millisecond))
+		fmt.Fprintf(out, "         Error: %v\n", err)
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "  Pre-flight: FAILED — cannot list bucket prefix. Check credentials and bucket name.")
+		fmt.Fprintln(out)
 		return fmt.Errorf("pre-flight LIST failed: %w", err)
 	}
 
@@ -86,25 +86,25 @@ func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mo
 
 	switch {
 	case count == 0 && !isPrepare:
-		fmt.Printf("OK [%s] — WARNING: prefix is EMPTY\n", listElapsed.Round(time.Millisecond))
-		fmt.Println()
-		fmt.Println("  Pre-flight: WARNING — no objects found at prefix; bench reads will likely fail.")
-		fmt.Println("  Proceeding anyway (prefix may be wrong, or objects live under a sub-prefix).")
-		fmt.Println()
+		fmt.Fprintf(out, "OK [%s] — WARNING: prefix is EMPTY\n", listElapsed.Round(time.Millisecond))
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "  Pre-flight: WARNING — no objects found at prefix; bench reads will likely fail.")
+		fmt.Fprintln(out, "  Proceeding anyway (prefix may be wrong, or objects live under a sub-prefix).")
+		fmt.Fprintln(out)
 		return nil
 	case count == 0 && isPrepare:
-		fmt.Printf("OK [%s] — prefix is EMPTY (ready for prepare)\n", listElapsed.Round(time.Millisecond))
+		fmt.Fprintf(out, "OK [%s] — prefix is EMPTY (ready for prepare)\n", listElapsed.Round(time.Millisecond))
 	default:
-		fmt.Printf("OK [%s] — %s object(s) found\n", listElapsed.Round(time.Millisecond), countStr)
+		fmt.Fprintf(out, "OK [%s] — %s object(s) found\n", listElapsed.Round(time.Millisecond), countStr)
 		if isPrepare && count > 0 {
-			fmt.Printf("         Note: prepare will OVERWRITE the %s existing object(s) at this prefix.\n", countStr)
+			fmt.Fprintf(out, "         Note: prepare will OVERWRITE the %s existing object(s) at this prefix.\n", countStr)
 		}
 	}
 
 	if !isPrepare {
-		fmt.Println()
-		fmt.Println("  Pre-flight: PASSED — benchmark should work.")
-		fmt.Println()
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "  Pre-flight: PASSED — benchmark should work.")
+		fmt.Fprintln(out)
 		return nil
 	}
 
@@ -122,7 +122,7 @@ func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mo
 	}()
 
 	// --- Check 2: PUT ---
-	fmt.Printf("  [%d/%d] PUT  %s_gcsbench_preflight_ ... ", 2, totalChecks, prefix)
+	fmt.Fprintf(out, "  [%d/%d] PUT  %s_gcsbench_preflight_ ... ", 2, totalChecks, prefix)
 	writeStart := time.Now()
 	_, err = bucket.CreateObject(ctx, &gcs.CreateObjectRequest{
 		Name:     sentinel,
@@ -131,17 +131,17 @@ func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mo
 	writeElapsed := time.Since(writeStart)
 
 	if err != nil {
-		fmt.Printf("FAIL [%s]\n", writeElapsed.Round(time.Millisecond))
-		fmt.Printf("         Error: %v\n", err)
-		fmt.Println()
-		fmt.Println("  Pre-flight: FAILED — cannot write objects. Prepare will fail.")
-		fmt.Println()
+		fmt.Fprintf(out, "FAIL [%s]\n", writeElapsed.Round(time.Millisecond))
+		fmt.Fprintf(out, "         Error: %v\n", err)
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "  Pre-flight: FAILED — cannot write objects. Prepare will fail.")
+		fmt.Fprintln(out)
 		return fmt.Errorf("pre-flight PUT failed: %w", err)
 	}
-	fmt.Printf("OK [%s]\n", writeElapsed.Round(time.Millisecond))
+	fmt.Fprintf(out, "OK [%s]\n", writeElapsed.Round(time.Millisecond))
 
 	// --- Check 3: LIST sentinel to confirm visibility ---
-	fmt.Printf("  [%d/%d] LIST %s_gcsbench_preflight_ ... ", 3, totalChecks, prefix)
+	fmt.Fprintf(out, "  [%d/%d] LIST %s_gcsbench_preflight_ ... ", 3, totalChecks, prefix)
 	verifyStart := time.Now()
 	verifyListing, verifyErr := bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
 		Prefix:     sentinel,
@@ -151,16 +151,16 @@ func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mo
 
 	switch {
 	case verifyErr != nil:
-		fmt.Printf("FAIL [%s]: %v\n", verifyElapsed.Round(time.Millisecond), verifyErr)
+		fmt.Fprintf(out, "FAIL [%s]: %v\n", verifyElapsed.Round(time.Millisecond), verifyErr)
 	case verifyListing == nil || len(verifyListing.MinObjects) == 0:
-		fmt.Printf("WARNING [%s] — object not yet visible (eventual consistency?)\n",
+		fmt.Fprintf(out, "WARNING [%s] — object not yet visible (eventual consistency?)\n",
 			verifyElapsed.Round(time.Millisecond))
 	default:
-		fmt.Printf("OK [%s] — object visible\n", verifyElapsed.Round(time.Millisecond))
+		fmt.Fprintf(out, "OK [%s] — object visible\n", verifyElapsed.Round(time.Millisecond))
 	}
 
 	// --- Check 4: GET and verify content ---
-	fmt.Printf("  [%d/%d] GET  %s_gcsbench_preflight_ ... ", 4, totalChecks, prefix)
+	fmt.Fprintf(out, "  [%d/%d] GET  %s_gcsbench_preflight_ ... ", 4, totalChecks, prefix)
 	getStart := time.Now()
 	reader, getErr := bucket.NewReaderWithReadHandle(ctx, &gcs.ReadObjectRequest{
 		Name: sentinel,
@@ -172,8 +172,8 @@ func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mo
 
 	if getErr != nil {
 		getElapsed := time.Since(getStart)
-		fmt.Printf("FAIL [%s]: %v\n", getElapsed.Round(time.Millisecond), getErr)
-		fmt.Printf("         WARNING: wrote object but cannot read it back.\n")
+		fmt.Fprintf(out, "FAIL [%s]: %v\n", getElapsed.Round(time.Millisecond), getErr)
+		fmt.Fprintf(out, "         WARNING: wrote object but cannot read it back.\n")
 	} else {
 		buf, readErr := io.ReadAll(reader)
 		reader.Close()
@@ -181,31 +181,31 @@ func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mo
 
 		switch {
 		case readErr != nil:
-			fmt.Printf("FAIL [%s] (read error): %v\n", getElapsed.Round(time.Millisecond), readErr)
+			fmt.Fprintf(out, "FAIL [%s] (read error): %v\n", getElapsed.Round(time.Millisecond), readErr)
 		case !bytes.Equal(buf, payload):
-			fmt.Printf("FAIL [%s] — content mismatch (got %d bytes, expected %d)\n",
+			fmt.Fprintf(out, "FAIL [%s] — content mismatch (got %d bytes, expected %d)\n",
 				getElapsed.Round(time.Millisecond), len(buf), len(payload))
 		default:
-			fmt.Printf("OK [%s] — %d bytes, content verified\n",
+			fmt.Fprintf(out, "OK [%s] — %d bytes, content verified\n",
 				getElapsed.Round(time.Millisecond), len(buf))
 		}
 	}
 
 	// --- Check 5: DELETE ---
-	fmt.Printf("  [%d/%d] DELETE %s_gcsbench_preflight_ ... ", 5, totalChecks, prefix)
+	fmt.Fprintf(out, "  [%d/%d] DELETE %s_gcsbench_preflight_ ... ", 5, totalChecks, prefix)
 	delStart := time.Now()
 	delErr := bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: sentinel})
 	delElapsed := time.Since(delStart)
 
 	if delErr != nil {
-		fmt.Printf("WARNING [%s]: %v\n", delElapsed.Round(time.Millisecond), delErr)
-		fmt.Printf("         (delete permission not granted — clean up %q manually)\n", sentinel)
+		fmt.Fprintf(out, "WARNING [%s]: %v\n", delElapsed.Round(time.Millisecond), delErr)
+		fmt.Fprintf(out, "         (delete permission not granted — clean up %q manually)\n", sentinel)
 	} else {
-		fmt.Printf("OK [%s]\n", delElapsed.Round(time.Millisecond))
+		fmt.Fprintf(out, "OK [%s]\n", delElapsed.Round(time.Millisecond))
 	}
 
-	fmt.Println()
-	fmt.Println("  Pre-flight: PASSED — prepare should work.")
-	fmt.Println()
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "  Pre-flight: PASSED — prepare should work.")
+	fmt.Fprintln(out)
 	return nil
 }

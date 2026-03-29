@@ -61,6 +61,10 @@ type Engine struct {
 	// generation.  nil when disabled (e.g. no write tracks, or object size
 	// exceeds poolSlotSizeCap).
 	writePool *DataPool
+
+	// out is the writer for live progress lines ([warmup]/[bench] ticks).
+	// Defaults to os.Stderr when nil is passed to NewEngine.
+	out io.Writer
 }
 
 // trackState holds mutable per-track counters and histograms.
@@ -84,7 +88,8 @@ type trackState struct {
 // NewEngine creates a benchmark Engine backed by the provided gcs.Bucket.
 // verbosity mirrors the CLI -v/-vv/-vvv count (0 = silent progress, 1 = INFO,
 // 2 = DEBUG with extra per-interval detail).
-func NewEngine(bucket gcs.Bucket, bCfg cfg.BenchmarkConfig, verbosity int) (*Engine, error) {
+// out is the writer for live progress lines; pass nil to use os.Stderr.
+func NewEngine(bucket gcs.Bucket, bCfg cfg.BenchmarkConfig, verbosity int, out io.Writer) (*Engine, error) {
 	if bucket == nil {
 		return nil, fmt.Errorf("bucket must not be nil")
 	}
@@ -107,12 +112,16 @@ func NewEngine(bucket gcs.Bucket, bCfg cfg.BenchmarkConfig, verbosity int) (*Eng
 	}
 
 	entropy := newWriteEntropy()
+	if out == nil {
+		out = os.Stderr
+	}
 	eng := &Engine{
 		bucket:       bucket,
 		bCfg:         bCfg,
 		verbosity:    verbosity,
 		trackState:   states,
 		writeEntropy: entropy,
+		out:          out,
 	}
 
 	// Build write pool if any track writes fixed-size (or bounded) objects
@@ -890,9 +899,10 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 							elapsed.Round(time.Second), remaining.Round(time.Second),
 							dOps, tputGiB, cur.ops, cur.errs)
 					} else {
-						// Default: always print compact line directly to stderr, bypassing
-						// the logger severity filter so progress is visible without -v.
-						fmt.Fprintf(os.Stderr, "[%s] track=%q  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d\n",
+						// Default: always print compact line to e.out (teed to stderr +
+						// console.log), bypassing the logger severity filter so progress
+						// is visible without -v.
+						fmt.Fprintf(e.out, "[%s] track=%q  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d\n",
 							phase, ts.cfg.Name, dOps, tputGiB, cur.ops)
 					}
 				}

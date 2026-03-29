@@ -31,7 +31,9 @@ import (
 // A timestamped subdirectory bench-YYYYMMDD-HHMMSS/ is created under outputPath
 // and all result files are written inside it.
 // When outputPath is empty the current working directory is used.
-func Export(summary RunSummary, outputPath, format string) error {
+// notify receives the "Results written to ..." status lines; pass os.Stdout to
+// match the old behaviour, or an io.MultiWriter to tee into a console log.
+func Export(summary RunSummary, outputPath, format string, notify io.Writer) error {
 	if outputPath == "" {
 		var err error
 		outputPath, err = os.Getwd()
@@ -48,32 +50,33 @@ func Export(summary RunSummary, outputPath, format string) error {
 	}
 
 	// Always write the human-readable text file alongside whatever machine format.
-	if err := writeHumanText(summary, filepath.Join(subDir, "bench.txt")); err != nil {
+	if err := writeHumanText(summary, filepath.Join(subDir, "bench.txt"), notify); err != nil {
 		return err
 	}
 
 	switch format {
 	case "yaml":
-		return writeYAML(summary, filepath.Join(subDir, "bench.yaml"))
+		return writeYAML(summary, filepath.Join(subDir, "bench.yaml"), notify)
 	case "tsv":
-		return writeTSV(summary, filepath.Join(subDir, "bench.tsv"))
+		return writeTSV(summary, filepath.Join(subDir, "bench.tsv"), notify)
 	case "both":
-		if err := writeYAML(summary, filepath.Join(subDir, "bench.yaml")); err != nil {
+		if err := writeYAML(summary, filepath.Join(subDir, "bench.yaml"), notify); err != nil {
 			return err
 		}
-		return writeTSV(summary, filepath.Join(subDir, "bench.tsv"))
+		return writeTSV(summary, filepath.Join(subDir, "bench.tsv"), notify)
 	default:
 		return fmt.Errorf("unknown output format %q; expected yaml|tsv|both", format)
 	}
 }
 
-// PrintSummary writes a human-readable summary to stdout.
-func PrintSummary(summary RunSummary) {
-	printHumanSummary(os.Stdout, summary)
+// PrintSummary writes a human-readable summary to w (typically os.Stdout or a
+// tee writer that also captures to a log buffer).
+func PrintSummary(w io.Writer, summary RunSummary) {
+	printHumanSummary(w, summary)
 }
 
 // writeYAML marshals summary to a YAML file.
-func writeYAML(summary RunSummary, path string) error {
+func writeYAML(summary RunSummary, path string, notify io.Writer) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", path, err)
@@ -85,12 +88,12 @@ func writeYAML(summary RunSummary, path string) error {
 	if err := enc.Encode(summary); err != nil {
 		return fmt.Errorf("yaml encode: %w", err)
 	}
-	fmt.Printf("Results written to %s\n", path)
+	fmt.Fprintf(notify, "Results written to %s\n", path)
 	return nil
 }
 
 // writeTSV writes one row per track to a TSV file.
-func writeTSV(summary RunSummary, path string) error {
+func writeTSV(summary RunSummary, path string, notify io.Writer) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", path, err)
@@ -131,7 +134,7 @@ func writeTSV(summary RunSummary, path string) error {
 	if err := w.Error(); err != nil {
 		return fmt.Errorf("tsv flush: %w", err)
 	}
-	fmt.Printf("Results written to %s\n", path)
+	fmt.Fprintf(notify, "Results written to %s\n", path)
 	return nil
 }
 
@@ -295,26 +298,22 @@ func printHumanSummary(w io.Writer, summary RunSummary) {
 }
 
 // writeHumanText writes the human-readable report to a .txt file.
-func writeHumanText(summary RunSummary, path string) error {
+func writeHumanText(summary RunSummary, path string, notify io.Writer) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", path, err)
 	}
 	defer f.Close()
 	printHumanSummary(f, summary)
-	fmt.Printf("Results written to %s\n", path)
+	fmt.Fprintf(notify, "Results written to %s\n", path)
 	return nil
 }
 
-// ExportHgrm writes HDR percentile distribution files (.hgrm) for each track,
-// one file each for TTFB and total-latency. The format is the standard
-// HdrHistogram text output compatible with hgrplot and HdrHistogram's plotting
-// page at https://hdrhistogram.github.io/HdrHistogram/plotFiles.html.
-// Values in .hgrm files are in milliseconds (converted from µs storage).
 // ExportHgrm writes HDR histogram percentile-distribution files (.hgrm) for
 // each track. Files are written into the same bench-YYYYMMDD-HHMMSS/
 // subdirectory as Export so all result files are co-located.
-func ExportHgrm(summary RunSummary, hists []*TrackHistograms, outputPath string) error {
+// notify receives the "Results written to ..." status lines.
+func ExportHgrm(summary RunSummary, hists []*TrackHistograms, outputPath string, notify io.Writer) error {
 	if len(hists) == 0 {
 		return nil
 	}
@@ -355,8 +354,8 @@ func ExportHgrm(summary RunSummary, hists []*TrackHistograms, outputPath string)
 		if werr != nil {
 			return fmt.Errorf("track %q histogram write: %w", t.TrackName, werr)
 		}
-		fmt.Printf("Results written to %s\n", ttfbPath)
-		fmt.Printf("Results written to %s\n", totalPath)
+		fmt.Fprintf(notify, "Results written to %s\n", ttfbPath)
+		fmt.Fprintf(notify, "Results written to %s\n", totalPath)
 	}
 	return nil
 }
@@ -366,7 +365,8 @@ func ExportHgrm(summary RunSummary, hists []*TrackHistograms, outputPath string)
 // The destination is always named "config.yaml" so it is easy to find.
 // configData is the raw file contents; configPath is used only to derive a
 // useful source label for the printed status line.
-func ExportConfig(summary RunSummary, outputPath string, configPath string, configData []byte) error {
+// notify receives the "Config saved to ..." status line.
+func ExportConfig(summary RunSummary, outputPath string, configPath string, configData []byte, notify io.Writer) error {
 	if len(configData) == 0 {
 		return nil
 	}
@@ -387,6 +387,33 @@ func ExportConfig(summary RunSummary, outputPath string, configPath string, conf
 		return fmt.Errorf("writing config to %s: %w", dest, err)
 	}
 	_ = configPath // used only for documentation; destination name is always config.yaml
-	fmt.Printf("Config saved to   %s\n", dest)
+	fmt.Fprintf(notify, "Config saved to   %s\n", dest)
+	return nil
+}
+
+// ExportConsoleLog writes the captured console output (everything printed to
+// stdout/stderr during the run) to console.log in the bench-YYYYMMDD-HHMMSS/
+// results subdirectory.
+func ExportConsoleLog(summary RunSummary, outputPath string, content []byte) error {
+	if len(content) == 0 {
+		return nil
+	}
+	if outputPath == "" {
+		var err error
+		outputPath, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("getwd: %w", err)
+		}
+	}
+	timestamp := summary.StartTime.UTC().Format("20060102-150405")
+	subDir := filepath.Join(outputPath, "bench-"+timestamp)
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", subDir, err)
+	}
+	dest := filepath.Join(subDir, "console.log")
+	if err := os.WriteFile(dest, content, 0644); err != nil {
+		return fmt.Errorf("writing console log to %s: %w", dest, err)
+	}
+	fmt.Printf("Console log saved to %s\n", dest)
 	return nil
 }

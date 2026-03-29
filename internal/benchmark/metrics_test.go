@@ -86,7 +86,7 @@ func makeWriteBenchConfig(duration time.Duration, concurrency int) cfg.Benchmark
 // runPrepare is a convenience wrapper.
 func runPrepare(t *testing.T, mb *mockBucket, objectCount int) TrackStats {
 	t.Helper()
-	engine, err := NewEngine(mb, makePrepareConfig(objectCount), 0)
+	engine, err := NewEngine(mb, makePrepareConfig(objectCount), 0, nil)
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
 	}
@@ -103,7 +103,7 @@ func runPrepare(t *testing.T, mb *mockBucket, objectCount int) TrackStats {
 // runBenchRead is a convenience wrapper for a short read benchmark.
 func runBenchRead(t *testing.T, mb *mockBucket, duration time.Duration, concurrency int) TrackStats {
 	t.Helper()
-	engine, err := NewEngine(mb, makeReadOnlyConfig(duration, 0, concurrency), 0)
+	engine, err := NewEngine(mb, makeReadOnlyConfig(duration, 0, concurrency), 0, nil)
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
 	}
@@ -120,7 +120,7 @@ func runBenchRead(t *testing.T, mb *mockBucket, duration time.Duration, concurre
 // runBenchWrite is a convenience wrapper for a short write benchmark.
 func runBenchWrite(t *testing.T, mb *mockBucket, duration time.Duration, concurrency int) TrackStats {
 	t.Helper()
-	engine, err := NewEngine(mb, makeWriteBenchConfig(duration, concurrency), 0)
+	engine, err := NewEngine(mb, makeWriteBenchConfig(duration, concurrency), 0, nil)
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestAvgOpSizeIsZeroWhenAllOpsFail(t *testing.T) {
 
 	mb := &mockBucket{createErr: simErr}
 	// Only 5 objects so the prepare loop exits quickly.
-	engine, err := NewEngine(mb, makePrepareConfig(5), 0)
+	engine, err := NewEngine(mb, makePrepareConfig(5), 0, nil)
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
 	}

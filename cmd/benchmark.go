@@ -15,8 +15,10 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -244,7 +246,16 @@ func newBenchmarkRootCmd() *cobra.Command {
 			// --- Pre-flight check ---
 			// Uses the raw (un-wrapped) bucket handle so that pre-flight I/O
 			// does not pollute the benchmark histograms.
-			if err := benchmark.RunPreflight(ctx, bh, bucketName, benchCfg.ObjectPrefix, benchCfg.Mode); err != nil {
+			//
+			// Set up a tee writer so all console output is captured in logBuf
+			// and saved as console.log in the results directory at the end of
+			// the run.  consoleOut tees stdout; progressOut tees stderr (for
+			// the live [warmup]/[bench] progress lines).
+			var logBuf bytes.Buffer
+			consoleOut := io.MultiWriter(os.Stdout, &logBuf)
+			progressOut := io.MultiWriter(os.Stderr, &logBuf)
+
+			if err := benchmark.RunPreflight(ctx, bh, bucketName, benchCfg.ObjectPrefix, benchCfg.Mode, consoleOut); err != nil {
 				return err
 			}
 
@@ -259,7 +270,7 @@ func newBenchmarkRootCmd() *cobra.Command {
 			_ = metrics.NewNoopMetrics()
 
 			// --- Create and run engine ---
-			engine, err := benchmark.NewEngine(wrappedBucket, benchCfg, verbosity)
+			engine, err := benchmark.NewEngine(wrappedBucket, benchCfg, verbosity, progressOut)
 			if err != nil {
 				return fmt.Errorf("NewEngine: %w", err)
 			}
@@ -270,13 +281,13 @@ func newBenchmarkRootCmd() *cobra.Command {
 			}
 
 			// Write HDR histogram .hgrm files for plotting (always, alongside other outputs).
-			if err := benchmark.ExportHgrm(summary, engine.Histograms(), benchCfg.OutputPath); err != nil {
+			if err := benchmark.ExportHgrm(summary, engine.Histograms(), benchCfg.OutputPath, consoleOut); err != nil {
 				fmt.Printf("Warning: could not write histogram files: %v\n", err)
 			}
 
 			// Copy the config file into the results directory so the run is fully reproducible.
 			if cfgFile != "" {
-				if err := benchmark.ExportConfig(summary, benchCfg.OutputPath, cfgFile, configData); err != nil {
+				if err := benchmark.ExportConfig(summary, benchCfg.OutputPath, cfgFile, configData, consoleOut); err != nil {
 					fmt.Printf("Warning: could not save config file: %v\n", err)
 				}
 			}
@@ -285,14 +296,19 @@ func newBenchmarkRootCmd() *cobra.Command {
 			// Prepare mode omits the console summary table (progress already printed
 			// live) but always writes the result file so runs are traceable.
 			if strings.ToLower(benchCfg.Mode) != "prepare" {
-				benchmark.PrintSummary(summary)
+				benchmark.PrintSummary(consoleOut, summary)
 			}
 			format := benchCfg.OutputFormat
 			if format == "" {
 				format = "yaml"
 			}
-			if err := benchmark.Export(summary, benchCfg.OutputPath, format); err != nil {
+			if err := benchmark.Export(summary, benchCfg.OutputPath, format, consoleOut); err != nil {
 				return fmt.Errorf("export results: %w", err)
+			}
+			// Save everything that was printed to the terminal into console.log
+			// inside the results directory so the run is fully self-contained.
+			if err := benchmark.ExportConsoleLog(summary, benchCfg.OutputPath, logBuf.Bytes()); err != nil {
+				fmt.Printf("Warning: could not save console log: %v\n", err)
 			}
 			return nil
 		},
