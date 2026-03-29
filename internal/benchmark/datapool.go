@@ -88,10 +88,10 @@ type DataPool struct {
 // newDataPool allocates all slot memory up-front and returns a ready-to-use
 // DataPool.  Start the producer via go pool.RunProducer(ctx).
 //
-//   slotSize   bytes per slot; must be ≥ max object size written by the engine
-//   depth      ring depth; clamped to ≥ 4
-//   entropy    Xoshiro256++ seed (from newWriteEntropy in the engine)
-//   seqCounter shared block-sequence counter (engine.writeBlockSeq)
+//	slotSize   bytes per slot; must be ≥ max object size written by the engine
+//	depth      ring depth; clamped to ≥ 4
+//	entropy    Xoshiro256++ seed (from newWriteEntropy in the engine)
+//	seqCounter shared block-sequence counter (engine.writeBlockSeq)
 func newDataPool(slotSize int64, depth int, entropy uint64, seqCounter *atomic.Uint64) *DataPool {
 	if depth < 4 {
 		depth = 4
