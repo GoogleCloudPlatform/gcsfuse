@@ -50,6 +50,7 @@ USAGE:
   gcs-bench bench          [--config <file>] [flags]   Run a storage benchmark
   gcs-bench benchmark      [--config <file>] [flags]   Alias for 'bench'
   gcs-bench merge-results  <worker0.yaml> ...          Merge distributed results
+  gcs-bench plot-hgrm      <file.hgrm> ...             Plot .hgrm latency distribution as SVG
 
 QUICK START:
   # Validate a config without touching GCS
@@ -79,6 +80,10 @@ SUBCOMMAND FLAGS:
 DISTRIBUTED RUNS:
   gcs-bench bench --config bench.yaml --worker-id 0 --num-workers 4 --start-at <epoch>
   gcs-bench merge-results worker-0/bench-*.yaml worker-1/bench-*.yaml ...
+
+PLOTTING:
+  gcs-bench plot-hgrm results/bench-*-unet3d-read-total-latency.hgrm
+  gcs-bench plot-hgrm ttfb.hgrm total.hgrm --output comparison.svg
 
 For full documentation see docs/bench-user-guide.md
 `
@@ -118,6 +123,10 @@ argScan:
 		case "merge-results":
 			os.Args = append(os.Args[:i], os.Args[i+1:]...)
 			cmd.ExecuteMergeResultsCmd()
+			return
+		case "plot-hgrm":
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			cmd.ExecutePlotHgrmCmd()
 			return
 		default:
 			if !strings.HasPrefix(arg, "-") {

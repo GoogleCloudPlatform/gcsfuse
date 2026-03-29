@@ -20,6 +20,10 @@ object is fully available to the caller.
 4. [YAML configuration reference](#4-yaml-configuration-reference)
 5. [Example configs](#5-example-configs)
 6. [Understanding the results](#6-understanding-the-results)
+   - [Console output](#console-output)
+   - [YAML output file](#yaml-output-file)
+   - [HDR histogram files (.hgrm)](#hdr-histogram-files-hgrm)
+   - [TSV output file](#tsv-output-file)
 7. [Standalone (single-host) usage](#7-standalone-single-host-usage)
 8. [Distributed multi-host usage](#8-distributed-multi-host-usage)
    - [Prepare phase](#81-prepare-phase)
@@ -48,12 +52,16 @@ GOTOOLCHAIN=auto go build -o gcs-bench .
 ./gcs-bench bench --config examples/benchmark-configs/unet3d-like.yaml
 ```
 
-Two result files are always written to the directory specified by `output-path`
+After every run, result files are written to the directory specified by `output-path`
 (defaults to `./`):
 
 - `bench-YYYYMMDD-HHMMSS.txt` — human-readable report, always produced
 - `bench-YYYYMMDD-HHMMSS.yaml` — machine-parseable YAML (when `--output-format yaml` or `both`; this is the default)
 - `bench-YYYYMMDD-HHMMSS.tsv` — tab-separated values (when `--output-format tsv` or `both`)
+- `bench-YYYYMMDD-HHMMSS-<track>-ttfb.hgrm` — full TTFB latency distribution in HDR histogram text format (one file per track; **read tracks only**)
+- `bench-YYYYMMDD-HHMMSS-<track>-total-latency.hgrm` — full end-to-end latency distribution (one file per track, all op types)
+
+The `.hgrm` files can be plotted as a frequency distribution (count vs. latency, log or linear X scale) with `gcs-bench plot-hgrm` — see [§6](#hdr-histogram-files-hgrm).
 
 ---
 
@@ -615,6 +623,100 @@ These files are useful for comparing prepare throughput and upload latency acros
 runs and for audit trails (confirming how many objects were written and how many
 failed).
 
+### HDR histogram files (.hgrm)
+
+Every `bench` run writes two `.hgrm` files per track alongside the `.txt` /
+`.yaml` / `.tsv` outputs:
+
+| File | Content |
+|------|---------|
+| `bench-YYYYMMDD-HHMMSS-<track>-ttfb.hgrm` | Full TTFB latency distribution — **read tracks only**; file is still created but will be empty for write/stat/list tracks |
+| `bench-YYYYMMDD-HHMMSS-<track>-total-latency.hgrm` | Full end-to-end (TTLB) latency distribution — all op types |
+
+The files use the standard [HdrHistogram](http://hdrhistogram.org/) percentile
+distribution text format. Latency values are in **milliseconds** (the raw
+histogram stores µs internally; the `.hgrm` export scales by ÷1000 for
+compatibility with plotting tools). Example:
+
+```
+       Value     Percentile TotalCount 1/(1-Percentile)
+
+       1.000   0.000000000000          1           1.00
+      13.000   0.500000000000     246231           2.00
+      17.000   0.900000000000     441787          10.00
+      19.000   0.950000000000     465873          20.00
+      24.000   0.990000000000     486169         100.00
+      45.000   0.999000000000     487049        1000.00
+     578.000   1.000000000000     487541  Infinity
+#[Mean    =       14.333, StdDeviation   =        8.741]
+#[Max     =      578.000, Total count    =       487541]
+#[Buckets =           16, SubBuckets     =        32768]
+```
+
+#### Plotting as a frequency distribution (recommended)
+
+`gcs-bench plot-hgrm` is a built-in subcommand that reads one or more `.hgrm`
+files and writes a self-contained SVG — no extra tools or dependencies required.
+The chart shows **latency (ms) on the X axis** (log scale) and **operation count
+on the Y axis**. With a logarithmic X axis, lognormal latency data appears as a
+symmetric bell curve. Multiple files are overlaid on the same chart.
+
+```bash
+# Plot a single track (output → latency_distribution.svg)
+gcs-bench plot-hgrm results/bench-20260329-184200-unet3d-read-total-latency.hgrm
+
+# Overlay TTFB and total-latency for the same run
+gcs-bench plot-hgrm \
+    results/bench-20260329-184200-unet3d-read-ttfb.hgrm \
+    results/bench-20260329-184200-unet3d-read-total-latency.hgrm
+
+# Compare the same track across two runs; write to a custom file
+gcs-bench plot-hgrm \
+    run1/bench-20260329-184200-unet3d-read-total-latency.hgrm \
+    run2/bench-20260329-185500-unet3d-read-total-latency.hgrm \
+    --output comparison.svg
+
+# Use a linear X axis instead of log (useful for very narrow latency distributions)
+gcs-bench plot-hgrm results/bench-20260329-184200-unet3d-read-total-latency.hgrm \
+    --scale linear --output linear.svg
+```
+
+Output is written to `latency_distribution.svg` by default (override with
+`--output`). Use `--scale log` (default) for a logarithmic X axis or
+`--scale linear` for a linear X axis. Open the SVG in any browser or image viewer. File names from the
+`bench-YYYYMMDD-HHMMSS-<track>-<type>` naming convention are automatically
+shortened in the legend to just the `<track>-<type>` portion.
+
+> **Why log X scale?**  GCS read latency is approximately lognormal — the
+> underlying distribution is close to Gaussian when plotted on a log latency
+> axis.  A linear X scale compresses the bulk of the distribution into a narrow
+> spike and stretches the tail, making the shape hard to read.
+
+#### CDF percentile view (alternative)
+
+If you specifically want a cumulative distribution function (CDF) / percentile
+plot — useful for reading off "what fraction of operations completed within X
+ms" — upload the `.hgrm` file to:
+
+> <https://hdrhistogram.github.io/HdrHistogram/plotFiles.html>
+
+Note that this is a CDF view, not a frequency distribution.
+
+#### Naming convention
+
+For a config with `output-path: ./results`, a run at `2026-03-29 18:42:00`,
+and a track named `unet3d-read`, the files are:
+
+```
+results/bench-20260329-184200-unet3d-read-ttfb.hgrm
+results/bench-20260329-184200-unet3d-read-total-latency.hgrm
+```
+
+For a config with multiple tracks, one pair of `.hgrm` files is created for
+each track.
+
+---
+
 ### TSV output file
 
 One row per track. All numeric values are raw (latency in µs, throughput in
@@ -1174,16 +1276,20 @@ the RAPID bucket rejected the connection. Switch from `auto` to `on`.
 
 ## 12. Verbosity and diagnostic logging
 
-By default, `gcs-bench bench` produces minimal output — only errors are shown.
-Phase transition messages ("Warming up...", "Measuring...") and prepare
-progress are suppressed to keep output clean when redirecting to log files.
+By default, `gcs-bench bench` prints live **10-second throughput ticks** to
+stderr throughout the warmup and measurement phases — always, regardless of
+whether `-v` is set. This ensures you always see progress during long runs
+without having to remember a flag. Phase-transition messages ("Warming up for
+30s...", "Measuring for 5m0s..."), RAPID detection, and DirectPath verification
+are suppressed at the default level to keep output clean when redirecting to
+log files.
 
 Use the `-v` flag (repeat for more detail) to increase verbosity:
 
 | Flag | Level | What you see |
 |------|-------|--------------|
 | _(none)_ | WARN | Live 10 s throughput ticks (interval-ops + GiB/s + total-ops) for warmup and measurement; errors when they occur |
-| `-v` | INFO | Same ticks + RAPID detection/confirmation, DirectPath verification, phase-transition messages |
+| `-v` | INFO | Same ticks + RAPID detection/confirmation, DirectPath verification, phase-transition messages ("Warming up...", "Measuring...") |
 | `-vv` | DEBUG | Ticks include elapsed, remaining, total-ops, and total-errs; all INFO messages above |
 | `-vvv` | TRACE | Every individual GCS call — op type, object name, elapsed time, bytes |
 
