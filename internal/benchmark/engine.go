@@ -417,6 +417,12 @@ func (e *Engine) runWorker(ctx context.Context, ts *trackState) {
 			// Unsupported op; skip and continue.
 		}
 		if err != nil {
+			// Errors caused by context cancellation are expected at phase
+			// transitions (warmup→measurement, end-of-run) when in-flight
+			// gRPC calls are interrupted. Don't count or log them.
+			if ctx.Err() != nil {
+				return
+			}
 			n := ts.totalErrs.Add(1)
 			if n <= 3 {
 				logger.Warnf("[bench] track=%q error #%d: %v\n", ts.cfg.Name, n, err)

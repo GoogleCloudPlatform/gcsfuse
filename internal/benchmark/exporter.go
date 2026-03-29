@@ -28,7 +28,8 @@ import (
 )
 
 // Export writes summary to disk in the requested format ("yaml", "tsv", "both").
-// Files are named bench-YYYYMMDD-HHMMSS.{yaml,tsv} under outputPath.
+// A timestamped subdirectory bench-YYYYMMDD-HHMMSS/ is created under outputPath
+// and all result files are written inside it.
 // When outputPath is empty the current working directory is used.
 func Export(summary RunSummary, outputPath, format string) error {
 	if outputPath == "" {
@@ -38,28 +39,29 @@ func Export(summary RunSummary, outputPath, format string) error {
 			return fmt.Errorf("getwd: %w", err)
 		}
 	}
-	if err := os.MkdirAll(outputPath, 0755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", outputPath, err)
+
+	// Create a timestamped subdirectory so all result files stay together.
+	timestamp := summary.StartTime.UTC().Format("20060102-150405")
+	subDir := filepath.Join(outputPath, "bench-"+timestamp)
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", subDir, err)
 	}
 
-	timestamp := summary.StartTime.UTC().Format("20060102-150405")
-	stem := filepath.Join(outputPath, "bench-"+timestamp)
-
 	// Always write the human-readable text file alongside whatever machine format.
-	if err := writeHumanText(summary, stem+".txt"); err != nil {
+	if err := writeHumanText(summary, filepath.Join(subDir, "bench.txt")); err != nil {
 		return err
 	}
 
 	switch format {
 	case "yaml":
-		return writeYAML(summary, stem+".yaml")
+		return writeYAML(summary, filepath.Join(subDir, "bench.yaml"))
 	case "tsv":
-		return writeTSV(summary, stem+".tsv")
+		return writeTSV(summary, filepath.Join(subDir, "bench.tsv"))
 	case "both":
-		if err := writeYAML(summary, stem+".yaml"); err != nil {
+		if err := writeYAML(summary, filepath.Join(subDir, "bench.yaml")); err != nil {
 			return err
 		}
-		return writeTSV(summary, stem+".tsv")
+		return writeTSV(summary, filepath.Join(subDir, "bench.tsv"))
 	default:
 		return fmt.Errorf("unknown output format %q; expected yaml|tsv|both", format)
 	}
@@ -309,8 +311,9 @@ func writeHumanText(summary RunSummary, path string) error {
 // HdrHistogram text output compatible with hgrplot and HdrHistogram's plotting
 // page at https://hdrhistogram.github.io/HdrHistogram/plotFiles.html.
 // Values in .hgrm files are in milliseconds (converted from µs storage).
-// File names follow the bench-YYYYMMDD-HHMMSS-<track>-{ttfb,total-latency}.hgrm
-// pattern alongside the .txt/.yaml/.tsv files.
+// ExportHgrm writes HDR histogram percentile-distribution files (.hgrm) for
+// each track. Files are written into the same bench-YYYYMMDD-HHMMSS/
+// subdirectory as Export so all result files are co-located.
 func ExportHgrm(summary RunSummary, hists []*TrackHistograms, outputPath string) error {
 	if len(hists) == 0 {
 		return nil
@@ -322,18 +325,19 @@ func ExportHgrm(summary RunSummary, hists []*TrackHistograms, outputPath string)
 			return fmt.Errorf("getwd: %w", err)
 		}
 	}
-	if err := os.MkdirAll(outputPath, 0755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", outputPath, err)
-	}
+	// Use the same timestamped subdirectory as Export.
 	timestamp := summary.StartTime.UTC().Format("20060102-150405")
-	stem := filepath.Join(outputPath, "bench-"+timestamp)
+	subDir := filepath.Join(outputPath, "bench-"+timestamp)
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", subDir, err)
+	}
 	for i, t := range summary.Tracks {
 		if i >= len(hists) {
 			break
 		}
 		safeName := strings.NewReplacer("/", "_", " ", "_").Replace(t.TrackName)
-		ttfbPath := stem + "-" + safeName + "-ttfb.hgrm"
-		totalPath := stem + "-" + safeName + "-total-latency.hgrm"
+		ttfbPath := filepath.Join(subDir, safeName+"-ttfb.hgrm")
+		totalPath := filepath.Join(subDir, safeName+"-total-latency.hgrm")
 
 		ttfbF, err := os.Create(ttfbPath)
 		if err != nil {
