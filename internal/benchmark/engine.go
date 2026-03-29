@@ -37,6 +37,10 @@ type Engine struct {
 	bucket gcs.Bucket
 	bCfg   cfg.BenchmarkConfig
 
+	// verbosity mirrors the -v/-vv/-vvv flag count from the CLI.
+	// 0 = WARN (silent progress), 1 = INFO, 2 = DEBUG (extra per-interval detail).
+	verbosity int
+
 	// trackState holds per-track runtime state.
 	trackState []*trackState
 }
@@ -60,7 +64,9 @@ type trackState struct {
 }
 
 // NewEngine creates a benchmark Engine backed by the provided gcs.Bucket.
-func NewEngine(bucket gcs.Bucket, bCfg cfg.BenchmarkConfig) (*Engine, error) {
+// verbosity mirrors the CLI -v/-vv/-vvv count (0 = silent progress, 1 = INFO,
+// 2 = DEBUG with extra per-interval detail).
+func NewEngine(bucket gcs.Bucket, bCfg cfg.BenchmarkConfig, verbosity int) (*Engine, error) {
 	if bucket == nil {
 		return nil, fmt.Errorf("bucket must not be nil")
 	}
@@ -85,6 +91,7 @@ func NewEngine(bucket gcs.Bucket, bCfg cfg.BenchmarkConfig) (*Engine, error) {
 	return &Engine{
 		bucket:     bucket,
 		bCfg:       bCfg,
+		verbosity:  verbosity,
 		trackState: states,
 	}, nil
 }
@@ -156,10 +163,13 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 	if e.bCfg.WarmupDuration > 0 {
 		logger.Infof("Warming up for %s...\n", e.bCfg.WarmupDuration)
 		warmupCtx, cancel := context.WithTimeout(ctx, e.bCfg.WarmupDuration)
+		stopWarmupProgress := e.startProgressReporter(warmupCtx, "warmup", e.bCfg.WarmupDuration)
 		if err := e.runPhase(warmupCtx); err != nil && err != context.DeadlineExceeded {
+			stopWarmupProgress()
 			cancel()
 			return RunSummary{}, fmt.Errorf("warmup: %w", err)
 		}
+		stopWarmupProgress()
 		cancel()
 
 		// Reset histograms and counters so warmup data is discarded.
@@ -177,41 +187,12 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 	measCtx, cancel := context.WithTimeout(ctx, e.bCfg.Duration)
 	defer cancel()
 
-	// Live progress reporter: prints interval throughput every 10 s so the
-	// operator can confirm the benchmark is making progress.
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-		type snap struct{ bytes, ops, errs int64 }
-		last := make([]snap, len(e.trackState))
-		lastAt := time.Now()
-		for {
-			select {
-			case <-measCtx.Done():
-				return
-			case t := <-ticker.C:
-				interval := t.Sub(lastAt).Seconds()
-				lastAt = t
-				for i, ts := range e.trackState {
-					cur := snap{
-						bytes: ts.totalBytes.Load(),
-						ops:   ts.totalOps.Load(),
-						errs:  ts.totalErrs.Load(),
-					}
-					dBytes := float64(cur.bytes - last[i].bytes)
-					dOps := cur.ops - last[i].ops
-					last[i] = cur
-					tputGiB := (dBytes / interval) / (1024 * 1024 * 1024)
-					logger.Infof("[bench] track=%q  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d  total-errs=%d\n",
-						ts.cfg.Name, dOps, tputGiB, cur.ops, cur.errs)
-				}
-			}
-		}
-	}()
-
+	stopMeasProgress := e.startProgressReporter(measCtx, "bench", e.bCfg.Duration)
 	if err := e.runPhase(measCtx); err != nil && err != context.DeadlineExceeded {
+		stopMeasProgress()
 		return RunSummary{}, fmt.Errorf("measurement: %w", err)
 	}
+	stopMeasProgress()
 	elapsed := time.Since(start)
 
 	// --- Collect results ---
@@ -716,4 +697,64 @@ func (e *Engine) runPrepare(ctx context.Context) error {
 			float64(n)/elapsed.Seconds(), errs)
 	}
 	return nil
+}
+
+// startProgressReporter launches a background goroutine that logs throughput
+// progress every 10 seconds for the given phase ("warmup" or "bench").
+// The verbosity level controls detail:
+//   - verbosity >= 1 (–v):  INFO line every 10 s with interval ops + GiB/s
+//   - verbosity >= 2 (–vv): also logs elapsed/remaining and per-track error count
+//
+// Returns a stop function; call it after the phase completes to ensure the
+// goroutine is torn down cleanly (in addition to ctx cancellation).
+func (e *Engine) startProgressReporter(ctx context.Context, phase string, total time.Duration) func() {
+	stopCh := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		type snap struct{ bytes, ops, errs int64 }
+		last := make([]snap, len(e.trackState))
+		lastAt := time.Now()
+		phaseStart := time.Now()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-stopCh:
+				return
+			case t := <-ticker.C:
+				interval := t.Sub(lastAt).Seconds()
+				lastAt = t
+				elapsed := t.Sub(phaseStart)
+				remaining := total - elapsed
+				if remaining < 0 {
+					remaining = 0
+				}
+				for i, ts := range e.trackState {
+					cur := snap{
+						bytes: ts.totalBytes.Load(),
+						ops:   ts.totalOps.Load(),
+						errs:  ts.totalErrs.Load(),
+					}
+					dBytes := float64(cur.bytes - last[i].bytes)
+					dOps := cur.ops - last[i].ops
+					last[i] = cur
+					tputGiB := (dBytes / interval) / (1024 * 1024 * 1024)
+
+					if e.verbosity >= 2 {
+						// –vv: elapsed, remaining, interval stats, running totals
+						logger.Infof("[%s] track=%q  elapsed=%s  remaining=%s  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d  total-errs=%d\n",
+							phase, ts.cfg.Name,
+							elapsed.Round(time.Second), remaining.Round(time.Second),
+							dOps, tputGiB, cur.ops, cur.errs)
+					} else {
+						// –v: compact one-liner
+						logger.Infof("[%s] track=%q  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d\n",
+							phase, ts.cfg.Name, dOps, tputGiB, cur.ops)
+					}
+				}
+			}
+		}
+	}()
+	return func() { close(stopCh) }
 }

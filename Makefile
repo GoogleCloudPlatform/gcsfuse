@@ -93,7 +93,9 @@ e2e-test:
 # version declared in go.mod when the locally-installed version is older.
 
 # bench: build the gcs-bench binary.  Fast — no vet/fmt overhead.
+# go generate must run first to regenerate cfg/config.go (deleted by make clean).
 bench:
+	GOTOOLCHAIN=auto go generate ./...
 	GOTOOLCHAIN=auto go build -o gcs-bench .
 
 # bench-test: vet + run the benchmark package unit tests.

@@ -175,7 +175,7 @@ func makeReadOnlyConfig(duration, warmup time.Duration, concurrency int) cfg.Ben
 
 // TestNewEngineNilBucket verifies that NewEngine rejects a nil bucket.
 func TestNewEngineNilBucket(t *testing.T) {
-	_, err := NewEngine(nil, makeReadOnlyConfig(time.Second, 0, 1))
+	_, err := NewEngine(nil, makeReadOnlyConfig(time.Second, 0, 1), 0)
 	if err == nil {
 		t.Fatal("expected error for nil bucket, got nil")
 	}
@@ -186,7 +186,7 @@ func TestNewEngineNoTracks(t *testing.T) {
 	_, err := NewEngine(&mockBucket{}, cfg.BenchmarkConfig{
 		Duration:   time.Second,
 		Histograms: cfg.DefaultHistogramConfig(),
-	})
+	}, 0)
 	if err == nil {
 		t.Fatal("expected error for empty tracks, got nil")
 	}
@@ -198,7 +198,7 @@ func TestEngineRunShort(t *testing.T) {
 	mb := &mockBucket{readDelay: 0, readBytes: 4096}
 	bCfg := makeReadOnlyConfig(200*time.Millisecond, 0, 2)
 
-	engine, err := NewEngine(mb, bCfg)
+	engine, err := NewEngine(mb, bCfg, 0)
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestEngineRunWithWarmup(t *testing.T) {
 	mb := &mockBucket{readBytes: 4096}
 	bCfg := makeReadOnlyConfig(300*time.Millisecond, 100*time.Millisecond, 1)
 
-	engine, err := NewEngine(mb, bCfg)
+	engine, err := NewEngine(mb, bCfg, 0)
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestDoReadFullObjectWhenReadSizeIsZero(t *testing.T) {
 				},
 			}
 
-			eng, err := NewEngine(mb, bCfg)
+			eng, err := NewEngine(mb, bCfg, 0)
 			if err != nil {
 				t.Fatalf("NewEngine: %v", err)
 			}

@@ -230,6 +230,15 @@ func newBenchmarkRootCmd() *cobra.Command {
 				return fmt.Errorf("BucketHandle(%q): %w", bucketName, err)
 			}
 
+			// Log the resolved transport so the operator can confirm RAPID/bidi-gRPC
+			// is actually active (not just requested).
+			bt := bh.BucketType()
+			if bt.Zonal {
+				logger.Infof("RAPID mode: CONFIRMED — bucket %q is zonal; bidi-gRPC (RAPID) transport is ACTIVE\n", bucketName)
+			} else {
+				logger.Infof("RAPID mode: bucket %q is NOT zonal; using standard HTTP/2 transport\n", bucketName)
+			}
+
 			// --- Pre-flight check ---
 			// Uses the raw (un-wrapped) bucket handle so that pre-flight I/O
 			// does not pollute the benchmark histograms.
@@ -248,7 +257,7 @@ func newBenchmarkRootCmd() *cobra.Command {
 			_ = metrics.NewNoopMetrics()
 
 			// --- Create and run engine ---
-			engine, err := benchmark.NewEngine(wrappedBucket, benchCfg)
+			engine, err := benchmark.NewEngine(wrappedBucket, benchCfg, verbosity)
 			if err != nil {
 				return fmt.Errorf("NewEngine: %w", err)
 			}
