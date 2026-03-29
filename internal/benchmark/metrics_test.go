@@ -249,8 +249,8 @@ func TestPrepareSummaryWriteLatencyWithinExpectedRange(t *testing.T) {
 	}
 	ts := runPrepare(t, mb, 5)
 
-	const minUs = 500.0    // 0.5 ms — conservative lower bound
-	const maxUs = 1e7      // 10 s  — sanity upper bound
+	const minUs = 500.0 // 0.5 ms — conservative lower bound
+	const maxUs = 1e7   // 10 s  — sanity upper bound
 	if ts.TotalLatency.P50 < minUs || ts.TotalLatency.P50 > maxUs {
 		t.Errorf("TotalLatency.P50 out of expected range [%.0f, %.0f] µs, got %.1f µs",
 			minUs, maxUs, ts.TotalLatency.P50)
