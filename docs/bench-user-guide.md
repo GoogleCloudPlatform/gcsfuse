@@ -1134,11 +1134,17 @@ and force bidi-gRPC directly.
 
 ### Diagnosing RAPID connection issues
 
-Combine `--rapid-mode` with `-v` to see which protocol was selected:
+Combine `--rapid-mode` with `-v` to see which protocol was selected and confirmed:
 
 ```
 $ ./gcs-bench bench --config rapid-bench.yaml --rapid-mode auto -v
 RAPID mode: auto (detecting bucket type via GetStorageLayout)
+Creating GCS storage handle (bucket=my-rapid-bucket)...
+GetStorageLayout <- (my-rapid-bucket)
+GetStorageLayout -> (my-rapid-bucket) 72 msec
+Verifying DirectPath connectivity for bucket "my-rapid-bucket" with stat call
+DirectPath verification successful for bucket "my-rapid-bucket", applying production retry config
+RAPID mode: CONFIRMED — bucket "my-rapid-bucket" is zonal; bidi-gRPC (RAPID) transport is ACTIVE
 
 === Pre-flight check ===
 
@@ -1146,8 +1152,19 @@ RAPID mode: auto (detecting bucket type via GetStorageLayout)
 
   Pre-flight: PASSED — benchmark should work.
 
-Waiting 0s for synchronized start...
+Warming up for 30s...
+[warmup] track="my-track"  interval-ops=13334  interval-throughput=8.97 GiB/s  total-ops=13334
+[warmup] track="my-track"  interval-ops=14712  interval-throughput=9.80 GiB/s  total-ops=28046
 Measuring for 5m0s...
+[bench] track="my-track"  interval-ops=15690  interval-throughput=10.62 GiB/s  total-ops=15690
+...
+```
+
+The `CONFIRMED` line is the definitive signal that bidi-gRPC RAPID transport
+is active. If the bucket is not zonal, you will instead see:
+
+```
+RAPID mode: bucket "my-bucket" is NOT zonal; using standard HTTP/2 transport
 ```
 
 If the LIST step fails in pre-flight, the protocol negotiation failed and
@@ -1166,8 +1183,8 @@ Use the `-v` flag (repeat for more detail) to increase verbosity:
 | Flag | Level | What you see |
 |------|-------|--------------|
 | _(none)_ | WARN | Only errors; first 3 errors per track are shown inline |
-| `-v` | INFO | Phase transitions, RAPID mode selection, prepare progress (`N/M (X%)`) |
-| `-vv` | DEBUG | Per-object errors on read/write/stat/list calls |
+| `-v` | INFO | RAPID detection + confirmation, DirectPath verification, phase transitions, live 10 s throughput ticks during warmup and measurement, prepare progress |
+| `-vv` | DEBUG | Same as `-v` plus elapsed/remaining time, total-ops, and total-errs in every throughput tick |
 | `-vvv` | TRACE | Every individual GCS call — op type, object name, elapsed time, bytes |
 
 All output is in plain-text format (never JSON) regardless of verbosity level.
@@ -1190,16 +1207,34 @@ All output is in plain-text format (never JSON) regardless of verbosity level.
 
 ```
 RAPID mode: auto (detecting bucket type via GetStorageLayout)
+Creating GCS storage handle (bucket=my-rapid-bucket)...
+GetStorageLayout <- (my-rapid-bucket)
+GetStorageLayout -> (my-rapid-bucket) 72 msec
+Verifying DirectPath connectivity for bucket "my-rapid-bucket" with stat call
+DirectPath verification successful for bucket "my-rapid-bucket", applying production retry config
+RAPID mode: CONFIRMED — bucket "my-rapid-bucket" is zonal; bidi-gRPC (RAPID) transport is ACTIVE
 
 === Pre-flight check ===
 
-  [1/1] LIST gs://my-bucket/unet3d/ ... OK [42ms] — 50176+ object(s) found
+  [1/1] LIST gs://my-rapid-bucket/unet3d/ ... OK [42ms] — 50176+ object(s) found
 
   Pre-flight: PASSED — benchmark should work.
 
 Warming up for 30s...
+[warmup] track="unet3d-read"  interval-ops=13334  interval-throughput=8.97 GiB/s  total-ops=13334
+[warmup] track="unet3d-read"  interval-ops=14712  interval-throughput=9.80 GiB/s  total-ops=28046
 Measuring for 5m0s...
+[bench] track="unet3d-read"  interval-ops=15690  interval-throughput=10.62 GiB/s  total-ops=15690
+[bench] track="unet3d-read"  interval-ops=16114  interval-throughput=10.66 GiB/s  total-ops=31804
+[bench] track="unet3d-read"  interval-ops=16110  interval-throughput=10.87 GiB/s  total-ops=47914
+...
 ```
+
+Progress ticks fire every 10 seconds for both warmup and measurement. A small
+burst of `DeadlineExceeded` warnings is normal at phase-transition boundaries
+(warmup→measurement and measurement→end) as in-flight reads are cancelled
+when the phase context expires; these are counted in the final error total but
+do not indicate a protocol or connectivity problem.
 
 ### Sample `-vvv` TRACE output
 
