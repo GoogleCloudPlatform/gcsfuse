@@ -156,6 +156,11 @@ func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, test
 	return testDirPath
 }
 
+func SetupUniqueTestDirectory(ctx context.Context, storageClient *storage.Client, testDirPrefix string) string {
+	testDirName := testDirPrefix + "_" + setup.GenerateRandomString(5)
+	return SetupTestDirectory(ctx, storageClient, testDirName)
+}
+
 func CreateNFilesInDir(ctx context.Context, storageClient *storage.Client, numFiles int, fileName string, fileSize int64, dirName string, t *testing.T) (fileNames []string) {
 	for range numFiles {
 		testFileName := fileName + setup.GenerateRandomString(4)

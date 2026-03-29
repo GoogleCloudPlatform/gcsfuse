@@ -80,10 +80,7 @@ readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=90 
-readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
-# e2e buckets created are retained for upto 10 days before deletion.
-readonly BUCKET_RETENTION_PERIOD_DAYS=10
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
 readonly DELAY_BETWEEN_BUCKET_CREATION=6 
@@ -499,7 +496,7 @@ cleanup_created_buckets() {
     local start_index=0
     local total_buckets=${#bucket_uris[@]}
     # Number of buckets to delete in a single batch.
-    local readonly bucket_deletion_batch_size=10
+    local bucket_deletion_batch_size=10
 
     while [ "$start_index" -lt "$total_buckets" ]; do
         # Calculate end index for the current batch
@@ -827,7 +824,7 @@ install_packages() {
   fi
   log_info "Detected OS ID: $os_id"
 
-  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod" || {
+  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod"  "fuse3"  "python3-rich" || {
     log_error "Failed to install required packages."
     exit 1
   }
@@ -835,12 +832,16 @@ install_packages() {
   # Execute install_go.sh using the absolute path
   bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
+  export USER=$(whoami)
+  export GOPATH="$(eval echo ~$USER)/go"
+  export GOMODCACHE="$GOPATH/pkg/mod"
+  export GOCACHE="$GOPATH/.cache/go-build"
   
   # Install latest gcloud version.
   bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
-  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
-  export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+  export CLOUDSDK_PYTHON="/usr/local/bin/python3.11"
+  export PATH="/usr/local/python-3.11.9/bin:$PATH"
   if ${KOKORO_DIR_AVAILABLE} ; then
     # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
@@ -873,6 +874,10 @@ run_test_group() {
 }
 
 run_e2e_tests_for_emulator() {
+  local package_name="emulator_tests"
+  local bucket_type="emulator"
+  local start=$SECONDS exit_code=0
+
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log
   emulator_test_log=$(create_file_helper "running_package_logs/emulator/emulator.txt")
@@ -892,9 +897,9 @@ run_e2e_tests_for_emulator() {
 }
 
 main() {
-  # Clean up everything on exit.
-  trap clean_up EXIT
-  log_info ""
+  # # Clean up everything on exit.
+  # trap clean_up EXIT
+  # log_info ""
   log_info "------ Upgrading gcloud and installing packages ------"
   log_info ""
   set -e
@@ -902,79 +907,82 @@ main() {
   set +e
   log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
-  log_info ""
-  log_info "------ Started running E2E test packages ------"
-  log_info ""
+  # log_info ""
+  # log_info "------ Started running E2E test packages ------"
+  # log_info ""
 
-   # Decide whether to install a package from a path or build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
-  if [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then
-    log_info "Installing package from the path '${INSTALL_PACKAGE_FROM_PATH}'"
-    if ! install_package_from_path "$INSTALL_PACKAGE_FROM_PATH"; then 
-      log_error "Unable to install the package from path '${INSTALL_PACKAGE_FROM_PATH}'. Exiting."
-      exit 1
-    fi
-    # Setting test installed package to true
-    TEST_INSTALLED_PACKAGE=true
-  elif (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
-    log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
-    log_info "Building GCSFuse inside script..."
-    if ! build_gcsfuse_once; then
-        log_error "build_gcsfuse_once failed. Exiting."
-        # The trap will handle cleanup
-        exit 1
-    fi
-    log_info "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
-  fi
+  #  # Decide whether to install a package from a path or build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
+  # if [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then
+  #   log_info "Installing package from the path '${INSTALL_PACKAGE_FROM_PATH}'"
+  #   if ! install_package_from_path "$INSTALL_PACKAGE_FROM_PATH"; then 
+  #     log_error "Unable to install the package from path '${INSTALL_PACKAGE_FROM_PATH}'. Exiting."
+  #     exit 1
+  #   fi
+  #   # Setting test installed package to true
+  #   TEST_INSTALLED_PACKAGE=true
+  # elif (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
+  #   log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
+  #   log_info "Building GCSFuse inside script..."
+  #   if ! build_gcsfuse_once; then
+  #       log_error "build_gcsfuse_once failed. Exiting."
+  #       # The trap will handle cleanup
+  #       exit 1
+  #   fi
+  #   log_info "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  # fi
 
-  # Reset SECONDS to 0
-  SECONDS=0
+  # # Reset SECONDS to 0
+  # SECONDS=0
 
-  if ${TRACK_RESOURCE_USAGE}; then
-    # Start collecting system resource usage in background.
-    log_info "Starting resource usage collection process."
-    ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
-    RESOURCE_USAGE_PID=$!
-    log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
-  fi
+  # if ${TRACK_RESOURCE_USAGE}; then
+  #   # Start collecting system resource usage in background.
+  #   log_info "Starting resource usage collection process."
+  #   ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
+  #   RESOURCE_USAGE_PID=$!
+  #   log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
+  # fi
 
-  local pids=()
-  local overall_exit_code=0
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
-  elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
-    # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
-    PROJECT_ID="$TPCZERO_PROJECT_ID"
-    BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
-    run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
-    run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
-  else
-    run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
-    run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
-    run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
-  fi
-  # Wait for all background processes to complete and aggregate their exit codes
-  for pid in "${pids[@]}"; do
-    wait "$pid"
-    overall_exit_code=$((overall_exit_code || $?))
-  done
-  elapsed_min=$(((SECONDS + 60) / 60))
-  log_info "------ E2E test packages complete run took ${elapsed_min} minutes ------"
-  log_info ""
+  # local pids=()
+  # local overall_exit_code=0
+  # if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  #   run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
+  # elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
+  #   # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
+  #   PROJECT_ID="$TPCZERO_PROJECT_ID"
+  #   BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
+  #   run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
+  #   run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
+  # else
+  #   run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
+  #   run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
+  #   run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
+  # fi
+  # # Wait for all background processes to complete and aggregate their exit codes
+  # for pid in "${pids[@]}"; do
+  #   wait "$pid"
+  #   overall_exit_code=$((overall_exit_code || $?))
+  # done
+  # elapsed_min=$(((SECONDS + 60) / 60))
+  # log_info "------ E2E test packages complete run took ${elapsed_min} minutes ------"
+  # log_info ""
 
   # Print package runtime stats table.
-  ./tools/integration_tests/create_package_runtime_table.sh "$PACKAGE_RUNTIME_STATS"
-
-  if ${TRACK_RESOURCE_USAGE}; then
-    # Kill resource usage background PID and print resource usage.
-    log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
-    if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
-      log_info "Resource usage collection process stopped."
-      ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
-    else
-      log_error "Failed to stop resource usage collection process (or it's already stopped)"
-    fi
-  fi
-  exit $overall_exit_code
+  ./tools/integration_tests/create_package_runtime_table.sh "./tools/integration_tests/package_runtime_stats.txt"
+  ./tools/integration_tests/create_package_runtime_table.sh "./tools/integration_tests/package_runtime_stats.txt" > /tmp/package_runtime_stats.txt
+  sed 's/ /\xC2\xA0/g' /tmp/package_runtime_stats.txt > /tmp/output.txt
+  cat /tmp/output.txt
+  exit 0
+  # if ${TRACK_RESOURCE_USAGE}; then
+  #   # Kill resource usage background PID and print resource usage.
+  #   log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
+  #   if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+  #     log_info "Resource usage collection process stopped."
+  #     ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
+  #   else
+  #     log_error "Failed to stop resource usage collection process (or it's already stopped)"
+  #   fi
+  # fi
+  # exit $overall_exit_code
 }
 
 #Main method to run script

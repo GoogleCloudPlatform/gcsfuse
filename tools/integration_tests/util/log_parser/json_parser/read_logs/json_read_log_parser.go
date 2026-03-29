@@ -28,6 +28,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
+var whitespaceRegex = regexp.MustCompile(`\s+`)
+
 func filterAndParseLogLine(logLine string,
 	structuredLogs map[int64]*StructuredReadLogEntry,
 	opReverseMap map[string]*handleAndChunkIndex) error {
@@ -41,7 +43,7 @@ func filterAndParseLogLine(logLine string,
 	timestampSeconds := int64(jsonLog["timestamp"].(map[string]any)["seconds"].(float64))
 	timestampNanos := int64(jsonLog["timestamp"].(map[string]any)["nanos"].(float64))
 	// Normalize whitespace in the log message.
-	logMessage := strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(jsonLog["message"].(string), " "))
+	logMessage := strings.TrimSpace(whitespaceRegex.ReplaceAllString(jsonLog["message"].(string), " "))
 	// Tokenize log message.
 	tokenizedLogs := strings.Split(logMessage, " ")
 
@@ -165,7 +167,7 @@ func ParseJsonLogLineIntoLogEntryStruct(jsonLogEntry string) (*LogEntry, error) 
 	entry.Timestamp = time.Unix(timestampSeconds, timestampNanos)
 
 	// Normalize whitespace in the log message.
-	entry.Message = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(jsonLog["message"].(string), " "))
+	entry.Message = strings.TrimSpace(whitespaceRegex.ReplaceAllString(jsonLog["message"].(string), " "))
 
 	return entry, nil
 }

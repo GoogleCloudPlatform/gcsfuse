@@ -57,6 +57,7 @@ const (
 // or optimizedVal (considering mount type).
 func (s *KernelReaderParamsSuite) verifyKernelParam(path string, expectedVal string, optimizedVal string) {
 	s.T().Helper()
+	log.Printf("verifyKernelParam: Reading path %s", path)
 	content, err := os.ReadFile(path)
 	require.NoError(s.T(), err)
 	val := strings.TrimSpace(string(content))
@@ -149,6 +150,19 @@ func (s *KernelReaderParamsSuite) TestKernelParamVerification() {
 	require.NoError(s.T(), err)
 	devMajor := unix.Major(stat.Dev)
 	devMinor := unix.Minor(stat.Dev)
+
+	log.Printf("TestKernelParamVerification: MntDir=%s, stat.Dev=%d, devMajor=%d, devMinor=%d", setup.MntDir(), stat.Dev, devMajor, devMinor)
+
+	connectionsDir := "/sys/fs/fuse/connections"
+	if dirs, err := os.ReadDir(connectionsDir); err != nil {
+		log.Printf("TestKernelParamVerification: Error reading %s: %v", connectionsDir, err)
+	} else {
+		log.Printf("TestKernelParamVerification: Contents of %s:", connectionsDir)
+		for _, d := range dirs {
+			log.Printf("  %s", d.Name())
+		}
+	}
+
 	readAheadPath, err := kernelparams.PathForParam(kernelparams.MaxReadAheadKb, devMajor, devMinor)
 	require.NoError(s.T(), err)
 	maxBackgroundPath, err := kernelparams.PathForParam(kernelparams.MaxBackgroundRequests, devMajor, devMinor)

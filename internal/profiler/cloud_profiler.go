@@ -36,7 +36,7 @@ func setupCloudProfiler(mpc *cfg.CloudProfilerConfig, startFunc startFunctionTyp
 	}
 
 	pConfig := cloudprofiler.Config{
-		Service:              "gcsfuse",
+		Service:              mpc.ServiceName,
 		ServiceVersion:       mpc.Label,
 		MutexProfiling:       mpc.Mutex,
 		NoCPUProfiling:       !mpc.Cpu,
@@ -50,6 +50,6 @@ func setupCloudProfiler(mpc *cfg.CloudProfilerConfig, startFunc startFunctionTyp
 		return err
 	}
 
-	logger.Info("Cloud Profiler started successfully.")
+	logger.Infof("Cloud Profiler started successfully with Service Name: %s for version: %s", mpc.ServiceName, mpc.Label)
 	return nil
 }

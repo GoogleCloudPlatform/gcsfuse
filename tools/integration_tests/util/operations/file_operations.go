@@ -839,10 +839,78 @@ func CreateFileAndCopyToMntDir(t *testing.T, fileSize int, dirName string) (stri
 
 // CreateFileOnDiskAndCopyToMntDir creates a file of given size and copies to given path.
 func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, filePathInMntDir string, fileSize int) {
-	setup.RunScriptForTestData("../util/setup/testdata/write_content_of_fix_size_in_file.sh", filePathInLocalDisk, strconv.Itoa(fileSize))
-	err := CopyFile(filePathInLocalDisk, filePathInMntDir)
+	// Define the 1 MiB chunk size
+	const chunkSize = 1024 * 1024
+
+	// 1. Create the local file
+	localFile, err := os.Create(filePathInLocalDisk)
 	if err != nil {
-		t.Errorf("Error in copying file:%v", err)
+		t.Fatalf("Failed to create local file %q: %v", filePathInLocalDisk, err)
+	}
+	// We use an explicit Close later instead of defer to catch close errors,
+	// but deferring helps if a fatal error occurs halfway through.
+	defer localFile.Close()
+
+	// 2. Write data to the local file using 1 MiB chunk buffers
+	// A slice created with make([]byte, size) is initialized with zeros, which is perfect for generating dummy data.
+	writeBuf := make([]byte, chunkSize)
+	bytesWritten := 0
+
+	for bytesWritten < fileSize {
+		toWrite := fileSize - bytesWritten
+		if toWrite > chunkSize {
+			toWrite = chunkSize
+		}
+
+		n, err := localFile.Write(writeBuf[:toWrite])
+		if err != nil {
+			t.Fatalf("Failed to write chunk to local file: %v", err)
+		}
+		bytesWritten += n
+	}
+
+	// Ensure everything is flushed to disk
+	if err := localFile.Sync(); err != nil {
+		t.Fatalf("Failed to sync local file to disk: %v", err)
+	}
+
+	// 3. Rewind the local file pointer to the beginning so we can copy it
+	if _, err := localFile.Seek(0, io.SeekStart); err != nil {
+		t.Fatalf("Failed to seek local file to start: %v", err)
+	}
+
+	// 4. Create the destination file in the mount directory
+	mntFile, err := os.Create(filePathInMntDir)
+	if err != nil {
+		t.Fatalf("Failed to create destination file %q: %v", filePathInMntDir, err)
+	}
+	defer mntFile.Close()
+
+	// 5. Copy the file over to the mnt dir using an explicit 1 MiB read/write loop
+	copyBuf := make([]byte, chunkSize)
+	for {
+		// Read up to 1 MiB from the local file
+		bytesRead, err := localFile.Read(copyBuf)
+		if err != nil && err != io.EOF {
+			t.Fatalf("Failed to read from local file: %v", err)
+		}
+
+		// If we read any data, write it exactly as is to the mount directory
+		if bytesRead > 0 {
+			if _, wErr := mntFile.Write(copyBuf[:bytesRead]); wErr != nil {
+				t.Fatalf("Failed to write chunk to mnt directory: %v", wErr)
+			}
+		}
+
+		// Stop looping when we hit the end of the file
+		if err == io.EOF {
+			break
+		}
+	}
+
+	// Ensure the mount file is also fully flushed
+	if err := mntFile.Sync(); err != nil {
+		t.Fatalf("Failed to sync mnt file: %v", err)
 	}
 }
 
