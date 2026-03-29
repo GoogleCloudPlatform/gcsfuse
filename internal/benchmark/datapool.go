@@ -51,6 +51,7 @@ import (
 	"context"
 	"runtime"
 	"sync/atomic"
+	"time"
 )
 
 // dpState values — must match the state machine diagram above.
@@ -83,6 +84,13 @@ type DataPool struct {
 	slots      []dpSlot
 	entropy    uint64
 	seqCounter *atomic.Uint64 // shared with engine.writeBlockSeq
+
+	// Pipeline telemetry — written atomically by producer and consumers.
+	// Read via Stats(); delta between two snapshots gives interval rates.
+	bytesProduced   atomic.Int64 // bytes filled and marked READY (full slotSize per slot)
+	bytesConsumed   atomic.Int64 // bytes claimed by consumers (actual object sizes)
+	producerStallNs atomic.Int64 // producer goroutine-ns spent waiting for EMPTY slots
+	consumerStallNs atomic.Int64 // consumer goroutine-ns spent waiting for READY slots
 }
 
 // newDataPool allocates all slot memory up-front and returns a ready-to-use
@@ -143,7 +151,9 @@ func (p *DataPool) RunProducer(ctx context.Context) {
 		// the same index — the producer must NOT skip ahead or it would fill a
 		// slot the consumer will later overwrite with stale EMPTY.
 		if !slot.st.v.CompareAndSwap(dpEmpty, dpFilling) {
+			stallStart := time.Now()
 			runtime.Gosched()
+			p.producerStallNs.Add(time.Since(stallStart).Nanoseconds())
 			continue
 		}
 
@@ -157,6 +167,7 @@ func (p *DataPool) RunProducer(ctx context.Context) {
 		fillRandom(slot.data, p.entropy, startSeq)
 
 		slot.st.v.Store(dpReady)
+		p.bytesProduced.Add(p.slotSize)
 
 		idx = (idx + 1) % p.depth
 	}
@@ -175,13 +186,16 @@ func (p *DataPool) AcquireSlot(ctx context.Context, size int64) (slotIdx int, da
 
 		for i := range p.slots {
 			if p.slots[i].st.v.CompareAndSwap(dpReady, dpConsuming) {
+				p.bytesConsumed.Add(size)
 				return i, p.slots[i].data[:size], nil
 			}
 		}
 
 		// No READY slot: producer hasn't caught up yet.
 		// Yield so the producer goroutine and its fill goroutines can run.
+		stallStart := time.Now()
 		runtime.Gosched()
+		p.consumerStallNs.Add(time.Since(stallStart).Nanoseconds())
 	}
 }
 
@@ -190,4 +204,25 @@ func (p *DataPool) AcquireSlot(ctx context.Context, size int64) (slotIdx int, da
 // in the returned slice have been consumed.
 func (p *DataPool) ReleaseSlot(slotIdx int) {
 	p.slots[slotIdx].st.v.Store(dpEmpty)
+}
+
+// PoolStats is a point-in-time snapshot of DataPool telemetry counters.
+// Take two snapshots and subtract to compute per-interval rates.
+type PoolStats struct {
+	BytesProduced   int64 // cumulative bytes filled and marked READY (slotSize per slot)
+	BytesConsumed   int64 // cumulative bytes claimed by consumers (actual object sizes)
+	ProducerStallNs int64 // cumulative producer goroutine-ns waiting for EMPTY slots
+	ConsumerStallNs int64 // cumulative consumer goroutine-ns waiting for READY slots
+}
+
+// Stats returns a consistent snapshot of all telemetry counters.
+// The counters are monotonically increasing; subtract two snapshots to get
+// interval values for rate and stall-fraction calculations.
+func (p *DataPool) Stats() PoolStats {
+	return PoolStats{
+		BytesProduced:   p.bytesProduced.Load(),
+		BytesConsumed:   p.bytesConsumed.Load(),
+		ProducerStallNs: p.producerStallNs.Load(),
+		ConsumerStallNs: p.consumerStallNs.Load(),
+	}
 }

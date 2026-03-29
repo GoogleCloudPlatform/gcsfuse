@@ -283,6 +283,11 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 	stopMeasProgress()
 	elapsed := time.Since(start)
 
+	// Log pool pipeline final summary after measurement completes.
+	if e.writePool != nil && e.verbosity >= 1 {
+		logPoolFinalSummary(e.writePool, elapsed)
+	}
+
 	// --- Collect results ---
 	summary := RunSummary{
 		StartTime:           start,
@@ -849,6 +854,7 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 		last := make([]snap, len(e.trackState))
 		lastAt := time.Now()
 		phaseStart := time.Now()
+		var lastPool PoolStats // zero on first tick; first interval gives cumulative-since-start rates
 		for {
 			select {
 			case <-ctx.Done():
@@ -887,10 +893,63 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 							phase, ts.cfg.Name, dOps, tputGiB, cur.ops)
 					}
 				}
+				// Pool pipeline health: produce/consume rates and coordination overhead.
+				// Reported every tick at verbosity ≥ 1 (-v) when the write pool is active.
+				// Producer-stall%: fraction of wall time the producer waited for an EMPTY slot
+				//   (ring too shallow — consumers fill all slots before producer refills them).
+				// Consumer-stall%: cumulative goroutine-% consumers spent waiting for READY slots
+				//   (producer too slow — the actual bottleneck condition to avoid).
+				if e.writePool != nil && e.verbosity >= 1 {
+					pCur := e.writePool.Stats()
+					dProd := float64(pCur.BytesProduced - lastPool.BytesProduced)
+					dCons := float64(pCur.BytesConsumed - lastPool.BytesConsumed)
+					prodGiB := (dProd / interval) / (1024 * 1024 * 1024)
+					consGiB := (dCons / interval) / (1024 * 1024 * 1024)
+					var ratio float64
+					if dCons > 0 {
+						ratio = dProd / dCons
+					}
+					intervalNs := interval * 1e9
+					producerStallPct := float64(pCur.ProducerStallNs-lastPool.ProducerStallNs) / intervalNs * 100
+					consumerStallPct := float64(pCur.ConsumerStallNs-lastPool.ConsumerStallNs) / intervalNs * 100
+					lastPool = pCur
+					if ratio > 0 && ratio < 1.05 {
+						logger.Warnf("[pool] WARNING produce/consume ratio=%.3f (<5%% headroom) — generation may bottleneck writes!  produce=%.2f GiB/s  consume=%.2f GiB/s  producer-stall=%.2f%%  consumer-stall=%.2f%%\n",
+							ratio, prodGiB, consGiB, producerStallPct, consumerStallPct)
+					} else {
+						logger.Infof("[pool] produce=%.2f GiB/s  consume=%.2f GiB/s  ratio=%.3f  producer-stall=%.2f%%  consumer-stall=%.2f%%\n",
+							prodGiB, consGiB, ratio, producerStallPct, consumerStallPct)
+					}
+				}
 			}
 		}
 	}()
 	return func() { close(stopCh) }
+}
+
+// logPoolFinalSummary logs overall produce/consume rates, the ratio, and
+// cumulative stall times for the DataPool pipeline at the end of a benchmark
+// measurement phase.  A WARNING is emitted when the ratio is within 5% of 1:1,
+// indicating that data generation may have been the write bottleneck.
+func logPoolFinalSummary(pool *DataPool, elapsed time.Duration) {
+	s := pool.Stats()
+	prodGiB := float64(s.BytesProduced) / (1024 * 1024 * 1024)
+	consGiB := float64(s.BytesConsumed) / (1024 * 1024 * 1024)
+	elapsedS := elapsed.Seconds()
+	prodRate := prodGiB / elapsedS
+	consRate := consGiB / elapsedS
+	var ratio float64
+	if s.BytesConsumed > 0 {
+		ratio = float64(s.BytesProduced) / float64(s.BytesConsumed)
+	}
+	producerStallS := float64(s.ProducerStallNs) / 1e9
+	consumerStallS := float64(s.ConsumerStallNs) / 1e9
+	producerStallPct := producerStallS / elapsedS * 100
+	logger.Infof("[pool] final: produced=%.2f GiB (%.2f GiB/s)  consumed=%.2f GiB (%.2f GiB/s)  ratio=%.3f  producer-stall=%.3fs (%.2f%%)  consumer-stall=%.3fs\n",
+		prodGiB, prodRate, consGiB, consRate, ratio, producerStallS, producerStallPct, consumerStallS)
+	if ratio > 0 && ratio < 1.05 {
+		logger.Warnf("[pool] WARNING: overall produce/consume ratio=%.3f is within 5%% of 1:1 — data generation was likely the write bottleneck during this run\n", ratio)
+	}
 }
 
 // Histograms returns the per-track histogram objects after a completed Run().
