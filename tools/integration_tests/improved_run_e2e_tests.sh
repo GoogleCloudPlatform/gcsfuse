@@ -824,7 +824,7 @@ install_packages() {
   fi
   log_info "Detected OS ID: $os_id"
 
-  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod"  "fuse3" || {
+  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod"  "fuse3"  "python3-rich" || {
     log_error "Failed to install required packages."
     exit 1
   }
@@ -900,12 +900,12 @@ main() {
   # # Clean up everything on exit.
   # trap clean_up EXIT
   # log_info ""
-  # log_info "------ Upgrading gcloud and installing packages ------"
-  # log_info ""
-  # set -e
-  # install_packages
-  # set +e
-  # log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
+  log_info "------ Upgrading gcloud and installing packages ------"
+  log_info ""
+  set -e
+  install_packages
+  set +e
+  log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
   # log_info ""
   # log_info "------ Started running E2E test packages ------"
