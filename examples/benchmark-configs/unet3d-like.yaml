@@ -63,7 +63,8 @@ benchmark:
         file-pattern: "obj-%06d"  # → obj-000000 … obj-000063
 
       # Read the entire object per I/O call (readSize=0 means full object).
-      # Set read-size to a smaller value (e.g. 4194304) for streaming reads.
+      # Set read-size to a positive byte count (e.g. 4194304) for range reads.
+      # read-size: 0 (or omitted) means no Range restriction — full object read.
       read-size: 0
 
       # SizeSpec describes the object size distribution for write operations

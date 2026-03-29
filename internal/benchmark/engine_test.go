@@ -16,6 +16,7 @@ package benchmark
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -276,5 +277,59 @@ func TestGoroutinesForTrackDirectOverride(t *testing.T) {
 	g := goroutinesForTrack(bCfg, 0)
 	if g != 4 {
 		t.Errorf("expected concurrency=4 (direct override), got %d", g)
+	}
+}
+
+// TestDoReadFullObjectWhenReadSizeIsZero verifies that a read-size of 0 (or
+// negative) issues a full-object read (no Range restriction) rather than
+// silently defaulting to 4 MiB. The mock bucket uses b.readBytes when
+// req.Range is nil, so we confirm the correct number of bytes is accumulated.
+func TestDoReadFullObjectWhenReadSizeIsZero(t *testing.T) {
+	const fullObjectSize = 8 * 1024 * 1024 // 8 MiB
+
+	for _, readSize := range []int64{0, -1} {
+		t.Run(fmt.Sprintf("read-size=%d", readSize), func(t *testing.T) {
+			mb := &mockBucket{readBytes: fullObjectSize}
+			bCfg := cfg.BenchmarkConfig{
+				Duration:         200 * time.Millisecond,
+				TotalConcurrency: 1,
+				Histograms:       cfg.DefaultHistogramConfig(),
+				Tracks: []cfg.BenchmarkTrack{
+					{
+						Name:        "full-read",
+						OpType:      "read",
+						Weight:      1,
+						ReadSize:    readSize,
+						ObjectCount: 1,
+						Concurrency: 1,
+					},
+				},
+			}
+
+			eng, err := NewEngine(mb, bCfg)
+			if err != nil {
+				t.Fatalf("NewEngine: %v", err)
+			}
+			summary, err := eng.Run(context.Background())
+			if err != nil {
+				t.Fatalf("engine.Run: %v", err)
+			}
+			if len(summary.Tracks) == 0 {
+				t.Fatal("expected at least 1 track in summary")
+			}
+			ts := summary.Tracks[0]
+
+			// Each successful op should have read the full 8 MiB.
+			successfulOps := ts.TotalOps - ts.Errors
+			if successfulOps <= 0 {
+				t.Fatalf("expected > 0 successful ops, got %d ops / %d errs", ts.TotalOps, ts.Errors)
+			}
+			expectedBytes := successfulOps * fullObjectSize
+			if ts.AvgOpSizeBytes < float64(fullObjectSize)*0.9 {
+				t.Errorf("read-size=%d: avg op size %.0f bytes is much less than full object size %d — "+
+					"full-object read may not be working; expected each op to read %d bytes (total: %d)",
+					readSize, ts.AvgOpSizeBytes, fullObjectSize, fullObjectSize, expectedBytes)
+			}
+		})
 	}
 }

@@ -177,6 +177,38 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 	measCtx, cancel := context.WithTimeout(ctx, e.bCfg.Duration)
 	defer cancel()
 
+	// Live progress reporter: prints interval throughput every 10 s so the
+	// operator can confirm the benchmark is making progress.
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		type snap struct{ bytes, ops, errs int64 }
+		last := make([]snap, len(e.trackState))
+		lastAt := time.Now()
+		for {
+			select {
+			case <-measCtx.Done():
+				return
+			case t := <-ticker.C:
+				interval := t.Sub(lastAt).Seconds()
+				lastAt = t
+				for i, ts := range e.trackState {
+					cur := snap{
+						bytes: ts.totalBytes.Load(),
+						ops:   ts.totalOps.Load(),
+						errs:  ts.totalErrs.Load(),
+					}
+					dBytes := float64(cur.bytes - last[i].bytes)
+					dOps := cur.ops - last[i].ops
+					last[i] = cur
+					tputGiB := (dBytes / interval) / (1024 * 1024 * 1024)
+					logger.Infof("[bench] track=%q  interval-ops=%d  interval-throughput=%.2f GiB/s  total-ops=%d  total-errs=%d\n",
+						ts.cfg.Name, dOps, tputGiB, cur.ops, cur.errs)
+				}
+			}
+		}
+	}()
+
 	if err := e.runPhase(measCtx); err != nil && err != context.DeadlineExceeded {
 		return RunSummary{}, fmt.Errorf("measurement: %w", err)
 	}
@@ -331,21 +363,22 @@ func (e *Engine) pickObjectFromState(rng *rand.Rand, ts *trackState) string {
 	return ts.objectPaths[rng.Intn(n)]
 }
 
-// doRead issues a GCS range read and drains the response to measure throughput.
+// doRead issues a GCS read and drains the response to measure throughput.
+// When ReadSize <= 0, the entire object is read (no Range restriction).
+// When ReadSize > 0, a range-read of exactly ReadSize bytes is performed.
 func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) error {
 	readSize := ts.cfg.ReadSize
-	if readSize <= 0 {
-		// Default: read 4 MiB per call (a common checkpoint shard size).
-		readSize = 4 * 1024 * 1024
-	}
 
 	req := &gcs.ReadObjectRequest{
 		Name: objectName,
-		Range: &gcs.ByteRange{
+	}
+	if readSize > 0 {
+		req.Range = &gcs.ByteRange{
 			Start: 0,
 			Limit: uint64(readSize),
-		},
+		}
 	}
+	// readSize <= 0: Range left nil → GCS returns the entire object.
 
 	start := time.Now()
 	reader, err := e.bucket.NewReaderWithReadHandle(ctx, req)
