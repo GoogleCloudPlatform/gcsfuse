@@ -67,7 +67,8 @@ func PrintSummary(summary RunSummary) {
 	for _, t := range summary.Tracks {
 		fmt.Printf("\nTrack: %s\n", t.TrackName)
 		fmt.Printf("  Ops/s:       %.1f    Errors: %d / %d\n", t.OpsPerSec, t.Errors, t.TotalOps)
-		fmt.Printf("  Throughput:  %.2f MB/s\n", t.ThroughputBytesPerSec/1e6)
+		fmt.Printf("  Throughput:  %.2f MB/s    Avg op size: %.2f MiB\n",
+			t.ThroughputBytesPerSec/1e6, t.AvgOpSizeBytes/(1024*1024))
 		fmt.Printf("  TTFB (us)   p50=%.0f  p90=%.0f  p95=%.0f  p99=%.0f  p999=%.0f  max=%.0f  mean=%.1f\n",
 			t.TTFB.P50, t.TTFB.P90, t.TTFB.P95, t.TTFB.P99, t.TTFB.P999, t.TTFB.Max, t.TTFB.Mean)
 		fmt.Printf("  Total (us)  p50=%.0f  p90=%.0f  p95=%.0f  p99=%.0f  p999=%.0f  max=%.0f  mean=%.1f\n",
@@ -106,7 +107,7 @@ func writeTSV(summary RunSummary, path string) error {
 	w.Comma = '\t'
 
 	header := []string{
-		"track", "ops_total", "errors", "ops_per_sec", "throughput_mb_s",
+		"track", "ops_total", "errors", "ops_per_sec", "throughput_mb_s", "avg_op_size_bytes",
 		"ttfb_p50_us", "ttfb_p90_us", "ttfb_p95_us", "ttfb_p99_us", "ttfb_p999_us", "ttfb_max_us", "ttfb_mean_us",
 		"total_p50_us", "total_p90_us", "total_p95_us", "total_p99_us", "total_p999_us", "total_max_us", "total_mean_us",
 	}
@@ -121,6 +122,7 @@ func writeTSV(summary RunSummary, path string) error {
 			strconv.FormatInt(t.Errors, 10),
 			strconv.FormatFloat(t.OpsPerSec, 'f', 2, 64),
 			strconv.FormatFloat(t.ThroughputBytesPerSec/1e6, 'f', 3, 64),
+			strconv.FormatFloat(t.AvgOpSizeBytes, 'f', 1, 64),
 			fmtF(t.TTFB.P50), fmtF(t.TTFB.P90), fmtF(t.TTFB.P95),
 			fmtF(t.TTFB.P99), fmtF(t.TTFB.P999), fmtF(t.TTFB.Max), fmtF(t.TTFB.Mean),
 			fmtF(t.TotalLatency.P50), fmtF(t.TotalLatency.P90), fmtF(t.TotalLatency.P95),

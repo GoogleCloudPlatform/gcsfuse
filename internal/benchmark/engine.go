@@ -131,6 +131,12 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 				opsPerSec = float64(ops) / prepElapsed.Seconds()
 				throughput = float64(byts) / prepElapsed.Seconds()
 			}
+			successfulOps := ops - errs
+			var avgOpSize float64
+			if successfulOps > 0 {
+				avgOpSize = float64(byts) / float64(successfulOps)
+			}
+			ttfb, total := ts.hists.Snapshot()
 			prepSummary.Tracks = append(prepSummary.Tracks, TrackStats{
 				TrackName:             ts.cfg.Name,
 				WorkerID:              e.bCfg.WorkerID,
@@ -138,6 +144,9 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 				Errors:                errs,
 				ThroughputBytesPerSec: throughput,
 				OpsPerSec:             opsPerSec,
+				AvgOpSizeBytes:        avgOpSize,
+				TTFB:                  ttfb,
+				TotalLatency:          total,
 			})
 		}
 		return prepSummary, prepErr
@@ -190,6 +199,12 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 			throughput = float64(bytes) / elapsed.Seconds()
 		}
 
+		successfulOps := ops - errs
+		var avgOpSize float64
+		if successfulOps > 0 {
+			avgOpSize = float64(bytes) / float64(successfulOps)
+		}
+
 		stat := TrackStats{
 			TrackName:             ts.cfg.Name,
 			WorkerID:              e.bCfg.WorkerID,
@@ -197,6 +212,7 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 			Errors:                errs,
 			ThroughputBytesPerSec: throughput,
 			OpsPerSec:             opsPerSec,
+			AvgOpSizeBytes:        avgOpSize,
 			TTFB:                  ttfb,
 			TotalLatency:          total,
 		}
@@ -329,6 +345,7 @@ func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) 
 		},
 	}
 
+	start := time.Now()
 	reader, err := e.bucket.NewReaderWithReadHandle(ctx, req)
 	if err != nil {
 		return fmt.Errorf("NewReaderWithReadHandle: %w", err)
@@ -337,8 +354,14 @@ func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) 
 
 	buf := make([]byte, 256*1024) // 256 KiB read buffer
 	var bytesRead int64
+	ttfbRecorded := false
 	for {
 		n, readErr := reader.Read(buf)
+		// Record TTFB on the first non-empty result (or on any first call).
+		if !ttfbRecorded {
+			ts.hists.RecordTTFB(time.Since(start).Microseconds())
+			ttfbRecorded = true
+		}
 		bytesRead += int64(n)
 		if readErr == io.EOF {
 			break
@@ -353,6 +376,7 @@ func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) 
 		default:
 		}
 	}
+	ts.hists.RecordTotal(time.Since(start).Microseconds())
 	ts.totalBytes.Add(bytesRead)
 	return nil
 }
@@ -487,13 +511,17 @@ func (e *Engine) doWrite(ctx context.Context, ts *trackState, rng *rand.Rand, ob
 		Contents: io.NopCloser(bytes.NewReader(data)),
 	}
 
+	start := time.Now()
 	obj, err := e.bucket.CreateObject(ctx, req)
+	elapsed := time.Since(start)
 	if err != nil {
 		return fmt.Errorf("CreateObject: %w", err)
 	}
 	if obj != nil {
 		ts.totalBytes.Add(int64(obj.Size))
 	}
+	// Record write total latency. Writes have no TTFB in the read sense.
+	ts.hists.RecordTotal(elapsed.Microseconds())
 	return nil
 }
 
@@ -503,13 +531,16 @@ func (e *Engine) doStat(ctx context.Context, ts *trackState, objectName string) 
 		Name:              objectName,
 		ForceFetchFromGcs: true,
 	}
+	start := time.Now()
 	minObj, _, err := e.bucket.StatObject(ctx, req)
+	elapsed := time.Since(start)
 	if err != nil {
 		return fmt.Errorf("StatObject: %w", err)
 	}
 	if minObj != nil {
 		ts.totalBytes.Add(int64(minObj.Size))
 	}
+	ts.hists.RecordTotal(elapsed.Microseconds())
 	return nil
 }
 
@@ -526,13 +557,16 @@ func (e *Engine) doList(ctx context.Context, ts *trackState, objectName string) 
 		Prefix:     prefix,
 		MaxResults: 1000,
 	}
+	start := time.Now()
 	listing, err := e.bucket.ListObjects(ctx, req)
+	elapsed := time.Since(start)
 	if err != nil {
 		return fmt.Errorf("ListObjects: %w", err)
 	}
 	if listing != nil {
 		ts.totalBytes.Add(int64(len(listing.MinObjects)))
 	}
+	ts.hists.RecordTotal(elapsed.Microseconds())
 	return nil
 }
 

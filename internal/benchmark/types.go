@@ -76,6 +76,11 @@ type TrackStats struct {
 	// OpsPerSec is the average operation rate over the measurement window.
 	OpsPerSec float64
 
+	// AvgOpSizeBytes is the mean bytes per successful operation.
+	// For writes this is the GCS-confirmed object size; for reads it is the
+	// number of bytes actually received from the service.
+	AvgOpSizeBytes float64
+
 	// TTFB contains latency percentiles for time-to-first-byte (µs).
 	TTFB LatencyPercentiles
 

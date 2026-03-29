@@ -34,7 +34,9 @@ import (
 // returns configurable amounts of zero data.
 type mockBucket struct {
 	readDelay  time.Duration
+	writeDelay time.Duration // injected into CreateObject to simulate write latency
 	readBytes  int64
+	objectSize uint64 // size returned by CreateObject (0 → default 4096)
 	createErr  error
 	readCalls  int
 	writeCalls int
@@ -88,10 +90,17 @@ func (b *mockBucket) NewMultiRangeDownloader(_ context.Context, _ *gcs.MultiRang
 }
 func (b *mockBucket) CreateObject(_ context.Context, req *gcs.CreateObjectRequest) (*gcs.Object, error) {
 	b.writeCalls++
+	if b.writeDelay > 0 {
+		time.Sleep(b.writeDelay)
+	}
 	if b.createErr != nil {
 		return nil, b.createErr
 	}
-	return &gcs.Object{Name: req.Name, Size: 4096}, nil
+	sz := b.objectSize
+	if sz == 0 {
+		sz = 4096
+	}
+	return &gcs.Object{Name: req.Name, Size: sz}, nil
 }
 func (b *mockBucket) CreateObjectChunkWriter(_ context.Context, _ *gcs.CreateObjectRequest, _ int, _ func(int64)) (gcs.Writer, error) {
 	return nil, nil
