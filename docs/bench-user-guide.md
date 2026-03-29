@@ -48,8 +48,12 @@ GOTOOLCHAIN=auto go build -o gcs-bench .
 ./gcs-bench bench --config examples/benchmark-configs/unet3d-like.yaml
 ```
 
-Output is written to `bench-YYYYMMDD-HHMMSS.yaml` (and optionally `.tsv`) in
-the path specified by `output-path` (defaults to `./`).
+Two result files are always written to the directory specified by `output-path`
+(defaults to `./`):
+
+- `bench-YYYYMMDD-HHMMSS.txt` — human-readable report, always produced
+- `bench-YYYYMMDD-HHMMSS.yaml` — machine-parseable YAML (when `--output-format yaml` or `both`; this is the default)
+- `bench-YYYYMMDD-HHMMSS.tsv` — tab-separated values (when `--output-format tsv` or `both`)
 
 ---
 
@@ -449,55 +453,107 @@ benchmark:
 
 ### Console output
 
-When the measurement phase completes you see a table like this:
+When the measurement phase completes, a human-readable summary is printed to
+stdout and also saved as `bench-YYYYMMDD-HHMMSS.txt`. Example for a **read** track:
 
 ```
-=== Benchmark Results (2026-03-28T10:00:00Z, 300.2s) ===
+=== GCS Benchmark Results ===
+Run started:  2026-03-28T10:00:00Z
+Duration:     5m 0.22 s
 
-Track: unet3d-read
-  Ops/s:       147.3    Errors: 0 / 44197
-  Throughput:  1033.51 MB/s
-  TTFB (us)   p50=8241  p90=15832  p95=20114  p99=38290  p999=91443  max=312041  mean=10287.4
-  Total (us)  p50=46823 p90=89441  p95=110322 p99=198442 p999=511230 max=891234  mean=55918.2
+--- Track: unet3d-read (read) ---
+
+  Throughput:       987.234 MiB/s
+  Ops/sec:          147.30  (44,197 total, 0 errors)
+  Avg object size:  6.846 MiB
+
+  Read latency (end-to-end):
+    P50      46.82 ms
+    P90      89.44 ms
+    P95      110.32 ms
+    P99      198.44 ms
+    P99.9    511.23 ms
+    Max      891.23 ms
+    Mean     55.92 ms
+
+  Time-to-First-Byte (TTFB):
+    P50      8,241.0 µs
+    P90      15.83 ms
+    P95      20.11 ms
+    P99      38.29 ms
+    P99.9    91.44 ms
+    Max      312.04 ms
+    Mean     10.29 ms
+```
+
+For **write**, **stat**, and **list** tracks, TTFB is not applicable and the
+TTFB block is replaced with a single `N/A` line:
+
+```
+--- Track: unet3d-prepare (write) ---
+
+  Throughput:       4.605 GiB/s
+  Ops/sec:          688.79  (50,176 total, 0 errors)
+  Avg object size:  6.846 MiB
+
+  Write latency (end-to-end):
+    P50      78.53 ms
+    P99      342.53 ms
+    P99.9    1,715.20 ms
+    Max      3,475.46 ms
+    Mean     89.85 ms
+
+  TTFB: N/A (write operation)
 ```
 
 | Field | Meaning |
 |-------|---------|
-| `Ops/s` | Operations per second (successes + failures) over the measurement window |
-| `Throughput MB/s` | Bytes transferred ÷ elapsed seconds |
-| `Errors` | Failed operations (not included in latency histograms) |
-| `TTFB p50` | Median time-to-first-byte: from issuing the request until the first byte is received |
-| `TTFB p99` | 99th-percentile TTFB — the tail that 1% of requests exceeded |
-| `TTFB p999` | 99.9th-percentile TTFB — the extreme tail |
-| `Total p50` | **Median total operation latency — equivalent to TTLB (time to last byte).** This is the wall-clock time from issuing the request until the object is fully received and `Close()` returns. For most benchmarking purposes this is the metric that matters: you cannot use the data until you have all of it. |
-| `Total p99` | 99th-percentile TTLB — the tail that 1% of operations exceeded |
-| `Total max` | Single slowest complete operation observed |
+| `Throughput` | Bytes transferred ÷ elapsed seconds, in IEC binary units (GiB/s, MiB/s, KiB/s) |
+| `Ops/sec` | Operations per second over the measurement window |
+| `Avg object size` | Mean confirmed bytes per successful operation (GCS-reported size for writes; bytes received for reads) |
+| End-to-end latency `P50`–`Max` | **Total operation latency — equivalent to TTLB (time to last byte).** Wall-clock time from issuing the request until the object is fully received and `Close()` returns. For most benchmarking purposes this is the metric that matters. |
+| `TTFB P50`–`Mean` | Time-to-first-byte percentiles — from issuing the request until the first byte is received. **Shown only for read tracks.** Displays `N/A` for write, stat, and list operations. |
 
-All latency values are in **microseconds (µs)**. Divide by 1000 for milliseconds,
-by 1,000,000 for seconds.
+#### Human formatting rules
+
+All values auto-scale to keep numbers readable:
+
+- **Latency**: values below 10,000 µs are shown in microseconds with thousands
+  separators (e.g. `8,241.0 µs`); values ≥ 10,000 µs switch to milliseconds
+  (e.g. `46.82 ms`, `1,715.20 ms`). The raw YAML values remain in µs.
+- **Throughput and sizes**: IEC binary units — GiB/s, MiB/s, KiB/s; GiB, MiB, KiB
+  (powers of 2, not powers of 10 — so 1 GiB = 1,073,741,824 bytes).
+- **Integer counts**: formatted with thousands separators (e.g. `50,176 total`).
 
 > **TTFB vs TTLB:** TTFB (time-to-first-byte) measures how quickly the storage
 > service starts responding. It is useful for diagnosing server-side latency or
-> connection overhead, and is reported here for completeness. However, **Total /
-> TTLB is the more operationally meaningful metric** — for small to medium objects
-> you cannot act on the data until the full transfer is complete, and for large
-> objects being streamed the total transfer time determines throughput. When in
-> doubt, focus on the `Total` row.
+> connection overhead. However, **end-to-end / TTLB is the more operationally
+> meaningful metric** — for small to medium objects you cannot act on the data
+> until the full transfer is complete, and for large objects being streamed the
+> total transfer time determines throughput. When in doubt, focus on the
+> end-to-end latency block. TTFB is only recorded for **read** operations; write,
+> stat, and list tracks display `TTFB: N/A`.
 
 ### YAML output file
+
+All values are raw numbers — no unit conversion is applied in the YAML.
+Latency fields are in **microseconds (µs)**; throughput is in **bytes per
+second**; size is in **bytes**. Use the `.txt` file for human-readable values.
 
 ```yaml
 start_time: 2026-03-28T10:00:00Z
 measurement_duration: 5m0.218s
 worker-id: 0          # present only in distributed runs; -1 = merged summary
 tracks:
-  - TrackName: unet3d-read
+  - trackname: unet3d-read
+    op_type: read     # "read" | "write" | "stat" | "list"; always "write" for prepare tracks
     worker-id: 0      # present only in distributed runs
-    TotalOps: 44197
-    Errors: 0
-    ThroughputBytesPerSec: 1.08402e+09
-    OpsPerSec: 147.3
-    TTFB:
+    totalops: 44197
+    errors: 0
+    throughputbytespersec: 1.08402e+09
+    opspersec: 147.3
+    avgopsizebytes: 7178178.7
+    ttfb:
       p50_us: 8241
       p90_us: 15832
       p95_us: 20114
@@ -505,7 +561,7 @@ tracks:
       p999_us: 91443
       max_us: 312041
       mean_us: 10287.4
-    TotalLatency:
+    totallatency:
       p50_us: 46823
       p90_us: 89441
       p95_us: 110322
@@ -525,33 +581,48 @@ in the merge.
 
 ### Prepare mode output file
 
-Prepare runs also produce a result file (YAML or TSV) — written after all
-objects are uploaded. The file uses the same schema as benchmark results but
-latency histograms are absent (no I/O latency is measured in prepare mode):
+Prepare runs also produce result files — written after all objects are uploaded.
+The same schema is used as for benchmark results. Write **end-to-end latency**
+(total wall-clock time per object upload) is recorded in the `totallatency`
+histogram. TTFB is not applicable to write operations and its fields remain zero
+in the YAML; the human-readable `.txt` file displays `TTFB: N/A (write operation)`.
 
 ```yaml
-start_time: 2026-03-29T14:00:00Z
-measurement_duration: 1m33.2s    # total elapsed time of the prepare run
+start_time: 2026-03-29T18:27:51Z
+measurement_duration: 1m12.85s   # total elapsed time of the prepare run
 tracks:
-  - TrackName: unet3d-prepare
-    TotalOps: 50175              # objects successfully written
-    Errors: 1
-    ThroughputBytesPerSec: 3.71e+08   # ~354 MB/s
-    OpsPerSec: 539.1
-    TTFB: {}                     # empty — latency not measured in prepare mode
-    TotalLatency: {}             # empty
+  - trackname: unet3d-prepare
+    op_type: write
+    totalops: 50176              # objects successfully written
+    errors: 0
+    throughputbytespersec: 4.944e+09   # ~4.6 GiB/s
+    opspersec: 688.79
+    avgopsizebytes: 7.178e+06          # ~6.8 MiB average object size
+    ttfb:
+      p50_us: 0                  # zeroed — TTFB does not apply to writes
+      p90_us: 0
+      # ...
+    totallatency:                # write end-to-end latency, in µs
+      p50_us: 78527              # 78.53 ms in the .txt file
+      p90_us: 108479             # 108.48 ms
+      p99_us: 342527             # 342.53 ms
+      p999_us: 1715199           # 1,715.20 ms
+      max_us: 3475455            # 3,475.46 ms
+      mean_us: 89845.5
 ```
 
-This file is useful for comparing prepare throughput across runs and for
-audit trails (confirming how many objects were written and how many failed).
+These files are useful for comparing prepare throughput and upload latency across
+runs and for audit trails (confirming how many objects were written and how many
+failed).
 
 ### TSV output file
 
-One row per track:
+One row per track. All numeric values are raw (latency in µs, throughput in
+MB/s, size in bytes). Column order:
 
 ```
-track   ops_total  errors  ops_per_sec  throughput_mb_s  ttfb_p50_us  ttfb_p90_us  ...
-unet3d-read  44197  0  147.3  1033.5  8241.0  15832.0  20114.0  38290.0  91443.0  312041.0  10287.4  46823.0  ...
+track  ops_total  errors  ops_per_sec  throughput_mb_s  avg_op_size_bytes  ttfb_p50_us  ttfb_p90_us  ...
+unet3d-read  44197  0  147.30  1033.500  7178178.7  8241.0  15832.0  20114.0  38290.0  91443.0  312041.0  10287.4  46823.0  ...
 ```
 
 ---
@@ -578,11 +649,13 @@ Progress is printed every 5 seconds:
 [prepare] Track "unet3d-prepare": complete — 50176/50176 written in 1m18s (643 obj/s, 0 errors)
 ```
 
-After the run finishes a YAML result file is written to `output-path`
-(default: `./`), named `bench-YYYYMMDD-HHMMSS.yaml`. It records `TotalOps`,
-`Errors`, `OpsPerSec`, and `ThroughputBytesPerSec` for each track — useful
-for auditing what was written and comparing prepare throughput across runs.
-Latency fields are empty (no latency is measured during prepare).
+After the run finishes, two result files are written to `output-path` (default:
+`./`): a human-readable `bench-YYYYMMDD-HHMMSS.txt` and a machine-parseable
+`bench-YYYYMMDD-HHMMSS.yaml`. Both record `TotalOps`, `Errors`, `OpsPerSec`,
+`ThroughputBytesPerSec`, `AvgOpSizeBytes`, and write end-to-end latency
+(`TotalLatency`) for each track — useful for auditing upload performance and
+comparing prepare throughput across runs. TTFB is shown as `N/A` in the `.txt`
+file since write operations have no time-to-first-byte.
 
 ### Step 2 — Run the benchmark
 
@@ -815,13 +888,33 @@ table:
 ```
 === Merged Results (4 workers) ===
 
-=== Benchmark Results (2026-03-28T10:00:00Z, 300.2s) ===
+=== GCS Benchmark Results ===
+Run started:  2026-03-28T10:00:00Z
+Duration:     5m 0.22 s
 
-Track: unet3d-read
-  Ops/s:       589.1    Errors: 0 / 176788
-  Throughput:  4134.04 MB/s
-  TTFB (us)   p50=8103  p90=15601  p95=19874  p99=37982  p999=90112  max=318294  mean=10102.3
-  Total (us)  p50=46201 p90=88234  p95=108944 p99=196003 p999=508812 max=902341  mean=55104.5
+--- Track: unet3d-read (read) ---
+
+  Throughput:       3.851 GiB/s
+  Ops/sec:          589.10  (176,788 total, 0 errors)
+  Avg object size:  6.846 MiB
+
+  Read latency (end-to-end):
+    P50      46.20 ms
+    P90      88.23 ms
+    P95      108.94 ms
+    P99      196.00 ms
+    P99.9    508.81 ms
+    Max      902.34 ms
+    Mean     55.10 ms
+
+  Time-to-First-Byte (TTFB):
+    P50      8,103.0 µs
+    P90      15.60 ms
+    P95      19.87 ms
+    P99      37.98 ms
+    P99.9    90.11 ms
+    Max      318.29 ms
+    Mean     10.10 ms
 
 
 === Per-Worker Summary ===
