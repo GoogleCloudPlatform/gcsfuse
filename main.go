@@ -51,6 +51,7 @@ USAGE:
   gcs-bench benchmark      [--config <file>] [flags]   Alias for 'bench'
   gcs-bench merge-results  <worker0.yaml> ...          Merge distributed results
   gcs-bench plot-hgrm      <file.hgrm> ...             Plot .hgrm latency distribution as SVG
+  gcs-bench datagen-bench  [flags]                     Benchmark Xoshiro256++ CPU scaling
 
 QUICK START:
   # Validate a config without touching GCS
@@ -127,6 +128,10 @@ argScan:
 		case "plot-hgrm":
 			os.Args = append(os.Args[:i], os.Args[i+1:]...)
 			cmd.ExecutePlotHgrmCmd()
+			return
+		case "datagen-bench":
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			cmd.ExecuteDatagenBenchCmd()
 			return
 		default:
 			if !strings.HasPrefix(arg, "-") {
