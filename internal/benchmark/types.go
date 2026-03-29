@@ -69,6 +69,10 @@ type TrackStats struct {
 	// Set only when gcs-bench is run with --worker-id; zero otherwise.
 	WorkerID int `yaml:"worker-id,omitempty"`
 
+	// Goroutines is the number of goroutines (threads) that issued I/O for
+	// this track during the benchmark run.
+	Goroutines int `yaml:"goroutines"`
+
 	// TotalOps is the count of completed operations (successes + failures).
 	TotalOps int64
 

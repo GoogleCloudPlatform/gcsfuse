@@ -99,7 +99,7 @@ func writeTSV(summary RunSummary, path string) error {
 	w.Comma = '\t'
 
 	header := []string{
-		"track", "ops_total", "errors", "ops_per_sec", "throughput_mb_s", "avg_op_size_bytes",
+		"track", "goroutines", "ops_total", "errors", "ops_per_sec", "throughput_mb_s", "avg_op_size_bytes",
 		"ttfb_p50_us", "ttfb_p90_us", "ttfb_p95_us", "ttfb_p99_us", "ttfb_p999_us", "ttfb_max_us", "ttfb_mean_us",
 		"total_p50_us", "total_p90_us", "total_p95_us", "total_p99_us", "total_p999_us", "total_max_us", "total_mean_us",
 	}
@@ -110,6 +110,7 @@ func writeTSV(summary RunSummary, path string) error {
 	for _, t := range summary.Tracks {
 		row := []string{
 			t.TrackName,
+			strconv.Itoa(t.Goroutines),
 			strconv.FormatInt(t.TotalOps, 10),
 			strconv.FormatInt(t.Errors, 10),
 			strconv.FormatFloat(t.OpsPerSec, 'f', 2, 64),
@@ -258,6 +259,7 @@ func printHumanSummary(w io.Writer, summary RunSummary) {
 		}
 
 		fmt.Fprintf(w, "\n--- Track: %s (%s) ---\n\n", t.TrackName, opLabel)
+		fmt.Fprintf(w, "  Threads:          %d goroutines\n", t.Goroutines)
 		fmt.Fprintf(w, "  Throughput:       %s\n", humanThroughput(t.ThroughputBytesPerSec))
 		fmt.Fprintf(w, "  Ops/sec:          %s  (%s total, %s errors)\n",
 			commaFloat(t.OpsPerSec, 2), commaInt(t.TotalOps), commaInt(t.Errors))

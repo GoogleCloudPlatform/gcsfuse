@@ -294,7 +294,7 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 		MeasurementDuration: elapsed,
 		WorkerID:            e.bCfg.WorkerID,
 	}
-	for _, ts := range e.trackState {
+	for i, ts := range e.trackState {
 		ttfb, total := ts.hists.Snapshot()
 		ops := ts.totalOps.Load()
 		errs := ts.totalErrs.Load()
@@ -316,6 +316,7 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 			TrackName:             ts.cfg.Name,
 			OpType:                ts.cfg.OpType,
 			WorkerID:              e.bCfg.WorkerID,
+			Goroutines:            goroutinesForTrack(e.bCfg, i),
 			TotalOps:              ops,
 			Errors:                errs,
 			ThroughputBytesPerSec: throughput,

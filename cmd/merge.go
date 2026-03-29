@@ -224,6 +224,7 @@ func mergeWorkerSummaries(workers []benchmark.RunSummary) (benchmark.RunSummary,
 		tracks[i] = benchmark.TrackStats{
 			TrackName:             acc.name,
 			WorkerID:              -1, // -1 = merged
+			Goroutines:            workers[0].Tracks[i].Goroutines,
 			TotalOps:              acc.totalOps,
 			Errors:                acc.errors,
 			ThroughputBytesPerSec: throughput,
