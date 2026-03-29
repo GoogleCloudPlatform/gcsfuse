@@ -1,0 +1,78 @@
+# gcs-bench example: UNet3D-like random read workload (mirrors sai3-bench pattern)
+#
+# Simulates the read pattern used in the MLPerf Storage UNet3D training
+# benchmark: many workers reading small-to-medium medical imaging files
+# stored in a nested directory tree. Each file is read once per epoch in
+# a random order (equivalent to rdf-bench sequential read with shuffle).
+#
+# Directory structure (matches rdf-bench FSD: width=28, depth=2, files=64):
+#   width=28, depth=2  →  28² = 784 leaf directories
+#   784 dirs × 64 files  =  50,176 total objects
+#   Size distribution: lognormal, real-space mean ≈ 6.9 MiB, σ ≈ 5.5 MiB
+#                       clamped to [1 MiB, 32 MiB]
+#
+# Requires objects to already exist in the bucket. Use gcs-bench bench
+# --dry-run to verify the config before connecting.
+#
+# Run:
+#   gcs-bench bench --config unet3d-like.yaml
+#   gcs-bench bench --config unet3d-like.yaml --dry-run
+
+benchmark:
+  # Target GCS bucket.
+  bucket: "my-bucket-name"
+
+  # All objects live under this prefix.
+  object-prefix: "unet3d/"
+
+  # Measurement phase: 5 minutes matches standard MLPerf Storage run.
+  duration: 5m
+
+  # Warmup period: 30s primes caches and eliminates cold-start latency spikes.
+  warmup-duration: 30s
+
+  # Total goroutines across all tracks. 32 matches rdf-bench threads=32.
+  total-concurrency: 32
+
+  output-path: "./results"
+  output-format: both
+
+  # RAPID/zonal bucket detection (auto = call GetStorageLayout at startup).
+  # Use "on" to force bidi-gRPC without detection, "off" for standard HTTP/2.
+  rapid-mode: auto
+
+  histograms:
+    min-value-micros: 1         # 1 µs minimum (unlikely to see faster GCS reads)
+    max-value-micros: 60000000  # 60 s maximum (covers worst-case tail latencies)
+    significant-digits: 3       # 0.1% precision
+
+  tracks:
+    - name: unet3d-read
+      op-type: read
+      weight: 1
+      access-pattern: random   # Each goroutine picks files uniformly at random
+
+      # Nested directory tree matching the rdf-bench FSD parameters:
+      #   width=28, depth=2, files_per_dir=64
+      # Total paths generated: 28² × 64 = 50,176
+      directory-structure:
+        width: 28              # 28 subdirectories per level
+        depth: 2               # 2 levels deep
+        files-per-dir: 64      # 64 objects per leaf directory
+        dir-pattern: "dir-%04d"   # → dir-0000/ … dir-0027/
+        file-pattern: "obj-%06d"  # → obj-000000 … obj-000063
+
+      # Read the entire object per I/O call (readSize=0 means full object).
+      # Set read-size to a smaller value (e.g. 4194304) for streaming reads.
+      read-size: 0
+
+      # SizeSpec describes the object size distribution for write operations
+      # (when op-type: write) and is also used by --dry-run to report sizes.
+      # These parameters match the rdf-bench size distribution:
+      #   sizes=(1m,10,2m,20,4m,30,8m,25,16m,10,32m,5) weighted average ≈ 6.9 MiB
+      size-spec:
+        type: lognormal
+        mean: 7235174     # Real-space mean ≈ 6.90 MiB
+        std-dev: 5788139  # Real-space std dev ≈ 5.52 MiB
+        min: 1048576      # Clamp floor: 1 MiB
+        max: 33554432     # Clamp ceiling: 32 MiB

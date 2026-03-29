@@ -391,6 +391,8 @@ type CloudProfilerConfig struct {
 type Config struct {
 	AppName string `yaml:"app-name"`
 
+	Benchmark BenchmarkConfig `yaml:"benchmark"`
+
 	CacheDir ResolvedPath `yaml:"cache-dir"`
 
 	CloudProfiler CloudProfilerConfig `yaml:"cloud-profiler"`

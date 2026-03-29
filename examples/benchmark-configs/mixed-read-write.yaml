@@ -1,0 +1,44 @@
+# gcsfuse-bench example: Mixed read/write (checkpoint save + load pattern)
+#
+# Simulates AI/ML training checkpointing: frequent small writes (saving
+# new checkpoint shards) alongside reads (loading previous checkpoint for
+# fault recovery or validation).
+#
+# Run (bucket in config file):
+#   gcsfuse-bench benchmark --config mixed-read-write.yaml
+
+benchmark:
+  bucket: "my-bucket-name"
+  duration: 60s
+  warmup-duration: 10s
+  total-concurrency: 16
+  object-prefix: "ckpt/step-10000/"
+  output-path: "./results"
+  output-format: yaml
+
+  histograms:
+    min-value-micros: 1
+    max-value-micros: 60000000
+    significant-digits: 3
+
+  tracks:
+    # Write track: saving new 100 MiB checkpoint shards.
+    - name: write-checkpoint-100mb
+      op-type: write
+      weight: 1
+      object-size-min: 104857600  # 100 MiB
+      object-size-max: 104857600
+      access-pattern: sequential
+      object-count: 20            # 20 shards per checkpoint
+      concurrency: 4              # 4 writer goroutines
+
+    # Read track: loading prior checkpoint (validation / fault recovery).
+    - name: read-checkpoint-100mb
+      op-type: read
+      weight: 3
+      object-size-min: 104857600  # 100 MiB
+      object-size-max: 104857600
+      read-size: 4194304          # 4 MiB read granularity
+      access-pattern: sequential
+      object-count: 20
+      concurrency: 12             # 12 reader goroutines
