@@ -968,7 +968,9 @@ main() {
 
   # Print package runtime stats table.
   ./tools/integration_tests/create_package_runtime_table.sh "./tools/integration_tests/package_runtime_stats.txt"
-
+  ./tools/integration_tests/create_package_runtime_table.sh "./tools/integration_tests/package_runtime_stats.txt" > /tmp/package_runtime_stats.txt
+  sed 's/ /\xC2\xA0/g' /tmp/package_runtime_stats.txt > /tmp/output.txt
+  cat /tmp/output.txt
   exit 0
   # if ${TRACK_RESOURCE_USAGE}; then
   #   # Kill resource usage background PID and print resource usage.
