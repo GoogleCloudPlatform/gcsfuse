@@ -360,3 +360,33 @@ func ExportHgrm(summary RunSummary, hists []*TrackHistograms, outputPath string)
 	}
 	return nil
 }
+
+// ExportConfig copies the benchmark YAML config file (configPath) into the
+// same bench-YYYYMMDD-HHMMSS/ subdirectory as the other result files.
+// The destination is always named "config.yaml" so it is easy to find.
+// configData is the raw file contents; configPath is used only to derive a
+// useful source label for the printed status line.
+func ExportConfig(summary RunSummary, outputPath string, configPath string, configData []byte) error {
+	if len(configData) == 0 {
+		return nil
+	}
+	if outputPath == "" {
+		var err error
+		outputPath, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("getwd: %w", err)
+		}
+	}
+	timestamp := summary.StartTime.UTC().Format("20060102-150405")
+	subDir := filepath.Join(outputPath, "bench-"+timestamp)
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", subDir, err)
+	}
+	dest := filepath.Join(subDir, "config.yaml")
+	if err := os.WriteFile(dest, configData, 0644); err != nil {
+		return fmt.Errorf("writing config to %s: %w", dest, err)
+	}
+	_ = configPath // used only for documentation; destination name is always config.yaml
+	fmt.Printf("Config saved to   %s\n", dest)
+	return nil
+}

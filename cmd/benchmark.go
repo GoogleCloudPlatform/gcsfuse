@@ -76,8 +76,10 @@ func newBenchmarkRootCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --- Load config file (required — all parameters including bucket live here) ---
 			benchCfg := cfg.DefaultBenchmarkConfig()
+			var configData []byte // raw YAML bytes; saved into the results directory later
 			if cfgFile != "" {
-				data, err := os.ReadFile(cfgFile)
+				var err error
+				configData, err = os.ReadFile(cfgFile)
 				if err != nil {
 					return fmt.Errorf("reading config file: %w", err)
 				}
@@ -86,7 +88,7 @@ func newBenchmarkRootCmd() *cobra.Command {
 				var envelope struct {
 					Benchmark cfg.BenchmarkConfig `yaml:"benchmark"`
 				}
-				if err := yaml.Unmarshal(data, &envelope); err != nil {
+				if err := yaml.Unmarshal(configData, &envelope); err != nil {
 					return fmt.Errorf("parsing config file %s: %w", cfgFile, err)
 				}
 				benchCfg = envelope.Benchmark
@@ -270,6 +272,13 @@ func newBenchmarkRootCmd() *cobra.Command {
 			// Write HDR histogram .hgrm files for plotting (always, alongside other outputs).
 			if err := benchmark.ExportHgrm(summary, engine.Histograms(), benchCfg.OutputPath); err != nil {
 				fmt.Printf("Warning: could not write histogram files: %v\n", err)
+			}
+
+			// Copy the config file into the results directory so the run is fully reproducible.
+			if cfgFile != "" {
+				if err := benchmark.ExportConfig(summary, benchCfg.OutputPath, cfgFile, configData); err != nil {
+					fmt.Printf("Warning: could not save config file: %v\n", err)
+				}
 			}
 
 			// --- Output ---

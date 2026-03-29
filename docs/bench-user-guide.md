@@ -52,16 +52,25 @@ GOTOOLCHAIN=auto go build -o gcs-bench .
 ./gcs-bench bench --config examples/benchmark-configs/unet3d-like.yaml
 ```
 
-After every run, result files are written to the directory specified by `output-path`
-(defaults to `./`):
+After every run, a timestamped subdirectory is created under the directory
+specified by `output-path` (defaults to `./`), and all result files are
+written inside it:
 
-- `bench-YYYYMMDD-HHMMSS.txt` — human-readable report, always produced
-- `bench-YYYYMMDD-HHMMSS.yaml` — machine-parseable YAML (when `--output-format yaml` or `both`; this is the default)
-- `bench-YYYYMMDD-HHMMSS.tsv` — tab-separated values (when `--output-format tsv` or `both`)
-- `bench-YYYYMMDD-HHMMSS-<track>-ttfb.hgrm` — full TTFB latency distribution in HDR histogram text format (one file per track; **read tracks only**)
-- `bench-YYYYMMDD-HHMMSS-<track>-total-latency.hgrm` — full end-to-end latency distribution (one file per track, all op types)
+```
+<output-path>/bench-YYYYMMDD-HHMMSS/
+    config.yaml                          — exact copy of the config used for this run
+    bench.txt                            — human-readable report, always produced
+    bench.yaml                           — machine-parseable YAML (when --output-format yaml or both)
+    bench.tsv                            — tab-separated values (when --output-format tsv or both)
+    <track>-ttfb.hgrm                   — full TTFB latency distribution (read tracks only)
+    <track>-total-latency.hgrm          — full end-to-end latency distribution (all op types)
+```
 
-The `.hgrm` files can be plotted as a frequency distribution (count vs. latency, log or linear X scale) with `gcs-bench plot-hgrm` — see [§6](#hdr-histogram-files-hgrm).
+Grouping all files in one directory keeps each run self-contained — you can
+zip or copy a single folder and have everything needed to reproduce, analyse,
+or compare the run. The `.hgrm` files can be plotted as a frequency
+distribution (count vs. latency, log or linear X scale) with
+`gcs-bench plot-hgrm` — see [§6](#hdr-histogram-files-hgrm).
 
 ---
 
@@ -462,7 +471,8 @@ benchmark:
 ### Console output
 
 When the measurement phase completes, a human-readable summary is printed to
-stdout and also saved as `bench-YYYYMMDD-HHMMSS.txt`. Example for a **read** track:
+stdout and also saved as `bench.txt` inside the run directory. Example for a
+**read** track:
 
 ```
 === GCS Benchmark Results ===
@@ -547,6 +557,7 @@ All values auto-scale to keep numbers readable:
 All values are raw numbers — no unit conversion is applied in the YAML.
 Latency fields are in **microseconds (µs)**; throughput is in **bytes per
 second**; size is in **bytes**. Use the `.txt` file for human-readable values.
+The file is always named `bench.yaml` inside the run directory.
 
 ```yaml
 start_time: 2026-03-28T10:00:00Z
@@ -625,13 +636,12 @@ failed).
 
 ### HDR histogram files (.hgrm)
 
-Every `bench` run writes two `.hgrm` files per track alongside the `.txt` /
-`.yaml` / `.tsv` outputs:
+Every `bench` run writes two `.hgrm` files per track into the run directory:
 
 | File | Content |
 |------|---------|
-| `bench-YYYYMMDD-HHMMSS-<track>-ttfb.hgrm` | Full TTFB latency distribution — **read tracks only**; file is still created but will be empty for write/stat/list tracks |
-| `bench-YYYYMMDD-HHMMSS-<track>-total-latency.hgrm` | Full end-to-end (TTLB) latency distribution — all op types |
+| `<track>-ttfb.hgrm` | Full TTFB latency distribution — **read tracks only**; file is still created but will be empty for write/stat/list tracks |
+| `<track>-total-latency.hgrm` | Full end-to-end (TTLB) latency distribution — all op types |
 
 The files use the standard [HdrHistogram](http://hdrhistogram.org/) percentile
 distribution text format. Latency values are in **milliseconds** (the raw
@@ -663,21 +673,21 @@ symmetric bell curve. Multiple files are overlaid on the same chart.
 
 ```bash
 # Plot a single track (output → latency_distribution.svg)
-gcs-bench plot-hgrm results/bench-20260329-184200-unet3d-read-total-latency.hgrm
+gcs-bench plot-hgrm results/bench-20260329-184200/unet3d-read-total-latency.hgrm
 
 # Overlay TTFB and total-latency for the same run
 gcs-bench plot-hgrm \
-    results/bench-20260329-184200-unet3d-read-ttfb.hgrm \
-    results/bench-20260329-184200-unet3d-read-total-latency.hgrm
+    results/bench-20260329-184200/unet3d-read-ttfb.hgrm \
+    results/bench-20260329-184200/unet3d-read-total-latency.hgrm
 
 # Compare the same track across two runs; write to a custom file
 gcs-bench plot-hgrm \
-    run1/bench-20260329-184200-unet3d-read-total-latency.hgrm \
-    run2/bench-20260329-185500-unet3d-read-total-latency.hgrm \
+    results/bench-20260329-184200/unet3d-read-total-latency.hgrm \
+    results/bench-20260329-185500/unet3d-read-total-latency.hgrm \
     --output comparison.svg
 
 # Use a linear X axis instead of log (useful for very narrow latency distributions)
-gcs-bench plot-hgrm results/bench-20260329-184200-unet3d-read-total-latency.hgrm \
+gcs-bench plot-hgrm results/bench-20260329-184200/unet3d-read-total-latency.hgrm \
     --scale linear --output linear.svg
 ```
 
@@ -705,11 +715,16 @@ Note that this is a CDF view, not a frequency distribution.
 #### Naming convention
 
 For a config with `output-path: ./results`, a run at `2026-03-29 18:42:00`,
-and a track named `unet3d-read`, the files are:
+and a track named `unet3d-read`, the run directory and its contents are:
 
 ```
-results/bench-20260329-184200-unet3d-read-ttfb.hgrm
-results/bench-20260329-184200-unet3d-read-total-latency.hgrm
+results/bench-20260329-184200/
+    config.yaml
+    bench.txt
+    bench.yaml
+    bench.tsv
+    unet3d-read-ttfb.hgrm
+    unet3d-read-total-latency.hgrm
 ```
 
 For a config with multiple tracks, one pair of `.hgrm` files is created for
@@ -720,11 +735,12 @@ each track.
 ### TSV output file
 
 One row per track. All numeric values are raw (latency in µs, throughput in
-MB/s, size in bytes). Column order:
+MB/s, size in bytes). The file is named `bench.tsv` inside the run directory.
+Column order:
 
 ```
-track  ops_total  errors  ops_per_sec  throughput_mb_s  avg_op_size_bytes  ttfb_p50_us  ttfb_p90_us  ...
-unet3d-read  44197  0  147.30  1033.500  7178178.7  8241.0  15832.0  20114.0  38290.0  91443.0  312041.0  10287.4  46823.0  ...
+track  goroutines  ops_total  errors  ops_per_sec  throughput_mb_s  avg_op_size_bytes  ttfb_p50_us  ttfb_p90_us  ...
+unet3d-read  64  44197  0  147.30  1033.500  7178178.7  8241.0  15832.0  20114.0  38290.0  91443.0  312041.0  10287.4  46823.0  ...
 ```
 
 ---
@@ -751,9 +767,10 @@ Progress is printed every 5 seconds:
 [prepare] Track "unet3d-prepare": complete — 50176/50176 written in 1m18s (643 obj/s, 0 errors)
 ```
 
-After the run finishes, two result files are written to `output-path` (default:
-`./`): a human-readable `bench-YYYYMMDD-HHMMSS.txt` and a machine-parseable
-`bench-YYYYMMDD-HHMMSS.yaml`. Both record `TotalOps`, `Errors`, `OpsPerSec`,
+After the run finishes, a timestamped subdirectory is created under `output-path`
+(default: `./`): `bench-YYYYMMDD-HHMMSS/`. Inside it you will find `bench.txt`,
+`bench.yaml`, and `config.yaml` (a copy of the config). Both the `.txt` and `.yaml`
+files record `TotalOps`, `Errors`, `OpsPerSec`,
 `ThroughputBytesPerSec`, `AvgOpSizeBytes`, and write end-to-end latency
 (`TotalLatency`) for each track — useful for auditing upload performance and
 comparing prepare throughput across runs. TTFB is shown as `N/A` in the `.txt`
