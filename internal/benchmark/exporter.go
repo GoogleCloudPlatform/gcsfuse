@@ -17,9 +17,11 @@ package benchmark
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -43,6 +45,11 @@ func Export(summary RunSummary, outputPath, format string) error {
 	timestamp := summary.StartTime.UTC().Format("20060102-150405")
 	stem := filepath.Join(outputPath, "bench-"+timestamp)
 
+	// Always write the human-readable text file alongside whatever machine format.
+	if err := writeHumanText(summary, stem+".txt"); err != nil {
+		return err
+	}
+
 	switch format {
 	case "yaml":
 		return writeYAML(summary, stem+".yaml")
@@ -58,24 +65,9 @@ func Export(summary RunSummary, outputPath, format string) error {
 	}
 }
 
-// PrintSummary writes a human-readable summary table to stdout.
+// PrintSummary writes a human-readable summary to stdout.
 func PrintSummary(summary RunSummary) {
-	fmt.Printf("\n=== Benchmark Results (%s, %.1fs) ===\n",
-		summary.StartTime.UTC().Format(time.RFC3339),
-		summary.MeasurementDuration.Seconds())
-
-	for _, t := range summary.Tracks {
-		fmt.Printf("\nTrack: %s\n", t.TrackName)
-		fmt.Printf("  Ops/s:       %.1f    Errors: %d / %d\n", t.OpsPerSec, t.Errors, t.TotalOps)
-		fmt.Printf("  Throughput:  %.2f MB/s    Avg op size: %.2f MiB\n",
-			t.ThroughputBytesPerSec/1e6, t.AvgOpSizeBytes/(1024*1024))
-		fmt.Printf("  TTFB (us)   p50=%.0f  p90=%.0f  p95=%.0f  p99=%.0f  p999=%.0f  max=%.0f  mean=%.1f\n",
-			t.TTFB.P50, t.TTFB.P90, t.TTFB.P95, t.TTFB.P99, t.TTFB.P999, t.TTFB.Max, t.TTFB.Mean)
-		fmt.Printf("  Total (us)  p50=%.0f  p90=%.0f  p95=%.0f  p99=%.0f  p999=%.0f  max=%.0f  mean=%.1f\n",
-			t.TotalLatency.P50, t.TotalLatency.P90, t.TotalLatency.P95, t.TotalLatency.P99,
-			t.TotalLatency.P999, t.TotalLatency.Max, t.TotalLatency.Mean)
-	}
-	fmt.Println()
+	printHumanSummary(os.Stdout, summary)
 }
 
 // writeYAML marshals summary to a YAML file.
@@ -142,4 +134,170 @@ func writeTSV(summary RunSummary, path string) error {
 
 func fmtF(v float64) string {
 	return strconv.FormatFloat(v, 'f', 1, 64)
+}
+
+// ---------------------------------------------------------------------------
+// Human-readable formatting helpers
+// ---------------------------------------------------------------------------
+
+// insertCommas adds thousands separators to an integer string.
+func insertCommas(s string) string {
+	neg := strings.HasPrefix(s, "-")
+	if neg {
+		s = s[1:]
+	}
+	n := len(s)
+	if n <= 3 {
+		if neg {
+			return "-" + s
+		}
+		return s
+	}
+	var b strings.Builder
+	b.Grow(n + n/3)
+	start := n % 3
+	if start == 0 {
+		start = 3
+	}
+	b.WriteString(s[:start])
+	for i := start; i < n; i += 3 {
+		b.WriteByte(',')
+		b.WriteString(s[i : i+3])
+	}
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
+}
+
+// commaInt formats an int64 with thousands separators.
+func commaInt(n int64) string {
+	return insertCommas(strconv.FormatInt(n, 10))
+}
+
+// commaFloat formats a float64 with thousands separators in the integer part.
+func commaFloat(f float64, decimals int) string {
+	s := strconv.FormatFloat(f, 'f', decimals, 64)
+	parts := strings.SplitN(s, ".", 2)
+	parts[0] = insertCommas(parts[0])
+	if len(parts) == 2 {
+		return parts[0] + "." + parts[1]
+	}
+	return parts[0]
+}
+
+// humanLatency converts a value in microseconds to a readable string.
+// Values >= 10,000 µs are shown in milliseconds; smaller values in µs.
+func humanLatency(us float64) string {
+	if us <= 0 {
+		return "0 µs"
+	}
+	if us >= 10_000 {
+		return commaFloat(us/1000, 2) + " ms"
+	}
+	return commaFloat(us, 1) + " µs"
+}
+
+// humanBytes formats a byte count with IEC (binary) units.
+func humanBytes(b float64) string {
+	const (
+		KiB = 1 << 10
+		MiB = 1 << 20
+		GiB = 1 << 30
+	)
+	switch {
+	case b >= GiB:
+		return commaFloat(b/GiB, 3) + " GiB"
+	case b >= MiB:
+		return commaFloat(b/MiB, 3) + " MiB"
+	case b >= KiB:
+		return commaFloat(b/KiB, 1) + " KiB"
+	default:
+		return commaFloat(b, 0) + " B"
+	}
+}
+
+// humanThroughput formats bytes/sec with IEC units.
+func humanThroughput(bps float64) string {
+	return humanBytes(bps) + "/s"
+}
+
+// humanDuration formats a time.Duration for human reading.
+func humanDuration(d time.Duration) string {
+	if d < time.Second {
+		return commaFloat(float64(d)/float64(time.Millisecond), 1) + " ms"
+	}
+	if d < time.Minute {
+		return commaFloat(d.Seconds(), 2) + " s"
+	}
+	m := int(d.Minutes())
+	sec := d.Seconds() - float64(m)*60
+	return fmt.Sprintf("%dm %s", m, commaFloat(sec, 2)+" s")
+}
+
+// capitalize returns s with the first rune upper-cased.
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// printHumanSummary writes a fully formatted, human-readable report to w.
+// Latency is shown in ms when >= 10,000 µs; throughput uses GiB/MiB/KiB.
+// TTFB is shown only for read tracks; other op types display "N/A".
+func printHumanSummary(w io.Writer, summary RunSummary) {
+	fmt.Fprintf(w, "\n=== GCS Benchmark Results ===\n")
+	fmt.Fprintf(w, "Run started:  %s\n", summary.StartTime.UTC().Format("2006-01-02T15:04:05Z"))
+	fmt.Fprintf(w, "Duration:     %s\n", humanDuration(summary.MeasurementDuration))
+
+	for _, t := range summary.Tracks {
+		opLabel := t.OpType
+		if opLabel == "" {
+			opLabel = "unknown"
+		}
+
+		fmt.Fprintf(w, "\n--- Track: %s (%s) ---\n\n", t.TrackName, opLabel)
+		fmt.Fprintf(w, "  Throughput:       %s\n", humanThroughput(t.ThroughputBytesPerSec))
+		fmt.Fprintf(w, "  Ops/sec:          %s  (%s total, %s errors)\n",
+			commaFloat(t.OpsPerSec, 2), commaInt(t.TotalOps), commaInt(t.Errors))
+		fmt.Fprintf(w, "  Avg object size:  %s\n", humanBytes(t.AvgOpSizeBytes))
+
+		// Total (end-to-end) latency
+		fmt.Fprintf(w, "\n  %s latency (end-to-end):\n", capitalize(opLabel))
+		fmt.Fprintf(w, "    P50      %s\n", humanLatency(t.TotalLatency.P50))
+		fmt.Fprintf(w, "    P90      %s\n", humanLatency(t.TotalLatency.P90))
+		fmt.Fprintf(w, "    P95      %s\n", humanLatency(t.TotalLatency.P95))
+		fmt.Fprintf(w, "    P99      %s\n", humanLatency(t.TotalLatency.P99))
+		fmt.Fprintf(w, "    P99.9    %s\n", humanLatency(t.TotalLatency.P999))
+		fmt.Fprintf(w, "    Max      %s\n", humanLatency(t.TotalLatency.Max))
+		fmt.Fprintf(w, "    Mean     %s\n", humanLatency(t.TotalLatency.Mean))
+
+		// TTFB — only meaningful for reads
+		if strings.ToLower(opLabel) == "read" {
+			fmt.Fprintf(w, "\n  Time-to-First-Byte (TTFB):\n")
+			fmt.Fprintf(w, "    P50      %s\n", humanLatency(t.TTFB.P50))
+			fmt.Fprintf(w, "    P90      %s\n", humanLatency(t.TTFB.P90))
+			fmt.Fprintf(w, "    P95      %s\n", humanLatency(t.TTFB.P95))
+			fmt.Fprintf(w, "    P99      %s\n", humanLatency(t.TTFB.P99))
+			fmt.Fprintf(w, "    P99.9    %s\n", humanLatency(t.TTFB.P999))
+			fmt.Fprintf(w, "    Max      %s\n", humanLatency(t.TTFB.Max))
+			fmt.Fprintf(w, "    Mean     %s\n", humanLatency(t.TTFB.Mean))
+		} else {
+			fmt.Fprintf(w, "\n  TTFB: N/A (%s operation)\n", opLabel)
+		}
+	}
+	fmt.Fprintln(w)
+}
+
+// writeHumanText writes the human-readable report to a .txt file.
+func writeHumanText(summary RunSummary, path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", path, err)
+	}
+	defer f.Close()
+	printHumanSummary(f, summary)
+	fmt.Printf("Results written to %s\n", path)
+	return nil
 }

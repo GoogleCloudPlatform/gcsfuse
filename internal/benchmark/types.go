@@ -60,6 +60,11 @@ type TrackStats struct {
 	// TrackName matches BenchmarkTrack.Name.
 	TrackName string
 
+	// OpType is the operation executed by this track ("read", "write", "stat",
+	// "list"). Set to "write" for prepare-mode tracks. Used by the exporter to
+	// decide which metrics are applicable (e.g. TTFB is N/A for writes).
+	OpType string `yaml:"op_type,omitempty"`
+
 	// WorkerID identifies which worker (0-based) produced this track result.
 	// Set only when gcs-bench is run with --worker-id; zero otherwise.
 	WorkerID int `yaml:"worker-id,omitempty"`

@@ -139,6 +139,7 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 			ttfb, total := ts.hists.Snapshot()
 			prepSummary.Tracks = append(prepSummary.Tracks, TrackStats{
 				TrackName:             ts.cfg.Name,
+				OpType:                "write",
 				WorkerID:              e.bCfg.WorkerID,
 				TotalOps:              ops,
 				Errors:                errs,
@@ -207,6 +208,7 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 
 		stat := TrackStats{
 			TrackName:             ts.cfg.Name,
+			OpType:                ts.cfg.OpType,
 			WorkerID:              e.bCfg.WorkerID,
 			TotalOps:              ops,
 			Errors:                errs,
