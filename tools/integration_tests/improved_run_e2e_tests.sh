@@ -366,6 +366,8 @@ readonly UNMIGRATED_PACKAGES=(
   "concurrent_operations"
   "interrupt"
   "mounting"
+  "release_version"
+  "symlink_handling"
 )
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
