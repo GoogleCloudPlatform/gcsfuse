@@ -19,9 +19,14 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/armon/go-radix"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
+
+// radixListEntry is stored inside the LRU linked list's element.
+type radixListEntry struct {
+	node  *radixNode
+	value ValueType
+}
 
 // radixCache is an LRU cache implementation that uses a radix tree for indexing.
 type radixCache struct {
@@ -31,7 +36,7 @@ type radixCache struct {
 
 	entries list.List
 
-	index *radix.Tree
+	index *radixTree
 
 	mu locker.RWLocker
 }
@@ -40,7 +45,7 @@ type radixCache struct {
 func NewRadixCache(maxSize uint64) Cache {
 	c := &radixCache{
 		maxSize: maxSize,
-		index:   radix.New(),
+		index:   newRadixTree(),
 	}
 	c.mu = locker.NewRW("RadixLRUCache", c.checkInvariants)
 	return c
@@ -57,7 +62,7 @@ func (c *radixCache) checkInvariants() {
 
 	for e := c.entries.Front(); e != nil; e = e.Next() {
 		switch e.Value.(type) {
-		case entry:
+		case radixListEntry:
 		default:
 			panic(fmt.Sprintf("Unexpected element type: %v", reflect.TypeOf(e.Value)))
 		}
@@ -71,22 +76,22 @@ func (c *radixCache) checkInvariants() {
 	}
 
 	for e := c.entries.Front(); e != nil; e = e.Next() {
-		val, ok := c.index.Get(e.Value.(entry).Key)
-		if !ok || val.(*list.Element) != e {
-			panic(fmt.Sprintf("Mismatch for key %v", e.Value.(entry).Key))
+		node := e.Value.(radixListEntry).node
+		if node.element != e {
+			panic("Mismatch for internal radix node element mapping")
 		}
 	}
 }
 
 func (c *radixCache) evictOne() ValueType {
 	e := c.entries.Back()
-	key := e.Value.(entry).Key
+	node := e.Value.(radixListEntry).node
 
-	evictedEntry := e.Value.(entry).Value
+	evictedEntry := e.Value.(radixListEntry).value
 	c.currentSize -= evictedEntry.Size()
 
 	c.entries.Remove(e)
-	c.index.Delete(key)
+	c.index.DeleteNode(node)
 
 	return evictedEntry
 }
@@ -104,16 +109,18 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 		return nil, ErrInvalidEntrySize
 	}
 
-	val, ok := c.index.Get(key)
+	node, ok := c.index.Get(key)
 	if ok {
-		e := val.(*list.Element)
-		c.currentSize -= e.Value.(entry).Value.Size()
+		e := node.element
+		c.currentSize -= e.Value.(radixListEntry).value.Size()
 		c.currentSize += valueSize
-		e.Value = entry{key, value}
+		e.Value = radixListEntry{node: node, value: value}
 		c.entries.MoveToFront(e)
 	} else {
-		e := c.entries.PushFront(entry{key, value})
-		c.index.Insert(key, e)
+		// Insert temporarily to get the node, then update element.
+		node, _ = c.index.Insert(key, nil)
+		e := c.entries.PushFront(radixListEntry{node: node, value: value})
+		node.element = e
 		c.currentSize += valueSize
 	}
 
@@ -126,16 +133,16 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 }
 
 func (c *radixCache) eraseInternal(key string) (value ValueType) {
-	val, ok := c.index.Get(key)
+	node, ok := c.index.Get(key)
 	if !ok {
 		return
 	}
 
-	e := val.(*list.Element)
-	deletedEntry := e.Value.(entry).Value
+	e := node.element
+	deletedEntry := e.Value.(radixListEntry).value
 	c.currentSize -= deletedEntry.Size()
 
-	c.index.Delete(key)
+	c.index.DeleteNode(node)
 	c.entries.Remove(e)
 
 	return deletedEntry
@@ -152,27 +159,27 @@ func (c *radixCache) LookUp(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	val, ok := c.index.Get(key)
+	node, ok := c.index.Get(key)
 	if !ok {
 		return
 	}
-	e := val.(*list.Element)
+	e := node.element
 	c.entries.MoveToFront(e)
 
-	return e.Value.(entry).Value
+	return e.Value.(radixListEntry).value
 }
 
 func (c *radixCache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	val, ok := c.index.Get(key)
+	node, ok := c.index.Get(key)
 	if !ok {
 		return
 	}
-	e := val.(*list.Element)
+	e := node.element
 
-	return e.Value.(entry).Value
+	return e.Value.(radixListEntry).value
 }
 
 func (c *radixCache) UpdateWithoutChangingOrder(key string, value ValueType) error {
@@ -183,19 +190,17 @@ func (c *radixCache) UpdateWithoutChangingOrder(key string, value ValueType) err
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	val, ok := c.index.Get(key)
+	node, ok := c.index.Get(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
 
-	e := val.(*list.Element)
-	if value.Size() != e.Value.(entry).Value.Size() {
+	e := node.element
+	if value.Size() != e.Value.(radixListEntry).value.Size() {
 		return ErrInvalidUpdateEntrySize
 	}
 
-	e.Value = entry{key, value}
-	// The radix index holds the pointer to the list element.
-	// We've mutated the element in place, so no need to update index.
+	e.Value = radixListEntry{node: node, value: value}
 	return nil
 }
 
@@ -215,18 +220,26 @@ func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
 
 func (c *radixCache) EraseEntriesWithGivenPrefix(prefix string) {
 	c.mu.RLock()
-	var keysToDelete []string
-	c.index.WalkPrefix(prefix, func(key string, value interface{}) bool {
-		keysToDelete = append(keysToDelete, key)
+	var nodesToDelete []*radixNode
+	c.index.WalkPrefix(prefix, func(node *radixNode) bool {
+		nodesToDelete = append(nodesToDelete, node)
 		return false
 	})
 	c.mu.RUnlock()
 
-	if len(keysToDelete) > 0 {
+	if len(nodesToDelete) > 0 {
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		for _, key := range keysToDelete {
-			c.eraseInternal(key)
+		for _, node := range nodesToDelete {
+			if node.element == nil {
+				continue
+			}
+			e := node.element
+			deletedEntry := e.Value.(radixListEntry).value
+			c.currentSize -= deletedEntry.Size()
+
+			c.index.DeleteNode(node)
+			c.entries.Remove(e)
 		}
 	}
 }

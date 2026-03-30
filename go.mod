@@ -12,7 +12,6 @@ require (
 	cloud.google.com/go/storage v1.61.3
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.31.0
-	github.com/armon/go-radix v1.0.0
 	github.com/fsouza/fake-gcs-server v1.54.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
