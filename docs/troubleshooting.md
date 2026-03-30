@@ -270,7 +270,7 @@ This occurs when the gcsfuse package corresponding to OS version returned by `ls
 
 ### fuse: writeMessage: no such file or directory error
 
-This error indicates that the GCSFuse process attempted to write a response (such as an "OK" status for a pending I/O request) back to the kernel, but the underlying communication channel—the FUSE file descriptor—was already closed.
+This error indicates that the GCSFuse process attempted to write a response (such as an "OK" status for a pending I/O request) back to the kernel, but the underlying communication channel— the FUSE file descriptor— was already closed.
 
 The primary cause is typically a concurrent or premature `unmount` syscall that tears down the mount point while active I/O is still being finalized. When the mount is unmounted, the kernel closes the FUSE device file descriptor, causing subsequent attempts by GCSFuse to send responses back to the kernel to fail with "no such file or directory".
 
