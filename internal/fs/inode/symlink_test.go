@@ -47,7 +47,10 @@ var _ TearDownInterface = &CoreTest{}
 func init() { RegisterTestSuite(&SymlinkTest{}) }
 
 func (t *SymlinkTest) SetUp(ti *TestInfo) {
-	bucket := gcsx.NewSyncerBucket( /*appendThreshold=*/ 1 /*chunkRetryDeadlineSecs=*/, 120 /*chunkTransferTimeoutSecs=*/, 10,
+	bucket := gcsx.NewSyncerBucket(
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/", fake.NewFakeBucket(timeutil.RealClock(), "some-bucket", gcs.BucketType{}))
 	t.bucket = &bucket
 }
