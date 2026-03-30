@@ -97,12 +97,19 @@ e2e-test:
 #
 # BENCH_VERSION (default: v1.0) is your revision tag for the benchmark tool
 # additions.  Override on the command line: make bench BENCH_VERSION=v1.2
+#
 # The full version string shown by --version will be:
-#   gcsfuse unknown+bench-<BENCH_VERSION> (Go version ...)
-# Replace "unknown" with the upstream gcsfuse release (e.g. v2.8.0) if you
-# ever rebase onto a tagged upstream commit.
+#   gcsfuse version gcsfuse-v3-snap.<upstream-short-sha>+bench-<BENCH_VERSION> (Go version ...)
+#
+# UPSTREAM_SHA is derived from the merge-base of HEAD and origin/master so it
+# always identifies the exact upstream snapshot this build was forked from,
+# regardless of how many bench commits have been added on top.
 BENCH_VERSION ?= v1.0
-BENCH_LDFLAGS := -X github.com/googlecloudplatform/gcsfuse/v3/common.gcsfuseVersion=unknown+bench-$(BENCH_VERSION)
+UPSTREAM_SHA  := $(shell git merge-base HEAD origin/master 2>/dev/null | cut -c1-8)
+ifeq ($(UPSTREAM_SHA),)
+UPSTREAM_SHA  := unknown
+endif
+BENCH_LDFLAGS := -X github.com/googlecloudplatform/gcsfuse/v3/common.gcsfuseVersion=gcsfuse-v3-snap.$(UPSTREAM_SHA)+bench-$(BENCH_VERSION)
 
 bench:
 	GOTOOLCHAIN=auto go generate ./...
