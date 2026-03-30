@@ -71,8 +71,9 @@ func (t *SymlinkInternalTest) createSymlinkInode(name string, target string, leg
 		m.Metadata[StandardSymlinkMetadataKey] = "true"
 	}
 	syncerBucket := gcsx.NewSyncerBucket(
-		1,
-		10, // ChunkTransferTimeoutSecs
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
 	)
@@ -162,8 +163,9 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Legacy() {
 		},
 	}
 	syncerBucket := gcsx.NewSyncerBucket(
-		1,
-		10,
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
 	)
@@ -192,8 +194,9 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Standard() {
 	}
 	m.Metadata[StandardSymlinkMetadataKey] = "true"
 	syncerBucket := gcsx.NewSyncerBucket(
-		1,
-		10,
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
 	)
@@ -222,8 +225,9 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Standard_ReadError() {
 		Generation: 1,
 	}
 	syncerBucket := gcsx.NewSyncerBucket(
-		1,
-		10,
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
 	)
@@ -246,8 +250,9 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_InvalidMetadata() {
 		Metadata: map[string]string{},
 	}
 	syncerBucket := gcsx.NewSyncerBucket(
-		1,
-		10,
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
 	)
