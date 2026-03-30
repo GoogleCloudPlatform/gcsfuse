@@ -72,7 +72,7 @@ func TestFileTestSuite(t *testing.T) {
 func (t *fileTest) SetupTest() {
 	t.ctx = context.TODO()
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	NewSyncerBucket(
+	t.bucket = gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
@@ -673,7 +673,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_Success() {
 	// Mock CreateObject which is called by createFileInode.
 	mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
 	// Create File Inode.
-	NewSyncerBucket(
+	mockSyncerBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
@@ -707,7 +707,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_Success() {
 
 func (t *fileTest) Test_ReadWithMrdKernelReader_NotAuthoritative() {
 	// 1. Setup
-	NewSyncerBucket(
+	zonalBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
@@ -746,7 +746,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_NotAuthoritative() {
 
 func (t *fileTest) Test_ReadWithMrdKernelReader_NilReader() {
 	// 1. Setup with a non-zonal bucket.
-	NewSyncerBucket(
+	nonZonalBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
@@ -781,7 +781,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_ReadAtError() {
 	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
 	mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
 	// Create file inode.
-	NewSyncerBucket(
+	mockSyncerBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,

@@ -51,7 +51,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 	t.ctx = context.Background()
 	t.clock.SetTime(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	t.fake = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
-	NewSyncerBucket(
+	t.bucket = gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
