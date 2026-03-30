@@ -47,7 +47,7 @@ var (
 	uncachedBucket gcs.Bucket
 )
 
-func newLruCache(capacity uint64) *lru.Cache {
+func newLruCache(capacity uint64) lru.Cache {
 	return lru.NewCache(capacity)
 }
 

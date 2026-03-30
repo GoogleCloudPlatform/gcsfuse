@@ -151,7 +151,7 @@ func NewFileInode(
 	localFile bool,
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
-	mrdCache *lru.Cache) (f *FileInode) {
+	mrdCache lru.Cache) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {

@@ -37,11 +37,12 @@ import (
 )
 
 type BucketConfig struct {
-	BillingProject                     string
-	OnlyDir                            string
-	EgressBandwidthLimitBytesPerSecond float64
-	OpRateLimitHz                      float64
-	StatCacheMaxSizeMB                 uint64
+	BillingProject                      string
+	OnlyDir                             string
+	EgressBandwidthLimitBytesPerSecond  float64
+	OpRateLimitHz                       float64
+	StatCacheMaxSizeMB                  uint64
+	ExperimentalStatCacheImplementation string
 	// Config for TTL of entries for existing file in stat cache
 	StatCacheTTL time.Duration
 	// Config for TTL of entries for non-existing file in stat cache
@@ -98,7 +99,7 @@ type BucketManager interface {
 type bucketManager struct {
 	config          BucketConfig
 	storageHandle   storage.StorageHandle
-	sharedStatCache *lru.Cache
+	sharedStatCache lru.Cache
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -106,9 +107,13 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
-	var c *lru.Cache
+	var c lru.Cache
 	if config.StatCacheMaxSizeMB > 0 {
-		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		if config.ExperimentalStatCacheImplementation == "radix" {
+			c = lru.NewRadixCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		} else {
+			c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		}
 	}
 
 	bm := &bucketManager{

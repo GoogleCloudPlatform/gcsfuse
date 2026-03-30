@@ -675,7 +675,7 @@ type fileSystem struct {
 	globalMetadataPrefetchSem *semaphore.Weighted
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
-	mrdCache *lru.Cache
+	mrdCache lru.Cache
 }
 
 ////////////////////////////////////////////////////////////////////////

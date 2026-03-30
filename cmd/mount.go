@@ -92,24 +92,26 @@ be interacting with the file system.`)
 	}
 
 	bucketCfg := gcsx.BucketConfig{
-		BillingProject:                     newConfig.GcsConnection.BillingProject,
-		OnlyDir:                            newConfig.OnlyDir,
-		EgressBandwidthLimitBytesPerSecond: newConfig.GcsConnection.LimitBytesPerSec,
-		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
-		StatCacheMaxSizeMB:                 uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
-		StatCacheTTL:                       time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
-		NegativeStatCacheTTL:               time.Duration(newConfig.MetadataCache.NegativeTtlSecs) * time.Second,
-		EnableMonitoring:                   cfg.IsMetricsEnabled(&newConfig.Metrics),
-		LogSeverity:                        newConfig.Logging.Severity,
-		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
+		BillingProject:                      newConfig.GcsConnection.BillingProject,
+		OnlyDir:                             newConfig.OnlyDir,
+		EgressBandwidthLimitBytesPerSecond:  newConfig.GcsConnection.LimitBytesPerSec,
+		OpRateLimitHz:                       newConfig.GcsConnection.LimitOpsPerSec,
+		StatCacheMaxSizeMB:                  uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
+		ExperimentalStatCacheImplementation: newConfig.MetadataCache.ExperimentalStatCacheImplementation,
+		StatCacheTTL:                        time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
+		NegativeStatCacheTTL:                time.Duration(newConfig.MetadataCache.NegativeTtlSecs) * time.Second,
+		EnableMonitoring:                    cfg.IsMetricsEnabled(&newConfig.Metrics),
+		LogSeverity:                         newConfig.Logging.Severity,
+		AppendThreshold:                     1 << 21, // 2 MiB, a total guess.
 		ChunkRetryDeadlineSecs:             newConfig.GcsRetries.ChunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
-		TmpObjectPrefix:                    ".gcsfuse_tmp/",
-		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,
-		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
-		DummyIOCfg:                         newConfig.DummyIo,
-		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
-		ImplicitDir:                        newConfig.ImplicitDirs,
+		ChunkTransferTimeoutSecs:            newConfig.GcsRetries.ChunkTransferTimeoutSecs,
+		TmpObjectPrefix:                     ".gcsfuse_tmp/",
+		FinalizeFileForRapid:                newConfig.Write.FinalizeFileForRapid,
+		DisableListAccessCheck:              newConfig.DisableListAccessCheck,
+		DummyIOCfg:                          newConfig.DummyIo,
+		IsTypeCacheDeprecated:               newConfig.EnableTypeCacheDeprecation,
+		ImplicitDir:                         newConfig.ImplicitDirs,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
