@@ -1,0 +1,55 @@
+# gcsfuse-bench example: Small random reads (AI/ML checkpoint pattern)
+#
+# Simulates the pattern of reading many small checkpoint shard files
+# during model loading. Each shard is 4 MiB, accessed randomly.
+#
+# Run (bucket in config file):
+#   gcsfuse-bench benchmark --config small-random-reads.yaml
+#
+# Or override bucket on the command line:
+#   gcsfuse-bench benchmark --config small-random-reads.yaml other-bucket
+#
+# Or equivalently using CLI flags only:
+#   gcsfuse-bench benchmark --duration 60s --concurrency 32 \
+#       --object-prefix checkpoints/run-001/ my-bucket
+
+benchmark:
+  # GCS bucket to benchmark. Can be overridden by a command-line positional arg.
+  bucket: "my-bucket-name"
+
+  # How long to run the measurement phase.
+  duration: 60s
+
+  # Warmup period — stats collected during warmup are discarded.
+  warmup-duration: 10s
+
+  # Total goroutines across all tracks (divided by weight).
+  total-concurrency: 32
+
+  # Prefix prepended to all object names. Objects must already exist.
+  object-prefix: "checkpoints/run-001/"
+
+  # Where to write results (defaults to current directory).
+  output-path: "./results"
+
+  # Output format: yaml, tsv, or both.
+  output-format: both
+
+  histograms:
+    # Minimum value tracked (µs). 1 µs is suitable for intra-region GCS.
+    min-value-micros: 1
+    # Maximum value tracked (µs). 60s = 60,000,000 µs.
+    max-value-micros: 60000000
+    # HDR precision: 3 → 0.1% error bounds.
+    significant-digits: 3
+
+  tracks:
+    - name: random-read-4mb
+      op-type: read
+      weight: 1
+      object-size-min: 4194304   # 4 MiB
+      object-size-max: 4194304   # fixed size
+      read-size: 4194304         # read full object per call
+      access-pattern: random
+      object-count: 1000         # 1000 distinct objects
+      # concurrency: 32          # override: use total-concurrency instead

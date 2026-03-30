@@ -338,6 +338,11 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 }
 
 func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
+	// rapid-mode: on — skip detection and force zonal/RAPID treatment.
+	if sh.clientConfig.ForceZonal {
+		return &gcs.BucketType{Zonal: true}, nil
+	}
+
 	if sh.storageControlClient == nil {
 		return &gcs.BucketType{}, nil // Assume defaults
 	}

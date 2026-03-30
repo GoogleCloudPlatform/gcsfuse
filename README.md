@@ -1,83 +1,115 @@
-[![codecov](https://codecov.io/gh/GoogleCloudPlatform/gcsfuse/graph/badge.svg?token=vNsbSbeea2)](https://codecov.io/gh/GoogleCloudPlatform/gcsfuse)
+# gcsfuse-bench
 
-# Current status
+A standalone GCS I/O benchmarking tool built on top of Google's
+[Cloud Storage FUSE](https://github.com/GoogleCloudPlatform/gcsfuse) storage
+client. It measures real network latency distributions — reads, writes, stats,
+and list operations — directly against GCS without requiring a FUSE mount.
 
-Cloud Storage FUSE continues to evolve with significant enhancements in v2 and v3, and is Generally Available and
-supported by Google starting with v1.0, Cloud Storage FUSE is Generally Available and supported by Google, provided that
-it is used within its documented supported applications, platforms, and limits. Support requests, feature requests, and
-general questions should be submitted as a support request via Google Cloud support channels or via
-GitHub[here](https://github.com/GoogleCloudPlatform/gcsfuse/issues).
+> **Upstream base:** This repository is a fork of
+> [GoogleCloudPlatform/gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse)
+> (v3, snapshot `582a2201`, 2026-03-27).  
+> The benchmark tool lives on the `gcs-bench-tool-v1` branch.  
+> See [README-gcsfuse-upstream.md](README-gcsfuse-upstream.md) for the original
+> upstream Cloud Storage FUSE documentation.
 
-Cloud Storage FUSE is open source software, released under the
-[Apache license](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/LICENSE).
+---
 
-## Cloud Storage Fuse v3 features
+## Quick start
 
-### Streaming Writes
+### 1. Build
 
-Streaming writes is the new default write path that uploads data directly to Google Cloud Storage (GCS) as it is
-written.
-The previous write path temporarily staged the entire write in a local file, uploading to GCS on close or fsync.
-This reduces both latency and disk space usage, making it particularly beneficial for large, sequential writes, such as
-checkpoint writes, which can be up to _**40% faster**_, as observed in training runs.
-See [streaming writes](https://github.com/googlecloudplatform/gcsfuse/blob/master/docs/semantics.md#with-streaming-writes)
-for more details.
+```bash
+# Clone the repo and switch to the benchmark branch
+git clone https://github.com/GoogleCloudPlatform/gcsfuse.git gcsfuse-bench
+cd gcsfuse-bench
+git checkout gcs-bench-tool-v1
 
-### File Cache Parallel Downloads (Default)
+# Build the gcs-bench binary (requires Go 1.26+)
+make bench
 
-Parallel downloads uses multiple workers to download a file in parallel using the file cache directory as a prefetch
-buffer. We recommend using parallel downloads for single-threaded read scenarios that load large files such as model
-serving and checkpoint restores, with up to _**9x faster model load times**_.
-See [Using Parallel Downloads](https://cloud.google.com/storage/docs/cloud-storage-fuse/file-caching#configure-parallel-downloads)
-for more details.
+# Verify
+./gcs-bench --version
+# gcsfuse version gcsfuse-v3-snap.582a2201+bench-v1.0 (Go version go1.26.1)
+```
 
-### Automatic Optimization for High-Performance Machine Types
+The `make bench` target injects a meaningful version string automatically.
+To bump your revision: `make bench BENCH_VERSION=v1.1`.
 
-GCSFuse now automatically optimizes its configuration when running on specific high-performance Google Cloud machine
-types to maximize performance for demanding workloads and effectively utilize the machine's capability. Manually set
-values at the time of mount will override these defaults.
+### 2. Validate your config (no GCS traffic)
 
-## Cloud Storage FUSE v2 features
+```bash
+./gcs-bench bench --config docs/examples/unet3d-like.yaml --dry-run
+```
 
-Cloud Storage FUSE V2 provides important stability, functionality, and performance enhancements.
+### 3. Run a benchmark
 
-### File Cache
-The file cache allows repeat file reads to be served from a local, faster cache storage of choice, such as a Local SSD, Persistent Disk, or even in-memory /tmpfs. The Cloud Storage FUSE file cache makes AI/ML training faster and more cost-effective by reducing the time spent waiting for data, with up to _**2.3x faster training time and 3.4x higher throughput**_ observed in training runs. This is especially valuable for multi epoch training and can serve small and random I/O operations significantly faster. The file cache feature is disabled by default and is enabled by passing a directory to 'cache-dir'. See [overview of caching](https://cloud.google.com/storage/docs/gcsfuse-cache) for more details. 
+```bash
+./gcs-bench bench --config docs/examples/unet3d-like.yaml
+```
 
-# ABOUT
-## What is Cloud Storage FUSE?
+Progress lines are printed every 10 seconds.  When the run finishes, results
+are written to a timestamped directory:
 
-Cloud Storage FUSE is an open source FUSE adapter that lets you mount and access Cloud Storage buckets as local file systems. For a technical overview of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.
+```
+results/bench-YYYYMMDD-HHMMSS/
+  bench.txt                      human-readable summary
+  bench.yaml                     machine-readable metrics
+  bench.tsv                      TSV for spreadsheet import
+  config.yaml                    exact config used for this run
+  <track>-ttfb.hgrm              HDR histogram — time to first byte
+  <track>-total-latency.hgrm     HDR histogram — end-to-end latency
+  console.log                    full terminal output captured verbatim
+```
 
-## Cloud Storage FUSE for machine learning
+---
 
-To learn about the benefits of using Cloud Storage FUSE for machine learning projects, see https://cloud.google.com/storage/docs/gcsfuse-integrations#machine-learning.
+## Make targets
 
-## Limitations and key differences from POSIX file systems
+| Target | Description |
+|---|---|
+| `make bench` | Build the `gcs-bench` binary with version info injected |
+| `make bench BENCH_VERSION=vX.Y` | Build with a specific revision tag |
+| `make bench-test` | Run vet + unit tests for the benchmark packages |
+| `make bench-clean` | Remove the `gcs-bench` binary |
 
-To learn about limitations and differences between Cloud Storage FUSE and POSIX file systems, see https://cloud.google.com/storage/docs/gcs-fuse#differences-and-limitations.
+---
 
-## Pricing for Cloud Storage FUSE
+## Subcommands
 
-For information about pricing for Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse#charges.
+| Subcommand | Description |
+|---|---|
+| `bench` | Run an I/O benchmark (reads, writes, stats, list) |
+| `merge-results` | Merge per-worker YAML result files from a distributed run |
+| `plot-hgrm` | Render an `.hgrm` HDR histogram file as an SVG chart |
 
-# CSI Driver
+---
 
-Using the [Cloud Storage FUSE CSI driver](https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver), users get the declarative nature of Kubernetes
-with all infrastructure fully managed by GKE in combination with Cloud Storage. This CSI
-driver relies on Cloud Storage FUSE to mount Cloud storage buckets as file systems on the
-GKE nodes, with the Cloud Storage FUSE deployment and management fully handled by GKE, 
-providing a turn-key experience.
+## Documentation
 
-# Support
+| Document | Description |
+|---|---|
+| [docs/bench-user-guide.md](docs/bench-user-guide.md) | **Full user guide** — config reference, all flags, output format, distributed usage, authentication |
+| [docs/Handoff_gcsfuse-bench.md](docs/Handoff_gcsfuse-bench.md) | Development history, architecture decisions, commit log |
+| [docs/Creating_Test_tool_for_Rapid-Storage.md](docs/Creating_Test_tool_for_Rapid-Storage.md) | Background on RAPID storage testing motivation |
+| [docs/performance.md](docs/performance.md) | Upstream gcsfuse performance notes |
+| [docs/installing.md](docs/installing.md) | Upstream gcsfuse installation guide |
 
-## Supported operating system and validated ML frameworks 
+---
 
-To see supported operating system and ML frameworks that have been validated with Cloud Storage FUSE, see [here](https://cloud.google.com/storage/docs/gcs-fuse#supported-frameworks-os).
+## Key features
 
-## Getting support
+- **No FUSE mount required** — talks directly to GCS via the Go storage client
+- **HDR histograms** — accurate p50/p90/p95/p99/p99.9/max; never averaged
+- **RAPID / zonal bucket support** — auto-detects bidi-gRPC transport (`--rapid-mode auto`)
+- **Warmup phase** — goroutines run continuously; stats reset at the boundary so queues stay full
+- **Distributed mode** — co-ordinate multiple hosts with `--worker-id` / `--num-workers`; merge with `merge-results`
+- **Self-contained results** — every run directory includes the config and full console log
 
-You can get support, submit general questions, and request new features by [filing issues in GitHub](https://github.com/GoogleCloudPlatform/gcsfuse/issues). You can also get support by using one of [Google Cloud's official support channels](https://cloud.google.com/support-hub).
+---
 
-See [Troubleshooting](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/troubleshooting.md) for common issue handling.
+## Upstream Cloud Storage FUSE
 
+This tool is built on the gcsfuse storage client library. For documentation on
+the upstream project (FUSE mounting, CSI driver, v2/v3 feature descriptions,
+supported platforms, pricing) see
+[README-gcsfuse-upstream.md](README-gcsfuse-upstream.md).

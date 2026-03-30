@@ -1,0 +1,55 @@
+# gcs-bench example: UNet3D-like PREPARE workload
+#
+# Creates all 50,176 objects in the bucket exactly once, then exits.
+# Run this BEFORE unet3d-like.yaml.
+#
+# The directory-structure and file/dir patterns MUST be identical between
+# this file and the benchmark config — that is how the read workload knows
+# which object names to use without doing any bucket listing.
+#
+# Run:
+#   gcs-bench bench --config unet3d-like-prepare.yaml
+#
+# Then benchmark reads with:
+#   gcs-bench bench --config unet3d-like.yaml
+#
+# To preview what would run without connecting to GCS:
+#   gcs-bench bench --config unet3d-like-prepare.yaml --dry-run
+
+benchmark:
+  # mode: prepare — iterates all object paths exactly once (no time limit).
+  # mode: benchmark — runs in a time-bounded loop (the default).
+  mode: prepare
+
+  bucket: "my-bucket-name"
+  object-prefix: "unet3d/"
+
+  # Goroutine count for parallel writes. More = faster prepare.
+  # A good rule of thumb: 2-4× your expected read concurrency.
+  total-concurrency: 64
+
+  # RAPID/zonal bucket detection (auto = call GetStorageLayout at startup).
+  # Use "on" to force bidi-gRPC without detection, "off" for standard HTTP/2.
+  rapid-mode: auto
+
+  tracks:
+    - name: unet3d-prepare
+      op-type: write        # prepare mode only executes 'write' tracks
+
+      # MUST match directory-structure in unet3d-like.yaml exactly.
+      # Total objects: 28² × 64 = 50,176
+      directory-structure:
+        width: 28
+        depth: 2
+        files-per-dir: 64
+        dir-pattern: "dir-%04d"    # → dir-0000/ … dir-0027/
+        file-pattern: "obj-%06d"   # → obj-000000 … obj-000063
+
+      # Size distribution for written objects.
+      # Lognormal parameters match the MLPerf Storage UNet3D dataset.
+      size-spec:
+        type: lognormal
+        mean: 7235174     # ~6.9 MiB real-space mean
+        std-dev: 5788139  # ~5.5 MiB real-space std-dev
+        min: 1048576      # 1 MiB floor
+        max: 33554432     # 32 MiB ceiling

@@ -1,0 +1,47 @@
+# gcsfuse-bench example: Streaming large reads (training data pattern)
+#
+# Simulates the pattern of streaming large training dataset files
+# (NPZ/HDF5 shards) sequentially. Uses multiple tracks to mix
+# large sequential reads with smaller random reads.
+#
+# This config uses Google Rapid Storage (gRPC Zonal buckets) via the
+# grpc client protocol. Ensure GcsConnection.ClientProtocol = grpc in
+# the mount config when using alongside FUSE.
+#
+# Run (bucket in config file):
+#   gcsfuse-bench benchmark --config streaming-reads.yaml
+
+benchmark:
+  bucket: "my-zonal-bucket-name"
+  duration: 120s
+  warmup-duration: 15s
+  total-concurrency: 64
+  object-prefix: "dataset/shards/"
+  output-path: "./results"
+  output-format: both
+
+  histograms:
+    min-value-micros: 1
+    max-value-micros: 60000000
+    significant-digits: 3
+
+  tracks:
+    # Large sequential reads — streaming training shards (512 MiB each).
+    - name: sequential-read-512mb
+      op-type: read
+      weight: 3
+      object-size-min: 536870912  # 512 MiB
+      object-size-max: 536870912
+      read-size: 4194304          # 4 MiB read granularity
+      access-pattern: sequential
+      object-count: 50            # 50 shards = 25 GiB total dataset
+
+    # Random reads — metadata shards / index files (1 MiB each).
+    - name: random-read-1mb
+      op-type: read
+      weight: 1
+      object-size-min: 1048576   # 1 MiB
+      object-size-max: 1048576
+      read-size: 1048576
+      access-pattern: random
+      object-count: 500

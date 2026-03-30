@@ -29,6 +29,15 @@ import (
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
+		// DeadlineExceeded and Canceled gRPC codes arise at benchmark phase
+		// transitions (warmup→measurement, end-of-run) when the controlling
+		// context is cancelled while gRPC calls are in-flight. These are
+		// expected and not indicative of a GCS service problem; suppress the
+		// warning to avoid distracting output.
+		if s, ok := status.FromError(err); ok &&
+			(s.Code() == codes.DeadlineExceeded || s.Code() == codes.Canceled) {
+			return
+		}
 		logger.Warnf("Retrying for the error: %v", err)
 		return
 	}
@@ -70,12 +79,14 @@ func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metr
 	if !retry {
 		return false
 	}
-	// Record metrics
-	val := metrics.RetryErrorCategoryOTHERERRORSAttr
-	if errors.Is(err, context.DeadlineExceeded) {
-		val = metrics.RetryErrorCategorySTALLEDREADREQUESTAttr
+	// Record metrics (metricHandle may be nil when running without the full
+	// gcsfuse metrics stack, e.g. gcs-bench standalone).
+	if metricHandle != nil {
+		val := metrics.RetryErrorCategoryOTHERERRORSAttr
+		if errors.Is(err, context.DeadlineExceeded) {
+			val = metrics.RetryErrorCategorySTALLEDREADREQUESTAttr
+		}
+		metricHandle.GcsRetryCount(1, val)
 	}
-
-	metricHandle.GcsRetryCount(1, val)
 	return retry
 }

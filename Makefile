@@ -38,7 +38,7 @@ override STAGINGVERSION := $(STAGINGVERSIONPREFIX)$(patsubst $(STAGINGVERSIONPRE
 PROJECT ?= $(shell gcloud config get-value project 2>/dev/null)
 .DEFAULT_GOAL := build
 
-.PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi
+.PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi bench bench-test bench-clean
 
 generate:
 	go generate ./...
@@ -86,3 +86,40 @@ e2e-test:
 	REGION=$$(echo $$ZONE | sed 's/-[a-z]$$//'); \
 	echo $$REGION; \
 	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION
+
+# ── gcs-bench standalone benchmark tool ────────────────────────────────────
+# Use these targets instead of the main 'build' target when working on
+# the benchmark tool.  GOTOOLCHAIN=auto lets 'go' download the toolchain
+# version declared in go.mod when the locally-installed version is older.
+
+# bench: build the gcs-bench binary.  Fast — no vet/fmt overhead.
+# go generate must run first to regenerate cfg/config.go (deleted by make clean).
+#
+# BENCH_VERSION (default: v1.0) is your revision tag for the benchmark tool
+# additions.  Override on the command line: make bench BENCH_VERSION=v1.2
+#
+# The full version string shown by --version will be:
+#   gcsfuse version gcsfuse-v3-snap.<upstream-short-sha>+bench-<BENCH_VERSION> (Go version ...)
+#
+# UPSTREAM_SHA is derived from the merge-base of HEAD and origin/master so it
+# always identifies the exact upstream snapshot this build was forked from,
+# regardless of how many bench commits have been added on top.
+BENCH_VERSION ?= v1.0
+UPSTREAM_SHA  := $(shell git merge-base HEAD origin/master 2>/dev/null | cut -c1-8)
+ifeq ($(UPSTREAM_SHA),)
+UPSTREAM_SHA  := unknown
+endif
+BENCH_LDFLAGS := -X github.com/googlecloudplatform/gcsfuse/v3/common.gcsfuseVersion=gcsfuse-v3-snap.$(UPSTREAM_SHA)+bench-$(BENCH_VERSION)
+
+bench:
+	GOTOOLCHAIN=auto go generate ./...
+	GOTOOLCHAIN=auto go build -ldflags "$(BENCH_LDFLAGS)" -o gcs-bench .
+
+# bench-test: vet + run the benchmark package unit tests.
+bench-test:
+	GOTOOLCHAIN=auto go vet ./internal/benchmark/... ./cmd/...
+	GOTOOLCHAIN=auto go test ./internal/benchmark/... -v
+
+# bench-clean: remove the gcs-bench binary produced by 'make bench'.
+bench-clean:
+	rm -f gcs-bench

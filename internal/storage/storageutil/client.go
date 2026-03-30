@@ -92,6 +92,11 @@ type StorageClientConfig struct {
 
 	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
 	IsGKE bool
+
+	// ForceZonal bypasses GetStorageLayout detection and unconditionally treats
+	// the bucket as a RAPID/zonal bucket, enabling the bidi-streaming gRPC client
+	// and appendable object writes. Use when rapid-mode: on is configured.
+	ForceZonal bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {

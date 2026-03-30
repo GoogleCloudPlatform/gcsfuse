@@ -227,3 +227,49 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestShouldRetryWithMonitoringNilMetricHandle verifies that a nil MetricHandle
+// (as used by gcs-bench, which does not set up the full metrics stack) does not
+// cause a panic when a retryable error is encountered.
+func TestShouldRetryWithMonitoringNilMetricHandle(t *testing.T) {
+	retryableErr := &googleapi.Error{Code: 429}
+
+	testCases := []struct {
+		name        string
+		err         error
+		shouldRetry bool
+	}{
+		{
+			name:        "nil error, nil metric handle",
+			err:         nil,
+			shouldRetry: false,
+		},
+		{
+			name:        "non-retryable error, nil metric handle",
+			err:         &googleapi.Error{Code: 400},
+			shouldRetry: false,
+		},
+		{
+			name:        "retryable error, nil metric handle — must not panic",
+			err:         retryableErr,
+			shouldRetry: true,
+		},
+		{
+			name:        "DeadlineExceeded, nil metric handle — must not panic",
+			err:         context.DeadlineExceeded,
+			shouldRetry: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Pass a nil MetricHandle — this is the exact scenario that caused
+			// the SIGSEGV in gcs-bench (storageClientConfig.MetricHandle was
+			// never set, so it defaulted to nil).
+			assert.NotPanics(t, func() {
+				got := ShouldRetryWithMonitoring(context.Background(), tc.err, nil)
+				assert.Equal(t, tc.shouldRetry, got)
+			})
+		})
+	}
+}
