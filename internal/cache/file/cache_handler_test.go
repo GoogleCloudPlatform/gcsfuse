@@ -53,7 +53,7 @@ type cacheHandlerTestArgs struct {
 	bucket          gcs.Bucket
 	fakeStorage     storage.FakeStorage
 	object          *gcs.MinObject
-	cache           *lru.Cache
+	cache           lru.Cache
 	cacheHandler    *CacheHandler
 	downloadPath    string
 	fileInfoKeyName string
@@ -138,7 +138,7 @@ func createObject(t *testing.T, bucket gcs.Bucket, objName string, objContent []
 	return minObject
 }
 
-func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.MinObject, bucketName string, cacheDirVolumeBlockSize uint64) string {
+func addTestFileInfoEntryInCache(t *testing.T, cache lru.Cache, object *gcs.MinObject, bucketName string, cacheDirVolumeBlockSize uint64) string {
 	t.Helper()
 	// Add an entry into
 	fileInfoKey := data.FileInfoKey{
@@ -163,7 +163,7 @@ func getDownloadJobForTestObject(t *testing.T, chTestArgs *cacheHandlerTestArgs)
 	return job
 }
 
-func isEntryInFileInfoCache(t *testing.T, cache *lru.Cache, objectName string, bucketName string) bool {
+func isEntryInFileInfoCache(t *testing.T, cache lru.Cache, objectName string, bucketName string) bool {
 	t.Helper()
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucketName,

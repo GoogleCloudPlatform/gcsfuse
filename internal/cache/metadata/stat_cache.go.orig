@@ -286,14 +286,7 @@ func (sc *statCacheBucketView) LookUp(
 		if entry.implicitDir {
 			return true, &gcs.MinObject{Name: objectName}
 		}
-		if entry.isNegative {
-			return true, nil
-		}
-		if entry.m != nil {
-			restored := *entry.m
-			restored.Name = objectName
-			return true, &restored
-		}
+		return hit, entry.m
 	}
 
 	return false, nil
@@ -306,15 +299,7 @@ func (sc *statCacheBucketView) LookUpFolder(
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
-		if entry.isNegative {
-			return true, nil
-		}
-		if entry.f != nil {
-			restored := *entry.f
-			restored.Name = folderName
-			return true, &restored
-		}
-		return true, nil
+		return hit, entry.f
 	}
 
 	return false, nil

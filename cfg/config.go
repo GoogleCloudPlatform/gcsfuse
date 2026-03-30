@@ -649,6 +649,8 @@ type MetadataCacheConfig struct {
 
 	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
 
+	StatCacheImplementation string `yaml:"stat-cache-implementation"`
+
 	StatCacheMaxSizeMb int64 `yaml:"stat-cache-max-size-mb"`
 
 	TtlSecs int64 `yaml:"ttl-secs"`
@@ -1324,6 +1326,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.StringP("stat-cache-implementation", "", "map", "The implementation to use for the stat cache. Acceptable values are `map` and `radix`. `map` uses a map based LRU and `radix` uses a radix tree based LRU.")
+
 	flagSet.IntP("stat-cache-max-size-mb", "", 34, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
 	flagSet.DurationP("stat-cache-ttl", "", 60000000000*time.Nanosecond, "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
@@ -1910,6 +1914,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.deprecated-stat-cache-capacity", flagSet.Lookup("stat-cache-capacity")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.stat-cache-implementation", flagSet.Lookup("stat-cache-implementation")); err != nil {
 		return err
 	}
 

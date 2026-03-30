@@ -58,7 +58,7 @@ type cacheHandleTest struct {
 	bucket      gcs.Bucket
 	fakeStorage storage.FakeStorage
 	object      *gcs.MinObject
-	cache       *lru.Cache
+	cache       lru.Cache
 	cacheHandle *CacheHandle
 	cacheDir    string
 	fileSpec    data.FileSpec

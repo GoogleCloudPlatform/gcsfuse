@@ -36,7 +36,7 @@ const MaxSize = 50
 const OperationCount = 100
 
 type CacheTest struct {
-	cache *lru.Cache
+	cache lru.Cache
 }
 
 func init() { RegisterTestSuite(&CacheTest{}) }
