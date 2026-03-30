@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env python3
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,68 +13,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Exit on error, treat unset variables as errors, and propagate pipeline errors.
-set -euo pipefail
+"""
+This script generates a table of test package runtimes using the 'rich' library.
 
-# This script is used to create runtime tables for integration tests given
-# package stats entries in file in the below format:
-# `package_name bucket_type exit_code start_time end_time`
-usage() {
-    echo "Usage: $0 <FILE_PATH>"
-    exit 1
-}
+Usage:
+    python3 create_package_runtime_table.sh <FILE_PATH>
 
-if [ "$#" -ne 1 ]; then
-    log_error "Missing required arguments."
-    usage
-fi
+Requirements:
+    Requires 'rich' library installed on the system (e.g., 'pip install rich').
 
-PACKAGE_RUNTIME_STATS=$1
+Input File Format (<FILE_PATH>):
+    Space-separated lines with the following fields:
+    <package_name> <bucket_type> <exit_code> <start_time_seconds> <end_time_seconds>
 
-if [ ! -f "$PACKAGE_RUNTIME_STATS" ]; then
-    echo "Error: File '$PACKAGE_RUNTIME_STATS' not found."
-    exit 1
-fi
+Example File Content:
+    pkg_name bucket_type exit_code start_time_seconds end_time_seconds
+    pkg1 bucket-standard 0 0 120
+    pkg2 bucket-premium 0 60 180
+    pkg3 bucket-standard 1 120 240
+"""
+import sys, os
 
-# sort pakages in ascending order.
-sort -o "$PACKAGE_RUNTIME_STATS" "$PACKAGE_RUNTIME_STATS"
+if len(sys.argv) != 2:
+    print(f"Usage: {sys.argv[0]} <FILE_PATH>")
+    sys.exit(1)
 
-# Print single package stats
-print_package_stats() {
-    local package_name="$1"
-    local bucket_type="$2"
-    local exit_code="$3"
-    local start_sec="$4"
-    local end_sec="$5"
-    local wait_min run_min status
-    if [ "$exit_code" -eq 0 ]; then
-        status="✅PASSED"
-    else
-        status="❌FAILED"
-    fi
-    wait_min=$((start_sec / 60))
-    run_min=$(((end_sec - start_sec + 60) / 60))
-    package_stats=$(printf "| %-25s | %-15s | %-8s | %-10s |%-60s|\n" \
-        "$package_name" \
-        "$bucket_type" \
-        "$status" \
-        "${run_min}m" \
-        "$(printf '%0.s_' $(seq 1 "$wait_min"))$(printf '%0.s>' $(seq 1 "$run_min"))")
-    echo "$package_stats"
-}
+path = sys.argv[1]
+if not os.path.isfile(path):
+    print(f"Error: File '{path}' not found.")
+    sys.exit(1)
 
-# Display legends
-echo ""
-echo "Timings for the e2e test packages run are listed below."
-echo "_ is 1 min wait"
-echo "> is 1 min run"
-# Add Table headers
-echo "+---------------------------+-----------------+----------+------------+------------------------------------------------------------+"
-echo "| Package Name              | Bucket Type     | Status   | Total Time |0 min                      runtime                    60 min|"
-# Read the file line by line and print stats.
-while IFS= read -r line || [[ -n "$line" ]]; do # Process even if last line has no newline
-    echo "+---------------------------+-----------------+----------+------------+------------------------------------------------------------+"
-    print_package_stats $line
-done <"$PACKAGE_RUNTIME_STATS"
-echo "+---------------------------+-----------------+----------+------------+------------------------------------------------------------+"
-echo ""
+with open(path) as f:
+    lines = sorted([l.split() for l in f if l.strip()])
+
+try:
+    from rich.console import Console
+    from rich.table import Table
+    import shutil
+    valid_lines = [p for p in lines if len(p) >= 5]
+    if valid_lines:
+        max_pkg = max(12, max(len(p[0]) for p in valid_lines))
+        max_type = max(11, max(len(p[1]) for p in valid_lines))
+        max_rt = max(31, max(int(p[3])//60 + (int(p[4])-int(p[3])+60)//60 for p in valid_lines))
+        table_width = max_pkg + max_type + 8 + 10 + max_rt + 20
+    else:
+        table_width = 80
+        
+    term_width = shutil.get_terminal_size().columns
+    console = Console(width=max(term_width, table_width))
+    table = Table(title="e2e Test Packages Runtime", show_header=True, header_style="bold magenta")
+    for col, kwargs in [("Package Name", {"style": "cyan"}), ("Bucket Type", {"style": "blue"}), 
+                        ("Time", {"justify": "right"}), ("Runtime (░=1m wait, ▓=1m run)", {}),
+                        ("Status", {"justify": "center"})]: table.add_column(col, **kwargs)
+
+    for p in lines:
+        if len(p) >= 5:
+            code, start, end = int(p[2]), int(p[3]), int(p[4])
+            wait, run = start // 60, (end - start + 60) // 60
+            status = "[green]✅ PASSED[/]" if code == 0 else "[red]❌ FAILED[/]"
+            table.add_row(p[0], p[1], f"{run}m", f"[dim]{'░'*wait}[/][cyan]{'▓'*run}[/]", status)
+    console.print(table)
+    
+except ImportError:
+    print("Error: The 'rich' library is required to run this script. Please install it (e.g., 'pip install rich').", file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)
