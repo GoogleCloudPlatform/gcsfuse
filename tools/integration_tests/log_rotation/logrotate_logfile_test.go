@@ -113,7 +113,7 @@ func TestLogRotation(t *testing.T) {
 	logFilesDirectory := path.Dir(cfg.LogFile)
 	activeLogFileName := t.Name() + ".log"
 
-	// Validate log files are eventually generated as expected.
+	t.Logf("Validating log files are eventually generated as expected. Expected total files: %d, active files: %d, backup files: %d.", logFileCount, activeLogFileCount, backupLogFileCount)
 	dirEntries := operations.RetryUntil(ctx, t, retryFrequency, retryTimeout, func() ([]os.DirEntry, error) {
 		entries := operations.ReadDirectory(logFilesDirectory, t)
 
