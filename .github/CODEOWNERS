@@ -2,6 +2,6 @@
 # the repo.
 *           @GoogleCloudPlatform/gcsfuse-codeowners
 
-perfmetrics/scripts/testing_on_gke/ @gargnitingoogle @kislaykishore @tulsishah @charith87 @GoogleCloudPlatform/gcsfuse-codeowners
-perfmetrics/scripts/ @meet2mky @tulsishah @GoogleCloudPlatform/gcsfuse-codeowners
-tools/ @meet2mky @tulsishah @GoogleCloudPlatform/gcsfuse-codeowners
+perfmetrics/scripts/testing_on_gke/ @gargnitingoogle @kislaykishore @charith87 @GoogleCloudPlatform/gcsfuse-codeowners
+perfmetrics/scripts/ @meet2mky @GoogleCloudPlatform/gcsfuse-codeowners
+tools/ @anushka567 @meet2mky @vipnydav @GoogleCloudPlatform/gcsfuse-codeowners
