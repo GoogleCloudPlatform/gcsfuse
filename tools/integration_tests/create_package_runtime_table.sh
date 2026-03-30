@@ -39,6 +39,13 @@ fi
 # sort pakages in ascending order.
 sort -o "$PACKAGE_RUNTIME_STATS" "$PACKAGE_RUNTIME_STATS"
 
+# Move emulator_tests to the top of the file
+if grep -q "^emulator_tests" "$PACKAGE_RUNTIME_STATS"; then
+    grep "^emulator_tests" "$PACKAGE_RUNTIME_STATS" > "${PACKAGE_RUNTIME_STATS}.tmp"
+    grep -v "^emulator_tests" "$PACKAGE_RUNTIME_STATS" >> "${PACKAGE_RUNTIME_STATS}.tmp"
+    mv "${PACKAGE_RUNTIME_STATS}.tmp" "$PACKAGE_RUNTIME_STATS"
+fi
+
 # Print single package stats
 print_package_stats() {
     local package_name="$1"
