@@ -697,7 +697,12 @@ func TestConcurrentListing(t *testing.T) {
 			storageClient: testEnv.storageClient,
 			baseTestName:  t.Name(),
 		}
-		suite.Run(t, ts)
+		setup.SetUpLogFilePath(nil, GKETempDir, "", testEnv.cfg)
+		mountGCSFuseAndSetupTestDir(nil, ts.ctx, ts.storageClient)
+		t.Run("MountedDirectory", func(t *testing.T) {
+			suite.Run(t, ts)
+		})
+		setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 		return
 	}
 
