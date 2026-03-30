@@ -94,9 +94,19 @@ e2e-test:
 
 # bench: build the gcs-bench binary.  Fast — no vet/fmt overhead.
 # go generate must run first to regenerate cfg/config.go (deleted by make clean).
+#
+# BENCH_VERSION (default: v1.0) is your revision tag for the benchmark tool
+# additions.  Override on the command line: make bench BENCH_VERSION=v1.2
+# The full version string shown by --version will be:
+#   gcsfuse unknown+bench-<BENCH_VERSION> (Go version ...)
+# Replace "unknown" with the upstream gcsfuse release (e.g. v2.8.0) if you
+# ever rebase onto a tagged upstream commit.
+BENCH_VERSION ?= v1.0
+BENCH_LDFLAGS := -X github.com/googlecloudplatform/gcsfuse/v3/common.gcsfuseVersion=unknown+bench-$(BENCH_VERSION)
+
 bench:
 	GOTOOLCHAIN=auto go generate ./...
-	GOTOOLCHAIN=auto go build -o gcs-bench .
+	GOTOOLCHAIN=auto go build -ldflags "$(BENCH_LDFLAGS)" -o gcs-bench .
 
 # bench-test: vet + run the benchmark package unit tests.
 bench-test:
