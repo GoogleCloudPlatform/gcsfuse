@@ -117,10 +117,10 @@ read_large_files:
       - flags:
           - "--implicit-dirs"
           - "--implicit-dirs,--client-protocol=grpc"
-          - "--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--client-protocol=grpc,--cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs,--file-cache-max-size-mb=-1,--cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs,--file-cache-max-size-mb=-1,--client-protocol=grpc,--cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/read_large_files"
+          - "--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--client-protocol=grpc,--cache-dir=/gcsfuse-tmp/read_large_files"
+          - "--implicit-dirs,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/read_large_files"
+          - "--implicit-dirs,--file-cache-max-size-mb=-1,--client-protocol=grpc,--cache-dir=/gcsfuse-tmp/read_large_files"
         compatible:
           flat: true
           hns: true
@@ -142,7 +142,7 @@ readonly:
           - "--o=ro,--implicit-dirs"
           - "--file-mode=544,--dir-mode=544,--implicit-dirs"
           - "--client-protocol=grpc,--o=ro,--implicit-dirs"
-          - "--o=ro,--implicit-dirs,--cache-dir=${CACHE_DIR_PATH},--file-cache-max-size-mb=3"
+          - "--o=ro,--implicit-dirs,--cache-dir=/gcsfuse-tmp/readonly,--file-cache-max-size-mb=3"
         compatible:
           flat: true
           hns: true
