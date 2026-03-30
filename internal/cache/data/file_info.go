@@ -16,8 +16,8 @@ package data
 
 import (
 	"errors"
-	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
@@ -41,7 +41,7 @@ func GetFileInfoKeyName(objectName string, bucketCreationTime time.Time, bucketN
 	if bucketName == "" || objectName == "" {
 		return "", errors.New(InvalidKeyAttributes)
 	}
-	unixTimeString := fmt.Sprintf("%d", bucketCreationTime.Unix())
+	unixTimeString := strconv.FormatInt(bucketCreationTime.Unix(), 10)
 	return bucketName + unixTimeString + objectName, nil
 }
 
