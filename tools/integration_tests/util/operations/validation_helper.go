@@ -83,7 +83,7 @@ func SkipKLCTestForUnsupportedKernelVersion(t *testing.T) {
 }
 
 // RetryUntil executes the provided operation repeatedly until it succeeds
-// (returns true as the second return value) or the retry deadline is reached.
+// (returns a nil error) or the retry deadline is reached.
 //
 // If the operation succeeds, the result (first return value) is returned.
 // If the deadline is exceeded, the test fails via tb.Fatalf.
