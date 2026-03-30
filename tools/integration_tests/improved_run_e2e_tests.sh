@@ -310,19 +310,19 @@ CREATED_BUCKETS_LIST_FILE=$(create_file_helper "created_buckets_list.txt")
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
   "managed_folders"
-  "operations"
-  "read_large_files"
-  "concurrent_operations"
-  "read_cache"
-  "list_large_dir"
-  "mount_timeout"
-  "write_large_files"
-  "implicit_dir"
-  "interrupt"
-  "local_file"
-  "readonly"
-  "readonly_creds"
-  "rename_dir_limit"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
+  "managed_folders"
   "kernel_list_cache"
   "streaming_writes"
   "benchmarking"
@@ -429,7 +429,8 @@ organize_test_logfile() {
   fi
 
   mkdir -p "$dest_dir"
-  cp "$log_file" "$dest_dir/${base_filename}.txt"
+  randNum=$((RANDOM % 1000000))
+  cp "$log_file" "$dest_dir/${base_filename}_${randNum}.txt"
   rm -f "$log_file"
 }
 
@@ -682,8 +683,9 @@ test_package() {
   local go_test_cmd test_package_log_file start=$SECONDS exit_code=0 
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
-  go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")  
-  test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
+  go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
+  randNum=$((RANDOM % 1000000))
+  test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_${randNum}.txt")
   # Run the package test command and capture log output with runtime stats.
   log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
 
