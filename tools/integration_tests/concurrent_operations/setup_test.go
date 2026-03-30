@@ -91,13 +91,14 @@ func TestMain(m *testing.M) {
 	testEnv.cfg = &cfg.ConcurrentOperations[0]
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 
-	// 2. Create common storage client to be used in test.
-	var err error
-	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-	defer testEnv.storageClient.Close()
+	// 2. Create storage client before running tests.
+	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
