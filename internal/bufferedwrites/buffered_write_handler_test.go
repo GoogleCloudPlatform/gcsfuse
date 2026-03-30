@@ -32,7 +32,10 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-const chunkTransferTimeoutSecs int64 = 10
+const (
+	chunkRetryDeadlineSecs   int64 = 120
+	chunkTransferTimeoutSecs int64 = 10
+)
 
 var errUploadFailure = errors.New("error while uploading object to GCS")
 
@@ -61,6 +64,7 @@ func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.Bucke
 		BlockSize:                blockSize,
 		MaxBlocksPerFile:         10,
 		GlobalMaxBlocksSem:       testSuite.globalSemaphore,
+		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 	})
 	require.Nil(testSuite.T(), err)
