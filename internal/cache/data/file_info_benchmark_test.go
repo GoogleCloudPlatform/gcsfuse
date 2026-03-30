@@ -23,7 +23,7 @@ import (
 func BenchmarkGetFileInfoKeyName_Original(b *testing.B) {
 	bucketCreationTime := time.Unix(TestTimeInEpoch, 0)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		unixTimeString := fmt.Sprintf("%d", bucketCreationTime.Unix())
 		_ = TestBucketName + unixTimeString + TestObjectName
 	}
@@ -32,7 +32,7 @@ func BenchmarkGetFileInfoKeyName_Original(b *testing.B) {
 func BenchmarkGetFileInfoKeyName_Optimized(b *testing.B) {
 	bucketCreationTime := time.Unix(TestTimeInEpoch, 0)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = GetFileInfoKeyName(TestObjectName, bucketCreationTime, TestBucketName)
 	}
 }
