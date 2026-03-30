@@ -38,7 +38,7 @@ type CacheHandle struct {
 	fileDownloadJob *downloader.Job
 
 	// fileInfoCache contains the reference to fileInfo cache.
-	fileInfoCache *lru.Cache
+	fileInfoCache lru.Cache
 
 	// cacheFileForRangeRead if true, async download job will start even for range
 	// reads.
@@ -54,7 +54,7 @@ type CacheHandle struct {
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
-	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
+	fileInfoCache lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
 	fch := CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,

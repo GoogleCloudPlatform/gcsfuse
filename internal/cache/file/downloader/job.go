@@ -59,7 +59,7 @@ type Job struct {
 
 	object                  *gcs.MinObject
 	bucket                  gcs.Bucket
-	fileInfoCache           *lru.Cache
+	fileInfoCache           lru.Cache
 	sequentialReadSizeMb    int32
 	fileSpec                data.FileSpec
 	fileCacheConfig         *cfg.FileCacheConfig
@@ -126,7 +126,7 @@ type jobSubscriber struct {
 func NewJob(
 	object *gcs.MinObject,
 	bucket gcs.Bucket,
-	fileInfoCache *lru.Cache,
+	fileInfoCache lru.Cache,
 	sequentialReadSizeMb int32,
 	fileSpec data.FileSpec,
 	removeJobCallback func(),

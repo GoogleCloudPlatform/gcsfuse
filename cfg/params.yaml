@@ -991,6 +991,12 @@ params:
         - name: "aiml-checkpointing"
           value: 0
 
+  - config-path: "metadata-cache.stat-cache-implementation"
+    flag-name: "stat-cache-implementation"
+    type: "string"
+    usage: "The implementation to use for the stat cache. Acceptable values are `map` and `radix`. `map` uses a map based LRU and `radix` uses a radix tree based LRU."
+    default: "map"
+
   - config-path: "metadata-cache.stat-cache-max-size-mb"
     flag-name: "stat-cache-max-size-mb"
     type: "int"

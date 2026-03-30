@@ -86,7 +86,7 @@ type StatCache interface {
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
-func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
+func NewStatCacheBucketView(sc lru.Cache, bn string) StatCache {
 	return &statCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,
@@ -100,7 +100,7 @@ func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
 // bucket-name to its entry keys to make them unique
 // to it.
 type statCacheBucketView struct {
-	sharedCache *lru.Cache
+	sharedCache lru.Cache
 	// bucketName is the unique identifier for this
 	// statCache object among all statCache objects
 	// using the same shared lru.Cache object.
@@ -116,6 +116,9 @@ type entry struct {
 	expiration time.Time
 	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
+
+	// Set to true for negative stat cache entries.
+	isNegative bool
 }
 
 // Size returns the approximate memory-size (resident set size) of the receiver entry.
@@ -188,9 +191,13 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
+	// To reduce memory, perform a shallow copy and blank the name.
+	shallowCopy := *m
+	shallowCopy.Name = ""
+
 	// Insert an entry.
 	e := entry{
-		m:          m,
+		m:          &shallowCopy,
 		expiration: expiration,
 	}
 
@@ -242,6 +249,7 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	e := entry{
 		m:          nil,
 		expiration: expiration,
+		isNegative: true,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -256,6 +264,7 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	e := entry{
 		f:          nil,
 		expiration: expiration,
+		isNegative: true,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -277,7 +286,14 @@ func (sc *statCacheBucketView) LookUp(
 		if entry.implicitDir {
 			return true, &gcs.MinObject{Name: objectName}
 		}
-		return hit, entry.m
+		if entry.isNegative {
+			return true, nil
+		}
+		if entry.m != nil {
+			restored := *entry.m
+			restored.Name = objectName
+			return true, &restored
+		}
 	}
 
 	return false, nil
@@ -290,7 +306,15 @@ func (sc *statCacheBucketView) LookUpFolder(
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
-		return hit, entry.f
+		if entry.isNegative {
+			return true, nil
+		}
+		if entry.f != nil {
+			restored := *entry.f
+			restored.Name = folderName
+			return true, &restored
+		}
+		return true, nil
 	}
 
 	return false, nil
@@ -316,8 +340,11 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
+	shallowCopy := *f
+	shallowCopy.Name = ""
+
 	e := entry{
-		f:          f,
+		f:          &shallowCopy,
 		expiration: expiration,
 	}
 
