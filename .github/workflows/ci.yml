@@ -59,7 +59,7 @@ jobs:
 
   linux-tests:
     needs: filter
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 25
 
     steps:
@@ -76,8 +76,6 @@ jobs:
         CGO_ENABLED=0 go build ./...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
-    - name: Verify Runner Filesystem
-      run: df -T .
     - name: Test all
       if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
