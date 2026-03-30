@@ -91,7 +91,7 @@ Common Spans recorded and what each of them signifies
 | **Read flow traces** | |
 | **buffered_reader** | Indicates the read is served by the in-memory buffered reader, which prefetches data from GCS. |
 | **file_cache_reader** | Indicates the read is served from the on-disk file cache. |
-| **gcs_reader** | Indicates the read is served by making a direct request to GCS, bypassing other local caches. |
+| **gcs_reader** | Indicates the read is served by making a direct request to GCS. |
 | **file.cache.read** | Tracks read operations specifically from the local file cache. |
 | **file.cache.write** | Tracks write or population operations into the local file cache. |
 | **GCS Operations (HTTP)** | |
@@ -157,9 +157,9 @@ Here is a breakdown of span groups and what they represent:
 
 | Span Group | Span Name Examples | What it Measures |
 | :--- | :--- | :--- |
-| **GCSFuse Kernel/FUSE Layer** | `fs.inode.lookup`, `fs.file.read` | The time taken for the FUSE server in GCSFuse to process an operation received from the kernel. This is the top-level span for any file system operation. |
+| **GCSFuse Kernel/FUSE Layer** | `fs.inode.lookup`, `fs.file.read` | The time taken to serve the kernel request by GCSFuse. This is the top-level span for any file system operation. |
 | **GCSFuse Internal Caching & Buffering** | `buffered_reader`, `file_cache_reader`, `file.cache.read` | Time spent in GCSFuse's internal mechanisms like read-ahead buffering or file content caching. High latency here might indicate cache misses or inefficient buffering. |
-| **GCS Client Library (Go)** | `cloud.google.com/go/storage...` | The time spent within the official Google Cloud Storage Go client library. This includes logic for preparing and parsing requests/responses, but not the network time. |
+| **GCS Client Library (Go)** | `cloud.google.com/go/storage...` | The time spent within the official Google Cloud Storage Go client library. This includes logic for preparing and parsing requests/responses. |
 | **GCS API Calls (Network)** | `google.storage.v2...`, `HTTP GET`/`POST` | The end-to-end time for a network call to the GCS API, as measured from the client side. This includes network latency, time spent processing on the GCS server, and data transfer time. If this is high, the bottleneck is likely network-related or on the GCS service side. |
 | **Low-Level Network (HTTP only)** | `http.dns`, `http.tls`, `http.getconn` | For HTTP-based traffic, these spans break down the network time into its constituent parts: DNS lookup, TLS handshake, and connection acquisition. High latency in these spans points to specific network or infrastructure issues. |
 
