@@ -1,24 +1,26 @@
 package lru
 
 import (
-	"container/list"
 	"strings"
 )
 
 // radixNode represents a node in the custom radix tree.
+// It embeds the LRU doubly linked list pointers to avoid separate allocations.
 type radixNode struct {
 	// prefix is the string fragment stored at this node.
 	prefix string
 
-	// children contains the child nodes, sorted by their prefix's first byte.
-	children []*radixNode
+	// value stores the cache entry value. If nil, this is an internal routing node.
+	value ValueType
 
-	// parent points to the parent node to facilitate O(1) bottom-up deletion.
-	parent *radixNode
+	// Tree pointers (Left-Child Right-Sibling representation to avoid slice allocations)
+	parent  *radixNode
+	child   *radixNode // points to the first child
+	sibling *radixNode // points to the next sibling
 
-	// element is the pointer to the LRU linked list element.
-	// If element is nil, this is an internal routing node, not a stored key.
-	element *list.Element
+	// LRU Linked List pointers
+	prev *radixNode
+	next *radixNode
 }
 
 // radixTree is a custom implementation of a radix tree (compressed trie).
@@ -51,60 +53,83 @@ func longestCommonPrefix(a, b string) int {
 }
 
 // getChild finds a child node whose prefix starts with the given byte.
-// It also returns the index of the child in the children slice.
-func (n *radixNode) getChild(b byte) (*radixNode, int) {
-	// We can use binary search if children are sorted, but linear search
-	// is usually fast enough for a small number of children (max 256).
-	for i, child := range n.children {
-		if child.prefix[0] == b {
-			return child, i
+// We iterate over the sibling linked list.
+func (n *radixNode) getChild(b byte) *radixNode {
+	for curr := n.child; curr != nil; curr = curr.sibling {
+		if curr.prefix[0] == b {
+			return curr
 		}
 	}
-	return nil, -1
+	return nil
 }
 
-// addChild adds a child node, maintaining the sorted order by the first byte of the prefix.
-func (n *radixNode) addChild(child *radixNode) {
-	child.parent = n
-	// Insert in sorted order
-	for i, c := range n.children {
-		if child.prefix[0] < c.prefix[0] {
-			// Insert at i
-			n.children = append(n.children[:i], append([]*radixNode{child}, n.children[i:]...)...)
-			return
-		}
+// addChild adds a child node, maintaining sorted order by the first byte of the prefix.
+func (n *radixNode) addChild(newChild *radixNode) {
+	newChild.parent = n
+	newChild.sibling = nil // ensure it's clean
+
+	if n.child == nil {
+		n.child = newChild
+		return
 	}
-	n.children = append(n.children, child)
+
+	// Insert before first child
+	if newChild.prefix[0] < n.child.prefix[0] {
+		newChild.sibling = n.child
+		n.child = newChild
+		return
+	}
+
+	// Insert after a sibling
+	curr := n.child
+	for curr.sibling != nil && curr.sibling.prefix[0] < newChild.prefix[0] {
+		curr = curr.sibling
+	}
+
+	newChild.sibling = curr.sibling
+	curr.sibling = newChild
 }
 
-// removeChild removes a child node at the given index.
-func (n *radixNode) removeChild(index int) {
-	n.children = append(n.children[:index], n.children[index+1:]...)
+// removeChild directly removes a child node by reference from the sibling list.
+func (n *radixNode) removeChild(childToRemove *radixNode) {
+	if n.child == childToRemove {
+		n.child = childToRemove.sibling
+		return
+	}
+
+	curr := n.child
+	for curr != nil && curr.sibling != childToRemove {
+		curr = curr.sibling
+	}
+
+	if curr != nil {
+		curr.sibling = childToRemove.sibling
+	}
 }
 
 // Insert inserts a new key into the radix tree and returns the leaf node.
-// If the key already exists, it updates the element and returns the existing leaf node.
-func (t *radixTree) Insert(key string, element *list.Element) (*radixNode, bool) {
+// If the key already exists, it updates the value and returns the existing leaf node.
+func (t *radixTree) Insert(key string, value ValueType) (*radixNode, bool) {
 	node := t.root
 	search := key
 
 	for {
 		if len(search) == 0 {
 			// Exact match with an existing node
-			isNew := node.element == nil
+			isNew := node.value == nil
 			if isNew {
 				t.size++
 			}
-			node.element = element
+			node.value = value
 			return node, isNew
 		}
 
-		child, _ := node.getChild(search[0])
+		child := node.getChild(search[0])
 		if child == nil {
 			// No matching child, create a new leaf
 			newLeaf := &radixNode{
-				prefix:  search,
-				element: element,
+				prefix: search,
+				value:  value,
 			}
 			node.addChild(newLeaf)
 			t.size++
@@ -129,22 +154,30 @@ func (t *radixTree) Insert(key string, element *list.Element) (*radixNode, bool)
 			parent: node,
 		}
 
-		// Replace the child in the parent's children slice with the split node.
-		for i, c := range node.children {
-			if c == child {
-				node.children[i] = splitNode
-				break
+		// Replace the child in the parent's sibling list with the split node.
+		if node.child == child {
+			splitNode.sibling = child.sibling
+			node.child = splitNode
+		} else {
+			curr := node.child
+			for curr != nil && curr.sibling != child {
+				curr = curr.sibling
+			}
+			if curr != nil {
+				splitNode.sibling = child.sibling
+				curr.sibling = splitNode
 			}
 		}
 
 		// Adjust the old child
 		child.prefix = child.prefix[lcp:]
+		child.sibling = nil // it is now the ONLY child of splitNode temporarily
 		splitNode.addChild(child)
 
 		if lcp == len(search) {
 			// The search key ends exactly at the split point.
 			// The split node becomes the leaf.
-			splitNode.element = element
+			splitNode.value = value
 			t.size++
 			return splitNode, true
 		}
@@ -152,8 +185,8 @@ func (t *radixTree) Insert(key string, element *list.Element) (*radixNode, bool)
 		// The search key continues past the split point.
 		// Create a new leaf node for the remaining search key.
 		newLeaf := &radixNode{
-			prefix:  search[lcp:],
-			element: element,
+			prefix: search[lcp:],
+			value:  value,
 		}
 		splitNode.addChild(newLeaf)
 		t.size++
@@ -168,13 +201,13 @@ func (t *radixTree) Get(key string) (*radixNode, bool) {
 
 	for {
 		if len(search) == 0 {
-			if node.element != nil {
+			if node.value != nil {
 				return node, true
 			}
 			return nil, false
 		}
 
-		child, _ := node.getChild(search[0])
+		child := node.getChild(search[0])
 		if child == nil {
 			return nil, false
 		}
@@ -189,29 +222,47 @@ func (t *radixTree) Get(key string) (*radixNode, bool) {
 	}
 }
 
+// numChildren counts the number of children a node has by walking the sibling list.
+func (n *radixNode) numChildren() int {
+	count := 0
+	for curr := n.child; curr != nil; curr = curr.sibling {
+		count++
+	}
+	return count
+}
+
 // DeleteNode removes a leaf node directly using its parent pointers.
 // It merges the parent with its remaining child if the parent becomes empty and has only 1 child.
 func (t *radixTree) DeleteNode(node *radixNode) {
-	if node == nil || node.element == nil {
+	if node == nil || node.value == nil {
 		// Not a leaf node, or already deleted.
 		return
 	}
 
 	// Mark as an internal node (or deleted leaf)
-	node.element = nil
+	node.value = nil
 	t.size--
 
 	// If the node has children, it must remain as an internal routing node.
-	if len(node.children) > 0 {
+	if node.child != nil {
 		// If it has exactly 1 child, we can merge it.
-		if len(node.children) == 1 && node != t.root {
-			child := node.children[0]
+		if node.child.sibling == nil && node != t.root {
+			child := node.child
 			child.prefix = node.prefix + child.prefix
 			child.parent = node.parent
-			for i, c := range node.parent.children {
-				if c == node {
-					node.parent.children[i] = child
-					break
+
+			// Replace node with child in node's parent's sibling list
+			if node.parent.child == node {
+				child.sibling = node.sibling
+				node.parent.child = child
+			} else {
+				curr := node.parent.child
+				for curr != nil && curr.sibling != node {
+					curr = curr.sibling
+				}
+				if curr != nil {
+					child.sibling = node.sibling
+					curr.sibling = child
 				}
 			}
 		}
@@ -225,40 +276,45 @@ func (t *radixTree) DeleteNode(node *radixNode) {
 		parent := curr.parent
 
 		// Find curr in parent's children and remove it
-		for i, c := range parent.children {
-			if c == curr {
-				parent.removeChild(i)
-				break
-			}
-		}
+		parent.removeChild(curr)
 
 		// Check if the parent needs to be merged or kept.
-		if parent.element != nil {
+		if parent.value != nil {
 			// Parent is a valid leaf, stop pruning.
 			break
 		}
 
-		if len(parent.children) > 1 {
-			// Parent has other branches, stop pruning.
+		// Check if parent has more than 1 branch
+		if parent.child != nil && parent.child.sibling != nil {
+			// Parent has multiple branches, stop pruning.
 			break
 		}
 
-		if len(parent.children) == 1 && parent != t.root {
+		if parent.child != nil && parent.child.sibling == nil && parent != t.root {
 			// Parent has exactly 1 child left and is not a leaf.
 			// Merge parent with its remaining child.
-			onlyChild := parent.children[0]
+			onlyChild := parent.child
 			onlyChild.prefix = parent.prefix + onlyChild.prefix
 			onlyChild.parent = parent.parent
-			for i, c := range parent.parent.children {
-				if c == parent {
-					parent.parent.children[i] = onlyChild
-					break
+
+			// Replace parent with onlyChild in parent's parent's sibling list
+			if parent.parent.child == parent {
+				onlyChild.sibling = parent.sibling
+				parent.parent.child = onlyChild
+			} else {
+				currParentSibling := parent.parent.child
+				for currParentSibling != nil && currParentSibling.sibling != parent {
+					currParentSibling = currParentSibling.sibling
+				}
+				if currParentSibling != nil {
+					onlyChild.sibling = parent.sibling
+					currParentSibling.sibling = onlyChild
 				}
 			}
 			break
 		}
 
-		if len(parent.children) == 0 {
+		if parent.child == nil {
 			// Parent is now empty (no children, no value).
 			// It should be pruned in the next iteration.
 			curr = parent
@@ -275,7 +331,7 @@ func (t *radixTree) WalkPrefix(prefix string, fn func(*radixNode) bool) {
 
 	// Find the node where the prefix ends.
 	for len(search) > 0 {
-		child, _ := node.getChild(search[0])
+		child := node.getChild(search[0])
 		if child == nil {
 			return // Prefix not found
 		}
@@ -301,19 +357,20 @@ func (t *radixTree) WalkPrefix(prefix string, fn func(*radixNode) bool) {
 
 // walk recursively visits all leaf nodes in the subtree rooted at node.
 func walk(node *radixNode, fn func(*radixNode) bool) bool {
-	if node.element != nil {
+	if node.value != nil {
 		if fn(node) {
 			return true
 		}
 	}
 
-	// Create a safe copy of the children slice because fn might delete the current child
-	// from the radix tree, which mutates the parent's children slice.
-	// Wait, walk is called under an RLock! We cannot mutate the tree here!
-	// So we don't need a copy for safety against tree mutation during Walk.
-	// However, we DO need a copy if fn modifies the list. But WalkPrefix only populates nodesToDelete.
+	// Create a safe copy of the children list because fn might delete the current child
+	// from the radix tree, which mutates the sibling links!
+	var children []*radixNode
+	for curr := node.child; curr != nil; curr = curr.sibling {
+		children = append(children, curr)
+	}
 
-	for _, child := range node.children {
+	for _, child := range children {
 		if walk(child, fn) {
 			return true
 		}

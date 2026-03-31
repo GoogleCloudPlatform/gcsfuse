@@ -15,30 +15,24 @@
 package lru
 
 import (
-	"container/list"
 	"fmt"
-	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
 
-// radixListEntry is stored inside the LRU linked list's element.
-type radixListEntry struct {
-	node  *radixNode
-	value ValueType
-}
-
-// radixCache is an LRU cache implementation that uses a radix tree for indexing.
+// radixCache is an LRU cache implementation that uses a highly optimized custom radix tree.
+// The tree's nodes double as the LRU doubly linked list elements, reducing overhead.
 type radixCache struct {
-	maxSize uint64
-
+	maxSize     uint64
 	currentSize uint64
 
-	entries list.List
+	// Head and tail of the LRU Doubly Linked List
+	head *radixNode
+	tail *radixNode
+	len  int
 
 	index *radixTree
-
-	mu locker.RWLocker
+	mu    locker.RWLocker
 }
 
 // NewRadixCache creates a new radix-tree based LRU cache.
@@ -60,37 +54,90 @@ func (c *radixCache) checkInvariants() {
 		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
 	}
 
-	for e := c.entries.Front(); e != nil; e = e.Next() {
-		switch e.Value.(type) {
-		case radixListEntry:
-		default:
-			panic(fmt.Sprintf("Unexpected element type: %v", reflect.TypeOf(e.Value)))
+	count := 0
+	for curr := c.head; curr != nil; curr = curr.next {
+		count++
+		if curr.value == nil {
+			panic("LRU List contains an internal routing node instead of a cache entry")
 		}
 	}
 
-	if c.entries.Len() != c.index.Len() {
+	if count != c.len {
+		panic(fmt.Sprintf("LRU List length %v does not match c.len %v", count, c.len))
+	}
+
+	if c.len != c.index.Len() {
 		panic(fmt.Sprintf(
 			"Length mismatch: %v vs. %v",
-			c.entries.Len(),
+			c.len,
 			c.index.Len()))
-	}
-
-	for e := c.entries.Front(); e != nil; e = e.Next() {
-		node := e.Value.(radixListEntry).node
-		if node.element != e {
-			panic("Mismatch for internal radix node element mapping")
-		}
 	}
 }
 
-func (c *radixCache) evictOne() ValueType {
-	e := c.entries.Back()
-	node := e.Value.(radixListEntry).node
+// Internal LRU Linked List operations
+func (c *radixCache) moveToFront(node *radixNode) {
+	if c.head == node {
+		return
+	}
+	// Detach
+	if node.prev != nil {
+		node.prev.next = node.next
+	}
+	if node.next != nil {
+		node.next.prev = node.prev
+	}
+	if c.tail == node {
+		c.tail = node.prev
+	}
 
-	evictedEntry := e.Value.(radixListEntry).value
+	// Insert at front
+	node.prev = nil
+	node.next = c.head
+	if c.head != nil {
+		c.head.prev = node
+	}
+	c.head = node
+	if c.tail == nil {
+		c.tail = node
+	}
+}
+
+func (c *radixCache) pushFront(node *radixNode) {
+	node.prev = nil
+	node.next = c.head
+	if c.head != nil {
+		c.head.prev = node
+	}
+	c.head = node
+	if c.tail == nil {
+		c.tail = node
+	}
+	c.len++
+}
+
+func (c *radixCache) remove(node *radixNode) {
+	if node.prev != nil {
+		node.prev.next = node.next
+	} else {
+		c.head = node.next
+	}
+	if node.next != nil {
+		node.next.prev = node.prev
+	} else {
+		c.tail = node.prev
+	}
+	node.prev = nil
+	node.next = nil
+	c.len--
+}
+
+func (c *radixCache) evictOne() ValueType {
+	node := c.tail
+	evictedEntry := node.value
+
 	c.currentSize -= evictedEntry.Size()
 
-	c.entries.Remove(e)
+	c.remove(node)
 	c.index.DeleteNode(node)
 
 	return evictedEntry
@@ -109,18 +156,14 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 		return nil, ErrInvalidEntrySize
 	}
 
-	node, ok := c.index.Get(key)
-	if ok {
-		e := node.element
-		c.currentSize -= e.Value.(radixListEntry).value.Size()
+	node, isNew := c.index.Insert(key, value)
+	if !isNew {
+		c.currentSize -= node.value.Size()
 		c.currentSize += valueSize
-		e.Value = radixListEntry{node: node, value: value}
-		c.entries.MoveToFront(e)
+		node.value = value
+		c.moveToFront(node)
 	} else {
-		// Insert temporarily to get the node, then update element.
-		node, _ = c.index.Insert(key, nil)
-		e := c.entries.PushFront(radixListEntry{node: node, value: value})
-		node.element = e
+		c.pushFront(node)
 		c.currentSize += valueSize
 	}
 
@@ -132,18 +175,12 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 	return evictedValues, nil
 }
 
-func (c *radixCache) eraseInternal(key string) (value ValueType) {
-	node, ok := c.index.Get(key)
-	if !ok {
-		return
-	}
-
-	e := node.element
-	deletedEntry := e.Value.(radixListEntry).value
+func (c *radixCache) eraseInternal(node *radixNode) (value ValueType) {
+	deletedEntry := node.value
 	c.currentSize -= deletedEntry.Size()
 
+	c.remove(node)
 	c.index.DeleteNode(node)
-	c.entries.Remove(e)
 
 	return deletedEntry
 }
@@ -152,7 +189,12 @@ func (c *radixCache) Erase(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return c.eraseInternal(key)
+	node, ok := c.index.Get(key)
+	if !ok {
+		return
+	}
+
+	return c.eraseInternal(node)
 }
 
 func (c *radixCache) LookUp(key string) (value ValueType) {
@@ -163,10 +205,9 @@ func (c *radixCache) LookUp(key string) (value ValueType) {
 	if !ok {
 		return
 	}
-	e := node.element
-	c.entries.MoveToFront(e)
+	c.moveToFront(node)
 
-	return e.Value.(radixListEntry).value
+	return node.value
 }
 
 func (c *radixCache) LookUpWithoutChangingOrder(key string) (value ValueType) {
@@ -177,9 +218,8 @@ func (c *radixCache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 	if !ok {
 		return
 	}
-	e := node.element
 
-	return e.Value.(radixListEntry).value
+	return node.value
 }
 
 func (c *radixCache) UpdateWithoutChangingOrder(key string, value ValueType) error {
@@ -195,12 +235,11 @@ func (c *radixCache) UpdateWithoutChangingOrder(key string, value ValueType) err
 		return ErrEntryNotExist
 	}
 
-	e := node.element
-	if value.Size() != e.Value.(radixListEntry).value.Size() {
+	if value.Size() != node.value.Size() {
 		return ErrInvalidUpdateEntrySize
 	}
 
-	e.Value = radixListEntry{node: node, value: value}
+	node.value = value
 	return nil
 }
 
@@ -231,15 +270,10 @@ func (c *radixCache) EraseEntriesWithGivenPrefix(prefix string) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		for _, node := range nodesToDelete {
-			if node.element == nil {
+			if node.value == nil { // Double check it hasn't been deleted
 				continue
 			}
-			e := node.element
-			deletedEntry := e.Value.(radixListEntry).value
-			c.currentSize -= deletedEntry.Size()
-
-			c.index.DeleteNode(node)
-			c.entries.Remove(e)
+			c.eraseInternal(node)
 		}
 	}
 }
