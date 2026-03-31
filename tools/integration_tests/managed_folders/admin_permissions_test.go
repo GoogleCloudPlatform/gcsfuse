@@ -42,9 +42,9 @@ const (
 )
 
 var (
-	bucket           string
-	testDir          string
-	serviceAccount   string
+	bucket         string
+	testDir        string
+	serviceAccount string
 )
 
 // The permission granted by roles at project, bucket, and managed folder
