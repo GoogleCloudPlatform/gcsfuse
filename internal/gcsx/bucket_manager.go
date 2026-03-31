@@ -41,8 +41,8 @@ type BucketConfig struct {
 	OnlyDir                            string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
-	StatCacheMaxSizeMB                 uint64
-	StatCacheImplementation            string
+	StatCacheMaxSizeMB                  uint64
+	ExperimentalStatCacheImplementation string
 	// Config for TTL of entries for existing file in stat cache
 	StatCacheTTL time.Duration
 	// Config for TTL of entries for non-existing file in stat cache
@@ -108,7 +108,7 @@ type bucketManager struct {
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c lru.Cache
 	if config.StatCacheMaxSizeMB > 0 {
-		if config.StatCacheImplementation == "radix" {
+		if config.ExperimentalStatCacheImplementation == "radix" {
 			c = lru.NewRadixCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
 		} else {
 			c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
