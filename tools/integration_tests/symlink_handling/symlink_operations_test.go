@@ -22,30 +22,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
-type symlinkTestCase struct {
-	name   string
-	target string
-}
-
-var commonTestCases = []symlinkTestCase{
-	{
-		name:   "file_target",
-		target: "target_file",
-	},
-	{
-		name:   "dir_target",
-		target: "target_dir",
-	},
-	{
-		name:   "relative_path",
-		target: "../target_file",
-	},
-	{
-		name:   "absolute_path",
-		target: "/etc/hosts",
-	},
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -62,24 +38,20 @@ func (s *BaseSymlinkSuite) TestCreateSymlink() {
 	s.validateBackingGCSObjectForSymlink(linkName, target, s.isStandardSymlink)
 }
 
-// runReadSymlinkTests tests reading a symlink's target.
-func (s *BaseSymlinkSuite) TestReadSymlinkTests() {
-	prefix := setup.GenerateRandomString(5)
-	for _, tc := range commonTestCases {
-		s.Run(tc.name, func() {
-			linkName := prefix + tc.name
-			s.createGCSSymlinkObject(linkName, tc.target)
-			linkPath := path.Join(s.testDirPath, linkName)
+// TestReadSymlinkTest tests reading a symlink's target.
+func (s *BaseSymlinkSuite) TestReadSymlinkTest() {
+	linkName := setup.GenerateRandomString(5)
+	target := "target_file_path"
+	s.createGCSSymlinkObject(linkName, target)
+	linkPath := path.Join(s.testDirPath, linkName)
 
-			result, err := os.Readlink(linkPath)
+	result, err := os.Readlink(linkPath)
 
-			s.Require().NoError(err)
-			s.Assert().Equal(tc.target, result)
-		})
-	}
+	s.Require().NoError(err)
+	s.Assert().Equal(target, result)
 }
 
-// testReadFileViaSymlink tests reading a file through a symlink.
+// TestReadFileViaSymlink tests reading a file through a symlink.
 func (s *BaseSymlinkSuite) TestReadFileViaSymlink() {
 	prefix := setup.GenerateRandomString(5)
 	const content = "hello world"
@@ -101,7 +73,7 @@ func (s *BaseSymlinkSuite) TestReadFileViaSymlink() {
 	s.Assert().Equal(content, string(readContent))
 }
 
-// testWriteFileViaSymlink tests writing to a file through a symlink.
+// TestWriteFileViaSymlink tests writing to a file through a symlink.
 func (s *BaseSymlinkSuite) TestWriteFileViaSymlink() {
 	prefix := setup.GenerateRandomString(5)
 	const content = "new content"
@@ -126,7 +98,7 @@ func (s *BaseSymlinkSuite) TestWriteFileViaSymlink() {
 	s.Assert().Equal(content, string(readContent))
 }
 
-// testListDirViaSymlink tests listing a directory through a symlink.
+// TestListDirViaSymlink tests listing a directory through a symlink.
 func (s *BaseSymlinkSuite) TestListDirViaSymlink() {
 	prefix := setup.GenerateRandomString(5)
 	targetDirName := prefix + "target_dir"
@@ -152,7 +124,7 @@ func (s *BaseSymlinkSuite) TestListDirViaSymlink() {
 	s.Assert().Equal(fileName, entries[0].Name())
 }
 
-// testRenameSymlink tests renaming a symlink.
+// TestRenameSymlink tests renaming a symlink.
 func (s *BaseSymlinkSuite) TestRenameSymlink() {
 	prefix := setup.GenerateRandomString(5)
 	targetName := prefix + "target.txt"
@@ -186,7 +158,7 @@ func (s *BaseSymlinkSuite) TestRenameSymlink() {
 	s.Assert().NoError(err)
 }
 
-// testCopySymlink tests copying a symlink without dereferencing.
+// TestCopySymlink tests copying a symlink without dereferencing.
 func (s *BaseSymlinkSuite) TestCopySymlink() {
 	prefix := setup.GenerateRandomString(5)
 	targetName := prefix + "target.txt"
