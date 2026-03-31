@@ -889,7 +889,7 @@ run_e2e_tests_for_emulator() {
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
 
   # Call the helper to organize logs and cleanup the original file
-  organize_test_logfile "$exit_code" "$emulator_test_log" "emulator" "emulator" 
+  organize_test_logfile "$exit_code" "$emulator_test_log" "$package_name" "$bucket_type" 
 
   return "$exit_code"
 }
