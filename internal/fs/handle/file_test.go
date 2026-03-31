@@ -1166,6 +1166,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 		openMode          util.OpenMode
 		offset            int64
 		bufferSize        int
+		isRapidBucket     bool
 		expectedToSkip    bool
 		useNilReadManager bool
 	}{
@@ -1175,7 +1176,26 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			openMode:       directIOReadMode,
 			offset:         50,
 			bufferSize:     60, // 50 + 60 > 100
+			isRapidBucket:  true,
 			expectedToSkip: true,
+		},
+		{
+			name:           "non_rapid_bucket_finalized_attr_set",
+			object:         finalizedObject,
+			openMode:       directIOReadMode,
+			offset:         50,
+			bufferSize:     60,
+			isRapidBucket:  false,
+			expectedToSkip: false,
+		},
+		{
+			name:           "non_rapid_bucket_finalized_attr_unset",
+			object:         unfinalizedObject,
+			openMode:       directIOReadMode,
+			offset:         50,
+			bufferSize:     60,
+			isRapidBucket:  false,
+			expectedToSkip: false,
 		},
 		{
 			name:           "Finalized object: should not skip",
@@ -1183,6 +1203,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			openMode:       directIOReadMode,
 			offset:         50,
 			bufferSize:     60,
+			isRapidBucket:  true,
 			expectedToSkip: false,
 		},
 		{
@@ -1191,6 +1212,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			openMode:       readOnlyMode,
 			offset:         50,
 			bufferSize:     60,
+			isRapidBucket:  true,
 			expectedToSkip: false,
 		},
 		{
@@ -1199,6 +1221,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			openMode:       directIOReadMode,
 			offset:         -10,
 			bufferSize:     20,
+			isRapidBucket:  true,
 			expectedToSkip: false,
 		},
 		{
@@ -1207,6 +1230,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			openMode:       directIOReadMode,
 			offset:         50,
 			bufferSize:     50, // 50 + 50 <= 100
+			isRapidBucket:  true,
 			expectedToSkip: false,
 		},
 		{
@@ -1215,6 +1239,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			openMode:       directIOReadMode,
 			offset:         100,
 			bufferSize:     0,
+			isRapidBucket:  true,
 			expectedToSkip: false,
 		},
 		{
@@ -1223,6 +1248,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			openMode:       directIOReadMode,
 			offset:         100,
 			bufferSize:     10, // 100 + 10 > 100
+			isRapidBucket:  true,
 			expectedToSkip: true,
 		},
 		{
@@ -1231,17 +1257,24 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 			openMode:       directIOReadMode,
 			offset:         101,
 			bufferSize:     10, // 101 + 10 > 100
+			isRapidBucket:  true,
 			expectedToSkip: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
+			// Setup test bucket.
+			t.bucket = gcsx.NewSyncerBucket(
+				/*appendThreshold=*/ 1,
+				/*chunkRetryDeadlineSecs=*/ 120,
+				/*chunkTransferTimeoutSecs=*/ 10,
+				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: tc.isRapidBucket}),
+			)
 			parent := createDirInode(&t.bucket, &t.clock)
 			config := &cfg.Config{}
 			in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, tc.object.Name, nil, false)
 			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), tc.openMode, config, nil, nil, 0)
-
 			if tc.useNilReadManager {
 				fh.readManager = nil
 				req := &gcsx.ReadRequest{Offset: tc.offset, Buffer: make([]byte, tc.bufferSize)}

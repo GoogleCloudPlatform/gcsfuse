@@ -22,10 +22,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 func createDirectoryStructureForTest(t *testing.T) {
@@ -179,4 +183,20 @@ func TestListDirectoryRecursively(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
+}
+
+func TestReadFileWorksAfterListDir(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	obj1 := t.Name() + "-1"
+	var objSize int64 = 5
+	client.SetupFileInTestDirectory(ctx, storageClient, DirForOperationTests, obj1, objSize, t)
+
+	_ = operations.ReadDirectory(testDir, t)
+	fh, err := os.OpenFile(path.Join(testDir, obj1), syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t, err)
+	chunk := make([]byte, util.MiB)
+	n, err := fh.Read(chunk)
+
+	require.NoError(t, err)
+	require.EqualValues(t, objSize, n)
 }

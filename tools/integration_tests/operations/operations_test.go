@@ -93,7 +93,6 @@ const onlyDirMounted = "OnlyDirMountOperations"
 var (
 	storageClient *storage.Client
 	ctx           context.Context
-	err           error
 )
 
 func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
@@ -107,6 +106,7 @@ func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath str
 
 func RunTestOnTPCEndPoint(cfg test_suite.Config, m *testing.M) int {
 	ctx = context.Background()
+	var err error
 	if storageClient, err = client.CreateStorageClient(ctx); err != nil {
 		log.Fatalf("Error creating storage client: %v\n", err)
 	}
