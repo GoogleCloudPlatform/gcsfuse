@@ -20,72 +20,84 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
-// PooledRangeReader implements the Reader interface using a RangeReaderPool.
-type PooledRangeReader struct {
-	pool   *RangeReaderPool
-	object *gcs.MinObject
+// RangeKernelReader implements the Reader interface for regional buckets.
+// It serves read requests by creating a new GCS range reader for each request.
+type RangeKernelReader struct {
+	bucket  gcs.Bucket
+	object  *gcs.MinObject
+	metrics metrics.MetricHandle
 }
 
-// NewPooledRangeReader creates a new PooledRangeReader.
-func NewPooledRangeReader(pool *RangeReaderPool, object *gcs.MinObject) *PooledRangeReader {
-	return &PooledRangeReader{
-		pool:   pool,
-		object: object,
+// NewRangeKernelReader creates a new RangeKernelReader.
+func NewRangeKernelReader(bucket gcs.Bucket, object *gcs.MinObject, metricHandle metrics.MetricHandle) *RangeKernelReader {
+	return &RangeKernelReader{
+		bucket:  bucket,
+		object:  object,
+		metrics: metricHandle,
 	}
 }
 
 // CheckInvariants performs internal consistency checks on the reader state.
-func (pr *PooledRangeReader) CheckInvariants() {
-	if pr.object == nil {
-		panic("PooledRangeReader: object is nil")
+func (rkr *RangeKernelReader) CheckInvariants() {
+	if rkr.object == nil {
+		panic("RangeKernelReader: object is nil")
 	}
-	if pr.pool == nil {
-		panic("PooledRangeReader: pool is nil")
+	if rkr.bucket == nil {
+		panic("RangeKernelReader: bucket is nil")
 	}
 }
 
-// ReadAt reads data from the object using a RangeReader from the pool.
-func (pr *PooledRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
+// ReadAt reads data from the object by creating a new range reader.
+func (rkr *RangeKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
 	var resp ReadResponse
 
-	if req.Offset >= int64(pr.object.Size) {
+	if req.Offset >= int64(rkr.object.Size) {
 		return resp, io.EOF
 	}
 
 	endOffset := req.Offset + int64(len(req.Buffer))
-	if endOffset > int64(pr.object.Size) {
-		endOffset = int64(pr.object.Size)
+	if endOffset > int64(rkr.object.Size) {
+		endOffset = int64(rkr.object.Size)
 	}
 
-	rr, err := pr.pool.Checkout(ctx, uint64(req.Offset), uint64(endOffset))
+	reader, err := rkr.bucket.NewReaderWithReadHandle(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       rkr.object.Name,
+			Generation: rkr.object.Generation,
+			Range: &gcs.ByteRange{
+				Start: uint64(req.Offset),
+				Limit: uint64(endOffset),
+			},
+			ReadCompressed: rkr.object.HasContentEncodingGzip(),
+		})
 	if err != nil {
-		return resp, fmt.Errorf("failed to checkout range reader: %w", err)
+		return resp, fmt.Errorf("failed to create range reader: %w", err)
 	}
-	defer pr.pool.Checkin(rr)
+	defer reader.Close()
 
-	n, err := io.ReadFull(rr, req.Buffer[:endOffset-req.Offset])
+	n, err := io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
 	if err == io.ErrUnexpectedEOF || err == io.EOF {
-		// The GCS reader returns io.ErrUnexpectedEOF if the object size is smaller
-		// than the buffer. We should treat this as a successful read of a smaller
-		// number of bytes, and not an error.
 		err = nil
 	}
 	resp.Size = n
+
+	if rkr.metrics != nil {
+		metrics.CaptureGCSReadMetrics(rkr.metrics, metrics.ReadTypeParallelAttr, int64(n))
+		rkr.metrics.GcsReadBytesCount(int64(n))
+	}
+
 	return resp, err
 }
 
 // Destroy releases resources.
-func (pr *PooledRangeReader) Destroy() {
+func (rkr *RangeKernelReader) Destroy() {
 }
 
-// Destroy releases resources.
-func (pr *PooledRangeReader) ReaderName() string {
-	return "PooledRangeReader"
-}
-
-// Object returns the object metadata.
-func (pr *PooledRangeReader) Object() *gcs.MinObject {
-	return pr.object
+// ReaderName returns the reader name.
+func (rkr *RangeKernelReader) ReaderName() string {
+	return "RangeKernelReader"
 }

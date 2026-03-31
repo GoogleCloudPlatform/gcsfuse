@@ -57,9 +57,9 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	readManager gcsx.ReadManager
 
-	// MrdKernelReader is a reader that uses an MRD instance to read data from a GCS
-	// object. This reader is kernel-optimized & reads whatever is requested as is.
-	mrdKernelReader *gcsx.MrdKernelReader
+	// kernelReader is a reader that uses a kernel-optimized approach to read data
+	// from a GCS object based on the bucket type (MRD for Zonal, Range for Regional).
+	kernelReader gcsx.Reader
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
 	// Exactly one of these should be set:
@@ -118,7 +118,7 @@ func NewFileHandle(
 	}
 
 	if c.FileSystem.EnableKernelReader {
-		fh.mrdKernelReader = gcsx.NewMrdKernelReader(inode.GetMRDInstance(), metricHandle)
+		fh.kernelReader = gcsx.NewKernelReader(inode.Bucket(), inode.Source(), inode.GetMRDInstance(), metricHandle)
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
@@ -143,9 +143,9 @@ func (fh *FileHandle) Destroy() {
 	if fh.readManager != nil {
 		fh.readManager.Destroy()
 	}
-	if fh.mrdKernelReader != nil {
-		fh.mrdKernelReader.Destroy()
-		fh.mrdKernelReader = nil
+	if fh.kernelReader != nil {
+		fh.kernelReader.Destroy()
+		fh.kernelReader = nil
 	}
 }
 
@@ -279,11 +279,11 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	return readResponse, nil
 }
 
-// ReadWithMrdKernelReader reads data at the given offset using the mrd kernel reader.
+// ReadWithKernelReader reads data at the given offset using the kernel reader.
 //
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) ReadWithMrdKernelReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+func (fh *FileHandle) ReadWithKernelReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
@@ -295,11 +295,11 @@ func (fh *FileHandle) ReadWithMrdKernelReader(ctx context.Context, req *gcsx.Rea
 	fh.mu.RLock()
 	defer fh.mu.RUnlock()
 
-	if fh.mrdKernelReader == nil {
-		return gcsx.ReadResponse{}, errors.New("mrdKernelReader is not initialized")
+	if fh.kernelReader == nil {
+		return gcsx.ReadResponse{}, errors.New("kernelReader is not initialized")
 	}
 
-	return fh.mrdKernelReader.ReadAt(ctx, req)
+	return fh.kernelReader.ReadAt(ctx, req)
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
