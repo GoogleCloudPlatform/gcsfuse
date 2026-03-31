@@ -23,17 +23,17 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
-// RangeKernelReader implements the Reader interface for regional buckets.
+// KernelRangeReader implements the Reader interface for regional buckets.
 // It serves read requests by creating a new GCS range reader for each request.
-type RangeKernelReader struct {
+type KernelRangeReader struct {
 	bucket  gcs.Bucket
 	object  *gcs.MinObject
 	metrics metrics.MetricHandle
 }
 
-// NewRangeKernelReader creates a new RangeKernelReader.
-func NewRangeKernelReader(bucket gcs.Bucket, object *gcs.MinObject, metricHandle metrics.MetricHandle) *RangeKernelReader {
-	return &RangeKernelReader{
+// NewKernelRangeReader creates a new KernelRangeReader.
+func NewKernelRangeReader(bucket gcs.Bucket, object *gcs.MinObject, metricHandle metrics.MetricHandle) *KernelRangeReader {
+	return &KernelRangeReader{
 		bucket:  bucket,
 		object:  object,
 		metrics: metricHandle,
@@ -41,17 +41,17 @@ func NewRangeKernelReader(bucket gcs.Bucket, object *gcs.MinObject, metricHandle
 }
 
 // CheckInvariants performs internal consistency checks on the reader state.
-func (rkr *RangeKernelReader) CheckInvariants() {
+func (rkr *KernelRangeReader) CheckInvariants() {
 	if rkr.object == nil {
-		panic("RangeKernelReader: object is nil")
+		panic("KernelRangeReader: object is nil")
 	}
 	if rkr.bucket == nil {
-		panic("RangeKernelReader: bucket is nil")
+		panic("KernelRangeReader: bucket is nil")
 	}
 }
 
 // ReadAt reads data from the object by creating a new range reader.
-func (rkr *RangeKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
+func (rkr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
 	var resp ReadResponse
 
 	if req.Offset >= int64(rkr.object.Size) {
@@ -94,10 +94,10 @@ func (rkr *RangeKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (Rea
 }
 
 // Destroy releases resources.
-func (rkr *RangeKernelReader) Destroy() {
+func (rkr *KernelRangeReader) Destroy() {
 }
 
 // ReaderName returns the reader name.
-func (rkr *RangeKernelReader) ReaderName() string {
-	return "RangeKernelReader"
+func (rkr *KernelRangeReader) ReaderName() string {
+	return "KernelRangeReader"
 }

@@ -28,5 +28,5 @@ func NewKernelReader(bucket gcs.Bucket, object *gcs.MinObject, mrdInstance *MrdI
 	if bucket.BucketType().Zonal {
 		return NewMrdKernelReader(mrdInstance, metricsHandle)
 	}
-	return NewRangeKernelReader(bucket, object, metricsHandle)
+	return NewKernelRangeReader(bucket, object, metricsHandle)
 }
