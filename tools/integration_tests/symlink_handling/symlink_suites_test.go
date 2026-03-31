@@ -31,9 +31,10 @@ import (
 // BaseSymlinkSuite provides the common structure and configuration-driven setup logic.
 type BaseSymlinkSuite struct {
 	suite.Suite
-	flags       []string
-	mntDir      string
-	testDirPath string
+	flags             []string
+	mntDir            string
+	testDirPath       string
+	isStandardSymlink bool
 }
 
 // StandardSymlinksTestSuite groups all test related to symlinks following standard representation.
@@ -125,15 +126,25 @@ func (s *BaseSymlinkSuite) validateBackingGCSObjectForSymlink(linkName, target s
 	}
 }
 
-func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName string, content string, metadata map[string]string) {
+// createGCSSymlinkObject creates a symlink object on GCS with appropriate metadata.
+// The 'target' parameter is the symlink target path.
+func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
 	fullLinkPath := path.Join(TestDirName, linkName)
 	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(fullLinkPath)
 	objHandle := testEnv.storageClient.Bucket(bucketName).Object(objectName)
-
 	w, err := client.NewWriter(testEnv.ctx, objHandle, testEnv.storageClient)
 	s.Require().NoError(err)
-	w.Metadata = metadata
-	_, err = w.Write([]byte(content))
+
+	var content []byte
+	if s.isStandardSymlink {
+		w.Metadata = map[string]string{StandardSymlinkMetadataKey: "true"}
+		content = []byte(target) // Standard symlinks store target in content
+	} else {
+		w.Metadata = map[string]string{SymlinkMetadataKey: target}
+		content = []byte("") // Legacy symlinks have empty content
+	}
+
+	_, err = w.Write(content)
 	s.Require().NoError(err)
 	s.Require().NoError(w.Close())
 	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
@@ -145,13 +156,13 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName string, content strin
 
 func TestStandardSymlinks(t *testing.T) {
 	RunTests(t, "TestStandardSymlinksTestSuite", func(flags []string) suite.TestingSuite {
-		return &StandardSymlinksTestSuite{BaseSymlinkSuite{flags: flags}}
+		return &StandardSymlinksTestSuite{BaseSymlinkSuite{flags: flags, isStandardSymlink: true}}
 	})
 }
 
 func TestLegacySymlinks(t *testing.T) {
 	RunTests(t, "TestLegacySymlinksTestSuite", func(flags []string) suite.TestingSuite {
-		return &LegacySymlinksTestSuite{BaseSymlinkSuite{flags: flags}}
+		return &LegacySymlinksTestSuite{BaseSymlinkSuite{flags: flags, isStandardSymlink: false}}
 	})
 }
 

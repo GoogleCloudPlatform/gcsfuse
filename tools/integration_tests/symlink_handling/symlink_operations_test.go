@@ -18,6 +18,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 type symlinkTestCase struct {
@@ -45,18 +47,32 @@ var commonTestCases = []symlinkTestCase{
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Common test methods
+// Tests
 ////////////////////////////////////////////////////////////////////////
 
+// TestCreateSymlink tests the creation of symlinks.
+func (s *BaseSymlinkSuite) TestCreateSymlink() {
+	target := s.createTempFile()
+	linkName := setup.GenerateRandomString(5)
+
+	// Create the symlink
+	_ = s.createSymlink(linkName, target)
+
+	// Validate the underlying GCS Object
+	s.validateBackingGCSObjectForSymlink(linkName, target, s.isStandardSymlink)
+}
+
 // runReadSymlinkTests tests reading a symlink's target.
-func (s *BaseSymlinkSuite) runReadSymlinkTests(testCases []symlinkTestCase, prefix string, createFunc func(string, string)) {
-	for _, tc := range testCases {
+func (s *BaseSymlinkSuite) runReadSymlinkTests() {
+	prefix := setup.GenerateRandomString(5)
+	for _, tc := range commonTestCases {
 		s.Run(tc.name, func() {
 			linkName := prefix + tc.name
-			createFunc(linkName, tc.target)
-
+			s.createGCSSymlinkObject(linkName, tc.target)
 			linkPath := path.Join(s.testDirPath, linkName)
+
 			result, err := os.Readlink(linkPath)
+
 			s.Require().NoError(err)
 			s.Assert().Equal(tc.target, result)
 		})
@@ -64,7 +80,8 @@ func (s *BaseSymlinkSuite) runReadSymlinkTests(testCases []symlinkTestCase, pref
 }
 
 // testReadFileViaSymlink tests reading a file through a symlink.
-func (s *BaseSymlinkSuite) testReadFileViaSymlink(prefix string, createSymlinkFunc func(linkName, targetName string)) {
+func (s *BaseSymlinkSuite) TestReadFileViaSymlink() {
+	prefix := setup.GenerateRandomString(5)
 	const content = "hello world"
 	targetName := prefix + "target.txt"
 	linkName := prefix + "link"
@@ -73,7 +90,7 @@ func (s *BaseSymlinkSuite) testReadFileViaSymlink(prefix string, createSymlinkFu
 	err := os.WriteFile(targetPath, []byte(content), 0644)
 	s.Require().NoError(err)
 	// Create a symlink to the target file.
-	createSymlinkFunc(linkName, targetName)
+	s.createGCSSymlinkObject(linkName, targetName)
 	linkPath := path.Join(s.testDirPath, linkName)
 
 	// Read file via symlink.
@@ -85,7 +102,8 @@ func (s *BaseSymlinkSuite) testReadFileViaSymlink(prefix string, createSymlinkFu
 }
 
 // testWriteFileViaSymlink tests writing to a file through a symlink.
-func (s *BaseSymlinkSuite) testWriteFileViaSymlink(prefix string, createSymlinkFunc func(linkName, targetName string)) {
+func (s *BaseSymlinkSuite) TestWriteFileViaSymlink() {
+	prefix := setup.GenerateRandomString(5)
 	const content = "new content"
 	targetName := prefix + "target.txt"
 	linkName := prefix + "link"
@@ -95,7 +113,7 @@ func (s *BaseSymlinkSuite) testWriteFileViaSymlink(prefix string, createSymlinkF
 	s.Require().NoError(err)
 	s.Require().NoError(f.Close())
 	// Create a symlink to the target file.
-	createSymlinkFunc(linkName, targetName)
+	s.createGCSSymlinkObject(linkName, targetName)
 	linkPath := path.Join(s.testDirPath, linkName)
 
 	// Write to file via symlink.
@@ -109,7 +127,8 @@ func (s *BaseSymlinkSuite) testWriteFileViaSymlink(prefix string, createSymlinkF
 }
 
 // testListDirViaSymlink tests listing a directory through a symlink.
-func (s *BaseSymlinkSuite) testListDirViaSymlink(prefix string, createSymlinkFunc func(linkName, targetName string)) {
+func (s *BaseSymlinkSuite) TestListDirViaSymlink() {
+	prefix := setup.GenerateRandomString(5)
 	targetDirName := prefix + "target_dir"
 	linkName := prefix + "link"
 	fileName := "file_in_dir.txt"
@@ -121,7 +140,7 @@ func (s *BaseSymlinkSuite) testListDirViaSymlink(prefix string, createSymlinkFun
 	err = os.WriteFile(filePath, []byte(""), 0644)
 	s.Require().NoError(err)
 	// Create a symlink to the target directory.
-	createSymlinkFunc(linkName, targetDirName)
+	s.createGCSSymlinkObject(linkName, targetDirName)
 	linkPath := path.Join(s.testDirPath, linkName)
 
 	// List directory via symlink.
@@ -134,7 +153,8 @@ func (s *BaseSymlinkSuite) testListDirViaSymlink(prefix string, createSymlinkFun
 }
 
 // testRenameSymlink tests renaming a symlink.
-func (s *BaseSymlinkSuite) testRenameSymlink(prefix string, createSymlinkFunc func(linkName, targetName string)) {
+func (s *BaseSymlinkSuite) TestRenameSymlink() {
+	prefix := setup.GenerateRandomString(5)
 	targetName := prefix + "target.txt"
 	linkName := prefix + "link"
 	newLinkName := prefix + "new_link"
@@ -143,7 +163,7 @@ func (s *BaseSymlinkSuite) testRenameSymlink(prefix string, createSymlinkFunc fu
 	err := os.WriteFile(targetPath, []byte("content"), 0644)
 	s.Require().NoError(err)
 	// Create a symlink to the target file.
-	createSymlinkFunc(linkName, targetName)
+	s.createGCSSymlinkObject(linkName, targetName)
 	linkPath := path.Join(s.testDirPath, linkName)
 	newLinkPath := path.Join(s.testDirPath, newLinkName)
 
@@ -167,7 +187,8 @@ func (s *BaseSymlinkSuite) testRenameSymlink(prefix string, createSymlinkFunc fu
 }
 
 // testCopySymlink tests copying a symlink without dereferencing.
-func (s *BaseSymlinkSuite) testCopySymlink(prefix string, createSymlinkFunc func(linkName, targetName string)) {
+func (s *BaseSymlinkSuite) TestCopySymlink() {
+	prefix := setup.GenerateRandomString(5)
 	targetName := prefix + "target.txt"
 	linkName := prefix + "link"
 	newLinkName := prefix + "new_link"
@@ -176,7 +197,7 @@ func (s *BaseSymlinkSuite) testCopySymlink(prefix string, createSymlinkFunc func
 	err := os.WriteFile(targetPath, []byte("content"), 0644)
 	s.Require().NoError(err)
 	// Create a symlink to the target file.
-	createSymlinkFunc(linkName, targetName)
+	s.createGCSSymlinkObject(linkName, targetName)
 	linkPath := path.Join(s.testDirPath, linkName)
 	newLinkPath := path.Join(s.testDirPath, newLinkName)
 
@@ -198,130 +219,4 @@ func (s *BaseSymlinkSuite) testCopySymlink(prefix string, createSymlinkFunc func
 	// Verify target file is untouched.
 	_, err = os.Stat(targetPath)
 	s.Assert().NoError(err)
-}
-
-////////////////////////////////////////////////////////////////////////
-// Test cases for Standard Symlinks
-////////////////////////////////////////////////////////////////////////
-
-func (s *StandardSymlinksTestSuite) TestCreateSymlink() {
-	target := s.createTempFile()
-	linkName := "standard_symlink"
-
-	// Create the symlink
-	_ = s.createSymlink(linkName, target)
-
-	// Validate the underlying GCS Object
-	s.validateBackingGCSObjectForSymlink(linkName, target, true)
-}
-
-func (s *StandardSymlinksTestSuite) TestReadSymlink() {
-	s.runReadSymlinkTests(commonTestCases, "read_standard_symlink_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, target, map[string]string{
-			StandardSymlinkMetadataKey: "true",
-		})
-	})
-}
-
-func (s *StandardSymlinksTestSuite) TestReadFileViaSymlink() {
-	s.testReadFileViaSymlink("read_standard_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, target, map[string]string{
-			StandardSymlinkMetadataKey: "true",
-		})
-	})
-}
-
-func (s *StandardSymlinksTestSuite) TestWriteFileViaSymlink() {
-	s.testWriteFileViaSymlink("write_standard_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, target, map[string]string{
-			StandardSymlinkMetadataKey: "true",
-		})
-	})
-}
-
-func (s *StandardSymlinksTestSuite) TestListDirViaSymlink() {
-	s.testListDirViaSymlink("listdir_standard_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, target, map[string]string{
-			StandardSymlinkMetadataKey: "true",
-		})
-	})
-}
-
-func (s *StandardSymlinksTestSuite) TestRenameSymlink() {
-	s.testRenameSymlink("rename_standard_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, target, map[string]string{
-			StandardSymlinkMetadataKey: "true",
-		})
-	})
-}
-
-func (s *StandardSymlinksTestSuite) TestCopySymlink() {
-	s.testCopySymlink("copy_standard_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, target, map[string]string{
-			StandardSymlinkMetadataKey: "true",
-		})
-	})
-}
-
-////////////////////////////////////////////////////////////////////////
-// Test cases for legacy Symlinks
-////////////////////////////////////////////////////////////////////////
-
-func (s *LegacySymlinksTestSuite) TestCreateSymlink() {
-	target := s.createTempFile()
-	linkName := "legacy_symlink"
-
-	// Create the symlink
-	_ = s.createSymlink(linkName, target)
-
-	// Validate the underlying GCS Object
-	s.validateBackingGCSObjectForSymlink(linkName, target, false)
-}
-
-func (s *LegacySymlinksTestSuite) TestReadSymlink() {
-	s.runReadSymlinkTests(commonTestCases, "read_legacy_symlink_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, "", map[string]string{
-			SymlinkMetadataKey: target,
-		})
-	})
-}
-
-func (s *LegacySymlinksTestSuite) TestReadFileViaSymlink() {
-	s.testReadFileViaSymlink("read_legacy_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, "", map[string]string{
-			SymlinkMetadataKey: target,
-		})
-	})
-}
-
-func (s *LegacySymlinksTestSuite) TestWriteFileViaSymlink() {
-	s.testWriteFileViaSymlink("write_legacy_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, "", map[string]string{
-			SymlinkMetadataKey: target,
-		})
-	})
-}
-
-func (s *LegacySymlinksTestSuite) TestListDirViaSymlink() {
-	s.testListDirViaSymlink("listdir_legacy_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, "", map[string]string{
-			SymlinkMetadataKey: target,
-		})
-	})
-}
-
-func (s *LegacySymlinksTestSuite) TestRenameSymlink() {
-	s.testRenameSymlink("rename_legacy_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, "", map[string]string{
-			SymlinkMetadataKey: target,
-		})
-	})
-}
-
-func (s *LegacySymlinksTestSuite) TestCopySymlink() {
-	s.testCopySymlink("copy_legacy_", func(linkName, target string) {
-		s.createGCSSymlinkObject(linkName, "", map[string]string{
-			SymlinkMetadataKey: target,
-		})
-	})
 }
