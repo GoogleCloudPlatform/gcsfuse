@@ -45,7 +45,6 @@ var (
 	bucket           string
 	testDir          string
 	serviceAccount   string
-	localKeyFilePath string
 )
 
 // The permission granted by roles at project, bucket, and managed folder
@@ -201,6 +200,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	setup.RunTestsOnlyForStaticMount(mountDir, t)
 
 	// Fetch credentials and apply permission on bucket.
+	var localKeyFilePath string
 	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials(ctx)
 	defer func() {
 		if err := os.Remove(localKeyFilePath); err != nil {
