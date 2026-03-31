@@ -365,7 +365,15 @@ func (t *CacheTest) TestRaceCondition() {
 }
 
 func (t *CacheTest) Test_EraseEntriesWithGivenPrefix_Concurrent() {
-	c := lru.NewCache(100000)
+	// Use t.cache instead of creating a new one, but we need a larger capacity for this test.
+	// We'll create a new instance of the same type dynamically.
+
+	var c lru.Cache
+	if fmt.Sprintf("%T", t.cache) == "*lru.radixCache" {
+		c = lru.NewRadixCache(100000)
+	} else {
+		c = lru.NewCache(100000)
+	}
 
 	// Pre-fill the cache
 	for i := range 1000 {

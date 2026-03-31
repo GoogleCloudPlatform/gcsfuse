@@ -156,18 +156,20 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 		return nil, ErrInvalidEntrySize
 	}
 
-	node, isNew := c.index.Insert(key, value)
-	if !isNew {
-		c.currentSize -= node.value.Size()
+	var evictedValues []ValueType
+
+	oldNode, exists := c.index.Get(key)
+	if exists {
+		c.currentSize -= oldNode.value.Size()
 		c.currentSize += valueSize
-		node.value = value
+		node, _ := c.index.Insert(key, value)
 		c.moveToFront(node)
 	} else {
+		node, _ := c.index.Insert(key, value)
 		c.pushFront(node)
 		c.currentSize += valueSize
 	}
 
-	var evictedValues []ValueType
 	for c.currentSize > c.maxSize {
 		evictedValues = append(evictedValues, c.evictOne())
 	}
