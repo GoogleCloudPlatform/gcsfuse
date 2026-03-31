@@ -151,7 +151,7 @@ func NewFileInode(
 	localFile bool,
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
-	mrdCache *lru.Cache) (f *FileInode) {
+	mrdCache lru.Cache) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -1145,7 +1145,6 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			BlockSize:                f.config.Write.BlockSizeMb * util.MiB,
 			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
-			ChunkRetryDeadlineSecs:   f.config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {

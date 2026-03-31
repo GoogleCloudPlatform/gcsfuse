@@ -37,11 +37,12 @@ import (
 )
 
 type BucketConfig struct {
-	BillingProject                     string
-	OnlyDir                            string
-	EgressBandwidthLimitBytesPerSecond float64
-	OpRateLimitHz                      float64
-	StatCacheMaxSizeMB                 uint64
+	BillingProject                      string
+	OnlyDir                             string
+	EgressBandwidthLimitBytesPerSecond  float64
+	OpRateLimitHz                       float64
+	StatCacheMaxSizeMB                  uint64
+	ExperimentalStatCacheImplementation string
 	// Config for TTL of entries for existing file in stat cache
 	StatCacheTTL time.Duration
 	// Config for TTL of entries for non-existing file in stat cache
@@ -66,7 +67,6 @@ type BucketConfig struct {
 	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
 	// periodically garbage collected.
 	AppendThreshold          int64
-	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TmpObjectPrefix          string
 	// Used in Zonal buckets to determine if objects should be finalized or not.
@@ -98,7 +98,7 @@ type BucketManager interface {
 type bucketManager struct {
 	config          BucketConfig
 	storageHandle   storage.StorageHandle
-	sharedStatCache *lru.Cache
+	sharedStatCache lru.Cache
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -106,9 +106,13 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
-	var c *lru.Cache
+	var c lru.Cache
 	if config.StatCacheMaxSizeMB > 0 {
-		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		if config.ExperimentalStatCacheImplementation == "radix" {
+			c = lru.NewRadixCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		} else {
+			c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		}
 	}
 
 	bm := &bucketManager{
@@ -259,7 +263,6 @@ func (bm *bucketManager) SetUpBucket(
 	}
 	sb = NewSyncerBucket(
 		bm.config.AppendThreshold,
-		bm.config.ChunkRetryDeadlineSecs,
 		bm.config.ChunkTransferTimeoutSecs,
 		bm.config.TmpObjectPrefix,
 		b)

@@ -48,7 +48,7 @@ type JobManager struct {
 	// the size of GCS read requests by Job at the time of downloading object to
 	// file in cache.
 	sequentialReadSizeMb int32
-	fileInfoCache        *lru.Cache
+	fileInfoCache        lru.Cache
 	fileCacheConfig      *cfg.FileCacheConfig
 
 	/////////////////////////
@@ -67,7 +67,7 @@ type JobManager struct {
 	cacheDirVolumeBlockSize uint64
 }
 
-func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
+func NewJobManager(fileInfoCache lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
 	cacheDir string, sequentialReadSizeMb int32, c *cfg.FileCacheConfig,
 	metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, cacheDirVolumeBlockSize uint64) (jm *JobManager) {
 	maxParallelDownloads := int64(math.MaxInt64)

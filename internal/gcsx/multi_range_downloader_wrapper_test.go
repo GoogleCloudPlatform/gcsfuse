@@ -404,7 +404,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_FileClobbered() {
 // mrdWrapperCacheTest inherits from mrdWrapperTest and adds cache functionality.
 type mrdWrapperCacheTest struct {
 	mrdWrapperTest
-	cache *lru.Cache
+	cache lru.Cache
 }
 
 func TestMRDWrapperCacheTestSuite(t *testing.T) {
