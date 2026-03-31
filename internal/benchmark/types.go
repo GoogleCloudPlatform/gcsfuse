@@ -117,6 +117,97 @@ type LatencyPercentiles struct {
 	Mean float64 `yaml:"mean_us"`
 }
 
+// RuntimeStats captures process-level memory and CPU resource usage over the
+// measurement phase. All fields are written to the YAML output automatically
+// via struct tags; the human-readable report renders them in a dedicated
+// "Runtime Statistics" section.
+type RuntimeStats struct {
+	// Go runtime heap statistics (snapshot at end of measurement).
+	GoHeapAllocBytes  uint64 `yaml:"go_heap_alloc_bytes"`  // live heap objects
+	GoHeapSysBytes    uint64 `yaml:"go_heap_sys_bytes"`    // heap virtual memory reserved
+	GoTotalAllocBytes uint64 `yaml:"go_total_alloc_bytes"` // cumulative, includes freed objects
+
+	// GC activity during the measurement window (delta between start and end).
+	GCCycles       uint32 `yaml:"gc_cycles"`         // number of completed GC cycles
+	GCPauseTotalNs uint64 `yaml:"gc_pause_total_ns"` // cumulative GC STW pause time (ns)
+
+	// OS-level peak resident-set-size (from /proc/self/status VmHWM).
+	PeakRSSKiB int64 `yaml:"peak_rss_kib"`
+
+	// Per-process absolute CPU time during the measurement window (from /proc/self/stat).
+	ProcessUserCPUMs int64 `yaml:"process_user_cpu_ms"`
+	ProcessSysCPUMs  int64 `yaml:"process_sys_cpu_ms"`
+
+	// Per-process CPU as a percentage of TOTAL system CPU capacity.
+	// Computed as (process_ticks / system_total_ticks) × 100.
+	// Normalised across all cores so values are bounded by 100 % regardless
+	// of core count.  Both values together show this process's share of the system.
+	ProcessUserCPUPct float64 `yaml:"process_user_cpu_pct"`
+	ProcessSysCPUPct  float64 `yaml:"process_sys_cpu_pct"`
+
+	// System-wide CPU utilisation breakdown during the measurement window (from
+	// /proc/stat).  All values are as a percentage of total capacity across all
+	// cores (sum across user+sys+iowait+idle+... = 100 %).
+	SystemUserPct    float64 `yaml:"system_user_pct,omitempty"`    // user + nice
+	SystemSysPct     float64 `yaml:"system_sys_pct,omitempty"`     // kernel
+	SystemIOWaitPct  float64 `yaml:"system_iowait_pct,omitempty"`  // I/O wait
+	SystemCPUPercent float64 `yaml:"system_cpu_percent,omitempty"` // total active (100 − idle)
+}
+
+// PipelineStats captures write-pool producer/consumer pipeline performance.
+// Only populated when the DataPool is active (write tracks whose object size
+// fits within the pool slot — ≤ 512 MiB by default).
+//
+// The pool runs one background producer goroutine that pre-fills buffers with
+// Xoshiro256++ random data.  Consumer goroutines (the writers) acquire a
+// filled slot, stream it to GCS, then release the slot back to the pool.
+//
+//	HeadroomRatio >> 1.0  →  producer comfortably ahead; data generation is
+//	                          NOT the throughput bottleneck.
+//	HeadroomRatio ≈ 1.0   →  producer barely keeping up; generation may be
+//	                          limiting write throughput.
+//
+// Stall semantics:
+//
+//	ProducerStall — the single producer goroutine yielded waiting for an empty
+//	                slot (consumers hadn't released one yet).  Expressed as
+//	                wall-clock seconds and as a percentage of elapsed time.
+//	ConsumerStall — cumulative goroutine·seconds across all writer goroutines
+//	                spent waiting for a filled slot.  Divide by goroutine count
+//	                and elapsed time to get an average per-writer stall fraction.
+type PipelineStats struct {
+	// ProducerRateGiBps is the average data-generation rate across all fill
+	// goroutines combined (GiB/s).
+	ProducerRateGiBps float64 `yaml:"producer_rate_gib_ps"`
+
+	// ConsumerRateGiBps is the average GCS write throughput (GiB/s) — bytes
+	// acknowledged by the service, not merely handed to the network stack.
+	ConsumerRateGiBps float64 `yaml:"consumer_rate_gib_ps"`
+
+	// HeadroomRatio is the slot-based headroom: producerSlotsPerSec /
+	// consumerSlotsPerSec = numProducers × elapsedNs / totalFillNs.
+	// A value of 2.0 means the producers can fill slots twice as fast as
+	// consumers demand them.  Values below 1.0 indicate certain stalls.
+	HeadroomRatio float64 `yaml:"headroom_ratio"`
+
+	// NumProducers is the number of active fill goroutines at the end of the
+	// measurement phase.
+	NumProducers int `yaml:"num_producers"`
+
+	// ProducerStallSec is the total wall-clock time producer goroutines spent
+	// waiting for an empty pool slot (pool full — all slots in-flight or ready).
+	ProducerStallSec float64 `yaml:"producer_stall_sec"`
+
+	// ProducerStallPct is ProducerStallSec expressed as a percentage of the
+	// total elapsed run time.
+	ProducerStallPct float64 `yaml:"producer_stall_pct"`
+
+	// ConsumerStallSec is the cumulative goroutine·seconds all writer goroutines
+	// spent blocking on a filled pool slot (producer not yet ready).
+	// This is the key metric: any value above zero means consumers were starved.
+	ConsumerStallSec float64 `yaml:"consumer_stall_sec"`
+}
+
 // RunSummary is the top-level output structure written to YAML / TSV.
 type RunSummary struct {
 	// StartTime is when the measurement phase began (UTC).
@@ -132,4 +223,13 @@ type RunSummary struct {
 
 	// Tracks contains per-track statistics.
 	Tracks []TrackStats `yaml:"tracks"`
+
+	// Runtime holds process-level memory and CPU statistics captured during
+	// the measurement phase.
+	Runtime RuntimeStats `yaml:"runtime,omitempty"`
+
+	// Pipeline holds write-pool producer/consumer pipeline statistics.
+	// Nil when no write pool was active (read-only workloads, or objects too
+	// large for the pool).
+	Pipeline *PipelineStats `yaml:"pipeline,omitempty"`
 }

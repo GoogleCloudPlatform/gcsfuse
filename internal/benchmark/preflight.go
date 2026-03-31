@@ -60,7 +60,7 @@ func RunPreflight(ctx context.Context, bucket gcs.Bucket, bucketName, prefix, mo
 	listStart := time.Now()
 	listing, err := bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
 		Prefix:     prefix,
-		MaxResults: 1000,
+		MaxResults: listMaxResults,
 	})
 	listElapsed := time.Since(listStart)
 

@@ -85,6 +85,11 @@ gcs-bench bench
   │         PUT / LIST / GET / DELETE a sentinel object
   │         → verifies full read/write/delete permissions before commit
   │
+  ├─ [write tracks only] Write pool initialization  (before measurement starts)
+  │    └─ ChanPool: allocate and pre-fill ~8 GiB of random data
+  │         ├─ depth = 8 GiB ÷ object size  (e.g. 1,193 slots for 6.85 MiB objects)
+  │         └─ All slots pre-filled; write goroutines start with zero stall
+  │
   ├─ [optionally] sleep until --start-at  (synchronized multi-host start)
   │
   ├─ Warm-up phase  (warmup-duration, default 5s)
@@ -103,6 +108,33 @@ or access patterns — all measured simultaneously against the same bucket.
 In **prepare mode** (`mode: prepare`) the engine writes every object path
 exactly once (no time limit, no warmup) then exits. This populates the bucket
 before a read benchmark.
+
+### Write data generation pipeline
+
+For write tracks, `gcs-bench bench` uses a **ChanPool** — a channel-pair slot
+pool — to decouple random data generation from GCS upload latency. The pool
+is filled before `Run()` is called, so write goroutines never wait for data
+generation inside the latency measurement window.
+
+```
+Producer goroutine                   Consumer goroutines (N)
+───────────────────                  ────────────────────────
+fillRandom(slot.data)  ─► [ready] ─► AcquireSlot()
+                                              │
+                                      GCS CreateObject (latency window)
+                                              │
+               [free] ◄─────────────  ReleaseSlot()
+                  │
+          pick up next slot, refill
+```
+
+**Pool sizing:** `depth = 8 GiB ÷ object_size`, clamped to [32, 2048].
+For UNet3D (6.85 MiB objects): 1,193 slots, ~8 GiB RSS.
+
+**Headroom:** At the UNet3D operating point the producer fills data ≈ 4.7× faster
+than consumers upload to GCS. `consumer-stall` stays at 0.000 s — no upload
+was ever delayed waiting for data. See `docs/write-pool-design.md` for the
+complete architectural description and sizing rationale.
 
 ---
 
@@ -757,15 +789,33 @@ If the objects do not yet exist, run the prepare phase first:
 ./gcs-bench bench --config examples/benchmark-configs/unet3d-like-prepare.yaml
 ```
 
-Progress is printed every 5 seconds:
+Progress is printed every 5 seconds. For write tracks, each progress interval
+also includes a `[pool]` line showing the write pipeline stats:
 
 ```
 [prepare] Track "unet3d-prepare": writing 50176 objects with 64 goroutines...
   [prepare] 3200/50176 (6%)  640 obj/s  0 errors
+  [pool] produce=14.85 GiB/s  consume=3.16 GiB/s  ratio=4.699  producer-stall=27.98%  consumer-stall=0.00%
   [prepare] 6720/50176 (13%)  672 obj/s  0 errors
+  [pool] produce=14.72 GiB/s  consume=3.14 GiB/s  ratio=4.688  producer-stall=27.91%  consumer-stall=0.00%
   ...
 [prepare] Track "unet3d-prepare": complete — 50176/50176 written in 1m18s (643 obj/s, 0 errors)
+[pool] final: produced=336.12 GiB (4.66 GiB/s)  consumed=71.52 GiB (0.99 GiB/s)  ratio=4.700  producer-stall=27.028s (27.98%)  consumer-stall=0.000s
 ```
+
+**Pool pipeline field reference:**
+
+| Field | Meaning | Healthy value |
+|-------|---------|--------------|
+| `produce` | Rate at which slots are filled with random data and placed into the pool | 10–15 GiB/s |
+| `consume` | Rate at which upload goroutines are claiming pre-filled data from the pool (≈ upload throughput) | matches GCS throughput |
+| `ratio` | `produce ÷ consume` — headroom factor | > 1.0; typically 4–5× for UNet3D |
+| `producer-stall` | % of time the producer goroutine was blocked waiting for consumers to return slots (pool full) | 0–50% is healthy |
+| `consumer-stall` | % of time upload goroutines were blocked waiting for a filled slot (pool empty) | **Must be 0.00%** |
+
+A non-zero `consumer-stall` means data generation is slower than GCS uploads, which
+directly inflates measured write latency. If this occurs with objects ≤ 512 MiB,
+check available CPU — `fillRandom` is CPU-bound at ~14 GiB/s per core.
 
 After the run finishes, a timestamped subdirectory is created under `output-path`
 (default: `./`): `bench-YYYYMMDD-HHMMSS/`. Inside it you will find `bench.txt`,
@@ -1306,8 +1356,8 @@ Use the `-v` flag (repeat for more detail) to increase verbosity:
 | Flag | Level | What you see |
 |------|-------|--------------|
 | _(none)_ | WARN | Live 10 s throughput ticks (interval-ops + GiB/s + total-ops) for warmup and measurement; errors when they occur |
-| `-v` | INFO | Same ticks + RAPID detection/confirmation, DirectPath verification, phase-transition messages ("Warming up...", "Measuring...") |
-| `-vv` | DEBUG | Ticks include elapsed, remaining, total-ops, and total-errs; all INFO messages above |
+| `-v` | INFO | Same ticks + RAPID detection/confirmation, DirectPath verification, phase-transition messages ("Warming up...", "Measuring..."), write pool pipeline stats every 5 s during prepare, final `[pool] final:` summary at the end of each write phase |
+| `-vv` | DEBUG | Ticks include elapsed, remaining, total-ops, and total-errs; all INFO messages above; individual pool stall events (`[pool] producer stalled: free=N ready=M depth=D`) whenever the producer or a consumer blocks |
 | `-vvv` | TRACE | Every individual GCS call — op type, object name, elapsed time, bytes |
 
 All output is in plain-text format (never JSON) regardless of verbosity level.
