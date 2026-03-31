@@ -949,6 +949,13 @@ params:
     deprecated: true
     deprecation-warning: "Experimental flag: could be removed even in a minor release."
 
+  - config-path: "metadata-cache.experimental-stat-cache-implementation"
+    flag-name: "experimental-stat-cache-implementation"
+    type: "string"
+    usage: "The implementation to use for the stat cache. Acceptable values are `map` and `radix`. `map` uses a map based LRU and `radix` uses a radix tree based LRU."
+    default: "map"
+    hide-flag: true
+
   - config-path: "metadata-cache.metadata-prefetch-entries-limit"
     flag-name: "metadata-prefetch-entries-limit"
     type: "int"

@@ -643,6 +643,8 @@ type MetadataCacheConfig struct {
 
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
 
+	ExperimentalStatCacheImplementation string `yaml:"experimental-stat-cache-implementation"`
+
 	MetadataPrefetchEntriesLimit int64 `yaml:"metadata-prefetch-entries-limit"`
 
 	MetadataPrefetchMaxWorkers int64 `yaml:"metadata-prefetch-max-workers"`
@@ -1023,6 +1025,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-stat-cache-implementation", "", "map", "The implementation to use for the stat cache. Acceptable values are `map` and `radix`. `map` uses a map based LRU and `radix` uses a radix tree based LRU.")
+
+	if err := flagSet.MarkHidden("experimental-stat-cache-implementation"); err != nil {
 		return err
 	}
 
@@ -1606,6 +1614,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.experimental-stat-cache-implementation", flagSet.Lookup("experimental-stat-cache-implementation")); err != nil {
 		return err
 	}
 
