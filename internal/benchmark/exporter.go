@@ -294,6 +294,49 @@ func printHumanSummary(w io.Writer, summary RunSummary) {
 			fmt.Fprintf(w, "\n  TTFB: N/A (%s operation)\n", opLabel)
 		}
 	}
+
+	// Runtime Statistics — only rendered when the engine populated them.
+	rt := summary.Runtime
+	if rt.PeakRSSKiB > 0 || rt.GoHeapAllocBytes > 0 {
+		fmt.Fprintf(w, "\n--- Runtime Statistics ---\n\n")
+		fmt.Fprintf(w, "  Memory (Go heap):\n")
+		fmt.Fprintf(w, "    Heap alloc:      %s\n", humanBytes(float64(rt.GoHeapAllocBytes)))
+		fmt.Fprintf(w, "    Heap sys:        %s\n", humanBytes(float64(rt.GoHeapSysBytes)))
+		fmt.Fprintf(w, "    Total alloc:     %s  (cumulative, includes freed)\n", humanBytes(float64(rt.GoTotalAllocBytes)))
+		fmt.Fprintf(w, "    Peak RSS:        %s\n", humanBytes(float64(rt.PeakRSSKiB)*1024))
+		fmt.Fprintf(w, "  GC:\n")
+		fmt.Fprintf(w, "    Cycles:          %d\n", rt.GCCycles)
+		fmt.Fprintf(w, "    Pause total:     %s\n", humanDuration(time.Duration(rt.GCPauseTotalNs)))
+		// CPU values are expressed as a percentage of total system capacity
+		// (all cores summed to 100 %) so they are directly comparable regardless
+		// of core count.
+		fmt.Fprintf(w, "  CPU (this process, %% of total system capacity):\n")
+		fmt.Fprintf(w, "    User:            %.1f%%\n", rt.ProcessUserCPUPct)
+		fmt.Fprintf(w, "    Sys:             %.1f%%\n", rt.ProcessSysCPUPct)
+		fmt.Fprintf(w, "    Total:           %.1f%%\n", rt.ProcessUserCPUPct+rt.ProcessSysCPUPct)
+		if rt.SystemCPUPercent > 0 {
+			fmt.Fprintf(w, "  CPU (system-wide, %% of total capacity):\n")
+			fmt.Fprintf(w, "    User:            %.1f%%\n", rt.SystemUserPct)
+			fmt.Fprintf(w, "    Sys:             %.1f%%\n", rt.SystemSysPct)
+			fmt.Fprintf(w, "    I/O Wait:        %.1f%%\n", rt.SystemIOWaitPct)
+			fmt.Fprintf(w, "    Active total:    %.1f%%\n", rt.SystemCPUPercent)
+		}
+	}
+
+	// Write-Pool Pipeline Statistics — only rendered when the pool was active.
+	if p := summary.Pipeline; p != nil {
+		fmt.Fprintf(w, "\n--- Write-Pool Pipeline ---\n\n")
+		fmt.Fprintf(w, "  Producer rate:    %.3f GiB/s  (Xoshiro256++ random-data generation)\n", p.ProducerRateGiBps)
+		fmt.Fprintf(w, "  Consumer rate:    %.3f GiB/s  (GCS write throughput)\n", p.ConsumerRateGiBps)
+		if p.HeadroomRatio >= 1.05 {
+			fmt.Fprintf(w, "  Headroom ratio:   %.2f×  (producer was %.2f× faster — data generation was NOT the bottleneck)\n", p.HeadroomRatio, p.HeadroomRatio)
+		} else if p.HeadroomRatio > 0 {
+			fmt.Fprintf(w, "  Headroom ratio:   %.2f×  ⚠  producer barely kept up — data generation may have limited write throughput\n", p.HeadroomRatio)
+		}
+		fmt.Fprintf(w, "  Producer stall:   %.3f s (%.2f%% of elapsed)  (waited for free pool slots)\n", p.ProducerStallSec, p.ProducerStallPct)
+		fmt.Fprintf(w, "  Consumer stall:   %.3f goroutine·s total  (writers waited for filled slots)\n", p.ConsumerStallSec)
+	}
+
 	fmt.Fprintln(w)
 }
 

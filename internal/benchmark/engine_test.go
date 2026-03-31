@@ -280,6 +280,67 @@ func TestGoroutinesForTrackDirectOverride(t *testing.T) {
 	}
 }
 
+// TestReadBufPoolInitialized verifies that NewEngine initialises readBufPool
+// and that it vends correctly sized buffers (256 KiB).
+func TestReadBufPoolInitialized(t *testing.T) {
+	mb := &mockBucket{readBytes: 4096}
+	bCfg := makeReadOnlyConfig(100*time.Millisecond, 0, 1)
+
+	engine, err := NewEngine(mb, bCfg, 0, nil)
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+
+	// GetPool a buffer, check size, then return it.
+	bufPtr := engine.readBufPool.Get().(*[]byte)
+	if bufPtr == nil {
+		t.Fatal("readBufPool.Get() returned nil")
+	}
+	const wantSize = 256 * 1024
+	if len(*bufPtr) != wantSize {
+		t.Errorf("pool buffer len = %d, want %d", len(*bufPtr), wantSize)
+	}
+	engine.readBufPool.Put(bufPtr)
+}
+
+// TestRuntimeStatsPopulated verifies that RunSummary.Runtime is populated with
+// sensible values after a normal measurement run.
+func TestRuntimeStatsPopulated(t *testing.T) {
+	mb := &mockBucket{readDelay: 0, readBytes: 4096}
+	bCfg := makeReadOnlyConfig(200*time.Millisecond, 0, 2)
+
+	engine, err := NewEngine(mb, bCfg, 0, nil)
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+
+	summary, err := engine.Run(context.Background())
+	if err != nil {
+		t.Fatalf("engine.Run: %v", err)
+	}
+
+	rt := summary.Runtime
+
+	if rt.GoHeapAllocBytes == 0 {
+		t.Error("expected non-zero GoHeapAllocBytes after run")
+	}
+	if rt.GoHeapSysBytes == 0 {
+		t.Error("expected non-zero GoHeapSysBytes after run")
+	}
+	if rt.PeakRSSKiB <= 0 {
+		t.Errorf("expected positive PeakRSSKiB, got %d", rt.PeakRSSKiB)
+	}
+	if rt.ProcessUserCPUPct < 0 {
+		t.Errorf("expected non-negative ProcessUserCPUPct, got %.2f", rt.ProcessUserCPUPct)
+	}
+	if rt.ProcessSysCPUPct < 0 {
+		t.Errorf("expected non-negative ProcessSysCPUPct, got %.2f", rt.ProcessSysCPUPct)
+	}
+	if rt.SystemCPUPercent < 0 {
+		t.Errorf("expected non-negative SystemCPUPercent, got %.2f", rt.SystemCPUPercent)
+	}
+}
+
 // TestDoReadFullObjectWhenReadSizeIsZero verifies that a read-size of 0 (or
 // negative) issues a full-object read (no Range restriction) rather than
 // silently defaulting to 4 MiB. The mock bucket uses b.readBytes when
@@ -331,5 +392,138 @@ func TestDoReadFullObjectWhenReadSizeIsZero(t *testing.T) {
 					readSize, ts.AvgOpSizeBytes, fullObjectSize, fullObjectSize, expectedBytes)
 			}
 		})
+	}
+}
+
+// ── Write-pool Pipeline tests ─────────────────────────────────────────────
+
+// runPrepareFullSummary is like runPrepare but returns the full RunSummary so
+// tests can inspect Pipeline and Runtime fields.
+func runPrepareFullSummary(t *testing.T, mb *mockBucket, objectCount int) RunSummary {
+	t.Helper()
+	engine, err := NewEngine(mb, makePrepareConfig(objectCount), 0, nil)
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	summary, err := engine.Run(context.Background())
+	if err != nil {
+		t.Fatalf("engine.Run (prepare): %v", err)
+	}
+	return summary
+}
+
+// runBenchWriteFullSummary is like runBenchWrite but returns the full RunSummary.
+func runBenchWriteFullSummary(t *testing.T, mb *mockBucket, duration time.Duration, concurrency int) RunSummary {
+	t.Helper()
+	engine, err := NewEngine(mb, makeWriteBenchConfig(duration, concurrency), 0, nil)
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	summary, err := engine.Run(context.Background())
+	if err != nil {
+		t.Fatalf("engine.Run (benchmark write): %v", err)
+	}
+	return summary
+}
+
+// TestPipelineStatsPopulatedForPrepare verifies that RunSummary.Pipeline is
+// non-nil and contains plausible values after a prepare run whose objects fit
+// within the pool slot cap (objects ≤ 512 MiB always use the pool path).
+func TestPipelineStatsPopulatedForPrepare(t *testing.T) {
+	mb := &mockBucket{objectSize: mockObjectSize}
+	summary := runPrepareFullSummary(t, mb, 20)
+
+	if summary.Pipeline == nil {
+		t.Fatal("expected Pipeline to be non-nil after prepare with write pool active")
+	}
+	p := summary.Pipeline
+
+	if p.ProducerRateGiBps <= 0 {
+		t.Errorf("ProducerRateGiBps: want > 0, got %.4f", p.ProducerRateGiBps)
+	}
+	if p.ConsumerRateGiBps <= 0 {
+		t.Errorf("ConsumerRateGiBps: want > 0, got %.4f", p.ConsumerRateGiBps)
+	}
+	if p.HeadroomRatio <= 0 {
+		t.Errorf("HeadroomRatio: want > 0, got %.4f", p.HeadroomRatio)
+	}
+	// Producer stall fraction must be non-negative (can be zero in fast tests).
+	if p.ProducerStallSec < 0 {
+		t.Errorf("ProducerStallSec: want >= 0, got %.6f", p.ProducerStallSec)
+	}
+	if p.ProducerStallPct < 0 {
+		t.Errorf("ProducerStallPct: want >= 0, got %.4f", p.ProducerStallPct)
+	}
+	if p.ConsumerStallSec < 0 {
+		t.Errorf("ConsumerStallSec: want >= 0, got %.6f", p.ConsumerStallSec)
+	}
+}
+
+// TestPipelineStatsPopulatedForBenchWrite verifies that RunSummary.Pipeline is
+// non-nil and contains plausible values after a time-bounded write benchmark.
+func TestPipelineStatsPopulatedForBenchWrite(t *testing.T) {
+	mb := &mockBucket{objectSize: mockObjectSize}
+	summary := runBenchWriteFullSummary(t, mb, 200*time.Millisecond, 2)
+
+	if summary.Pipeline == nil {
+		t.Fatal("expected Pipeline to be non-nil after benchmark write with write pool active")
+	}
+	p := summary.Pipeline
+
+	if p.ProducerRateGiBps <= 0 {
+		t.Errorf("ProducerRateGiBps: want > 0, got %.4f", p.ProducerRateGiBps)
+	}
+	if p.ConsumerRateGiBps <= 0 {
+		t.Errorf("ConsumerRateGiBps: want > 0, got %.4f", p.ConsumerRateGiBps)
+	}
+	if p.HeadroomRatio <= 0 {
+		t.Errorf("HeadroomRatio: want > 0, got %.4f", p.HeadroomRatio)
+	}
+}
+
+// TestPipelineNilForReadOnlyWorkload verifies that RunSummary.Pipeline is nil
+// when the workload contains no write tracks (no pool is created).
+func TestPipelineNilForReadOnlyWorkload(t *testing.T) {
+	mb := &mockBucket{readBytes: 4096}
+	bCfg := makeReadOnlyConfig(200*time.Millisecond, 0, 2)
+
+	engine, err := NewEngine(mb, bCfg, 0, nil)
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	summary, err := engine.Run(context.Background())
+	if err != nil {
+		t.Fatalf("engine.Run: %v", err)
+	}
+
+	if summary.Pipeline != nil {
+		t.Errorf("expected Pipeline to be nil for read-only workload, got %+v", summary.Pipeline)
+	}
+}
+
+// TestPipelineProducerFasterThanConsumer verifies the fundamental invariant:
+// in normal operation the producer (pure CPU/RAM) should generate data faster
+// than the consumer can upload to GCS.  We inject a write delay to simulate
+// a slow network so the producer easily stays ahead.
+func TestPipelineProducerFasterThanConsumer(t *testing.T) {
+	mb := &mockBucket{
+		objectSize: mockObjectSize,
+		writeDelay: 5 * time.Millisecond, // simulate network latency
+	}
+	summary := runBenchWriteFullSummary(t, mb, 300*time.Millisecond, 4)
+
+	if summary.Pipeline == nil {
+		t.Fatal("expected non-nil Pipeline")
+	}
+	p := summary.Pipeline
+
+	// With an artificial write delay the producer should comfortably outpace
+	// the consumer — headroom ratio should be well above 1.
+	if p.HeadroomRatio < 1.0 {
+		t.Errorf("HeadroomRatio: want >= 1.0 (producer faster than consumer), got %.4f", p.HeadroomRatio)
+	}
+	if p.ProducerRateGiBps < p.ConsumerRateGiBps {
+		t.Errorf("expected ProducerRateGiBps (%.4f) >= ConsumerRateGiBps (%.4f)",
+			p.ProducerRateGiBps, p.ConsumerRateGiBps)
 	}
 }

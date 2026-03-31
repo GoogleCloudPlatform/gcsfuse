@@ -104,7 +104,7 @@ e2e-test:
 # UPSTREAM_SHA is derived from the merge-base of HEAD and origin/master so it
 # always identifies the exact upstream snapshot this build was forked from,
 # regardless of how many bench commits have been added on top.
-BENCH_VERSION ?= v1.0
+BENCH_VERSION ?= v1.1
 UPSTREAM_SHA  := $(shell git merge-base HEAD origin/master 2>/dev/null | cut -c1-8)
 ifeq ($(UPSTREAM_SHA),)
 UPSTREAM_SHA  := unknown

@@ -23,6 +23,8 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"runtime"
+	runtimemetrics "runtime/metrics"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,6 +34,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
+
+// overridePoolBytesPerSide, when > 0, replaces poolBytesPerSide inside
+// NewEngine.  It exists solely for unit-test isolation so that tests never
+// allocate the full production pool budget (16 GiB).  It is set once in
+// TestMain (testmain_test.go) and is never touched in production code paths.
+var overridePoolBytesPerSide int64
 
 // Engine drives a benchmark workload against a GCS bucket.
 type Engine struct {
@@ -60,7 +68,12 @@ type Engine struct {
 	// Xoshiro256++ so that doWrite can upload without blocking on data
 	// generation.  nil when disabled (e.g. no write tracks, or object size
 	// exceeds poolSlotSizeCap).
-	writePool *DataPool
+	writePool WritePool
+
+	// readBufPool is a pool of 256 KiB drain buffers reused across doRead
+	// calls. Pooling eliminates per-read heap allocations and the associated
+	// GC pressure, which otherwise inflates p999/pMax latency.
+	readBufPool sync.Pool
 
 	// out is the writer for live progress lines ([warmup]/[bench] ticks).
 	// Defaults to os.Stderr when nil is passed to NewEngine.
@@ -127,21 +140,35 @@ func NewEngine(bucket gcs.Bucket, bCfg cfg.BenchmarkConfig, verbosity int, out i
 	// Build write pool if any track writes fixed-size (or bounded) objects
 	// that fit within poolSlotSizeCap.  Pool pre-generates data in a background
 	// goroutine so doWrite never stalls on Xoshiro256++ fill.
-	//
-	// poolSlotSizeCap prevents the pool from consuming excessive RAM.
-	// At 512 MiB × depth-32 = 16 GiB — feasible on 32 GiB machines.
-	// Increase or make configurable if needed.
-	const poolSlotSizeCap int64 = 512 << 20 // 512 MiB
-	eng.writePool = buildWritePool(bCfg, poolSlotSizeCap, entropy, &eng.writeBlockSeq)
+	// Pool sizing constants are defined in constants.go.
+	// Total pool RSS ≈ 2 × poolBytesPerSide (see constants.go).
+	bps := poolBytesPerSide
+	if overridePoolBytesPerSide > 0 {
+		bps = overridePoolBytesPerSide
+	}
+	eng.writePool = buildWritePool(bCfg, poolSlotSizeCap, bps, entropy, &eng.writeBlockSeq)
+
+	// Initialise the read-drain buffer pool. Reusing fixed-size buffers eliminates
+	// per-read heap allocations that would otherwise land in GC pressure spikes.
+	eng.readBufPool = sync.Pool{
+		New: func() any {
+			buf := make([]byte, readDrainBufSize)
+			return &buf
+		},
+	}
 
 	return eng, nil
 }
 
 // buildWritePool examines the benchmark config and, if any write track has
 // objects small enough to pre-fill (≤ slotSizeCap), allocates and returns a
-// DataPool sized to the largest such write object.  Returns nil if no write
+// ChanPool sized to the largest such write object.  Returns nil if no write
 // tracks are found or all objects exceed the cap (they use the inline path).
-func buildWritePool(bCfg cfg.BenchmarkConfig, slotSizeCap int64, entropy uint64, seqCounter *atomic.Uint64) *DataPool {
+//
+// bytesPerSide controls the total RAM budget for the slot pool.  depth is
+// computed as bytesPerSide / slotSize so the budget is respected regardless
+// of object size.  Depth is clamped to [poolBuildMinDepth, poolMaxDepth].
+func buildWritePool(bCfg cfg.BenchmarkConfig, slotSizeCap, bytesPerSide int64, entropy uint64, seqCounter *atomic.Uint64) WritePool {
 	var maxWriteSize int64
 	for _, track := range bCfg.Tracks {
 		if strings.ToLower(track.OpType) != "write" {
@@ -150,11 +177,16 @@ func buildWritePool(bCfg cfg.BenchmarkConfig, slotSizeCap int64, entropy uint64,
 		var sz int64
 		switch {
 		case track.SizeSpec != nil && strings.ToLower(track.SizeSpec.Type) == "lognormal":
-			// Conservative upper bound: Mean + 3σ covers 99.87% of lognormal draws.
-			// Clamp to SizeSpec.Max if set.
-			sz = int64(track.SizeSpec.Mean + 3*track.SizeSpec.StdDev)
-			if track.SizeSpec.Max > 0 && sz > track.SizeSpec.Max {
+			// When an explicit max is configured it is the exact upper bound of
+			// the distribution — no sample can exceed it.  Use it directly so
+			// every drawn size uses the pool fast path (zero allocation).
+			//
+			// Fall back to mean + 3σ only when no explicit max is given (the
+			// heuristic covers 99.87% of draws, matching the 3-sigma rule).
+			if track.SizeSpec.Max > 0 {
 				sz = track.SizeSpec.Max
+			} else {
+				sz = int64(track.SizeSpec.Mean + 3*track.SizeSpec.StdDev)
 			}
 		case track.SizeSpec != nil:
 			sz = track.SizeSpec.Max
@@ -174,14 +206,19 @@ func buildWritePool(bCfg cfg.BenchmarkConfig, slotSizeCap int64, entropy uint64,
 		return nil
 	}
 
-	// Ring depth: enough slots to keep the producer ahead of all concurrent writers.
-	// 4 × TotalConcurrency is generous; clamped to ≥ 32.
-	depth := bCfg.TotalConcurrency * 4
-	if depth < 32 {
-		depth = 32
+	// Derive ring depth from the per-side RAM budget so the total stays at
+	// 2 × bytesPerSide regardless of slot size.  Clamp to [poolBuildMinDepth,
+	// poolMaxDepth] so that tiny objects (e.g. in tests) cannot produce an
+	// astronomical slot count that exhausts all physical RAM.
+	depth := int(bytesPerSide / maxWriteSize)
+	if depth < poolBuildMinDepth {
+		depth = poolBuildMinDepth
+	}
+	if depth > poolMaxDepth {
+		depth = poolMaxDepth
 	}
 
-	return newDataPool(maxWriteSize, depth, entropy, seqCounter)
+	return newChanPool(maxWriteSize, depth, entropy, seqCounter)
 }
 
 // Run executes the full benchmark lifecycle:
@@ -217,16 +254,30 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 	}
 
 	if strings.ToLower(e.bCfg.Mode) == "prepare" {
+		// Snapshot resource usage at the start of the prepare run.
+		var startMemStats runtime.MemStats
+		runtime.ReadMemStats(&startMemStats)
+		startProcCPU, _ := readProcCPU()
+		startSysCPU, _ := readSystemCPU()
+
 		prepStart := time.Now()
 		prepErr := e.runPrepare(ctx)
 		prepElapsed := time.Since(prepStart)
+
+		// Snapshot resource usage at the end of the prepare run.
+		var endMemStats runtime.MemStats
+		runtime.ReadMemStats(&endMemStats)
+		endProcCPU, _ := readProcCPU()
+		endSysCPU, _ := readSystemCPU()
+		peakRSS := readPeakRSSKiB()
+
 		// Build a summary so results are exported like any other run.
 		prepSummary := RunSummary{
 			StartTime:           prepStart,
 			MeasurementDuration: prepElapsed,
 			WorkerID:            e.bCfg.WorkerID,
 		}
-		for _, ts := range e.trackState {
+		for tIdx, ts := range e.trackState {
 			ops := ts.totalOps.Load()
 			errs := ts.totalErrs.Load()
 			byts := ts.totalBytes.Load()
@@ -245,6 +296,7 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 				TrackName:             ts.cfg.Name,
 				OpType:                "write",
 				WorkerID:              e.bCfg.WorkerID,
+				Goroutines:            goroutinesForTrack(e.bCfg, tIdx),
 				TotalOps:              ops,
 				Errors:                errs,
 				ThroughputBytesPerSec: throughput,
@@ -254,6 +306,64 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 				TotalLatency:          total,
 			})
 		}
+
+		// Assemble RuntimeStats — same formula as the benchmark measurement path.
+		userTicksDelta := endProcCPU.userTicks - startProcCPU.userTicks
+		sysTicksDelta := endProcCPU.sysTicks - startProcCPU.sysTicks
+		sysTotalDelta := float64(endSysCPU.total()) - float64(startSysCPU.total())
+		var procUserPct, procSysPct float64
+		var sysUserPct, sysSysPct, sysIOWaitPct float64
+		if sysTotalDelta > 0 {
+			procUserPct = float64(userTicksDelta) / sysTotalDelta * 100
+			procSysPct = float64(sysTicksDelta) / sysTotalDelta * 100
+			sysUserPct = (float64(endSysCPU.user) + float64(endSysCPU.nice) -
+				float64(startSysCPU.user) - float64(startSysCPU.nice)) / sysTotalDelta * 100
+			sysSysPct = (float64(endSysCPU.system) - float64(startSysCPU.system)) / sysTotalDelta * 100
+			sysIOWaitPct = (float64(endSysCPU.iowait) - float64(startSysCPU.iowait)) / sysTotalDelta * 100
+		}
+		prepSummary.Runtime = RuntimeStats{
+			GoHeapAllocBytes:  endMemStats.Alloc,
+			GoHeapSysBytes:    endMemStats.HeapSys,
+			GoTotalAllocBytes: endMemStats.TotalAlloc,
+			GCCycles:          endMemStats.NumGC - startMemStats.NumGC,
+			GCPauseTotalNs:    endMemStats.PauseTotalNs - startMemStats.PauseTotalNs,
+			PeakRSSKiB:        peakRSS,
+			ProcessUserCPUMs:  ticksToMs(userTicksDelta),
+			ProcessSysCPUMs:   ticksToMs(sysTicksDelta),
+			ProcessUserCPUPct: procUserPct,
+			ProcessSysCPUPct:  procSysPct,
+			SystemUserPct:     sysUserPct,
+			SystemSysPct:      sysSysPct,
+			SystemIOWaitPct:   sysIOWaitPct,
+			SystemCPUPercent:  systemCPUPercent(startSysCPU, endSysCPU),
+		}
+
+		// Capture write-pool pipeline stats (always, not just --verbose).
+		if e.writePool != nil {
+			logPoolFinalSummary(e.writePool, prepElapsed)
+			s := e.writePool.Stats()
+			elapsedS := prepElapsed.Seconds()
+			elapsedNs := elapsedS * nanosPerSecond
+			ps := &PipelineStats{
+				ProducerRateGiBps: float64(s.BytesProduced) / elapsedS / bytesPerGiB,
+				ConsumerRateGiBps: float64(s.BytesConsumed) / elapsedS / bytesPerGiB,
+				NumProducers:      int(s.NumProducers),
+				ProducerStallSec:  float64(s.ProducerStallNs) / nanosPerSecond,
+				ProducerStallPct:  float64(s.ProducerStallNs) / nanosPerSecond / elapsedS * 100,
+				ConsumerStallSec:  float64(s.ConsumerStallNs) / nanosPerSecond,
+			}
+			var headroom float64
+			if s.TotalFillNs > 0 && s.BytesProduced > 0 {
+				headroom = float64(s.NumProducers) * elapsedNs / float64(s.TotalFillNs)
+			} else if s.BytesProduced > 0 {
+				// Fills completed in under 1ns each — treat as 1ns to report a large
+				// but finite headroom (fills are essentially free in this workload).
+				headroom = float64(s.NumProducers) * elapsedNs
+			}
+			ps.HeadroomRatio = headroom
+			prepSummary.Pipeline = ps
+		}
+
 		return prepSummary, prepErr
 	}
 	// --- Single goroutine pool for warmup + measurement ---
@@ -301,11 +411,25 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 
 	// --- Measurement phase ---
 	logger.Infof("Measuring for %s...\n", e.bCfg.Duration)
+
+	// Snapshot resource usage at the start of the measurement window.
+	var startMemStats runtime.MemStats
+	runtime.ReadMemStats(&startMemStats)
+	startProcCPU, _ := readProcCPU()
+	startSysCPU, _ := readSystemCPU()
+
 	start := time.Now()
 	stopMeasProgress := e.startProgressReporter(runCtx, "bench", e.bCfg.Duration)
 	wg.Wait() // goroutines exit when runCtx expires (≈ e.bCfg.Duration after the reset)
 	stopMeasProgress()
 	elapsed := time.Since(start)
+
+	// Snapshot resource usage at the end of the measurement window.
+	var endMemStats runtime.MemStats
+	runtime.ReadMemStats(&endMemStats)
+	endProcCPU, _ := readProcCPU()
+	endSysCPU, _ := readSystemCPU()
+	peakRSS := readPeakRSSKiB()
 
 	// Log pool pipeline final summary after measurement completes.
 	if e.writePool != nil && e.verbosity >= 1 {
@@ -362,6 +486,69 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 		}
 		summary.Tracks = append(summary.Tracks, stat)
 	}
+
+	// --- Assemble RuntimeStats ---
+	// Compute per-process CPU tick deltas.
+	userTicksDelta := endProcCPU.userTicks - startProcCPU.userTicks
+	sysTicksDelta := endProcCPU.sysTicks - startProcCPU.sysTicks
+
+	// Normalize all CPU values against the total system ticks delta so that
+	// percentages are expressed as a fraction of total capacity across ALL cores
+	// (bounded by 100 % regardless of core count).
+	sysTotalDelta := float64(endSysCPU.total()) - float64(startSysCPU.total())
+	var procUserPct, procSysPct float64
+	var sysUserPct, sysSysPct, sysIOWaitPct float64
+	if sysTotalDelta > 0 {
+		procUserPct = float64(userTicksDelta) / sysTotalDelta * 100
+		procSysPct = float64(sysTicksDelta) / sysTotalDelta * 100
+		sysUserPct = (float64(endSysCPU.user) + float64(endSysCPU.nice) -
+			float64(startSysCPU.user) - float64(startSysCPU.nice)) / sysTotalDelta * 100
+		sysSysPct = (float64(endSysCPU.system) - float64(startSysCPU.system)) / sysTotalDelta * 100
+		sysIOWaitPct = (float64(endSysCPU.iowait) - float64(startSysCPU.iowait)) / sysTotalDelta * 100
+	}
+
+	summary.Runtime = RuntimeStats{
+		GoHeapAllocBytes:  endMemStats.Alloc,
+		GoHeapSysBytes:    endMemStats.HeapSys,
+		GoTotalAllocBytes: endMemStats.TotalAlloc,
+		GCCycles:          endMemStats.NumGC - startMemStats.NumGC,
+		GCPauseTotalNs:    endMemStats.PauseTotalNs - startMemStats.PauseTotalNs,
+		PeakRSSKiB:        peakRSS,
+		ProcessUserCPUMs:  ticksToMs(userTicksDelta),
+		ProcessSysCPUMs:   ticksToMs(sysTicksDelta),
+		ProcessUserCPUPct: procUserPct,
+		ProcessSysCPUPct:  procSysPct,
+		SystemUserPct:     sysUserPct,
+		SystemSysPct:      sysSysPct,
+		SystemIOWaitPct:   sysIOWaitPct,
+		SystemCPUPercent:  systemCPUPercent(startSysCPU, endSysCPU),
+	}
+
+	// Capture write-pool pipeline stats into the summary (always, not just --verbose).
+	if e.writePool != nil {
+		s := e.writePool.Stats()
+		elapsedS := elapsed.Seconds()
+		elapsedNs := elapsedS * nanosPerSecond
+		ps := &PipelineStats{
+			ProducerRateGiBps: float64(s.BytesProduced) / elapsedS / bytesPerGiB,
+			ConsumerRateGiBps: float64(s.BytesConsumed) / elapsedS / bytesPerGiB,
+			NumProducers:      int(s.NumProducers),
+			ProducerStallSec:  float64(s.ProducerStallNs) / nanosPerSecond,
+			ProducerStallPct:  float64(s.ProducerStallNs) / nanosPerSecond / elapsedS * 100,
+			ConsumerStallSec:  float64(s.ConsumerStallNs) / nanosPerSecond,
+		}
+		var headroom float64
+		if s.TotalFillNs > 0 && s.BytesProduced > 0 {
+			headroom = float64(s.NumProducers) * elapsedNs / float64(s.TotalFillNs)
+		} else if s.BytesProduced > 0 {
+			// Fills completed in under 1ns each — treat as 1ns to report a large
+			// but finite headroom (fills are essentially free in this workload).
+			headroom = float64(s.NumProducers) * elapsedNs
+		}
+		ps.HeadroomRatio = headroom
+		summary.Pipeline = ps
+	}
+
 	return summary, nil
 }
 
@@ -429,7 +616,7 @@ func (e *Engine) runWorker(ctx context.Context, ts *trackState) {
 				return
 			}
 			n := ts.totalErrs.Add(1)
-			if n <= 3 {
+			if n <= writeErrorLogLimit {
 				logger.Warnf("[bench] track=%q error #%d: %v\n", ts.cfg.Name, n, err)
 			}
 		}
@@ -473,7 +660,13 @@ func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) 
 	}
 	defer reader.Close()
 
-	buf := make([]byte, 256*1024) // 256 KiB read buffer
+	// Retrieve a drain buffer from the pool; return it when done.
+	// Using a pooled buffer eliminates a 256 KiB heap allocation on every read
+	// call, cutting GC pressure by ~16 MiB per round at C=64.
+	bufPtr := e.readBufPool.Get().(*[]byte)
+	buf := *bufPtr
+	defer e.readBufPool.Put(bufPtr)
+
 	var bytesRead int64
 	ttfbRecorded := false
 	for {
@@ -635,8 +828,8 @@ func (e *Engine) doWrite(ctx context.Context, ts *trackState, rng *rand.Rand, ob
 
 	// Pool fast path: pre-filled slot available and large enough.
 	// Zero heap allocation, zero inline fill in the critical path.
-	if e.writePool != nil && size <= e.writePool.slotSize {
-		slotIdx, data, err := e.writePool.AcquireSlot(ctx, size)
+	if e.writePool != nil && size <= e.writePool.SlotSize() {
+		poolIdx, slotIdx, data, err := e.writePool.AcquireSlot(ctx, size)
 		if err != nil {
 			return err // context cancelled
 		}
@@ -649,7 +842,7 @@ func (e *Engine) doWrite(ctx context.Context, ts *trackState, rng *rand.Rand, ob
 		elapsed := time.Since(start)
 		// Release the slot back to the producer immediately — GCS has already
 		// copied the data from the io.Reader; we no longer need it.
-		e.writePool.ReleaseSlot(slotIdx)
+		e.writePool.ReleaseSlot(poolIdx, slotIdx)
 		if err != nil {
 			return fmt.Errorf("CreateObject: %w", err)
 		}
@@ -721,7 +914,7 @@ func (e *Engine) doList(ctx context.Context, ts *trackState, objectName string) 
 	}
 	req := &gcs.ListObjectsRequest{
 		Prefix:     prefix,
-		MaxResults: 1000,
+		MaxResults: listMaxResults,
 	}
 	start := time.Now()
 	listing, err := e.bucket.ListObjects(ctx, req)
@@ -793,24 +986,69 @@ func (e *Engine) runPrepare(ctx context.Context) error {
 
 		// Progress reporter — cancelled explicitly after wg.Wait().
 		progressCtx, progressCancel := context.WithCancel(ctx)
-		go func(total int) {
-			ticker := time.NewTicker(5 * time.Second)
+		go func(total int, ts *trackState) {
+			ticker := time.NewTicker(prepareProgressInterval)
 			defer ticker.Stop()
+			var lastBytes int64
+			lastAt := time.Now()
+			var lastPool PoolStats
+			if e.writePool != nil {
+				lastPool = e.writePool.Stats()
+			}
 			for {
 				select {
 				case <-ticker.C:
+					now := time.Now()
 					n := written.Load()
 					errs := writeErrs.Load()
+					curBytes := ts.totalBytes.Load()
 					elapsed := time.Since(start).Seconds()
+					intervalSecs := now.Sub(lastAt).Seconds()
 					rate := float64(n) / elapsed
 					pct := float64(n) / float64(total) * 100
-					logger.Infof("  [prepare] %d/%d (%.0f%%)  %.0f obj/s  %d errors\n",
-						n, total, pct, rate, errs)
+					var tputGiB float64
+					if intervalSecs > 0 {
+						tputGiB = float64(curBytes-lastBytes) / intervalSecs / bytesPerGiB
+					}
+					logger.Infof("  [prepare] %d/%d (%.0f%%)  %.0f obj/s  %.2f GiB/s  %d errors\n",
+						n, total, pct, rate, tputGiB, errs)
+					lastBytes = curBytes
+					lastAt = now
+
+					// Pool producer/consumer breakdown after each progress line.
+					if e.writePool != nil && intervalSecs > 0 {
+						pCur := e.writePool.Stats()
+						dProd := float64(pCur.BytesProduced - lastPool.BytesProduced)
+						dCons := float64(pCur.BytesConsumed - lastPool.BytesConsumed)
+						dFillNs := float64(pCur.TotalFillNs - lastPool.TotalFillNs)
+						numProducers := pCur.NumProducers
+						prodGiB := dProd / intervalSecs / bytesPerGiB
+						consGiB := dCons / intervalSecs / bytesPerGiB
+						var headroom float64
+						intervalNs := intervalSecs * nanosPerSecond
+						if dFillNs > 0 && dProd > 0 {
+							headroom = float64(numProducers) * intervalNs / dFillNs
+						}
+						dConsumerStallNs := float64(pCur.ConsumerStallNs - lastPool.ConsumerStallNs)
+						consumerStallPct := dConsumerStallNs / intervalNs * 100
+						lastPool = pCur
+						if dConsumerStallNs > 0 {
+							logger.Warnf("[pool] WARNING: consumer stall detected — producers=%-2d  fill=%.2f GiB/s  upload=%.2f GiB/s  headroom=%.2fx  consumer-stall=%.2f%%\n",
+								numProducers, prodGiB, consGiB, headroom, consumerStallPct)
+						} else {
+							tag := ""
+							if headroom > 0 && headroom < poolRatioWarnThreshold {
+								tag = " WARNING: low headroom —"
+							}
+							logger.Infof("  [pool]%s producers=%-2d  fill=%.2f GiB/s  upload=%.2f GiB/s  headroom=%.2fx  consumer-stall=0.00%%\n",
+								tag, numProducers, prodGiB, consGiB, headroom)
+						}
+					}
 				case <-progressCtx.Done():
 					return
 				}
 			}
-		}(total)
+		}(total, ts)
 
 		// Distribute shard paths across goroutines via round-robin stride.
 		var wg sync.WaitGroup
@@ -818,7 +1056,7 @@ func (e *Engine) runPrepare(ctx context.Context) error {
 			wg.Add(1)
 			go func(goroutineIdx int) {
 				defer wg.Done()
-				rng := rand.New(rand.NewSource(int64(workerID*1000 + goroutineIdx + 1)))
+				rng := rand.New(rand.NewSource(int64(workerID*workerRNGSeedStride + goroutineIdx + 1)))
 				for i := goroutineIdx; i < len(shardPaths); i += concurrency {
 					if ctx.Err() != nil {
 						return
@@ -826,8 +1064,8 @@ func (e *Engine) runPrepare(ctx context.Context) error {
 					if err := e.doWrite(ctx, ts, rng, shardPaths[i]); err != nil {
 						n := writeErrs.Add(1)
 						ts.totalErrs.Add(1)
-						if n <= 3 {
-							logger.Warnf("[prepare] write error #%d on %q: %v\n", n, shardPaths[i], err)
+						if n <= writeErrorLogLimit {
+							logger.Warnf("[prepare] write error #%d on %q: %s\n", n, shardPaths[i], trimInternalDetails(err))
 						}
 					} else {
 						written.Add(1)
@@ -860,13 +1098,17 @@ func (e *Engine) runPrepare(ctx context.Context) error {
 func (e *Engine) startProgressReporter(ctx context.Context, phase string, total time.Duration) func() {
 	stopCh := make(chan struct{})
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(benchProgressInterval)
 		defer ticker.Stop()
 		type snap struct{ bytes, ops, errs int64 }
 		last := make([]snap, len(e.trackState))
 		lastAt := time.Now()
 		phaseStart := time.Now()
 		var lastPool PoolStats // zero on first tick; first interval gives cumulative-since-start rates
+		// CPU baselines for per-interval percentage reporting (verbosity ≥ 1).
+		lastProcCPU, _ := readProcCPU()
+		lastSysCPU, _ := readSystemCPU()
+		var lastGCCycles uint64
 		for {
 			select {
 			case <-ctx.Done():
@@ -890,7 +1132,7 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 					dBytes := float64(cur.bytes - last[i].bytes)
 					dOps := cur.ops - last[i].ops
 					last[i] = cur
-					tputGiB := (dBytes / interval) / (1024 * 1024 * 1024)
+					tputGiB := (dBytes / interval) / bytesPerGiB
 
 					if e.verbosity >= 2 {
 						// -vv: extended format with elapsed/remaining via logger
@@ -906,32 +1148,77 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 							phase, ts.cfg.Name, dOps, tputGiB, cur.ops)
 					}
 				}
-				// Pool pipeline health: produce/consume rates and coordination overhead.
-				// Reported every tick at verbosity ≥ 1 (-v) when the write pool is active.
-				// Producer-stall%: fraction of wall time the producer waited for an EMPTY slot
-				//   (ring too shallow — consumers fill all slots before producer refills them).
-				// Consumer-stall%: cumulative goroutine-% consumers spent waiting for READY slots
-				//   (producer too slow — the actual bottleneck condition to avoid).
+				// Pool pipeline health: fill rates and coordination overhead.
+				// Reported every tick at verbosity >= 1 (-v) when the write pool is active.
+				//
+				// Slot-based headroom = numProducers x intervalNs / totalFillNs_delta.
+				// This measures producerSlotsPerSec / consumerSlotsPerSec correctly
+				// regardless of slot size vs object size.
+				//
+				// Consumer-stall% is the ONLY stall metric shown: non-zero values mean
+				// the pool starved consumers (writes had to wait for data).
 				if e.writePool != nil && e.verbosity >= 1 {
 					pCur := e.writePool.Stats()
 					dProd := float64(pCur.BytesProduced - lastPool.BytesProduced)
 					dCons := float64(pCur.BytesConsumed - lastPool.BytesConsumed)
-					prodGiB := (dProd / interval) / (1024 * 1024 * 1024)
-					consGiB := (dCons / interval) / (1024 * 1024 * 1024)
-					var ratio float64
-					if dCons > 0 {
-						ratio = dProd / dCons
+					dFillNs := float64(pCur.TotalFillNs - lastPool.TotalFillNs)
+					numProducers := pCur.NumProducers
+					prodGiB := (dProd / interval) / bytesPerGiB
+					consGiB := (dCons / interval) / bytesPerGiB
+					var headroom float64
+					intervalNs := interval * nanosPerSecond
+					if dFillNs > 0 && dProd > 0 {
+						headroom = float64(numProducers) * intervalNs / dFillNs
 					}
-					intervalNs := interval * 1e9
-					producerStallPct := float64(pCur.ProducerStallNs-lastPool.ProducerStallNs) / intervalNs * 100
-					consumerStallPct := float64(pCur.ConsumerStallNs-lastPool.ConsumerStallNs) / intervalNs * 100
+					dConsumerStallNs := float64(pCur.ConsumerStallNs - lastPool.ConsumerStallNs)
+					consumerStallPct := dConsumerStallNs / intervalNs * 100
 					lastPool = pCur
-					if ratio > 0 && ratio < 1.05 {
-						logger.Warnf("[pool] WARNING produce/consume ratio=%.3f (<5%% headroom) — generation may bottleneck writes!  produce=%.2f GiB/s  consume=%.2f GiB/s  producer-stall=%.2f%%  consumer-stall=%.2f%%\n",
-							ratio, prodGiB, consGiB, producerStallPct, consumerStallPct)
+					if dConsumerStallNs > 0 {
+						logger.Warnf("[pool] WARNING: consumer stall detected — producers=%-2d  fill=%.2f GiB/s  upload=%.2f GiB/s  headroom=%.2fx  consumer-stall=%.2f%%\n",
+							numProducers, prodGiB, consGiB, headroom, consumerStallPct)
 					} else {
-						logger.Infof("[pool] produce=%.2f GiB/s  consume=%.2f GiB/s  ratio=%.3f  producer-stall=%.2f%%  consumer-stall=%.2f%%\n",
-							prodGiB, consGiB, ratio, producerStallPct, consumerStallPct)
+						tag := ""
+						if headroom > 0 && headroom < poolRatioWarnThreshold {
+							tag = " WARNING: low headroom —"
+						}
+						logger.Infof("  [pool]%s producers=%-2d  fill=%.2f GiB/s  upload=%.2f GiB/s  headroom=%.2fx  consumer-stall=0.00%%\n",
+							tag, numProducers, prodGiB, consGiB, headroom)
+					}
+				}
+				// Live runtime memory + GC + CPU metrics (verbosity ≥ 1, -v).
+				// Uses runtime/metrics (no STW) for heap and GC-cycle count.
+				// CPU percentages are per-interval deltas normalised to total system
+				// capacity (all cores = 100 %) so they are directly comparable.
+				if e.verbosity >= 1 {
+					samples := []runtimemetrics.Sample{
+						{Name: "/memory/classes/heap/objects:bytes"},
+						{Name: "/gc/cycles/total:gc-cycles"},
+					}
+					runtimemetrics.Read(samples)
+					heapBytes := samples[0].Value.Uint64()
+					gcCyclesNow := samples[1].Value.Uint64()
+					gcCyclesDelta := gcCyclesNow - lastGCCycles
+					lastGCCycles = gcCyclesNow
+
+					curProcCPU, procErr := readProcCPU()
+					curSysCPU, sysErr := readSystemCPU()
+					if procErr == nil && sysErr == nil {
+						sysTotalDelta := float64(curSysCPU.total()) - float64(lastSysCPU.total())
+						if sysTotalDelta > 0 {
+							procUserPct := float64(curProcCPU.userTicks-lastProcCPU.userTicks) / sysTotalDelta * 100
+							procSysPct := float64(curProcCPU.sysTicks-lastProcCPU.sysTicks) / sysTotalDelta * 100
+							sysIOWaitPct := float64(curSysCPU.iowait-lastSysCPU.iowait) / sysTotalDelta * 100
+							logger.Infof("[runtime] heap=%s  gc/interval=%d  proc-user=%.1f%%  proc-sys=%.1f%%  sys-iowait=%.1f%%\n",
+								humanBytes(float64(heapBytes)), gcCyclesDelta, procUserPct, procSysPct, sysIOWaitPct)
+						} else {
+							logger.Infof("[runtime] heap=%s  gc/interval=%d\n",
+								humanBytes(float64(heapBytes)), gcCyclesDelta)
+						}
+						lastProcCPU = curProcCPU
+						lastSysCPU = curSysCPU
+					} else {
+						logger.Infof("[runtime] heap=%s  gc/interval=%d\n",
+							humanBytes(float64(heapBytes)), gcCyclesDelta)
 					}
 				}
 			}
@@ -940,28 +1227,54 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 	return func() { close(stopCh) }
 }
 
-// logPoolFinalSummary logs overall produce/consume rates, the ratio, and
-// cumulative stall times for the DataPool pipeline at the end of a benchmark
-// measurement phase.  A WARNING is emitted when the ratio is within 5% of 1:1,
-// indicating that data generation may have been the write bottleneck.
-func logPoolFinalSummary(pool *DataPool, elapsed time.Duration) {
+// logPoolFinalSummary logs overall fill and upload rates, slot-based headroom,
+// and cumulative consumer-stall time for the write-pool pipeline at the end of
+// a benchmark measurement phase.  A WARNING is emitted when consumer-stall > 0
+// (consumers were starved) or when headroom fell below poolRatioWarnThreshold.
+// trimInternalDetails strips the opaque diagnostic blob that Google's gRPC
+// storage library appends after "Internal details:" in error messages. The
+// blob is a base64-encoded internal token that is meaningless to the operator
+// and can be thousands of bytes long. Everything up to (and including the
+// delimiter) is retained so the human-readable error text is preserved.
+func trimInternalDetails(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	const delim = "Internal details:"
+	if idx := strings.Index(msg, delim); idx >= 0 {
+		msg = strings.TrimSpace(msg[:idx]) + " [internal details redacted]"
+	}
+	return msg
+}
+
+func logPoolFinalSummary(pool WritePool, elapsed time.Duration) {
 	s := pool.Stats()
-	prodGiB := float64(s.BytesProduced) / (1024 * 1024 * 1024)
-	consGiB := float64(s.BytesConsumed) / (1024 * 1024 * 1024)
+	prodGiB := float64(s.BytesProduced) / bytesPerGiB
+	consGiB := float64(s.BytesConsumed) / bytesPerGiB
 	elapsedS := elapsed.Seconds()
 	prodRate := prodGiB / elapsedS
 	consRate := consGiB / elapsedS
-	var ratio float64
-	if s.BytesConsumed > 0 {
-		ratio = float64(s.BytesProduced) / float64(s.BytesConsumed)
+	elapsedNs := elapsedS * nanosPerSecond
+	// Slot-based headroom over the full run:
+	//   headroom = numProducers × elapsedNs / totalFillNs
+	// Uses the current producer count (post-controller convergence) and total
+	// fill time across all producer goroutines.
+	var headroom float64
+	if s.TotalFillNs > 0 && s.BytesProduced > 0 {
+		headroom = float64(s.NumProducers) * elapsedNs / float64(s.TotalFillNs)
+	} else if s.BytesProduced > 0 {
+		// Fills completed in under 1ns each — essentially infinite fill capacity.
+		// Use 1ns as the floor so we report a large but finite headroom.
+		headroom = float64(s.NumProducers) * elapsedNs
 	}
-	producerStallS := float64(s.ProducerStallNs) / 1e9
-	consumerStallS := float64(s.ConsumerStallNs) / 1e9
-	producerStallPct := producerStallS / elapsedS * 100
-	logger.Infof("[pool] final: produced=%.2f GiB (%.2f GiB/s)  consumed=%.2f GiB (%.2f GiB/s)  ratio=%.3f  producer-stall=%.3fs (%.2f%%)  consumer-stall=%.3fs\n",
-		prodGiB, prodRate, consGiB, consRate, ratio, producerStallS, producerStallPct, consumerStallS)
-	if ratio > 0 && ratio < 1.05 {
-		logger.Warnf("[pool] WARNING: overall produce/consume ratio=%.3f is within 5%% of 1:1 — data generation was likely the write bottleneck during this run\n", ratio)
+	consumerStallS := float64(s.ConsumerStallNs) / nanosPerSecond
+	logger.Infof("[pool] final: producers=%d  fill=%.2f GiB/s  upload=%.2f GiB/s  headroom=%.2fx  consumer-stall=%.3fs\n",
+		s.NumProducers, prodRate, consRate, headroom, consumerStallS)
+	if consumerStallS > 0 {
+		logger.Warnf("[pool] WARNING: consumer stall total=%.3fs — consumers were starved for filled slots during this run\n", consumerStallS)
+	} else if headroom > 0 && headroom < poolRatioWarnThreshold {
+		logger.Warnf("[pool] WARNING: overall slot headroom=%.2fx is below target of %.1fx\n", headroom, poolRatioWarnThreshold)
 	}
 }
 

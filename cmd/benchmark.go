@@ -148,6 +148,15 @@ func newBenchmarkRootCmd() *cobra.Command {
 				benchCfg.Histograms.SignificantDigits = 3
 			}
 
+			// Default output path: results/ subdirectory of cwd.
+			if benchCfg.OutputPath == "" {
+				benchCfg.OutputPath = "results"
+			}
+			// Default output format: yaml.
+			if benchCfg.OutputFormat == "" {
+				benchCfg.OutputFormat = "yaml"
+			}
+
 			// Require at least one track.
 			if len(benchCfg.Tracks) == 0 {
 				return fmt.Errorf("no benchmark tracks defined; specify tracks in config file")
@@ -157,6 +166,11 @@ func newBenchmarkRootCmd() *cobra.Command {
 			if dryRun {
 				return printDryRun(bucketName, benchCfg)
 			}
+
+			// logBuf accumulates all terminal output (stdout + stderr) for console.log.
+			// Declared here so early INFO messages written before the preflight tee
+			// writers are set up can also be captured.
+			var logBuf bytes.Buffer
 
 			// --- Configure logging ---
 			// Default: WARN (only errors/warnings visible).
@@ -210,18 +224,30 @@ func newBenchmarkRootCmd() *cobra.Command {
 				storageClientConfig.ForceZonal = true
 				finalizeForRapid = true
 				logger.Infof("RAPID mode: on (bidi-gRPC forced, skipping detection)\n")
+				if verbosity >= 1 {
+					fmt.Fprintf(&logBuf, "RAPID mode: on (bidi-gRPC forced, skipping detection)\n")
+				}
 			case "auto":
 				// Enable the storage control client so GetStorageLayout can detect
 				// whether this is a RAPID/zonal bucket.
 				storageClientConfig.EnableHNS = true
 				finalizeForRapid = true // no-op for non-zonal buckets
 				logger.Infof("RAPID mode: auto (detecting bucket type via GetStorageLayout)\n")
+				if verbosity >= 1 {
+					fmt.Fprintf(&logBuf, "RAPID mode: auto (detecting bucket type via GetStorageLayout)\n")
+				}
 			case "off":
 				// HTTP/2 only; no detection. Use for non-RAPID buckets.
 				logger.Infof("RAPID mode: off (HTTP/2, no detection)\n")
+				if verbosity >= 1 {
+					fmt.Fprintf(&logBuf, "RAPID mode: off (HTTP/2, no detection)\n")
+				}
 			}
 
 			logger.Infof("Creating GCS storage handle (bucket=%s)...\n", bucketName)
+			if verbosity >= 1 {
+				fmt.Fprintf(&logBuf, "Creating GCS storage handle (bucket=%s)...\n", bucketName)
+			}
 			sh, err := internalstorage.NewStorageHandle(context.Background(), storageClientConfig, "")
 			if err != nil {
 				return fmt.Errorf("NewStorageHandle: %w", err)
@@ -239,19 +265,23 @@ func newBenchmarkRootCmd() *cobra.Command {
 			bt := bh.BucketType()
 			if bt.Zonal {
 				logger.Infof("RAPID mode: CONFIRMED — bucket %q is zonal; bidi-gRPC (RAPID) transport is ACTIVE\n", bucketName)
+				if verbosity >= 1 {
+					fmt.Fprintf(&logBuf, "RAPID mode: CONFIRMED — bucket %q is zonal; bidi-gRPC (RAPID) transport is ACTIVE\n", bucketName)
+				}
 			} else {
 				logger.Infof("RAPID mode: bucket %q is NOT zonal; using standard HTTP/2 transport\n", bucketName)
+				if verbosity >= 1 {
+					fmt.Fprintf(&logBuf, "RAPID mode: bucket %q is NOT zonal; using standard HTTP/2 transport\n", bucketName)
+				}
 			}
 
 			// --- Pre-flight check ---
 			// Uses the raw (un-wrapped) bucket handle so that pre-flight I/O
 			// does not pollute the benchmark histograms.
 			//
-			// Set up a tee writer so all console output is captured in logBuf
-			// and saved as console.log in the results directory at the end of
-			// the run.  consoleOut tees stdout; progressOut tees stderr (for
-			// the live [warmup]/[bench] progress lines).
-			var logBuf bytes.Buffer
+			// consoleOut tees stdout; progressOut tees stderr (for the live
+			// [warmup]/[bench] progress lines).  Both feed into logBuf which was
+			// declared early so early INFO messages are also captured.
 			consoleOut := io.MultiWriter(os.Stdout, &logBuf)
 			progressOut := io.MultiWriter(os.Stderr, &logBuf)
 
@@ -293,16 +323,8 @@ func newBenchmarkRootCmd() *cobra.Command {
 			}
 
 			// --- Output ---
-			// Prepare mode omits the console summary table (progress already printed
-			// live) but always writes the result file so runs are traceable.
-			if strings.ToLower(benchCfg.Mode) != "prepare" {
-				benchmark.PrintSummary(consoleOut, summary)
-			}
-			format := benchCfg.OutputFormat
-			if format == "" {
-				format = "yaml"
-			}
-			if err := benchmark.Export(summary, benchCfg.OutputPath, format, consoleOut); err != nil {
+			benchmark.PrintSummary(consoleOut, summary)
+			if err := benchmark.Export(summary, benchCfg.OutputPath, benchCfg.OutputFormat, consoleOut); err != nil {
 				return fmt.Errorf("export results: %w", err)
 			}
 			// Save everything that was printed to the terminal into console.log
@@ -366,14 +388,15 @@ func printDryRun(bucketName string, c cfg.BenchmarkConfig) error {
 	if c.ObjectPrefix != "" {
 		fmt.Printf("  Object prefix:    %s\n", c.ObjectPrefix)
 	}
-	fmt.Printf("  Warmup:           %s (stats discarded)\n", c.WarmupDuration)
-	fmt.Printf("  Measurement:      %s\n", c.Duration)
-	fmt.Printf("  Total goroutines: %d\n", c.TotalConcurrency)
-	outPath := c.OutputPath
-	if outPath == "" {
-		outPath = "<cwd>"
+	if mode == "prepare" {
+		fmt.Printf("  Warmup:           N/A\n")
+		fmt.Printf("  Measurement:      N/A (writes all objects once, then exits)\n")
+	} else {
+		fmt.Printf("  Warmup:           %s (stats discarded)\n", c.WarmupDuration)
+		fmt.Printf("  Measurement:      %s\n", c.Duration)
 	}
-	fmt.Printf("  Output path:      %s\n", outPath)
+	fmt.Printf("  Total goroutines: %d\n", c.TotalConcurrency)
+	fmt.Printf("  Output path:      %s\n", c.OutputPath)
 	fmt.Printf("  Output format:    %s\n", c.OutputFormat)
 	rapidModeDisplay := strings.ToLower(c.RapidMode)
 	if rapidModeDisplay == "" {
@@ -401,7 +424,10 @@ func printDryRun(bucketName string, c cfg.BenchmarkConfig) error {
 		}
 		fmt.Printf("\n  [%d] %s\n", i+1, name)
 		fmt.Printf("      op-type:        %s\n", t.OpType)
-		fmt.Printf("      access-pattern: %s\n", t.AccessPattern)
+		// access-pattern is only meaningful for read tracks.
+		if strings.ToLower(t.OpType) == "read" {
+			fmt.Printf("      access-pattern: %s\n", t.AccessPattern)
+		}
 
 		// Object size
 		if t.SizeSpec != nil {
@@ -423,24 +449,38 @@ func printDryRun(bucketName string, c cfg.BenchmarkConfig) error {
 				formatBytes(t.ObjectSizeMin), formatBytes(t.ObjectSizeMax))
 		}
 
-		// Read size
-		if t.ReadSize > 0 {
-			fmt.Printf("      read-size:      %s\n", formatBytes(t.ReadSize))
-		} else {
-			fmt.Printf("      read-size:      full object\n")
+		// Read size — only meaningful for read tracks.
+		if strings.ToLower(t.OpType) == "read" {
+			if t.ReadSize > 0 {
+				fmt.Printf("      read-size:      %s\n", formatBytes(t.ReadSize))
+			} else {
+				fmt.Printf("      read-size:      full object\n")
+			}
 		}
 
-		// Goroutine count
+		// Goroutine count — mirror goroutinesForTrack() logic exactly.
 		goroutines := t.Concurrency
-		if goroutines == 0 && totalWeight > 0 {
-			goroutines = (t.Weight * c.TotalConcurrency) / totalWeight
+		if goroutines == 0 && c.TotalConcurrency > 0 {
+			if totalWeight <= 0 {
+				goroutines = c.TotalConcurrency / len(c.Tracks)
+			} else {
+				w := t.Weight
+				if w <= 0 {
+					w = 1
+				}
+				goroutines = (c.TotalConcurrency * w) / totalWeight
+			}
 			if goroutines < 1 {
 				goroutines = 1
 			}
 		}
 		fmt.Printf("      goroutines:     %d", goroutines)
 		if t.Concurrency == 0 {
-			fmt.Printf(" (weight %d / %d)", t.Weight, totalWeight)
+			if totalWeight > 0 {
+				fmt.Printf(" (weight %d / %d)", t.Weight, totalWeight)
+			} else {
+				fmt.Printf(" (from total-concurrency %d)", c.TotalConcurrency)
+			}
 		} else {
 			fmt.Printf(" (direct override)")
 		}
