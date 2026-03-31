@@ -194,9 +194,8 @@ func TestReadFileWorksAfterListDir(t *testing.T) {
 	_ = operations.ReadDirectory(testDir, t)
 	fh, err := os.OpenFile(path.Join(testDir, obj1), syscall.O_DIRECT, operations.FilePermission_0600)
 	require.NoError(t, err)
-	chunk := make([]byte, util.MiB)
-	n, err := fh.Read(chunk)
+	content, err := operations.ReadFileSequentially(fh, util.MiB)
 
 	require.NoError(t, err)
-	require.EqualValues(t, objSize, n)
+	require.EqualValues(t, objSize, len(content))
 }
