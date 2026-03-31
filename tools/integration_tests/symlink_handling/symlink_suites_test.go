@@ -51,7 +51,7 @@ func (s *BaseSymlinkSuite) SetupTest() {
 	} else {
 		s.mntDir = testEnv.cfg.GCSFuseMountedDirectory
 		setup.SetMntDir(s.mntDir)
-		err := static_mounting.MountGcsfuseWithStaticMounting(s.flags)
+		err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(testEnv.cfg, s.flags)
 		s.Require().NoError(err)
 		s.testDirPath = setup.SetupTestDirectory(TestDirName)
 	}
