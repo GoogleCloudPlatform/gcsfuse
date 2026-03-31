@@ -80,10 +80,7 @@ readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=90 
-readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
-# e2e buckets created are retained for upto 10 days before deletion.
-readonly BUCKET_RETENTION_PERIOD_DAYS=10
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
 readonly DELAY_BETWEEN_BUCKET_CREATION=6 
@@ -499,7 +496,7 @@ cleanup_created_buckets() {
     local start_index=0
     local total_buckets=${#bucket_uris[@]}
     # Number of buckets to delete in a single batch.
-    local readonly bucket_deletion_batch_size=10
+    local bucket_deletion_batch_size=10
 
     while [ "$start_index" -lt "$total_buckets" ]; do
         # Calculate end index for the current batch
@@ -682,7 +679,7 @@ test_package() {
   local go_test_cmd test_package_log_file start=$SECONDS exit_code=0 
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
-  go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")  
+  go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
   test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
   # Run the package test command and capture log output with runtime stats.
   log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
@@ -827,7 +824,7 @@ install_packages() {
   fi
   log_info "Detected OS ID: $os_id"
 
-  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod" || {
+  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod"  "fuse3" || {
     log_error "Failed to install required packages."
     exit 1
   }
@@ -873,9 +870,13 @@ run_test_group() {
 }
 
 run_e2e_tests_for_emulator() {
+  local package_name="emulator_tests"
+  local bucket_type="emulator"
+  local start=$SECONDS
+
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log
-  emulator_test_log=$(create_file_helper "running_package_logs/emulator/emulator.txt")
+  emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
 
   local exit_code=0
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
@@ -884,9 +885,11 @@ run_e2e_tests_for_emulator() {
   else
     log_info_locked "Passed e2e tests for emulator."
   fi
+  local end=$SECONDS
+  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
 
   # Call the helper to organize logs and cleanup the original file
-  organize_test_logfile "$exit_code" "$emulator_test_log" "emulator" "emulator" 
+  organize_test_logfile "$exit_code" "$emulator_test_log" "$package_name" "$bucket_type" 
 
   return "$exit_code"
 }
