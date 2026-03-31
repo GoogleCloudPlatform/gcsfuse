@@ -63,7 +63,7 @@ func (s *BaseSymlinkSuite) TestCreateSymlink() {
 }
 
 // runReadSymlinkTests tests reading a symlink's target.
-func (s *BaseSymlinkSuite) runReadSymlinkTests() {
+func (s *BaseSymlinkSuite) TestReadSymlinkTests() {
 	prefix := setup.GenerateRandomString(5)
 	for _, tc := range commonTestCases {
 		s.Run(tc.name, func() {
