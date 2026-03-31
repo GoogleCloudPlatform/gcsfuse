@@ -15,19 +15,9 @@
 package data
 
 import (
-	"fmt"
 	"testing"
 	"time"
 )
-
-func BenchmarkGetFileInfoKeyName_Original(b *testing.B) {
-	bucketCreationTime := time.Unix(TestTimeInEpoch, 0)
-	b.ResetTimer()
-	for b.Loop() {
-		unixTimeString := fmt.Sprintf("%d", bucketCreationTime.Unix())
-		_ = TestBucketName + unixTimeString + TestObjectName
-	}
-}
 
 func BenchmarkGetFileInfoKeyName_Optimized(b *testing.B) {
 	bucketCreationTime := time.Unix(TestTimeInEpoch, 0)
