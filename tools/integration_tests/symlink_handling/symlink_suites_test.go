@@ -21,7 +21,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,9 +31,14 @@ import (
 // BaseSymlinkSuite provides the common structure and configuration-driven setup logic.
 type BaseSymlinkSuite struct {
 	suite.Suite
-	flags       []string
-	mntDir      string
-	testDirPath string
+	flags             []string
+	mntDir            string
+	testDirPath       string
+	isStandardSymlink bool
+	// linkName is the name of the symlink (relative to testDirPath).
+	linkName string
+	// targetPath is the absolute path of the target file/dir .
+	targetPath string
 }
 
 // StandardSymlinksTestSuite groups all test related to symlinks following standard representation.
@@ -55,6 +62,9 @@ func (s *BaseSymlinkSuite) SetupTest() {
 		s.Require().NoError(err)
 		s.testDirPath = setup.SetupTestDirectory(TestDirName)
 	}
+	// Initialize common variables for symlink tests, ensuring they are unique for each test method.
+	s.linkName = setup.GenerateRandomString(5) + "_link"
+	s.targetPath = path.Join(s.testDirPath, setup.GenerateRandomString(5))
 }
 
 func (s *BaseSymlinkSuite) TearDownTest() {
@@ -123,19 +133,43 @@ func (s *BaseSymlinkSuite) validateBackingGCSObjectForSymlink(linkName, target s
 	}
 }
 
+// createGCSSymlinkObject creates a symlink object on GCS with appropriate metadata.
+// The 'target' parameter is the symlink target path.
+func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
+	fullLinkPath := path.Join(TestDirName, linkName)
+	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(fullLinkPath)
+	objHandle := testEnv.storageClient.Bucket(bucketName).Object(objectName)
+	w, err := client.NewWriter(testEnv.ctx, objHandle, testEnv.storageClient)
+	s.Require().NoError(err)
+
+	var content []byte
+	if s.isStandardSymlink {
+		w.Metadata = map[string]string{StandardSymlinkMetadataKey: "true"}
+		content = []byte(target) // Standard symlinks store target in content
+	} else {
+		w.Metadata = map[string]string{SymlinkMetadataKey: target}
+		content = []byte("") // Legacy symlinks have empty content
+	}
+
+	_, err = w.Write(content)
+	s.Require().NoError(err)
+	s.Require().NoError(w.Close())
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Runner
 ////////////////////////////////////////////////////////////////////////
 
 func TestStandardSymlinks(t *testing.T) {
 	RunTests(t, "TestStandardSymlinksTestSuite", func(flags []string) suite.TestingSuite {
-		return &StandardSymlinksTestSuite{BaseSymlinkSuite{flags: flags}}
+		return &StandardSymlinksTestSuite{BaseSymlinkSuite{flags: flags, isStandardSymlink: true}}
 	})
 }
 
 func TestLegacySymlinks(t *testing.T) {
 	RunTests(t, "TestLegacySymlinksTestSuite", func(flags []string) suite.TestingSuite {
-		return &LegacySymlinksTestSuite{BaseSymlinkSuite{flags: flags}}
+		return &LegacySymlinksTestSuite{BaseSymlinkSuite{flags: flags, isStandardSymlink: false}}
 	})
 }
 
