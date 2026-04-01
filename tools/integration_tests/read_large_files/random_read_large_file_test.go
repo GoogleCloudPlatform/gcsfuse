@@ -28,7 +28,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 	for range NumberOfRandomReadCalls {
 		offset := rand.Int63n(MaxReadableByteFromFile - MinReadableByteFromFile)
 		// Randomly read the data from file in mountedDirectory.
-		operations.ReadAndCompare(t, fileInMntDir, fileInLocalDisk, offset, ChunkSize)
+		operations.ReadAndCompare(t, fileInMntDir, fileInLocalDisk, offset, RandomReadChunkSize)
 	}
 
 	// Removing file after testing.

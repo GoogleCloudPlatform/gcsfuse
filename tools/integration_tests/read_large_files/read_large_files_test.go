@@ -17,6 +17,7 @@ package read_large_files
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -31,6 +32,7 @@ import (
 const OneMB = 1024 * 1024
 const FiveHundredMB = 500 * OneMB
 const ChunkSize = 200 * OneMB
+const RandomReadChunkSize = OneMB
 const NumberOfRandomReadCalls = 200
 const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
@@ -42,9 +44,18 @@ var (
 	FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
 )
 
+func createCacheDir(count int) []string {
+	var cacheDir []string
+	for i := 0; i < count; i++ {
+		cacheDir = append(cacheDir, fmt.Sprintf("%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4)))
+	}
+	return cacheDir
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	var cacheDirs []string
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ReadLargeFiles) == 0 {
@@ -54,6 +65,7 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].TestBucket = setup.TestBucket()
 		cfg.ReadLargeFiles[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ReadLargeFiles[0].Configs = make([]test_suite.ConfigItem, 2)
+		cacheDirs = createCacheDir(4)
 		cfg.ReadLargeFiles[0].Configs[0].Flags = []string{
 			"--implicit-dirs",
 			"--implicit-dirs --client-protocol=grpc",
@@ -68,7 +80,12 @@ func TestMain(m *testing.M) {
 		}
 		cfg.ReadLargeFiles[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 	}
-
+	// Cleanup all cache dirs.
+	defer func() {
+		for _, cacheDir := range cacheDirs {
+			os.RemoveAll(cacheDir)
+		}
+	}()
 	ctx = context.Background()
 	bucketType := setup.TestEnvironment(ctx, &cfg.ReadLargeFiles[0])
 

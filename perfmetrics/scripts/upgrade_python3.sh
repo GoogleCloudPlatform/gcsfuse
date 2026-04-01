@@ -45,7 +45,9 @@ fi
 
 
 # Download and build Python locally
-cd /tmp
+TEMP_WORKSPACE=$(mktemp -d /tmp/python_build.XXXXXX)
+pushd "$TEMP_WORKSPACE"
+
 wget -q https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
 tar -xf Python-${PYTHON_VERSION}.tgz
 cd Python-${PYTHON_VERSION}
@@ -57,7 +59,9 @@ echo "Building Python $PYTHON_VERSION..."
 make -j"$(nproc)" > /dev/null
 
 echo "Installing Python $PYTHON_VERSION locally at $INSTALL_PREFIX..."
-make altinstall > /dev/null
+sudo make altinstall > /dev/null
 
 echo "Python $PYTHON_VERSION installed at $INSTALL_PREFIX/bin/python3.11"
 "$INSTALL_PREFIX/bin/python3.11" --version
+
+popd
