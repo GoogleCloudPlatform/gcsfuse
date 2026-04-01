@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -125,10 +126,19 @@ func (r *Renderer) buildStats(ranges []Range) string {
 	}
 	sort.Slice(sizes, func(i, j int) bool { return sizes[i] < sizes[j] })
 
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Total IOs: %d\n", length))
-	sb.WriteString(fmt.Sprintf("IO Size Distributions: (Min: %s, Median: %s, Max: %s, Avg: %s)\n", humanReadable(sizes[0]), humanReadable(sizes[length/2]), humanReadable(sizes[length-1]), humanReadable(sum/uint64(length))))
-	return sb.String()
+	var b []byte
+	b = append(b, "Total IOs: "...)
+	b = strconv.AppendInt(b, int64(length), 10)
+	b = append(b, "\nIO Size Distributions: (Min: "...)
+	b = append(b, humanReadable(sizes[0])...)
+	b = append(b, ", Median: "...)
+	b = append(b, humanReadable(sizes[length/2])...)
+	b = append(b, ", Max: "...)
+	b = append(b, humanReadable(sizes[length-1])...)
+	b = append(b, ", Avg: "...)
+	b = append(b, humanReadable(sum/uint64(length))...)
+	b = append(b, ")\n"...)
+	return string(b)
 }
 
 // buildHeader composes the header (filename, tick marks, numeric labels)
@@ -179,7 +189,9 @@ func (r *Renderer) buildHeader(name string, size uint64, ranges []Range) (string
 	}
 
 	// Filename line.
-	sb.WriteString(fmt.Sprintf("Name: %s\n", name))
+	sb.WriteString("Name: ")
+	sb.WriteString(name)
+	sb.WriteByte('\n')
 
 	// IO stats.
 	sb.WriteString(r.buildStats(ranges))
