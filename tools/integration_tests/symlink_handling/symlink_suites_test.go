@@ -35,6 +35,10 @@ type BaseSymlinkSuite struct {
 	mntDir            string
 	testDirPath       string
 	isStandardSymlink bool
+	// linkName is the name of the symlink (relative to testDirPath).
+	linkName string
+	// targetPath is the absolute path of the target file/dir .
+	targetPath string
 }
 
 // StandardSymlinksTestSuite groups all test related to symlinks following standard representation.
@@ -58,6 +62,9 @@ func (s *BaseSymlinkSuite) SetupTest() {
 		s.Require().NoError(err)
 		s.testDirPath = setup.SetupTestDirectory(TestDirName)
 	}
+	// Initialize common variables for symlink tests, ensuring they are unique for each test method.
+	s.linkName = setup.GenerateRandomString(5) + "_link"
+	s.targetPath = path.Join(s.testDirPath, setup.GenerateRandomString(5))
 }
 
 func (s *BaseSymlinkSuite) TearDownTest() {
