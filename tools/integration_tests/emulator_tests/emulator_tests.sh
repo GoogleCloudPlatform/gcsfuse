@@ -61,7 +61,7 @@ if [ "$minor_ver" -lt "$min_minor_ver" ]; then
 fi
 
 # Install dependencies
-if sudo docker ps > /dev/null 2>&1; then
+if docker ps > /dev/null 2>&1; then
   log_info "Docker is already installed and usable. Skipping installation steps."
 else
   # Ubuntu/Debian based machine.
@@ -114,17 +114,17 @@ DOCKER_NETWORK="--net=host"
 # Get the docker image for the testbench, but only pull if we are using the default public image.
 # Custom local images might not exist in the remote registry.
 if [[ "$DOCKER_IMAGE" == "${DEFAULT_IMAGE_NAME}:${DEFAULT_IMAGE_TAG}" ]]; then
-  sudo docker pull $DOCKER_IMAGE
+  docker pull $DOCKER_IMAGE
 else
   log_info "Using custom DOCKER_IMAGE: $DOCKER_IMAGE (skipping docker pull)"
 fi
 
 # Remove the docker container if it's already running.
-CONTAINER_ID=$(sudo docker ps -aqf "name=$CONTAINER_NAME")
+CONTAINER_ID=$(docker ps -aqf "name=$CONTAINER_NAME")
 if [[ -n "$CONTAINER_ID" ]]; then
   log_info "Container with ID:[$CONTAINER_ID] is already running with name:[$CONTAINER_NAME]"
   log_info "Stopping container...."
-  sudo docker stop $CONTAINER_ID
+  docker stop $CONTAINER_ID
 fi
 
 wait_for_emulator() {
@@ -146,14 +146,14 @@ wait_for_emulator() {
 # Run the emulator container in the background and stream its logs to a file.
 # GUNICORN_CMD_ARGS="--timeout 600" is used to increase the Gunicorn timeout from the default 30 seconds
 # to 10 minutes, preventing workers from dying during high load which causes emulator test flakiness.
-sudo docker run --name $CONTAINER_NAME -e GUNICORN_CMD_ARGS="--timeout 600" --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
+docker run --name $CONTAINER_NAME -e GUNICORN_CMD_ARGS="--timeout 600" --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 log_info "Emulator docker container logs are saved at: $(pwd)/emulator_container.log"
-sudo docker logs -f $CONTAINER_NAME > emulator_container.log 2>&1 &
+docker logs -f $CONTAINER_NAME > emulator_container.log 2>&1 &
 
 # Stop the testbench & cleanup environment variables
 function cleanup() {
     log_info "Cleanup testbench"
-    sudo docker stop $CONTAINER_NAME || true
+    docker stop $CONTAINER_NAME || true
     unset STORAGE_EMULATOR_HOST;
     unset STORAGE_EMULATOR_HOST_GRPC;
     log_info "Printing emulator docker container Logs..."
