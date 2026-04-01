@@ -129,8 +129,7 @@ func (r *Renderer) buildStats(ranges []Range) string {
 	var b []byte
 	b = append(b, "Total IOs: "...)
 	b = strconv.AppendInt(b, int64(length), 10)
-	b = append(b, '\n')
-	b = append(b, "IO Size Distributions: (Min: "...)
+	b = append(b, "\nIO Size Distributions: (Min: "...)
 	b = append(b, humanReadable(sizes[0])...)
 	b = append(b, ", Median: "...)
 	b = append(b, humanReadable(sizes[length/2])...)
