@@ -126,8 +126,9 @@ func (r *Renderer) buildStats(ranges []Range) string {
 	sort.Slice(sizes, func(i, j int) bool { return sizes[i] < sizes[j] })
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Total IOs: %d\n", length))
-	sb.WriteString(fmt.Sprintf("IO Size Distributions: (Min: %s, Median: %s, Max: %s, Avg: %s)\n", humanReadable(sizes[0]), humanReadable(sizes[length/2]), humanReadable(sizes[length-1]), humanReadable(sum/uint64(length))))
+	// Perf: Using fmt.Fprintf(&sb, ...) instead of sb.WriteString(fmt.Sprintf(...)) avoids allocating an intermediate string.
+	fmt.Fprintf(&sb, "Total IOs: %d\n", length)
+	fmt.Fprintf(&sb, "IO Size Distributions: (Min: %s, Median: %s, Max: %s, Avg: %s)\n", humanReadable(sizes[0]), humanReadable(sizes[length/2]), humanReadable(sizes[length-1]), humanReadable(sum/uint64(length)))
 	return sb.String()
 }
 
@@ -179,7 +180,8 @@ func (r *Renderer) buildHeader(name string, size uint64, ranges []Range) (string
 	}
 
 	// Filename line.
-	sb.WriteString(fmt.Sprintf("Name: %s\n", name))
+	// Perf: Using fmt.Fprintf(&sb, ...) instead of sb.WriteString(fmt.Sprintf(...)) avoids allocating an intermediate string.
+	fmt.Fprintf(&sb, "Name: %s\n", name)
 
 	// IO stats.
 	sb.WriteString(r.buildStats(ranges))
