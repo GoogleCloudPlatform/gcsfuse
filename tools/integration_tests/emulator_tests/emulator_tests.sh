@@ -101,7 +101,7 @@ export STORAGE_EMULATOR_HOST_GRPC="localhost:8888"
 
 DEFAULT_IMAGE_NAME='gcr.io/cloud-devrel-public-resources/storage-testbench'
 DEFAULT_IMAGE_TAG='latest'
-DOCKER_IMAGE=${DEFAULT_IMAGE_NAME}:${DEFAULT_IMAGE_TAG}
+DOCKER_IMAGE=${DOCKER_IMAGE:-${DEFAULT_IMAGE_NAME}:${DEFAULT_IMAGE_TAG}}
 CONTAINER_NAME=storage_testbench
 
 # Note: --net=host makes the container bind directly to the Docker host’s network,
@@ -111,8 +111,13 @@ CONTAINER_NAME=storage_testbench
 # See more about using host networking: https://docs.docker.com/network/host/
 DOCKER_NETWORK="--net=host"
 
-# Get the docker image for the testbench
-sudo docker pull $DOCKER_IMAGE
+# Get the docker image for the testbench, but only pull if we are using the default public image.
+# Custom local images might not exist in the remote registry.
+if [[ "$DOCKER_IMAGE" == "${DEFAULT_IMAGE_NAME}:${DEFAULT_IMAGE_TAG}" ]]; then
+  sudo docker pull $DOCKER_IMAGE
+else
+  log_info "Using custom DOCKER_IMAGE: $DOCKER_IMAGE (skipping docker pull)"
+fi
 
 # Remove the docker container if it's already running.
 CONTAINER_ID=$(sudo docker ps -aqf "name=$CONTAINER_NAME")
@@ -192,4 +197,6 @@ if [[ -n "$GCSFUSE_PREBUILT_DIR" ]]; then
 fi
 
 # Run all emulator test packages in sequence to avoid high cpu usage.
-go test -v -p 1 -timeout 10m ./tools/integration_tests/emulator_tests/... --integrationTest --testbucket=test-bucket "${args[@]}"
+TEST_TARGET=${TEST_TARGET:-"./tools/integration_tests/emulator_tests/..."}
+# Run all emulator test packages in sequence to avoid high cpu usage.
+go test -v -p 1 -timeout 10m $TEST_TARGET --integrationTest --testbucket=test-bucket "${args[@]}"
