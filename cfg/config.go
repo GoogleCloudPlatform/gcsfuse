@@ -386,6 +386,8 @@ type CloudProfilerConfig struct {
 	Label string `yaml:"label"`
 
 	Mutex bool `yaml:"mutex"`
+
+	ServiceName string `yaml:"service-name"`
 }
 
 type Config struct {
@@ -799,6 +801,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("cloud-profiler-mutex", "", false, "Enables mutex cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
 
 	if err := flagSet.MarkHidden("cloud-profiler-mutex"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("cloud-profiler-service-name", "", "gcsfuse", "The service name for cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-service-name"); err != nil {
 		return err
 	}
 
@@ -1442,6 +1450,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cloud-profiler.mutex", flagSet.Lookup("cloud-profiler-mutex")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.service-name", flagSet.Lookup("cloud-profiler-service-name")); err != nil {
 		return err
 	}
 
