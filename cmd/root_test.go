@@ -2182,6 +2182,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 				AllocatedHeap: true,  // Default for --cloud-profiler-allocated-heap
 				Heap:          true,  // Default for --cloud-profiler-heap
 				Goroutines:    false, // Default for --cloud-profiler-goroutines
+				ServiceName:   "gcsfuse",
 			},
 		},
 		{
@@ -2195,6 +2196,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 				AllocatedHeap: true,
 				Heap:          true,
 				Goroutines:    false,
+				ServiceName:   "gcsfuse",
 			},
 		},
 		{
@@ -2208,6 +2210,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 				AllocatedHeap: true,
 				Heap:          true,
 				Goroutines:    true,
+				ServiceName:   "gcsfuse",
 			},
 		},
 		{
@@ -2221,6 +2224,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 				AllocatedHeap: false,
 				Heap:          false,
 				Goroutines:    false,
+				ServiceName:   "gcsfuse",
 			},
 		},
 		{
@@ -2234,6 +2238,21 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 				AllocatedHeap: true,  // Default for its flag
 				Heap:          true,  // Default for its flag
 				Goroutines:    false, // Default for its flag
+				ServiceName:   "gcsfuse",
+			},
+		},
+		{
+			name: "Profiler enabled, custom service name set",
+			args: []string{"gcsfuse", "--enable-cloud-profiler", "--cloud-profiler-service-name=custom_service", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
+				Enabled:       true,
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         false,
+				Cpu:           true,
+				AllocatedHeap: true,
+				Heap:          true,
+				Goroutines:    false,
+				ServiceName:   "custom_service",
 			},
 		},
 	}

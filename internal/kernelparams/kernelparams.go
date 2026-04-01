@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -193,7 +194,7 @@ func (m *KernelParamsManager) addParam(name ParamName, value string) {
 // SetMaxPagesLimit adds the max_pages_limit parameter to the config.
 func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
 	if limit > 0 {
-		m.addParam(MaxPagesLimit, fmt.Sprintf("%d", limit))
+		m.addParam(MaxPagesLimit, strconv.Itoa(limit))
 	}
 }
 
@@ -207,21 +208,21 @@ func (m *KernelParamsManager) SetTransparentHugePages(mode string) {
 // SetReadAheadKb adds the BDI read_ahead_kb parameter to the config.
 func (m *KernelParamsManager) SetReadAheadKb(kb int) {
 	if kb > 0 {
-		m.addParam(MaxReadAheadKb, fmt.Sprintf("%d", kb))
+		m.addParam(MaxReadAheadKb, strconv.Itoa(kb))
 	}
 }
 
 // SetMaxBackgroundRequests adds the FUSE connection max_background parameter to the config.
 func (m *KernelParamsManager) SetMaxBackgroundRequests(limit int) {
 	if limit > 0 {
-		m.addParam(MaxBackgroundRequests, fmt.Sprintf("%d", limit))
+		m.addParam(MaxBackgroundRequests, strconv.Itoa(limit))
 	}
 }
 
 // SetCongestionWindowThreshold adds the FUSE connection congestion_threshold parameter to the config.
 func (m *KernelParamsManager) SetCongestionWindowThreshold(threshold int) {
 	if threshold > 0 {
-		m.addParam(CongestionWindowThreshold, fmt.Sprintf("%d", threshold))
+		m.addParam(CongestionWindowThreshold, strconv.Itoa(threshold))
 	}
 }
 

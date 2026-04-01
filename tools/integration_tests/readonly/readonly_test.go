@@ -112,12 +112,11 @@ func TestMain(m *testing.M) {
 		cfg.ReadOnly[0].TestBucket = setup.TestBucket()
 		cfg.ReadOnly[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ReadOnly[0].Configs = make([]test_suite.ConfigItem, 1)
-		cacheDirPath := path.Join(os.TempDir(), "cache-dir-readonly-"+setup.GenerateRandomString(4))
 		cfg.ReadOnly[0].Configs[0].Flags = []string{
 			"--o=ro --implicit-dirs=true",
 			"--file-mode=544 --dir-mode=544 --implicit-dirs=true",
 			"--client-protocol=grpc --o=ro --implicit-dirs=true",
-			fmt.Sprintf("--o=ro --implicit-dirs=true --cache-dir=%s --file-cache-max-size-mb=3", cacheDirPath),
+			"--o=ro --implicit-dirs=true --cache-dir=/gcsfuse-tmp/readonly --file-cache-max-size-mb=3",
 		}
 		cfg.ReadOnly[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
@@ -143,10 +142,11 @@ func TestMain(m *testing.M) {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadOnly[0].GKEMountedDirectory, m))
 	}
 
-	// Run tests for testBucket
-	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ReadOnly[0], bucketType, "")
 	setup.SetUpTestDirForTestBucket(&cfg.ReadOnly[0])
+	setup.OverrideFilePathsInFlagSet(&cfg.ReadOnly[0], setup.TestDir())
+
+	// 4. Build the flag sets dynamically from the modified config.
+	flags := setup.BuildFlagSets(cfg.ReadOnly[0], bucketType, "")
 
 	// 5. Run tests.
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadOnly[0], flags, m)

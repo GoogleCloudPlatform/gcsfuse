@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -38,6 +39,8 @@ const (
 	backupLogFileCount = 2
 	logFileCount       = activeLogFileCount + backupLogFileCount + stderrLogFileCount // Adding 1 for stderr logs file
 	GKETempDir         = "/gcsfuse-tmp"
+	retryFrequency     = 3 * time.Second
+	retryTimeout       = 2 * time.Minute
 )
 
 var (

@@ -42,10 +42,9 @@ const (
 )
 
 var (
-	bucket           string
-	testDir          string
-	serviceAccount   string
-	localKeyFilePath string
+	bucket         string
+	testDir        string
+	serviceAccount string
 )
 
 // The permission granted by roles at project, bucket, and managed folder
@@ -201,7 +200,13 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	setup.RunTestsOnlyForStaticMount(mountDir, t)
 
 	// Fetch credentials and apply permission on bucket.
+	var localKeyFilePath string
 	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials(ctx)
+	defer func() {
+		if err := os.Remove(localKeyFilePath); err != nil {
+			t.Logf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
+		}
+	}()
 	creds_tests.ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, AdminPermission, setup.TestBucket())
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
