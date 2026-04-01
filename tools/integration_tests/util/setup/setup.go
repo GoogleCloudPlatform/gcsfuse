@@ -576,18 +576,6 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	return FlatBucket, nil
 }
 
-// AddCacheDirToFlags iterates over a set of flag slices and updates any empty "--cache-dir" flags.
-func AddCacheDirToFlags(flagSets [][]string, testname string) [][]string {
-	for i := range flagSets {
-		for j := range flagSets[i] {
-			if flagSets[i][j] == "--cache-dir=" {
-				flagSets[i][j] = fmt.Sprintf("--cache-dir=%s/cache-dir-%s-%s", os.TempDir(), testname, GenerateRandomString(4))
-			}
-		}
-	}
-	return flagSets
-}
-
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
 // bucketType should be "flat", "hns", or "zonal".
 // The run parameter filters flag sets based on the 'Run' field in the test
@@ -826,6 +814,22 @@ func ExtractServiceVersionFromFlags(flags []string) string {
 	}
 	log.Fatal("Profile label should have been provided for mounted directory test.")
 	return ""
+}
+
+// CloudProfilerServiceNameFromFlags parses the cloud-profiler-service-name from a slice of flag strings.
+func CloudProfilerServiceNameFromFlags(flags []string) string {
+	// Regex to find --cloud-profiler-service-name=some_value or --cloud-profiler-service-name some_value
+	re := regexp.MustCompile(`--cloud-profiler-service-name[=\s]([^\s]+)`)
+	for _, flagSet := range flags {
+		matches := re.FindStringSubmatch(flagSet)
+		// matches[0] is the full match, e.g., "--cloud-profiler-service-name=v1"
+		// matches[1] is the first capturing group, e.g., "v1"
+		if len(matches) > 1 {
+			return matches[1]
+		}
+	}
+	// If not provided then return default value for profiler service name.
+	return "gcsfuse"
 }
 
 func OverrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {

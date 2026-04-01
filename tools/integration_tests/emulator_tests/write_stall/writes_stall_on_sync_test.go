@@ -166,3 +166,58 @@ func TestChunkTransferTimeout(t *testing.T) {
 		})
 	}
 }
+
+func TestChunkRetryDeadline(t *testing.T) {
+	scenarios := []struct {
+		name            string
+		flags           []string
+		expectedSuccess bool
+		expectedStall   time.Duration
+	}{
+		{
+			name:            "StallUnderDeadline_Pass",
+			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=120"},
+			expectedStall:   40 * time.Second,
+			expectedSuccess: true,
+		},
+		{
+			name:            "StallOverDeadline_Fail",
+			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=32"},
+			expectedStall:   40 * time.Second,
+			expectedSuccess: false,
+		},
+	}
+	// The proxy is configured to stall the first 4 requests (4 stalls).
+	// With a 10s chunk-transfer-timeout, the client will timeout after 10s for each of the first 4 attempts.
+	// This results in 40s of total elapsed time before the 5th attempt (which is the 4th retry) succeeds.
+	configPath := "../configs/write_stalls_four_times_60s.yaml"
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			proxyServerLogFile := setup.CreateProxyServerLogFile(t)
+			flags := append([]string{}, scenario.flags...)
+			port, proxyProcessId, err := emulator_tests.StartProxyServer(configPath, proxyServerLogFile)
+			require.NoError(t, err)
+			setup.AppendProxyEndpointToFlagSet(&flags, port)
+			setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+			defer func() {
+				setup.UnmountGCSFuse(rootDir)
+				assert.NoError(t, emulator_tests.KillProxyServerProcess(proxyProcessId))
+				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+				setup.SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile, t)
+			}()
+			testDir := scenario.name + setup.GenerateRandomString(3)
+			testDirPath = setup.SetupTestDirectory(testDir)
+			filePath := path.Join(testDirPath, "file.txt")
+
+			elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
+
+			if scenario.expectedSuccess {
+				assert.NoError(t, err, "expected success for chunk-retry-deadline-secs")
+				assert.GreaterOrEqual(t, elapsedTime, scenario.expectedStall)
+			} else {
+				assert.Error(t, err, "expected failure due to chunk-retry-deadline-secs")
+			}
+		})
+	}
+}

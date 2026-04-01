@@ -29,6 +29,7 @@ func TestCreateObjectRequest(t *testing.T) {
 		srcObject                *Object
 		objectName               string
 		mtime                    *time.Time
+		chunkRetryDeadlineSecs   int64
 		chunkTransferTimeoutSecs int64
 		expectedRequest          *CreateObjectRequest
 	}{
@@ -36,6 +37,7 @@ func TestCreateObjectRequest(t *testing.T) {
 			name:                     "nil_srcObject",
 			objectName:               "new-object.txt",
 			mtime:                    &now,
+			chunkRetryDeadlineSecs:   60,
 			chunkTransferTimeoutSecs: 30,
 			expectedRequest: &CreateObjectRequest{
 				Name:                   "new-object.txt",
@@ -43,6 +45,7 @@ func TestCreateObjectRequest(t *testing.T) {
 				Metadata: map[string]string{
 					MtimeMetadataKey: now.UTC().Format(time.RFC3339Nano),
 				},
+				ChunkRetryDeadlineSecs:   60,
 				ChunkTransferTimeoutSecs: 30,
 			},
 		},
@@ -62,6 +65,7 @@ func TestCreateObjectRequest(t *testing.T) {
 				StorageClass:       "STANDARD",
 			},
 			mtime:                    &now,
+			chunkRetryDeadlineSecs:   120,
 			chunkTransferTimeoutSecs: 60,
 			expectedRequest: &CreateObjectRequest{
 				Name:                       "existing-object.txt",
@@ -79,17 +83,20 @@ func TestCreateObjectRequest(t *testing.T) {
 				CustomTime:               now.Add(-24 * time.Hour).String(),
 				EventBasedHold:           true,
 				StorageClass:             "STANDARD",
+				ChunkRetryDeadlineSecs:   120,
 				ChunkTransferTimeoutSecs: 60,
 			},
 		},
 		{
 			name:                     "nil_mtime_nil_srcObject",
 			objectName:               "no-mtime.txt",
+			chunkRetryDeadlineSecs:   60,
 			chunkTransferTimeoutSecs: 30,
 			expectedRequest: &CreateObjectRequest{
 				Name:                     "no-mtime.txt",
 				GenerationPrecondition:   &[]int64{0}[0],
 				Metadata:                 map[string]string{},
+				ChunkRetryDeadlineSecs:   60,
 				ChunkTransferTimeoutSecs: 30,
 			},
 		},
@@ -97,7 +104,7 @@ func TestCreateObjectRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := NewCreateObjectRequest(tt.srcObject, tt.objectName, tt.mtime, tt.chunkTransferTimeoutSecs)
+			req := NewCreateObjectRequest(tt.srcObject, tt.objectName, tt.mtime, tt.chunkRetryDeadlineSecs, tt.chunkTransferTimeoutSecs)
 
 			assert.Equal(t, tt.expectedRequest, req)
 		})
