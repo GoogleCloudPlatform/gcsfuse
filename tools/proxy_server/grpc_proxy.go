@@ -121,8 +121,23 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 				log.Printf("Metadata validation failed: %v", err)
 				return err
 			}
-		} else if len(validations) > 0 {
-			log.Println("Warning: No metadata found in request")
+		} else {
+			md = metadata.New(nil)
+			if len(validations) > 0 {
+				log.Println("Warning: No metadata found in request")
+			}
+		}
+
+		// Inject testbench instructions via gOpManager
+		parts := strings.Split(fullMethodName, "/")
+		methodName := parts[len(parts)-1]
+		plantOp := gOpManager.retrieveOperation(RequestType(methodName))
+		if plantOp != "" {
+			if *fDebug {
+				log.Printf("Planting operation: %s for method: %s", plantOp, fullMethodName)
+			}
+			// Inject direct instruction for testbench
+			md = metadata.Join(md, metadata.Pairs("x-goog-emulator-instructions", plantOp))
 		}
 
 		// Forward metadata to target
