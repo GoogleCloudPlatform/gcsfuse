@@ -61,7 +61,7 @@ if [ "$minor_ver" -lt "$min_minor_ver" ]; then
 fi
 
 # Install dependencies
-if sudo docker ps > /dev/null 2>&1; then
+if docker ps > /dev/null 2>&1; then
   log_info "Docker is already installed and usable. Skipping installation steps."
 else
   # Ubuntu/Debian based machine.
@@ -101,7 +101,7 @@ export STORAGE_EMULATOR_HOST_GRPC="localhost:8888"
 
 DEFAULT_IMAGE_NAME='gcr.io/cloud-devrel-public-resources/storage-testbench'
 DEFAULT_IMAGE_TAG='latest'
-DOCKER_IMAGE=${DEFAULT_IMAGE_NAME}:${DEFAULT_IMAGE_TAG}
+DOCKER_IMAGE=${DOCKER_IMAGE:-${DEFAULT_IMAGE_NAME}:${DEFAULT_IMAGE_TAG}}
 CONTAINER_NAME=storage_testbench
 
 # Note: --net=host makes the container bind directly to the Docker host’s network,
@@ -111,15 +111,20 @@ CONTAINER_NAME=storage_testbench
 # See more about using host networking: https://docs.docker.com/network/host/
 DOCKER_NETWORK="--net=host"
 
-# Get the docker image for the testbench
-sudo docker pull $DOCKER_IMAGE
+# Get the docker image for the testbench, but only pull if we are using the default public image.
+# Custom local images might not exist in the remote registry.
+if [[ "$DOCKER_IMAGE" == "${DEFAULT_IMAGE_NAME}:${DEFAULT_IMAGE_TAG}" ]]; then
+  docker pull $DOCKER_IMAGE
+else
+  log_info "Using custom DOCKER_IMAGE: $DOCKER_IMAGE (skipping docker pull)"
+fi
 
 # Remove the docker container if it's already running.
-CONTAINER_ID=$(sudo docker ps -aqf "name=$CONTAINER_NAME")
+CONTAINER_ID=$(docker ps -aqf "name=$CONTAINER_NAME")
 if [[ -n "$CONTAINER_ID" ]]; then
   log_info "Container with ID:[$CONTAINER_ID] is already running with name:[$CONTAINER_NAME]"
   log_info "Stopping container...."
-  sudo docker stop $CONTAINER_ID
+  docker stop $CONTAINER_ID
 fi
 
 wait_for_emulator() {
@@ -141,14 +146,14 @@ wait_for_emulator() {
 # Run the emulator container in the background and stream its logs to a file.
 # GUNICORN_CMD_ARGS="--timeout 600" is used to increase the Gunicorn timeout from the default 30 seconds
 # to 10 minutes, preventing workers from dying during high load which causes emulator test flakiness.
-sudo docker run --name $CONTAINER_NAME -e GUNICORN_CMD_ARGS="--timeout 600" --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
+docker run --name $CONTAINER_NAME -e GUNICORN_CMD_ARGS="--timeout 600" --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 log_info "Emulator docker container logs are saved at: $(pwd)/emulator_container.log"
-sudo docker logs -f $CONTAINER_NAME > emulator_container.log 2>&1 &
+docker logs -f $CONTAINER_NAME > emulator_container.log 2>&1 &
 
 # Stop the testbench & cleanup environment variables
 function cleanup() {
     log_info "Cleanup testbench"
-    sudo docker stop $CONTAINER_NAME || true
+    docker stop $CONTAINER_NAME || true
     unset STORAGE_EMULATOR_HOST;
     unset STORAGE_EMULATOR_HOST_GRPC;
     log_info "Printing emulator docker container Logs..."
@@ -175,6 +180,17 @@ if ! curl -X POST --data-binary @test.json \
 fi
 rm test.json
 
+# Create an HNS bucket for control client tests
+cat << EOF > test_hns.json
+{"name":"test-hns-bucket", "hierarchicalNamespace": {"enabled": true}}
+EOF
+if ! curl -X POST --data-binary @test_hns.json -H "Content-Type: application/json" "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"; then
+  log_error "Failed to create bucket test-hns-bucket"
+  exit 1
+fi
+rm test_hns.json
+
+
 # Start the gRPC server on port 8888.
 log_info "Starting the gRPC server on port 8888"
 response=$(curl -w "%{http_code}\n" --retry 5 --retry-max-time 40 -o /dev/null "$STORAGE_EMULATOR_HOST/start_grpc?port=8888")
@@ -192,4 +208,6 @@ if [[ -n "$GCSFUSE_PREBUILT_DIR" ]]; then
 fi
 
 # Run all emulator test packages in sequence to avoid high cpu usage.
-go test -v -p 1 -timeout 10m ./tools/integration_tests/emulator_tests/... --integrationTest --testbucket=test-bucket "${args[@]}"
+TEST_TARGET=${TEST_TARGET:-"./tools/integration_tests/emulator_tests/..."}
+# Run all emulator test packages in sequence to avoid high cpu usage.
+go test -v -p 1 -timeout 10m $TEST_TARGET --integrationTest --testbucket=${TEST_BUCKET:-test-bucket} "${args[@]}"
