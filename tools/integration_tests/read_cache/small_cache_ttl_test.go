@@ -77,7 +77,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 		expectedOutcome2 *Expected
 	}
 
-	s.T().Logf("Validating that stale data is served before cache expiry and fresh data (cache miss) is served after expiry.")
+	s.T().Logf("Validating that stale data is served before cache expiry (%d seconds Metadata Cache TTL).", metadataCacheTTlInSec)
 	result := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() (initialReadState, error) {
 		// Truncate log file created.
 		err := os.Truncate(testEnv.cfg.LogFile, 0)
@@ -100,9 +100,11 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 		expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
 
 		if time.Since(startTime) >= metadataCacheTTlInSec*time.Second {
-			// Retry if the time taken is more (due to GCS Latency or high load) than the metadata cache TTL which would certainly fail the test.
-			return initialReadState{}, fmt.Errorf("failed because it took %v", time.Since(startTime).Seconds())
+			// Retry if the time taken is more (due to GCS Latency or high load) than the metadata cache TTL.
+			// In this scenario, the test would certainly fail as the stale data would not be served.
+			return initialReadState{}, fmt.Errorf("failed: because operation took %v seconds >= %d seconds (Metadata Cache TTL)", time.Since(startTime).Seconds(), metadataCacheTTlInSec)
 		}
+		s.T().Logf("Success: Operation took %v seconds < %d seconds (Metadata Cache TTL)", time.Since(startTime).Seconds(), metadataCacheTTlInSec)
 		return initialReadState{testFileName, expectedOutcome1, expectedOutcome2}, nil
 	})
 
@@ -115,7 +117,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
 		s.T().Errorf("content mismatch. Expected old data to be served again.")
 	}
-	// Wait for metadata cache expiry and read the file again.
+	s.T().Logf("Waiting for %d seconds for metadata cache to expire to get cache miss.", metadataCacheTTlInSec)
 	time.Sleep(metadataCacheTTlInSec * time.Second)
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, true, s.T())
 
