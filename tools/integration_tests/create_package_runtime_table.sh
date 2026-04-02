@@ -112,6 +112,9 @@ try:
                 else:
                     status = "[green]✅ PASSED[/]"
             else:
+                if attempt > 0:
+                    status = f"[red]❌ FAILED (Attempt {attempt})[/]"
+                else:
                 status = "[red]❌ FAILED[/]"
                 
             table.add_row(p[IDX_PKG_NAME], p[IDX_BUCKET_TYPE], f"{run}m", f"[dim]{'░'*wait}[/][cyan]{'▓'*run}[/]", status)

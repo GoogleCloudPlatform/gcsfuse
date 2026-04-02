@@ -30,7 +30,7 @@ usage() {
   echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
   echo "    --retry-failed-tests                         Retry failed e2e test packages. (Default: false)"
   echo "    --retry-count                 <count>        Number of times to retry a failed test. (Default: 2)"
-  echo "    --retry-max-duration-mins     <mins>         Do not retry if test duration exceeds this limit. (Default: 25)"
+  echo "    --retry-max-duration-mins     <mins>         Do not retry if test duration exceeds this limit. (Default: 15)"
   echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
@@ -132,7 +132,7 @@ RUN_TESTS_WITH_ZONAL_BUCKET=false
 BUILD_BINARY_IN_SCRIPT=true
 RETRY_FAILED_TESTS=false
 RETRY_COUNT=2
-RETRY_MAX_DURATION_MINS=25
+RETRY_MAX_DURATION_MINS=15
 TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 
@@ -368,7 +368,6 @@ TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cl
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
-# Test pacakges which should not be retried
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
 acquire_lock() {
@@ -718,18 +717,11 @@ test_package() {
 
   # Only retry if the initial run failed and retries are enabled
   if [[ "$exit_code" -eq 1 ]] && ${RETRY_FAILED_TESTS}; then
-  # Check if the current package is in the list
-    local skip_retry=false
-    for excluded_pkg in "${NON_RETRYABLE_PACKAGES[@]}"; do
-      if [[ "$package_name" == "$excluded_pkg" ]]; then
-        skip_retry=true
-        break
-      fi
-    done
-
-    # If it's in the list, skip it. Otherwise, proceed with retries.
-    if ${skip_retry}; then
-      log_info "Skipping retries for excluded package: [$package_name]"
+    
+    # Check if the initial run ALREADY exceeded the max duration limit before we even try to retry
+    local initial_duration_mins=$(((SECONDS - start) / 60))
+    if [ "$initial_duration_mins" -ge "$RETRY_MAX_DURATION_MINS" ]; then
+      log_info "Skipping retries for [$package_name] as its initial run time (${initial_duration_mins}m) exceeded the max retry duration limit (${RETRY_MAX_DURATION_MINS}m)."
     else
       local attempt=1
       while [ "$attempt" -le "$RETRY_COUNT" ]; do
@@ -754,10 +746,10 @@ test_package() {
           break
         fi
 
-        # Check if test run duration exceeds the allowed retry max duration limit.
+        # Check if the total run duration exceeds the allowed retry max duration limit after this attempt.
         local current_duration_mins=$(((SECONDS - start) / 60))
         if [ "$current_duration_mins" -ge "$RETRY_MAX_DURATION_MINS" ]; then
-          log_info "Skipping further retries for [$package_name] as its run time (${current_duration_mins}m) exceeded the max retry duration limit (${RETRY_MAX_DURATION_MINS}m)."
+          log_info "Skipping further retries for [$package_name] as its total run time (${current_duration_mins}m) exceeded the max retry duration limit (${RETRY_MAX_DURATION_MINS}m)."
           break
         fi
 
@@ -766,7 +758,11 @@ test_package() {
 
       # Log the highest attempt count if all retries failed
       if [[ "$exit_code" -eq 1 ]]; then
+        if [ "$attempt" -gt "$RETRY_COUNT" ]; then
         logged_attempt=$((attempt - 1))
+        else
+          logged_attempt=$attempt
+        fi
       fi
     fi
   fi
@@ -774,8 +770,8 @@ test_package() {
   local end=$SECONDS
 
   # Add the package stats to the file.
-  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end} ${logged_attempt}" >> "$PACKAGE_RUNTIME_STATS"
+  
   # Generate Kokoro artifacts(log) files.
   generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
   # Call the helper to organize logs and cleanup the original file
@@ -967,7 +963,7 @@ run_e2e_tests_for_emulator() {
     log_info_locked "Passed e2e tests for emulator."
   fi
   local end=$SECONDS
-  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end} 0" >> "$PACKAGE_RUNTIME_STATS"
 
   # Call the helper to organize logs and cleanup the original file
   organize_test_logfile "$exit_code" "$emulator_test_log" "$package_name" "$bucket_type" 
