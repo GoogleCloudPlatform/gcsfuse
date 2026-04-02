@@ -983,7 +983,7 @@ symlink_handling:
     configs:
       - run: TestStandardSymlinksTestSuite
         flags:
-          - "--experimental-enable-standard-symlinks=true"
+          - "--enable-standard-symlinks=true"
         compatible:
           flat: true
           hns: true
@@ -991,7 +991,7 @@ symlink_handling:
         run_on_gke: true
       - run: TestLegacySymlinksTestSuite
         flags:
-          - "--experimental-enable-standard-symlinks=false"
+          - "--enable-standard-symlinks=false"
         compatible:
           flat: true
           hns: true

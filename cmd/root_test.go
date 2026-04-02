@@ -1586,12 +1586,12 @@ func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
 		{
 			name:                           "default",
 			args:                           []string{"gcsfuse", "abc", "pqr"},
-			expectedEnableStandardSymlinks: false,
+			expectedEnableStandardSymlinks: true,
 		},
 		{
 			name:                           "normal",
-			args:                           []string{"gcsfuse", "--experimental-enable-standard-symlinks=true", "abc", "pqr"},
-			expectedEnableStandardSymlinks: true,
+			args:                           []string{"gcsfuse", "--enable-standard-symlinks=false", "abc", "pqr"},
+			expectedEnableStandardSymlinks: false,
 		},
 	}
 
@@ -1599,7 +1599,7 @@ func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableStandardSymlinks bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
-				gotEnableStandardSymlinks = mountInfo.config.ExperimentalEnableStandardSymlinks
+				gotEnableStandardSymlinks = mountInfo.config.EnableStandardSymlinks
 				return nil
 			})
 			require.Nil(t, err)

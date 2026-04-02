@@ -347,7 +347,7 @@ func NewDirInode(
 		name:                                   name,
 		attrs:                                  attrs,
 		isHNSEnabled:                           cfg.EnableHns,
-		isStandardSymlinkRepresentationEnabled: cfg.ExperimentalEnableStandardSymlinks,
+		isStandardSymlinkRepresentationEnabled: cfg.EnableStandardSymlinks,
 		isUnsupportedPathSupportEnabled:        cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:           cfg.EnableTypeCacheDeprecation,
 		unlinked:                               false,
