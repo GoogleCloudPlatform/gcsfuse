@@ -73,6 +73,9 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 		err = fmt.Errorf("proxyTokenSource cannot fetch token: %w", err)
 		return nil, err
 	}
+	// Sherlock: Add missing resp.Body.Close() to prevent file descriptor/TCP connection leak
+	// when proxyTokenSource.Token() is called repeatedly.
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {

@@ -17,6 +17,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -68,6 +69,60 @@ func TestProxyTokenSource_TokenFetch_ServerError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "server error")
 	assert.Nil(t, token)
+}
+
+func TestProxyTokenSource_TokenFetch_ClosesBody(t *testing.T) {
+	// Setup a custom transport to intercept the RoundTrip and track if Close was called.
+	closed := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := oauth2.Token{
+			AccessToken: "test-access-token",
+			TokenType:   "Bearer",
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(token))
+	}))
+	defer server.Close()
+
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+	require.NoError(t, err)
+
+	// Intercept the transport used by the proxyTokenSource.
+	pts := ts.(proxyTokenSource)
+	originalTransport := pts.client.Transport
+	if originalTransport == nil {
+		originalTransport = http.DefaultTransport
+	}
+
+	pts.client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		res, err := originalTransport.RoundTrip(req)
+		if err == nil {
+			// Wrap the body to track Close()
+			res.Body = &trackingReadCloser{ReadCloser: res.Body, closed: &closed}
+		}
+		return res, err
+	})
+
+	token, err := pts.Token()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, token)
+	assert.True(t, closed, "Expected response body to be closed")
+}
+
+type roundTripFunc func(req *http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+type trackingReadCloser struct {
+	io.ReadCloser
+	closed *bool
+}
+
+func (t *trackingReadCloser) Close() error {
+	*t.closed = true
+	return t.ReadCloser.Close()
 }
 
 func TestProxyTokenSource_TokenFetch_InvalidJSON(t *testing.T) {
