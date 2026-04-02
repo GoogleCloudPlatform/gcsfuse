@@ -50,6 +50,7 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) BucketType() gcs.BucketType {
+	fmt.Println(*bh.bucketType)
 	return *bh.bucketType
 }
 
