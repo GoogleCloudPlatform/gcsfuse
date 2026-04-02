@@ -23,6 +23,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -421,8 +422,6 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		controlClient = NewStorageControlClient(rawStorageControlClientWithoutGaxRetries, &clientConfig,
 			WithBillingProject(billingProject),
 		)
-	} else {
-		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
