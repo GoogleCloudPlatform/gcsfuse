@@ -75,7 +75,12 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	}
 	// Sherlock: Add missing resp.Body.Close() to prevent file descriptor/TCP connection leak
 	// when proxyTokenSource.Token() is called repeatedly.
-	defer resp.Body.Close()
+	defer func() {
+		closeErr := resp.Body.Close()
+		if err == nil && closeErr != nil {
+			err = fmt.Errorf("proxyTokenSource cannot close body: %w", closeErr)
+		}
+	}()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
