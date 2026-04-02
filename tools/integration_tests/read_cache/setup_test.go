@@ -21,6 +21,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
@@ -33,7 +34,7 @@ import (
 )
 
 const (
-	testDirName                        = "ReadCacheTest"
+	testDirPrefix                      = "ReadCacheTest"
 	onlyDirMounted                     = "OnlyDirMountReadCache"
 	cacheSubDirectoryName              = "gcsfuse-file-cache"
 	smallContentSize                   = 128 * util.KiB
@@ -60,6 +61,8 @@ const (
 	offset10MiB                        = 10 * util.MiB
 	cacheCapacityForRangeReadTestInMiB = 50
 	GKETempDir                         = "/gcsfuse-tmp"
+	retryFrequency                     = 5 * time.Second // Used in poll frequency for asynchronous test expecation.
+	retryDuration                      = 5 * time.Minute // Used for poll duration for asynchronous test expecation.
 )
 
 var (
@@ -111,7 +114,7 @@ func setupLogFileAndCacheDir(testName string) {
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
 	setup.SetMntDir(mountDir)
-	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(ctx, storageClient, testDirPrefix)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -298,10 +301,10 @@ func TestMain(m *testing.M) {
 		cfg.ReadCache[0].Configs[15].Run = "TestRemountTest"
 
 		cfg.ReadCache[0].Configs[16].Flags = []string{
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
-			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest.*/foo* --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest.*/foo* --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest.*/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-include-regex=^" + setup.TestBucket() + "/.*ReadCacheTest.*/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[16].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[16].Run = "TestCacheFileForIncludeRegexTest"
@@ -370,11 +373,11 @@ func TestMain(m *testing.M) {
 		mountDir = rootDir
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirPrefix))
 	}
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirPrefix))
 	os.Exit(successCode)
 }
 

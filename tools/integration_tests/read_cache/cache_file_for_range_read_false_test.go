@@ -59,7 +59,7 @@ func (s *cacheFileForRangeReadFalseTest) SetupTest() {
 	require.NoError(s.T(), err)
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(testEnv.cacheDirPath)
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 }
 
 func (s *cacheFileForRangeReadFalseTest) TearDownTest() {
@@ -79,7 +79,7 @@ func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet i
 	expected := &Expected{
 		StartTimeStampSeconds: time.Now().Unix(),
 		BucketName:            setup.TestBucket(),
-		ObjectName:            path.Join(testDirName, path.Base(file.Name())),
+		ObjectName:            path.Join(path.Base(testEnv.testDirPath), path.Base(file.Name())),
 	}
 	if setup.DynamicBucketMounted() != "" {
 		expected.BucketName = setup.DynamicBucketMounted()
