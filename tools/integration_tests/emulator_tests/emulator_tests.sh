@@ -180,6 +180,17 @@ if ! curl -X POST --data-binary @test.json \
 fi
 rm test.json
 
+# Create an HNS bucket for control client tests
+cat << EOF > test_hns.json
+{"name":"test-hns-bucket", "hierarchicalNamespace": {"enabled": true}}
+EOF
+if ! curl -X POST --data-binary @test_hns.json -H "Content-Type: application/json" "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"; then
+  log_error "Failed to create bucket test-hns-bucket"
+  exit 1
+fi
+rm test_hns.json
+
+
 # Start the gRPC server on port 8888.
 log_info "Starting the gRPC server on port 8888"
 response=$(curl -w "%{http_code}\n" --retry 5 --retry-max-time 40 -o /dev/null "$STORAGE_EMULATOR_HOST/start_grpc?port=8888")
@@ -199,4 +210,4 @@ fi
 # Run all emulator test packages in sequence to avoid high cpu usage.
 TEST_TARGET=${TEST_TARGET:-"./tools/integration_tests/emulator_tests/..."}
 # Run all emulator test packages in sequence to avoid high cpu usage.
-go test -v -p 1 -timeout 10m $TEST_TARGET --integrationTest --testbucket=test-bucket "${args[@]}"
+go test -v -p 1 -timeout 10m $TEST_TARGET --integrationTest --testbucket=${TEST_BUCKET:-test-bucket} "${args[@]}"
