@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
@@ -50,7 +51,7 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) BucketType() gcs.BucketType {
-	fmt.Println(*bh.bucketType)
+	logger.Errorf("%v", *bh.bucketType)
 	return *bh.bucketType
 }
 
