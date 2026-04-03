@@ -15,21 +15,16 @@
 package testing
 
 import (
-	"errors"
-	"reflect"
+	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
-	"github.com/jacobsa/ogletest"
-	"github.com/jacobsa/ogletest/srcutil"
-	"github.com/jacobsa/reqtrace"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/suite"
 )
 
-// Dependencies needed for tests registered by RegisterBucketTests.
+// Dependencies needed for tests registered by RunBucketTests.
 type BucketTestDeps struct {
 	// A context that should be used for all blocking operations.
 	ctx context.Context
@@ -47,107 +42,15 @@ type BucketTestDeps struct {
 	BuffersEntireContentsForCreate bool
 }
 
-// An interface that all bucket tests must implement.
-type bucketTestSetUpInterface interface {
-	setUpBucketTest(deps BucketTestDeps)
-}
-
-func getSuiteName(suiteType reflect.Type) string {
-	var enCases = cases.Title(language.AmericanEnglish)
-	return enCases.String(suiteType.Name())
-}
-
-func isExported(name string) bool {
-	return len(name) > 0 && name[0] >= 'A' && name[0] <= 'Z'
-}
-
-func getTestMethods(suitePointerType reflect.Type) []reflect.Method {
-	var exportedMethods []reflect.Method
-	for _, m := range srcutil.GetMethodsInSourceOrder(suitePointerType) {
-		if isExported(m.Name) {
-			exportedMethods = append(exportedMethods, m)
-		}
-	}
-
-	return exportedMethods
-}
-
-func registerTestSuite(
-	makeDeps func(context.Context) BucketTestDeps,
-	prototype bucketTestSetUpInterface) {
-	suitePointerType := reflect.TypeOf(prototype)
-	suiteType := suitePointerType.Elem()
-
-	// We don't need anything fancy at the suite level.
-	var ts ogletest.TestSuite
-	ts.Name = getSuiteName(suiteType)
-
-	// For each method, we create a test function.
-	for _, method := range getTestMethods(suitePointerType) {
-		var tf ogletest.TestFunction
-		tf.Name = method.Name
-
-		// Create an instance to be shared among SetUp and the test function itself.
-		var instance reflect.Value = reflect.New(suiteType)
-
-		// SetUp should create a bucket and then initialize the suite object,
-		// remembering that the suite implements bucketTestSetUpInterface.
-		var report reqtrace.ReportFunc
-		tf.SetUp = func(*ogletest.TestInfo) {
-			// Start tracing.
-			var testCtx context.Context
-			testCtx, report = reqtrace.Trace(context.Background(), "Overall test")
-
-			// Set up the bucket and other dependencies.
-			makeDepsCtx, makeDepsReport := reqtrace.StartSpan(testCtx, "Test setup")
-			deps := makeDeps(makeDepsCtx)
-			makeDepsReport(nil)
-
-			// Hand off the dependencies and the context to the test.
-			deps.ctx = testCtx
-			instance.Interface().(bucketTestSetUpInterface).setUpBucketTest(deps)
-		}
-
-		// The test function itself should simply invoke the method.
-		methodCopy := method
-		tf.Run = func() {
-			methodCopy.Func.Call([]reflect.Value{instance})
-		}
-
-		// Report the test result.
-		tf.TearDown = func() {
-			report(errors.New(
-				"TODO: Plumb through the test failure status. " +
-					"Or offer tracing in ogletest itself."))
-		}
-
-		// Save the test function.
-		ts.TestFunctions = append(ts.TestFunctions, tf)
-	}
-
-	// Register the suite.
-	ogletest.Register(ts)
-}
-
-// Given a function that returns appropriate test depencencies, register test
-// suites that exercise the buckets returned by the function with ogletest.
-func RegisterBucketTests(makeDeps func(context.Context) BucketTestDeps) {
-	// A list of empty instances of the test suites we want to register.
-	suitePrototypes := []bucketTestSetUpInterface{
-		&createTest{},
-		&copyTest{},
-		&composeTest{},
-		&readTest{},
-		&readMultiRangeTest{},
-		&statTest{},
-		&updateTest{},
-		&deleteTest{},
-		&listTest{},
-		&cancellationTest{},
-	}
-
-	// Register each.
-	for _, suitePrototype := range suitePrototypes {
-		registerTestSuite(makeDeps, suitePrototype)
-	}
+func RunBucketTests(t *testing.T, makeDeps func(context.Context) BucketTestDeps) {
+	suite.Run(t, &createTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &copyTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &composeTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &readTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &readMultiRangeTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &statTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &updateTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &deleteTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &listTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
+	suite.Run(t, &cancellationTest{bucketTest: bucketTest{MakeDeps: makeDeps}})
 }
