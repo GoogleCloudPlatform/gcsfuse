@@ -35,6 +35,7 @@ var (
 	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
+	rootDir string
 )
 
 type env struct {
@@ -98,13 +99,13 @@ func TestMain(m *testing.M) {
 	// flags to be set, as stale handle tests validates content from the bucket.
 	// Note: These tests by default can only be run for non streaming mounts.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		mountDir = testEnv.cfg.GKEMountedDirectory
+		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
-	mountDir = setup.MntDir()
+	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile

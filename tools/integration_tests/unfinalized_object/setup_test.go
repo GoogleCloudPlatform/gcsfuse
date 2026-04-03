@@ -36,6 +36,7 @@ var (
 	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
+	rootDir string
 )
 
 type env struct {
@@ -99,7 +100,7 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		mountDir = testEnv.cfg.GKEMountedDirectory
+		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
@@ -108,7 +109,7 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 
 	// Save mount and root directory variables.
-	mountDir = setup.MntDir()
+	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
