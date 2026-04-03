@@ -467,9 +467,9 @@ ___
 # Symlink inodes
 Prior to GCSFuse v3.9.0, symlinks were represented by empty Cloud Storage objects. These objects included a custom metadata key, ```gcsfuse_symlink_target```, whose value specified the symlink's target.
 
-From GCSFuse v3.9.0 onwards, the standard GCS representation for symbolic links is adopted. This means symlinks are now non-zero sized GCS objects. They feature the custom metadata key ```goog-reserved-file-is-symlink``` with a value of ```true```, and the symlink's target path is stored directly within the object's content.
+From GCSFuse v3.9.0 onwards, the standard GCS representation for symbolic links is adopted. This means symlinks are now non-zero sized GCS objects. They feature the custom metadata key ```goog-reserved-file-is-symlink``` with a value of ```true```, and the symlink's target path is stored directly within the object's content. In other respects they work like a file inode, including receiving the same permissions. **Please note that GCSFuse remains backward compatible with symlinks created by versions prior to v3.9.0.**
 
-In other respects they work like a file inode, including receiving the same permissions.
+
 
 **Note**
 
