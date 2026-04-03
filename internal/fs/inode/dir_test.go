@@ -1573,12 +1573,12 @@ func (t *DirTest) TestCreateChildSymlink_StandardSymlinkEnabled() {
 	// Re-create inode with standard symlinks enabled.
 	t.in.Unlock()
 	config := &cfg.Config{
-		List:                               cfg.ListConfig{EnableEmptyManagedFolders: true},
-		MetadataCache:                      cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
-		EnableHns:                          false,
-		EnableUnsupportedPathSupport:       true,
-		EnableTypeCacheDeprecation:         isTypeCacheDeprecationEnabled,
-		ExperimentalEnableStandardSymlinks: true,
+		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},
+		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
+		EnableHns:                    false,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+		EnableStandardSymlinks:       true,
 	}
 	parInodeCtx := context.Background()
 	t.in = NewDirInode(

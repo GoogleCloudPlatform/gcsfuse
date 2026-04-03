@@ -231,6 +231,16 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "enable-standard-symlinks"
+    flag-name: "enable-standard-symlinks"
+    type: "bool"
+    usage: >-
+      Enables the creation and reading of symbolic links using the standard GCS representation.
+      When enabled, new symlinks created via GCSFuse mount ensure compatibility with other
+      GCS clients like Storage Transfer Service (STS).
+    default: true
+    hide-flag: true
+
   - config-path: "enable-type-cache-deprecation"
     flag-name: "enable-type-cache-deprecation"
     type: "bool"
@@ -246,16 +256,6 @@ params:
       When set, GCSFuse will ignore these objects during listing and copying operations. 
       For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.
     default: true
-    hide-flag: true
-
-  - config-path: "experimental-enable-standard-symlinks"
-    flag-name: "experimental-enable-standard-symlinks"
-    type: "bool"
-    usage: >-
-      Enables the creation and reading of symbolic links using the standard GCS representation.
-      When enabled, new symlinks created via GCSFuse mount ensure compatibility with other
-      GCS clients like Storage Transfer Service (STS).
-    default: false
     hide-flag: true
 
   - config-path: "file-cache.cache-file-for-range-read"
