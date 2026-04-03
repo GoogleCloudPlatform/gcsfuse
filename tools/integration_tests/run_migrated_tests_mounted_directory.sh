@@ -18,7 +18,7 @@ set -euo pipefail
 
 TEST_BUCKET=""
 MOUNTED_DIR=""
-PACKAGE_NAME="benchmarking" # Default package
+PACKAGE_NAME="operations" # Default package
 RUN_ALL=false
 
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
@@ -126,10 +126,17 @@ for CURRENT_PACKAGE in $PACKAGES; do
     for (( i=0; i<$NUM_CONFIGS; i++ )); do
         TEST_NAME=$(echo "$CONFIG_BASE" | yq -r ".configs[$i].run")
         NUM_FLAG_SETS=$(echo "$CONFIG_BASE" | yq ".configs[$i].flags | length")
+        RUN_ON_GKE=$(echo "$CONFIG_BASE" | yq -r ".configs[$i].run_on_gke")
         
         DISPLAY_NAME=${TEST_NAME}
         if [ "$TEST_NAME" == "null" ] || [ -z "$TEST_NAME" ]; then
             DISPLAY_NAME="All tests in ${CURRENT_PACKAGE}"
+        fi
+
+        # Skip this configuration if run_on_gke is strictly false
+        if [ "$RUN_ON_GKE" == "false" ]; then
+            echo -e "\n⏭️  Skipping: ${DISPLAY_NAME} (Package: $CURRENT_PACKAGE) - run_on_gke is false"
+            continue
         fi
 
         for (( j=0; j<$NUM_FLAG_SETS; j++ )); do
