@@ -75,7 +75,10 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	}
 	defer func() {
 		closeErr := resp.Body.Close()
-		if err == nil && closeErr != nil {
+		if closeErr == nil {
+			return
+		}
+		if err == nil {
 			err = fmt.Errorf("proxyTokenSource cannot close body: %w", closeErr)
 		}
 	}()
