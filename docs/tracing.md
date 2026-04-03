@@ -17,7 +17,7 @@ OR
 
 GCSFuse command line option below:
 
-**`--trace-sampling-ratio 0.1` Sets the **sampling rate**. This means **10%** (0.1 out of 1.0) of all incoming requests or operations will have a trace generated and exported. This helps manage cost and overhead in high-traffic applications.
+`--trace-sampling-ratio 0.1` Sets the **sampling rate**. This means **10%** (0.1 out of 1.0) of all incoming requests or operations will have a trace generated and exported. This helps manage cost and overhead in high-traffic applications.
 
 ### Accessing and Viewing Trace Exports
 
