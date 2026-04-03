@@ -415,11 +415,11 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
+	EnableStandardSymlinks bool `yaml:"enable-standard-symlinks"`
+
 	EnableTypeCacheDeprecation bool `yaml:"enable-type-cache-deprecation"`
 
 	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
-
-	ExperimentalEnableStandardSymlinks bool `yaml:"experimental-enable-standard-symlinks"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -962,6 +962,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-standard-symlinks", "", true, "Enables the creation and reading of symbolic links using the standard GCS representation. When enabled, new symlinks created via GCSFuse mount ensure compatibility with other GCS clients like Storage Transfer Service (STS).")
+
+	if err := flagSet.MarkHidden("enable-standard-symlinks"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
 	flagSet.BoolP("enable-type-cache-deprecation", "", true, "Enables support to deprecate type cache.")
@@ -997,12 +1003,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Enables ReadDirPlus capability")
 
 	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("experimental-enable-standard-symlinks", "", false, "Enables the creation and reading of symbolic links using the standard GCS representation. When enabled, new symlinks created via GCSFuse mount ensure compatibility with other GCS clients like Storage Transfer Service (STS).")
-
-	if err := flagSet.MarkHidden("experimental-enable-standard-symlinks"); err != nil {
 		return err
 	}
 
@@ -1571,6 +1571,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("enable-standard-symlinks", flagSet.Lookup("enable-standard-symlinks")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
 		return err
 	}
@@ -1596,10 +1600,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-enable-readdirplus", flagSet.Lookup("experimental-enable-readdirplus")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("experimental-enable-standard-symlinks", flagSet.Lookup("experimental-enable-standard-symlinks")); err != nil {
 		return err
 	}
 
