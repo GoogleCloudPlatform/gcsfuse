@@ -1059,45 +1059,45 @@ func TestValidateMetrics(t *testing.T) {
 func TestValidateMonitoringSuccessScenarios(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
-		name             string
-		MonitoringConfig MonitoringConfig
+		name        string
+		TraceConfig TraceConfig
 	}{
 
 		{
 			name: "verify_tracing_modes_exact_match",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"stdout", "gcptrace"},
-				ExperimentalTracingSamplingRatio: 0.2,
+			TraceConfig: TraceConfig{
+				Exporters:     []string{"stdout", "gcpexporter"},
+				SamplingRatio: 0.2,
 			},
 		},
 		{
 			name: "verify_tracing_modes_unnecessary_space_match",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"stdout", "  gcptrace"},
-				ExperimentalTracingSamplingRatio: 0.4,
+			TraceConfig: TraceConfig{
+				Exporters:     []string{"stdout", "  gcpexporter"},
+				SamplingRatio: 0.4,
 			},
 		},
 		{
 			name: "verify_tracing_modes_case_insensitive",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"STDout", "  Gcptrace"},
-				ExperimentalTracingSamplingRatio: 0.7,
+			TraceConfig: TraceConfig{
+				Exporters:     []string{"STDout", "  GcpExporTer"},
+				SamplingRatio: 0.7,
 			},
 		},
 		{
 			name: "verify_complete_tracing_config_success_case",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"gcptrace"},
-				ExperimentalTracingProjectId:     "test-gcloud-project",
-				ExperimentalTracingSamplingRatio: 0.3,
+			TraceConfig: TraceConfig{
+				Exporters:     []string{"gcpexporter"},
+				ProjectId:     "test-gcloud-project",
+				SamplingRatio: 0.3,
 			},
 		},
 		{
 			name: "invalid_tracing_sampling_ratio_success_empty_mode",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{},
-				ExperimentalTracingProjectId:     "test-gcloud-project",
-				ExperimentalTracingSamplingRatio: 1.4,
+			TraceConfig: TraceConfig{
+				Exporters:     []string{},
+				ProjectId:     "test-gcloud-project",
+				SamplingRatio: 1.4,
 			},
 		},
 	}
@@ -1105,7 +1105,7 @@ func TestValidateMonitoringSuccessScenarios(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c := validConfig(t)
-			c.Monitoring = tc.MonitoringConfig
+			c.Trace = tc.TraceConfig
 
 			err := ValidateConfig(viper.New(), &c)
 
@@ -1117,21 +1117,21 @@ func TestValidateMonitoringSuccessScenarios(t *testing.T) {
 func TestValidateMonitoringFailureScenarios(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
-		name             string
-		MonitoringConfig MonitoringConfig
+		name        string
+		TraceConfig TraceConfig
 	}{
 		{
 			name: "invalid_tracing_mode_failure",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode: []string{"stdout", "  random_export"},
+			TraceConfig: TraceConfig{
+				Exporters: []string{"stdout", "  random_export"},
 			},
 		},
 		{
 			name: "invalid_tracing_sampling_ratio_failure",
-			MonitoringConfig: MonitoringConfig{
-				ExperimentalTracingMode:          []string{"stdout"},
-				ExperimentalTracingProjectId:     "test-gcloud-project",
-				ExperimentalTracingSamplingRatio: 1.4,
+			TraceConfig: TraceConfig{
+				Exporters:     []string{"stdout"},
+				ProjectId:     "test-gcloud-project",
+				SamplingRatio: 1.4,
 			},
 		},
 	}
@@ -1139,7 +1139,7 @@ func TestValidateMonitoringFailureScenarios(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c := validConfig(t)
-			c.Monitoring = tc.MonitoringConfig
+			c.Trace = tc.TraceConfig
 
 			err := ValidateConfig(viper.New(), &c)
 

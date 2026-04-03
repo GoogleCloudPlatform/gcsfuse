@@ -178,8 +178,8 @@ func TestIsTracingEnabled(t *testing.T) {
 		expected           bool
 	}{
 		{"empty_non_zero_sampling_ratio", []string{}, 0.5, false},
-		{"non_empty_non_zero_sampling_ratio", []string{"gcptrace"}, 0.4, true},
-		{"non_empty_zero_sampling_ratio", []string{"gcptrace"}, 0.0, false},
+		{"non_empty_non_zero_sampling_ratio", []string{"gcpexporter"}, 0.4, true},
+		{"non_empty_zero_sampling_ratio", []string{"gcpexporter"}, 0.0, false},
 		{"empty_zero_samping_ratio", []string{}, 0.0, false},
 	}
 
@@ -187,9 +187,9 @@ func TestIsTracingEnabled(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tc.expected, IsTracingEnabled(&Config{Monitoring: MonitoringConfig{
-				ExperimentalTracingMode:          tc.traceMode,
-				ExperimentalTracingSamplingRatio: tc.traceSamplingRatio,
+			assert.Equal(t, tc.expected, IsTracingEnabled(&Config{Trace: TraceConfig{
+				Exporters:     tc.traceMode,
+				SamplingRatio: tc.traceSamplingRatio,
 			}}))
 		})
 	}

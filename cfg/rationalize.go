@@ -154,9 +154,9 @@ func resolveLoggingConfig(config *Config) {
 	}
 }
 
-func resolveMonitoringConfig(m *MonitoringConfig) {
-	for i, s := range m.ExperimentalTracingMode {
-		m.ExperimentalTracingMode[i] = strings.ToLower(strings.TrimSpace(s))
+func resolveTraceConfig(t *TraceConfig) {
+	for i, s := range t.Exporters {
+		t.Exporters[i] = strings.ToLower(strings.TrimSpace(s))
 	}
 }
 
@@ -178,7 +178,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	}
 
 	resolveLoggingConfig(c)
-	resolveMonitoringConfig(&c.Monitoring)
+	resolveTraceConfig(&c.Trace)
 	resolveReadConfig(&c.Read)
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheConfig(v, &c.MetadataCache, optimizedFlags)

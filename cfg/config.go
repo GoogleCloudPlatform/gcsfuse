@@ -443,8 +443,6 @@ type Config struct {
 
 	Metrics MetricsConfig `yaml:"metrics"`
 
-	Monitoring MonitoringConfig `yaml:"monitoring"`
-
 	Mrd MrdConfig `yaml:"mrd"`
 
 	OnlyDir string `yaml:"only-dir"`
@@ -452,6 +450,8 @@ type Config struct {
 	Profile string `yaml:"profile"`
 
 	Read ReadConfig `yaml:"read"`
+
+	Trace TraceConfig `yaml:"trace"`
 
 	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight"`
 
@@ -674,14 +674,6 @@ type MetricsConfig struct {
 	Workers int64 `yaml:"workers"`
 }
 
-type MonitoringConfig struct {
-	ExperimentalTracingMode []string `yaml:"experimental-tracing-mode"`
-
-	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
-
-	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
-}
-
 type MrdConfig struct {
 	PoolSize int64 `yaml:"pool-size"`
 }
@@ -716,6 +708,14 @@ type ReadStallGcsRetriesConfig struct {
 	ReqIncreaseRate float64 `yaml:"req-increase-rate"`
 
 	ReqTargetPercentile float64 `yaml:"req-target-percentile"`
+}
+
+type TraceConfig struct {
+	Exporters []string `yaml:"exporters"`
+
+	ProjectId string `yaml:"project-id"`
+
+	SamplingRatio float64 `yaml:"sampling-ratio"`
 }
 
 type WorkloadInsightConfig struct {
@@ -1034,24 +1034,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringSliceP("experimental-tracing-mode", "", []string{"gcptrace"}, "Experimental: specify comma separated value of tracing modes")
-
-	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
-		return err
-	}
-
-	flagSet.StringP("experimental-tracing-project-id", "", "", "Experimental: specify the GCP project-id to which traces will be exported. When unset, a project-id will be inferred as per the default credential detection process")
-
-	if err := flagSet.MarkHidden("experimental-tracing-project-id"); err != nil {
-		return err
-	}
-
-	flagSet.Float64P("experimental-tracing-sampling-ratio", "", 0, "Experimental: Trace sampling ratio")
-
-	if err := flagSet.MarkHidden("experimental-tracing-sampling-ratio"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("file-cache-cache-file-for-range-read", "", false, "Whether to cache file for range reads.")
 
 	flagSet.IntP("file-cache-download-chunk-size-mb", "", 200, "Size of chunks in MiB that each concurrent request downloads.")
@@ -1344,6 +1326,20 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
 
+	flagSet.StringSliceP("trace-exporters", "", []string{"gcpexporter"}, "Specify comma separated value of the exporters where traces are exported to. Supported values: stdout(writes traces to stdout), gcpexporter(exports traces to google cloud trace)")
+
+	if err := flagSet.MarkHidden("trace-exporters"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("trace-project-id", "", "", "Specify the GCP project id to which traces will be exported. When unset, a project id will be inferred as per the default credential detection process")
+
+	if err := flagSet.MarkHidden("trace-project-id"); err != nil {
+		return err
+	}
+
+	flagSet.Float64P("trace-sampling-ratio", "", 0, "Specifies the fraction of traces to export, ranging from 0.0 to 1.0. Setting a value greater than 0 enables tracing; 1.0 exports all traces, while 0.0 (default) disables them. Use this to balance observability with performance and storage costs.")
+
 	flagSet.IntP("type-cache-max-size-mb", "", 4, "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb.")
 
 	flagSet.DurationP("type-cache-ttl", "", 60000000000*time.Nanosecond, "Usage: How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
@@ -1618,18 +1614,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("monitoring.experimental-tracing-mode", flagSet.Lookup("experimental-tracing-mode")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("monitoring.experimental-tracing-project-id", flagSet.Lookup("experimental-tracing-project-id")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("monitoring.experimental-tracing-sampling-ratio", flagSet.Lookup("experimental-tracing-sampling-ratio")); err != nil {
 		return err
 	}
 
@@ -1938,6 +1922,18 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-auth.token-url", flagSet.Lookup("token-url")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("trace.exporters", flagSet.Lookup("trace-exporters")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("trace.project-id", flagSet.Lookup("trace-project-id")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("trace.sampling-ratio", flagSet.Lookup("trace-sampling-ratio")); err != nil {
 		return err
 	}
 
