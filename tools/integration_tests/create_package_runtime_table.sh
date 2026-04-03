@@ -24,13 +24,13 @@ Requirements:
 
 Input File Format (<FILE_PATH>):
     Space-separated lines with the following fields:
-    <package_name> <bucket_type> <exit_code> <start_time_seconds> <end_time_seconds>
+    <package_name> <bucket_type> <exit_code> <start_time_seconds> <end_time_seconds> [<attempt>]
 
 Example File Content:
-    pkg_name bucket_type exit_code start_time_seconds end_time_seconds
-    pkg1 bucket-standard 0 0 120
-    pkg2 bucket-premium 0 60 180
-    pkg3 bucket-standard 1 120 240
+    pkg_name bucket_type exit_code start_time_seconds end_time_seconds attempt
+    pkg1 bucket-standard 0 0 120 0
+    pkg2 bucket-premium 0 60 180 1
+    pkg3 bucket-standard 1 120 240 2
 """
 import sys, os
 
@@ -40,6 +40,7 @@ IDX_BUCKET_TYPE = 1
 IDX_EXIT_CODE = 2
 IDX_START_TIME = 3
 IDX_END_TIME = 4
+IDX_ATTEMPT = 5
 
 MIN_REQUIRED_FIELDS = 5
 
@@ -50,7 +51,7 @@ MIN_LEN_RUNTIME_BAR_HEADER = 31
 
 # Estimated padding for table columns
 PADDING_TIME_COL = 8
-PADDING_STATUS_COL = 10
+PADDING_STATUS_COL = 25 # Increased to fit '✅ FLAKY (Attempt X)'
 PADDING_BORDERS = 20
 
 WIDTH_FALLBACK = 80
@@ -98,8 +99,24 @@ try:
     for p in lines:
         if len(p) >= MIN_REQUIRED_FIELDS:
             code, start, end = int(p[IDX_EXIT_CODE]), int(p[IDX_START_TIME]), int(p[IDX_END_TIME])
+            
+            # Safely get the attempt count if it exists, default to 0 for backwards compatibility
+            attempt = int(p[IDX_ATTEMPT]) if len(p) > IDX_ATTEMPT else 0
+            
             wait, run = start // SECONDS_PER_MINUTE, (end - start + SECONDS_PER_MINUTE) // SECONDS_PER_MINUTE
-            status = "[green]✅ PASSED[/]" if code == 0 else "[red]❌ FAILED[/]"
+            
+            # Format status according to the new logic
+            if code == 0:
+                if attempt > 0:
+                    status = f"[yellow]✅ FLAKY (Attempt {attempt})[/]"
+                else:
+                    status = "[green]✅ PASSED[/]"
+            else:
+                if attempt > 0:
+                    status = f"[red]❌ FAILED (Attempt {attempt})[/]"
+                else:
+                status = "[red]❌ FAILED[/]"
+                
             table.add_row(p[IDX_PKG_NAME], p[IDX_BUCKET_TYPE], f"{run}m", f"[dim]{'░'*wait}[/][cyan]{'▓'*run}[/]", status)
     console.print(table)
     

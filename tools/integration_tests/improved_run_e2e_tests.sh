@@ -28,6 +28,9 @@ usage() {
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
   echo "    --zonal                                      Run tests with zonal bucket in --bucket-location region."
   echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
+  echo "    --retry-failed-tests                         Retry failed e2e test packages. (Default: false)"
+  echo "    --retry-count                 <count>        Number of times to retry a failed test. (Default: 2)"
+  echo "    --retry-max-duration-mins     <mins>         Do not retry if test duration exceeds this limit. (Default: 15)"
   echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
@@ -127,12 +130,15 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 BUILD_BINARY_IN_SCRIPT=true
+RETRY_FAILED_TESTS=false
+RETRY_COUNT=2
+RETRY_MAX_DURATION_MINS=15
 TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,retry-failed-tests,retry-count:,retry-max-duration-mins:,package-level-parallelism:,track-resource-usage,output-dir:,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -187,6 +193,18 @@ while (( $# >= 1 )); do
         --zonal)
             RUN_TESTS_WITH_ZONAL_BUCKET=true
             shift
+            ;;
+        --retry-failed-tests)
+            RETRY_FAILED_TESTS=true
+            shift
+            ;;
+        --retry-count)
+            RETRY_COUNT="$2"
+            shift 2
+            ;;
+        --retry-max-duration-mins)
+            RETRY_MAX_DURATION_MINS="$2"
+            shift 2
             ;;
         --track-resource-usage)
             TRACK_RESOURCE_USAGE=true
@@ -257,6 +275,10 @@ validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
 if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then 
   log_error "Option --test-installed-package and --install-package-from-path are mutually exclusive. Please set only one"
   usage 1
+fi
+if ${RETRY_FAILED_TESTS}; then
+  validate_option_value "--retry-count" "$RETRY_COUNT"
+  validate_option_value "--retry-max-duration-mins" "$RETRY_MAX_DURATION_MINS"
 fi
 
 # Zonal Bucket location validation.
@@ -346,7 +368,6 @@ TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cl
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
-
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
 acquire_lock() {
@@ -677,6 +698,7 @@ test_package() {
   fi
 
   local go_test_cmd test_package_log_file start=$SECONDS exit_code=0 
+  local go_test_cmd start=$SECONDS exit_code=0 
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
@@ -691,10 +713,65 @@ test_package() {
     log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
   fi
 
+  local logged_attempt=0
+
+  # Only retry if the initial run failed and retries are enabled
+  if [[ "$exit_code" -eq 1 ]] && ${RETRY_FAILED_TESTS}; then
+    
+    # Check if the initial run ALREADY exceeded the max duration limit before we even try to retry
+    local initial_duration_mins=$(((SECONDS - start) / 60))
+    if [ "$initial_duration_mins" -ge "$RETRY_MAX_DURATION_MINS" ]; then
+      log_info "Skipping retries for [$package_name] as its initial run time (${initial_duration_mins}m) exceeded the max retry duration limit (${RETRY_MAX_DURATION_MINS}m)."
+    else
+      local attempt=1
+      while [ "$attempt" -le "$RETRY_COUNT" ]; do
+        local retry_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}/retry_attempt_${attempt}.txt")
+        log_info "Retrying test package [$package_name] for bucket type [$bucket_type] (Attempt $attempt)"
+
+        if ! eval "$go_test_cmd" > "$retry_log_file" 2>&1; then
+          log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt $attempt)"
+          local dest_dir="${OUTPUT_DIR}/failed_package_logs/${bucket_type}"
+          mkdir -p "$dest_dir"
+          cp "$retry_log_file" "$dest_dir/${package_name}_attempt_${attempt}.txt"
+        else
+          exit_code=0
+          log_info "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt $attempt)"
+          local dest_dir="${OUTPUT_DIR}/success_package_logs/${bucket_type}"
+          mkdir -p "$dest_dir"
+          cp "$retry_log_file" "$dest_dir/${package_name}_attempt_${attempt}.txt"
+          
+          # Use the successful log file for artifacts
+          test_package_log_file="$retry_log_file"
+          logged_attempt=$attempt
+          break
+        fi
+
+        # Check if the total run duration exceeds the allowed retry max duration limit after this attempt.
+        local current_duration_mins=$(((SECONDS - start) / 60))
+        if [ "$current_duration_mins" -ge "$RETRY_MAX_DURATION_MINS" ]; then
+          log_info "Skipping further retries for [$package_name] as its total run time (${current_duration_mins}m) exceeded the max retry duration limit (${RETRY_MAX_DURATION_MINS}m)."
+          break
+        fi
+
+        attempt=$((attempt + 1))
+      done
+
+      # Log the highest attempt count if all retries failed
+      if [[ "$exit_code" -eq 1 ]]; then
+        if [ "$attempt" -gt "$RETRY_COUNT" ]; then
+        logged_attempt=$((attempt - 1))
+        else
+          logged_attempt=$attempt
+        fi
+      fi
+    fi
+  fi
+
   local end=$SECONDS
 
   # Add the package stats to the file.
-  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end} ${logged_attempt}" >> "$PACKAGE_RUNTIME_STATS"
+  
   # Generate Kokoro artifacts(log) files.
   generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
   # Call the helper to organize logs and cleanup the original file
@@ -886,7 +963,7 @@ run_e2e_tests_for_emulator() {
     log_info_locked "Passed e2e tests for emulator."
   fi
   local end=$SECONDS
-  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end} 0" >> "$PACKAGE_RUNTIME_STATS"
 
   # Call the helper to organize logs and cleanup the original file
   organize_test_logfile "$exit_code" "$emulator_test_log" "$package_name" "$bucket_type" 
