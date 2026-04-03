@@ -33,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -44,6 +43,8 @@ const (
 	kDefaultInactiveReadTimeoutInSeconds = 1                // A short timeout for testing
 	GKETempDir                           = "/gcsfuse-tmp"
 	OldGKElogFilePath                    = "/tmp/inactive_stream_timeout_logs/log.json"
+	retryFrequency                       = 1 * time.Second
+	retryDuration                        = 30 * time.Second
 )
 
 type env struct {
@@ -80,44 +81,49 @@ func loadLogLines(reader io.Reader) ([]string, error) {
 	return strings.Split(string(content), "\n"), nil
 }
 
-// validateInactiveReaderClosedLog checks if the "Closing reader for object ... due to inactivity"
-// log message is present (or absent) for the given objectName, b/w the [startTime, endTime] interval.
-// Also expects based on the shouldBePresent value.
-func validateInactiveReaderClosedLog(t *testing.T, logFile, objectName string, shouldBePresent bool, startTime, endTime time.Time) {
+// doesNotHaveInactiveReaderClosedLogLineInLogFile checks if the "Closing reader for object ... due to inactivity"
+// log message is absent for the given objectName, b/w the [startTime, endTime] interval.
+// It sleeps for 5 seconds before checking to allow logs to be flushed.
+func doesNotHaveInactiveReaderClosedLogLineInLogFile(t *testing.T, objectName, logFile string, startTime, endTime time.Time) {
 	t.Helper()
-	// Be specific about the object name in the expected message.
+	time.Sleep(5 * time.Second)
+
+	_, err := hasInactiveReaderClosedLogLineInLogFile(t, objectName, logFile, startTime, endTime)
+	if err == nil {
+		t.Fatalf("Unexpected 'Inactive Reader Closed' log message found in log file %s for object %s", logFile, objectName)
+	}
+}
+
+// hasInactiveReaderClosedLogInLogFile checks if the "Closing reader for object ... due to inactivity"
+// log message is present for the given objectName, b/w the [startTime, endTime] interval.
+func hasInactiveReaderClosedLogLineInLogFile(t *testing.T, objectName, logFile string, startTime, endTime time.Time) (string, error) {
+	t.Helper()
 	expectedMsgSubstring := fmt.Sprintf("Closing reader for object %q due to inactivity.", objectName)
 
 	file, err := os.Open(logFile)
-	require.NoError(t, err, "Failed to open log file")
+	if err != nil {
+		return "", fmt.Errorf("failed to open log file: %w", err)
+	}
 	defer file.Close()
 
 	logLines, err := loadLogLines(file)
-	require.NoError(t, err, "Failed to read log file")
+	if err != nil {
+		return "", fmt.Errorf("failed to read log file: %w", err)
+	}
 
-	found := false
 	for _, line := range logLines {
-		logEntry, err := read_logs.ParseJsonLogLineIntoLogEntryStruct(line) // Assuming read_logs can parse general log lines too or a more generic parser is available.
-		// If parsing fails, it might be a non-JSON line or a different structured log.
-		// For this specific message, we expect it to be in the "Message" field of a structured log.
-
+		logEntry, err := read_logs.ParseJsonLogLineIntoLogEntryStruct(line)
 		if err == nil && logEntry != nil {
-			// Check if the log entry's timestamp is within the expected window.
 			if (logEntry.Timestamp.After(startTime) || logEntry.Timestamp.Equal(startTime)) &&
 				(logEntry.Timestamp.Before(endTime) || logEntry.Timestamp.Equal(endTime)) {
 				if strings.Contains(logEntry.Message, expectedMsgSubstring) {
-					found = true
-					break
+					return line, nil
 				}
 			}
 		}
 	}
 
-	if shouldBePresent {
-		require.True(t, found, "Expected log message substring '%s' not found between %v and %v", expectedMsgSubstring, startTime, endTime)
-	} else {
-		require.False(t, found, "Unexpected log message substring '%s' found between %v and %v", expectedMsgSubstring, startTime, endTime)
-	}
+	return "", fmt.Errorf("expected log message substring %q not found between %s and %s", expectedMsgSubstring, startTime, endTime)
 }
 
 func TestMain(m *testing.M) {
