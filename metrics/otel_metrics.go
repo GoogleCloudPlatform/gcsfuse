@@ -549,6 +549,8 @@ var (
 	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")))
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")))
+	metadataCacheStatCacheReadCountCacheHitTrueAttrSet                                  = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true)))
+	metadataCacheStatCacheReadCountCacheHitFalseAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false)))
 	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1")))
 	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2")))
 )
@@ -1034,6 +1036,10 @@ type otelMetrics struct {
 	gcsRequestCountGcsMethodUpdateObjectAtomic                                         *atomic.Int64
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic                                   *atomic.Int64
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic                            *atomic.Int64
+	metadataCacheStatCacheEntriesCountAtomic                                           *atomic.Int64
+	metadataCacheStatCacheMemoryConsumptionAtomic                                      *atomic.Int64
+	metadataCacheStatCacheReadCountCacheHitTrueAtomic                                  *atomic.Int64
+	metadataCacheStatCacheReadCountCacheHitFalseAtomic                                 *atomic.Int64
 	testUpdownCounterAtomic                                                            *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr1Atomic                                   *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr2Atomic                                   *atomic.Int64
@@ -2372,6 +2378,30 @@ func (o *otelMetrics) GcsRetryCount(
 	}
 }
 
+func (o *otelMetrics) MetadataCacheStatCacheEntriesCount(
+	inc int64) {
+	o.metadataCacheStatCacheEntriesCountAtomic.Add(inc)
+}
+
+func (o *otelMetrics) MetadataCacheStatCacheMemoryConsumption(
+	inc int64) {
+	o.metadataCacheStatCacheMemoryConsumptionAtomic.Add(inc)
+}
+
+func (o *otelMetrics) MetadataCacheStatCacheReadCount(
+	inc int64, cacheHit bool) {
+	if inc < 0 {
+		logger.Errorf("Counter metric metadata_cache/stat_cache_read_count received a negative increment: %d", inc)
+		return
+	}
+	switch cacheHit {
+	case true:
+		o.metadataCacheStatCacheReadCountCacheHitTrueAtomic.Add(inc)
+	case false:
+		o.metadataCacheStatCacheReadCountCacheHitFalseAtomic.Add(inc)
+	}
+}
+
 func (o *otelMetrics) TestUpdownCounter(
 	inc int64) {
 	o.testUpdownCounterAtomic.Add(inc)
@@ -2889,6 +2919,13 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 	var gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
+
+	var metadataCacheStatCacheEntriesCountAtomic atomic.Int64
+
+	var metadataCacheStatCacheMemoryConsumptionAtomic atomic.Int64
+
+	var metadataCacheStatCacheReadCountCacheHitTrueAtomic,
+		metadataCacheStatCacheReadCountCacheHitFalseAtomic atomic.Int64
 
 	var testUpdownCounterAtomic atomic.Int64
 
@@ -3463,7 +3500,32 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err15 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	_, err15 := meter.Int64ObservableUpDownCounter("metadata_cache/stat_cache_entries_count",
+		metric.WithDescription("The gauge distribution of the number of entries in the metadata cache"),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			observeUpDownCounter(obsrv, &metadataCacheStatCacheEntriesCountAtomic)
+			return nil
+		}))
+
+	_, err16 := meter.Int64ObservableUpDownCounter("metadata_cache/stat_cache_memory_consumption",
+		metric.WithDescription("The gauge distribution of the memory consumption of the metadata cache"),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			observeUpDownCounter(obsrv, &metadataCacheStatCacheMemoryConsumptionAtomic)
+			return nil
+		}))
+
+	_, err17 := meter.Int64ObservableCounter("metadata_cache/stat_cache_read_count",
+		metric.WithDescription("The cumulative number of stat cache requests made to the metadata cache"),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &metadataCacheStatCacheReadCountCacheHitTrueAtomic, metadataCacheStatCacheReadCountCacheHitTrueAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheStatCacheReadCountCacheHitFalseAtomic, metadataCacheStatCacheReadCountCacheHitFalseAttrSet)
+			return nil
+		}))
+
+	_, err18 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3471,7 +3533,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err19 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3480,7 +3542,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18, err19}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -3963,6 +4025,10 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRequestLatencies:                                        gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:           &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:    &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
+		metadataCacheStatCacheEntriesCountAtomic:                   &metadataCacheStatCacheEntriesCountAtomic,
+		metadataCacheStatCacheMemoryConsumptionAtomic:              &metadataCacheStatCacheMemoryConsumptionAtomic,
+		metadataCacheStatCacheReadCountCacheHitTrueAtomic:          &metadataCacheStatCacheReadCountCacheHitTrueAtomic,
+		metadataCacheStatCacheReadCountCacheHitFalseAtomic:         &metadataCacheStatCacheReadCountCacheHitFalseAtomic,
 		testUpdownCounterAtomic:                                    &testUpdownCounterAtomic,
 		testUpdownCounterWithAttrsRequestTypeAttr1Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
 		testUpdownCounterWithAttrsRequestTypeAttr2Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,

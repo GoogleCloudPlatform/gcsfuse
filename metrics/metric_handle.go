@@ -190,6 +190,15 @@ type MetricHandle interface {
 	// GcsRetryCount - The cumulative number of retry requests made to GCS.
 	GcsRetryCount(inc int64, retryErrorCategory RetryErrorCategory)
 
+	// MetadataCacheStatCacheEntriesCount - The gauge distribution of the number of entries in the metadata cache
+	MetadataCacheStatCacheEntriesCount(inc int64)
+
+	// MetadataCacheStatCacheMemoryConsumption - The gauge distribution of the memory consumption of the metadata cache
+	MetadataCacheStatCacheMemoryConsumption(inc int64)
+
+	// MetadataCacheStatCacheReadCount - The cumulative number of stat cache requests made to the metadata cache
+	MetadataCacheStatCacheReadCount(inc int64, cacheHit bool)
+
 	// TestUpdownCounter - Test metric for updown counters.
 	TestUpdownCounter(inc int64)
 

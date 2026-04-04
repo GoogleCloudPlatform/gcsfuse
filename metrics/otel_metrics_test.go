@@ -5262,6 +5262,125 @@ func TestGcsRetryCount(t *testing.T) {
 	}
 }
 
+func TestMetadataCacheStatCacheEntriesCount(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+
+	m.MetadataCacheStatCacheEntriesCount(1024)
+	m.MetadataCacheStatCacheEntriesCount(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok := metrics["metadata_cache/stat_cache_entries_count"]
+	require.True(t, ok, "metadata_cache/stat_cache_entries_count metric not found")
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.MetadataCacheStatCacheEntriesCount(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["metadata_cache/stat_cache_entries_count"]
+	require.True(t, ok, "metadata_cache/stat_cache_entries_count metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 2972}, metric, "Negative increment should change the metric value.")
+}
+
+func TestMetadataCacheStatCacheMemoryConsumption(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+
+	m.MetadataCacheStatCacheMemoryConsumption(1024)
+	m.MetadataCacheStatCacheMemoryConsumption(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok := metrics["metadata_cache/stat_cache_memory_consumption"]
+	require.True(t, ok, "metadata_cache/stat_cache_memory_consumption metric not found")
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.MetadataCacheStatCacheMemoryConsumption(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["metadata_cache/stat_cache_memory_consumption"]
+	require.True(t, ok, "metadata_cache/stat_cache_memory_consumption metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 2972}, metric, "Negative increment should change the metric value.")
+}
+
+func TestMetadataCacheStatCacheReadCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "cache_hit_true",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheStatCacheReadCount(5, true)
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true)): 5,
+			},
+		},
+		{
+			name: "cache_hit_false",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheStatCacheReadCount(5, false)
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false)): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheStatCacheReadCount(5, true)
+				m.MetadataCacheStatCacheReadCount(2, false)
+				m.MetadataCacheStatCacheReadCount(3, true)
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true)): 8,
+				attribute.NewSet(attribute.Bool("cache_hit", false)): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheStatCacheReadCount(-5, true)
+				m.MetadataCacheStatCacheReadCount(2, true)
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true)): 2},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["metadata_cache/stat_cache_read_count"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "metadata_cache/stat_cache_read_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "metadata_cache/stat_cache_read_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
 func TestTestUpdownCounter(t *testing.T) {
 	ctx := context.Background()
 	encoder := attribute.DefaultEncoder()
