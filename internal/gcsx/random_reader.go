@@ -775,7 +775,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (bytesRead int, err error) {
 	if rr.mrdWrapper == nil {
-		return 0, fmt.Errorf("randomReader.readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
+		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
 	if rr.isMRDInUse.CompareAndSwap(false, true) {

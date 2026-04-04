@@ -72,7 +72,7 @@ func NewMultiRangeReader(object *gcs.MinObject, metricHandle metrics.MetricHandl
 //   - error: An error if the read operation fails.
 func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, forceCreateMRD bool) (int, error) {
 	if mrd.mrdWrapper == nil {
-		return 0, fmt.Errorf("MultiRangeReader.readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
+		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
 	if mrd.isMRDInUse.CompareAndSwap(false, true) {
