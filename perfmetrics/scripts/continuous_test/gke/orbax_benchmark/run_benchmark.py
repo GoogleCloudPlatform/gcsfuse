@@ -1,74 +1,50 @@
-#!/usr/bin/env python3
-# Copyright 2025 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""Run GKE Orbax benchmark.
-
-This script automates the process of running the Orbax benchmark on a GKE cluster.
-It performs the following steps:
-1.  Checks for prerequisite tools (gcloud, git, make, kubectl).
-2.  Sets up a GKE cluster with a specific node pool if it doesn't exist.
-3.  Builds a GCSFuse CSI driver image from a specified git branch.
-4.  Deploys a Kubernetes pod that runs the benchmark workload.
-5.  Parses the benchmark results (throughput) from the pod logs.
-6.  Determines if the benchmark passed based on a performance threshold.
-7.  Cleans up all created cloud resources (GKE cluster, network, etc.).
-"""
-
 import argparse
 import asyncio
 import os
-import re
-import subprocess
 import sys
 import tempfile
 from datetime import datetime
 from string import Template
+import re
 
-# Add the parent directory to sys.path to allow imports from common
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.dirname(SCRIPT_DIR))
-from common import utils
+import utils
 
-# The prefix prow-gob-internal-boskos- is needed to allow passing machine-type from gke csi driver to gcsfuse,
-# bypassing the check at
-# https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/15afd00dcc2cfe0f9753ddc53c81631ff037c3f2/pkg/csi_driver/utils.go#L532.
-STAGING_VERSION = "prow-gob-internal-boskos-orbax-benchmark"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+STAGING_VERSION = "0.0.0-docker-file-fix-test"
 
 
-def parse_all_gbytes_per_sec(logs):
-    """Parses logs to find and extract all gbytes_per_sec values.
+def parse_all_gbytes_per_sec(log_content: str) -> list[float]:
+    """Parses the log content to extract all values for "GBytes/sec" at step 1.
+
+    It searches for lines containing "Step 1" and the pattern "GBytes/sec",
+    then extracts the preceding floating-point number.
 
     Args:
-        logs: A string containing the log output from the benchmark pod.
+        log_content: The string content of the log file.
 
     Returns:
-        A list of float values representing the 'gbytes_per_sec' found in the logs.
+        A list of float values representing the extracted GBytes/sec,
+        in the order they appeared in the log.
     """
     values = []
-    for line in logs.splitlines():
-        match = re.search(r"gbytes_per_sec: ([\d.]+) Bytes/s", line)
-        if match:
-            gbytes_per_sec = float(match.group(1))
-            print(f"Extracted gbytes_per_sec: {gbytes_per_sec}")
-            values.append(gbytes_per_sec)
-    if not values:
-        print("gbytes_per_sec not found in logs.", file=sys.stderr)
+    lines = log_content.splitlines()
+
+    for line in lines:
+        if "Step 1" in line:
+            # We assume the format is roughly: ... <value> GBytes/sec ...
+            # We look for a number (integer or float) immediately followed by "GBytes/sec"
+            match = re.search(r"([0-9]*\.?[0-9]+)\s*GBytes/sec", line)
+            if match:
+                try:
+                    val = float(match.group(1))
+                    values.append(val)
+                except ValueError:
+                    print(f"Warning: Found 'GBytes/sec' but could not parse '{match.group(1)}' as a float in line: {line}", file=sys.stderr)
+
     return values
 
 # Workload Execution and Result Gathering
-async def execute_workload_and_gather_results(project_id, zone, cluster_name, bucket_name, timestamp, iterations, staging_version, pod_timeout_seconds):
+async def execute_workload_and_gather_results(project_id, zone, cluster_name, bucket_name, timestamp, iterations, staging_version, pod_timeout_seconds, client_protocol):
     """Executes the workload pod, gathers results, and cleans up workload resources.
 
     This function creates a Kubernetes ConfigMap and a Pod to run the benchmark.
@@ -76,14 +52,15 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
     results, and then deletes the created Kubernetes resources.
 
     Args:
-        project_id: The Google Cloud project ID.
-        zone: The GCP zone of the cluster.
+        project_id: The Google Cloud Project ID.
+        zone: The Google Cloud zone.
         cluster_name: The name of the GKE cluster.
-        bucket_name: The GCS bucket to use for the benchmark.
-        timestamp: A unique timestamp string for manifest naming.
+        bucket_name: The name of the GCS bucket.
+        timestamp: A string timestamp used for uniquely naming resources.
         iterations: The number of benchmark iterations to run inside the pod.
         staging_version: The version tag for the GCSFuse CSI driver image.
         pod_timeout_seconds: The timeout in seconds for the pod to complete.
+        client_protocol: The client protocol to use for GCS (e.g. grpc or http1).
 
     Returns:
         A list of throughput values (float) parsed from the pod logs.
@@ -94,7 +71,7 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
     with open(template_path, "r") as f:
         pod_template = Template(f.read())
 
-    manifest = pod_template.safe_substitute(project_id=project_id, bucket_name=bucket_name, iterations=iterations, staging_version=staging_version)
+    manifest = pod_template.safe_substitute(project_id=project_id, bucket_name=bucket_name, iterations=iterations, staging_version=staging_version, client_protocol=client_protocol)
     manifest_filename = f"manifest-{timestamp}.yaml"
     pod_name = f"gcsfuse-test"
 
@@ -148,6 +125,7 @@ async def main():
     parser.add_argument("--performance_threshold_gbps", type=float, default=float(os.environ.get("PERFORMANCE_THRESHOLD_GBPS", 13.0)), help="Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.")
     parser.add_argument("--pod_timeout_seconds", type=int, default=int(os.environ.get("POD_TIMEOUT_SECONDS", 1800)), help="Timeout in seconds for the benchmark pod to complete. Can also be set with POD_TIMEOUT_SECONDS env var.")
     parser.add_argument("--skip_csi_driver_build", action="store_true", default=os.environ.get("SKIP_CSI_DRIVER_BUILD", "False").lower() in ("true", "1"), help="Skip building the CSI driver. Can also be set with SKIP_CSI_DRIVER_BUILD=true env var.")
+    parser.add_argument("--client_protocol", default=os.environ.get("CLIENT_PROTOCOL", "http1"), help="The client protocol to use for GCS. Can also be set with CLIENT_PROTOCOL env var.")
     args = parser.parse_args()
 
     # Append zone to default network and subnet names to avoid collisions
@@ -168,7 +146,7 @@ async def main():
                 build_task = asyncio.create_task(utils.build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir, STAGING_VERSION))
                 await asyncio.gather(setup_task, build_task)
 
-            throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds)
+            throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds, args.client_protocol)
 
             if not throughputs:
                 print("No throughput data was collected.", file=sys.stderr)
@@ -190,4 +168,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

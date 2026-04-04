@@ -63,5 +63,5 @@ spec:
       driver: gcsfuse.csi.storage.gke.io
       volumeAttributes:
         bucketName: "$bucket_name"
-        mountOptions: "read_ahead_kb=1024,disable-autoconfig"
+        mountOptions: "read_ahead_kb=1024,disable-autoconfig,client-protocol=$client_protocol"
         hostNetworkPodKSA: "true"
