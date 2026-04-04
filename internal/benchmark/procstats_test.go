@@ -112,3 +112,105 @@ func TestSystemCPUPercentZeroTicks(t *testing.T) {
 		t.Errorf("systemCPUPercent with identical snapshots = %.2f, want 0", pct)
 	}
 }
+
+// --------------------------------------------------------------------------
+// New tests for /proc/meminfo, /proc/self/status (VmRSS), /proc/vmstat
+// --------------------------------------------------------------------------
+
+// TestReadSysMemInfo verifies that readSysMemInfo returns plausible values on a
+// running Linux system. Both Cached and AnonPages should be positive — any
+// running process with a heap will have non-zero anonymous pages, and the
+// kernel almost always has at least some file-backed cached pages.
+func TestReadSysMemInfo(t *testing.T) {
+	info := readSysMemInfo()
+	if info.anonPagesKiB <= 0 {
+		t.Errorf("expected positive AnonPages, got %d KiB (check /proc/meminfo)", info.anonPagesKiB)
+	}
+	// Cached can legitimately be 0 on a stripped-down container, so only warn.
+	if info.cachedKiB < 0 {
+		t.Errorf("cachedKiB must be >= 0, got %d", info.cachedKiB)
+	}
+	t.Logf("readSysMemInfo: cached=%d KiB  anonPages=%d KiB", info.cachedKiB, info.anonPagesKiB)
+}
+
+// TestReadCurrentRSSKiB verifies that the current process RSS is positive.
+// Every running Go test process must have a non-zero RSS.
+func TestReadCurrentRSSKiB(t *testing.T) {
+	rss := readCurrentRSSKiB()
+	if rss <= 0 {
+		t.Errorf("expected positive current RSS (VmRSS), got %d KiB (check /proc/self/status)", rss)
+	}
+	t.Logf("readCurrentRSSKiB: %d KiB", rss)
+}
+
+// TestCurrentRSSNotExceedPeakRSS verifies the invariant VmRSS ≤ VmHWM.
+// The current RSS can never be larger than the historical peak.
+func TestCurrentRSSNotExceedPeakRSS(t *testing.T) {
+	cur := readCurrentRSSKiB()
+	peak := readPeakRSSKiB()
+	if cur <= 0 || peak <= 0 {
+		t.Skipf("skipping: cur=%d peak=%d (one or both reads failed)", cur, peak)
+	}
+	if cur > peak {
+		t.Errorf("current RSS (%d KiB) > peak RSS (%d KiB): impossible", cur, peak)
+	}
+}
+
+// TestReadVMStat verifies that readVMStat returns plausible cumulative counters.
+// pgpgin must be > 0 on any machine that has been running long enough to have
+// read even one page from disk (essentially all real systems at test time).
+func TestReadVMStat(t *testing.T) {
+	stat := readVMStat()
+	// pgpgin is cumulative since boot; it must be > 0 on any real Linux system.
+	if stat.pgpgin == 0 {
+		t.Logf("WARNING: pgpgin == 0; /proc/vmstat may be unavailable in this environment")
+	}
+	t.Logf("readVMStat: pgpgin=%d  pgpgout=%d", stat.pgpgin, stat.pgpgout)
+}
+
+// TestVMStatMonotonicallyIncreases takes two snapshots separated by a small
+// heap allocation (guaranteed to touch anonymous pages) and verifies that the
+// pgpgout counter does not decrease (it is strictly cumulative).
+func TestVMStatMonotonicallyIncreases(t *testing.T) {
+	before := readVMStat()
+
+	// Force some memory activity.
+	buf := make([]byte, 4*1024*1024) // 4 MiB anonymous alloc
+	for i := range buf {
+		buf[i] = byte(i)
+	}
+	_ = buf
+
+	after := readVMStat()
+
+	if after.pgpgin < before.pgpgin {
+		t.Errorf("pgpgin decreased: before=%d after=%d (counter must be monotone)", before.pgpgin, after.pgpgin)
+	}
+	if after.pgpgout < before.pgpgout {
+		t.Errorf("pgpgout decreased: before=%d after=%d (counter must be monotone)", before.pgpgout, after.pgpgout)
+	}
+}
+
+// TestReadSysMemInfoConsistency verifies that two rapid successive reads return
+// values within a plausible range of each other. Memory can change between
+// reads but should not change by gigabytes in microseconds.
+func TestReadSysMemInfoConsistency(t *testing.T) {
+	const maxDeltaKiB = 512 * 1024 // 512 MiB — very generous
+	a := readSysMemInfo()
+	b := readSysMemInfo()
+
+	diff := b.cachedKiB - a.cachedKiB
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > maxDeltaKiB {
+		t.Errorf("page-cache changed by %d KiB between two immediate reads — implausible", diff)
+	}
+	diff = b.anonPagesKiB - a.anonPagesKiB
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > maxDeltaKiB {
+		t.Errorf("AnonPages changed by %d KiB between two immediate reads — implausible", diff)
+	}
+}

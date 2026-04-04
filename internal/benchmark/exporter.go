@@ -104,7 +104,7 @@ func writeTSV(summary RunSummary, path string, notify io.Writer) error {
 	w.Comma = '\t'
 
 	header := []string{
-		"track", "goroutines", "ops_total", "errors", "ops_per_sec", "throughput_mb_s", "avg_op_size_bytes",
+		"track", "goroutines", "ops_total", "errors", "ops_per_sec", "throughput_mib_s", "avg_op_size_bytes",
 		"ttfb_p50_us", "ttfb_p90_us", "ttfb_p95_us", "ttfb_p99_us", "ttfb_p999_us", "ttfb_max_us", "ttfb_mean_us",
 		"total_p50_us", "total_p90_us", "total_p95_us", "total_p99_us", "total_p999_us", "total_max_us", "total_mean_us",
 	}
@@ -119,7 +119,7 @@ func writeTSV(summary RunSummary, path string, notify io.Writer) error {
 			strconv.FormatInt(t.TotalOps, 10),
 			strconv.FormatInt(t.Errors, 10),
 			strconv.FormatFloat(t.OpsPerSec, 'f', 2, 64),
-			strconv.FormatFloat(t.ThroughputBytesPerSec/1e6, 'f', 3, 64),
+			strconv.FormatFloat(t.ThroughputBytesPerSec/float64(1<<20), 'f', 3, 64),
 			strconv.FormatFloat(t.AvgOpSizeBytes, 'f', 1, 64),
 			fmtF(t.TTFB.P50), fmtF(t.TTFB.P90), fmtF(t.TTFB.P95),
 			fmtF(t.TTFB.P99), fmtF(t.TTFB.P999), fmtF(t.TTFB.Max), fmtF(t.TTFB.Mean),
@@ -269,6 +269,10 @@ func printHumanSummary(w io.Writer, summary RunSummary) {
 		fmt.Fprintf(w, "  Ops/sec:          %s  (%s total, %s errors)\n",
 			commaFloat(t.OpsPerSec, 2), commaInt(t.TotalOps), commaInt(t.Errors))
 		fmt.Fprintf(w, "  Avg object size:  %s\n", humanBytes(t.AvgOpSizeBytes))
+		// Cross-check: ops/s × avg-size must equal Throughput. Divergence indicates
+		// a counting bug (e.g. totalBytes and totalOps out of sync).
+		fmt.Fprintf(w, "  Throughput check: %s  (ops/s × avg-size; must match Throughput above)\n",
+			humanThroughput(t.OpsPerSec*t.AvgOpSizeBytes))
 
 		// Total (end-to-end) latency
 		fmt.Fprintf(w, "\n  %s latency (end-to-end):\n", capitalize(opLabel))
@@ -280,9 +284,11 @@ func printHumanSummary(w io.Writer, summary RunSummary) {
 		fmt.Fprintf(w, "    Max      %s\n", humanLatency(t.TotalLatency.Max))
 		fmt.Fprintf(w, "    Mean     %s\n", humanLatency(t.TotalLatency.Mean))
 
-		// TTFB — only meaningful for reads
+		// Time-to-First-Buffer — only meaningful for reads.
+		// Note: each "TTFB" sample is the time from request issue to receipt of
+		// the first 256 KiB buffer (filled by io.ReadFull), not the true first byte.
 		if strings.ToLower(opLabel) == "read" {
-			fmt.Fprintf(w, "\n  Time-to-First-Byte (TTFB):\n")
+			fmt.Fprintf(w, "\n  Time-to-First-Buffer (TTFB, 256 KiB):\n")
 			fmt.Fprintf(w, "    P50      %s\n", humanLatency(t.TTFB.P50))
 			fmt.Fprintf(w, "    P90      %s\n", humanLatency(t.TTFB.P90))
 			fmt.Fprintf(w, "    P95      %s\n", humanLatency(t.TTFB.P95))
@@ -291,7 +297,7 @@ func printHumanSummary(w io.Writer, summary RunSummary) {
 			fmt.Fprintf(w, "    Max      %s\n", humanLatency(t.TTFB.Max))
 			fmt.Fprintf(w, "    Mean     %s\n", humanLatency(t.TTFB.Mean))
 		} else {
-			fmt.Fprintf(w, "\n  TTFB: N/A (%s operation)\n", opLabel)
+			fmt.Fprintf(w, "\n  Time-to-First-Buffer: N/A (%s operation)\n", opLabel)
 		}
 	}
 
@@ -304,6 +310,11 @@ func printHumanSummary(w io.Writer, summary RunSummary) {
 		fmt.Fprintf(w, "    Heap sys:        %s\n", humanBytes(float64(rt.GoHeapSysBytes)))
 		fmt.Fprintf(w, "    Total alloc:     %s  (cumulative, includes freed)\n", humanBytes(float64(rt.GoTotalAllocBytes)))
 		fmt.Fprintf(w, "    Peak RSS:        %s\n", humanBytes(float64(rt.PeakRSSKiB)*1024))
+		if rt.StartRSSKiB > 0 || rt.EndRSSKiB > 0 {
+			fmt.Fprintf(w, "    RSS (start):     %s\n", humanBytes(float64(rt.StartRSSKiB)*1024))
+			fmt.Fprintf(w, "    RSS (end):       %s  (Δ%+.0f MiB)\n",
+				humanBytes(float64(rt.EndRSSKiB)*1024), float64(rt.EndRSSKiB-rt.StartRSSKiB)/1024)
+		}
 		fmt.Fprintf(w, "  GC:\n")
 		fmt.Fprintf(w, "    Cycles:          %d\n", rt.GCCycles)
 		fmt.Fprintf(w, "    Pause total:     %s\n", humanDuration(time.Duration(rt.GCPauseTotalNs)))
@@ -320,6 +331,17 @@ func printHumanSummary(w io.Writer, summary RunSummary) {
 			fmt.Fprintf(w, "    Sys:             %.1f%%\n", rt.SystemSysPct)
 			fmt.Fprintf(w, "    I/O Wait:        %.1f%%\n", rt.SystemIOWaitPct)
 			fmt.Fprintf(w, "    Active total:    %.1f%%\n", rt.SystemCPUPercent)
+		}
+		if rt.StartCachedKiB > 0 || rt.EndCachedKiB > 0 {
+			fmt.Fprintf(w, "  System memory (/proc/meminfo + /proc/vmstat):\n")
+			fmt.Fprintf(w, "    Page cache (start): %s\n", humanBytes(float64(rt.StartCachedKiB)*1024))
+			fmt.Fprintf(w, "    Page cache (end):   %s  (Δ%+.0f MiB)  — non-zero delta = disk reads occurred\n",
+				humanBytes(float64(rt.EndCachedKiB)*1024), float64(rt.EndCachedKiB-rt.StartCachedKiB)/1024)
+			fmt.Fprintf(w, "    Anon pages (start): %s\n", humanBytes(float64(rt.StartAnonPagesKiB)*1024))
+			fmt.Fprintf(w, "    Anon pages (end):   %s  (Δ%+.0f MiB)\n",
+				humanBytes(float64(rt.EndAnonPagesKiB)*1024), float64(rt.EndAnonPagesKiB-rt.StartAnonPagesKiB)/1024)
+			fmt.Fprintf(w, "    Disk pgpgin:        %d pages  — non-zero = page cache was a data source\n", rt.PgpginDelta)
+			fmt.Fprintf(w, "    Disk pgpgout:       %d pages\n", rt.PgpgoutDelta)
 		}
 	}
 

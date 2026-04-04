@@ -134,6 +134,30 @@ type RuntimeStats struct {
 	// OS-level peak resident-set-size (from /proc/self/status VmHWM).
 	PeakRSSKiB int64 `yaml:"peak_rss_kib"`
 
+	// Process RSS at start and end of the measurement window (VmRSS from
+	// /proc/self/status). Both values together show whether this process
+	// accumulated memory during the run.
+	StartRSSKiB int64 `yaml:"start_rss_kib,omitempty"`
+	EndRSSKiB   int64 `yaml:"end_rss_kib,omitempty"`
+
+	// System-wide memory counters at start and end of the measurement window
+	// (from /proc/meminfo, all in KiB).
+	//
+	// Cached    = Linux page cache (file-backed pages). Growth here means data
+	//             was read from disk and cached — impossible for pure socket I/O.
+	// AnonPages = anonymous mapped pages (Go heap, stacks, socket recv buffers).
+	//             Growth here can indicate memory accumulation or larger socket buffers.
+	StartCachedKiB    int64 `yaml:"start_cached_kib,omitempty"`
+	EndCachedKiB      int64 `yaml:"end_cached_kib,omitempty"`
+	StartAnonPagesKiB int64 `yaml:"start_anon_pages_kib,omitempty"`
+	EndAnonPagesKiB   int64 `yaml:"end_anon_pages_kib,omitempty"`
+
+	// Disk page-in/out deltas during the measurement window (from /proc/vmstat,
+	// pages). A non-zero PgpginDelta is the definitive indicator that the kernel
+	// read data from disk — if zero, page cache was not the data source.
+	PgpginDelta  uint64 `yaml:"pgpgin_delta,omitempty"`
+	PgpgoutDelta uint64 `yaml:"pgpgout_delta,omitempty"`
+
 	// Per-process absolute CPU time during the measurement window (from /proc/self/stat).
 	ProcessUserCPUMs int64 `yaml:"process_user_cpu_ms"`
 	ProcessSysCPUMs  int64 `yaml:"process_sys_cpu_ms"`
