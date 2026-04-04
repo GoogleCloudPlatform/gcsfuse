@@ -1,46 +1,70 @@
+#!/usr/bin/env python3
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Run GKE Orbax benchmark.
+
+This script automates the process of running the Orbax benchmark on a GKE cluster.
+It performs the following steps:
+1.  Checks for prerequisite tools (gcloud, git, make, kubectl).
+2.  Sets up a GKE cluster with a specific node pool if it doesn't exist.
+3.  Builds a GCSFuse CSI driver image from a specified git branch.
+4.  Deploys a Kubernetes pod that runs the benchmark workload.
+5.  Parses the benchmark results (throughput) from the pod logs.
+6.  Determines if the benchmark passed based on a performance threshold.
+7.  Cleans up all created cloud resources (GKE cluster, network, etc.).
+"""
+
 import argparse
 import asyncio
 import os
+import re
+import subprocess
 import sys
 import tempfile
 from datetime import datetime
 from string import Template
-import re
 
-import utils
+# Add the parent directory to sys.path to allow imports from common
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+from common import utils
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-STAGING_VERSION = "0.0.0-docker-file-fix-test"
+# The prefix prow-gob-internal-boskos- is needed to allow passing machine-type from gke csi driver to gcsfuse,
+# bypassing the check at
+# https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/15afd00dcc2cfe0f9753ddc53c81631ff037c3f2/pkg/csi_driver/utils.go#L532.
+STAGING_VERSION = "prow-gob-internal-boskos-orbax-benchmark"
 
 
-def parse_all_gbytes_per_sec(log_content: str) -> list[float]:
-    """Parses the log content to extract all values for "GBytes/sec" at step 1.
-
-    It searches for lines containing "Step 1" and the pattern "GBytes/sec",
-    then extracts the preceding floating-point number.
+def parse_all_gbytes_per_sec(logs):
+    """Parses logs to find and extract all gbytes_per_sec values.
 
     Args:
-        log_content: The string content of the log file.
+        logs: A string containing the log output from the benchmark pod.
 
     Returns:
-        A list of float values representing the extracted GBytes/sec,
-        in the order they appeared in the log.
+        A list of float values representing the 'gbytes_per_sec' found in the logs.
     """
     values = []
-    lines = log_content.splitlines()
-
-    for line in lines:
-        if "Step 1" in line:
-            # We assume the format is roughly: ... <value> GBytes/sec ...
-            # We look for a number (integer or float) immediately followed by "GBytes/sec"
-            match = re.search(r"([0-9]*\.?[0-9]+)\s*GBytes/sec", line)
-            if match:
-                try:
-                    val = float(match.group(1))
-                    values.append(val)
-                except ValueError:
-                    print(f"Warning: Found 'GBytes/sec' but could not parse '{match.group(1)}' as a float in line: {line}", file=sys.stderr)
-
+    for line in logs.splitlines():
+        match = re.search(r"gbytes_per_sec: ([\d.]+) Bytes/s", line)
+        if match:
+            gbytes_per_sec = float(match.group(1))
+            print(f"Extracted gbytes_per_sec: {gbytes_per_sec}")
+            values.append(gbytes_per_sec)
+    if not values:
+        print("gbytes_per_sec not found in logs.", file=sys.stderr)
     return values
 
 # Workload Execution and Result Gathering
@@ -52,11 +76,11 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
     results, and then deletes the created Kubernetes resources.
 
     Args:
-        project_id: The Google Cloud Project ID.
-        zone: The Google Cloud zone.
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone of the cluster.
         cluster_name: The name of the GKE cluster.
-        bucket_name: The name of the GCS bucket.
-        timestamp: A string timestamp used for uniquely naming resources.
+        bucket_name: The GCS bucket to use for the benchmark.
+        timestamp: A unique timestamp string for manifest naming.
         iterations: The number of benchmark iterations to run inside the pod.
         staging_version: The version tag for the GCSFuse CSI driver image.
         pod_timeout_seconds: The timeout in seconds for the pod to complete.
