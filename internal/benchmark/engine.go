@@ -417,6 +417,9 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 	runtime.ReadMemStats(&startMemStats)
 	startProcCPU, _ := readProcCPU()
 	startSysCPU, _ := readSystemCPU()
+	startMem := readSysMemInfo()
+	startVM := readVMStat()
+	startRSS := readCurrentRSSKiB()
 
 	start := time.Now()
 	stopMeasProgress := e.startProgressReporter(runCtx, "bench", e.bCfg.Duration)
@@ -430,6 +433,9 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 	endProcCPU, _ := readProcCPU()
 	endSysCPU, _ := readSystemCPU()
 	peakRSS := readPeakRSSKiB()
+	endMem := readSysMemInfo()
+	endVM := readVMStat()
+	endRSS := readCurrentRSSKiB()
 
 	// Log pool pipeline final summary after measurement completes.
 	if e.writePool != nil && e.verbosity >= 1 {
@@ -514,6 +520,14 @@ func (e *Engine) Run(ctx context.Context) (RunSummary, error) {
 		GCCycles:          endMemStats.NumGC - startMemStats.NumGC,
 		GCPauseTotalNs:    endMemStats.PauseTotalNs - startMemStats.PauseTotalNs,
 		PeakRSSKiB:        peakRSS,
+		StartRSSKiB:       startRSS,
+		EndRSSKiB:         endRSS,
+		StartCachedKiB:    startMem.cachedKiB,
+		EndCachedKiB:      endMem.cachedKiB,
+		StartAnonPagesKiB: startMem.anonPagesKiB,
+		EndAnonPagesKiB:   endMem.anonPagesKiB,
+		PgpginDelta:       endVM.pgpgin - startVM.pgpgin,
+		PgpgoutDelta:      endVM.pgpgout - startVM.pgpgout,
 		ProcessUserCPUMs:  ticksToMs(userTicksDelta),
 		ProcessSysCPUMs:   ticksToMs(sysTicksDelta),
 		ProcessUserCPUPct: procUserPct,
@@ -660,6 +674,9 @@ func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) 
 	}
 	defer reader.Close()
 
+	logger.Tracef("[doRead] object=%s connection-setup=%s\n",
+		objectName, time.Since(start).Round(time.Microsecond))
+
 	// Retrieve a drain buffer from the pool; return it when done.
 	// Using a pooled buffer eliminates a 256 KiB heap allocation on every read
 	// call, cutting GC pressure by ~16 MiB per round at C=64.
@@ -668,20 +685,27 @@ func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) 
 	defer e.readBufPool.Put(bufPtr)
 
 	var bytesRead int64
-	ttfbRecorded := false
+	firstBufRecorded := false
 	for {
 		n, readErr := reader.Read(buf)
-		// Record TTFB on the first non-empty result (or on any first call).
-		if !ttfbRecorded {
-			ts.hists.RecordTTFB(time.Since(start).Microseconds())
-			ttfbRecorded = true
+		// Record time-to-first-buffer on the first read chunk. Each chunk is
+		// readDrainBufSize (256 KiB), filled by io.ReadFull in gcsFullReadCloser,
+		// so this measures time from request issue to receipt of the first 256 KiB.
+		if !firstBufRecorded {
+			firstBufLatency := time.Since(start)
+			ts.hists.RecordTTFB(firstBufLatency.Microseconds())
+			firstBufRecorded = true
+			logger.Tracef("[doRead] object=%s first-buffer(256KiB)=%s\n",
+				objectName, firstBufLatency.Round(time.Microsecond))
 		}
 		bytesRead += int64(n)
 		if readErr == io.EOF {
 			break
 		}
 		if readErr != nil {
-			ts.totalErrs.Add(1)
+			// Do NOT call ts.totalErrs.Add(1) here; runWorker counts any
+			// non-nil error returned from doRead, so counting here would
+			// double-increment totalErrs for mid-stream failures.
 			return fmt.Errorf("read: %w", readErr)
 		}
 		select {
@@ -690,8 +714,12 @@ func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) 
 		default:
 		}
 	}
-	ts.hists.RecordTotal(time.Since(start).Microseconds())
+	total := time.Since(start)
+	ts.hists.RecordTotal(total.Microseconds())
 	ts.totalBytes.Add(bytesRead)
+	logger.Debugf("[doRead] object=%s bytes=%d total=%s throughput=%.1f MiB/s\n",
+		objectName, bytesRead, total.Round(time.Millisecond),
+		float64(bytesRead)/total.Seconds()/float64(1<<20))
 	return nil
 }
 
@@ -1105,9 +1133,12 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 		lastAt := time.Now()
 		phaseStart := time.Now()
 		var lastPool PoolStats // zero on first tick; first interval gives cumulative-since-start rates
-		// CPU baselines for per-interval percentage reporting (verbosity ≥ 1).
+		// CPU and memory baselines for per-interval reporting (verbosity ≥ 1).
 		lastProcCPU, _ := readProcCPU()
 		lastSysCPU, _ := readSystemCPU()
+		lastMem := readSysMemInfo()
+		lastVM := readVMStat()
+		lastRSS := readCurrentRSSKiB()
 		var lastGCCycles uint64
 		for {
 			select {
@@ -1220,6 +1251,21 @@ func (e *Engine) startProgressReporter(ctx context.Context, phase string, total 
 						logger.Infof("[runtime] heap=%s  gc/interval=%d\n",
 							humanBytes(float64(heapBytes)), gcCyclesDelta)
 					}
+					// System memory snapshot — reported every tick at INFO level (-v).
+					// Cached = Linux page cache (file-backed); growth = disk reads occurred.
+					// pgpgin-δ non-zero is the definitive sign of page-cache involvement.
+					curMem := readSysMemInfo()
+					curVM := readVMStat()
+					curRSS := readCurrentRSSKiB()
+					pgpginDelta := curVM.pgpgin - lastVM.pgpgin
+					logger.Infof("[memory] proc-rss=%s (Δ%+.0f MiB)  page-cache=%s (Δ%+.0f MiB)  anon=%s (Δ%+.0f MiB)  pgpgin-δ=%d\n",
+						humanBytes(float64(curRSS)*1024), float64(curRSS-lastRSS)/1024,
+						humanBytes(float64(curMem.cachedKiB)*1024), float64(curMem.cachedKiB-lastMem.cachedKiB)/1024,
+						humanBytes(float64(curMem.anonPagesKiB)*1024), float64(curMem.anonPagesKiB-lastMem.anonPagesKiB)/1024,
+						pgpginDelta)
+					lastMem = curMem
+					lastVM = curVM
+					lastRSS = curRSS
 				}
 			}
 		}
