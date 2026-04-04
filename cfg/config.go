@@ -653,9 +653,13 @@ type MetadataCacheConfig struct {
 
 	StatCacheMaxSizeMb int64 `yaml:"stat-cache-max-size-mb"`
 
+	StatCacheMaxSizePercent int64 `yaml:"stat-cache-max-size-percent"`
+
 	TtlSecs int64 `yaml:"ttl-secs"`
 
 	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb"`
+
+	TypeCacheMaxSizePercent int64 `yaml:"type-cache-max-size-percent"`
 }
 
 type MetricsConfig struct {
@@ -1334,6 +1338,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("stat-cache-max-size-mb", "", 34, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
+	flagSet.IntP("stat-cache-max-size-percent", "", 0, "The maximum size of stat-cache as a percentage of total system memory. This flag works in addition to stat-cache-max-size-mb. If set, it overwrites stat-cache-max-size-mb with the calculated value.")
+
 	flagSet.DurationP("stat-cache-ttl", "", 60000000000*time.Nanosecond, "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
 
 	if err := flagSet.MarkDeprecated("stat-cache-ttl", "This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs."); err != nil {
@@ -1345,6 +1351,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
 
 	flagSet.IntP("type-cache-max-size-mb", "", 4, "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb.")
+
+	flagSet.IntP("type-cache-max-size-percent", "", 0, "The maximum size of type-cache as a percentage of total system memory. This flag works in addition to type-cache-max-size-mb. If set, it overwrites type-cache-max-size-mb with the calculated value.")
 
 	flagSet.DurationP("type-cache-ttl", "", 60000000000*time.Nanosecond, "Usage: How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
 
@@ -1929,6 +1937,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("metadata-cache.stat-cache-max-size-percent", flagSet.Lookup("stat-cache-max-size-percent")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("metadata-cache.deprecated-stat-cache-ttl", flagSet.Lookup("stat-cache-ttl")); err != nil {
 		return err
 	}
@@ -1942,6 +1954,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.type-cache-max-size-mb", flagSet.Lookup("type-cache-max-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.type-cache-max-size-percent", flagSet.Lookup("type-cache-max-size-percent")); err != nil {
 		return err
 	}
 
