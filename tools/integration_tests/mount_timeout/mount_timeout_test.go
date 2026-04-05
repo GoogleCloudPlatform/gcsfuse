@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -46,6 +47,8 @@ var (
 	gStorageClient *storage.Client
 
 	gCtx context.Context
+
+	testBucket string
 )
 
 const (
@@ -138,6 +141,24 @@ func TestMain(m *testing.M) {
 			log.Fatalf("LookPath(fusermount): %p", err)
 		}
 	}
+
+	// Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.MountTimeout) == 0 {
+		log.Println("No configuration found for mount_timeout tests in config. Using flags instead.")
+		cfg.MountTimeout = make([]test_suite.TestConfig, 1)
+		cfg.MountTimeout[0].TestBucket = setup.TestBucket()
+		cfg.MountTimeout[0].GKEMountedDirectory = setup.MountedDirectory()
+	}
+
+	// Skip for GKE or mounted directory tests.
+	if cfg.MountTimeout[0].GKEMountedDirectory != "" {
+		log.Print("These tests will not run for mountedDirectory flag.")
+		os.Exit(0)
+	}
+
+	testBucket = cfg.MountTimeout[0].TestBucket
+
 	gCtx = context.Background()
 
 	// Create storage client for direct bucket access.

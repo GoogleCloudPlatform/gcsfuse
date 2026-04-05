@@ -668,6 +668,55 @@ log_rotation:
           zonal: true
         run_on_gke: false
 
+readonly_creds:
+- mounted_directory: "${MOUNTED_DIR}"
+  test_bucket: "${BUCKET_NAME}"
+  configs:
+    - flags:
+      - "--implicit-dirs=true"
+      - "--implicit-dirs=false"
+      compatible:
+        flat: true
+        hns: true
+        zonal: true
+      run_on_gke: false
+
+mount_timeout:
+- mounted_directory: "${MOUNTED_DIR}"
+  test_bucket: "${BUCKET_NAME}"
+  configs:
+    - flags:
+      - ""
+      compatible:
+        flat: true
+        hns: true
+        zonal: true
+      run_on_gke: false
+
+release_version:
+- mounted_directory: "${MOUNTED_DIR}"
+  test_bucket: "${BUCKET_NAME}"
+  configs:
+    - flags:
+      - ""
+      compatible:
+        flat: true
+        hns: true
+        zonal: true
+      run_on_gke: false
+
+mounting:
+- mounted_directory: "${MOUNTED_DIR}"
+  test_bucket: "${BUCKET_NAME}"
+  configs:
+    - flags:
+      - ""
+      compatible:
+        flat: true
+        hns: true
+        zonal: true
+      run_on_gke: false
+
 flag_optimizations:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"

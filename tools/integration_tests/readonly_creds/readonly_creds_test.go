@@ -25,10 +25,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
-	testDirName           = "ReadOnlyCredsTest"
+	testDirName           = "ReadonlyCredsTest"
 	testFileName          = "fileName.txt"
 	content               = "write content."
 	permissionDeniedError = "permission denied"
@@ -40,11 +41,23 @@ const (
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.MountedDirectory() != "" {
-		log.Println("These tests will not run with mounted directory..")
-		return
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.ReadonlyCreds) == 0 {
+		log.Println("No configuration found for readonly_creds tests in config. Using flags instead.")
+		cfg.ReadonlyCreds = make([]test_suite.TestConfig, 1)
+		cfg.ReadonlyCreds[0].TestBucket = setup.TestBucket()
+		cfg.ReadonlyCreds[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.ReadonlyCreds[0].Configs = make([]test_suite.ConfigItem, 1)
+		cfg.ReadonlyCreds[0].Configs[0].Flags = []string{"--implicit-dirs=true", "--implicit-dirs=false"}
+		cfg.ReadonlyCreds[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+	}
+
+	// 2. Skip for GKE or mounted directory tests.
+	if cfg.ReadonlyCreds[0].GKEMountedDirectory != "" {
+		log.Print("These tests will not run for mountedDirectory flag.")
+		os.Exit(0)
 	}
 
 	// Create test directory.
@@ -57,15 +70,20 @@ func TestMain(m *testing.M) {
 			log.Printf("closeStorageClient failed: %v", err)
 		}
 	}()
+
+	testBucket := cfg.ReadonlyCreds[0].TestBucket
+
 	client.SetupTestDirectory(ctx, storageClient, testDirName)
 
-	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
+	// Setup test directory for building gcsfuse.
+	setup.SetUpTestDirForTestBucket(&cfg.ReadonlyCreds[0])
+
+	bucketType := setup.TestEnvironment(ctx, &cfg.ReadonlyCreds[0])
+	flags := setup.BuildFlagSets(cfg.ReadonlyCreds[0], bucketType, "")
 
 	// Test for viewer permission on test bucket.
-	flags := [][]string{{"--implicit-dirs=true"}, {"--implicit-dirs=false"}}
-	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flags, "objectViewer", m)
+	successCode := creds_tests.RunTestsForDifferentAuthMethods(ctx, &cfg.ReadonlyCreds[0], storageClient, flags, "objectViewer", m)
 
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(testBucket, testDirName))
 	os.Exit(successCode)
 }
