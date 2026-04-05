@@ -101,8 +101,8 @@ for CURRENT_PACKAGE in $PACKAGES; do
     fi
 
     # Resolve Mounted Directory & Test Bucket (CLI overrides evaluated YAML)
-    PKG_MOUNTED_DIR="${MOUNTED_DIR:-$(eval echo "$(echo "$CONFIG_BASE" | yq -r '.mounted_directory')")}"
-    PKG_TEST_BUCKET="${TEST_BUCKET:-$(eval echo "$(echo "$CONFIG_BASE" | yq -r '.test_bucket')")}"
+    PKG_MOUNTED_DIR="${MOUNTED_DIR:-$(echo "$CONFIG_BASE" | yq -r '.mounted_directory' | envsubst)}"
+    PKG_TEST_BUCKET="${TEST_BUCKET:-$(echo "$CONFIG_BASE" | yq -r '.test_bucket' | envsubst)}"
 
     if [ -z "$PKG_MOUNTED_DIR" ] || [ "$PKG_MOUNTED_DIR" == "null" ]; then
         echo "Error: Mounted directory not specified for $CURRENT_PACKAGE. Skipping..." >&2
