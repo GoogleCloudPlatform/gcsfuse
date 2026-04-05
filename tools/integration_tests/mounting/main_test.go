@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 )
 
@@ -45,6 +46,21 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("LookPath(fusermount): %p", err)
 		}
+	}
+
+	// Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.Mounting) == 0 {
+		log.Println("No configuration found for mounting tests in config. Using flags instead.")
+		cfg.Mounting = make([]test_suite.TestConfig, 1)
+		cfg.Mounting[0].TestBucket = setup.TestBucket()
+		cfg.Mounting[0].GKEMountedDirectory = setup.MountedDirectory()
+	}
+
+	// Skip for GKE or mounted directory tests.
+	if cfg.Mounting[0].GKEMountedDirectory != "" {
+		log.Print("These tests will not run for mountedDirectory flag.")
+		os.Exit(0)
 	}
 
 	if setup.TestInstalledPackage() {
