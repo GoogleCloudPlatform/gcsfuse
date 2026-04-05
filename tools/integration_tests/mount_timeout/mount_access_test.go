@@ -87,10 +87,10 @@ func (testSuite *MountAccessTest) TestMountingWithMinimalAccessSucceeds() {
 			testSuite.T().Logf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
 		}
 	}()
-	creds_tests.ApplyCustomRoleToServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, setup.TestBucket())
-	defer creds_tests.RevokeCustomRoleFromServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, setup.TestBucket())
+	creds_tests.ApplyCustomRoleToServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, testBucket)
+	defer creds_tests.RevokeCustomRoleFromServiceAccountOnBucket(gCtx, gStorageClient, serviceAccount, listPermCustomRoleName, testBucket)
 
-	err := testSuite.mountWithKeyFile(setup.TestBucket(), localKeyFilePath)
+	err := testSuite.mountWithKeyFile(testBucket, localKeyFilePath)
 
 	assert.NoError(testSuite.T(), err)
 }
