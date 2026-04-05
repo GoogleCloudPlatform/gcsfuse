@@ -15,6 +15,7 @@
 package buffered_read
 
 import (
+	"log"
 	"os"
 	"path"
 	"syscall"
@@ -36,7 +37,7 @@ import (
 // fallbackSuiteBase provides shared setup and teardown logic for fallback-related test suites.
 type fallbackSuiteBase struct {
 	suite.Suite
-	testFlags *gcsfuseTestFlags
+	flags []string
 }
 
 func (s *fallbackSuiteBase) SetupSuite() {
@@ -44,9 +45,7 @@ func (s *fallbackSuiteBase) SetupSuite() {
 		setupForMountedDirectoryTests()
 		return
 	}
-	configFile := createConfigFile(s.testFlags)
-	flags := []string{"--config-file=" + configFile}
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
 }
 
 func (s *fallbackSuiteBase) SetupTest() {
@@ -59,7 +58,7 @@ func (s *fallbackSuiteBase) TearDownSuite() {
 		setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 		return
 	}
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -83,7 +82,7 @@ type RandomReadFallbackSuite struct {
 // the BufferedReader is not created, and reads fall back to the next reader
 // without any buffered reading.
 func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobalPool_NoReaderAdded() {
-	fileSize := 3 * s.testFlags.blockSizeMB * util.MiB
+	fileSize := int64(3 * 8 * util.MiB)
 	chunkSize := int64(1 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
 	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
@@ -104,7 +103,7 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 
 func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
 	const randomReadsThreshold = 3
-	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
+	blockSizeInBytes := int64(8 * util.MiB)
 	// Create a file with 4 blocks. We will read backwards from block 3 to 0
 	// to trigger random seek detection.
 	numBlocks := 4
@@ -126,7 +125,7 @@ func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
 }
 
 func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
-	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
+	blockSizeInBytes := int64(8 * util.MiB)
 	// File size is small, less than one block.
 	fileSize := blockSizeInBytes / 2
 	chunkSize := int64(1 * util.KiB)
@@ -182,46 +181,32 @@ func (s *RandomReadFallbackSuite) TestRandomThenSequential_SwitchesBackToBuffere
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestFallbackSuites(t *testing.T) {
-	// Define base flags for insufficient pool creation tests.
-	baseInsufficientPoolFlags := gcsfuseTestFlags{
-		enableBufferedRead:   true,
-		blockSizeMB:          8,
-		minBlocksPerHandle:   2,
-		globalMaxBlocks:      1, // Less than min-blocks-per-handle
-		maxBlocksPerHandle:   10,
-		startBlocksPerHandle: 2,
-	}
+func TestInsufficientPoolCreationSuite(t *testing.T) {
+	ts := &InsufficientPoolCreationSuite{}
 
-	// Define base flags for random read fallback tests.
-	baseRandomReadFlags := gcsfuseTestFlags{
-		enableBufferedRead:   true,
-		blockSizeMB:          8,
-		maxBlocksPerHandle:   20,
-		startBlocksPerHandle: 2,
-		minBlocksPerHandle:   2,
-	}
-
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, &InsufficientPoolCreationSuite{fallbackSuiteBase{testFlags: &baseInsufficientPoolFlags}})
-		suite.Run(t, &RandomReadFallbackSuite{fallbackSuiteBase{testFlags: &baseRandomReadFlags}})
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
 		return
 	}
 
-	protocols := []string{clientProtocolHTTP1, clientProtocolGRPC}
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
+	}
+}
 
-	for _, protocol := range protocols {
-		t.Run(protocol, func(t *testing.T) {
-			// Run the suite for insufficient pool at creation time.
-			insufficientPoolFlags := baseInsufficientPoolFlags
-			insufficientPoolFlags.clientProtocol = protocol
-			suite.Run(t, &InsufficientPoolCreationSuite{fallbackSuiteBase{testFlags: &insufficientPoolFlags}})
+func TestRandomReadFallbackSuite(t *testing.T) {
+	ts := &RandomReadFallbackSuite{}
 
-			// Run the suite for random read fallback scenarios.
-			randomReadFlags := baseRandomReadFlags
-			randomReadFlags.clientProtocol = protocol
-			suite.Run(t, &RandomReadFallbackSuite{fallbackSuiteBase{testFlags: &randomReadFlags}})
-		})
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
+		return
+	}
+
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
 	}
 }
