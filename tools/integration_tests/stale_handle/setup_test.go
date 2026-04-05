@@ -35,7 +35,7 @@ var (
 	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
-	rootDir string
+	rootDir  string
 )
 
 type env struct {
