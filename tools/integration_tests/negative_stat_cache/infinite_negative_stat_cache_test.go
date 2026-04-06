@@ -36,8 +36,8 @@ type infiniteNegativeStatCacheTest struct {
 }
 
 func (s *infiniteNegativeStatCacheTest) SetupSuite() {
-	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
-	setup.SetMntDir(mountDir)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, testEnv.mountFunc)
+	setup.SetMntDir(testEnv.mountDir)
 }
 
 func (s *infiniteNegativeStatCacheTest) TearDownSuite() {

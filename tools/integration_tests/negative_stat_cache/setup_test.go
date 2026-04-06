@@ -36,15 +36,16 @@ const (
 	onlyDirMounted = "OnlyDirMountNegativeStatCache"
 )
 
-var (
-	mountFunc func(*test_suite.TestConfig, []string) error
+// IMPORTANT: To prevent global variable pollution, enhance code clarity,
+// and avoid inadvertent errors. We strongly suggest that, all new package-level
+// variables (which would otherwise be declared with `var` at the package root) should
+// be added as fields to this 'env' struct instead.
+type env struct {
+	mountFunc   func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
 	rootDir string
-)
-
-type env struct {
 	storageClient        *storage.Client
 	storageControlClient *control.StorageControlClient
 	ctx                  context.Context
@@ -107,7 +108,7 @@ func TestMain(m *testing.M) {
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		// Save mount and root directory variables.
-		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
+		testEnv.mountDir, testEnv.rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
@@ -116,25 +117,25 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 
 	// Save mount and root directory variables.
-	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
+	testEnv.mountDir, testEnv.rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
+	testEnv.mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
 	if successCode == 0 {
 		log.Println("Running dynamic mounting tests...")
 		// Save mount directory variable to have path of bucket to run tests.
-		mountDir = path.Join(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.TestBucket)
-		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig
+		testEnv.mountDir = path.Join(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.TestBucket)
+		testEnv.mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig
 		successCode = m.Run()
 	}
 
 	if successCode == 0 {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
-		mountDir = rootDir
-		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
+		testEnv.mountDir = testEnv.rootDir
+		testEnv.mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
 		successCode = m.Run()
 		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, setup.OnlyDirMounted(), testDirName))
 	}
