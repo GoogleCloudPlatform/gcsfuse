@@ -66,8 +66,23 @@ install_packages_by_os() {
         sleep 5
         ((retry_count++))
       done
-      # Debian/Ubuntu natively handles "python3-rich"
-      sudo apt-get install -y "${pkgs[@]}"
+      
+      local filtered_pkgs=()
+      local install_rich=false
+      for pkg in "${pkgs[@]}"; do
+        if [[ "$pkg" == "python3-rich" ]]; then
+          install_rich=true
+        else
+          filtered_pkgs+=("$pkg")
+        fi
+      done
+
+      sudo apt-get install -y "${filtered_pkgs[@]}"
+      
+      if [ "$install_rich" = true ]; then
+        sudo apt-get install -y python3-pip
+        sudo pip3 install rich
+      fi
       ;;
     rhel|centos|fedora|almalinux|rocky)
       # Map package names for RHEL if necessary
