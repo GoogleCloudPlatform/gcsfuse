@@ -105,7 +105,9 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 	}
 	// Start the uploader goroutine but only once.
 	uh.startUploader.Do(func() {
+		_, span := uh.traceHandle.StartSpan(context.Background(), tracing.UploadAsync)
 		go uh.uploader()
+		uh.traceHandle.EndSpan(span)
 	})
 	uh.uploadCh <- block
 	return nil
@@ -157,7 +159,9 @@ func (uh *UploadHandler) uploader() {
 // If there is an error during upload, it returns after storing the error in uploadError.
 func (uh *UploadHandler) uploadBlock(b block.Block) {
 	_, span := uh.traceHandle.StartSpan(context.Background(), tracing.StreamingUploadBlock)
+	var written int64
 	defer func() {
+		uh.traceHandle.SetUploadAttributes(span, written, uh.objectName)
 		uh.traceHandle.EndSpan(span)
 	}()
 	if b == nil {
@@ -177,7 +181,8 @@ func (uh *UploadHandler) uploadBlock(b block.Block) {
 		return
 	}
 
-	_, err := io.Copy(uh.writer, b)
+	var err error
+	written, err = io.Copy(uh.writer, b)
 	if errors.Is(err, context.Canceled) {
 		// Context canceled error indicates that the file was deleted from the
 		// same mount. In this case, we suppress the error to match local
@@ -198,6 +203,8 @@ func (uh *UploadHandler) Finalize() (obj *gcs.MinObject, err error) {
 	defer func() {
 		if err != nil {
 			uh.traceHandle.RecordError(span, err)
+		} else if obj != nil {
+			uh.traceHandle.SetUploadAttributes(span, int64(obj.Size), uh.objectName)
 		}
 		uh.traceHandle.EndSpan(span)
 	}()
@@ -237,6 +244,8 @@ func (uh *UploadHandler) FlushPendingWrites() (o *gcs.MinObject, err error) {
 	defer func() {
 		if err != nil {
 			uh.traceHandle.RecordError(span, err)
+		} else if o != nil {
+			uh.traceHandle.SetUploadAttributes(span, int64(o.Size), uh.objectName)
 		}
 		uh.traceHandle.EndSpan(span)
 	}()

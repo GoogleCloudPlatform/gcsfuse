@@ -78,6 +78,16 @@ func BenchmarkTrace(b *testing.B) {
 			th.EndSpan(span)
 		})
 
+		b.Run(fmt.Sprintf("BenchmarkSetUploadAttributes_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+
+			_, span := th.StartSpan(ctx, "TestSpanName")
+			for b.Loop() {
+				th.SetUploadAttributes(span, 100, "A/B/C/test_file.text")
+			}
+			th.EndSpan(span)
+		})
+
 		b.Run(fmt.Sprintf("BenchmarkPropagateTraceContext_%s", prefix), func(b *testing.B) {
 			ctx := context.Background()
 

@@ -131,4 +131,6 @@ const (
 	StreamingUploadFinalize = "streaming.upload.finalize"
 	// StreamingUploadFlush traces the flushing of pending streaming writes.
 	StreamingUploadFlush = "streaming.upload.flush"
+	// Tracks the go routine and async upload of the write blocks received
+	UploadAsync = "upload.async"
 )
