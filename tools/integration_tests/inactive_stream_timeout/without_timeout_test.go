@@ -77,7 +77,7 @@ func (s *timeoutDisabledSuite) TestNoReaderCloser() {
 	endTimeWait := time.Now()
 
 	// 4. Shouldn't be any `Close reader logs...`.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, fileName), false, endTimeRead, endTimeWait)
+	doesNotHaveInactiveReaderClosedLogLineInLogFile(s.T(), path.Join(kTestDirName, fileName), testEnv.cfg.LogFile, endTimeRead, endTimeWait)
 }
 
 ////////////////////////////////////////////////////////////////////////
