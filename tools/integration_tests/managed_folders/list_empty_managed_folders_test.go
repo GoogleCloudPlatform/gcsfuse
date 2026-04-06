@@ -46,18 +46,29 @@ const (
 
 type enableEmptyManagedFoldersTrue struct {
 	suite.Suite
+	flags []string
+}
+
+func (s *enableEmptyManagedFoldersTrue) SetupSuite() {
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, testEnv.mountFunc)
+	setup.SetMntDir(testEnv.mountDir)
+}
+
+func (s *enableEmptyManagedFoldersTrue) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
 func (s *enableEmptyManagedFoldersTrue) SetupTest() {
-	setup.SetupTestDirectory(TestDirForEmptyManagedFoldersTest)
+	testEnv.testDirPath = setup.SetupTestDirectory(TestDirForEmptyManagedFoldersTest)
 }
 
 func (s *enableEmptyManagedFoldersTrue) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	// Clean up test directory.
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForEmptyManagedFoldersTest)
-	client.DeleteManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, EmptyManagedFolder1), setup.TestBucket())
-	client.DeleteManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, EmptyManagedFolder2), setup.TestBucket())
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(bucket, testDir))
+	client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, EmptyManagedFolder1), setup.TestBucket())
+	client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, EmptyManagedFolder2), setup.TestBucket())
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(bucket, testDir))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -70,8 +81,8 @@ func createDirectoryStructureForEmptyManagedFoldersTest(t *testing.T) {
 	// testBucket/EmptyManagedFoldersTest/simulatedFolder
 	// testBucket/EmptyManagedFoldersTest/testFile
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForEmptyManagedFoldersTest)
-	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, EmptyManagedFolder1), bucket)
-	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, EmptyManagedFolder2), bucket)
+	client.CreateManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, EmptyManagedFolder1), bucket)
+	client.CreateManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, EmptyManagedFolder2), bucket)
 	operations.CreateDirectory(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest, SimulatedFolder), t)
 	f := operations.CreateFile(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest, File), setup.FilePermission_0600, t)
 	operations.CloseFileShouldNotThrowError(t, f)
@@ -144,38 +155,16 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 	}
 }
 
-func getMountConfigForEmptyManagedFolders() map[string]any {
-	mountConfig := map[string]any{
-		"list": map[string]any{
-			"enable-empty-managed-folders": true,
-		},
-	}
-	return mountConfig
-}
-
 // //////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 // //////////////////////////////////////////////////////////////////////
 func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 	ts := &enableEmptyManagedFoldersTrue{}
 
-	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
-		return
 	}
-
-	configFile := setup.YAMLConfigFile(getMountConfigForEmptyManagedFolders(), "config.yaml")
-	flags := []string{"--implicit-dirs", "--config-file=" + configFile}
-
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	defer func() {
-		setup.SetMntDir(rootDir)
-		setup.UnMountBucket()
-	}()
-	setup.SetMntDir(mountDir)
-
-	// Run tests.
-	log.Printf("Running tests with flags: %s", flags)
-	suite.Run(t, ts)
 }
