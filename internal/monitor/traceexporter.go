@@ -46,13 +46,13 @@ type exporterFactory func() (sdktrace.SpanExporter, error)
 
 func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace.TracerProvider, common.ShutdownFn, error) {
 	var opts []sdktrace.TracerProviderOption
-	exporterNames := c.Monitoring.ExperimentalTracingMode
+	exporterNames := c.Trace.Exporters
 
 	exporterRegistry := map[string]exporterFactory{
 		"stdout": func() (sdktrace.SpanExporter, error) {
 			return newStdoutTraceExporter()
 		},
-		"gcptrace": func() (sdktrace.SpanExporter, error) {
+		"gcpexporter": func() (sdktrace.SpanExporter, error) {
 			return newGCPCloudTraceExporter(c)
 		},
 	}
@@ -75,7 +75,7 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 		return nil, nil, err
 	}
 
-	opts = append(opts, sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Monitoring.ExperimentalTracingSamplingRatio)))
+	opts = append(opts, sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Trace.SamplingRatio)))
 
 	tp := sdktrace.NewTracerProvider(opts...)
 
@@ -96,8 +96,8 @@ func newStdoutTraceExporter() (sdktrace.SpanExporter, error) {
 func newGCPCloudTraceExporter(c *cfg.Config) (sdktrace.SpanExporter, error) {
 	var traceOptions []cloudtrace.Option
 
-	if c.Monitoring.ExperimentalTracingProjectId != "" {
-		traceOptions = append(traceOptions, cloudtrace.WithProjectID(c.Monitoring.ExperimentalTracingProjectId))
+	if c.Trace.ProjectId != "" {
+		traceOptions = append(traceOptions, cloudtrace.WithProjectID(c.Trace.ProjectId))
 	}
 
 	exporter, err := cloudtrace.New(traceOptions...)

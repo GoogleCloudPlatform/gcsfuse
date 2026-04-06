@@ -596,7 +596,7 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 	}
 }
 
-func TestRationalizeMonitoringConfig(t *testing.T) {
+func TestRationalizeTraceConfig(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -606,10 +606,10 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 		{
 			name: "all_params_filled",
 			config: &Config{
-				Monitoring: MonitoringConfig{
-					ExperimentalTracingMode:          []string{"stdout"},
-					ExperimentalTracingProjectId:     "test-gcp-project",
-					ExperimentalTracingSamplingRatio: 0.2,
+				Trace: TraceConfig{
+					Exporters:     []string{"stdout"},
+					ProjectId:     "test-gcp-project",
+					SamplingRatio: 0.2,
 				},
 			},
 			expected: []string{"stdout"},
@@ -617,10 +617,10 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 		{
 			name: "missing_project_id",
 			config: &Config{
-				Monitoring: MonitoringConfig{
-					ExperimentalTracingMode:          []string{"stdout"},
-					ExperimentalTracingProjectId:     "test-gcp-project",
-					ExperimentalTracingSamplingRatio: 0.2,
+				Trace: TraceConfig{
+					Exporters:     []string{"stdout"},
+					ProjectId:     "test-gcp-project",
+					SamplingRatio: 0.2,
 				},
 			},
 			expected: []string{"stdout"},
@@ -628,24 +628,24 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 		{
 			name: "multiple_tracing_modes",
 			config: &Config{
-				Monitoring: MonitoringConfig{
-					ExperimentalTracingMode:          []string{"stdout ", " gcptrace "},
-					ExperimentalTracingProjectId:     "test-gcp-project",
-					ExperimentalTracingSamplingRatio: 0.2,
+				Trace: TraceConfig{
+					Exporters:     []string{"stdout ", " gcpexporter "},
+					ProjectId:     "test-gcp-project",
+					SamplingRatio: 0.2,
 				},
 			},
-			expected: []string{"stdout", "gcptrace"},
+			expected: []string{"stdout", "gcpexporter"},
 		},
 		{
 			name: "multiple_tracing_modes",
 			config: &Config{
-				Monitoring: MonitoringConfig{
-					ExperimentalTracingMode:          []string{"STDout ", " GcPTraCe "},
-					ExperimentalTracingProjectId:     "test-gcp-project",
-					ExperimentalTracingSamplingRatio: 0.2,
+				Trace: TraceConfig{
+					Exporters:     []string{"STDout ", " GcPExpoRter "},
+					ProjectId:     "test-gcp-project",
+					SamplingRatio: 0.2,
 				},
 			},
-			expected: []string{"stdout", "gcptrace"},
+			expected: []string{"stdout", "gcpexporter"},
 		},
 	}
 
@@ -656,7 +656,7 @@ func TestRationalizeMonitoringConfig(t *testing.T) {
 			err := Rationalize(viper.New(), tc.config, []string{})
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.expected, tc.config.Monitoring.ExperimentalTracingMode)
+			assert.Equal(t, tc.expected, tc.config.Trace.Exporters)
 		})
 	}
 }
