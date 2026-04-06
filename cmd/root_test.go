@@ -2462,7 +2462,7 @@ func TestMountInfoPopulation(t *testing.T) {
 				assert.NotContains(t, mi.cliFlags, "gid")
 				assert.Contains(t, mi.configFileFlags, "app-name")
 				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
-				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]any)
 				require.True(t, ok)
 				assert.Equal(t, 1002, fsFlags["gid"])
 			},
@@ -2480,10 +2480,10 @@ func TestMountInfoPopulation(t *testing.T) {
 
 				// Check config file flags
 				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
-				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]any)
 				require.True(t, ok)
 				assert.Equal(t, 1002, fsFlags["gid"])
-				logFlags, ok := mi.configFileFlags["logging"].(map[string]interface{})
+				logFlags, ok := mi.configFileFlags["logging"].(map[string]any)
 				require.True(t, ok)
 				assert.Equal(t, "error", logFlags["severity"])
 			},

@@ -72,7 +72,7 @@ func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx contex
 
 func NewOTELTracer() TraceHandle {
 	slicePool := sync.Pool{
-		New: func() interface{} {
+		New: func() any {
 			s := make([]attribute.KeyValue, 2)
 			return &s
 		},

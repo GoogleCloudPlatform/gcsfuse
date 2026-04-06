@@ -48,7 +48,7 @@ import (
 )
 
 // StorageServer is a dummy interface for gRPC registration.
-type StorageServer interface{}
+type StorageServer any
 
 // reflectFakeServer implements the gRPC Storage service using reflection and dynamicpb
 // to avoid importing the conflicting storagepb package. A functional server is
@@ -56,7 +56,7 @@ type StorageServer interface{}
 // expectations (e.g., GetObject must succeed before ReadObject is called).
 type reflectFakeServer struct{}
 
-func (s *reflectFakeServer) GetObject(ctx context.Context, req interface{}) (interface{}, error) {
+func (s *reflectFakeServer) GetObject(ctx context.Context, req any) (any, error) {
 	dm := req.(*dynamicpb.Message)
 	objectName := dm.Get(dm.Descriptor().Fields().ByName("object")).String()
 	bucketName := dm.Get(dm.Descriptor().Fields().ByName("bucket")).String()
@@ -76,12 +76,12 @@ func (s *reflectFakeServer) GetObject(ctx context.Context, req interface{}) (int
 	return obj, nil
 }
 
-func (s *reflectFakeServer) ListObjects(ctx context.Context, req interface{}) (interface{}, error) {
+func (s *reflectFakeServer) ListObjects(ctx context.Context, req any) (any, error) {
 	msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.ListObjectsResponse")
 	return dynamicpb.NewMessage(msgType.Descriptor()), nil
 }
 
-func (s *reflectFakeServer) ReadObject(req interface{}, stream grpc.ServerStream) error {
+func (s *reflectFakeServer) ReadObject(req any, stream grpc.ServerStream) error {
 	dm := req.(*dynamicpb.Message)
 	objectName := dm.Get(dm.Descriptor().Fields().ByName("object")).String()
 	fmt.Printf("Fake GCS: ReadObject %s\n", objectName)
@@ -106,7 +106,7 @@ func (s *reflectFakeServer) ReadObject(req interface{}, stream grpc.ServerStream
 	return stream.SendMsg(resp)
 }
 
-func (s *reflectFakeServer) StartResumableWrite(ctx context.Context, req interface{}) (interface{}, error) {
+func (s *reflectFakeServer) StartResumableWrite(ctx context.Context, req any) (any, error) {
 	respType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.StartResumableWriteResponse")
 	resp := dynamicpb.NewMessage(respType.Descriptor())
 	resp.Set(resp.Descriptor().Fields().ByName("upload_id"), protoreflect.ValueOf("upload-id"))
@@ -146,7 +146,7 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 		Methods: []grpc.MethodDesc{
 			{
 				MethodName: "GetObject",
-				Handler: func(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+				Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 					msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.GetObjectRequest")
 					in := dynamicpb.NewMessage(msgType.Descriptor())
 					if err := dec(in); err != nil {
@@ -155,14 +155,14 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 					if interceptor == nil {
 						return srv.(*reflectFakeServer).GetObject(ctx, in)
 					}
-					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/GetObject"}, func(ctx context.Context, req interface{}) (interface{}, error) {
+					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/GetObject"}, func(ctx context.Context, req any) (any, error) {
 						return srv.(*reflectFakeServer).GetObject(ctx, req)
 					})
 				},
 			},
 			{
 				MethodName: "ListObjects",
-				Handler: func(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+				Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 					msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.ListObjectsRequest")
 					in := dynamicpb.NewMessage(msgType.Descriptor())
 					if err := dec(in); err != nil {
@@ -171,14 +171,14 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 					if interceptor == nil {
 						return srv.(*reflectFakeServer).ListObjects(ctx, in)
 					}
-					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/ListObjects"}, func(ctx context.Context, req interface{}) (interface{}, error) {
+					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/ListObjects"}, func(ctx context.Context, req any) (any, error) {
 						return srv.(*reflectFakeServer).ListObjects(ctx, req)
 					})
 				},
 			},
 			{
 				MethodName: "StartResumableWrite",
-				Handler: func(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+				Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 					msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.StartResumableWriteRequest")
 					in := dynamicpb.NewMessage(msgType.Descriptor())
 					if err := dec(in); err != nil {
@@ -187,7 +187,7 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 					if interceptor == nil {
 						return srv.(*reflectFakeServer).StartResumableWrite(ctx, in)
 					}
-					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/StartResumableWrite"}, func(ctx context.Context, req interface{}) (interface{}, error) {
+					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/StartResumableWrite"}, func(ctx context.Context, req any) (any, error) {
 						return srv.(*reflectFakeServer).StartResumableWrite(ctx, req)
 					})
 				},
@@ -196,7 +196,7 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 		Streams: []grpc.StreamDesc{
 			{
 				StreamName: "ReadObject",
-				Handler: func(srv interface{}, stream grpc.ServerStream) error {
+				Handler: func(srv any, stream grpc.ServerStream) error {
 					msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.ReadObjectRequest")
 					m := dynamicpb.NewMessage(msgType.Descriptor())
 					if err := stream.RecvMsg(m); err != nil {
@@ -208,14 +208,14 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 			},
 			{
 				StreamName: "WriteObject",
-				Handler: func(srv interface{}, stream grpc.ServerStream) error {
+				Handler: func(srv any, stream grpc.ServerStream) error {
 					return srv.(*reflectFakeServer).WriteObject(stream)
 				},
 				ClientStreams: true,
 			},
 			{
 				StreamName: "BidiWriteObject",
-				Handler: func(srv interface{}, stream grpc.ServerStream) error {
+				Handler: func(srv any, stream grpc.ServerStream) error {
 					return status.Error(codes.Unimplemented, "unimplemented")
 				},
 				ServerStreams: true,
