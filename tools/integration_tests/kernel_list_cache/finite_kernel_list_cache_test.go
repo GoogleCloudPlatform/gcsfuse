@@ -76,6 +76,8 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	defer func() {
 		assert.Nil(s.T(), f.Close())
 	}()
+	// Start of operations within cache TTL
+	start := time.Now()
 	names1, err := f.Readdirnames(-1)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 2, len(names1))
@@ -85,19 +87,20 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	require.NoError(s.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
-	time.Sleep(2 * time.Second)
 
 	// Kernel cache will not invalidate within ttl.
 	f, err = os.Open(targetDir)
 	assert.NoError(s.T(), err)
 	names2, err := f.Readdirnames(-1)
+	s.T().Logf("Time taken for operations within cache TTL: %v seconds", time.Since(start).Seconds())
+	// End of operations within cache TTL, Note if these operation take more than 5s then test is bound to fail.
 
 	assert.NoError(s.T(), err)
 	require.Equal(s.T(), 2, len(names2))
 	assert.Equal(s.T(), "file1.txt", names2[0])
 	assert.Equal(s.T(), "file2.txt", names2[1])
-	// Waiting 3 more seconds to exceed the 5-second TTL for invalidating the kernel cache.
-	time.Sleep(3 * time.Second)
+	// Waiting 6 more seconds to exceed the 5-second TTL for invalidating the kernel cache.
+	time.Sleep(6 * time.Second)
 
 	// The response will be served from GCSFuse after the TTL expires.
 	f, err = os.Open(targetDir)
