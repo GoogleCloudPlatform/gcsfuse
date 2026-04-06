@@ -424,10 +424,10 @@ read_cache:
         run: TestRemountTest
         run_on_gke: false
       - flags:
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest.*/foo*,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest.*/foo*,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest.*/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest.*/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: true

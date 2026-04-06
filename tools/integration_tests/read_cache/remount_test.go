@@ -52,7 +52,7 @@ func (s *remountTest) SetupTest() {
 	require.NoError(s.T(), err)
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(testEnv.cacheDirPath)
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 }
 
 func (s *remountTest) TearDownTest() {
@@ -70,7 +70,7 @@ func (s *remountTest) TearDownSuite() {
 func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	setup.SetDynamicBucketMounted(bucketName)
 	defer setup.SetDynamicBucketMounted("")
-	testEnv.testDirPath = path.Join(rootDir, bucketName, testDirName)
+	testEnv.testDirPath = path.Join(rootDir, bucketName, path.Base(testEnv.testDirPath))
 	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, checkCacheSize, t)
 
 	return expectedOutcome
