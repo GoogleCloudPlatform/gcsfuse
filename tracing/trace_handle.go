@@ -43,6 +43,9 @@ type TraceHandle interface {
 	// This allows skipping the attribute creation entirely in case of noop tracer which is selected when tracing is disabled.
 	SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int)
 
+	// A handle interface method to set attributes for upload
+	SetUploadAttributes(span trace.Span, bytesUploaded int64, objectName string)
+
 	// A handle interface method to retain relevant span data in new context from the older context
 	PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context
 }
