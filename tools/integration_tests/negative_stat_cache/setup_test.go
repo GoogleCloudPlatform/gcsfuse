@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -40,8 +41,7 @@ const (
 // variables (which would otherwise be declared with `var` at the package root) should
 // be added as fields to this 'env' struct instead.
 type env struct {
-	testDirPath string
-	mountFunc   func([]string) error
+	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
@@ -49,22 +49,12 @@ type env struct {
 	storageClient        *storage.Client
 	storageControlClient *control.StorageControlClient
 	ctx                  context.Context
+	testDirPath          string
+	cfg                  *test_suite.TestConfig
+	bucketType           string
 }
 
 var testEnv env
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
-	if setup.MountedDirectory() != "" {
-		testEnv.mountDir = setup.MountedDirectory()
-	}
-	setup.MountGCSFuseWithGivenMountFunc(flags, testEnv.mountFunc)
-	setup.SetMntDir(testEnv.mountDir)
-	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
-}
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -72,43 +62,72 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.NegativeStatCache) == 0 {
+		log.Println("No configuration found for negative_stat_cache tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.NegativeStatCache = make([]test_suite.TestConfig, 1)
+		cfg.NegativeStatCache[0].TestBucket = setup.TestBucket()
+		cfg.NegativeStatCache[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.NegativeStatCache[0].LogFile = setup.LogFile()
+		// Initialize the slice to hold specific test configurations
+		cfg.NegativeStatCache[0].Configs = make([]test_suite.ConfigItem, 3)
+		cfg.NegativeStatCache[0].Configs[0].Flags = []string{"--metadata-cache-negative-ttl-secs=0"}
+		cfg.NegativeStatCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.NegativeStatCache[0].Configs[0].Run = "TestDisabledNegativeStatCacheTest"
+		cfg.NegativeStatCache[0].Configs[1].Flags = []string{"--metadata-cache-negative-ttl-secs=5"}
+		cfg.NegativeStatCache[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.NegativeStatCache[0].Configs[1].Run = "TestFiniteNegativeStatCacheTest"
+		cfg.NegativeStatCache[0].Configs[2].Flags = []string{"--metadata-cache-negative-ttl-secs=-1"}
+		cfg.NegativeStatCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.NegativeStatCache[0].Configs[2].Run = "TestInfiniteNegativeStatCacheTest"
+	}
+
+	testEnv.ctx = context.Background()
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.NegativeStatCache[0])
+	testEnv.cfg = &cfg.NegativeStatCache[0]
 
 	// Create common storage client to be used in test.
-	testEnv.ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
+			log.Printf("closeStorageClient failed: %v\n", err)
 		}
 	}()
 	closeStorageControlClient := client.CreateControlClientWithCancel(&testEnv.ctx, &testEnv.storageControlClient)
 	defer func() {
 		err := closeStorageControlClient()
 		if err != nil {
-			log.Fatalf("closeStorageControlClient failed: %v", err)
+			log.Printf("closeStorageControlClient failed: %v\n", err)
 		}
 	}()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		// Save mount and root directory variables.
+		testEnv.mountDir, testEnv.rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	}
+
+	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 
 	// Save mount and root directory variables.
-	testEnv.mountDir, testEnv.rootDir = setup.MntDir(), setup.MntDir()
+	testEnv.mountDir, testEnv.rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	log.Println("Running static mounting tests...")
-	testEnv.mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	testEnv.mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
 	if successCode == 0 {
 		log.Println("Running dynamic mounting tests...")
 		// Save mount directory variable to have path of bucket to run tests.
-		testEnv.mountDir = path.Join(setup.MntDir(), setup.TestBucket())
-		testEnv.mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+		testEnv.mountDir = path.Join(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.TestBucket)
+		testEnv.mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig
 		successCode = m.Run()
 	}
 
@@ -116,12 +135,12 @@ func TestMain(m *testing.M) {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
 		testEnv.mountDir = testEnv.rootDir
-		testEnv.mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		testEnv.mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, setup.OnlyDirMounted(), testDirName))
 	}
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	os.Exit(successCode)
 }
