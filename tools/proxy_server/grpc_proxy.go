@@ -32,7 +32,7 @@ import (
 // rawCodec is a Codec that passes through raw bytes without any encoding/decoding.
 type rawCodec struct{}
 
-func (rawCodec) Marshal(v interface{}) ([]byte, error) {
+func (rawCodec) Marshal(v any) ([]byte, error) {
 	out, ok := v.(*[]byte)
 	if !ok {
 		return nil, fmt.Errorf("failed to marshal, message is %T, want *[]byte", v)
@@ -40,7 +40,7 @@ func (rawCodec) Marshal(v interface{}) ([]byte, error) {
 	return *out, nil
 }
 
-func (rawCodec) Unmarshal(data []byte, v interface{}) error {
+func (rawCodec) Unmarshal(data []byte, v any) error {
 	dst, ok := v.(*[]byte)
 	if !ok {
 		return fmt.Errorf("failed to unmarshal, message is %T, want *[]byte", v)
@@ -105,7 +105,7 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 	}
 
 	// Create unknown service handler that validates metadata and forwards all calls
-	unknownHandler := func(srv interface{}, stream grpc.ServerStream) error {
+	unknownHandler := func(srv any, stream grpc.ServerStream) error {
 		fullMethodName, ok := grpc.MethodFromServerStream(stream)
 		if !ok {
 			return status.Errorf(codes.Internal, "failed to get method name")

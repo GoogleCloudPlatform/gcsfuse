@@ -86,6 +86,7 @@ type Config struct {
 	ReadonlyCreds         []TestConfig `yaml:"readonly_creds"`
 	ReleaseVersion        []TestConfig `yaml:"release_version"`
 	Mounting              []TestConfig `yaml:"mounting"`
+	NegativeStatCache     []TestConfig `yaml:"negative_stat_cache"`
 }
 
 // ReadConfigFile returns a Config struct from the YAML file.
