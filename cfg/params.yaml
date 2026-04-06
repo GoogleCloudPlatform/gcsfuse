@@ -1202,7 +1202,7 @@ params:
   - config-path: "trace.sampling-ratio"
     flag-name: "trace-sampling-ratio"
     type: "float64"
-    usage: "Specifies the fraction of traces to export, ranging from 0.0 to 1.0. Setting a value greater than 0 enables tracing; 1.0 exports all traces, while 0.0 (default) disables them. Use this to balance observability with performance and storage costs."
+    usage: "Specifies the fraction of traces to export, ranging from 0.0 to 1.0. Setting a value greater than 0 enables tracing; 1.0 exports all traces, while 0.0 (default) disables them. Use this to balance the number of traces exported with the tradeoff of higher perf and cost impact."
     default: 0
 
   - config-path: "workload-insight.forward-merge-threshold-mb"

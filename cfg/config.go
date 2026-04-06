@@ -1338,7 +1338,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.Float64P("trace-sampling-ratio", "", 0, "Specifies the fraction of traces to export, ranging from 0.0 to 1.0. Setting a value greater than 0 enables tracing; 1.0 exports all traces, while 0.0 (default) disables them. Use this to balance observability with performance and storage costs.")
+	flagSet.Float64P("trace-sampling-ratio", "", 0, "Specifies the fraction of traces to export, ranging from 0.0 to 1.0. Setting a value greater than 0 enables tracing; 1.0 exports all traces, while 0.0 (default) disables them. Use this to balance the number of traces exported with the tradeoff of higher perf and cost impact.")
 
 	flagSet.IntP("type-cache-max-size-mb", "", 4, "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb.")
 
