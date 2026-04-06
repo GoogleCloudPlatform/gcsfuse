@@ -73,6 +73,9 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 		err = fmt.Errorf("proxyTokenSource cannot fetch token: %w", err)
 		return nil, err
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
