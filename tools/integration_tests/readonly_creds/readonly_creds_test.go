@@ -45,7 +45,6 @@ var (
 type env struct {
 	storageClient *storage.Client
 	ctx           context.Context
-	testDirPath   string
 	cfg           *test_suite.TestConfig
 	bucketType    string
 }
