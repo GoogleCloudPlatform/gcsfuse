@@ -326,7 +326,6 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOf
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
-	// OPTIMIZATION: use builtin min instead of math.Min for integer math to avoid type conversion overhead.
 	dataToRead := min(endOffset, int64(rr.object.Size))
 	if rr.reader != nil && (rr.start != startOffset || dataToRead > rr.limit) {
 		rr.closeReader()
