@@ -49,7 +49,7 @@ func (c *controlClientStall) SetupTest() {
 	// Add proxy server endpoint and configure gRPC testing
 	c.flags = append(c.flags, fmt.Sprintf("--custom-endpoint=localhost:%d", c.port))
 	c.flags = append(c.flags, "--anonymous-access") // Required for gRPC localhost endpoint
-	
+
 	setup.MountGCSFuseWithGivenMountFunc(c.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(c.T().Name())
 }
@@ -62,7 +62,7 @@ func (c *controlClientStall) TearDownTest() {
 }
 
 // TestCreateFolderStallInducedShouldComplete verifies that creating a folder via
-// os.MkdirAll completes successfully even when a stall is induced, 
+// os.MkdirAll completes successfully even when a stall is induced,
 // proving that the experimental retry logic correctly handles the delayed gRPC response.
 func (c *controlClientStall) TestCreateFolderStallInducedShouldComplete() {
 	folderPath := path.Join(testDirPath, "stalled_folder")
@@ -72,7 +72,7 @@ func (c *controlClientStall) TestCreateFolderStallInducedShouldComplete() {
 	elapsedTime := time.Since(startTime)
 
 	assert.NoError(c.T(), err)
-	
+
 	// Ensure the operation took at least as long as our forced stall time
 	assert.GreaterOrEqual(c.T(), elapsedTime, c.forcedStallTime)
 
@@ -87,7 +87,7 @@ func TestControlClientStall(t *testing.T) {
 	flagsSet := [][]string{
 		{
 			"--client-protocol=grpc",
-			"--rename-dir-limit=0", // Force use of Control API for folders instead of legacy workarounds
+			"--rename-dir-limit=0",                                // Force use of Control API for folders instead of legacy workarounds
 			"--experimental-nonrapid-folder-api-stall-retry=true", // Enable the new flag we are testing!
 		},
 	}
