@@ -4,4 +4,4 @@ retryConfig:
 - method: CreateFolder
   retryInstruction: "stall-for-2s"
   retryCount: 1
-  skipCount: 0
+  skipCount: 2

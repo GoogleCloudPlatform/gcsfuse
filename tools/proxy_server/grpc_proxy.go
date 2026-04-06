@@ -117,13 +117,16 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 		// Extract and validate metadata
 		md, ok := metadata.FromIncomingContext(stream.Context())
 		if ok {
-			if err := validateGRPCMetadata(md, validations); err != nil {
-				log.Printf("Metadata validation failed: %v", err)
-				return err
+			// Only validate headers for the main Storage API, not Control API
+			if strings.HasPrefix(fullMethodName, "/google.storage.v2.Storage/") {
+				if err := validateGRPCMetadata(md, validations); err != nil {
+					log.Printf("Metadata validation failed: %v", err)
+					return err
+				}
 			}
 		} else {
 			md = metadata.New(nil)
-			if len(validations) > 0 {
+			if len(validations) > 0 && strings.HasPrefix(fullMethodName, "/google.storage.v2.Storage/") {
 				log.Println("Warning: No metadata found in request")
 			}
 		}

@@ -205,4 +205,8 @@ fi
 # Run all emulator test packages in sequence to avoid high cpu usage.
 TEST_TARGET=${TEST_TARGET:-"./tools/integration_tests/emulator_tests/..."}
 # Run all emulator test packages in sequence to avoid high cpu usage.
-go test -v -p 1 -timeout 10m $TEST_TARGET --integrationTest --testbucket=${TEST_BUCKET:-test-bucket} "${args[@]}"
+# Run all other emulator tests with standard bucket
+go test -v -p 1 -timeout 10m $(go list ./tools/integration_tests/emulator_tests/... | grep -v control_client_stall) --integrationTest --testbucket=${TEST_BUCKET:-test-bucket} "${args[@]}"
+
+# Run control_client_stall with HNS bucket
+go test -v -p 1 -timeout 10m ./tools/integration_tests/emulator_tests/control_client_stall/... --integrationTest --testbucket=test-hns-bucket "${args[@]}"
