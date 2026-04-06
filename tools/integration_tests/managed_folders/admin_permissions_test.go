@@ -221,10 +221,12 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 			if ts.bucketPermission == ViewPermission {
 				creds_tests.RevokePermission(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, AdminPermission, setup.TestBucket())
 				creds_tests.ApplyPermissionToServiceAccount(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, ViewPermission, setup.TestBucket())
-				defer creds_tests.RevokePermission(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, ViewPermission, setup.TestBucket())
 			}
 			ts.managedFoldersPermission = permissions[i][1]
 			suite.Run(t, ts)
+			if ts.bucketPermission == ViewPermission {
+				creds_tests.RevokePermission(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, ViewPermission, setup.TestBucket())
+			}
 		}
 		t.Cleanup(func() {
 			client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testEnv.testDir, ManagedFolder1), setup.TestBucket())
