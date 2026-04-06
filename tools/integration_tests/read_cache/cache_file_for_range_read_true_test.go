@@ -81,7 +81,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
 	// Validate a single read log has cache hit 'false' recorded.
 	structuredReadFalseCacheHit := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	assert.Len(s.T(), structuredReadFalseCacheHit, 1, "Should have exactly 1 false cache hit read record in logs")
-	validate(firstReadOutcome, structuredReadFalseCacheHit[0], /*isSeq=*/ false, /*cacheHit=*/ false, /*chunkCount=*/ 1, s.T())
+	validate(firstReadOutcome, structuredReadFalseCacheHit[0] /*isSeq=*/, false /*cacheHit=*/, false /*chunkCount=*/, 1, s.T())
 
 	// RetryUntil we have exactly 1 Download Job logs (downloaded till <offset>)
 	s.T().Logf("Waiting for file cache Job with data reaching %d bytes", fileSizeForRangeRead)
@@ -104,7 +104,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
 	// Validate two read Logs and the second log must have cache hit 'true' recorded.
 	structuredReadLogsCacheHitTrueOnSecondLog := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	assert.Len(s.T(), structuredReadLogsCacheHitTrueOnSecondLog, 2, "Should have exactly 2 read records in logs")
-	validate(secondReadOutcome, structuredReadLogsCacheHitTrueOnSecondLog[1], /*isSeq=*/ false, /*cacheHit=*/ true, /*chunkCount=*/ 1, s.T())
+	validate(secondReadOutcome, structuredReadLogsCacheHitTrueOnSecondLog[1] /*isSeq=*/, false /*cacheHit=*/, true /*chunkCount=*/, 1, s.T())
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, s.ctx, s.storageClient, s.T())
 	// Validate cache size within limit.
