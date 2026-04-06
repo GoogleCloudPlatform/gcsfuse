@@ -15,9 +15,9 @@
 package inactive_stream_timeout
 
 import (
+	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path"
@@ -73,14 +73,6 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, kTestDirName)
 }
 
-func loadLogLines(reader io.Reader) ([]string, error) {
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
-	return strings.Split(string(content), "\n"), nil
-}
-
 // doesNotHaveInactiveReaderClosedLogLineInLogFile checks if the "Closing reader for object ... due to inactivity"
 // log message is absent for the given objectName, b/w the [startTime, endTime] interval.
 // It sleeps for 5 seconds before checking to allow logs to be flushed.
@@ -106,12 +98,17 @@ func hasInactiveReaderClosedLogLineInLogFile(t *testing.T, objectName, logFile s
 	}
 	defer file.Close()
 
-	logLines, err := loadLogLines(file)
-	if err != nil {
-		return "", fmt.Errorf("failed to read log file: %w", err)
-	}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
 
-	for _, line := range logLines {
+		// Pre-filter: skip lines that do not contain the core parts of the expected message.
+		// We cannot use `expectedMsgSubstring` directly for the pre-filter because the double
+		// quotes around the object name will be escaped as `\"` in the raw JSON string.
+		if !strings.Contains(line, "Closing reader for object") || !strings.Contains(line, objectName) {
+			continue
+		}
+
 		logEntry, err := read_logs.ParseJsonLogLineIntoLogEntryStruct(line)
 		if err == nil && logEntry != nil {
 			if (logEntry.Timestamp.After(startTime) || logEntry.Timestamp.Equal(startTime)) &&
@@ -121,6 +118,10 @@ func hasInactiveReaderClosedLogLineInLogFile(t *testing.T, objectName, logFile s
 				}
 			}
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("failed to read log file: %w", err)
 	}
 
 	return "", fmt.Errorf("expected log message substring %q not found between %s and %s", expectedMsgSubstring, startTime, endTime)
