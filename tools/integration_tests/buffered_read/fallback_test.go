@@ -82,7 +82,7 @@ type RandomReadFallbackSuite struct {
 // the BufferedReader is not created, and reads fall back to the next reader
 // without any buffered reading.
 func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobalPool_NoReaderAdded() {
-	fileSize := int64(3 * 8 * util.MiB)
+	fileSize := blockSizeInBytes * 3
 	chunkSize := int64(1 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
 	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
@@ -103,7 +103,6 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 
 func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
 	const randomReadsThreshold = 3
-	blockSizeInBytes := int64(8 * util.MiB)
 	// Create a file with 4 blocks. We will read backwards from block 3 to 0
 	// to trigger random seek detection.
 	numBlocks := 4
@@ -125,7 +124,6 @@ func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
 }
 
 func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
-	blockSizeInBytes := int64(8 * util.MiB)
 	// File size is small, less than one block.
 	fileSize := blockSizeInBytes / 2
 	chunkSize := int64(1 * util.KiB)

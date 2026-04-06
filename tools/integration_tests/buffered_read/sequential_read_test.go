@@ -61,7 +61,6 @@ func (s *SequentialReadSuite) TearDownSuite() {
 // Test Cases
 // //////////////////////////////////////////////////////////////////////
 func (s *SequentialReadSuite) TestSequentialRead() {
-	blockSizeInBytes := int64(8 * util.MiB)
 	fileSizeTests := []struct {
 		name     string
 		fileSize int64
@@ -105,8 +104,6 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 // The key validation is that all these operations should be served from a single
 // buffered read log entry, indicating efficient handling.
 func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
-	// Constants for block and file sizes
-	blockSizeInBytes := int64(8 * util.MiB)
 	// Header and footer sizes (10KB each)
 	headerSize := 10 * util.KiB
 	footerSize := 10 * util.KiB
@@ -154,7 +151,6 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 // TestReadSpanningTwoBlocks verifies that a read spanning two buffer blocks is
 // handled correctly.
 func (s *SequentialReadSuite) TestReadSpanningTwoBlocks() {
-	blockSizeInBytes := int64(8 * util.MiB)
 	// Ensure file is large enough for multi-block reads.
 	fileSize := 3 * blockSizeInBytes
 	// We want to read 512KB, with 256KB in the first block and 256KB in the second.

@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -32,14 +33,12 @@ const (
 	testDirName                         = "BufferedReadTest"
 	testFileName                        = "foo"
 	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_buffered_read_test_logs/log.json"
+	// Global block size constant for tests
+	blockSizeInBytes = int64(8 * util.MiB)
 )
 
 var (
 	mountFunc func(*test_suite.TestConfig, []string) error
-	// mount directory is where our tests run.
-	mountDir string
-	// root directory is the directory to be unmounted.
-	rootDir string
 )
 
 type env struct {
@@ -114,16 +113,12 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		// Save mount and root directory variables.
-		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
-	// Save mount and root directory variables.
-	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 
