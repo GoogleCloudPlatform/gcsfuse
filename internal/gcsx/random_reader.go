@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -688,8 +687,9 @@ func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endO
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
-	dataToRead := math.Min(float64(endOffset), float64(rr.object.Size))
-	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) {
+	// OPTIMIZATION: use builtin min instead of math.Min for integer math to avoid type conversion overhead.
+	dataToRead := min(endOffset, int64(rr.object.Size))
+	if rr.reader != nil && (rr.start != startOffset || dataToRead > rr.limit) {
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil

@@ -17,7 +17,6 @@ package bufferedwrites
 import (
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
@@ -164,9 +163,10 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 			}
 		}
 
-		remainingBlockSize := float64(wh.blockPool.BlockSize()) - float64(wh.current.Size())
-		pendingDataForWrite := float64(len(data)) - float64(dataWritten)
-		bytesToCopy := int(math.Min(remainingBlockSize, pendingDataForWrite))
+		// OPTIMIZATION: use builtin min instead of math.Min for integer math to avoid type conversion overhead.
+		remainingBlockSize := wh.blockPool.BlockSize() - wh.current.Size()
+		pendingDataForWrite := int64(len(data) - dataWritten)
+		bytesToCopy := int(min(remainingBlockSize, pendingDataForWrite))
 		_, err := wh.current.Write(data[dataWritten : dataWritten+bytesToCopy])
 		if err != nil {
 			return err
@@ -274,8 +274,9 @@ func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 }
 
 func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
+	// OPTIMIZATION: use builtin max instead of math.Max for integer math to avoid type conversion overhead.
 	return WriteFileInfo{
-		TotalSize: int64(math.Max(float64(wh.totalSize), float64(wh.truncatedSize))),
+		TotalSize: max(wh.totalSize, wh.truncatedSize),
 		Mtime:     wh.mtime,
 	}
 }
@@ -297,8 +298,9 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
 	// Create 1MB of data at a time to avoid OOM
 	chunkSize := 1024 * 1024
 	for i := 0; i < int(diff); i += chunkSize {
-		size := math.Min(float64(chunkSize), float64(int(diff)-i))
-		err := wh.appendBuffer(make([]byte, int(size)))
+		// OPTIMIZATION: use builtin min instead of math.Min for integer math to avoid type conversion overhead.
+		size := min(chunkSize, int(diff)-i)
+		err := wh.appendBuffer(make([]byte, size))
 		if err != nil {
 			return err
 		}
