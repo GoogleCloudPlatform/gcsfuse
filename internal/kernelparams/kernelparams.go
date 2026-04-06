@@ -68,6 +68,11 @@ func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err err
 	return
 }
 
+func SupportsFuseMaxPagesLimit() bool {
+	_, err := os.Stat("/proc/sys/fs/fuse/max_pages_limit")
+	return err == nil
+}
+
 // atomicFileWrite performs a safe write by creating a temporary file and
 // renaming it to the target destination. This ensures the config file is
 // never left in a partially written state.
