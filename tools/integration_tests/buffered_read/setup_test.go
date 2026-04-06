@@ -35,7 +35,7 @@ const (
 )
 
 var (
-	mountFunc     func(*test_suite.TestConfig, []string) error
+	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
