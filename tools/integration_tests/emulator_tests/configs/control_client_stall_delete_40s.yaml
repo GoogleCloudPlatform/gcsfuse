@@ -1,0 +1,7 @@
+proxyType: grpc
+targetHost: "localhost:8888"
+retryConfig:
+- method: DeleteFolder
+  retryInstruction: "stall-for-40s"
+  retryCount: 1
+  skipCount: 0

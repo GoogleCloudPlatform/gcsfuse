@@ -19,15 +19,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-)
-
-var (
-	testDirPath string
-	mountFunc   func([]string) error
-	// root directory is the directory to be unmounted.
-	rootDir string
 )
 
 func TestMain(m *testing.M) {
@@ -41,10 +33,7 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	rootDir = setup.MntDir()
-
-	log.Println("Running control client stall tests with static mounting...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	log.Println("Running control client stall tests...")
 	successCode := m.Run()
 	os.Exit(successCode)
 }

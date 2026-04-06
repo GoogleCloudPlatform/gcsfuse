@@ -61,7 +61,14 @@ type gcsObjectValidator interface {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *commonFailureTestSuite) SetupSuite() {
-	t.flags = []string{"--write-block-size-mb=1", "--write-max-blocks-per-file=1"}
+	t.flags = []string{
+		"--write-block-size-mb=1", 
+		"--write-max-blocks-per-file=1",
+		// Disable HNS to prevent gRPC Control Client initialization.
+		// Legacy emulator proxy servers run on HTTP/1.1, which causes the
+		// gRPC HTTP/2 dialer to crash the mount sequence.
+		"--enable-hns=false",
+	}
 	// Generate 5 MB random data.
 	var err error
 	t.data, err = operations.GenerateRandomData(5 * operations.MiB)

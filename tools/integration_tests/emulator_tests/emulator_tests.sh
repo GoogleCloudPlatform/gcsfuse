@@ -118,8 +118,9 @@ sudo docker pull $DOCKER_IMAGE
 CONTAINER_ID=$(sudo docker ps -aqf "name=$CONTAINER_NAME")
 if [[ -n "$CONTAINER_ID" ]]; then
   log_info "Container with ID:[$CONTAINER_ID] is already running with name:[$CONTAINER_NAME]"
-  log_info "Stopping container...."
-  sudo docker stop $CONTAINER_ID
+  log_info "Stopping and removing container...."
+  docker stop $CONTAINER_ID || true
+  docker rm $CONTAINER_ID || true
 fi
 
 wait_for_emulator() {
