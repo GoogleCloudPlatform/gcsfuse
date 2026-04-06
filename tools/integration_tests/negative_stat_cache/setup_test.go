@@ -41,11 +41,11 @@ const (
 // variables (which would otherwise be declared with `var` at the package root) should
 // be added as fields to this 'env' struct instead.
 type env struct {
-	mountFunc   func(*test_suite.TestConfig, []string) error
+	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
-	rootDir string
+	rootDir              string
 	storageClient        *storage.Client
 	storageControlClient *control.StorageControlClient
 	ctx                  context.Context
