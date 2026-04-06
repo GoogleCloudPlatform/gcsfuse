@@ -15,16 +15,17 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -54,6 +55,7 @@ func (s *cacheFileForRangeReadTrueTest) SetupTest() {
 	//Truncate log file created.
 	err := os.Truncate(testEnv.cfg.LogFile, 0)
 	require.NoError(s.T(), err)
+	s.T().Logf("GCSFuse Log File: %s", testEnv.cfg.LogFile)
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(testEnv.cacheDirPath)
 	testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
@@ -74,16 +76,43 @@ func (s *cacheFileForRangeReadTrueTest) TearDownSuite() {
 func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, s.T())
 
-	// Do a random read on file and validate from gcs.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset5000, s.T())
-	// Wait for the cache to propagate the updates before proceeding to get cache hit.
-	time.Sleep(4 * time.Second)
-	// Read file again from zeroOffset 1000 and validate from gcs.
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
+	// Do a first random read on file and validate from gcs.
+	firstReadOutcome := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset5000, s.T())
+	// Validate a single read log has cache hit 'false' recorded.
+	structuredReadFalseCacheHit := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+	assert.Len(s.T(), structuredReadFalseCacheHit, 1, "Should have exactly 1 false cache hit read record in logs")
+	validate(firstReadOutcome, structuredReadFalseCacheHit[0],
+		/*isSeq=*/ false,
+		/*cacheHit=*/ false,
+		/*chunkCount=*/ 1,
+		s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
-	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, s.T())
-	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
+	// RetryUntil we have exactly 1 Download Job logs (downloaded till <offset>)
+	s.T().Logf("Waiting for file cache Job with data reaching %d bytes", fileSizeForRangeRead)
+	jobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, error) {
+		logs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+		if len(logs) == 1 {
+			for _, entry := range logs[0].JobEntries {
+				if entry.Offset >= fileSizeForRangeRead {
+					s.T().Logf("Found file cache Job with sufficient data (offset %d): %v", entry.Offset, logs[0])
+					return logs, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("expected 1 Job with an entry >= %d bytes, found %d jobs", fileSizeForRangeRead, len(logs))
+	})
+	assert.Equal(s.T(), structuredReadFalseCacheHit[0].ObjectName, jobLog[0].ObjectName)
+	// Read file second time from Offset 1000 and validate from gcs.
+	secondReadOutcome := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
+
+	// Validate two read Logs and the second log must have cache hit 'true' recorded.
+	structuredReadLogsCacheHitTrueOnSecondLog := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+	assert.Len(s.T(), structuredReadLogsCacheHitTrueOnSecondLog, 2, "Should have exactly 2 read records in logs")
+	validate(secondReadOutcome, structuredReadLogsCacheHitTrueOnSecondLog[1],
+		/*isSeq=*/ false,
+		/*cacheHit=*/ true,
+		/*chunkCount=*/ 1,
+		s.T())
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, s.ctx, s.storageClient, s.T())
 	// Validate cache size within limit.
