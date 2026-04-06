@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 	// 2. Not running mounted directory tests.
 	if cfg.ReleaseVersion[0].GKEMountedDirectory != "" {
 		log.Print("These tests will not run for mountedDirectory flag.")
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	// 3. The release_version test doesn't mount anything, but it needs the gcsfuse binary.
