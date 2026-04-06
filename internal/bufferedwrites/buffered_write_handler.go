@@ -163,7 +163,6 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 			}
 		}
 
-		// OPTIMIZATION: use builtin min instead of math.Min for integer math to avoid type conversion overhead.
 		remainingBlockSize := wh.blockPool.BlockSize() - wh.current.Size()
 		pendingDataForWrite := int64(len(data) - dataWritten)
 		bytesToCopy := int(min(remainingBlockSize, pendingDataForWrite))
@@ -274,7 +273,6 @@ func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 }
 
 func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
-	// OPTIMIZATION: use builtin max instead of math.Max for integer math to avoid type conversion overhead.
 	return WriteFileInfo{
 		TotalSize: max(wh.totalSize, wh.truncatedSize),
 		Mtime:     wh.mtime,
@@ -298,7 +296,6 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
 	// Create 1MB of data at a time to avoid OOM
 	chunkSize := 1024 * 1024
 	for i := 0; i < int(diff); i += chunkSize {
-		// OPTIMIZATION: use builtin min instead of math.Min for integer math to avoid type conversion overhead.
 		size := min(chunkSize, int(diff)-i)
 		err := wh.appendBuffer(make([]byte, size))
 		if err != nil {
