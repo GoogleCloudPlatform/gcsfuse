@@ -36,9 +36,10 @@ const (
 
 var (
 	mountFunc     func(*test_suite.TestConfig, []string) error
-	storageClient *storage.Client
-	ctx           context.Context
-	rootDir       string
+	// mount directory is where our tests run.
+	mountDir string
+	// root directory is the directory to be unmounted.
+	rootDir string
 )
 
 type env struct {
@@ -102,24 +103,27 @@ func TestMain(m *testing.M) {
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.BufferedRead[0])
 	testEnv.cfg = &cfg.BufferedRead[0]
 
+	// 2. Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
-	ctx = testEnv.ctx
-	storageClient = testEnv.storageClient
-
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
+			log.Printf("closeStorageClient failed: %v\n", err)
 		}
 	}()
 
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		rootDir = testEnv.cfg.GKEMountedDirectory
+		// Save mount and root directory variables.
+		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
+	// Run tests for testBucket
+	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
-	rootDir = testEnv.cfg.GCSFuseMountedDirectory
+	// Save mount and root directory variables.
+	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 

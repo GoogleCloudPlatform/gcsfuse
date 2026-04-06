@@ -88,9 +88,9 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 				err := os.Truncate(setup.LogFile(), 0)
 				require.NoError(t, err, "Failed to truncate log file")
 				testDir := setup.SetupTestDirectory(testDirName)
-				fileName := setupFileInTestDir(ctx, storageClient, testDir, fsTest.fileSize, t)
+				fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fsTest.fileSize, t)
 
-				expected := readFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, chunkSize, t)
+				expected := readFileAndValidate(testEnv.ctx, testEnv.storageClient, testDir, fileName, true, 0, chunkSize, t)
 
 				bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(t)
 				validate(expected, bufferedReadLogEntry, false, t)
@@ -116,7 +116,7 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 		testDir := setup.SetupTestDirectory(testDirName)
 		fileSize := blockSizeInBytes * 2
 		// Create a file of a given size in the test directory.
-		fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, t)
+		fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, t)
 		filePath := path.Join(testDir, fileName)
 		// Get the actual file size.
 		fi, err := os.Stat(filePath)
@@ -165,10 +165,10 @@ func (s *SequentialReadSuite) TestReadSpanningTwoBlocks() {
 	// Truncate the log file before the read operation.
 	err := os.Truncate(setup.LogFile(), 0)
 	require.NoError(s.T(), err, "Failed to truncate log file")
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 
 	// readFileAndValidate opens, reads, and closes the file in one go.
-	expected := readFileAndValidate(ctx, storageClient, testDir, fileName, false, readOffset, readSize, s.T())
+	expected := readFileAndValidate(testEnv.ctx, testEnv.storageClient, testDir, fileName, false, readOffset, readSize, s.T())
 
 	bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(s.T())
 	validate(expected, bufferedReadLogEntry, false, s.T())

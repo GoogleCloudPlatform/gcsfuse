@@ -85,7 +85,7 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 	fileSize := int64(3 * 8 * util.MiB)
 	chunkSize := int64(1 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
 
 	// Open and read the file. Since BufferedReader creation should fail, the read
@@ -93,7 +93,7 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 	content, err := operations.ReadChunkFromFile(filePath, chunkSize, 0, os.O_RDONLY|syscall.O_DIRECT)
 
 	require.NoError(s.T(), err, "Failed to read file")
-	client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testDir), fileName, 0, chunkSize, string(content), s.T())
+	client.ValidateObjectChunkFromGCS(testEnv.ctx, testEnv.storageClient, path.Base(testDir), fileName, 0, chunkSize, string(content), s.T())
 	warningMsg := "Failed to create bufferedReader"
 	found := operations.CheckLogFileForMessage(s.T(), warningMsg, setup.LogFile())
 	assert.True(s.T(), found, "Expected warning message not found in log file")
@@ -110,7 +110,7 @@ func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
 	fileSize := blockSizeInBytes * int64(numBlocks)
 	chunkSize := int64(1 * util.KiB)
 	testDir := setup.SetupTestDirectory(testDirName)
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
@@ -130,7 +130,7 @@ func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
 	fileSize := blockSizeInBytes / 2
 	chunkSize := int64(1 * util.KiB)
 	testDir := setup.SetupTestDirectory(testDirName)
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
@@ -153,7 +153,7 @@ func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
 func (s *RandomReadFallbackSuite) TestRandomThenSequential_SwitchesBackToBufferedRead() {
 	fileSize := int64(20 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
