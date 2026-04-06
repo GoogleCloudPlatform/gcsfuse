@@ -85,7 +85,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
 
 	// RetryUntil we have exactly 1 Download Job logs (downloaded till <offset>)
 	s.T().Logf("Waiting for file cache Job with data reaching %d bytes", fileSizeForRangeRead)
-	JobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, error) {
+	jobLog := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() ([]*read_logs.Job, error) {
 		logs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 		if len(logs) == 1 {
 			for _, entry := range logs[0].JobEntries {
@@ -97,7 +97,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
 		}
 		return nil, fmt.Errorf("expected 1 Job with an entry >= %d bytes, found %d jobs", fileSizeForRangeRead, len(logs))
 	})
-	assert.Equal(s.T(), structuredReadFalseCacheHit[0].ObjectName, JobLog[0].ObjectName)
+	assert.Equal(s.T(), structuredReadFalseCacheHit[0].ObjectName, jobLog[0].ObjectName)
 	// Read file second time from Offset 1000 and validate from gcs.
 	secondReadOutcome := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
 
