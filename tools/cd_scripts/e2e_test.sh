@@ -395,6 +395,7 @@ TEST_DIR_PARALLEL=(
   #"requester_pays_bucket"
   "flag_optimizations"
   "unsupported_path"
+  "symlink_handling"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
