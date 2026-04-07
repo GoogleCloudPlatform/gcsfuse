@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"crypto/rand"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -839,10 +840,46 @@ func CreateFileAndCopyToMntDir(t *testing.T, fileSize int, dirName string) (stri
 
 // CreateFileOnDiskAndCopyToMntDir creates a file of given size and copies to given path.
 func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, filePathInMntDir string, fileSize int) {
-	setup.RunScriptForTestData("../util/setup/testdata/write_content_of_fix_size_in_file.sh", filePathInLocalDisk, strconv.Itoa(fileSize))
-	err := CopyFile(filePathInLocalDisk, filePathInMntDir)
+	// 1. Create the local file
+	localFile, err := os.Create(filePathInLocalDisk)
 	if err != nil {
-		t.Errorf("Error in copying file:%v", err)
+		t.Fatalf("Failed to create local file %q: %v", filePathInLocalDisk, err)
+	}
+	defer CloseFileShouldNotThrowError(t, localFile)
+
+	buf := make([]byte, OneMiB)
+
+	// 2. Write random data to the local file using the buffer
+	_, err = io.CopyBuffer(localFile, io.LimitReader(rand.Reader, int64(fileSize)), buf)
+	if err != nil {
+		t.Fatalf("Failed to write random data to local file: %v", err)
+	}
+
+	// Ensure everything is flushed to disk
+	if err := localFile.Sync(); err != nil {
+		t.Fatalf("Failed to sync local file to disk: %v", err)
+	}
+
+	// 3. Rewind the local file pointer to the beginning so we can copy it
+	if _, err := localFile.Seek(0, io.SeekStart); err != nil {
+		t.Fatalf("Failed to seek local file to start: %v", err)
+	}
+
+	// 4. Create the destination file in the mount directory
+	mntFile, err := os.Create(filePathInMntDir)
+	if err != nil {
+		t.Fatalf("Failed to create destination file %q: %v", filePathInMntDir, err)
+	}
+	defer CloseFileShouldNotThrowError(t, mntFile)
+
+	// 5. Copy the file over to the mnt dir using io.CopyBuffer with the same buffer
+	if _, err := io.CopyBuffer(mntFile, localFile, buf); err != nil {
+		t.Fatalf("Failed to copy file: %v", err)
+	}
+
+	// Ensure the mount file is also fully flushed
+	if err := mntFile.Sync(); err != nil {
+		t.Fatalf("Failed to sync mnt file: %v", err)
 	}
 }
 
