@@ -436,6 +436,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   unfinalized_object
   write_large_files
   "unsupported_path"
+  "symlink_handling"
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.

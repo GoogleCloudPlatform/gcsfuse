@@ -165,6 +165,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "dentry_cache"
   "flag_optimizations"
   "unsupported_path"
+  "symlink_handling"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
