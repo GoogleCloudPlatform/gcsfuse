@@ -101,14 +101,14 @@ e2e-test:
 # The full version string shown by --version will be:
 #   gcsfuse version gcsfuse-v3-snap.<upstream-short-sha>+bench-<BENCH_VERSION> (Go version ...)
 #
-# UPSTREAM_SHA is derived from the merge-base of HEAD and upstream/master so it
+# UPSTREAM_SHA is derived from the merge-base of HEAD and origin/master so it
 # always identifies the exact upstream snapshot this build was forked from,
 # regardless of how many bench commits have been added on top.
-# Falls back to origin/master if the upstream remote is not configured.
+# Falls back to upstream/master if origin/master is not configured.
 BENCH_VERSION ?= v1.2
-UPSTREAM_SHA  := $(shell git merge-base HEAD upstream/master 2>/dev/null | cut -c1-8)
-ifeq ($(UPSTREAM_SHA),)
 UPSTREAM_SHA  := $(shell git merge-base HEAD origin/master 2>/dev/null | cut -c1-8)
+ifeq ($(UPSTREAM_SHA),)
+UPSTREAM_SHA  := $(shell git merge-base HEAD upstream/master 2>/dev/null | cut -c1-8)
 endif
 ifeq ($(UPSTREAM_SHA),)
 UPSTREAM_SHA  := unknown
