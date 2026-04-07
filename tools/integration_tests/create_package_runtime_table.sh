@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# Copyright 2025 Google LLC
+#!/bin/bash
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,25 +13,64 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This script generates a table of test package runtimes using the 'rich' library.
+# ==============================================================================
+# DESCRIPTION:
+# This script generates a table of test package runtimes using the 'rich' library.
+#
+# USAGE:
+#     ./create_package_runtime_table.sh <FILE_PATH>
+#
+# REQUIREMENTS:
+#     Python 3.11+. The script automatically creates a temporary virtual 
+#     environment and safely installs the 'rich' library for you.
+#
+# INPUT FILE FORMAT (<FILE_PATH>):
+#     Space-separated lines with the following fields:
+#     <package_name> <bucket_type> <exit_code> <start_time_seconds> <end_time_seconds>
+#
+# EXAMPLE FILE CONTENT:
+#     pkg1 bucket-standard 0 0 120
+#     pkg2 bucket-premium 0 60 180
+#     pkg3 bucket-standard 1 120 240
+# ==============================================================================
 
-Usage:
-    python3 create_package_runtime_table.sh <FILE_PATH>
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <file>"
+  echo "Check the script header for input file format requirements."
+  exit 1
+fi
 
-Requirements:
-    Requires 'rich' library installed on the system (e.g., 'pip install rich').
+PACKAGE_RUNTIME_STATS=$1
 
-Input File Format (<FILE_PATH>):
-    Space-separated lines with the following fields:
-    <package_name> <bucket_type> <exit_code> <start_time_seconds> <end_time_seconds>
+if [ ! -f "$PACKAGE_RUNTIME_STATS" ]; then
+  echo "Error: File '$PACKAGE_RUNTIME_STATS' not found."
+  exit 0
+fi
 
-Example File Content:
-    pkg_name bucket_type exit_code start_time_seconds end_time_seconds
-    pkg1 bucket-standard 0 0 120
-    pkg2 bucket-premium 0 60 180
-    pkg3 bucket-standard 1 120 240
-"""
+# Sort packages in ascending order.
+sort -o "$PACKAGE_RUNTIME_STATS" "$PACKAGE_RUNTIME_STATS" || true
+
+# Wrap the visualization logic in a subshell so failures never fail the CI/CD pipeline
+(
+  # Create a temporary virtual environment
+  VENV_DIR=$(mktemp -d)
+  trap 'rm -rf "$VENV_DIR"' EXIT
+
+  # Create venv. (The locally built Python 3.11 includes the venv module natively)
+  if ! python3 -m venv "$VENV_DIR" > /dev/null 2>&1; then
+     echo "Warning: Failed to create venv. Skipping rich table visualization."
+     exit 0
+  fi
+
+  # Install rich safely inside the venv
+  if ! "$VENV_DIR/bin/pip" install rich > /dev/null 2>&1; then
+     echo "Warning: Failed to install rich. Skipping rich table visualization."
+     exit 0
+  fi
+
+  # Run the Python script inline using the venv's Python binary
+  # The "-" tells python to read the script from standard input (the heredoc below)
+  "$VENV_DIR/bin/python3" - "$PACKAGE_RUNTIME_STATS" << 'EOF'
 import sys, os
 
 # Column indices for the input file data
@@ -56,15 +95,7 @@ PADDING_BORDERS = 20
 WIDTH_FALLBACK = 80
 SECONDS_PER_MINUTE = 60
 
-# Verify command line arguments
-if len(sys.argv) != 2:
-    print(f"Usage: {sys.argv[0]} <FILE_PATH>")
-    sys.exit(1)
-
 path = sys.argv[1]
-if not os.path.isfile(path):
-    print(f"Error: File '{path}' not found.")
-    sys.exit(1)
 
 # Read input file, filter out empty lines, and sort alphabetically
 with open(path) as f:
@@ -85,7 +116,7 @@ try:
         table_width = max_pkg + max_type + PADDING_TIME_COL + PADDING_STATUS_COL + max_rt + PADDING_BORDERS
     else:
         table_width = WIDTH_FALLBACK
-        
+
     # Initialize Console and Table with appropriate width and styling
     term_width = shutil.get_terminal_size().columns
     console = Console(width=max(term_width, table_width))
@@ -103,9 +134,7 @@ try:
             table.add_row(p[IDX_PKG_NAME], p[IDX_BUCKET_TYPE], f"{run}m", f"[dim]{'░'*wait}[/][cyan]{'▓'*run}[/]", status)
     console.print(table)
     
-except ImportError:
-    print("Error: The 'rich' library is required to run this script. Please install it (e.g., 'pip install rich').", file=sys.stderr)
-    sys.exit(1)
 except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
-    sys.exit(1)
+    print(f"Visualization error: {e}", file=sys.stderr)
+EOF
+) || true
