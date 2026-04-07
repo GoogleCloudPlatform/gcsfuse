@@ -31,6 +31,7 @@ import (
 const OneMB = 1024 * 1024
 const FiveHundredMB = 500 * OneMB
 const ChunkSize = 200 * OneMB
+const RandomReadChunkSize = OneMB
 const NumberOfRandomReadCalls = 200
 const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB

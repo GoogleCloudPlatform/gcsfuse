@@ -33,18 +33,34 @@ const NumberOfFilesInLocalDiskForConcurrentRead = 3
 func TestReadFilesConcurrently(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForReadLargeFilesTests)
 
-	filesInLocalDisk := [NumberOfFilesInLocalDiskForConcurrentRead]string{FileOne, FileTwo, FileThree}
-	var filesPathInLocalDisk []string
-	var filesPathInMntDir []string
+	fileNames := [NumberOfFilesInLocalDiskForConcurrentRead]string{FileOne, FileTwo, FileThree}
+	localFilePaths := make([]string, NumberOfFilesInLocalDiskForConcurrentRead)
+	mntFilePaths := make([]string, NumberOfFilesInLocalDiskForConcurrentRead)
 
+	var creationGroup errgroup.Group
 	for i := range NumberOfFilesInLocalDiskForConcurrentRead {
-		fileInLocalDisk := path.Join(os.Getenv("HOME"), filesInLocalDisk[i])
-		filesPathInLocalDisk = append(filesPathInLocalDisk, fileInLocalDisk)
+		fileIndex := i
+		creationGroup.Go(func() error {
+			localFilePath := path.Join(os.Getenv("HOME"), fileNames[fileIndex])
+			localFilePaths[fileIndex] = localFilePath
 
-		file := path.Join(testDir, filesInLocalDisk[i])
-		filesPathInMntDir = append(filesPathInMntDir, file)
+			mntFilePath := path.Join(testDir, fileNames[fileIndex])
+			mntFilePaths[fileIndex] = mntFilePath
 
-		operations.CreateFileOnDiskAndCopyToMntDir(t, fileInLocalDisk, file, FiveHundredMB)
+			operations.CreateFileOnDiskAndCopyToMntDir(t, localFilePath, mntFilePath, FiveHundredMB)
+			return nil
+		})
+	}
+	if err := creationGroup.Wait(); err != nil {
+		t.Fatalf("Error creating files: %v", err)
+	}
+
+	// Register cleanup for local files.
+	for i := range NumberOfFilesInLocalDiskForConcurrentRead {
+		filePath := localFilePaths[i]
+		t.Cleanup(func() {
+			operations.RemoveFile(filePath)
+		})
 	}
 
 	var eG errgroup.Group
@@ -55,16 +71,13 @@ func TestReadFilesConcurrently(t *testing.T) {
 
 		// Thread to read the current file.
 		eG.Go(func() error {
-			operations.ReadAndCompare(t, filesPathInMntDir[fileIndex], filesPathInLocalDisk[fileIndex], 0, FiveHundredMB)
+			operations.ReadAndCompare(t, mntFilePaths[fileIndex], localFilePaths[fileIndex], 0, FiveHundredMB)
 			return nil
 		})
 	}
 
 	// Wait on threads to end.
 	err := eG.Wait()
-	for i := range NumberOfFilesInLocalDiskForConcurrentRead {
-		operations.RemoveFile(filesPathInLocalDisk[i])
-	}
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
