@@ -24,17 +24,17 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
-const OneMB = 1024 * 1024
-const FiveHundredMB = 500 * OneMB
-const ChunkSize = 200 * OneMB
-const RandomReadChunkSize = OneMB
+const FiveHundredMB = 500 * operations.MiB
+const ChunkSize = 200 * operations.MiB
+const RandomReadChunkSize = operations.MiB
 const NumberOfRandomReadCalls = 200
 const MinReadableByteFromFile = 0
-const MaxReadableByteFromFile = 500 * OneMB
+const MaxReadableByteFromFile = 500 * operations.MiB
 const DirForReadLargeFilesTests = "dirForReadLargeFilesTests"
 
 var (

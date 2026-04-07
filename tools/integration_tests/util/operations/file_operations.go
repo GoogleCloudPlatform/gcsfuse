@@ -840,9 +840,6 @@ func CreateFileAndCopyToMntDir(t *testing.T, fileSize int, dirName string) (stri
 
 // CreateFileOnDiskAndCopyToMntDir creates a file of given size and copies to given path.
 func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, filePathInMntDir string, fileSize int) {
-	// Define the 1 MiB chunk size
-	const chunkSize = 1024 * 1024
-
 	// 1. Create the local file
 	localFile, err := os.Create(filePathInLocalDisk)
 	if err != nil {
@@ -850,9 +847,10 @@ func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, f
 	}
 	defer CloseFileShouldNotThrowError(t, localFile)
 
-	// 2. Write random data to the local file using a 1 MiB buffer
-	writeBuf := make([]byte, chunkSize)
-	_, err = io.CopyBuffer(localFile, io.LimitReader(rand.Reader, int64(fileSize)), writeBuf)
+	buf := make([]byte, OneMiB)
+
+	// 2. Write random data to the local file using the buffer
+	_, err = io.CopyBuffer(localFile, io.LimitReader(rand.Reader, int64(fileSize)), buf)
 	if err != nil {
 		t.Fatalf("Failed to write random data to local file: %v", err)
 	}
@@ -874,9 +872,8 @@ func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, f
 	}
 	defer CloseFileShouldNotThrowError(t, mntFile)
 
-	// 5. Copy the file over to the mnt dir using io.CopyBuffer with 1 MiB buffer
-	copyBuf := make([]byte, chunkSize)
-	if _, err := io.CopyBuffer(mntFile, localFile, copyBuf); err != nil {
+	// 5. Copy the file over to the mnt dir using io.CopyBuffer with the same buffer
+	if _, err := io.CopyBuffer(mntFile, localFile, buf); err != nil {
 		t.Fatalf("Failed to copy file: %v", err)
 	}
 
