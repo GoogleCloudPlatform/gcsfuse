@@ -29,11 +29,11 @@ make bench
 
 # Verify
 ./gcs-bench --version
-# gcsfuse version gcsfuse-v3-snap.582a2201+bench-v1.0 (Go version go1.26.1)
+# gcsfuse version gcsfuse-v3-snap.582a2201+bench-v1.2 (Go version go1.26.1)
 ```
 
 The `make bench` target injects a meaningful version string automatically.
-To bump your revision: `make bench BENCH_VERSION=v1.1`.
+To bump your revision: `make bench BENCH_VERSION=v1.3`.
 
 ### 2. Validate your config (no GCS traffic)
 
@@ -89,6 +89,7 @@ results/bench-YYYYMMDD-HHMMSS/
 | Document | Description |
 |---|---|
 | [docs/bench-user-guide.md](docs/bench-user-guide.md) | **Full user guide** — config reference, all flags, output format, distributed usage, authentication |
+| [docs/CHANGELOG-bench.md](docs/CHANGELOG-bench.md) | Changelog for gcs-bench-specific changes (v1.0 → current) |
 | [docs/Handoff_gcsfuse-bench.md](docs/Handoff_gcsfuse-bench.md) | Development history, architecture decisions, commit log |
 | [docs/Creating_Test_tool_for_Rapid-Storage.md](docs/Creating_Test_tool_for_Rapid-Storage.md) | Background on RAPID storage testing motivation |
 | [docs/performance.md](docs/performance.md) | Upstream gcsfuse performance notes |
@@ -101,6 +102,8 @@ results/bench-YYYYMMDD-HHMMSS/
 - **No FUSE mount required** — talks directly to GCS via the Go storage client
 - **HDR histograms** — accurate p50/p90/p95/p99/p99.9/max; never averaged
 - **RAPID / zonal bucket support** — auto-detects bidi-gRPC transport (`--rapid-mode auto`)
+- **MultiRangeDownloader (MRD)** — bidi-gRPC `read-type: multirange` with LRU connection cache and singleflight dedup; RAPID/zonal buckets only
+- **`/proc` memory monitoring** — live RSS + page-cache + pgpgin delta in each 10-second tick
 - **Warmup phase** — goroutines run continuously; stats reset at the boundary so queues stay full
 - **Distributed mode** — co-ordinate multiple hosts with `--worker-id` / `--num-workers`; merge with `merge-results`
 - **Self-contained results** — every run directory includes the config and full console log

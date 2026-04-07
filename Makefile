@@ -105,7 +105,7 @@ e2e-test:
 # always identifies the exact upstream snapshot this build was forked from,
 # regardless of how many bench commits have been added on top.
 # Falls back to origin/master if the upstream remote is not configured.
-BENCH_VERSION ?= v1.1
+BENCH_VERSION ?= v1.2
 UPSTREAM_SHA  := $(shell git merge-base HEAD upstream/master 2>/dev/null | cut -c1-8)
 ifeq ($(UPSTREAM_SHA),)
 UPSTREAM_SHA  := $(shell git merge-base HEAD origin/master 2>/dev/null | cut -c1-8)

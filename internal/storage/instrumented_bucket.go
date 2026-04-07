@@ -113,11 +113,29 @@ func (b *instrumentedBucket) NewReaderWithReadHandle(
 	}, nil
 }
 
-// NewMultiRangeDownloader passes through — multirange is not benchmarked here.
+// NewMultiRangeDownloader wraps the underlying downloader with instrumentation
+// that records TTFB (time to first 256 KiB) and total latency into the global
+// histogram, matching the accounting done by instrumentedReader for the
+// pull-based read path.
 func (b *instrumentedBucket) NewMultiRangeDownloader(
 	ctx context.Context,
 	req *gcs.MultiRangeDownloaderRequest) (gcs.MultiRangeDownloader, error) {
-	return b.wrapped.NewMultiRangeDownloader(ctx, req)
+
+	start := time.Now()
+	mrd, err := b.wrapped.NewMultiRangeDownloader(ctx, req)
+	if err != nil {
+		b.totalErrs.Add(1)
+		b.recordEvent(benchmark.PerfEvent{
+			Op:           benchmark.OpRead,
+			TotalLatency: time.Since(start),
+			Err:          err,
+		})
+		return nil, err
+	}
+	return &instrumentedMultiRangeDownloader{
+		MultiRangeDownloader: mrd,
+		bucket:               b,
+	}, nil
 }
 
 // CreateObject instruments write latency.
@@ -370,3 +388,71 @@ func (r *instrumentedReader) ReadHandle() storagev2.ReadHandle {
 
 // Compile-time interface check.
 var _ io.ReadCloser = (*instrumentedReader)(nil)
+
+////////////////////////////////////////////////////////////////////////
+// instrumentedMultiRangeDownloader
+////////////////////////////////////////////////////////////////////////
+
+// instrumentedMultiRangeDownloader wraps gcs.MultiRangeDownloader and records
+// per-Add TTFB and total-latency metrics into the global bucket histograms,
+// matching the accounting done by instrumentedReader for pull-based reads.
+type instrumentedMultiRangeDownloader struct {
+	gcs.MultiRangeDownloader
+	bucket *instrumentedBucket
+}
+
+// Add wraps the underlying MultiRangeDownloader.Add with latency recording.
+// It uses benchmark.TTFBWriter to capture the time until 256 KiB have been
+// received (matching the pull-path "first buffer" metric), then records total
+// latency and byte/op counts in the wrapped callback.
+//
+// The inner writer passed to benchmark.TTFBWriter is io.Discard — the push
+// model means the library delivers bytes directly into Write(); no local buffer
+// is needed to store the object data.
+func (m *instrumentedMultiRangeDownloader) Add(
+	output io.Writer,
+	offset, length int64,
+	callback func(int64, int64, error)) {
+
+	start := time.Now()
+	var ttfb time.Duration
+
+	// Wrap output with TTFBWriter to capture time-to-first-256KiB on the global
+	// histogram.  The writer chain is: TTFBWriter → output (the caller's drain
+	// writer, typically io.Discard inside doReadMultiRange).
+	tw := &benchmark.TTFBWriter{
+		Wrapped:   output,
+		Start:     start,
+		Threshold: 256 * 1024,
+		OnFirst: func(d time.Duration) {
+			ttfb = d
+			m.bucket.hists.RecordTTFB(d.Microseconds())
+		},
+	}
+
+	// Wrap the callback to capture total latency once the download completes.
+	wrapped := func(off, bytesRead int64, err error) {
+		tw.Finalize() // ensure TTFB fires for objects smaller than 256 KiB
+		elapsed := time.Since(start)
+		m.bucket.totalOps.Add(1)
+		m.bucket.totalBytes.Add(bytesRead)
+		m.bucket.hists.RecordTotal(elapsed.Microseconds())
+		m.bucket.recordEvent(benchmark.PerfEvent{
+			Op:               benchmark.OpRead,
+			TTFB:             ttfb,
+			TotalLatency:     elapsed,
+			BytesTransferred: bytesRead,
+		})
+		if err != nil {
+			m.bucket.totalErrs.Add(1)
+		}
+		if callback != nil {
+			callback(off, bytesRead, err)
+		}
+	}
+
+	m.MultiRangeDownloader.Add(tw, offset, length, wrapped)
+}
+
+// Compile-time interface check.
+var _ gcs.MultiRangeDownloader = (*instrumentedMultiRangeDownloader)(nil)

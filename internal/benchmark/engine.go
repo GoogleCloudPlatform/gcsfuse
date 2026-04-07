@@ -31,8 +31,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"golang.org/x/sync/singleflight"
 )
 
 // overridePoolBytesPerSide, when > 0, replaces poolBytesPerSide inside
@@ -70,6 +72,21 @@ type Engine struct {
 	// exceeds poolSlotSizeCap).
 	writePool WritePool
 
+	// mrdCache is an LRU cache of MultiRangeDownloader instances keyed by
+	// object name, shared across all "multirange" read tracks.  Caching the
+	// bidi-gRPC stream avoids the per-read connection-setup cost (~5 ms per
+	// open) when the same object is read repeatedly.  The cache holds at most
+	// mrdCacheSize entries; evicted entries are closed to prevent connection
+	// leaks.
+	mrdCache *lru.Cache
+
+	// mrdGroup deduplicates concurrent NewMultiRangeDownloader calls for the
+	// same object key.  Without this, many goroutines racing on a cache miss
+	// for the same key would each open a separate connection; singleflight
+	// collapses them so at most one network call is in flight per key at a
+	// time.  All waiters receive the same MRD and the cache is populated once.
+	mrdGroup singleflight.Group
+
 	// readBufPool is a pool of 256 KiB drain buffers reused across doRead
 	// calls. Pooling eliminates per-read heap allocations and the associated
 	// GC pressure, which otherwise inflates p999/pMax latency.
@@ -79,6 +96,22 @@ type Engine struct {
 	// Defaults to os.Stderr when nil is passed to NewEngine.
 	out io.Writer
 }
+
+// mrdCacheSize is the maximum number of MultiRangeDownloader connections held
+// in the LRU cache.  Each entry is one open bidi-gRPC stream to GCS.
+// 2048 covers the full UNet3D-like object space (50,176 objects, 4% hit rate)
+// while staying well within typical per-process gRPC connection limits.
+const mrdCacheSize = 2048
+
+// mrdCacheEntry wraps a gcs.MultiRangeDownloader so it satisfies the
+// lru.ValueType interface required by the LRU cache.  All MRD entries have
+// a unit weight of 1 so the cache is capped by connection count, not bytes.
+type mrdCacheEntry struct {
+	mrd gcs.MultiRangeDownloader
+}
+
+// Size implements lru.ValueType — each connection counts as 1 slot.
+func (e *mrdCacheEntry) Size() uint64 { return 1 }
 
 // trackState holds mutable per-track counters and histograms.
 type trackState struct {
@@ -135,6 +168,7 @@ func NewEngine(bucket gcs.Bucket, bCfg cfg.BenchmarkConfig, verbosity int, out i
 		trackState:   states,
 		writeEntropy: entropy,
 		out:          out,
+		mrdCache:     lru.NewCache(mrdCacheSize),
 	}
 
 	// Build write pool if any track writes fixed-size (or bounded) objects
@@ -653,7 +687,11 @@ func (e *Engine) pickObjectFromState(rng *rand.Rand, ts *trackState) string {
 // doRead issues a GCS read and drains the response to measure throughput.
 // When ReadSize <= 0, the entire object is read (no Range restriction).
 // When ReadSize > 0, a range-read of exactly ReadSize bytes is performed.
+// When ReadType == "multirange", the call is dispatched to doReadMultiRange.
 func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) error {
+	if strings.ToLower(ts.cfg.ReadType) == "multirange" {
+		return e.doReadMultiRange(ctx, ts, objectName)
+	}
 	readSize := ts.cfg.ReadSize
 
 	req := &gcs.ReadObjectRequest{
@@ -720,6 +758,121 @@ func (e *Engine) doRead(ctx context.Context, ts *trackState, objectName string) 
 	logger.Debugf("[doRead] object=%s bytes=%d total=%s throughput=%.1f MiB/s\n",
 		objectName, bytesRead, total.Round(time.Millisecond),
 		float64(bytesRead)/total.Seconds()/float64(1<<20))
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// MultiRangeDownloader read path
+// ---------------------------------------------------------------------------
+
+// getOrCreateMRD returns a MultiRangeDownloader for objectName, either from
+// the LRU cache (fast path, lock-free read) or by opening a new bidi-gRPC
+// stream (slow path, deduplicated with singleflight so at most one stream is
+// opened per key concurrently).
+//
+// The singleflight group is the key concurrency primitive here:
+//   - Cache hit (>99% at steady-state for small object sets): zero contention.
+//   - Cache miss: all goroutines racing on the same key wait on the first
+//     caller's network round-trip, then receive the same MRD.  For distinct
+//     keys (the 96-goroutine/50K-object case) they proceed fully in parallel.
+func (e *Engine) getOrCreateMRD(ctx context.Context, objectName string) (gcs.MultiRangeDownloader, error) {
+	// --- Fast path: LRU cache hit (no lock required, LRU is thread-safe) ---
+	if v := e.mrdCache.LookUp(objectName); v != nil {
+		return v.(*mrdCacheEntry).mrd, nil
+	}
+
+	// --- Slow path: cache miss — deduplicate via singleflight ---
+	v, err, _ := e.mrdGroup.Do(objectName, func() (any, error) {
+		// Re-check the cache under the singleflight exclusion: a concurrent
+		// goroutine may have populated it while we were waiting.
+		if v := e.mrdCache.LookUp(objectName); v != nil {
+			return v.(*mrdCacheEntry).mrd, nil
+		}
+
+		mrd, err := e.bucket.NewMultiRangeDownloader(ctx, &gcs.MultiRangeDownloaderRequest{
+			Name: objectName,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("NewMultiRangeDownloader: %w", err)
+		}
+
+		// Insert the new connection; close any evicted connections to prevent
+		// bidi-gRPC stream leaks.
+		evicted, _ := e.mrdCache.Insert(objectName, &mrdCacheEntry{mrd: mrd})
+		for _, ev := range evicted {
+			ev.(*mrdCacheEntry).mrd.Close()
+		}
+		return mrd, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(gcs.MultiRangeDownloader), nil
+}
+
+// doReadMultiRange issues a GCS read using MultiRangeDownloader, reusing the
+// bidi-gRPC connection from the LRU cache where possible.
+//
+// The MRD API is push-based: the library calls output.Write(p) as data arrives
+// over the network.  No local buffer is needed on the caller side — io.Discard
+// accepts and discards each chunk as delivered, confirming receipt without
+// storing any data in RAM.  This is fundamentally different from the pull path
+// (doRead) where we need a local buf for reader.Read(buf).
+//
+// TTFB is recorded via TTFBWriter (256 KiB threshold) before handing off to
+// io.Discard, exactly matching the pull path semantics.
+func (e *Engine) doReadMultiRange(ctx context.Context, ts *trackState, objectName string) error {
+	mrd, err := e.getOrCreateMRD(ctx, objectName)
+	if err != nil {
+		return err
+	}
+
+	start := time.Now()
+	length := ts.cfg.ReadSize // 0 means "until EOF" in the BidiRead API.
+
+	type res struct {
+		bytes int64
+		err   error
+	}
+	done := make(chan res, 1)
+
+	// TTFBWriter wraps io.Discard:
+	//   - io.Discard receives each pushed chunk and acknowledges it immediately
+	//     without storing a copy — no local RAM accumulation of object data.
+	//   - TTFBWriter fires the TTFB callback once 256 KiB have been received,
+	//     then passes all subsequent writes straight through to io.Discard.
+	tw := &TTFBWriter{
+		Wrapped:   io.Discard,
+		Start:     start,
+		Threshold: 256 * 1024,
+		OnFirst: func(d time.Duration) {
+			ts.hists.RecordTTFB(d.Microseconds())
+			logger.Tracef("[doReadMultiRange] object=%s first-buffer(256KiB)=%s\n",
+				objectName, d.Round(time.Microsecond))
+		},
+	}
+
+	mrd.Add(tw, 0, length, func(_ int64, bytesRead int64, callbackErr error) {
+		tw.Finalize() // ensure TTFB fires even for sub-threshold objects
+		done <- res{bytes: bytesRead, err: callbackErr}
+	})
+
+	var result res
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case result = <-done:
+	}
+
+	if result.err != nil {
+		return result.err
+	}
+	total := time.Since(start)
+	ts.hists.RecordTotal(total.Microseconds())
+	ts.totalBytes.Add(result.bytes)
+	logger.Debugf("[doReadMultiRange] object=%s bytes=%d total=%s throughput=%.1f MiB/s\n",
+		objectName, result.bytes, total.Round(time.Millisecond),
+		float64(result.bytes)/total.Seconds()/float64(1<<20))
 	return nil
 }
 

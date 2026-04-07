@@ -1,0 +1,71 @@
+# gcs-bench example: UNet3D-like range read workload — MultiRangeDownloader variant
+#
+# Same as unet3d-like-mrd.yaml but uses read-size: 8192 to issue 8 KiB range
+# reads rather than reading the full object.  This exercises the MRD path with
+# small sub-object reads, which can occur in streaming / seek-heavy workloads.
+#
+# The MultiRangeDownloader is particularly efficient for repeated small reads
+# of the same object because the bidi-gRPC stream stays open between Add()
+# calls — there is no per-read connection overhead.
+#
+# When to use:
+#   read-size: 0   (unet3d-like-mrd.yaml)      — full-object reads
+#   read-size: N   (this config, e.g. 8192)     — sub-object range reads
+#
+# Directory structure (matches rdf-bench FSD: width=28, depth=2, files=64):
+#   width=28, depth=2  →  28² = 784 leaf directories
+#   784 dirs × 64 files  =  50,176 total objects
+#
+# Requires objects to already exist in the bucket. Use gcs-bench bench
+# --dry-run to verify the config before connecting.
+#
+# Run:
+#   gcs-bench bench --config unet3d-like-mrd-ranged.yaml
+#   gcs-bench bench --config unet3d-like-mrd-ranged.yaml --dry-run
+
+benchmark:
+  bucket: "my-bucket-name"
+  object-prefix: "unet3d/"
+
+  duration: 5m
+  warmup-duration: 30s
+
+  # Higher concurrency for small reads — latency is lower so more goroutines
+  # are needed to saturate the network.
+  total-concurrency: 96
+
+  output-path: "./results"
+  output-format: both
+
+  rapid-mode: auto
+
+  histograms:
+    min-value-micros: 1
+    max-value-micros: 60000000
+    significant-digits: 3
+
+  tracks:
+    - name: unet3d-ranged-read
+      op-type: read
+      read-type: multirange
+      weight: 1
+      access-pattern: random
+
+      directory-structure:
+        width: 28
+        depth: 2
+        files-per-dir: 64
+        dir-pattern: "dir-%04d"
+        file-pattern: "obj-%06d"
+
+      # 8 KiB sub-object range read starting at offset 0.
+      # The MRD bidi-gRPC stream remains open between reads, so each Add()
+      # call does not incur a new connection-setup round trip.
+      read-size: 8192
+
+      size-spec:
+        type: lognormal
+        mean: 7235174
+        std-dev: 5788139
+        min: 1048576
+        max: 33554432
