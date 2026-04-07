@@ -125,6 +125,13 @@ type BenchmarkTrack struct {
 	// Supported: "sequential", "random".
 	AccessPattern string `yaml:"access-pattern"`
 
+	// ReadType selects the GCS read implementation for read tracks.
+	// "new-reader" (default): calls NewReaderWithReadHandle for every read.
+	// "multirange": uses MultiRangeDownloader with a singleflight-deduped LRU
+	// cache of bidi-gRPC connections, amortizing connection-setup cost across
+	// repeated reads of the same object.
+	ReadType string `yaml:"read-type"`
+
 	// ReadSize is the number of bytes requested per individual read call.
 	// Relevant when the object-size >> read granularity (e.g. streaming reads).
 	// Zero means read the entire object in one call.

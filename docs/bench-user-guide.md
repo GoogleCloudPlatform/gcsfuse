@@ -36,6 +36,7 @@ object is fully available to the caller.
 10. [Pre-flight connectivity checks](#10-pre-flight-connectivity-checks)
 11. [RAPID Storage mode](#11-rapid-storage-mode)
 12. [Verbosity and diagnostic logging](#12-verbosity-and-diagnostic-logging)
+13. [MultiRangeDownloader (MRD) read type](#13-multirangedownloader-mrd-read-type)
 
 ---
 
@@ -237,6 +238,7 @@ benchmark:
 
       # Read granularity (reads only)
       read-size: 4194304       # Bytes per read call; 0 = read full object
+      read-type: new-reader    # "new-reader" (default) | "multirange" (RAPID/zonal only)
 
       # Per-track concurrency override (optional)
       concurrency: 12          # Ignores weight when set
@@ -260,6 +262,18 @@ goroutines_for_track = total-concurrency × (track.weight / sum_of_all_weights)
 ```
 
 A track with weight 3 and another with weight 1 split 32 goroutines as 24 / 8.
+
+### `read-type` field
+
+Controls the GCS read API used for `op-type: read` tracks.
+
+| Value | Behaviour |
+|-------|-----------|
+| `new-reader` | _(default)_ Creates a `NewReader` per operation — standard HTTP/2 or bidi-gRPC depending on `rapid-mode`. Works with any bucket type. |
+| `multirange` | Uses `NewMultiRangeDownloader` (MRD) — a bidi-gRPC streaming API. MRD connections are cached per object in a 2048-entry LRU and reused across calls. **Requires a RAPID/zonal bucket with `rapid-mode: auto` or `rapid-mode: on`.** |
+
+See [§13](#13-multirangedownloader-mrd-read-type) for a detailed description
+of the MRD implementation, when to use it, and example configs.
 
 ### Directory-tree object names
 
@@ -495,6 +509,83 @@ benchmark:
         dir-pattern: "shard-%03d"
         file-pattern: "file-%05d"
 ```
+
+### 5.7 MultiRangeDownloader reads (RAPID/zonal buckets)
+
+The `multirange` read type uses the GCS `NewMultiRangeDownloader` bidi-gRPC API.
+It is only available with RAPID/zonal buckets. Two example configs are provided.
+
+**Full-object reads** — read each training file in its entirety via MRD:
+
+```yaml
+# examples/benchmark-configs/unet3d-like-mrd.yaml
+benchmark:
+  bucket: "my-rapid-bucket"
+  object-prefix: "unet3d/"
+  rapid-mode: auto
+  duration: 5m
+  warmup-duration: 30s
+  total-concurrency: 32
+  output-path: "./results"
+  output-format: both
+
+  histograms:
+    min-value-micros: 1
+    max-value-micros: 60000000
+    significant-digits: 3
+
+  tracks:
+    - name: unet3d-mrd
+      op-type: read
+      weight: 1
+      access-pattern: random
+      read-type: multirange
+      read-size: 0              # 0 = full object
+      directory-structure:
+        width: 28
+        depth: 2
+        files-per-dir: 64
+        dir-pattern: "dir-%04d"
+        file-pattern: "obj-%06d"
+```
+
+**Range reads** — issue 8 KiB sub-range reads per MRD call, useful for
+benchmarking random-access latency on large objects:
+
+```yaml
+# examples/benchmark-configs/unet3d-like-mrd-ranged.yaml
+benchmark:
+  bucket: "my-rapid-bucket"
+  object-prefix: "unet3d/"
+  rapid-mode: auto
+  duration: 5m
+  warmup-duration: 30s
+  total-concurrency: 96
+  output-path: "./results"
+  output-format: both
+
+  histograms:
+    min-value-micros: 1
+    max-value-micros: 60000000
+    significant-digits: 3
+
+  tracks:
+    - name: unet3d-mrd-ranged
+      op-type: read
+      weight: 1
+      access-pattern: random
+      read-type: multirange
+      read-size: 8192           # 8 KiB range per call
+      directory-structure:
+        width: 28
+        depth: 2
+        files-per-dir: 64
+        dir-pattern: "dir-%04d"
+        file-pattern: "obj-%06d"
+```
+
+See [§13](#13-multirangedownloader-mrd-read-type) for implementation details and
+guidance on when to choose `multirange` over `new-reader`.
 
 ---
 
@@ -1422,3 +1513,89 @@ do not indicate a protocol or connectivity problem.
 > **Warning:** `-vvv` TRACE at high concurrency (32 goroutines × ~150 ops/s)
 > produces roughly 4800 lines per second. Use it only for debugging single-
 > goroutine runs or when piping output to a file for offline analysis.
+
+---
+
+## 13. MultiRangeDownloader (MRD) read type
+
+The `multirange` read type uses the GCS `NewMultiRangeDownloader` bidi-gRPC
+API for reading objects. It is an alternative to the default `new-reader` path
+and is only supported on **RAPID/zonal buckets** (requires `rapid-mode: auto`
+or `rapid-mode: on`).
+
+### How it works
+
+`NewMultiRangeDownloader` opens a persistent bidi-streaming gRPC connection per
+object. The library uses a push-based API: you register a range with a callback
+and an `io.Writer`, and the library writes data into the writer as bytes arrive,
+invoking the callback on completion.
+
+In `gcs-bench`, the drain writer is `io.Discard` — data is received by the
+kernel, counted toward throughput and latency metrics, and immediately discarded.
+This is the same approach used by the standard `new-reader` path.
+
+### Connection cache and singleflight
+
+Opening a `NewMultiRangeDownloader` incurs a TCP + gRPC handshake. To avoid
+paying this cost on every read, `gcs-bench` maintains a **2048-entry LRU cache**
+(keyed by object name) of open MRD connections:
+
+- **Cache hit** — the existing connection is reused immediately (lock-free LRU
+  lookup).
+- **Cache miss** — a `singleflight.Group` ensures that if several goroutines
+  miss on the same key simultaneously, only **one** `NewMultiRangeDownloader`
+  call is issued. All waiting goroutines share the result.
+- **Eviction** — when the LRU is full and a new entry displaces an old one, the
+  evicted `MultiRangeDownloader` is closed.
+
+This design means that at steady state (50,176 objects, 2048-entry cache) most
+reads will incur a cache miss once per object and reuse the connection for all
+subsequent reads of that object within the same benchmark run.
+
+### When to use `multirange` vs `new-reader`
+
+| Scenario | Recommendation |
+|----------|---------------|
+| Standard (non-RAPID) bucket | Use `new-reader` — MRD is not available |
+| RAPID bucket, cold reads, many distinct objects | Both work; `new-reader` is simpler |
+| RAPID bucket, warm reads, repeated access to same objects | `multirange` reuses connections — may show lower TTFB on repeated reads |
+| Benchmarking sub-range latency on large objects | `multirange` with `read-size: N` isolates range-read latency |
+| Comparing `new-reader` vs `multirange` on the same bucket | Run both configs and compare the HDR histograms |
+
+### Metrics and instrumentation
+
+The `multirange` path records identical metrics to `new-reader`:
+
+- TTFB is recorded once ≥ 256 KiB is received from the library (or on
+  completion for sub-threshold objects), via the shared `benchmark.TTFBWriter`
+- End-to-end latency is the wall-clock time from `Add(writer, offset, length)`
+  until the completion callback fires
+- `totalOps`, `totalBytes`, and error counters are updated on every call
+
+All metrics appear in the same HDR histogram files and result YAML as standard
+reads. There is no separate output format for MRD.
+
+### Example configs
+
+See [§5.7](#57-multirangedownloader-reads-rapidzonal-buckets) for complete
+config examples. Ready-to-use files:
+
+- `examples/benchmark-configs/unet3d-like-mrd.yaml` — full-object reads (32 goroutines)
+- `examples/benchmark-configs/unet3d-like-mrd-ranged.yaml` — 8 KiB range reads (96 goroutines)
+
+### Quick start
+
+```bash
+# 1. Prepare the bucket (same as new-reader — use the standard prepare config)
+./gcs-bench bench --config examples/benchmark-configs/unet3d-like-prepare.yaml
+
+# 2. Run an MRD benchmark
+./gcs-bench bench --config examples/benchmark-configs/unet3d-like-mrd.yaml
+
+# 3. Compare new-reader vs multirange side-by-side
+./gcs-bench bench --config examples/benchmark-configs/unet3d-like.yaml \
+    --output-path results/new-reader
+
+./gcs-bench bench --config examples/benchmark-configs/unet3d-like-mrd.yaml \
+    --output-path results/multirange
+```
