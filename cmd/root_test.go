@@ -1892,21 +1892,21 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	}
 }
 
-func TestArgsParsingMonitoringConfig(t *testing.T) {
+func TestArgsParsingTraceConfig(t *testing.T) {
 	tests := []struct {
 		name     string
 		cfgFile  string
-		expected *cfg.MonitoringConfig
+		expected *cfg.TraceConfig
 	}{
 		{
 			name:     "default",
 			cfgFile:  "empty.yml",
-			expected: &cfg.MonitoringConfig{ExperimentalTracingMode: []string{"gcptrace"}, ExperimentalTracingSamplingRatio: 0, ExperimentalTracingProjectId: ""},
+			expected: &cfg.TraceConfig{Exporters: []string{"gcpexporter"}, SamplingRatio: 0, ProjectId: ""},
 		},
 		{
 			name:     "sanitize_trace_exporters.yml",
 			cfgFile:  "sanitize_trace_exporters.yml",
-			expected: &cfg.MonitoringConfig{ExperimentalTracingMode: []string{"gcptrace", "stdout"}, ExperimentalTracingSamplingRatio: 0.5, ExperimentalTracingProjectId: "gcp-sample-test"},
+			expected: &cfg.TraceConfig{Exporters: []string{"gcpexporter", "stdout"}, SamplingRatio: 0.5, ProjectId: "gcp-sample-test"},
 		},
 	}
 
@@ -1923,7 +1923,7 @@ func TestArgsParsingMonitoringConfig(t *testing.T) {
 			err = cmd.Execute()
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.expected, &gotConfig.Monitoring)
+			assert.Equal(t, tc.expected, &gotConfig.Trace)
 		})
 	}
 }
@@ -2462,7 +2462,7 @@ func TestMountInfoPopulation(t *testing.T) {
 				assert.NotContains(t, mi.cliFlags, "gid")
 				assert.Contains(t, mi.configFileFlags, "app-name")
 				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
-				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]any)
 				require.True(t, ok)
 				assert.Equal(t, 1002, fsFlags["gid"])
 			},
@@ -2480,10 +2480,10 @@ func TestMountInfoPopulation(t *testing.T) {
 
 				// Check config file flags
 				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
-				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]any)
 				require.True(t, ok)
 				assert.Equal(t, 1002, fsFlags["gid"])
-				logFlags, ok := mi.configFileFlags["logging"].(map[string]interface{})
+				logFlags, ok := mi.configFileFlags["logging"].(map[string]any)
 				require.True(t, ok)
 				assert.Equal(t, "error", logFlags["severity"])
 			},

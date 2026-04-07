@@ -76,10 +76,12 @@ func (s *timeoutEnabledSuite) TestReaderCloses() {
 	time.Sleep(2*timeoutDuration + 1*time.Second) // Add buffer
 	endTimeWait := time.Now()
 
-	// 4. "Closing reader" log should be present.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, fileName), true, endTimeRead, endTimeWait)
+	s.T().Log("Waiting for 'Closing reader' log message...")
+	operations.RetryUntil(testEnv.ctx, s.T(), retryFrequency, retryDuration, func() (string, error) {
+		return hasInactiveReaderClosedLogLineInLogFile(s.T(), path.Join(kTestDirName, fileName), testEnv.cfg.LogFile, endTimeRead, endTimeWait)
+	})
 
-	// 5. Further reads should work as it is, yeah it will create a new reader.
+	// 4. Further reads should work as it is, yeah it will create a new reader.
 	_, err = fileHandle.ReadAt(buff, 8)
 	require.NoError(s.T(), err)
 }
@@ -111,7 +113,7 @@ func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 
 	// 4. Check log: "Closing reader for object..." should NOT be present for this object
 	// between the first read's end and the second read's start.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, fileName), false, endTimeRead1, startTimeRead2)
+	doesNotHaveInactiveReaderClosedLogLineInLogFile(s.T(), path.Join(kTestDirName, fileName), testEnv.cfg.LogFile, endTimeRead1, startTimeRead2)
 }
 
 ////////////////////////////////////////////////////////////////////////

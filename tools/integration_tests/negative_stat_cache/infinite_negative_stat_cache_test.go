@@ -35,14 +35,22 @@ type infiniteNegativeStatCacheTest struct {
 	suite.Suite
 }
 
+func (s *infiniteNegativeStatCacheTest) SetupSuite() {
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, testEnv.mountFunc)
+	setup.SetMntDir(testEnv.mountDir)
+}
+
+func (s *infiniteNegativeStatCacheTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
 func (s *infiniteNegativeStatCacheTest) SetupTest() {
 	s.testDir = testDirName + setup.GenerateRandomString(5)
-	mountGCSFuseAndSetupTestDir(s.flags, s.testDir)
+	testEnv.testDirPath = setup.SetupTestDirectory(s.testDir)
 }
 
 func (s *infiniteNegativeStatCacheTest) TearDownTest() {
-	setup.CleanUpDir(testEnv.testDirPath)
-	setup.UnmountGCSFuse(testEnv.rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -112,16 +120,17 @@ func TestInfiniteNegativeStatCacheTest(t *testing.T) {
 	ts := &infiniteNegativeStatCacheTest{}
 
 	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
 		return
 	}
 
 	// Define flag set to run the tests.
-	flagsSet := []string{"--metadata-cache-negative-ttl-secs=-1"}
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 
 	// Run tests.
-	ts.flags = flagsSet
-	log.Printf("Running tests with flags: %s", ts.flags)
-	suite.Run(t, ts)
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
+	}
 }

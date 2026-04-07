@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ def parse_all_gbytes_per_sec(logs):
     return values
 
 # Workload Execution and Result Gathering
-async def execute_workload_and_gather_results(project_id, zone, cluster_name, bucket_name, timestamp, iterations, staging_version, pod_timeout_seconds):
+async def execute_workload_and_gather_results(project_id, zone, cluster_name, bucket_name, timestamp, iterations, staging_version, pod_timeout_seconds, client_protocol):
     """Executes the workload pod, gathers results, and cleans up workload resources.
 
     This function creates a Kubernetes ConfigMap and a Pod to run the benchmark.
@@ -84,6 +84,7 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
         iterations: The number of benchmark iterations to run inside the pod.
         staging_version: The version tag for the GCSFuse CSI driver image.
         pod_timeout_seconds: The timeout in seconds for the pod to complete.
+        client_protocol: The client protocol to use for GCS (e.g. grpc or http1).
 
     Returns:
         A list of throughput values (float) parsed from the pod logs.
@@ -94,7 +95,7 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
     with open(template_path, "r") as f:
         pod_template = Template(f.read())
 
-    manifest = pod_template.safe_substitute(project_id=project_id, bucket_name=bucket_name, iterations=iterations, staging_version=staging_version)
+    manifest = pod_template.safe_substitute(project_id=project_id, bucket_name=bucket_name, iterations=iterations, staging_version=staging_version, client_protocol=client_protocol)
     manifest_filename = f"manifest-{timestamp}.yaml"
     pod_name = f"gcsfuse-test"
 
@@ -148,6 +149,7 @@ async def main():
     parser.add_argument("--performance_threshold_gbps", type=float, default=float(os.environ.get("PERFORMANCE_THRESHOLD_GBPS", 13.0)), help="Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.")
     parser.add_argument("--pod_timeout_seconds", type=int, default=int(os.environ.get("POD_TIMEOUT_SECONDS", 1800)), help="Timeout in seconds for the benchmark pod to complete. Can also be set with POD_TIMEOUT_SECONDS env var.")
     parser.add_argument("--skip_csi_driver_build", action="store_true", default=os.environ.get("SKIP_CSI_DRIVER_BUILD", "False").lower() in ("true", "1"), help="Skip building the CSI driver. Can also be set with SKIP_CSI_DRIVER_BUILD=true env var.")
+    parser.add_argument("--client_protocol", default=os.environ.get("CLIENT_PROTOCOL", "http1"), help="The client protocol to use for GCS. Can also be set with CLIENT_PROTOCOL env var.")
     args = parser.parse_args()
 
     # Append zone to default network and subnet names to avoid collisions
@@ -168,7 +170,7 @@ async def main():
                 build_task = asyncio.create_task(utils.build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir, STAGING_VERSION))
                 await asyncio.gather(setup_task, build_task)
 
-            throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds)
+            throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds, args.client_protocol)
 
             if not throughputs:
                 print("No throughput data was collected.", file=sys.stderr)

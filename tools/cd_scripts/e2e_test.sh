@@ -395,6 +395,7 @@ TEST_DIR_PARALLEL=(
   #"requester_pays_bucket"
   "flag_optimizations"
   "unsupported_path"
+  "symlink_handling"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -435,6 +436,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   unfinalized_object
   write_large_files
   "unsupported_path"
+  "symlink_handling"
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.

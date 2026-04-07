@@ -16,6 +16,7 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -54,7 +55,7 @@ func (s *smallCacheTTLTest) SetupTest() {
 	require.NoError(s.T(), err)
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(testEnv.cacheDirPath)
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
 }
 
 func (s *smallCacheTTLTest) TearDownTest() {
@@ -70,20 +71,53 @@ func (s *smallCacheTTLTest) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
+	type initialReadState struct {
+		testFileName     string
+		expectedOutcome1 *Expected
+		expectedOutcome2 *Expected
+	}
 
-	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
-	// Modify the file.
-	modifyFile(s.ctx, s.storageClient, testFileName, s.T())
-	// Read same file again immediately.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
+	s.T().Logf("Validating that stale data is served before cache expiry (%d seconds Metadata Cache TTL).", metadataCacheTTlInSec)
+	result := operations.RetryUntil(s.ctx, s.T(), retryFrequency, retryDuration, func() (initialReadState, error) {
+		// Truncate log file created.
+		err := os.Truncate(testEnv.cfg.LogFile, 0)
+		require.NoError(s.T(), err)
+		// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+		operations.RemoveDir(testEnv.cacheDirPath)
+		testEnv.testDirPath = client.SetupUniqueTestDirectory(s.ctx, s.storageClient, testDirPrefix)
+
+		testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
+
+		startTime := time.Now()
+
+		// Read file 1st time.
+		expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
+
+		// Modify the file.
+		modifyFile(s.ctx, s.storageClient, testFileName, s.T())
+
+		// Read same file again immediately.
+		expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
+
+		if time.Since(startTime) >= metadataCacheTTlInSec*time.Second {
+			// Retry if the time taken is more (due to GCS Latency or high load) than the metadata cache TTL.
+			// In this scenario, the test would certainly fail as the stale data would not be served.
+			return initialReadState{}, fmt.Errorf("failed: because operation took %v seconds >= %d seconds (Metadata Cache TTL)", time.Since(startTime).Seconds(), metadataCacheTTlInSec)
+		}
+		s.T().Logf("Success: Operation took %v seconds < %d seconds (Metadata Cache TTL)", time.Since(startTime).Seconds(), metadataCacheTTlInSec)
+		return initialReadState{testFileName, expectedOutcome1, expectedOutcome2}, nil
+	})
+
+	testFileName := result.testFileName
+	expectedOutcome1 := result.expectedOutcome1
+	expectedOutcome2 := result.expectedOutcome2
+
 	validateFileSizeInCacheDirectory(testFileName, fileSize, s.T())
 	// Validate that stale data is served from cache in this case.
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
 		s.T().Errorf("content mismatch. Expected old data to be served again.")
 	}
-	// Wait for metadata cache expiry and read the file again.
+	s.T().Logf("Waiting for %d seconds for metadata cache to expire to get cache miss.", metadataCacheTTlInSec)
 	time.Sleep(metadataCacheTTlInSec * time.Second)
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, true, s.T())
 

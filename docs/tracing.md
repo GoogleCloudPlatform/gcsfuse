@@ -1,4 +1,4 @@
-## GCSFuse Tracing (Experimental)
+## GCSFuse Tracing
 
 ### Introduction
 
@@ -6,24 +6,22 @@ GCSFuse traces each of its FUSE file system operations. It further traces both t
 
 ### Enabling tracing
 
-To enable tracing in GCSFuse and visualize the data as a waterfall/gantt chart in the Google Cloud Trace Explorer, add the required configuration to your GCSFuse YAML file as shown below:
+To enable tracing in GCSFuse and visualize the data as a waterfall/gantt chart in the Google Cloud Trace Explorer, add the required configuration to your GCSFuse config-file as shown below:
 
 ```
-monitoring:
-  experimental-tracing-mode: gcptrace
-  experimental-tracing-sampling-ratio: 0.1
-  experimental-tracing-project-id: <google-cloud-project-id>
+trace:
+  sampling-ratio: 0.1
 ```
 
-| Key | Value | Function |
-| :--- | :--- | :--- |
-| **`experimental-tracing-mode`** | `gcptrace` | Specifies the **exporter**. Supported Values: gcptrace, stdout. The value `gcptrace` indicates that the collected traces will be sent specifically to **Google Cloud Trace** (GCP Trace). The value `stdout` exports to the GCSFuse process output stream. |
-| **`experimental-tracing-sampling-ratio`** | `0.1` | Sets the **sampling rate**. This means **10%** (0.1 out of 1.0) of all incoming requests or operations will have a trace generated and exported. This helps manage cost and overhead in high-traffic applications. |
-| **`experimental-tracing-project-id`** | `<google-cloud-project-id>` | If exporting to `gcptrace`, this specifies the destination Google Cloud Project ID. By default, traces are sent to the project where GCSFuse is running. Replace the placeholder with your target project ID if you want to send traces to a different project. |
+OR
+
+GCSFuse command line option below:
+
+`--trace-sampling-ratio=0.1` Sets the **sampling rate**. This means **10%** (1 out of 10) of all traces will be exported. This helps manage cost and overhead in high-traffic applications.
 
 ### Accessing and Viewing Trace Exports
 
-For better visualization of the traces exported in GCSFuse, it is recommended to export them to Google Cloud Trace using the `gcptrace` option. You can then access the Trace Explorer on Google Cloud Console using the following link to find the traces.
+For better visualization of the traces exported in GCSFuse you can access the Trace Explorer on Google Cloud Console using the following link to find the traces.
 
 [Trace Explorer Link](https://console.cloud.google.com/traces/explorer)
 
@@ -137,7 +135,7 @@ The attributes (tags) attached to the span clearly indicate the protocol:
 
 Trace sampling is a critical mechanism for managing the operational overhead and costs associated with tracing in high-throughput environments.
 
-**Sampling Ratio:** The `experimental-tracing-sampling-ratio` flag controls the fraction of GCSFuse operations that are traced and exported.
+**Sampling Ratio:** The `trace-sampling-ratio` flag controls the fraction of GCSFuse operations that are traced and exported.
 
 This ratio is a floating-point number between 0.0 (no traces exported) and 1.0 (all traces exported).
 
