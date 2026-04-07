@@ -32,9 +32,18 @@ func DefaultMaxBackground() int {
 	return min(max(12, 2*runtime.NumCPU()), maxBackgroundLimit)
 }
 
+func DefaultMaxBackgroundForRegional() int {
+	return 96
+}
+
 func DefaultCongestionThreshold() int {
 	// 75 % of DefaultMaxBackground
 	return (3 * DefaultMaxBackground()) / 4
+}
+
+func DefaultCongestionThresholdForRegional() int {
+	// 75 % of DefaultMaxBackgroundForRegional
+	return (3 * DefaultMaxBackgroundForRegional()) / 4
 }
 
 func DefaultMaxParallelDownloads() int {
