@@ -33,7 +33,7 @@ import (
 const NUM_WORKERS = 10
 
 func downloadFile(ctx context.Context, client *storage.Client, object *storage.ObjectAttrs, cacheDir string) (err error) {
-	log.Printf(fmt.Sprintf("downloading file %v from bucket %v into dir %v", object.Name, object.Bucket, cacheDir))
+	log.Printf("downloading file %v from bucket %v into dir %v", object.Name, object.Bucket, cacheDir)
 
 	// We may want a way to verify the files are fully downloaded
 	// and either resuming the download or discarding and redownloading the file
