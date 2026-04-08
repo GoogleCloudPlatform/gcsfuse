@@ -421,6 +421,13 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.experimental-enable-pirlo"
+    flag-name: "experimental-enable-pirlo"
+    type: "bool"
+    usage: "Enables support for pirlo."
+    default: false
+    hide-flag: true
+
   - config-path: "file-system.experimental-enable-readdirplus"
     flag-name: "experimental-enable-readdirplus"
     type: "bool"

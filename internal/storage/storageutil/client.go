@@ -80,6 +80,8 @@ type StorageClientConfig struct {
 	// EnableGoogleLibAuth indicates whether to use the google library authentication flow
 	EnableGoogleLibAuth bool
 
+	ExperimentalEnablePirlo bool
+
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 
 	MetricHandle metrics.MetricHandle
