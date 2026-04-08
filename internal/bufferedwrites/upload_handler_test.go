@@ -15,6 +15,7 @@
 package bufferedwrites
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -94,7 +95,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterC
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
-	_ = t.uh.createObjectWriter()
+	_ = t.uh.createObjectWriter(context.Background())
 
 	t.mockBucket.AssertCalled(t.T(), "CreateAppendableObjectWriter", mock.Anything, mock.Anything)
 }
@@ -104,7 +105,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
-	_ = t.uh.createObjectWriter()
+	_ = t.uh.createObjectWriter(context.Background())
 
 	t.mockBucket.AssertCalled(t.T(), "CreateObjectChunkWriter", mock.Anything, mock.Anything)
 }
@@ -113,7 +114,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
-	_ = t.uh.createObjectWriter()
+	_ = t.uh.createObjectWriter(context.Background())
 
 	t.mockBucket.AssertCalled(t.T(), "CreateObjectChunkWriter", mock.Anything, mock.Anything)
 }
@@ -124,7 +125,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterIsSuccessful(
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
-	err := t.uh.createObjectWriter()
+	err := t.uh.createObjectWriter(context.Background())
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.uh.writer)
@@ -135,7 +136,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterReturnsError(
 	expectedErr := fmt.Errorf("createAppendableObjectWriter failed")
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	err := t.uh.ensureWriter()
+	err := t.uh.ensureWriter(context.Background())
 
 	assert.NotNil(t.T(), err)
 	assert.Nil(t.T(), t.uh.writer)
@@ -147,7 +148,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterIsSuccessful
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
-	err := t.uh.ensureWriter()
+	err := t.uh.ensureWriter(context.Background())
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.uh.writer)
@@ -158,7 +159,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterReturnsError
 	expectedErr := fmt.Errorf("createObjectChunkWriter failed")
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	err := t.uh.ensureWriter()
+	err := t.uh.ensureWriter(context.Background())
 
 	assert.NotNil(t.T(), err)
 	assert.Nil(t.T(), t.uh.writer)
@@ -175,12 +176,12 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	// Upload the blocks.
 	blocks := t.createBlocks(5)
 	for _, b := range blocks {
-		err := t.uh.Upload(b)
+		err := t.uh.Upload(context.Background(), b)
 		require.NoError(t.T(), err)
 	}
 
 	// Finalize.
-	obj, err := t.uh.Finalize()
+	obj, err := t.uh.Finalize(context.Background())
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), obj)
 	assert.Equal(t.T(), mockObj, obj)
@@ -204,7 +205,7 @@ func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("taco"))
 
 	// Upload the block.
-	err = t.uh.Upload(b)
+	err = t.uh.Upload(context.Background(), b)
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "createObjectWriter")
@@ -217,7 +218,7 @@ func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 	t.uh.writer = writer
 
-	obj, err := t.uh.Finalize()
+	obj, err := t.uh.Finalize(context.Background())
 
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), obj)
@@ -232,7 +233,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 	mockObj := &gcs.MinObject{}
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 
-	obj, err := t.uh.Finalize()
+	obj, err := t.uh.Finalize(context.Background())
 
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), obj)
@@ -244,7 +245,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriterWhenCreateObjectWriterFails(
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
 	assert.Nil(t.T(), t.uh.writer)
 
-	obj, err := t.uh.Finalize()
+	obj, err := t.uh.Finalize(context.Background())
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "taco")
@@ -260,7 +261,7 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, fmt.Errorf("taco"))
 
-	obj, err := t.uh.Finalize()
+	obj, err := t.uh.Finalize(context.Background())
 
 	require.Error(t.T(), err)
 	assert.Nil(t.T(), obj)
@@ -274,7 +275,7 @@ func (t *UploadHandlerTest) TestFlushWithWriterAlreadyPresent() {
 	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockObject, nil)
 	t.uh.writer = writer
 
-	o, err := t.uh.FlushPendingWrites()
+	o, err := t.uh.FlushPendingWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), mockObject, o)
@@ -288,7 +289,7 @@ func (t *UploadHandlerTest) TestFlushWithNoWriter() {
 	mockObject := &gcs.MinObject{Size: 10}
 	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockObject, nil)
 
-	o, err := t.uh.FlushPendingWrites()
+	o, err := t.uh.FlushPendingWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), mockObject, o)
@@ -299,7 +300,7 @@ func (t *UploadHandlerTest) TestFlushWithNoWriterWhenCreateObjectWriterFails() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
 	assert.Nil(t.T(), t.uh.writer)
 
-	o, err := t.uh.FlushPendingWrites()
+	o, err := t.uh.FlushPendingWrites(context.Background())
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "taco")
@@ -315,7 +316,7 @@ func (t *UploadHandlerTest) TestFlushWhenFlushPendingWritesFails() {
 	var minObj *gcs.MinObject = nil
 	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(minObj, fmt.Errorf("taco"))
 
-	o, err := t.uh.FlushPendingWrites()
+	o, err := t.uh.FlushPendingWrites(context.Background())
 
 	require.Error(t.T(), err)
 	assert.Nil(t.T(), nil, o)
@@ -337,7 +338,7 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	writer.On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once()
 
 	// Upload the block.
-	err = t.uh.Upload(b)
+	err = t.uh.Upload(context.Background(), b)
 
 	require.NoError(t.T(), err)
 	// Expect an error on upload due to error while copying content to GCS writer.
@@ -365,7 +366,7 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 
 	// Upload the blocks.
 	for _, b := range blocks {
-		err := t.uh.Upload(b)
+		err := t.uh.Upload(context.Background(), b)
 		require.NoError(t.T(), err)
 	}
 
@@ -429,7 +430,7 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	// Upload the blocks.
 	for _, b := range t.createBlocks(5) {
-		err := t.uh.Upload(b)
+		err := t.uh.Upload(context.Background(), b)
 		require.NoError(t.T(), err)
 	}
 
@@ -484,7 +485,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 	b, err := t.blockPool.Get()
 	require.NoError(t.T(), err)
 	// Upload the block.
-	err = t.uh.Upload(b)
+	err = t.uh.Upload(context.Background(), b)
 	require.NoError(t.T(), err)
 }
 
@@ -511,7 +512,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 	b, err := t.blockPool.Get()
 	require.NoError(t.T(), err)
 	// Upload the block.
-	err = t.uh.Upload(b)
+	err = t.uh.Upload(context.Background(), b)
 	require.NoError(t.T(), err)
 }
 

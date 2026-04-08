@@ -708,6 +708,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (bool, error) {
 	_, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStreaming)
+	f.traceHandle.SetUploadAttributes(span, int64(len(data)), f.src.Name)
 	defer func() {
 		f.traceHandle.EndSpan(span)
 	}()

@@ -179,7 +179,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 		dataWritten += bytesToCopy
 
 		if wh.current.Size() == wh.blockPool.BlockSize() {
-			err := wh.uploadHandler.Upload(wh.current)
+			err := wh.uploadHandler.Upload(ctx, wh.current)
 			if err != nil {
 				return err
 			}
@@ -194,7 +194,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject, err error) {
 	// Upload current block (for both regional and zonal buckets).
 	if wh.current != nil && wh.current.Size() != 0 {
-		err = wh.uploadHandler.Upload(wh.current)
+		err = wh.uploadHandler.Upload(ctx, wh.current)
 		if err != nil {
 			return nil, err
 		}
@@ -207,7 +207,7 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 	// other operations like read.
 	// This functionality is exclusively supported on zonal buckets.
 	if wh.uploadHandler.bucket.BucketType().Zonal {
-		o, err = wh.uploadHandler.FlushPendingWrites()
+		o, err = wh.uploadHandler.FlushPendingWrites(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -243,14 +243,14 @@ func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, 
 	}
 
 	if wh.current != nil {
-		err := wh.uploadHandler.Upload(wh.current)
+		err := wh.uploadHandler.Upload(ctx, wh.current)
 		if err != nil {
 			return nil, err
 		}
 		wh.current = nil
 	}
 
-	obj, err := wh.uploadHandler.Finalize()
+	obj, err := wh.uploadHandler.Finalize(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
 	}

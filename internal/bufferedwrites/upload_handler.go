@@ -96,10 +96,10 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 }
 
 // Upload adds a block to the upload queue.
-func (uh *UploadHandler) Upload(block block.Block) error {
+func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) error {
 	uh.wg.Add(1)
 
-	err := uh.ensureWriter()
+	err := uh.ensureWriter(ctx)
 	if err != nil {
 		return fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
@@ -114,12 +114,11 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 }
 
 // createObjectWriter creates a GCS object writer.
-func (uh *UploadHandler) createObjectWriter() (err error) {
+func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
 	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkRetryDeadline, uh.chunkTransferTimeout)
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
-	var ctx context.Context
-	ctx, uh.cancelFunc = context.WithCancel(context.Background())
+	ctx, uh.cancelFunc = context.WithCancel(uh.traceHandle.PropagateTraceContext(context.Background(), ctx))
 	if uh.bucket.BucketType().Zonal && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: *req,
@@ -197,8 +196,8 @@ func (uh *UploadHandler) uploadBlock(b block.Block) {
 }
 
 // Finalize finalizes the upload.
-func (uh *UploadHandler) Finalize() (obj *gcs.MinObject, err error) {
-	ctx := context.Background()
+func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err error) {
+	ctx = uh.traceHandle.PropagateTraceContext(context.Background(), ctx)
 	_, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadFinalize)
 	defer func() {
 		if err != nil {
@@ -213,7 +212,7 @@ func (uh *UploadHandler) Finalize() (obj *gcs.MinObject, err error) {
 
 	// Writer may not have been created for empty file creation flow or for very
 	// small writes of size less than 1 block.
-	err = uh.ensureWriter()
+	err = uh.ensureWriter(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
@@ -228,9 +227,9 @@ func (uh *UploadHandler) Finalize() (obj *gcs.MinObject, err error) {
 	return obj, nil
 }
 
-func (uh *UploadHandler) ensureWriter() error {
+func (uh *UploadHandler) ensureWriter(ctx context.Context) error {
 	if uh.writer == nil {
-		if err := uh.createObjectWriter(); err != nil {
+		if err := uh.createObjectWriter(ctx); err != nil {
 			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 	}
@@ -238,8 +237,8 @@ func (uh *UploadHandler) ensureWriter() error {
 }
 
 // FlushPendingWrites uploads any data in the write buffer.
-func (uh *UploadHandler) FlushPendingWrites() (o *gcs.MinObject, err error) {
-	ctx := context.Background()
+func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObject, err error) {
+	ctx = uh.traceHandle.PropagateTraceContext(context.Background(), ctx)
 	_, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadFlush)
 	defer func() {
 		if err != nil {
@@ -253,7 +252,7 @@ func (uh *UploadHandler) FlushPendingWrites() (o *gcs.MinObject, err error) {
 
 	// Writer may not have been created for empty file creation flow or for very
 	// small writes of size less than 1 block.
-	err = uh.ensureWriter()
+	err = uh.ensureWriter(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
