@@ -356,6 +356,7 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 	return &gcs.BucketType{
 		Hierarchical: storageLayout.GetHierarchicalNamespace().GetEnabled(),
 		Zonal:        storageLayout.GetLocationType() == zonalLocationType,
+		Pirlo:        sh.clientConfig.ExperimentalEnablePirlo,
 	}, nil
 }
 

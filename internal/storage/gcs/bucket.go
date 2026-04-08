@@ -25,6 +25,7 @@ import (
 type BucketType struct {
 	Hierarchical bool
 	Zonal        bool
+	Pirlo        bool
 }
 
 const (
