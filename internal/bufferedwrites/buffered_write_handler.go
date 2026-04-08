@@ -15,7 +15,7 @@
 package bufferedwrites
 
 import (
-"context"
+	"context"
 	"errors"
 	"fmt"
 	"math"
