@@ -67,35 +67,20 @@ install_packages_by_os() {
         ((retry_count++))
       done
       
-      local filtered_pkgs=()
-      local install_rich=false
-      for pkg in "${pkgs[@]}"; do
-        if [[ "$pkg" == "python3-rich" ]]; then
-          install_rich=true
-        else
-          filtered_pkgs+=("$pkg")
-        fi
-      done
-
-      sudo apt-get install -y "${filtered_pkgs[@]}"
-      
-      if [ "$install_rich" = true ]; then
-        sudo apt-get install -y python3-pip
-        sudo pip3 install rich
-      fi
+      sudo apt-get install -y "${pkgs[@]}"
       ;;
     rhel|centos|fedora|almalinux|rocky)
       # Map package names for RHEL if necessary
       local rhel_pkgs=()
       local install_crcmod=false
-      local install_rich=false
       for pkg in "${pkgs[@]}"; do
         if [[ "$pkg" == "python3-dev" ]]; then
           rhel_pkgs+=("python3-devel")
+        elif [[ "$pkg" == "python3-venv" ]]; then
+          # Skip on RHEL as it's included in base Python
+          continue
         elif [[ "$pkg" == "python3-crcmod" ]]; then
           install_crcmod=true
-        elif [[ "$pkg" == "python3-rich" ]]; then
-          install_rich=true
         elif [[ "$pkg" == "fuse3" ]]; then
           rhel_pkgs+=("fuse")
         else
@@ -103,8 +88,8 @@ install_packages_by_os() {
         fi
       done
 
-      # Ensure pip is installed if either crcmod or rich needs it
-      if [ "$install_crcmod" = true ] || [ "$install_rich" = true ]; then
+      # Ensure pip is installed if crcmod needs it
+      if [ "$install_crcmod" = true ]; then
         rhel_pkgs+=("python3-pip")
       fi
 
@@ -112,9 +97,6 @@ install_packages_by_os() {
 
       if [ "$install_crcmod" = true ]; then
         sudo python3 -m pip install crcmod
-      fi
-      if [ "$install_rich" = true ]; then
-        sudo python3 -m pip install rich
       fi
       ;;
     arch|manjaro)
@@ -124,7 +106,6 @@ install_packages_by_os() {
         case "$pkg" in
           python3|python3-dev) arch_pkgs+=("python") ;;
           python3-setuptools) arch_pkgs+=("python-setuptools") ;;
-          python3-rich) arch_pkgs+=("python-rich") ;; # Arch uses python-rich
           *) arch_pkgs+=("$pkg") ;;
         esac
       done

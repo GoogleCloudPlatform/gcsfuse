@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# Copyright 2025 Google LLC
+#!/bin/bash
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,25 +13,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This script generates a table of test package runtimes using the 'rich' library.
+# ==============================================================================
+# DESCRIPTION:
+# This script generates a table of test package runtimes using the 'rich' library.
+#
+# USAGE:
+#     ./create_package_runtime_table.sh <FILE_PATH>
+#
+# REQUIREMENTS:
+#     Python 3.11+. The script automatically creates a temporary virtual 
+#     environment and safely installs the 'rich' library for you.
+#
+# INPUT FILE FORMAT (<FILE_PATH>):
+#     Space-separated lines with the following fields:
+#     <package_name> <bucket_type> <exit_code> <start_time_seconds> <end_time_seconds>
+#
+# EXAMPLE FILE CONTENT:
+#     pkg1 bucket-standard 0 0 120
+#     pkg2 bucket-premium 0 60 180
+#     pkg3 bucket-standard 1 120 240
+# ==============================================================================
 
-Usage:
-    python3 create_package_runtime_table.sh <FILE_PATH>
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <file>"
+  echo "Check the script header for input file format requirements."
+  exit 1
+fi
 
-Requirements:
-    Requires 'rich' library installed on the system (e.g., 'pip install rich').
+PACKAGE_RUNTIME_STATS=$1
 
-Input File Format (<FILE_PATH>):
-    Space-separated lines with the following fields:
-    <package_name> <bucket_type> <exit_code> <start_time_seconds> <end_time_seconds>
+if [ ! -f "$PACKAGE_RUNTIME_STATS" ]; then
+  echo "Error: File '$PACKAGE_RUNTIME_STATS' not found."
+  exit 1
+fi
 
-Example File Content:
-    pkg_name bucket_type exit_code start_time_seconds end_time_seconds
-    pkg1 bucket-standard 0 0 120
-    pkg2 bucket-premium 0 60 180
-    pkg3 bucket-standard 1 120 240
-"""
+VENV_DIR=$(mktemp -d)
+trap 'rm -rf "$VENV_DIR"' EXIT
+
+PYTHON_SCRIPT_FILE="$VENV_DIR/visualize.py"
+cat << 'EOF' > "$PYTHON_SCRIPT_FILE"
 import sys, os
 
 # Column indices for the input file data
@@ -85,7 +105,6 @@ try:
         table_width = max_pkg + max_type + PADDING_TIME_COL + PADDING_STATUS_COL + max_rt + PADDING_BORDERS
     else:
         table_width = WIDTH_FALLBACK
-        
     # Initialize Console and Table with appropriate width and styling
     term_width = shutil.get_terminal_size().columns
     console = Console(width=max(term_width, table_width))
@@ -109,3 +128,33 @@ except ImportError:
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
     sys.exit(1)
+EOF
+
+main() {
+  # Install python3-dev (and python3-venv for debian/ubuntu) globally
+  local repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  source "${repo_root}/perfmetrics/scripts/os_utils.sh"
+  
+  local os_id=$(get_os_id)
+  if ! install_packages_by_os "$os_id" "python3-dev" "python3-venv"; then
+     echo "Warning: Failed to install prerequisites. Skipping rich table visualization."
+     exit 0
+  fi
+
+  # Create venv
+  if ! python3 -m venv "$VENV_DIR"; then
+     echo "Warning: Failed to create venv. Skipping rich table visualization."
+     exit 0
+  fi
+
+  # Install rich inside the venv
+  if ! "$VENV_DIR/bin/pip" install --index-url https://pypi.org/simple rich; then
+     echo "Warning: Failed to install rich in venv. Skipping rich table visualization."
+     exit 0
+  fi
+
+  # Run the Python script using the venv's Python binary
+  "$VENV_DIR/bin/python3" "$PYTHON_SCRIPT_FILE" "$PACKAGE_RUNTIME_STATS"
+}
+
+main
