@@ -330,7 +330,7 @@ func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreaming
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
-	gcsSynced, err = t.in.SyncPendingBufferedWrites()
+	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
