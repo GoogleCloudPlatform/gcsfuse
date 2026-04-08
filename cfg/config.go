@@ -31,11 +31,19 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			BucketType: "zonal",
 			Value:      int64(DefaultCongestionThreshold()),
 		},
+		{
+			BucketType: "pirlo",
+			Value:      int64(DefaultCongestionThreshold()),
+		},
 	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
+			Value:      bool(true),
+		},
+		{
+			BucketType: "pirlo",
 			Value:      bool(true),
 		},
 	},
@@ -84,11 +92,19 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			BucketType: "zonal",
 			Value:      int64(DefaultMaxBackground()),
 		},
+		{
+			BucketType: "pirlo",
+			Value:      int64(DefaultMaxBackground()),
+		},
 	},
 }, "file-system.max-read-ahead-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
+			Value:      int64(16384),
+		},
+		{
+			BucketType: "pirlo",
 			Value:      int64(16384),
 		},
 	},

@@ -176,7 +176,7 @@ func NewFileInode(
 		traceHandle:             traceHandle,
 	}
 
-	if f.bucket.BucketType().Zonal {
+	if f.bucket.BucketType().IsRapid() {
 		var err error
 		f.mrdInstance = gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg)
 		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
@@ -442,8 +442,8 @@ func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
-	//   2.  The bucket is zonal and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().Zonal && f.content == nil)
+	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().IsRapid() && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().

@@ -904,6 +904,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 	tests := []struct {
 		name                 string
 		isZonal              bool
+		isPirlo              bool
 		billingProject       string
 		folderAPIStallRetry  bool
 		expectFolderRetries  bool
@@ -919,6 +920,20 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 		{
 			name:                 "ZonalBucket_WithBillingProject",
 			isZonal:              true,
+			billingProject:       "test-project",
+			expectFolderRetries:  true,
+			expectGaxRetriesUsed: false,
+		},
+		{
+			name:                 "PirloBucket_NoBillingProject",
+			isPirlo:              true,
+			billingProject:       "",
+			expectFolderRetries:  true,
+			expectGaxRetriesUsed: false,
+		},
+		{
+			name:                 "PirloBucket_WithBillingProject",
+			isPirlo:              true,
 			billingProject:       "test-project",
 			expectFolderRetries:  true,
 			expectGaxRetriesUsed: false,
@@ -969,7 +984,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 				rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
 				clientConfig:                             clientConfig,
 			}
-			bucketType := &gcs.BucketType{Zonal: tc.isZonal}
+			bucketType := &gcs.BucketType{Zonal: tc.isZonal, Pirlo: tc.isPirlo}
 
 			// Act
 			controlClient := sh.controlClientForBucketHandle(bucketType, tc.billingProject)

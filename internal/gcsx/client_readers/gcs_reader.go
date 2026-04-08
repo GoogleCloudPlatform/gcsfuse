@@ -82,10 +82,10 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 }
 
 // Detects whether the read was short or not and returns whether it should be retried or not.
-// Reads would only be retried in case of zonal buckets and when the read data was less than requested (& object size)
+// Reads would only be retried in case of rapid buckets and when the read data was less than requested (& object size)
 // and there was no error apart from EOF or short reads.
 func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, objectSize uint64, bucketType gcs.BucketType, skipSizeChecks bool) bool {
-	if !bucketType.Zonal {
+	if !bucketType.IsRapid() {
 		return false
 	}
 
@@ -160,7 +160,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 		// at this lock and hence the earlier calculated value of readerType might not be valid once they
 		// acquire the lock. Hence, needs to be calculated again.
 		// We recalculate the read type if the expected offset has changed. This is important for both
-		// zonal and regional buckets. For zonal buckets, it allows switching to MRD for high-performance
+		// rapid and regional buckets. For rapid buckets, it allows switching to MRD for high-performance
 		// random reads. For regional buckets, it helps in adjusting the prefetch window for the range
 		// reader when the read pattern changes.
 		if readReq.ExpectedOffset != gr.readTypeClassifier.NextExpectedOffset() {
@@ -186,7 +186,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 
 // readerType specifies the go-sdk interface to use for reads.
 func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) ReaderType {
-	if readType == metrics.ReadTypeRandom && bucketType.Zonal {
+	if readType == metrics.ReadTypeRandom && bucketType.IsRapid() {
 		return MultiRangeReaderType
 	}
 	return RangeReaderType

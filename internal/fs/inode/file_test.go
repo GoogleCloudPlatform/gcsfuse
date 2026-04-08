@@ -84,6 +84,9 @@ func TestFileTestSuite(t *testing.T) {
 	t.Run("Zonal", func(t *testing.T) {
 		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
 	})
+	t.Run("Pirlo", func(t *testing.T) {
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Pirlo: true}})
+	})
 }
 
 func (t *FileTest) SetupSubTest() {

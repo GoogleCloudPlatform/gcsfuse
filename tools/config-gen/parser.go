@@ -127,7 +127,7 @@ func validateParam(param Param) error {
 
 	// Validate bucket-based optimizations if present.
 	if param.Optimizations != nil {
-		validBucketTypes := []string{"zonal", "hierarchical", "flat"}
+		validBucketTypes := []string{"zonal", "hierarchical", "flat", "pirlo"}
 		for _, bto := range param.Optimizations.BucketTypeOptimization {
 			if !slices.Contains(validBucketTypes, bto.BucketType) {
 				return fmt.Errorf("invalid bucket-type %q for flag %s; must be one of: %v",

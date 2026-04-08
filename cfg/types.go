@@ -153,6 +153,9 @@ const (
 	// BucketTypeZonal represents a zonal bucket with single-zone storage.
 	BucketTypeZonal BucketType = "zonal"
 
+	// BucketTypePirlo represents a pirlo bucket.
+	BucketTypePirlo BucketType = "pirlo"
+
 	// BucketTypeHierarchical represents a bucket with hierarchical namespace enabled.
 	BucketTypeHierarchical BucketType = "hierarchical"
 
@@ -162,5 +165,5 @@ const (
 
 // IsValid returns true if the BucketType is one of the defined valid types.
 func (bt BucketType) IsValid() bool {
-	return bt == BucketTypeZonal || bt == BucketTypeHierarchical || bt == BucketTypeFlat
+	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeHierarchical || bt == BucketTypeFlat
 }

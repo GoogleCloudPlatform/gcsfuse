@@ -427,9 +427,9 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, bucketName string, billingProject string) (*storage.Client, error) {
+func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (*storage.Client, error) {
 	var err error
-	if isbucketZonal {
+	if isBucketRapid {
 		if sh.grpcClientWithBidiConfig == nil {
 			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isbucketZonal, true, bucketName, billingProject)
 		}
@@ -486,11 +486,11 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 	}
 
 	var controlClientWithoutBillingProject StorageControlClient
-	if bucketType.Zonal || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
+	if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
 		// sh.storageControlClient already contains handling for billing project,
 		// and enhanced retries for GetStorageLayout API call. Extending it here for
 		// retries for folder APIs.
-		// For zonal buckets, wrap the control client with retry-on-all-APIs.
+		// For rapid buckets, wrap the control client with retry-on-all-APIs.
 		controlClientWithoutBillingProject = withRetryOnAllAPIs(sh.rawStorageControlClientWithoutGaxRetries, &sh.clientConfig)
 	} else {
 		// Apply GAX retries to the raw storage control client and returns a copy of it,
@@ -511,7 +511,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		return nil, fmt.Errorf("storageLayout call failed: %s", err)
 	}
 
-	client, err = sh.getClient(ctx, bucketType.Zonal, bucketName, billingProject)
+	client, err = sh.getClient(ctx, bucketType.IsRapid(), bucketName, billingProject)
 	if err != nil {
 		return nil, err
 	}

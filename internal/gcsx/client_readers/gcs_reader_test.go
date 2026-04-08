@@ -476,39 +476,51 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	}
 }
 
-func (t *gcsReaderTest) Test_ReadAt_MRDShortReadOnZonal() {
-	// Re-initialize GCSReader with initialOffset 1 to force Random read type.
-	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
-		MetricHandle:       metrics.NewNoopMetrics(),
-		TraceHandle:        tracing.NewNoopTracer(),
-		MrdWrapper:         nil,
-		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 1),
-	})
-	t.object.Size = 200
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
-	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, nil)
-	require.NoError(t.T(), err)
-	t.gcsReader.mrr.mrdWrapper = fakeMRDWrapper
+func (t *gcsReaderTest) Test_ReadAt_ShortReadRetry() {
+	testCases := []struct {
+		name       string
+		bucketType gcs.BucketType
+	}{
+		{
+			name:       "ZonalBucket",
+			bucketType: gcs.BucketType{Zonal: true},
+		},
+		{
+			name:       "PirloBucket",
+			bucketType: gcs.BucketType{Pirlo: true},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			defer t.TearDownTest()
+			// Re-initialize GCSReader with initialOffset 1 to force Random read type.
+			t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
+				MetricHandle:       metrics.NewNoopMetrics(),
+				TraceHandle:        tracing.NewNoopTracer(),
+				MrdWrapper:         nil,
+				Config:             nil,
+				ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 1),
+			})
+			t.object.Size = 200
+			t.mockBucket.On("BucketType", mock.Anything).Return(tc.bucketType)
+			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, nil)
+			require.NoError(t.T(), err)
+			t.gcsReader.mrr.mrdWrapper = fakeMRDWrapper
+			buf := make([]byte, t.object.Size-1)
+			// Rapid buckets will use MRD and get a short read, then retry and get the full read.
+			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, testContent), nil).Once()
+			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil).Once()
 
-	// First call to NewMultiRangeDownloader will return a short read, which will trigger a retry.
-	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, testContent), nil).Once()
-	// Second call for retry will return the full content.
-	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil).Once()
-	buf := make([]byte, t.object.Size-1)
+			readResponse := t.readAt(t.ctx, &gcsx.ReadRequest{Buffer: buf, Offset: 1})
 
-	// Act
-	readResponse := t.readAt(t.ctx, &gcsx.ReadRequest{
-		Buffer: buf,
-		Offset: 1,
-	})
-
-	// Assert
-	assert.Equal(t.T(), int(t.object.Size)-1, readResponse.Size)
-	assert.Equal(t.T(), testContent[1:], buf)
-	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.readTypeClassifier.NextExpectedOffset())
-	t.mockBucket.AssertExpectations(t.T())
+			assert.Equal(t.T(), int(t.object.Size)-1, readResponse.Size)
+			assert.Equal(t.T(), testContent[1:], buf)
+			assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.readTypeClassifier.NextExpectedOffset())
+			t.mockBucket.AssertExpectations(t.T())
+		})
+	}
 }
 
 func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
