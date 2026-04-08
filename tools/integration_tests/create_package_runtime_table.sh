@@ -44,33 +44,14 @@ PACKAGE_RUNTIME_STATS=$1
 
 if [ ! -f "$PACKAGE_RUNTIME_STATS" ]; then
   echo "Error: File '$PACKAGE_RUNTIME_STATS' not found."
-  exit 0
+  exit 1
 fi
 
-# Sort packages in ascending order.
-sort -o "$PACKAGE_RUNTIME_STATS" "$PACKAGE_RUNTIME_STATS" || true
+VENV_DIR=$(mktemp -d)
+trap 'rm -rf "$VENV_DIR"' EXIT
 
-# Wrap the visualization logic in a subshell so failures never fail the CI/CD pipeline
-(
-  # Create a temporary virtual environment
-  VENV_DIR=$(mktemp -d)
-  trap 'rm -rf "$VENV_DIR"' EXIT
-
-  # Create venv. (The locally built Python 3.11 includes the venv module natively)
-  if ! python3 -m venv "$VENV_DIR" > /dev/null 2>&1; then
-     echo "Warning: Failed to create venv. Skipping rich table visualization."
-     exit 0
-  fi
-
-  # Install rich safely inside the venv
-  if ! "$VENV_DIR/bin/pip" install rich > /dev/null 2>&1; then
-     echo "Warning: Failed to install rich. Skipping rich table visualization."
-     exit 0
-  fi
-
-  # Run the Python script inline using the venv's Python binary
-  # The "-" tells python to read the script from standard input (the heredoc below)
-  "$VENV_DIR/bin/python3" - "$PACKAGE_RUNTIME_STATS" << 'EOF'
+PYTHON_SCRIPT_FILE="$VENV_DIR/visualize.py"
+cat << 'EOF' > "$PYTHON_SCRIPT_FILE"
 import sys, os
 
 # Column indices for the input file data
@@ -95,7 +76,15 @@ PADDING_BORDERS = 20
 WIDTH_FALLBACK = 80
 SECONDS_PER_MINUTE = 60
 
+# Verify command line arguments
+if len(sys.argv) != 2:
+    print(f"Usage: {sys.argv[0]} <FILE_PATH>")
+    sys.exit(1)
+
 path = sys.argv[1]
+if not os.path.isfile(path):
+    print(f"Error: File '{path}' not found.")
+    sys.exit(1)
 
 # Read input file, filter out empty lines, and sort alphabetically
 with open(path) as f:
@@ -116,7 +105,6 @@ try:
         table_width = max_pkg + max_type + PADDING_TIME_COL + PADDING_STATUS_COL + max_rt + PADDING_BORDERS
     else:
         table_width = WIDTH_FALLBACK
-
     # Initialize Console and Table with appropriate width and styling
     term_width = shutil.get_terminal_size().columns
     console = Console(width=max(term_width, table_width))
@@ -134,7 +122,39 @@ try:
             table.add_row(p[IDX_PKG_NAME], p[IDX_BUCKET_TYPE], f"{run}m", f"[dim]{'░'*wait}[/][cyan]{'▓'*run}[/]", status)
     console.print(table)
     
+except ImportError:
+    print("Error: The 'rich' library is required to run this script. Please install it (e.g., 'pip install rich').", file=sys.stderr)
+    sys.exit(1)
 except Exception as e:
-    print(f"Visualization error: {e}", file=sys.stderr)
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)
 EOF
-) || true
+
+main() {
+  # Install python3-dev (and python3-venv for debian/ubuntu) globally
+  local repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  source "${repo_root}/perfmetrics/scripts/os_utils.sh"
+  
+  local os_id=$(get_os_id)
+  if ! install_packages_by_os "$os_id" "python3-dev" "python3-venv"; then
+     echo "Warning: Failed to install prerequisites. Skipping rich table visualization."
+     exit 0
+  fi
+
+  # Create venv
+  if ! python3 -m venv "$VENV_DIR"; then
+     echo "Warning: Failed to create venv. Skipping rich table visualization."
+     exit 0
+  fi
+
+  # Install rich inside the venv
+  if ! "$VENV_DIR/bin/pip" install --index-url https://pypi.org/simple rich; then
+     echo "Warning: Failed to install rich in venv. Skipping rich table visualization."
+     exit 0
+  fi
+
+  # Run the Python script using the venv's Python binary
+  "$VENV_DIR/bin/python3" "$PYTHON_SCRIPT_FILE" "$PACKAGE_RUNTIME_STATS"
+}
+
+main
