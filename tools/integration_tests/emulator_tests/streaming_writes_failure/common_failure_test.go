@@ -62,7 +62,7 @@ type gcsObjectValidator interface {
 
 func (t *commonFailureTestSuite) SetupSuite() {
 	t.flags = []string{
-		"--write-block-size-mb=1", 
+		"--write-block-size-mb=1",
 		"--write-max-blocks-per-file=1",
 		// Disable HNS to prevent gRPC Control Client initialization.
 		// Legacy emulator proxy servers run on HTTP/1.1, which causes the

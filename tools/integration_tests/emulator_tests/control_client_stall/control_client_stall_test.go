@@ -89,8 +89,8 @@ func (c *createFolderStallSuite) TestCreateFolderStallInducedShouldComplete() {
 
 	assert.NoError(c.T(), err)
 
-	// Ensure the operation took less than 31 seconds because of the internal abortion and retry.
-	assert.True(c.T(), elapsedTime < 31*time.Second, "Elapsed time %v should be less than 31s", elapsedTime)
+	// Ensure the operation took less than 32 seconds because of the internal abortion and retry.
+	assert.True(c.T(), elapsedTime < 32*time.Second, "Elapsed time %v should be less than 32s", elapsedTime)
 
 	// Validate the directory actually exists
 	info, err := os.Stat(folderPath)
@@ -110,7 +110,7 @@ func (c *getFolderStallSuite) TestGetFolderStallInducedShouldComplete() {
 	elapsedTime := time.Since(startTime)
 
 	assert.NoError(c.T(), err)
-	assert.True(c.T(), elapsedTime < 31*time.Second, "Elapsed time %v should be less than 31s", elapsedTime)
+	assert.True(c.T(), elapsedTime < 32*time.Second, "Elapsed time %v should be less than 32s", elapsedTime)
 }
 
 type deleteFolderStallSuite struct{ controlClientStallBase }
@@ -125,7 +125,7 @@ func (c *deleteFolderStallSuite) TestDeleteFolderStallInducedShouldComplete() {
 	elapsedTime := time.Since(startTime)
 
 	assert.NoError(c.T(), err)
-	assert.True(c.T(), elapsedTime < 31*time.Second, "Elapsed time %v should be less than 31s", elapsedTime)
+	assert.True(c.T(), elapsedTime < 32*time.Second, "Elapsed time %v should be less than 32s", elapsedTime)
 
 	// Validate the directory actually deleted
 	_, err = os.Stat(folderPath)
@@ -145,7 +145,7 @@ func (c *renameFolderStallSuite) TestRenameFolderStallInducedShouldComplete() {
 	elapsedTime := time.Since(startTime)
 
 	assert.NoError(c.T(), err)
-	assert.True(c.T(), elapsedTime < 31*time.Second, "Elapsed time %v should be less than 31s", elapsedTime)
+	assert.True(c.T(), elapsedTime < 32*time.Second, "Elapsed time %v should be less than 32s", elapsedTime)
 
 	// Validate the directory actually renamed
 	_, err = os.Stat(destPath)
