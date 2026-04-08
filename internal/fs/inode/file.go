@@ -711,7 +711,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	defer func() {
 		f.traceHandle.EndSpan(span)
 	}()
-	err := f.bwh.Write(data, offset)
+	err := f.bwh.Write(ctx, data, offset)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return false, &gcsfuse_errors.FileClobberedError{
@@ -723,7 +723,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
-		err = f.flushUsingBufferedWriteHandler()
+		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
 			f.traceHandle.RecordError(span, err)
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
@@ -741,17 +741,17 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 // new object.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) flushUsingBufferedWriteHandler() error {
-	obj, err := f.bwh.Flush()
+func (f *FileInode) flushUsingBufferedWriteHandler(ctx context.Context) error {
+	obj, err := f.bwh.Flush(ctx)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("f.bwh.Flush(): %w", err),
+			Err:        fmt.Errorf("f.bwh.Flush(ctx): %w", err),
 			ObjectName: f.src.Name,
 		}
 	}
 	if err != nil {
-		return fmt.Errorf("f.bwh.Flush(): %w", err)
+		return fmt.Errorf("f.bwh.Flush(ctx): %w", err)
 	}
 	// If we finalized the object, we need to update our state.
 	f.updateInodeStateAfterFlush(obj)
@@ -762,21 +762,21 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 // It is a no-op when bwh is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
+func (f *FileInode) SyncPendingBufferedWrites(ctx context.Context) (gcsSynced bool, err error) {
 	if f.bwh == nil {
 		return
 	}
-	minObj, err := f.bwh.Sync()
+	minObj, err := f.bwh.Sync(ctx)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("f.bwh.Sync(): %w", err),
+			Err:        fmt.Errorf("f.bwh.Sync(ctx): %w", err),
 			ObjectName: f.src.Name,
 		}
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("f.bwh.Sync(): %w", err)
+		err = fmt.Errorf("f.bwh.Sync(ctx): %w", err)
 		return
 	}
 	// We return gcsSynced as true when we get minObject from Sync() for Zonal Buckets.
@@ -925,7 +925,7 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.bwh != nil {
-		gcsSynced, err = f.SyncPendingBufferedWrites()
+		gcsSynced, err = f.SyncPendingBufferedWrites(ctx)
 		if err != nil {
 			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
@@ -1000,7 +1000,7 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	// Flush using the appropriate method based on whether we're using a
 	// buffered write handler.
 	if f.bwh != nil {
-		return f.flushUsingBufferedWriteHandler()
+		return f.flushUsingBufferedWriteHandler(ctx)
 	}
 	return f.syncUsingContent(ctx)
 }
@@ -1059,7 +1059,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
-		err = f.flushUsingBufferedWriteHandler()
+		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
