@@ -159,7 +159,7 @@ func Errorf(format string, v ...interface{}) {
 // Fatal prints an error log and exits with non-zero exit code.
 func Fatal(format string, v ...interface{}) {
 	Errorf(format, v...)
-	Errorf(string(debug.Stack()))
+	Errorf("%s", string(debug.Stack()))
 	os.Exit(1)
 }
 
