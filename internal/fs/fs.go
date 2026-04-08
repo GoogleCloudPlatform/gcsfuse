@@ -291,10 +291,10 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 					optimizedFlags = make(map[string]cfg.OptimizationResult)
 				}
 				if !serverCfg.ViperConfig.IsSet("file-system.max-read-ahead-kb") && !optimizedFlags["file-system.max-read-ahead-kb"].Optimized {
-					serverCfg.NewConfig.FileSystem.MaxReadAheadKb = 16384
+					serverCfg.NewConfig.FileSystem.MaxReadAheadKb = 131072
 					optimizedFlags["file-system.max-read-ahead-kb"] = cfg.OptimizationResult{
 						Optimized:  true,
-						FinalValue: int64(16384),
+						FinalValue: int64(131072),
 					}
 				}
 				if !serverCfg.ViperConfig.IsSet("file-system.max-background") && !optimizedFlags["file-system.max-background"].Optimized {
