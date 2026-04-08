@@ -311,6 +311,13 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 						FinalValue: int64(cfg.DefaultCongestionThresholdForRegional()),
 					}
 				}
+				if !serverCfg.ViperConfig.IsSet("file-system.fuse-max-pages-limit") && !optimizedFlags["file-system.fuse-max-pages-limit"].Optimized {
+					serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit = 4096 // 16 MB = 16 * 256 pages
+					optimizedFlags["file-system.fuse-max-pages-limit"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(4096),
+					}
+				}
 			}
 			if len(optimizedFlags) > 0 {
 				logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
@@ -330,6 +337,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
 			kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
+			kernelParams.SetMaxPagesLimit(int(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit))
 			kernelParams.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
 		}
 		root = makeRootForBucket(fs, syncerBucket)

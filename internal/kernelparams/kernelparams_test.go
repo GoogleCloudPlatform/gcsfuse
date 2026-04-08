@@ -71,7 +71,7 @@ func TestPathForParam(t *testing.T) {
 		{MaxReadAheadKb, 1, 2, "/sys/class/bdi/1:2/read_ahead_kb", false},
 		{MaxBackgroundRequests, 1, 2, "/sys/fs/fuse/connections/2/max_background", false},
 		{CongestionWindowThreshold, 1, 2, "/sys/fs/fuse/connections/2/congestion_threshold", false},
-		{MaxPagesLimit, 1, 2, "/sys/module/fuse/parameters/max_pages_limit", false},
+		{MaxPagesLimit, 1, 2, "/proc/sys/fs/fuse/max_pages_limit", false},
 		{TransparentHugePages, 1, 2, "/sys/kernel/mm/transparent_hugepage/enabled", false},
 		{"unknown", 1, 2, "", true},
 	}

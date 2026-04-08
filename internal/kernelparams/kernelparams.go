@@ -112,7 +112,7 @@ func PathForParam(name ParamName, major, minor uint32) (string, error) {
 		return fmt.Sprintf("/sys/fs/fuse/connections/%d/congestion_threshold", minor), nil
 
 	case MaxPagesLimit:
-		return "/sys/module/fuse/parameters/max_pages_limit", nil
+		return "/proc/sys/fs/fuse/max_pages_limit", nil
 
 	case TransparentHugePages:
 		return "/sys/kernel/mm/transparent_hugepage/enabled", nil

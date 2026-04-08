@@ -50,6 +50,13 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
+}, "file-system.fuse-max-pages-limit": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      int64(256),
+		},
+	},
 }, "implicit-dirs": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
@@ -257,6 +264,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileCache.CacheFileForRangeRead != val {
 					c.FileCache.CacheFileForRangeRead = val
 					optimizedFlags["file-cache.cache-file-for-range-read"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("file-system.fuse-max-pages-limit") {
+		rules := AllFlagOptimizationRules["file-system.fuse-max-pages-limit"]
+		result := getOptimizedValue(&rules, c.FileSystem.FuseMaxPagesLimit, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.FuseMaxPagesLimit != val {
+					c.FileSystem.FuseMaxPagesLimit = val
+					optimizedFlags["file-system.fuse-max-pages-limit"] = result
 				}
 			}
 		}
@@ -522,6 +541,8 @@ type FileSystemConfig struct {
 	ExperimentalODirect bool `yaml:"experimental-o-direct"`
 
 	FileMode Octal `yaml:"file-mode"`
+
+	FuseMaxPagesLimit int64 `yaml:"fuse-max-pages-limit"`
 
 	FuseOptions []string `yaml:"fuse-options"`
 
@@ -1104,6 +1125,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
+	flagSet.IntP("fuse-max-pages-limit", "", 256, "Sets the limit for the maximum number of pages that fuse can process in a single request. 256 pages = 1 MB.")
+
+	if err := flagSet.MarkHidden("fuse-max-pages-limit"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
 	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).")
@@ -1678,6 +1705,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("foreground", flagSet.Lookup("foreground")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-max-pages-limit", flagSet.Lookup("fuse-max-pages-limit")); err != nil {
 		return err
 	}
 
