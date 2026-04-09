@@ -51,6 +51,7 @@ var ExecuteBenchmarkCmd = func() {
 func newBenchmarkRootCmd() *cobra.Command {
 	var (
 		cfgFile        string
+		bucket         string
 		duration       time.Duration
 		warmup         time.Duration
 		concurrency    int
@@ -96,10 +97,13 @@ func newBenchmarkRootCmd() *cobra.Command {
 				benchCfg = envelope.Benchmark
 			}
 
-			// Bucket must be set in the config file.
+			// Bucket: config file value, then --bucket flag override.
 			bucketName := benchCfg.Bucket
+			if cmd.Flags().Changed("bucket") {
+				bucketName = bucket
+			}
 			if bucketName == "" {
-				return fmt.Errorf("bucket name required: set 'bucket:' in the config file (--config)")
+				return fmt.Errorf("bucket name required: use --bucket or set 'bucket:' in the config file")
 			}
 
 			// --- CLI flags override config file values ---
@@ -337,6 +341,7 @@ func newBenchmarkRootCmd() *cobra.Command {
 	}
 
 	rootCmd.Flags().StringVar(&cfgFile, "config", "", "Path to benchmark YAML config file")
+	rootCmd.Flags().StringVar(&bucket, "bucket", "", "GCS bucket name (overrides 'bucket:' in the config file)")
 	rootCmd.Flags().DurationVar(&duration, "duration", 30*time.Second, "Measurement phase duration")
 	rootCmd.Flags().DurationVar(&warmup, "warmup", 5*time.Second, "Warmup phase duration (stats discarded)")
 	rootCmd.Flags().IntVar(&concurrency, "concurrency", 8, "Total I/O goroutines across all tracks")

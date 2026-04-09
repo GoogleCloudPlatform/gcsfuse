@@ -1,0 +1,110 @@
+# gcs-bench example: RAPID 8 KiB MRD range-read — Danny Jones reproduction
+#
+# Reproduces the reference MRD 8K benchmark from Danny Jones (Google,
+# RAPID/zonal storage performance demo):
+#
+#   --- Track: unet3d-read (read) ---
+#     Threads:          96 goroutines
+#     Throughput:       53.887 MiB/s
+#     Ops/sec:          6,897.57  (2,069,740 total, 0 errors)
+#     Avg object size:  8.0 KiB
+#     Read latency:  P50  1,798.0 µs  /  P90  3,859.0 µs  /  P99  15.41 ms
+#
+# The test reads 8 KiB ranges from large UNet3D-style objects stored in a
+# RAPID (zonal) GCS bucket.  Each read issues one MRD Add() RPC on a bidi-gRPC
+# stream that stays open across reads of the same object — there is no
+# per-read connection setup overhead.  This amortized cost is what allows
+# 1-2 ms latency at 6,900+ ops/sec with only 96 goroutines.
+#
+# Prerequisites
+# =============
+#  1. A RAPID (zonal) GCS bucket.
+#  2. Objects populated via the prepare config (unet3d-like-prepare.yaml).
+#     The prepare config writes 50,176 objects using the same directory tree
+#     (width=28 × depth=2 × files-per-dir=64) with lognormal sizes matching
+#     the UNet3D full-scale dataset (mean ≈ 6.9 MiB).
+#  3. Application Default Credentials:
+#       gcloud auth application-default login
+#     with roles/storage.objectViewer (or broader) on the bucket.
+#
+# Quick start
+# ===========
+#   # Step 1 — prepare objects (one-time write; skip if already present)
+#   gcs-bench bench --config unet3d-like-prepare.yaml
+#
+#   # Step 2 — dry-run: validate config without touching GCS
+#   gcs-bench bench --config rapid-mrd-8k-danny.yaml --dry-run
+#
+#   # Step 3 — run the 96-thread reproduction
+#   gcs-bench bench --config rapid-mrd-8k-danny.yaml
+#
+#   # Step 4 (optional) — thread-curve sweep across 8→384 threads
+#   ./examples/scripts/thread-curve.sh --config rapid-mrd-8k-danny.yaml
+#
+# Comparing to Danny's numbers
+# ============================
+#   Danny's run was on a single GCE Tier1 VM (n2-standard-96, 400 Gbps vNIC)
+#   against a RAPID zonal bucket in the same zone.  Results will vary with
+#   VM type, zone proximity, and MRD cache warm-up state.  The bidi-gRPC
+#   connection pool (mrdCacheSize = 2048) covers 4% of the 50,176-object
+#   space, so steady-state cache hit rates are low; connection re-establishment
+#   contributes to the long tail (P99 ≈ 15 ms).
+
+benchmark:
+  bucket: "YOUR-RAPID-BUCKET-NAME"   # ← replace with your RAPID bucket name
+  object-prefix: "unet3d/"
+
+  duration: 5m
+  warmup-duration: 30s
+
+  # 96 goroutines matches Danny's reference run.
+  # Use thread-curve.sh to sweep concurrency from 8 → 384 and profile the
+  # latency / throughput trade-off for your specific VM + zone + bucket.
+  total-concurrency: 96
+
+  # Force bidi-gRPC — required for RAPID (zonal) buckets.
+  # Set to "auto" for the engine to auto-detect bucket type via
+  # GetStorageLayout (adds one API call at startup).
+  rapid-mode: on
+
+  output-path: "./results"
+  output-format: both   # writes bench.yaml + bench.tsv + bench.txt
+
+  histograms:
+    min-value-micros: 1
+    max-value-micros: 60000000   # 60 s ceiling — covers worst-case retries
+    significant-digits: 3
+
+  tracks:
+    - name: mrd-8k-read
+      op-type: read
+      read-type: multirange   # MRD bidi-gRPC — connection reuse per object
+      weight: 1
+      access-pattern: random
+
+      # UNet3D FSD object tree: width=28, depth=2, files-per-dir=64
+      #   28² leaf dirs × 64 files = 50,176 total objects
+      # Must match the tree written by unet3d-like-prepare.yaml.
+      directory-structure:
+        width: 28
+        depth: 2
+        files-per-dir: 64
+        dir-pattern: "dir-%04d"
+        file-pattern: "obj-%06d"
+
+      # 8 KiB sub-object range read starting at offset 0.
+      # The MRD bidi-gRPC stream stays open between reads so each Add() call
+      # incurs only one round-trip RPC, not a new connection setup.
+      read-size: 8192
+
+      # Object size distribution — lognormal matching UNet3D-A.
+      # These sizes tell the engine how to pick a valid byte offset within each
+      # object; they must match the distribution used during prepare so that
+      # the generated offsets (0 .. size-read-size) remain in-bounds.
+      # Mean ≈ 6.9 MiB, σ ≈ 5.5 MiB, clamped to [1 MiB, 32 MiB].
+      size-spec:
+        type: lognormal
+        mean: 7235174     # ≈ 6.9 MiB
+        std-dev: 5788139  # ≈ 5.5 MiB
+        min: 1048576      # 1 MiB  — smallest object in the bucket
+        max: 33554432     # 32 MiB — largest object in the bucket

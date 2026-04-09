@@ -1,0 +1,86 @@
+# gcs-bench example: ResNet50-like PREPARE workload
+#
+# Creates the ResNet50 training dataset object corpus, then exits.
+# Run this BEFORE resnet50.yaml.
+#
+# Workload origin: sai3-bench ai-ml/resnet50_1-host.yaml
+# Matches rdf-bench FSD: width=64, depth=2, files=150 per directory
+#   64² = 4,096 leaf directories × 150 files = 614,400 objects per host
+#   Size distribution: lognormal, mean ≈ 224 KB (rdf-bench weighted avg)
+#
+# Total data per host:  614,400 × 229 KB ≈ 134 GiB
+#
+# The directory structure and file/dir patterns MUST exactly match
+# resnet50.yaml — that is how the read workload knows object names without
+# doing any GCS bucket listing.
+#
+# ───────────────────────────────────────────────────────────────────────────
+# Single-host prepare
+# ───────────────────────────────────────────────────────────────────────────
+#   gcs-bench bench --config resnet50-prepare.yaml
+#
+# This writes all 614,400 objects under resnet50/ in one pass.
+#
+# ───────────────────────────────────────────────────────────────────────────
+# Multi-host prepare (per-host layout, recommended for 4/8 workers)
+# ───────────────────────────────────────────────────────────────────────────
+# Each host writes its own full 614,400-object corpus under a unique prefix
+# (resnet50/host-N/).  Hosts run independently — no coordination needed.
+#
+# Step 1: generate ready-to-paste host commands (run locally):
+#   NUM_WORKERS=4 LAYOUT=per-host OBJECT_PREFIX_BASE=resnet50/ \
+#     examples/scripts/run-distributed-per-host.sh \
+#     --config examples/benchmark-configs/resnet50-prepare.yaml
+#
+# Step 2: paste the printed command on each host and run simultaneously.
+#
+# After prepare, run the benchmark with resnet50.yaml and the same
+# NUM_WORKERS / LAYOUT / OBJECT_PREFIX_BASE settings.
+#
+# See examples/benchmark-configs/resnet50.yaml for the full distributed
+# workflow including 1-host, 4-host, and 8-host command examples.
+#
+# ───────────────────────────────────────────────────────────────────────────
+# Dry-run (validate config without connecting to GCS)
+# ───────────────────────────────────────────────────────────────────────────
+#   gcs-bench bench --config resnet50-prepare.yaml --dry-run
+
+benchmark:
+  # mode: prepare — iterates all object paths exactly once (no time limit).
+  mode: prepare
+
+  bucket: "YOUR-BUCKET-NAME"    # ← replace with your bucket
+  object-prefix: "resnet50/"    # shared prefix; per-host layout appends host-N/
+
+  # High concurrency for fast parallel writes of 614,400 small objects.
+  # 224 KB × 614,400 objects ≈ 134 GiB; at 64 goroutines and 500 MB/s
+  # per-host typical RAPID write bandwidth this completes in ~4-5 minutes.
+  total-concurrency: 128
+
+  # RAPID/zonal bucket detection.
+  # "auto" calls GetStorageLayout to detect bucket type.
+  # "on" forces bidi-gRPC (skip detection, use for known RAPID buckets).
+  rapid-mode: auto
+
+  tracks:
+    - name: resnet50-prepare
+      op-type: write    # prepare mode only executes 'write' tracks
+
+      # MUST match directory-structure in resnet50.yaml exactly.
+      # Total objects per host: 64² × 150 = 614,400
+      directory-structure:
+        width: 64               # 64 subdirectories per level (rdf-bench: width=64)
+        depth: 2                # 2 levels deep     (rdf-bench: depth=2)
+        files-per-dir: 150      # 150 files per leaf dir per host (rdf-bench: files=150)
+        dir-pattern: "dir-%04d" # → dir-0000/ … dir-0063/
+        file-pattern: "obj-%06d"# → obj-000000 … obj-000149
+
+      # ResNet50 object size distribution (lognormal, matches rdf-bench xfersize profile)
+      #   rdf-bench weighted average: ~224 KB
+      #   Distribution is tighter than unet3d (coefficient of variation ≈ 0.70)
+      size-spec:
+        type: lognormal
+        mean: 229376      # ~224 KiB real-space mean
+        std-dev: 160563   # ~157 KiB real-space std-dev (CV ≈ 0.70)
+        min: 32768        # 32 KiB floor  (rdf-bench minimum transfer size)
+        max: 1048576      # 1 MiB ceiling (rdf-bench maximum transfer size)

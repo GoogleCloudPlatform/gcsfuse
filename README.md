@@ -7,8 +7,7 @@ and list operations — directly against GCS without requiring a FUSE mount.
 
 > **Upstream base:** This repository is a fork of
 > [GoogleCloudPlatform/gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse)
-> (v3, snapshot `582a2201`, 2026-03-27).  
-> The benchmark tool lives on the `gcs-bench-tool-v1` branch.  
+> (v3, snapshot `4b7892bc`, 2026-04-01).  
 > See [README-gcsfuse-upstream.md](README-gcsfuse-upstream.md) for the original
 > upstream Cloud Storage FUSE documentation.
 
@@ -29,7 +28,7 @@ make bench
 
 # Verify
 ./gcs-bench --version
-# gcsfuse version gcsfuse-v3-snap.582a2201+bench-v1.2 (Go version go1.26.1)
+# gcsfuse version gcsfuse-v3-snap.4b7892bc+bench-v1.2.1 (Go version go1.26.1)
 ```
 
 The `make bench` target injects a meaningful version string automatically.
@@ -38,13 +37,13 @@ To bump your revision: `make bench BENCH_VERSION=v1.3`.
 ### 2. Validate your config (no GCS traffic)
 
 ```bash
-./gcs-bench bench --config docs/examples/unet3d-like.yaml --dry-run
+./gcs-bench bench --config examples/benchmark-configs/unet3d-like.yaml --dry-run
 ```
 
 ### 3. Run a benchmark
 
 ```bash
-./gcs-bench bench --config docs/examples/unet3d-like.yaml
+./gcs-bench bench --config examples/benchmark-configs/unet3d-like.yaml --bucket my-gcs-bucket
 ```
 
 Progress lines are printed every 10 seconds.  When the run finishes, results
@@ -88,6 +87,7 @@ results/bench-YYYYMMDD-HHMMSS/
 
 | Document | Description |
 |---|---|
+| [examples/README.md](examples/README.md) | **Examples** — ready-to-run configs and scripts for UNet3D, ResNet50, MRD, sweeps, and multi-host runs |
 | [docs/bench-user-guide.md](docs/bench-user-guide.md) | **Full user guide** — config reference, all flags, output format, distributed usage, authentication |
 | [docs/CHANGELOG-bench.md](docs/CHANGELOG-bench.md) | Changelog for gcs-bench-specific changes (v1.0 → current) |
 | [docs/Handoff_gcsfuse-bench.md](docs/Handoff_gcsfuse-bench.md) | Development history, architecture decisions, commit log |

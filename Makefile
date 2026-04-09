@@ -95,21 +95,18 @@ e2e-test:
 # bench: build the gcs-bench binary.  Fast — no vet/fmt overhead.
 # go generate must run first to regenerate cfg/config.go (deleted by make clean).
 #
-# BENCH_VERSION (default: v1.0) is your revision tag for the benchmark tool
-# additions.  Override on the command line: make bench BENCH_VERSION=v1.2
+# BENCH_VERSION is your revision tag for the benchmark tool additions.
+# Override on the command line: make bench BENCH_VERSION=v1.3
 #
 # The full version string shown by --version will be:
 #   gcsfuse version gcsfuse-v3-snap.<upstream-short-sha>+bench-<BENCH_VERSION> (Go version ...)
 #
-# UPSTREAM_SHA is derived from the merge-base of HEAD and origin/master so it
-# always identifies the exact upstream snapshot this build was forked from,
-# regardless of how many bench commits have been added on top.
-# Falls back to upstream/master if origin/master is not configured.
-BENCH_VERSION ?= v1.2
-UPSTREAM_SHA  := $(shell git merge-base HEAD origin/master 2>/dev/null | cut -c1-8)
-ifeq ($(UPSTREAM_SHA),)
+# UPSTREAM_SHA is the merge-base of HEAD with the GoogleCloudPlatform/gcsfuse
+# upstream (the 'upstream' remote).  This always identifies the exact upstream
+# snapshot this build was forked from, regardless of how many bench commits
+# have been added on top.  Requires 'upstream' to be fetched (git fetch upstream).
+BENCH_VERSION ?= v1.2.1
 UPSTREAM_SHA  := $(shell git merge-base HEAD upstream/master 2>/dev/null | cut -c1-8)
-endif
 ifeq ($(UPSTREAM_SHA),)
 UPSTREAM_SHA  := unknown
 endif

@@ -1,0 +1,168 @@
+# gcs-bench example: ResNet50-like random read workload
+#
+# Simulates the read pattern used in ResNet50 image classification training:
+# many workers reading small JPEG images stored in a nested directory tree.
+# Each image is read in full on each pass (no range reads needed for 224 KB files).
+#
+# Workload origin: sai3-bench ai-ml/resnet50_1-host.yaml
+# Matches rdf-bench parameters: width=64, depth=2, files=150, threads=64
+#   64² = 4,096 leaf directories × 150 files = 614,400 objects per host
+#   Size distribution: lognormal, mean ≈ 224 KB, range [32 KB, 1 MiB]
+#   Total data per host: ~134 GiB
+#
+# Key differences vs unet3d-like.yaml:
+#   • Objects are ~224 KB vs ~6.9 MiB — 31× smaller
+#   • 614,400 objects vs 50,176 — 12× more files
+#   • 64 goroutines vs 32 — latency-bound at ~224 KB means more threads needed
+#   • Entire object is read per call (no MRD range reads needed)
+#
+# Requires objects to already exist. Run resnet50-prepare.yaml first.
+#   gcs-bench bench --config resnet50-prepare.yaml
+# Then benchmark:
+#   gcs-bench bench --config resnet50.yaml
+#
+# ═══════════════════════════════════════════════════════════════════════════
+# SCALING: 1 host → 4 hosts → 8 hosts
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Unlike sai3-bench (which required separate 1-host/4-host/8-host YAML files),
+# gcsfuse-bench uses a single YAML config for ALL host counts.  Scaling is
+# handled by run-distributed-per-host.sh via environment variables.
+#
+# The script supports two data LAYOUT modes:
+#
+#   LAYOUT=per-host (recommended)
+#     Each host writes and reads its own independent 614,400-object corpus
+#     stored under  resnet50/host-N/  so namespaces never overlap.
+#     Total objects on GCS: 614,400 × NUM_WORKERS
+#     Performance scales linearly: each host saturates its own network path.
+#     Equivalent to the sai3-bench 1/4/8-host configs (which also gave each
+#     host its own fraction of the rdf-bench dataset to own).
+#
+#   LAYOUT=sharded
+#     All hosts share a single resnet50/ prefix.  During prepare, each host
+#     writes 1/NUM_WORKERS of the 614,400 objects (modulo sharding).
+#     Total objects on GCS: 614,400 (same regardless of host count).
+#     All hosts read from the same shared corpus (maximum contention test).
+#
+# ───────────────────────────────────────────────────────────────────────────
+# Quick start: 1 host
+# ───────────────────────────────────────────────────────────────────────────
+#
+#   # Step 1 — prepare (one-time; skip if objects already exist)
+#   gcs-bench bench --config resnet50-prepare.yaml
+#
+#   # Step 2 — benchmark
+#   gcs-bench bench --config resnet50.yaml
+#
+# ───────────────────────────────────────────────────────────────────────────
+# Multi-host: generate per-host commands automatically (GENTIME phase)
+# ───────────────────────────────────────────────────────────────────────────
+#
+# Run this ONCE on any host to print ready-to-paste commands for every host:
+#
+#   4 workers, per-host layout, prepare phase:
+#     NUM_WORKERS=4 LAYOUT=per-host OBJECT_PREFIX_BASE=resnet50/ \
+#     RESULTS_GCS_PATH=gs://YOUR-BUCKET/bench-results \
+#     GCS_BENCH=./gcs-bench \
+#       examples/scripts/run-distributed-per-host.sh \
+#       --config examples/benchmark-configs/resnet50-prepare.yaml
+#
+#   4 workers, per-host layout, benchmark phase:
+#     NUM_WORKERS=4 LAYOUT=per-host OBJECT_PREFIX_BASE=resnet50/ \
+#     RESULTS_GCS_PATH=gs://YOUR-BUCKET/bench-results \
+#     GCS_BENCH=./gcs-bench \
+#       examples/scripts/run-distributed-per-host.sh \
+#       --config examples/benchmark-configs/resnet50.yaml
+#
+# Change NUM_WORKERS=8 for 8-host runs. The YAML config is identical.
+#
+# ───────────────────────────────────────────────────────────────────────────
+# What changes when you add more hosts?
+# ───────────────────────────────────────────────────────────────────────────
+#
+#   | Hosts | Total goroutines | Total objects on GCS | Total dataset  |
+#   |-------|-----------------|----------------------|----------------|
+#   |     1 |              64 |              614,400 |       ~134 GiB |
+#   |     4 |             256 |            2,457,600 |       ~537 GiB |
+#   |     8 |             512 |            4,915,200 |    ~1,074 GiB  |
+#
+#   (per-host layout: each host reads its own 614,400 objects, 64 goroutines)
+#
+# The YAML config's total-concurrency: 64 is the per-host goroutine count.
+# NUM_WORKERS in the shell script controls how many hosts run in parallel.
+# Results from all hosts are merged by the coordinator (worker 0) into a
+# single combined summary via gcs-bench merge-results.
+#
+# ───────────────────────────────────────────────────────────────────────────
+# Thread-curve profiling (single host)
+# ───────────────────────────────────────────────────────────────────────────
+#   examples/scripts/thread-curve.sh --config resnet50.yaml \
+#     --sweep 16,32,64,96,128,192
+#
+# ───────────────────────────────────────────────────────────────────────────
+# Dry-run (validate config without connecting to GCS)
+# ───────────────────────────────────────────────────────────────────────────
+#   gcs-bench bench --config resnet50.yaml --dry-run
+
+benchmark:
+  bucket: "YOUR-BUCKET-NAME"    # ← replace with your bucket
+  object-prefix: "resnet50/"    # per-host layout appends host-N/ automatically
+
+  # Measurement phase: 5 minutes matches the standard rdf-bench run duration.
+  duration: 5m
+
+  # Warmup period: 30s to prime OS network buffers and eliminate cold-start
+  # latency spikes from first-read connection setup.
+  warmup-duration: 30s
+
+  # Per-host goroutine count.  64 matches rdf-bench threads=64 for ResNet50.
+  # Objects are ~224 KB so more goroutines are needed compared to unet3d (32)
+  # to keep the network link saturated at these smaller transfer sizes.
+  # Override with --concurrency N on the CLI if experimenting.
+  total-concurrency: 64
+
+  output-path: "./results"
+  output-format: both   # writes bench.yaml + bench.tsv + bench.txt
+
+  # RAPID/zonal bucket detection.
+  # "auto" calls GetStorageLayout at startup to detect bucket type.
+  # "on" forces bidi-gRPC (skip detection, for known RAPID buckets).
+  rapid-mode: auto
+
+  histograms:
+    min-value-micros: 1          # 1 µs floor
+    max-value-micros: 60000000   # 60 s ceiling — covers retry tail
+    significant-digits: 3        # 0.1% precision
+
+  tracks:
+    - name: resnet50-read
+      op-type: read
+      weight: 1
+      access-pattern: random    # Uniform random selection across all objects
+
+      # Nested directory tree matching the rdf-bench FSD parameters:
+      #   width=64, depth=2, files_per_dir=150
+      # Total paths generated: 64² × 150 = 614,400
+      # MUST exactly match the directory-structure in resnet50-prepare.yaml.
+      directory-structure:
+        width: 64               # 64 subdirectories per level
+        depth: 2                # 2 levels deep
+        files-per-dir: 150      # 150 objects per leaf directory
+        dir-pattern: "dir-%04d" # → dir-0000/ … dir-0063/
+        file-pattern: "obj-%06d"# → obj-000000 … obj-000149
+
+      # Read the entire object in one call.
+      # ResNet50 images are ~224 KB — small enough that a full-object read
+      # is more efficient than an MRD range-read; no read-size override needed.
+      # (read-size: 0 or omitted = full object)
+
+      # SizeSpec is used by --dry-run reporting and write operations.
+      # Lognormal parameters match the rdf-bench ResNet50 xfersize distribution.
+      #   rdf-bench weighted average: ~224 KB
+      size-spec:
+        type: lognormal
+        mean: 229376      # ~224 KiB real-space mean
+        std-dev: 160563   # ~157 KiB real-space std-dev (CV ≈ 0.70)
+        min: 32768        # 32 KiB floor
+        max: 1048576      # 1 MiB ceiling

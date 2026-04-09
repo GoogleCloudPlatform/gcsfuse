@@ -10,6 +10,64 @@ Use `./gcs-bench --version` to confirm.
 
 ---
 
+## v1.2.1 — `--bucket` CLI flag, examples directory, thread-curve sweep script
+
+### New features
+
+- **`--bucket <name>` flag** (`cmd/benchmark.go`) — The bucket name can now be
+  overridden on the command line without editing the YAML config file.  This
+  makes it trivial to run the same config against different buckets
+  (e.g. RAPID vs standard) in back-to-back comparisons:
+  ```bash
+  ./gcs-bench bench --config myconfig.yaml --bucket my-rapid-bucket  --rapid-mode on
+  ./gcs-bench bench --config myconfig.yaml --bucket my-normal-bucket --rapid-mode off
+  ```
+  The YAML `bucket:` field is still used when `--bucket` is not passed.
+
+- **`examples/README.md`** — New top-level README for the examples directory.
+  Covers all benchmark configs and scripts with runnable commands for each
+  workload, including RAPID vs standard comparison examples and multi-host
+  distributed setup.
+
+- **`examples/benchmark-configs/resnet50.yaml`** — ResNet50-like image
+  classification benchmark: 614,400 objects, lognormal sizes (mean ≈ 224 KiB),
+  full-object reads, 64 goroutines.
+
+- **`examples/benchmark-configs/resnet50-prepare.yaml`** — Matching prepare
+  config to populate the ResNet50 object corpus (~134 GiB per host).
+
+- **`examples/benchmark-configs/rapid-mrd-8k-example.yaml`** — Reproduces the
+  Danny Jones RAPID 8 KiB MRD reference benchmark (96 goroutines, `read-type:
+  multirange`, `read-size: 8192`).  Includes documented reference numbers
+  (P50/P90/P99 latency, ops/sec).
+
+- **`examples/scripts/thread-curve.sh`** — Concurrency sweep helper.  Runs
+  `gcs-bench bench` at a configurable list of thread counts (`--sweep`),
+  captures per-level TSV results, and prints a consolidated latency/throughput
+  table.  Supports `--bucket` and `--rapid-mode` overrides so a single YAML
+  config can be swept across multiple bucket types in one command.
+
+### Bug fixes
+
+- **Makefile `UPSTREAM_SHA`** — The UPSTREAM_SHA calculation previously used
+  `origin/master` as the reference point.  Once all bench commits were merged
+  back to `origin/master`, `git merge-base HEAD origin/master` returned HEAD
+  itself (wrong).  Now uses `upstream/master` (the `GoogleCloudPlatform/gcsfuse`
+  remote) directly, which always identifies the actual upstream snapshot
+  regardless of local branch state.
+
+- **README.md upstream snapshot** updated from `582a2201` (2026-03-27) to
+  `4b7892bc` (2026-04-01) to reflect the upstream base after PR #8 merged the
+  latest GoogleCloudPlatform/gcsfuse commits.
+
+### Version / tag notes
+
+The git tag for this release is `bench-v1.2.1`.  Note that `v1.2.0` and
+`v1.2.1` already exist as upstream gcsfuse tags; the `bench-v*` namespace is
+used for all gcs-bench tool releases to avoid collisions.
+
+---
+
 ## v1.2 — MultiRangeDownloader (MRD) read path
 
 Integrates GCS's bidi-gRPC `MultiRangeDownloader` API as a second read strategy,
