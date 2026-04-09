@@ -38,7 +38,6 @@ type controlClientStallBase struct {
 	flags                []string
 	configFileName       string
 	maxMountDurationSecs int
-	forcedStallTime      time.Duration
 	testDirPath          string
 	suite.Suite
 }
@@ -196,52 +195,47 @@ func TestControlClientStall(t *testing.T) {
 		suites := []suite.TestingSuite{
 			&createFolderStallSuite{
 				controlClientStallBase: controlClientStallBase{
-					flags:          flags,
+					flags: flags,
+					// Artificially stall the very first CreateFolder call by 40 seconds.
 					configFileName: "../configs/control_client_stall_create_40s.yaml",
 					// No check on how long mount takes.
 					maxMountDurationSecs: -1,
-					// Artificially stall the very first CreateFolder call by 40 seconds.
-					forcedStallTime: 40 * time.Second,
 				},
 			},
 			&getFolderStallSuite{
 				controlClientStallBase: controlClientStallBase{
-					flags:          flags,
+					flags: flags,
+					// Artificially stall the very first GetFolder call by 40 seconds.
 					configFileName: "../configs/control_client_stall_get_40s.yaml",
 					// No check on how long mount takes.
 					maxMountDurationSecs: -1,
-					// Artificially stall the very first GetFolder call by 40 seconds.
-					forcedStallTime: 40 * time.Second,
 				},
 			},
 			&deleteFolderStallSuite{
 				controlClientStallBase: controlClientStallBase{
-					flags:          flags,
+					flags: flags,
+					// Artificially stall the very first DeleteFolder call by 40 seconds.
 					configFileName: "../configs/control_client_stall_delete_40s.yaml",
 					// No check on how long mount takes.
 					maxMountDurationSecs: -1,
-					// Artificially stall the very first DeleteFolder call by 40 seconds.
-					forcedStallTime: 40 * time.Second,
 				},
 			},
 			&renameFolderStallSuite{
 				controlClientStallBase: controlClientStallBase{
-					flags:          flags,
+					flags: flags,
+					// Artificially stall the very first RenameFolder call by 40 seconds.
 					configFileName: "../configs/control_client_stall_rename_40s.yaml",
 					// No check on how long mount takes.
 					maxMountDurationSecs: -1,
-					// Artificially stall the very first RenameFolder call by 40 seconds.
-					forcedStallTime: 40 * time.Second,
 				},
 			},
 			&getStorageLayoutStallSuite{
 				controlClientStallBase: controlClientStallBase{
-					flags:          flags,
+					flags: flags,
+					// Artificially stall the very first GetStorageLayout call by 60 seconds.
 					configFileName: "../configs/control_client_stall_layout_60s.yaml",
 					// Ensure that the whole mount operation including a stalled GetStorageLayout call took less than 40 seconds (30 seconds first stalled-call GetStorageLayout timeout + 10 second wiggle-room for 2nd attempt and other steps for mount to go through) because of the internal abortion and retry.
 					maxMountDurationSecs: 40,
-					// Artificially stall the very first GetStorageLayout call by 60 seconds.
-					forcedStallTime: 60 * time.Second,
 				},
 			},
 		}
