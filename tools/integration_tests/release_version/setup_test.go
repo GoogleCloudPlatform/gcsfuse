@@ -20,19 +20,31 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	if setup.MountedDirectory() != "" {
-		log.Print("These tests will not run for mountedDirectory flag.")
-		os.Exit(1)
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.ReleaseVersion) == 0 {
+		log.Println("No configuration found for release_version tests in config. Using flags instead.")
+		cfg.ReleaseVersion = make([]test_suite.TestConfig, 1)
+		cfg.ReleaseVersion[0].TestBucket = setup.TestBucket()
+		cfg.ReleaseVersion[0].GKEMountedDirectory = setup.MountedDirectory()
 	}
 
-	setup.SetUpTestDirForTestBucketFlag()
+	// 2. Not running mounted directory tests.
+	if cfg.ReleaseVersion[0].GKEMountedDirectory != "" {
+		log.Print("These tests will not run for mountedDirectory flag.")
+		os.Exit(0)
+	}
 
+	// 3. The release_version test doesn't mount anything, but it needs the gcsfuse binary.
+	setup.SetUpTestDirForTestBucket(&cfg.ReleaseVersion[0])
+
+	// 4. Run tests.
 	successCode := m.Run()
-
 	os.Exit(successCode)
 }
