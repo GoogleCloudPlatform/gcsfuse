@@ -683,6 +683,7 @@ func (f *FileInode) Write(
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
 	ctx, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStaged)
+	f.traceHandle.SetUploadAttributes(span, int64(len(data)), f.src.Name)
 	defer func() {
 		if err != nil {
 			f.traceHandle.RecordError(span, err)
@@ -945,6 +946,12 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	ctx, span := f.traceHandle.StartSpan(ctx, tracing.SyncFileStaged)
+	st, err := f.content.Stat()
+	if err != nil {
+		return fmt.Errorf("stat: %w", err)
+	}
+
+	f.traceHandle.SetUploadAttributes(span, st.Size, f.src.Name)
 	defer func() {
 		if err != nil {
 			f.traceHandle.RecordError(span, err)
