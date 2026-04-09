@@ -151,7 +151,6 @@ be interacting with the file system.`)
 	logger.Infof("Mounting file system %q...", fsName)
 
 	mountCfg := getFuseMountConfig(fsName, newConfig)
-	mountCfg.EnableAsyncReads = true
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("mount: %w", err)
@@ -190,6 +189,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// Enable async reads if enable-kernel-reader flag is set to true.
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
+	logger.Infof("EnableKernelReader is %v while creating mountConfig", newConfig.FileSystem.EnableKernelReader)
 
 	if newConfig.Logging.WireLog != "" {
 		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
