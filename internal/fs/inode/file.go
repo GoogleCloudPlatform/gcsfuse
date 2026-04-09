@@ -682,7 +682,7 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
-	_, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStaged)
+	ctx, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStaged)
 	defer func() {
 		if err != nil {
 			f.traceHandle.RecordError(span, err)
@@ -707,7 +707,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (bool, error) {
-	_, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStreaming)
+	ctx, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStreaming)
 	f.traceHandle.SetUploadAttributes(span, int64(len(data)), f.src.Name)
 	defer func() {
 		f.traceHandle.EndSpan(span)
@@ -944,7 +944,7 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
-	_, span := f.traceHandle.StartSpan(ctx, tracing.SyncFileStaged)
+	ctx, span := f.traceHandle.StartSpan(ctx, tracing.SyncFileStaged)
 	defer func() {
 		if err != nil {
 			f.traceHandle.RecordError(span, err)
@@ -953,7 +953,6 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	}()
 	var latestGcsObj *gcs.Object
 	if !f.local {
-		var err error
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
 			return err

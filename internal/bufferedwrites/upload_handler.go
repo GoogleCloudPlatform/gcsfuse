@@ -106,7 +106,7 @@ func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) error {
 	// Start the uploader goroutine but only once.
 	uh.startUploader.Do(func() {
 		_, span := uh.traceHandle.StartSpan(context.Background(), tracing.UploadAsync)
-		go uh.uploader()
+		go uh.uploader(ctx)
 		uh.traceHandle.EndSpan(span)
 	})
 	uh.uploadCh <- block
@@ -140,9 +140,9 @@ func (uh *UploadHandler) UploadError() (err error) {
 }
 
 // uploader is the single-threaded goroutine that uploads blocks.
-func (uh *UploadHandler) uploader() {
+func (uh *UploadHandler) uploader(ctx context.Context) {
 	for currBlock := range uh.uploadCh {
-		uh.uploadBlock(currBlock)
+		uh.uploadBlock(ctx, currBlock)
 
 		// Put back the uploaded block to the pool for re-use,
 		// irrespective of whether the upload was successful or not.
@@ -156,8 +156,8 @@ func (uh *UploadHandler) uploader() {
 // If the block is nil, it logs a warning and returns.
 // If there is already an error in uploadError, it returns without doing anything.
 // If there is an error during upload, it returns after storing the error in uploadError.
-func (uh *UploadHandler) uploadBlock(b block.Block) {
-	_, span := uh.traceHandle.StartSpan(context.Background(), tracing.StreamingUploadBlock)
+func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
+	_, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadBlock)
 	var written int64
 	defer func() {
 		uh.traceHandle.SetUploadAttributes(span, written, uh.objectName)
