@@ -295,6 +295,8 @@ func SaveLogFileAsArtifact(logFile, artifactName string) {
 // KOKORO artifacts directory if test ran on KOKORO
 // or saves to TestDir if test ran on local.
 func SaveGCSFuseLogFileInCaseOfFailure(tb testing.TB) {
+	logDir := os.Getenv("KOKORO_ARTIFACTS_DIR")
+	tb.Logf("LogDir is set to: %v", logDir)
 	tb.FailNow()
 	if !tb.Failed() || MountedDirectory() != "" {
 		return
