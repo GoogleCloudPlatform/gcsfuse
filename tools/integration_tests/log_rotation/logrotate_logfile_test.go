@@ -95,7 +95,7 @@ func validateLogFileSize(t *testing.T, dirEntry os.DirEntry) {
 	if err != nil {
 		t.Fatalf("log file size could not be fetched: %v", err)
 	}
-	if fi.Size() > maxFileSizeMB*MiB {
+	if fi.Size() != 0 {
 		t.Errorf("log file size: expected (max): %d, actual: %d", maxFileSizeMB*MiB, fi.Size())
 	}
 }

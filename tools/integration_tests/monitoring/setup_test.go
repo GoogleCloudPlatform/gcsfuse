@@ -219,10 +219,10 @@ func TestMain(m *testing.M) {
 
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
+
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
-	os.Exit(1)
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

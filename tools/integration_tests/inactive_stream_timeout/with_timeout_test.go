@@ -61,6 +61,7 @@ func (s *timeoutEnabledSuite) TestReaderCloses() {
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, kTestDirName, fileName, kFileSize, s.T())
 	mountFilePath := path.Join(testDir, fileName)
 
+	s.T().Errorf("Intentional failure to verify log collection")
 	// 1. Open file.
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
 	require.NoError(s.T(), err)
@@ -103,6 +104,7 @@ func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 	require.NoError(s.T(), err)
 	endTimeRead1 := time.Now()
 
+	s.T().Errorf("Intentional failure to verify log collection")
 	// 2. Wait for a period SHORTER than the timeout.
 	time.Sleep(timeoutDuration / 2)
 	startTimeRead2 := time.Now()
