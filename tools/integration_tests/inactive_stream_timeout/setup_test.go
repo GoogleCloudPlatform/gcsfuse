@@ -199,7 +199,7 @@ func TestMain(m *testing.M) {
 		successCode = m.Run()
 		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted()))
 	}
-
+	os.Exit(1)
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), kTestDirName))
 	os.Exit(successCode)
 }
