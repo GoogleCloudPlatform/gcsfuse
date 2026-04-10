@@ -949,7 +949,7 @@ func (f *FileInode) getTempContentSizeForSpan() int64 {
 
 	st, err := f.content.Stat()
 	if err != nil {
-		logger.Errorf("stat: %v", err)
+		logger.Errorf("failed getting content size for staged sync file span: %v", err)
 		return -1
 	}
 
