@@ -906,7 +906,7 @@ func (s *TracingTestSuite) TestTraceWriteFile() {
 			}
 			for _, spanName := range tt.spans {
 				assert.Contains(t, spanNamesInSS, spanName, "span %s not found", spanName)
-				assert.Equal(t, spanNamesInSS[spanName], trace.SpanKindServer)
+				assert.Equal(t, trace.SpanKindServer, spanNamesInSS[spanName])
 			}
 		})
 	}

@@ -707,13 +707,16 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (bool, error) {
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (_ bool, err error) {
 	ctx, span := f.traceHandle.StartSpan(ctx, tracing.WriteFileStreaming)
 	f.traceHandle.SetUploadAttributes(span, int64(len(data)), f.src.Name)
 	defer func() {
+		if err != nil {
+			f.traceHandle.RecordError(span, err)
+		}
 		f.traceHandle.EndSpan(span)
 	}()
-	err := f.bwh.Write(ctx, data, offset)
+	err = f.bwh.Write(ctx, data, offset)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return false, &gcsfuse_errors.FileClobberedError{
@@ -727,13 +730,11 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
-			f.traceHandle.RecordError(span, err)
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
 		return true, f.writeUsingTempFile(ctx, data, offset)
 	}
 	if err != nil {
-		f.traceHandle.RecordError(span, err)
 		return false, fmt.Errorf("write to buffered write handler failed: %w", err)
 	}
 	return false, nil

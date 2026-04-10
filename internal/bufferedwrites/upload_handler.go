@@ -105,9 +105,7 @@ func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) error {
 	}
 	// Start the uploader goroutine but only once.
 	uh.startUploader.Do(func() {
-		_, span := uh.traceHandle.StartSpan(context.Background(), tracing.UploadAsync)
 		go uh.uploader(ctx)
-		uh.traceHandle.EndSpan(span)
 	})
 	uh.uploadCh <- block
 	return nil
@@ -141,6 +139,7 @@ func (uh *UploadHandler) UploadError() (err error) {
 
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader(ctx context.Context) {
+	_, span := uh.traceHandle.StartSpan(context.Background(), tracing.StreamingUploader)
 	for currBlock := range uh.uploadCh {
 		uh.uploadBlock(ctx, currBlock)
 
@@ -149,6 +148,7 @@ func (uh *UploadHandler) uploader(ctx context.Context) {
 		uh.blockPool.Release(currBlock)
 		uh.wg.Done()
 	}
+	uh.traceHandle.EndSpan(span)
 }
 
 // uploadBlock uploads the block content to GCS writer.
@@ -159,8 +159,12 @@ func (uh *UploadHandler) uploader(ctx context.Context) {
 func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
 	_, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadBlock)
 	var written int64
+	var err error
 	defer func() {
 		uh.traceHandle.SetUploadAttributes(span, written, uh.objectName)
+		if err != nil {
+			uh.traceHandle.RecordError(span, err)
+		}
 		uh.traceHandle.EndSpan(span)
 	}()
 	if b == nil {
@@ -180,7 +184,6 @@ func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
 		return
 	}
 
-	var err error
 	written, err = io.Copy(uh.writer, b)
 	if errors.Is(err, context.Canceled) {
 		// Context canceled error indicates that the file was deleted from the
@@ -217,7 +220,7 @@ func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err 
 		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
 
-	obj, err = uh.bucket.FinalizeUpload(context.Background(), uh.writer)
+	obj, err = uh.bucket.FinalizeUpload(ctx, uh.writer)
 	if err != nil {
 		// FinalizeUpload already returns GCSerror so no need to convert again.
 		uh.uploadError.Store(&err)
@@ -238,7 +241,6 @@ func (uh *UploadHandler) ensureWriter(ctx context.Context) error {
 
 // FlushPendingWrites uploads any data in the write buffer.
 func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObject, err error) {
-	ctx = uh.traceHandle.PropagateTraceContext(context.Background(), ctx)
 	_, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadFlush)
 	defer func() {
 		if err != nil {
@@ -257,7 +259,7 @@ func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObje
 		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
 
-	o, err = uh.bucket.FlushPendingWrites(context.Background(), uh.writer)
+	o, err = uh.bucket.FlushPendingWrites(ctx, uh.writer)
 	if err != nil {
 		// FlushUpload already returns GCS error so no need to convert again.
 		uh.uploadError.Store(&err)
