@@ -962,9 +962,6 @@ func (f *FileInode) getTempContentSizeForSpan() int64 {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	ctx, span := f.traceHandle.StartSpan(ctx, tracing.SyncFileStaged)
-	if err != nil {
-		return fmt.Errorf("stat: %w", err)
-	}
 
 	f.traceHandle.SetUploadAttributes(span, f.getTempContentSizeForSpan(), f.src.Name)
 	defer func() {
