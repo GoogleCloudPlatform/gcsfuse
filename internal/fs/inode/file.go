@@ -941,6 +941,21 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	return true, nil
 }
 
+// get the temp content size when tracing is enabled to set the BYTES_UPLOADED attribute
+func (f *FileInode) getTempContentSizeForSpan() int64 {
+	if !cfg.IsTracingEnabled(f.config) {
+		return -1
+	}
+
+	st, err := f.content.Stat()
+	if err != nil {
+		logger.Errorf("stat: %v", err)
+		return -1
+	}
+
+	return st.Size
+}
+
 // syncUsingContent syncs the inode content to GCS. It fetches the latest GCS
 // object, syncs the content and updates the inode state.
 //
@@ -951,8 +966,7 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 		return fmt.Errorf("stat: %w", err)
 	}
 
-	// -1 represents full content size being uploaded
-	f.traceHandle.SetUploadAttributes(span, -1, f.src.Name)
+	f.traceHandle.SetUploadAttributes(span, f.getTempContentSizeForSpan(), f.src.Name)
 	defer func() {
 		if err != nil {
 			f.traceHandle.RecordError(span, err)
