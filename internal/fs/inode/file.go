@@ -947,12 +947,12 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	ctx, span := f.traceHandle.StartSpan(ctx, tracing.SyncFileStaged)
-	st, err := f.content.Stat()
 	if err != nil {
 		return fmt.Errorf("stat: %w", err)
 	}
 
-	f.traceHandle.SetUploadAttributes(span, st.Size, f.src.Name)
+	// -1 represents full content size being uploaded
+	f.traceHandle.SetUploadAttributes(span, -1, f.src.Name)
 	defer func() {
 		if err != nil {
 			f.traceHandle.RecordError(span, err)
