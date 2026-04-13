@@ -93,5 +93,6 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 		return MaxMiBsInUint64 + 1
 	}
 	const bytesInOneMiB uint64 = 1 << 20
-	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))
+	// Use integer arithmetic and bitwise shift to avoid slow float conversions
+	return (bytes + bytesInOneMiB - 1) >> 20
 }
