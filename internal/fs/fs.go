@@ -2656,18 +2656,6 @@ func (fs *fileSystem) ensureNoLocalFilesInDirectory(dir inode.BucketOwnedDirInod
 	return nil
 }
 
-func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name string) error {
-	unexpected, err := dir.ReadDescendants(context.Background(), 1)
-	if err != nil {
-		return fmt.Errorf("read descendants of the new directory %q: %w", name, err)
-	}
-
-	if len(unexpected) > 0 {
-		return fuse.ENOTEMPTY
-	}
-	return nil
-}
-
 // Rename an old folder to a new folder in a hierarchical bucket. If the new folder already
 // exists and is non-empty, return ENOTEMPTY. If old folder have open files then return
 // ENOTSUP.
@@ -2700,17 +2688,19 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	if err == nil {
 		pendingInodes = append(pendingInodes, newDirInode)
 
-		// If the directory exists, then check if it is empty or not.
-		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
-			return err
-		}
-
-		// This refers to an empty destination directory.
-		// The RenameFolder API does not allow renaming to an existing empty directory.
-		// To make this work, we delete the empty directory first from gcsfuse and then perform rename.
+		// The RenameFolder API does not allow renaming to an empty existing directory.
+		// To make this work, we attempt to delete the destination directory first.
+		// If it is non-empty, this deletion will fail with a PreconditionError,
+		// in which case we immediately return ENOTEMPTY.
 		newParent.Lock()
-		_ = newParent.DeleteChildDir(ctx, newName, false, newDirInode)
+		deleteErr := newParent.DeleteChildDir(ctx, newName, false, newDirInode)
 		newParent.Unlock()
+		if deleteErr != nil {
+			var precondErr *gcs.PreconditionError
+			if errors.As(deleteErr, &precondErr) {
+				return fuse.ENOTEMPTY
+			}
+		}
 	}
 
 	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
@@ -2729,6 +2719,18 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	}
 
 	return
+}
+
+func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name string) error {
+	unexpected, err := dir.ReadDescendants(context.Background(), 1)
+	if err != nil {
+		return fmt.Errorf("read descendants of the new directory %q: %w", name, err)
+	}
+
+	if len(unexpected) > 0 {
+		return fuse.ENOTEMPTY
+	}
+	return nil
 }
 
 // Rename an old directory to a new directory in a non-hierarchical bucket. If the new directory already
