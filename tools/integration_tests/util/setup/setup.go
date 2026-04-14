@@ -69,7 +69,16 @@ var (
 	sbinFile             string
 	onlyDirMounted       string
 	dynamicBucketMounted string
+	billingProject       string
 )
+
+func BillingProject() string {
+	return billingProject
+}
+
+func SetBillingProject(bp string) {
+	billingProject = bp
+}
 
 // Run the shell script to prepare the testData in the specified bucket.
 // First argument will be name of scipt script
@@ -563,7 +572,11 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
-	attrs, err := storageClient.Bucket(testBucket).Attrs(ctx)
+	bucket := storageClient.Bucket(testBucket)
+	if billingProject != "" {
+		bucket = bucket.UserProject(billingProject)
+	}
+	attrs, err := bucket.Attrs(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get bucket attributes: %w", err)
 	}

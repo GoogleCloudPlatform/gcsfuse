@@ -88,6 +88,14 @@ func CreateHttp1StorageClient(ctx context.Context) (*storage.Client, error) {
 	return storage.NewClient(ctx, option.WithHTTPClient(httpClient))
 }
 
+func getBucketHandle(client *storage.Client, bucketName string) *storage.BucketHandle {
+	b := client.Bucket(bucketName)
+	if bp := setup.BillingProject(); bp != "" {
+		b = b.UserProject(bp)
+	}
+	return b
+}
+
 func CreateStorageClient(ctx context.Context) (client *storage.Client, err error) {
 	// Create new storage client.
 	if setup.TestOnTPCEndPoint() {
@@ -145,7 +153,7 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 		return "", fmt.Errorf("client is nil")
 	}
 	// Create storage reader to read from GCS.
-	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
+	rc, err := getBucketHandle(client, bucket).Object(object).NewReader(ctx)
 	if err != nil {
 		return "", fmt.Errorf("Object(%q).NewReader: %w", object, err)
 	}
@@ -165,7 +173,7 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
 	// Create storage reader to read from GCS.
-	rc, err := client.Bucket(bucket).Object(object).NewRangeReader(ctx, offset, size)
+	rc, err := getBucketHandle(client, bucket).Object(object).NewRangeReader(ctx, offset, size)
 	if err != nil {
 		return "", fmt.Errorf("Object(%q).NewReader: %w", object, err)
 	}
@@ -187,7 +195,7 @@ func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Cli
 
 	// Changes specific to zonal bucket
 	var attrs *storage.BucketAttrs
-	attrs, err = client.Bucket(o.BucketName()).Attrs(ctx)
+	attrs, err = getBucketHandle(client, o.BucketName()).Attrs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attributes for bucket %q: %w", o.BucketName(), err)
 	}
@@ -208,7 +216,7 @@ func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Cli
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
-	o := client.Bucket(bucket).Object(object)
+	o := getBucketHandle(client, bucket).Object(object)
 	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
 		o = o.If(precondition)
 	}
@@ -236,7 +244,7 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 
 func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
-	o := client.Bucket(bucket).Object(object)
+	o := getBucketHandle(client, bucket).Object(object)
 
 	// Upload an object with storage.Writer with finalizeOnClose=true
 	wc := o.NewWriter(ctx)
@@ -305,7 +313,7 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 	bucket, _ := setup.GetBucketAndObjectBasedOnTypeOfMount("")
 
 	// Get handle to the object
-	object := client.Bucket(bucket).Object(objectName)
+	object := getBucketHandle(client, bucket).Object(objectName)
 
 	// Delete the object
 	err := object.Delete(ctx)
@@ -323,7 +331,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}
-	objectItr := client.Bucket(bucket).Objects(ctx, query)
+	objectItr := getBucketHandle(client, bucket).Objects(ctx, query)
 
 	// Create a buffered channel to receive errors from goroutines
 	errChan := make(chan error, 100)
@@ -371,7 +379,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
-	attrs, err := client.Bucket(bucket).Object(object).Attrs(ctx)
+	attrs, err := getBucketHandle(client, bucket).Object(object).Attrs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +390,7 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 // Handles gzip compression if requested.
 func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool, preconditions *storage.Conditions) error {
 	// Create a writer to upload the object.
-	obj := client.Bucket(bucketName).Object(objectName)
+	obj := getBucketHandle(client, bucketName).Object(objectName)
 	if preconditions != nil {
 		obj = obj.If(*preconditions)
 	}
@@ -473,7 +481,7 @@ func CopyFileInBucketWithPreconditions(ctx context.Context, storageClient *stora
 }
 
 func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string) error {
-	bucket := client.Bucket(bucketName)
+	bucket := getBucketHandle(client, bucketName)
 
 	// Iterate through objects and delete them
 	query := &storage.Query{}
@@ -504,7 +512,7 @@ func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string
 func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions) (*storage.Writer, error) {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
-	o := client.Bucket(bucket).Object(object)
+	o := getBucketHandle(client, bucket).Object(object)
 	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
 		o = o.If(precondition)
 	}
@@ -519,7 +527,7 @@ func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, 
 
 func AppendableWriter(ctx context.Context, client *storage.Client, object string, gen int64) (*storage.Writer, error) {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
-	obj := client.Bucket(bucket).Object(object)
+	obj := getBucketHandle(client, bucket).Object(object)
 
 	tw, _, err := obj.Generation(gen).NewWriterFromAppendableObject(ctx, &storage.AppendableWriterOpts{})
 	return tw, err
@@ -546,7 +554,7 @@ func CreateGcsDir(ctx context.Context, client *storage.Client, dirName, bucketNa
 
 func uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool, preconditions *storage.Conditions) error {
 	// Create a writer to upload the object.
-	obj := client.Bucket(bucketName).Object(objectName)
+	obj := getBucketHandle(client, bucketName).Object(objectName)
 	if preconditions != nil {
 		obj = obj.If(*preconditions)
 	}
@@ -651,7 +659,7 @@ func ListDirectory(ctx context.Context, client *storage.Client, bucketName, pref
 		prefix += "/"
 	}
 
-	bucket := client.Bucket(bucketName)
+	bucket := getBucketHandle(client, bucketName)
 
 	var entries []string
 	var mu sync.Mutex

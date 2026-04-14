@@ -26,6 +26,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -35,6 +36,20 @@ import (
 const (
 	testDirName        = "RequesterPaysBucketTests"
 	onlyDirTestDirName = "OnlyDirRequesterPaysBucketTests"
+
+	// requesterPaysServiceAccountName is the name of the service account used for requester-pays testing.
+	// This service account must exist in the active GCP project where tests are run
+	// (e.g., "gcs-fuse-test" or "gcs-fuse-test-ml").
+	// The test expects a JSON key for this SA to be stored in Secret Manager
+	// within the same project, under the secret name specified by requesterPaysCredsSecretName.
+	// Note: The user or service account running the test package, as well as the
+	// requester-pays service account (requester-pays-tester), must be granted the
+	// Storage Admin and Service Usage Consumer roles on the project.
+	// For example, adding the Service Usage Consumer role to
+	// requester-pays-tester@gcs-fuse-test-ml.iam.gserviceaccount.com in the gcs-fuse-test-ml project.
+	requesterPaysServiceAccountName = "requester-pays-tester"
+	requesterPaysCredsSecretName    = "requester-pays-tester"
+	targetBillingProject            = "gcs-fuse-test-ml"
 )
 
 // To prevent global variable pollution, enhance code clarity,
@@ -73,10 +88,38 @@ func TestMain(m *testing.M) {
 		cfg.RequesterPaysBucket[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.RequesterPaysBucket[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.RequesterPaysBucket[0].Configs[0].Flags = []string{
-			"--billing-project=gcs-fuse-test-ml",
+			"--billing-project=${BILLING_PROJECT} --key-file=${KEY_FILE}",
+			"--billing-project=${BILLING_PROJECT} --client-protocol=grpc --key-file=${KEY_FILE}",
+			"--billing-project=${BILLING_PROJECT} --client-protocol=grpc --grpc-path-strategy=direct-path-only --key-file=${KEY_FILE}",
 		}
 		cfg.RequesterPaysBucket[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
 	}
+
+	// Replace ${BILLING_PROJECT} placeholder in flags with the default billing project.
+	// when not running in GKE environment.
+	if cfg.RequesterPaysBucket[0].GKEMountedDirectory == "" {
+		for i := range cfg.RequesterPaysBucket[0].Configs {
+			for j := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
+				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(cfg.RequesterPaysBucket[0].Configs[i].Flags[j], "${BILLING_PROJECT}", targetBillingProject)
+			}
+		}
+	}
+
+	// Extract billing project from flags.
+	var billingProject string
+	for _, flag := range cfg.RequesterPaysBucket[0].Configs[0].Flags {
+		if strings.Contains(flag, "--billing-project=") {
+			parts := strings.Split(flag, "--billing-project=")
+			if len(parts) > 1 {
+				billingProject = strings.Fields(parts[1])[0]
+				break
+			}
+		}
+	}
+	if billingProject == "" {
+		log.Fatal("Billing project is not set. It must be set using environment variables in GKE envrionment and by replacing the '${BILLING_PROJECT}' string in non-GKE environements.")
+	}
+	setup.SetBillingProject(billingProject)
 
 	testEnv.ctx = context.Background()
 	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.RequesterPaysBucket[0])
@@ -99,6 +142,20 @@ func TestMain(m *testing.M) {
 	// flags to be set, as RequesterPaysBucket tests validates content from the bucket.
 	if cfg.RequesterPaysBucket[0].GKEMountedDirectory != "" && cfg.RequesterPaysBucket[0].TestBucket != "" {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.RequesterPaysBucket[0].GKEMountedDirectory, m))
+	}
+
+	// Setup service account credentials for requester-pays testing.
+	_, localKeyFilePath := creds_tests.CreateCredentialsForSA(testEnv.ctx, requesterPaysServiceAccountName, requesterPaysCredsSecretName)
+	defer func() {
+		if err := os.Remove(localKeyFilePath); err != nil {
+			log.Printf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
+		}
+	}()
+
+	for i := range cfg.RequesterPaysBucket[0].Configs {
+		for j := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
+			cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(cfg.RequesterPaysBucket[0].Configs[i].Flags[j], "${KEY_FILE}", localKeyFilePath)
+		}
 	}
 
 	// Run tests for testBucket
