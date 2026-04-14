@@ -85,7 +85,7 @@ type storageClient struct {
 }
 
 // Return clientOpts for both gRPC client and control client.
-func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, billingProject string) (clientOpts []option.ClientOption, err error) {
+func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
 	// Add custom endpoint if provided.
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
@@ -120,9 +120,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
 	}
 
-	if billingProject != "" {
-		clientOpts = append(clientOpts, option.WithQuotaProject(billingProject))
-	}
+
 
 	if clientConfig.LocalSocketAddress != "" {
 		dialer := &net.Dialer{}
@@ -213,7 +211,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	var clientOpts []option.ClientOption
-	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig, billingProject)
+	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
@@ -393,7 +391,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "localhost") {
 		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
 		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
-		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false, "")
+		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
