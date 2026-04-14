@@ -36,6 +36,10 @@ type TraceHandle interface {
 	// Record an error on the span for export in case of failure
 	RecordError(span trace.Span, err error)
 
+	// Trace starts a span and returns a finisher function.
+	// Use it like: ctx, span, end_span := th.Trace(ctx, name, &err); defer end_span()
+	Trace(ctx context.Context, name string, err *error) (context.Context, trace.Span, func())
+
 	// A handle interface method to set attributes for file cache read
 	// attribute creation and generic interface using variadic operator is a costly affair both from memory allocation and CPU time perspectives - (3.883 ns/op	       0 B/op	       0 allocs/op) vs (90.21 ns/op	     128 B/op	       1 allocs/op)
 	// This method is specifically created so that the caller doesn't have to create the attributes themselves.

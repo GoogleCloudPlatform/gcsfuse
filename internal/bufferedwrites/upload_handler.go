@@ -139,7 +139,8 @@ func (uh *UploadHandler) UploadError() (err error) {
 
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader(ctx context.Context) {
-	_, span := uh.traceHandle.StartSpan(context.Background(), tracing.StreamingUploader)
+	_, _, finishSpan := uh.traceHandle.Trace(context.Background(), tracing.StreamingUploader, nil)
+	defer finishSpan()
 	for currBlock := range uh.uploadCh {
 		uh.uploadBlock(ctx, currBlock)
 
@@ -148,7 +149,6 @@ func (uh *UploadHandler) uploader(ctx context.Context) {
 		uh.blockPool.Release(currBlock)
 		uh.wg.Done()
 	}
-	uh.traceHandle.EndSpan(span)
 }
 
 // uploadBlock uploads the block content to GCS writer.
@@ -157,15 +157,12 @@ func (uh *UploadHandler) uploader(ctx context.Context) {
 // If there is already an error in uploadError, it returns without doing anything.
 // If there is an error during upload, it returns after storing the error in uploadError.
 func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
-	_, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadBlock)
 	var written int64
 	var err error
+	_, span, finishSpan := uh.traceHandle.Trace(ctx, tracing.StreamingUploadBlock, &err)
 	defer func() {
 		uh.traceHandle.SetUploadAttributes(span, written, uh.objectName)
-		if err != nil {
-			uh.traceHandle.RecordError(span, err)
-		}
-		uh.traceHandle.EndSpan(span)
+		finishSpan()
 	}()
 	if b == nil {
 		logger.Warnf("uploadBlock: received nil block for object %s", uh.objectName)
@@ -201,14 +198,12 @@ func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
 // Finalize finalizes the upload.
 func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err error) {
 	ctx = uh.traceHandle.PropagateTraceContext(context.Background(), ctx)
-	_, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadFinalize)
+	_, span, finishSpan := uh.traceHandle.Trace(ctx, tracing.StreamingUploadFinalize, &err)
 	defer func() {
-		if err != nil {
-			uh.traceHandle.RecordError(span, err)
-		} else if obj != nil {
+		if err == nil && obj != nil {
 			uh.traceHandle.SetUploadAttributes(span, int64(obj.Size), uh.objectName)
 		}
-		uh.traceHandle.EndSpan(span)
+		finishSpan()
 	}()
 	uh.wg.Wait()
 	close(uh.uploadCh)
@@ -241,14 +236,12 @@ func (uh *UploadHandler) ensureWriter(ctx context.Context) error {
 
 // FlushPendingWrites uploads any data in the write buffer.
 func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObject, err error) {
-	_, span := uh.traceHandle.StartSpan(ctx, tracing.StreamingUploadFlush)
+	_, span, finishSpan := uh.traceHandle.Trace(ctx, tracing.StreamingUploadFlush, &err)
 	defer func() {
-		if err != nil {
-			uh.traceHandle.RecordError(span, err)
-		} else if o != nil {
+		if err == nil && o != nil {
 			uh.traceHandle.SetUploadAttributes(span, int64(o.Size), uh.objectName)
 		}
-		uh.traceHandle.EndSpan(span)
+		finishSpan()
 	}()
 	uh.wg.Wait()
 

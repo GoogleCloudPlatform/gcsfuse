@@ -21,6 +21,10 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
+var (
+	emptyFinisher = func() {}
+)
+
 type noopTracer struct{}
 
 func (*noopTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
@@ -32,6 +36,10 @@ func (*noopTracer) StartServerSpan(ctx context.Context, traceName string) (conte
 }
 
 func (*noopTracer) EndSpan(span trace.Span) {}
+
+func (*noopTracer) Trace(ctx context.Context, name string, err *error) (context.Context, trace.Span, func()) {
+	return ctx, noop.Span{}, emptyFinisher
+}
 
 func (*noopTracer) RecordError(span trace.Span, err error) {}
 

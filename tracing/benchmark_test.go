@@ -68,6 +68,26 @@ func BenchmarkTrace(b *testing.B) {
 			th.EndSpan(span)
 		})
 
+		b.Run(fmt.Sprintf("BenchmarkTraceWithError_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+			err := fmt.Errorf("TestError")
+
+			for b.Loop() {
+				_, _, done := th.Trace(ctx, "TestSpanName", &err)
+				done()
+			}
+		})
+
+		b.Run(fmt.Sprintf("BenchmarkTraceWithoutError_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+			err := fmt.Errorf("TestError")
+
+			for b.Loop() {
+				_, _, done := th.Trace(ctx, "TestSpanName", &err)
+				done()
+			}
+		})
+
 		b.Run(fmt.Sprintf("BenchmarkSetCacheReadAttributes_%s", prefix), func(b *testing.B) {
 			ctx := context.Background()
 

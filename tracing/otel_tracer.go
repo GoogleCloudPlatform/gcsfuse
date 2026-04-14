@@ -54,6 +54,18 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.SetStatus(codes.Error, err.Error())
 }
 
+// Trace starts a span and returns a finisher function.
+// Use it like: ctx, span, done := th.Trace(ctx, name, &err); defer done()
+func (o *otelTracer) Trace(ctx context.Context, name string, err *error) (context.Context, trace.Span, func()) {
+	ctx, span := o.StartSpan(ctx, name)
+	return ctx, span, func() {
+		if err != nil && *err != nil {
+			o.RecordError(span, *err)
+		}
+		o.EndSpan(span)
+	}
+}
+
 func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
 	attrSetPtr := o.slicePool.Get().(*[]attribute.KeyValue)
 	attrSet := *attrSetPtr
