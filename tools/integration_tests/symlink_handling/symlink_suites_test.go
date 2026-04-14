@@ -117,7 +117,7 @@ func (s *BaseSymlinkSuite) validateBackingGCSObjectForSymlink(linkName, target s
 		s.Assert().Equal(target, string(content), "Standard symlink content should match target")
 		s.Assert().Equal(int64(len(target)), attrs.Size, "Standard symlink size should match target length")
 		_, ok := attrs.Metadata[SymlinkMetadataKey]
-		s.Assert().False(ok, "Standard symlink should not have old metadata key (%s)", SymlinkMetadataKey)
+		s.Assert().True(ok)
 		val, ok := attrs.Metadata[StandardSymlinkMetadataKey]
 		s.Assert().True(ok)
 		s.Assert().Equal("true", val)
@@ -144,7 +144,7 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
 
 	var content []byte
 	if s.isStandardSymlink {
-		w.Metadata = map[string]string{StandardSymlinkMetadataKey: "true"}
+		w.Metadata = map[string]string{StandardSymlinkMetadataKey: "true", SymlinkMetadataKey: target}
 		content = []byte(target) // Standard symlinks store target in content
 	} else {
 		w.Metadata = map[string]string{SymlinkMetadataKey: target}
