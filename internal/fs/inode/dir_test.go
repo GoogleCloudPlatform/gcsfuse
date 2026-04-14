@@ -1618,9 +1618,7 @@ func (t *DirTest) TestCreateChildSymlink_StandardSymlinkEnabled() {
 	assert.Equal(t.T(), objName, result.MinObject.Name)
 	// Check metadata for standard symlink
 	assert.Equal(t.T(), "true", result.MinObject.Metadata[StandardSymlinkMetadataKey])
-	// Check that the old metadata key is NOT present
-	_, ok := result.MinObject.Metadata[SymlinkMetadataKey]
-	assert.False(t.T(), ok)
+	assert.Equal(t.T(), target, result.MinObject.Metadata[SymlinkMetadataKey])
 	// Check content for standard symlink (should be target)
 	content, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
 	require.NoError(t.T(), err)
