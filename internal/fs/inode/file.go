@@ -739,12 +739,12 @@ func (f *FileInode) flushUsingBufferedWriteHandler(ctx context.Context) error {
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("f.bwh.Flush(ctx): %w", err),
+			Err:        fmt.Errorf("f.bwh.Flush(): %w", err),
 			ObjectName: f.src.Name,
 		}
 	}
 	if err != nil {
-		return fmt.Errorf("f.bwh.Flush(ctx): %w", err)
+		return fmt.Errorf("f.bwh.Flush(): %w", err)
 	}
 	// If we finalized the object, we need to update our state.
 	f.updateInodeStateAfterFlush(obj)
