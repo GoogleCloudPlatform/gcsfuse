@@ -54,18 +54,6 @@ func (o *otelTracer) RecordError(span trace.Span, err error) {
 	span.SetStatus(codes.Error, err.Error())
 }
 
-// Trace starts a span and returns a finisher function.
-// Use it like: ctx, span, done := th.Trace(ctx, name, &err); defer done()
-func (o *otelTracer) Trace(ctx context.Context, name string, err *error) (context.Context, trace.Span, func()) {
-	ctx, span := o.StartSpan(ctx, name)
-	return ctx, span, func() {
-		if err != nil && *err != nil {
-			o.RecordError(span, *err)
-		}
-		o.EndSpan(span)
-	}
-}
-
 func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {
 	attrSetPtr := o.slicePool.Get().(*[]attribute.KeyValue)
 	attrSet := *attrSetPtr
@@ -86,6 +74,20 @@ func (o *otelTracer) SetUploadAttributes(span trace.Span, bytesUploaded int64, o
 	attrSet[0] = bytesUploadedKey.Int64(bytesUploaded)
 	attrSet[1] = objectNameKey.String(objectName)
 	span.SetAttributes(attrSet...)
+}
+
+func (o *otelTracer) TraceUpload(ctx context.Context, name string, objName string, bytes *int64, err *error) (context.Context, func()) {
+	ctx, span := o.StartSpan(ctx, name)
+
+	return ctx, func() {
+		if bytes != nil {
+			o.SetUploadAttributes(span, *bytes, objName)
+		}
+		if err != nil && *err != nil {
+			o.RecordError(span, *err)
+		}
+		o.EndSpan(span)
+	}
 }
 
 func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {

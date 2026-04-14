@@ -68,23 +68,45 @@ func BenchmarkTrace(b *testing.B) {
 			th.EndSpan(span)
 		})
 
-		b.Run(fmt.Sprintf("BenchmarkTraceWithError_%s", prefix), func(b *testing.B) {
+		b.Run(fmt.Sprintf("BenchmarkTraceUploadWithErrorNoBytes_%s", prefix), func(b *testing.B) {
 			ctx := context.Background()
 			err := fmt.Errorf("TestError")
+			bytes := int64(0)
 
 			for b.Loop() {
-				_, _, done := th.Trace(ctx, "TestSpanName", &err)
-				done()
+				_, finishSpan := th.TraceUpload(ctx, "TestSpanName", "A/B/C/test_file.text", &bytes, &err)
+				finishSpan()
 			}
 		})
 
-		b.Run(fmt.Sprintf("BenchmarkTraceWithoutError_%s", prefix), func(b *testing.B) {
+		b.Run(fmt.Sprintf("BenchmarkTraceUploadWithErrorWithBytes_%s", prefix), func(b *testing.B) {
 			ctx := context.Background()
 			err := fmt.Errorf("TestError")
+			bytes := int64(33554432)
 
 			for b.Loop() {
-				_, _, done := th.Trace(ctx, "TestSpanName", &err)
-				done()
+				_, finishSpan := th.TraceUpload(ctx, "TestSpanName", "A/B/C/test_file.text", &bytes, &err)
+				finishSpan()
+			}
+		})
+
+		b.Run(fmt.Sprintf("BenchmarkTraceUploadWithoutErrorNoBytes_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+			bytes := int64(0)
+
+			for b.Loop() {
+				_, finishSpan := th.TraceUpload(ctx, "TestSpanName", "A/B/C/test_file.text", &bytes, nil)
+				finishSpan()
+			}
+		})
+
+		b.Run(fmt.Sprintf("BenchmarkTraceUploadWithoutErrorWithBytes_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+			bytes := int64(33554432)
+
+			for b.Loop() {
+				_, finishSpan := th.TraceUpload(ctx, "TestSpanName", "A/B/C/test_file.text", &bytes, nil)
+				finishSpan()
 			}
 		})
 

@@ -37,15 +37,15 @@ func (*noopTracer) StartServerSpan(ctx context.Context, traceName string) (conte
 
 func (*noopTracer) EndSpan(span trace.Span) {}
 
-func (*noopTracer) Trace(ctx context.Context, name string, err *error) (context.Context, trace.Span, func()) {
-	return ctx, noop.Span{}, emptyFinisher
-}
-
 func (*noopTracer) RecordError(span trace.Span, err error) {}
 
 func (o *noopTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {}
 
 func (o *noopTracer) SetUploadAttributes(span trace.Span, bytesUploaded int64, objectName string) {}
+
+func (*noopTracer) TraceUpload(ctx context.Context, name string, objName string, bytes *int64, err *error) (context.Context, func()) {
+	return ctx, emptyFinisher
+}
 
 // Return the new context as it is as this is a no-op implementation
 func (*noopTracer) PropagateTraceContext(newCtx context.Context, _ context.Context) context.Context {

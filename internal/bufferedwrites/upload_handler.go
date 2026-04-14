@@ -139,7 +139,7 @@ func (uh *UploadHandler) UploadError() (err error) {
 
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader(ctx context.Context) {
-	_, _, finishSpan := uh.traceHandle.Trace(context.Background(), tracing.StreamingUploader, nil)
+	_, finishSpan := uh.traceHandle.TraceUpload(context.Background(), tracing.StreamingUploader, "", nil, nil)
 	defer finishSpan()
 	for currBlock := range uh.uploadCh {
 		uh.uploadBlock(ctx, currBlock)
@@ -159,11 +159,9 @@ func (uh *UploadHandler) uploader(ctx context.Context) {
 func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
 	var written int64
 	var err error
-	_, span, finishSpan := uh.traceHandle.Trace(ctx, tracing.StreamingUploadBlock, &err)
-	defer func() {
-		uh.traceHandle.SetUploadAttributes(span, written, uh.objectName)
-		finishSpan()
-	}()
+	_, finishSpan := uh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadBlock, uh.objectName, &written, &err)
+	defer finishSpan()
+
 	if b == nil {
 		logger.Warnf("uploadBlock: received nil block for object %s", uh.objectName)
 		return
@@ -198,13 +196,9 @@ func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
 // Finalize finalizes the upload.
 func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err error) {
 	ctx = uh.traceHandle.PropagateTraceContext(context.Background(), ctx)
-	_, span, finishSpan := uh.traceHandle.Trace(ctx, tracing.StreamingUploadFinalize, &err)
-	defer func() {
-		if err == nil && obj != nil {
-			uh.traceHandle.SetUploadAttributes(span, int64(obj.Size), uh.objectName)
-		}
-		finishSpan()
-	}()
+	bytes := int64(obj.Size)
+	_, finishSpan := uh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFinalize, uh.objectName, &bytes, &err)
+	defer finishSpan()
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
@@ -236,13 +230,9 @@ func (uh *UploadHandler) ensureWriter(ctx context.Context) error {
 
 // FlushPendingWrites uploads any data in the write buffer.
 func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObject, err error) {
-	_, span, finishSpan := uh.traceHandle.Trace(ctx, tracing.StreamingUploadFlush, &err)
-	defer func() {
-		if err == nil && o != nil {
-			uh.traceHandle.SetUploadAttributes(span, int64(o.Size), uh.objectName)
-		}
-		finishSpan()
-	}()
+	bytes := int64(o.Size)
+	_, finishSpan := uh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFlush, uh.objectName, &bytes, &err)
+	defer finishSpan()
 	uh.wg.Wait()
 
 	// Writer may not have been created for empty file creation flow or for very
