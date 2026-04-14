@@ -236,6 +236,26 @@
     - "OTHER_ERRORS"
     - "STALLED_READ_REQUEST"
 
+- metric-name: "read/block_size"
+  description: "The cumulative distribution of the number of block sizes across different bucket boundaries"
+  type: "int_histogram"
+  unit: "By"
+  boundaries: &bytes_boundaries #in kibi bytes
+  - 8
+  - 16
+  - 64
+  - 128
+  - 256
+  - 512
+  - 1024
+  - 2048
+  - 4096
+  - 8192
+  - 16384
+  - 32768
+  - 65536
+  - 131072
+
 - metric-name: "test/updown_counter"
   description: "Test metric for updown counters."
   type: "int_up_down_counter"
