@@ -95,12 +95,27 @@ func TestMain(m *testing.M) {
 		cfg.RequesterPaysBucket[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
 	}
 
-	// Replace ${BILLING_PROJECT} placeholder in flags with the default billing project.
-	// when not running in GKE environment.
+	testEnv.ctx = context.Background()
+
+	// When not running in GKE environment.
 	if cfg.RequesterPaysBucket[0].GKEMountedDirectory == "" {
+		// Replace ${BILLING_PROJECT} placeholder in flags with the default billing project.
 		for i := range cfg.RequesterPaysBucket[0].Configs {
 			for j := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
 				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(cfg.RequesterPaysBucket[0].Configs[i].Flags[j], "${BILLING_PROJECT}", targetBillingProject)
+			}
+		}
+		// Setup service account credentials for requester-pays testing.
+		_, localKeyFilePath := creds_tests.CreateCredentialsForSA(testEnv.ctx, requesterPaysServiceAccountName, requesterPaysCredsSecretName)
+		defer func() {
+			if err := os.Remove(localKeyFilePath); err != nil {
+				log.Printf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
+			}
+		}()
+		setup.SetKeyFile(localKeyFilePath)
+		for i := range cfg.RequesterPaysBucket[0].Configs {
+			for j := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
+				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(cfg.RequesterPaysBucket[0].Configs[i].Flags[j], "${KEY_FILE}", localKeyFilePath)
 			}
 		}
 	}
@@ -121,9 +136,6 @@ func TestMain(m *testing.M) {
 	}
 	setup.SetBillingProject(billingProject)
 
-	testEnv.ctx = context.Background()
-	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.RequesterPaysBucket[0])
-
 	// Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
@@ -133,10 +145,11 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// Temporarily enable --requester-pays metadata flag for the test bucket.
 	testEnv.bucketName = strings.Split(cfg.RequesterPaysBucket[0].TestBucket, "/")[0]
-	client.MustEnableRequesterPays(testEnv.storageClient, testEnv.ctx, testEnv.bucketName)
-	defer client.MustDisableRequesterPays(testEnv.storageClient, testEnv.ctx, testEnv.bucketName)
+	wasEnabled := client.MustEnableRequesterPays(testEnv.storageClient, testEnv.ctx, testEnv.bucketName)
+	if wasEnabled {
+		defer client.MustDisableRequesterPays(testEnv.storageClient, testEnv.ctx, testEnv.bucketName)
+	}
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as RequesterPaysBucket tests validates content from the bucket.
@@ -144,24 +157,10 @@ func TestMain(m *testing.M) {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.RequesterPaysBucket[0].GKEMountedDirectory, m))
 	}
 
-	// Setup service account credentials for requester-pays testing.
-	_, localKeyFilePath := creds_tests.CreateCredentialsForSA(testEnv.ctx, requesterPaysServiceAccountName, requesterPaysCredsSecretName)
-	defer func() {
-		if err := os.Remove(localKeyFilePath); err != nil {
-			log.Printf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
-		}
-	}()
-
-	for i := range cfg.RequesterPaysBucket[0].Configs {
-		for j := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
-			cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(cfg.RequesterPaysBucket[0].Configs[i].Flags[j], "${KEY_FILE}", localKeyFilePath)
-		}
-	}
-
 	// Run tests for testBucket
 	// Build the flag sets dynamically from the config.
+	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.RequesterPaysBucket[0])
 	flags := setup.BuildFlagSets(cfg.RequesterPaysBucket[0], bucketType, "")
-
 	setup.SetUpTestDirForTestBucket(&cfg.RequesterPaysBucket[0])
 
 	log.Println("Running static mounting tests...")

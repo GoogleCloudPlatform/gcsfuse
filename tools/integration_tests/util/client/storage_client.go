@@ -67,9 +67,17 @@ func ShouldRetryForTest(err error) (b bool) {
 }
 
 func CreateHttp1StorageClient(ctx context.Context) (*storage.Client, error) {
-	defaultTokenSrc, err := google.DefaultTokenSource(ctx, storagev1.DevstorageFullControlScope)
+	var tokenSrc oauth2.TokenSource
+	var err error
+
+	if kf := setup.KeyFile(); kf != "" {
+		tokenSrc, err = getTokenSrc(kf)
+	} else {
+		tokenSrc, err = google.DefaultTokenSource(ctx, storagev1.DevstorageFullControlScope)
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("unable to create default token source: %w", err)
+		return nil, fmt.Errorf("unable to create token source: %w", err)
 	}
 
 	httpClient := &http.Client{
@@ -80,7 +88,7 @@ func CreateHttp1StorageClient(ctx context.Context) (*storage.Client, error) {
 				MaxIdleConnsPerHost: 100,
 				TLSNextProto:        make(map[string]func(authority string, c *tls.Conn) http.RoundTripper), // Disables HTTP/2 transport.
 			},
-			Source: defaultTokenSrc,
+			Source: tokenSrc,
 		},
 		Timeout: 0, // No timeout.
 	}
@@ -108,7 +116,16 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
 		if setup.IsZonalBucketRun() {
-			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+			var opts []option.ClientOption
+			opts = append(opts, experimental.WithGRPCBidiReads())
+			if kf := setup.KeyFile(); kf != "" {
+				ts, err := getTokenSrc(kf)
+				if err != nil {
+					return nil, err
+				}
+				opts = append(opts, option.WithTokenSource(ts))
+			}
+			client, err = storage.NewGRPCClient(ctx, opts...)
 		} else {
 			client, err = CreateHttp1StorageClient(ctx)
 		}
