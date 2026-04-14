@@ -41,24 +41,20 @@ type fallbackSuiteBase struct {
 }
 
 func (s *fallbackSuiteBase) SetupSuite() {
-	if setup.MountedDirectory() != "" {
-		setupForMountedDirectoryTests()
-		return
-	}
+	setup.SetUpLogFilePath(s.flags, GKETempDir, "", testEnv.cfg)
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
-}
-
-func (s *fallbackSuiteBase) SetupTest() {
-	err := os.Truncate(setup.LogFile(), 0)
-	require.NoError(s.T(), err, "Failed to truncate log file")
+	setup.SetMntDir(mountDir)
 }
 
 func (s *fallbackSuiteBase) TearDownSuite() {
-	if setup.MountedDirectory() != "" {
-		setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-		return
-	}
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (s *fallbackSuiteBase) SetupTest() {
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
+}
+
+func (s *fallbackSuiteBase) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -82,6 +78,8 @@ type RandomReadFallbackSuite struct {
 // the BufferedReader is not created, and reads fall back to the next reader
 // without any buffered reading.
 func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobalPool_NoReaderAdded() {
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
 	fileSize := blockSizeInBytes * 3
 	chunkSize := int64(1 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
@@ -102,6 +100,8 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 }
 
 func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
 	const randomReadsThreshold = 3
 	// Create a file with 4 blocks. We will read backwards from block 3 to 0
 	// to trigger random seek detection.
@@ -124,6 +124,8 @@ func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
 }
 
 func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
 	// File size is small, less than one block.
 	fileSize := blockSizeInBytes / 2
 	chunkSize := int64(1 * util.KiB)
@@ -149,6 +151,8 @@ func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
 // due to random reads, the buffered reader is re-engaged once the read pattern
 // becomes sequential again.
 func (s *RandomReadFallbackSuite) TestRandomThenSequential_SwitchesBackToBufferedRead() {
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
 	fileSize := int64(20 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
 	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())

@@ -32,33 +32,28 @@ import (
 const (
 	testDirName                         = "BufferedReadTest"
 	testFileName                        = "foo"
-	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_buffered_read_test_logs/log.json"
 	// Global block size constant for tests
 	blockSizeInBytes = int64(8 * util.MiB)
+	GKETempDir       = "/gcsfuse-tmp"
 )
 
 var (
 	mountFunc func(*test_suite.TestConfig, []string) error
+		// mount directory is where our tests run.
+	mountDir string
+	// root directory is the directory to be unmounted.
+	rootDir string
 )
 
 type env struct {
 	storageClient *storage.Client
 	ctx           context.Context
+	testDirPath   string
 	cfg           *test_suite.TestConfig
 	bucketType    string
 }
 
 var testEnv env
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func setupForMountedDirectoryTests() {
-	if setup.MountedDirectory() != "" {
-		setup.SetLogFile(logFileNameForMountedDirectoryTests)
-	}
-}
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -77,22 +72,22 @@ func TestMain(m *testing.M) {
 		cfg.BufferedRead[0].Configs = make([]test_suite.ConfigItem, 3)
 
 		cfg.BufferedRead[0].Configs[0].Flags = []string{
-			"--enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --read-min-blocks-per-handle=2 --enable-kernel-reader=false",
-			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --read-min-blocks-per-handle=2 --enable-kernel-reader=false",
+			"--enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestBufferedReadSuite.log --log-severity=TRACE",
+			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestBufferedReadSuite.log --log-severity=TRACE",
 		}
 		cfg.BufferedRead[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.BufferedRead[0].Configs[0].Run = "TestSequentialReadSuite"
 
 		cfg.BufferedRead[0].Configs[1].Flags = []string{
-			"--enable-buffered-read --read-block-size-mb=8 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false",
-			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false",
+			"--enable-buffered-read --read-block-size-mb=8 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestInsufficientPoolCreationSuite.log --log-severity=TRACE",
+			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestInsufficientPoolCreationSuite.log --log-severity=TRACE",
 		}
 		cfg.BufferedRead[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.BufferedRead[0].Configs[1].Run = "TestInsufficientPoolCreationSuite"
 
 		cfg.BufferedRead[0].Configs[2].Flags = []string{
-			"--enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --read-min-blocks-per-handle=2 --enable-kernel-reader=false",
-			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --read-min-blocks-per-handle=2 --enable-kernel-reader=false",
+			"--enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestRandomReadFallbackSuite.log --log-severity=TRACE",
+			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestRandomReadFallbackSuite.log --log-severity=TRACE",
 		}
 		cfg.BufferedRead[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.BufferedRead[0].Configs[2].Run = "TestRandomReadFallbackSuite"
@@ -113,16 +108,22 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		// Save mount and root directory variables.
+		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
+	// Save mount and root directory variables.
+	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
+
+	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
-
-	// Run the tests.
 	successCode := m.Run()
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))

@@ -41,19 +41,20 @@ type SequentialReadSuite struct {
 }
 
 func (s *SequentialReadSuite) SetupSuite() {
-	if setup.MountedDirectory() != "" {
-		setupForMountedDirectoryTests()
-		return
-	}
+	setup.SetUpLogFilePath(s.flags, GKETempDir, "", testEnv.cfg)
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	setup.SetMntDir(mountDir)
 }
 
 func (s *SequentialReadSuite) TearDownSuite() {
-	if setup.MountedDirectory() != "" {
-		setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-		return
-	}
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (s *SequentialReadSuite) SetupTest() {
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
+}
+
+func (s *SequentialReadSuite) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -85,6 +86,7 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 
 			s.T().Run(testName, func(t *testing.T) {
 				err := os.Truncate(setup.LogFile(), 0)
+				fmt.Println("pranjall", setup.LogFile())
 				require.NoError(t, err, "Failed to truncate log file")
 				testDir := setup.SetupTestDirectory(testDirName)
 				fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fsTest.fileSize, t)
