@@ -1382,3 +1382,40 @@ func TestSetInodeAttributes_Metrics(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
+
+func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+
+	bufferSize := 5
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, bufferSize),
+	}
+
+	err = server.ReadFile(ctx, readOp)
+	waitForMetricsProcessing()
+
+	require.NoError(t, err, "ReadFile")
+
+	// Verify read/block_sizes metric
+	metrics.VerifyHistogramMetric(t, ctx, reader, "read/block_sizes", attribute.NewSet(), uint64(1))
+}
