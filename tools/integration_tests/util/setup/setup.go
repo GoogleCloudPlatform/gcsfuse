@@ -32,6 +32,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
+	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
@@ -584,7 +585,11 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	var opts []option.ClientOption
 	opts = append(opts, experimental.WithGRPCBidiReads())
 	if keyFile != "" {
-		opts = append(opts, option.WithCredentialsFile(keyFile))
+		cred, err := auth2.GetCredentials(keyFile)
+		if err != nil {
+			return "", fmt.Errorf("failed to get credentials: %w", err)
+		}
+		opts = append(opts, option.WithAuthCredentials(cred))
 	}
 	storageClient, err := storage.NewGRPCClient(ctx, opts...)
 	if err != nil {
