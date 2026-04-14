@@ -126,7 +126,13 @@ func TestMain(m *testing.M) {
 		if strings.Contains(flag, "--billing-project=") {
 			parts := strings.Split(flag, "--billing-project=")
 			if len(parts) > 1 {
-				billingProject = strings.Fields(parts[1])[0]
+				// Split by comma first in case flags are comma-separated.
+				val := strings.Split(parts[1], ",")[0]
+				// Then take the first field in case they are space-separated.
+				fields := strings.Fields(val)
+				if len(fields) > 0 {
+					billingProject = fields[0]
+				}
 				break
 			}
 		}
