@@ -1167,6 +1167,7 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 	if d.isStandardSymlinkRepresentationEnabled {
 		childMetadata = map[string]string{
 			StandardSymlinkMetadataKey: "true",
+			SymlinkMetadataKey:         target,
 		}
 		content = target
 	} else {
