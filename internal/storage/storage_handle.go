@@ -120,8 +120,6 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
 	}
 
-
-
 	if clientConfig.LocalSocketAddress != "" {
 		dialer := &net.Dialer{}
 		// The port can be 0, in which case the OS will choose a local port.

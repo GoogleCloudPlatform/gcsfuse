@@ -46,10 +46,10 @@ const (
 	// requester-pays service account (requester-pays-tester), must be granted the
 	// Storage Admin and Service Usage Consumer roles on the project.
 	// For example, adding the Service Usage Consumer role to
-	// requester-pays-tester@gcs-fuse-test-ml.iam.gserviceaccount.com in the gcs-fuse-test-ml project.
+	// requester-pays-tester@gcs-fuse-test.iam.gserviceaccount.com in the gcs-fuse-test project.
 	requesterPaysServiceAccountName = "requester-pays-tester"
 	requesterPaysCredsSecretName    = "requester-pays-tester"
-	targetBillingProject            = "gcs-fuse-test-ml"
+	targetBillingProject            = "gcs-fuse-test"
 )
 
 // To prevent global variable pollution, enhance code clarity,
