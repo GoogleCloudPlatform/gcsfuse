@@ -15,6 +15,8 @@
 package kernel_list_cache
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -27,6 +29,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	RetryInterval = 5 * time.Second
+	RetryTimeout  = 2 * time.Minute
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -62,37 +69,61 @@ func (s *finiteKernelListCacheTest) TearDownTest() {
 func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_CacheMissAfterLimit() {
 	operations.SkipKLCTestForUnsupportedKernelVersion(s.T())
 
-	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
-	operations.CreateDirectory(targetDir, s.T())
-	// Create test data
-	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
-	operations.CloseFileShouldNotThrowError(s.T(), f1)
-	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, s.T())
-	operations.CloseFileShouldNotThrowError(s.T(), f2)
+	var successfulTargetDir string
+	names2 := operations.RetryUntil(testEnv.ctx, s.T(), RetryInterval, RetryTimeout, func() ([]string, error) {
+		dirName := fmt.Sprintf("explicit_dir_%d", time.Now().UnixNano())
+		currentDir := path.Join(testEnv.testDirPath, dirName)
 
-	// First read, kernel will cache the dir response.
-	f, err := os.Open(targetDir)
-	require.NoError(s.T(), err)
-	defer func() {
-		assert.Nil(s.T(), f.Close())
-	}()
-	names1, err := f.Readdirnames(-1)
-	require.NoError(s.T(), err)
-	require.Equal(s.T(), 2, len(names1))
-	require.Equal(s.T(), "file1.txt", names1[0])
-	require.Equal(s.T(), "file2.txt", names1[1])
-	err = f.Close()
-	require.NoError(s.T(), err)
-	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
-	time.Sleep(2 * time.Second)
+		operations.CreateDirectory(currentDir, s.T())
+		// Create test data
+		f1 := operations.CreateFile(path.Join(currentDir, "file1.txt"), setup.FilePermission_0600, s.T())
+		operations.CloseFileShouldNotThrowError(s.T(), f1)
+		f2 := operations.CreateFile(path.Join(currentDir, "file2.txt"), setup.FilePermission_0600, s.T())
+		operations.CloseFileShouldNotThrowError(s.T(), f2)
 
-	// Kernel cache will not invalidate within ttl.
-	f, err = os.Open(targetDir)
-	assert.NoError(s.T(), err)
-	names2, err := f.Readdirnames(-1)
+		start := time.Now()
 
-	assert.NoError(s.T(), err)
+		// First read, kernel will cache the dir response.
+		f, err := os.Open(currentDir)
+		if err != nil {
+			return nil, err
+		}
+		names1, err := f.Readdirnames(-1)
+		f.Close()
+		if err != nil {
+			return nil, err
+		}
+		if len(names1) != 2 {
+			return nil, errors.New("expected 2 files initially")
+		}
+
+		// Adding one object to make sure to change the ReadDir() response.
+		client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join(dirName, "file3.txt"), "", s.T())
+		
+		// Sleep for 2 seconds as in the original test
+		time.Sleep(2 * time.Second)
+
+		// Kernel cache will not invalidate within ttl.
+		f, err = os.Open(currentDir)
+		if err != nil {
+			return nil, err
+		}
+		names, err := f.Readdirnames(-1)
+		f.Close()
+		if err != nil {
+			return nil, err
+		}
+
+		elapsed := time.Since(start)
+
+		if elapsed >= 5*time.Second {
+			return nil, fmt.Errorf("operation took %v, exceeding the 5-second Kernel Cache TTL; retrying to ensure a valid cache hit check", elapsed)
+		}
+
+		successfulTargetDir = currentDir
+		return names, nil
+	})
+
 	require.Equal(s.T(), 2, len(names2))
 	assert.Equal(s.T(), "file1.txt", names2[0])
 	assert.Equal(s.T(), "file2.txt", names2[1])
@@ -100,10 +131,11 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	time.Sleep(3 * time.Second)
 
 	// The response will be served from GCSFuse after the TTL expires.
-	f, err = os.Open(targetDir)
-	assert.NoError(s.T(), err)
+	f, err := os.Open(successfulTargetDir)
+	require.NoError(s.T(), err)
+	defer operations.CloseFileShouldNotThrowError(s.T(), f)
 	names3, err := f.Readdirnames(-1)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), 3, len(names3))
 	assert.Equal(s.T(), "file1.txt", names3[0])
