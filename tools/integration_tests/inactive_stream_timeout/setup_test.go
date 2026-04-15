@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -93,9 +94,7 @@ func hasInactiveReaderClosedLogLineInLogFile(t *testing.T, objectName, logFile s
 	expectedMsgSubstring := fmt.Sprintf("Closing reader for object %q due to inactivity.", objectName)
 
 	file, err := os.Open(logFile)
-	if err != nil {
-		return "", fmt.Errorf("failed to open log file: %w", err)
-	}
+	require.NoError(t, err, "failed to open log file")
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
