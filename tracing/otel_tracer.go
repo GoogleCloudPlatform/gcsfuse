@@ -30,9 +30,11 @@ type otelTracer struct {
 }
 
 var (
-	bytesReadKey = attribute.Key(BYTES_READ)
-	cacheHit     = attribute.Bool(IS_CACHE_HIT, true)
-	cacheMiss    = attribute.Bool(IS_CACHE_HIT, false)
+	bytesReadKey     = attribute.Key(BYTES_READ)
+	bytesUploadedKey = attribute.Key(BYTES_UPLOADED)
+	objectNameKey    = attribute.Key(OBJECT_NAME)
+	cacheHit         = attribute.Bool(IS_CACHE_HIT, true)
+	cacheMiss        = attribute.Bool(IS_CACHE_HIT, false)
 )
 
 func (o *otelTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
@@ -63,6 +65,29 @@ func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, by
 		attrSet[1] = cacheMiss
 	}
 	span.SetAttributes(attrSet...)
+}
+
+func (o *otelTracer) SetUploadAttributes(span trace.Span, bytesUploaded int64, objectName string) {
+	attrSetPtr := o.slicePool.Get().(*[]attribute.KeyValue)
+	attrSet := *attrSetPtr
+	defer o.slicePool.Put(attrSetPtr)
+	attrSet[0] = bytesUploadedKey.Int64(bytesUploaded)
+	attrSet[1] = objectNameKey.String(objectName)
+	span.SetAttributes(attrSet...)
+}
+
+func (o *otelTracer) TraceUpload(ctx context.Context, name string, objName string, bytes *int64, err *error) (context.Context, func()) {
+	ctx, span := o.StartSpan(ctx, name)
+
+	return ctx, func() {
+		if bytes != nil {
+			o.SetUploadAttributes(span, *bytes, objName)
+		}
+		if err != nil && *err != nil {
+			o.RecordError(span, *err)
+		}
+		o.EndSpan(span)
+	}
 }
 
 func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {

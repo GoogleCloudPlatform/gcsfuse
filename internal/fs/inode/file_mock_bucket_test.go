@@ -29,6 +29,7 @@ import (
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -117,7 +118,8 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 		isLocal,
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
-		nil)
+		nil,
+		tracing.NewNoopTracer())
 
 	// Create empty file for local inode created above.
 	err := t.in.CreateEmptyTempFile(t.ctx)
@@ -153,7 +155,8 @@ func (t *FileMockBucketTest) createGCSBackedFileInode(backingObj *gcs.MinObject)
 		false, // localFile
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
-		nil)
+		nil,
+		tracing.NewNoopTracer())
 	f.Lock()
 	return f
 }

@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -127,6 +128,7 @@ type FileInode struct {
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance *gcsx.MrdInstance
+	traceHandle tracing.TraceHandle
 }
 
 var _ Inode = &FileInode{}
@@ -151,7 +153,8 @@ func NewFileInode(
 	localFile bool,
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
-	mrdCache *lru.Cache) (f *FileInode) {
+	mrdCache *lru.Cache,
+	traceHandle tracing.TraceHandle) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -170,6 +173,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
+		traceHandle:             traceHandle,
 	}
 
 	if f.bucket.BucketType().Zonal {
@@ -675,6 +679,9 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
+	bytes := int64(len(data))
+	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.src.Name, &bytes, &err)
+	defer finishSpan()
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -692,8 +699,11 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (bool, error) {
-	err := f.bwh.Write(data, offset)
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (_ bool, err error) {
+	bytes := int64(len(data))
+	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
+	defer finishSpan()
+	err = f.bwh.Write(ctx, data, offset)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return false, &gcsfuse_errors.FileClobberedError{
@@ -705,7 +715,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
-		err = f.flushUsingBufferedWriteHandler()
+		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
@@ -721,8 +731,8 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 // new object.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) flushUsingBufferedWriteHandler() error {
-	obj, err := f.bwh.Flush()
+func (f *FileInode) flushUsingBufferedWriteHandler(ctx context.Context) error {
+	obj, err := f.bwh.Flush(ctx)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
@@ -742,21 +752,21 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 // It is a no-op when bwh is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
+func (f *FileInode) SyncPendingBufferedWrites(ctx context.Context) (gcsSynced bool, err error) {
 	if f.bwh == nil {
 		return
 	}
-	minObj, err := f.bwh.Sync()
+	minObj, err := f.bwh.Sync(ctx)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("f.bwh.Sync(): %w", err),
+			Err:        fmt.Errorf("f.bwh.Sync(ctx): %w", err),
 			ObjectName: f.src.Name,
 		}
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("f.bwh.Sync(): %w", err)
+		err = fmt.Errorf("f.bwh.Sync(ctx): %w", err)
 		return
 	}
 	// We return gcsSynced as true when we get minObject from Sync() for Zonal Buckets.
@@ -905,7 +915,7 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.bwh != nil {
-		gcsSynced, err = f.SyncPendingBufferedWrites()
+		gcsSynced, err = f.SyncPendingBufferedWrites(ctx)
 		if err != nil {
 			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
@@ -918,14 +928,31 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	return true, nil
 }
 
+// get the temp content size when tracing is enabled to set the BYTES_UPLOADED attribute
+func (f *FileInode) getTempContentSizeForSpan() int64 {
+	if !cfg.IsTracingEnabled(f.config) {
+		return -1
+	}
+
+	st, err := f.content.Stat()
+	if err != nil {
+		logger.Errorf("failed getting content size for staged sync file span: %v", err)
+		return -1
+	}
+
+	return st.Size
+}
+
 // syncUsingContent syncs the inode content to GCS. It fetches the latest GCS
 // object, syncs the content and updates the inode state.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) syncUsingContent(ctx context.Context) error {
+func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
+	bytes := f.getTempContentSizeForSpan()
+	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.src.Name, &bytes, &err)
+	defer finishSpan()
 	var latestGcsObj *gcs.Object
 	if !f.local {
-		var err error
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
 			return err
@@ -973,7 +1000,7 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	// Flush using the appropriate method based on whether we're using a
 	// buffered write handler.
 	if f.bwh != nil {
-		return f.flushUsingBufferedWriteHandler()
+		return f.flushUsingBufferedWriteHandler(ctx)
 	}
 	return f.syncUsingContent(ctx)
 }
@@ -1032,7 +1059,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
-		err = f.flushUsingBufferedWriteHandler()
+		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
@@ -1147,6 +1174,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkRetryDeadlineSecs:   f.config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+			TraceHandle:              f.traceHandle,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Warnf("File %s will use legacy staged writes because concurrent streaming write "+
