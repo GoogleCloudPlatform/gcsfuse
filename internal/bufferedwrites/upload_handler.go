@@ -196,7 +196,7 @@ func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
 // Finalize finalizes the upload.
 func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err error) {
 	ctx = uh.traceHandle.PropagateTraceContext(context.Background(), ctx)
-	bytes := int64(obj.Size)
+	bytes := int64(0)
 	_, finishSpan := uh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFinalize, uh.objectName, &bytes, &err)
 	defer finishSpan()
 	uh.wg.Wait()
@@ -210,6 +210,9 @@ func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err 
 	}
 
 	obj, err = uh.bucket.FinalizeUpload(ctx, uh.writer)
+	if obj != nil {
+		bytes = int64(obj.Size)
+	}
 	if err != nil {
 		// FinalizeUpload already returns GCSerror so no need to convert again.
 		uh.uploadError.Store(&err)
@@ -230,7 +233,7 @@ func (uh *UploadHandler) ensureWriter(ctx context.Context) error {
 
 // FlushPendingWrites uploads any data in the write buffer.
 func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObject, err error) {
-	bytes := int64(o.Size)
+	bytes := int64(0)
 	_, finishSpan := uh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFlush, uh.objectName, &bytes, &err)
 	defer finishSpan()
 	uh.wg.Wait()
@@ -243,6 +246,9 @@ func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObje
 	}
 
 	o, err = uh.bucket.FlushPendingWrites(ctx, uh.writer)
+	if o != nil {
+		bytes = int64(o.Size)
+	}
 	if err != nil {
 		// FlushUpload already returns GCS error so no need to convert again.
 		uh.uploadError.Store(&err)
