@@ -156,9 +156,6 @@ func NewFileInode(
 	mrdCache *lru.Cache,
 	traceHandle tracing.TraceHandle) (f *FileInode) {
 	// Set up the basic struct.
-	if traceHandle == nil {
-		traceHandle = tracing.NewNoopTracer()
-	}
 	var minObj gcs.MinObject
 	if m != nil {
 		minObj = *m

@@ -89,9 +89,6 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 		traceHandle:          req.TraceHandle,
 	}
-	if uh.traceHandle == nil {
-		uh.traceHandle = tracing.NewNoopTracer()
-	}
 	return uh
 }
 
