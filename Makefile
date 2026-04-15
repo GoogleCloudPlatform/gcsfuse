@@ -52,10 +52,10 @@ fmt: imports
 vet: fmt
 	go vet ./...
 
-lint:
+lint: vet
 	golangci-lint run -E=unused --timeout 3m0s --new-from-rev=master
 
-build: vet lint
+build: lint
 	go build ./...
 
 buildTest: vet
