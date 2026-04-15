@@ -210,14 +210,14 @@ func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err 
 	}
 
 	obj, err = uh.bucket.FinalizeUpload(ctx, uh.writer)
-	if obj != nil {
-		bytes = int64(obj.Size)
-	}
 	if err != nil {
 		// FinalizeUpload already returns GCSerror so no need to convert again.
 		uh.uploadError.Store(&err)
 		logger.Errorf("FinalizeUpload failed for object %s: %v", uh.objectName, err)
 		return nil, err
+	}
+	if obj != nil {
+		bytes = int64(obj.Size)
 	}
 	return obj, nil
 }
@@ -246,14 +246,14 @@ func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObje
 	}
 
 	o, err = uh.bucket.FlushPendingWrites(ctx, uh.writer)
-	if o != nil {
-		bytes = int64(o.Size)
-	}
 	if err != nil {
 		// FlushUpload already returns GCS error so no need to convert again.
 		uh.uploadError.Store(&err)
 		logger.Errorf("FlushUpload failed for object %s: %v", uh.objectName, err)
 		return nil, err
+	}
+	if o != nil {
+		bytes = int64(o.Size)
 	}
 	return o, nil
 }
