@@ -38,7 +38,7 @@ override STAGINGVERSION := $(STAGINGVERSIONPREFIX)$(patsubst $(STAGINGVERSIONPRE
 PROJECT ?= $(shell gcloud config get-value project 2>/dev/null)
 .DEFAULT_GOAL := build
 
-.PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi
+.PHONY: generate imports fmt vet lint build buildTest install test clean-gen clean clean-all build-csi
 
 generate:
 	go generate ./...
@@ -52,8 +52,11 @@ fmt: imports
 vet: fmt
 	go vet ./...
 
-build: vet
-	go build .
+lint:
+	golangci-lint run -E=unused --timeout 3m0s --new-from-rev=master
+
+build: vet lint
+	go build ./...
 
 buildTest: vet
 	go test -run=PATTERN_THAT_DOES_NOT_MATCH_ANYTHING ./...
