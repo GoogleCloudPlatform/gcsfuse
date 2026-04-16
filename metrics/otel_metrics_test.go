@@ -5262,6 +5262,31 @@ func TestGcsRetryCount(t *testing.T) {
 	}
 }
 
+func TestReadBlockSize(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+	var totalVal int64
+	vals := []int64{100, 200}
+
+	for _, val := range vals {
+		m.ReadBlockSize(ctx, val)
+		totalVal += val
+	}
+	waitForMetricsProcessing()
+
+	metrics := gatherHistogramMetrics(ctx, t, rd)
+	metric, ok := metrics["read/block_size"]
+	require.True(t, ok, "read/block_size metric not found")
+
+	s := attribute.NewSet()
+	expectedKey := s.Encoded(encoder)
+	dp, ok := metric[expectedKey]
+	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+	assert.Equal(t, uint64(len(vals)), dp.Count)
+	assert.Equal(t, totalVal, dp.Sum)
+}
+
 func TestTestUpdownCounter(t *testing.T) {
 	ctx := context.Background()
 	encoder := attribute.DefaultEncoder()

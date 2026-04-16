@@ -232,7 +232,11 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	{{- if .Attributes}}
 	tests := []struct {
 		name      string
+		{{- if isTimeBased .Unit}}
 		latencies []time.Duration
+		{{- else}}
+		vals []int64
+		{{- end}}
 		{{- range .Attributes}}
 		{{toCamel .Name}} {{getGoType .Type}}
 		{{- end}}
@@ -241,7 +245,11 @@ func Test{{toPascal .Name}}(t *testing.T) {
 		{{- range $combination := (index $.AttrCombinations $metric.Name)}}
 		{
 			name:      "{{getTestName $combination}}",
+			{{- if isTimeBased $metric.Unit}}
 			latencies: []time.Duration{100 * time.{{getLatencyUnit $metric.Unit}}, 200 * time.{{getLatencyUnit $metric.Unit}}},
+			{{- else}}
+			vals: []int64{100, 200},
+			{{- end}}
 			{{- range $pair := $combination}}
 			{{toCamel $pair.Name}}: {{if eq $pair.Type "bool"}}{{$pair.Value}}{{else}}"{{$pair.Value}}"{{end}},
 			{{- end}}
@@ -254,12 +262,21 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			ctx := context.Background()
 			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
+			{{- if isTimeBased .Unit}}
 			var totalLatency time.Duration
 
 			for _, latency := range tc.latencies {
 				m.{{toPascal .Name}}(ctx, latency, {{getTestFuncArgsForHistogram "tc" .Attributes}})
 				totalLatency += latency
 			}
+			{{- else}}
+			var totalVal int64
+
+			for _, val := range tc.vals {
+				m.{{toPascal .Name}}(ctx, val, {{getTestFuncArgsForHistogram "tc" .Attributes}})
+				totalVal += val
+			}
+			{{- end}}
 			waitForMetricsProcessing()
 
 			metrics := gatherHistogramMetrics(ctx, t, rd)
@@ -275,14 +292,20 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			expectedKey := s.Encoded(encoder)
 			dp, ok := metric[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+			{{- if isTimeBased .Unit}}
 			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
 			assert.Equal(t, totalLatency.{{getLatencyMethod .Unit}}(), dp.Sum)
+			{{- else}}
+			assert.Equal(t, uint64(len(tc.vals)), dp.Count)
+			assert.Equal(t, totalVal, dp.Sum)
+			{{- end}}
 		})
 	}
 	{{- else}}
 	ctx := context.Background()
 	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
+	{{- if isTimeBased .Unit}}
 	var totalLatency time.Duration
 	latencies := []time.Duration{100 * time.{{getLatencyUnit .Unit}}, 200 * time.{{getLatencyUnit .Unit}}}
 
@@ -290,6 +313,15 @@ func Test{{toPascal .Name}}(t *testing.T) {
 		m.{{toPascal .Name}}(ctx, latency)
 		totalLatency += latency
 	}
+	{{- else}}
+	var totalVal int64
+	vals := []int64{100, 200}
+
+	for _, val := range vals {
+		m.{{toPascal .Name}}(ctx, val)
+		totalVal += val
+	}
+	{{- end}}
 	waitForMetricsProcessing()
 
 	metrics := gatherHistogramMetrics(ctx, t, rd)
@@ -300,8 +332,13 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	expectedKey := s.Encoded(encoder)
 	dp, ok := metric[expectedKey]
 	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+	{{- if isTimeBased .Unit}}
 	assert.Equal(t, uint64(len(latencies)), dp.Count)
 	assert.Equal(t, totalLatency.{{getLatencyMethod .Unit}}(), dp.Sum)
+	{{- else}}
+	assert.Equal(t, uint64(len(vals)), dp.Count)
+	assert.Equal(t, totalVal, dp.Sum)
+	{{- end}}
 	{{- end}}
 }
 {{end}}

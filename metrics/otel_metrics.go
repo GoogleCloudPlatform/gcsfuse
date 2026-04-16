@@ -1041,6 +1041,7 @@ type otelMetrics struct {
 	fileCacheReadLatencies                                                             metric.Int64Histogram
 	fsOpsLatency                                                                       metric.Int64Histogram
 	gcsRequestLatencies                                                                metric.Int64Histogram
+	readBlockSize                                                                      metric.Int64Histogram
 }
 
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
@@ -1060,8 +1061,7 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 	}
 }
 
-func (o *otelMetrics) BufferedReadReadLatency(
-	ctx context.Context, latency time.Duration) {
+func (o *otelMetrics) BufferedReadReadLatency(ctx context.Context, latency time.Duration) {
 	var record histogramRecord
 	record = histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
 
@@ -1130,8 +1130,7 @@ func (o *otelMetrics) FileCacheReadCount(
 	}
 }
 
-func (o *otelMetrics) FileCacheReadLatencies(
-	ctx context.Context, latency time.Duration, cacheHit bool) {
+func (o *otelMetrics) FileCacheReadLatencies(ctx context.Context, latency time.Duration, cacheHit bool) {
 	var record histogramRecord
 	switch cacheHit {
 	case true:
@@ -2118,8 +2117,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 	}
 }
 
-func (o *otelMetrics) FsOpsLatency(
-	ctx context.Context, latency time.Duration, fsOp FsOp) {
+func (o *otelMetrics) FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp) {
 	var record histogramRecord
 	switch fsOp {
 	case FsOpBatchForgetAttr:
@@ -2302,8 +2300,7 @@ func (o *otelMetrics) GcsRequestCount(
 	}
 }
 
-func (o *otelMetrics) GcsRequestLatencies(
-	ctx context.Context, latency time.Duration, gcsMethod GcsMethod) {
+func (o *otelMetrics) GcsRequestLatencies(ctx context.Context, latency time.Duration, gcsMethod GcsMethod) {
 	var record histogramRecord
 	switch gcsMethod {
 	case GcsMethodComposeObjectsAttr:
@@ -2369,6 +2366,16 @@ func (o *otelMetrics) GcsRetryCount(
 	default:
 		updateUnrecognizedAttribute(string(retryErrorCategory))
 		return
+	}
+}
+
+func (o *otelMetrics) ReadBlockSize(ctx context.Context, val int64) {
+	var record histogramRecord
+	record = histogramRecord{ctx: ctx, instrument: o.readBlockSize, value: val}
+
+	select {
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
 	}
 }
 
@@ -3463,7 +3470,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err15 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	readBlockSize, err15 := meter.Int64Histogram("read/block_size",
+		metric.WithDescription("The cumulative distribution of the number of block sizes across different bucket boundaries"),
+		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(8, 16, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072))
+
+	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3471,7 +3483,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err17 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3480,7 +3492,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -3963,9 +3975,10 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRequestLatencies:                                        gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:           &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:    &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
-		testUpdownCounterAtomic:                                    &testUpdownCounterAtomic,
-		testUpdownCounterWithAttrsRequestTypeAttr1Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
-		testUpdownCounterWithAttrsRequestTypeAttr2Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,
+		readBlockSize:           readBlockSize,
+		testUpdownCounterAtomic: &testUpdownCounterAtomic,
+		testUpdownCounterWithAttrsRequestTypeAttr1Atomic: &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
+		testUpdownCounterWithAttrsRequestTypeAttr2Atomic: &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,
 	}, nil
 }
 

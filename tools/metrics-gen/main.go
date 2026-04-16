@@ -81,6 +81,7 @@ var funcMap = template.FuncMap{
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
 	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
 	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+	"isTimeBased":                 isTimeBased,
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
 	"getTestFuncArgs":             getTestFuncArgs,
@@ -157,6 +158,10 @@ func getUnitMethod(unit string) string {
 		// Assumes the value is already in the correct unit if not time-based.
 		return ""
 	}
+}
+
+func isTimeBased(unit string) bool {
+	return unit == "us" || unit == "ms" || unit == "s"
 }
 
 func joinInts(nums []int64) string {
@@ -392,8 +397,12 @@ func buildSwitches(metric Metric) string {
 				builder.WriteString(fmt.Sprintf("%so.%s.Add(inc)\n", indent, atomicName))
 			} else { // histogram
 				varName := getVarName(metric.Name, combo)
-				unitMethod := getUnitMethod(metric.Unit)
-				builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{ctx: ctx,instrument: o.%s, value: latency%s, attributes: %s}\n", indent, toCamel(metric.Name), unitMethod, varName))
+				if isTimeBased(metric.Unit) {
+					unitMethod := getUnitMethod(metric.Unit)
+					builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{ctx: ctx,instrument: o.%s, value: latency%s, attributes: %s}\n", indent, toCamel(metric.Name), unitMethod, varName))
+				} else {
+					builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{ctx: ctx,instrument: o.%s, value: val, attributes: %s}\n", indent, toCamel(metric.Name), varName))
+				}
 			}
 			return
 		}
@@ -427,8 +436,12 @@ func buildSwitches(metric Metric) string {
 
 	if len(metric.Attributes) == 0 {
 		if metric.Type == "int_histogram" {
-			unitMethod := getUnitMethod(metric.Unit)
-			builder.WriteString(fmt.Sprintf("\trecord = histogramRecord{ctx: ctx, instrument: o.%s, value: latency%s}\n", toCamel(metric.Name), unitMethod))
+			if isTimeBased(metric.Unit) {
+				unitMethod := getUnitMethod(metric.Unit)
+				builder.WriteString(fmt.Sprintf("\trecord = histogramRecord{ctx: ctx, instrument: o.%s, value: latency%s}\n", toCamel(metric.Name), unitMethod))
+			} else {
+				builder.WriteString(fmt.Sprintf("\trecord = histogramRecord{ctx: ctx, instrument: o.%s, value: val}\n", toCamel(metric.Name)))
+			}
 		} else if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
 			atomicName := getAtomicName(metric.Name, AttrCombination{})
 			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", atomicName))
