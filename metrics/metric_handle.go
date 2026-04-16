@@ -131,13 +131,8 @@ const (
 type Reason string
 
 const (
-	ReasonConcurrentLimitBreachedAttr Reason = "concurrent_limit_breached"
-	ReasonExistingFileAttr            Reason = "existing_file"
-	ReasonInsufficientMemoryAttr      Reason = "insufficient_memory"
-	ReasonNotEnabledAttr              Reason = "not_enabled"
-	ReasonOtherAttr                   Reason = "other"
-	ReasonOutOfOrderAttr              Reason = "out_of_order"
-	ReasonRandomReadDetectedAttr      Reason = "random_read_detected"
+	ReasonInsufficientMemoryAttr Reason = "insufficient_memory"
+	ReasonRandomReadDetectedAttr Reason = "random_read_detected"
 )
 
 // RequestType is a custom type for the request_type attribute.
@@ -154,6 +149,17 @@ type RetryErrorCategory string
 const (
 	RetryErrorCategoryOTHERERRORSAttr        RetryErrorCategory = "OTHER_ERRORS"
 	RetryErrorCategorySTALLEDREADREQUESTAttr RetryErrorCategory = "STALLED_READ_REQUEST"
+)
+
+// WriteFallbackReason is a custom type for the write_fallback_reason attribute.
+type WriteFallbackReason string
+
+const (
+	WriteFallbackReasonConcurrentLimitBreachedAttr WriteFallbackReason = "concurrent_limit_breached"
+	WriteFallbackReasonExistingFileAttr            WriteFallbackReason = "existing_file"
+	WriteFallbackReasonNotEnabledAttr              WriteFallbackReason = "not_enabled"
+	WriteFallbackReasonOtherAttr                   WriteFallbackReason = "other"
+	WriteFallbackReasonOutOfOrderAttr              WriteFallbackReason = "out_of_order"
 )
 
 // MetricHandle provides an interface for recording metrics.
@@ -185,7 +191,7 @@ type MetricHandle interface {
 	FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp)
 
 	// FsStreamingWriteFallbackCount - The cumulative distribution of the number of streaming write fallbacks with reason attached
-	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, reason Reason)
+	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason)
 
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)

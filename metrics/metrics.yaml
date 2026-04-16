@@ -151,7 +151,7 @@
     - "write_only_append"
     - "read_write"
     - "read_write_append"
-  - attribute-name: reason
+  - attribute-name: write_fallback_reason
     attribute-type: string
     values:
     - "out_of_order"
