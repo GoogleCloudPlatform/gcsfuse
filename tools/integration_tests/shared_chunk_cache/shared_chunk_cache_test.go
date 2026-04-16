@@ -66,7 +66,7 @@ func (t *BaseSuite) SetupTest() {
 		t.sharedCacheDir = path.Join(GKETempDir, "shared-cache", "gcsfuse-shared-chunk-cache")
 		// Clean up cache directory before each test to ensure clean state
 		operations.RemoveDir(t.sharedCacheDir)
-		
+
 		// GKE Mode: Already mounted
 		t.primaryMount.mntDir = testEnv.cfg.GKEMountedDirectory
 		t.primaryMount.testDirPath = path.Join(t.primaryMount.mntDir, testDirName)
