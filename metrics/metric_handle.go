@@ -106,6 +106,16 @@ const (
 	IoMethodOpenedAttr IoMethod = "opened"
 )
 
+// OpenMode is a custom type for the open_mode attribute.
+type OpenMode string
+
+const (
+	OpenModeReadWriteAttr       OpenMode = "read_write"
+	OpenModeReadWriteAppendAttr OpenMode = "read_write_append"
+	OpenModeWriteOnlyAttr       OpenMode = "write_only"
+	OpenModeWriteOnlyAppendAttr OpenMode = "write_only_append"
+)
+
 // ReadType is a custom type for the read_type attribute.
 type ReadType string
 
@@ -121,8 +131,13 @@ const (
 type Reason string
 
 const (
-	ReasonInsufficientMemoryAttr Reason = "insufficient_memory"
-	ReasonRandomReadDetectedAttr Reason = "random_read_detected"
+	ReasonConcurrentLimitBreachedAttr Reason = "concurrent_limit_breached"
+	ReasonExistingFileAttr            Reason = "existing_file"
+	ReasonInsufficientMemoryAttr      Reason = "insufficient_memory"
+	ReasonNotEnabledAttr              Reason = "not_enabled"
+	ReasonOtherAttr                   Reason = "other"
+	ReasonOutOfOrderAttr              Reason = "out_of_order"
+	ReasonRandomReadDetectedAttr      Reason = "random_read_detected"
 )
 
 // RequestType is a custom type for the request_type attribute.
@@ -168,6 +183,9 @@ type MetricHandle interface {
 
 	// FsOpsLatency - The cumulative distribution of file system operation latencies
 	FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp)
+
+	// FsStreamingWriteFallbackCount - The cumulative distribution of the number of streaming write fallbacks with reason attached
+	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, reason Reason)
 
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)
