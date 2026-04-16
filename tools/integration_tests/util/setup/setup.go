@@ -32,11 +32,13 @@ import (
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
+	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
@@ -69,7 +71,25 @@ var (
 	sbinFile             string
 	onlyDirMounted       string
 	dynamicBucketMounted string
+	billingProject       string
+	keyFile              string
 )
+
+func BillingProject() string {
+	return billingProject
+}
+
+func SetBillingProject(bp string) {
+	billingProject = bp
+}
+
+func KeyFile() string {
+	return keyFile
+}
+
+func SetKeyFile(kf string) {
+	keyFile = kf
+}
 
 // Run the shell script to prepare the testData in the specified bucket.
 // First argument will be name of scipt script
@@ -492,6 +512,9 @@ func CleanupDirectoryOnGCS(ctx context.Context, client *storage.Client, director
 	bucketAndDirPath := strings.Split(directoryPathOnGCS, "/")
 	bucket, dirPath := bucketAndDirPath[0], bucketAndDirPath[1]
 	bucketHandle := client.Bucket(bucket)
+	if bp := BillingProject(); bp != "" {
+		bucketHandle = bucketHandle.UserProject(bp)
+	}
 
 	it := bucketHandle.Objects(ctx, &storage.Query{Prefix: dirPath + "/"})
 	for {
@@ -559,11 +582,24 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	storageClient, err := storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+	var opts []option.ClientOption
+	opts = append(opts, experimental.WithGRPCBidiReads())
+	if keyFile != "" {
+		cred, err := auth2.GetCredentials(keyFile)
+		if err != nil {
+			return "", fmt.Errorf("failed to get credentials: %w", err)
+		}
+		opts = append(opts, option.WithAuthCredentials(cred))
+	}
+	storageClient, err := storage.NewGRPCClient(ctx, opts...)
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
-	attrs, err := storageClient.Bucket(testBucket).Attrs(ctx)
+	bucket := storageClient.Bucket(testBucket)
+	if billingProject != "" {
+		bucket = bucket.UserProject(billingProject)
+	}
+	attrs, err := bucket.Attrs(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get bucket attributes: %w", err)
 	}

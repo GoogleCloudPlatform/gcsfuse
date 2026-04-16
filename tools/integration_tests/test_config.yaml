@@ -225,7 +225,10 @@ requester_pays_bucket:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--billing-project=gcs-fuse-test-ml"
+          # Set the 'BILLING_PROJECT' environment variable for GKE
+          - "--billing-project=${BILLING_PROJECT},--key-file=${KEY_FILE}"
+          - "--billing-project=${BILLING_PROJECT},--client-protocol=grpc,--key-file=${KEY_FILE}"
+          - "--billing-project=${BILLING_PROJECT},--client-protocol=grpc,--grpc-path-strategy=direct-path-only,--key-file=${KEY_FILE}"
         compatible:
           flat: true
           hns: true
