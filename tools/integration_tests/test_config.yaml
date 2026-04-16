@@ -511,6 +511,7 @@ readdirplus:
 inactive_stream_timeout:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - flags:
           - "--read-inactive-stream-timeout=1s,--client-protocol=http1,--log-format=json,--log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log"
@@ -724,6 +725,7 @@ mounting:
 flag_optimizations:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - run: TestMountFails
         flags:
@@ -860,6 +862,7 @@ unsupported_path:
 kernel_list_cache:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - flags:
           - "--kernel-list-cache-ttl-secs=-1"
@@ -1052,6 +1055,7 @@ symlink_handling:
 negative_stat_cache:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - flags:
           - "--metadata-cache-negative-ttl-secs=0"
@@ -1081,6 +1085,7 @@ negative_stat_cache:
 managed_folders:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - run: TestManagedFolders_FolderViewPermission
         flags:
