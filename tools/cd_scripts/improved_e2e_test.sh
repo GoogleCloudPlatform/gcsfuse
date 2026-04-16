@@ -148,7 +148,7 @@ else
 fi
 
 # Set parallelism to 4 as it is optimal for all of the release VM(s).
-ARGS+=( "--package-level-parallelism=4")
+ARGS+=("--package-level-parallelism=4")
 
 # Set --zonal arg if required
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
@@ -165,6 +165,10 @@ mkdir -p "$OUTPUT_DIR" || {
     exit 1
 }
 ARGS+=("--output-dir=$OUTPUT_DIR")
+
+# TODO(b/503191432): Enable the cloud_profiler in release testing once it is stable.
+# Run all packages except cloud profiler during release testing.
+ARGS+=("--run-package=!cloud_profiler")
 
 # Run the main e2e script
 bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"
