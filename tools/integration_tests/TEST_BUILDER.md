@@ -70,5 +70,3 @@ export TEST_BUCKET_NAME=my-test-bucket
 
 GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/$TEST_PACKAGE_NAME/... -p 1 -short --integrationTest -v --testbucket=$TEST_BUCKET_NAME --timeout=20m
 ```
-
-
