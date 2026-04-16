@@ -69,6 +69,7 @@ list_large_dir:
 operations:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - flags:
           - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
@@ -223,6 +224,7 @@ cloud_profiler:
 requester_pays_bucket:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - flags:
           - "--billing-project=gcs-fuse-test-ml"
@@ -657,7 +659,6 @@ interrupt:
 log_rotation:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # To be removed
     configs:
       - flags:
           - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2,--log-rotate-backup-file-count=2,--log-rotate-compress=false,--log-severity=trace"
@@ -837,8 +838,6 @@ flag_optimizations:
 unsupported_path:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    only_dir: "${ONLY_DIR}"
-    log_file: # Optional
     configs:
       - flags:
           - "--implicit-dirs,--client-protocol=grpc,--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
