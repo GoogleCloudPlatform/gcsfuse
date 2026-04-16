@@ -62,17 +62,11 @@ type SharedChunkCacheTestSuite struct{ BaseSuite }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *BaseSuite) SetupTest() {
-	// Set up the shared cache directory
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		t.sharedCacheDir = path.Join(GKETempDir, "shared-cache", "gcsfuse-shared-chunk-cache")
-	} else {
-		t.sharedCacheDir = path.Join(setup.TestDir(), GKETempDir, "shared-cache", "gcsfuse-shared-chunk-cache")
-	}
-
-	// Clean up cache directory before each test to ensure clean state
-	operations.RemoveDir(t.sharedCacheDir)
-
-	if testEnv.cfg.GKEMountedDirectory != "" {
+		// Clean up cache directory before each test to ensure clean state
+		operations.RemoveDir(t.sharedCacheDir)
+		
 		// GKE Mode: Already mounted
 		t.primaryMount.mntDir = testEnv.cfg.GKEMountedDirectory
 		t.primaryMount.testDirPath = path.Join(t.primaryMount.mntDir, testDirName)
@@ -83,6 +77,10 @@ func (t *BaseSuite) SetupTest() {
 			t.secondaryMount.testDirPath = path.Join(t.secondaryMount.mntDir, testDirName)
 		}
 	} else {
+		t.sharedCacheDir = path.Join(setup.TestDir(), GKETempDir, "shared-cache", "gcsfuse-shared-chunk-cache")
+		// Clean up cache directory before each test to ensure clean state
+		operations.RemoveDir(t.sharedCacheDir)
+
 		// GCE Mode: Mount it
 		t.primaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.LogFile)
 		t.mountGcsfuse(t.primaryMount, "primary", t.primaryFlags)
@@ -136,6 +134,7 @@ func (mnt *mountPoint) setupTestDir(mountDir, logFile string) {
 func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []string) {
 	setup.SetMntDir(mnt.mntDir)
 	setup.SetLogFile(mnt.logFilePath)
+	log.Println("Running static mounting tests for shared chunk cache...")
 	err := static_mounting.MountGcsfuseWithStaticMounting(flags)
 	require.NoError(t.T(), err, "Unable to mount %s: %v", mountType, err)
 	mnt.testDirPath = setup.SetupTestDirectory(testDirName)

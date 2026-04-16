@@ -106,7 +106,6 @@ func TestMain(m *testing.M) {
 	}
 	testEnv.cfg.GCSFuseMountedDirectorySecondary = secondaryDir
 
-	log.Println("Running static mounting tests for shared chunk cache...")
 	successCode := m.Run()
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
