@@ -154,7 +154,7 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
-		tracing.NewNoopTracer())
+		tracing.NewNoopTracer(), nil)
 
 	// Set buffered write config for created inode.
 	t.in.config = &cfg.Config{Write: cfg.WriteConfig{
