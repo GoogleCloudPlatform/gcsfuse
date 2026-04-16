@@ -83,6 +83,7 @@ type Config struct {
 	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`
 	UnsupportedPath       []TestConfig `yaml:"unsupported_path"`
 	SymlinkHandling       []TestConfig `yaml:"symlink_handling"`
+	SharedChunkCache      []TestConfig `yaml:"shared_chunk_cache"`
 	ReadonlyCreds         []TestConfig `yaml:"readonly_creds"`
 	ReleaseVersion        []TestConfig `yaml:"release_version"`
 	Mounting              []TestConfig `yaml:"mounting"`
