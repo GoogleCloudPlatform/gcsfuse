@@ -61,45 +61,7 @@ func projectID(ctx context.Context) string {
 
 func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath string) {
 	log.Println("Running credentials tests...")
-
-	id := projectID(ctx)
-
-	// Service account id format is name@project-id.iam.gserviceaccount.com
-	serviceAccount = NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
-
-	// Download credentials
-	client, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Failed to create secret manager client: %v", err))
-	}
-	defer func() {
-		if err := client.Close(); err != nil {
-			log.Printf("Failed to close secret manager client: %v", err)
-		}
-	}()
-	req := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/latest", id, CredentialsSecretName),
-	}
-	creds, err := client.AccessSecretVersion(ctx, req)
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error while fetching key file %v", err))
-	}
-
-	// Create and write creds to local file.
-	file, err := os.CreateTemp("", "creds-*.json")
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error while creating temp credentials file %v", err))
-	}
-	localKeyFilePath = file.Name()
-	_, err = file.Write(creds.Payload.Data)
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error while writing credentials to local file %v", err))
-	}
-	if err := file.Close(); err != nil {
-		log.Printf("Failed to close credentials file: %v", err)
-	}
-
-	return
+	return CreateCredentialsForSA(ctx, NameOfServiceAccount, CredentialsSecretName)
 }
 
 func CreateCredentialsForSA(ctx context.Context, serviceAccountName, saCredentialsSecretName string) (serviceAccountEmail, localKeyFilePath string) {
@@ -110,7 +72,7 @@ func CreateCredentialsForSA(ctx context.Context, serviceAccountName, saCredentia
 	// Service account id format is name@project-id.iam.gserviceaccount.com
 	serviceAccountEmail = serviceAccountName + "@" + projID + ".iam.gserviceaccount.com"
 
-	// Download credentials
+	// Create secretmanager client to download service account credential file.
 	smClient, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Failed to create secret manager client: %v", err))
