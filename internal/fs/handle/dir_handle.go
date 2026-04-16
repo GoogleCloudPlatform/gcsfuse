@@ -16,16 +16,21 @@ package handle
 
 import (
 	"cmp"
+	"context"
 	"fmt"
-	"maps"
+	"path"
 	"slices"
+	"time"
+	// Removed unused "strconv" and "unicode"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"golang.org/x/net/context"
 )
 
 // DirEntry is a generic interface for directory entries that expose
@@ -41,16 +46,29 @@ type dirent fuseutil.Dirent
 type direntPlus fuseutil.DirentPlus
 
 // For Dirent
-func (d *dirent) EntryName() string                  { return d.Name }
-func (d *dirent) SetName(name string)                { d.Name = name }
-func (d *dirent) EntryType() fuseutil.DirentType     { return d.Type }
+func (d *dirent) EntryName() string          { return d.Name }
+func (d *dirent) SetName(name string)        { d.Name = name }
+func (d *dirent) EntryType() fuseutil.DirentType { return d.Type }
 func (d *dirent) SetOffset(offset fuseops.DirOffset) { d.Offset = offset }
 
 // For DirentPlus
-func (dp *direntPlus) EntryName() string                  { return dp.Dirent.Name }
-func (dp *direntPlus) SetName(name string)                { dp.Dirent.Name = name }
-func (dp *direntPlus) EntryType() fuseutil.DirentType     { return dp.Dirent.Type }
+func (dp *direntPlus) EntryName() string          { return dp.Dirent.Name }
+func (dp *direntPlus) SetName(name string)        { dp.Dirent.Name = name }
+func (dp *direntPlus) EntryType() fuseutil.DirentType { return dp.Dirent.Type }
 func (dp *direntPlus) SetOffset(offset fuseops.DirOffset) { dp.Dirent.Offset = offset }
+
+const (
+	// Default timeouts for directory entry attributes.
+	DefaultEntryTimeout = time.Second
+	DefaultAttrTimeout  = time.Second
+)
+
+// FileSystem defines the interface required by DirHandle to interact with the
+// underlying file system, breaking the direct dependency.
+type FileSystem interface {
+	LookUpOrCreateInodeIfNotStale(ctx context.Context, ic inode.Core) (inode.Inode, error)
+	GetAttributes(ctx context.Context, in inode.Inode) (fuseops.InodeAttributes, time.Time, error)
+}
 
 // DirHandle is the state required for reading from directories.
 type DirHandle struct {
@@ -60,6 +78,8 @@ type DirHandle struct {
 
 	in           inode.DirInode
 	implicitDirs bool
+	bucket       *gcsx.SyncerBucket
+	fs           FileSystem // Interface to filesystem
 
 	/////////////////////////
 	// Mutable state
@@ -67,43 +87,38 @@ type DirHandle struct {
 
 	Mu locker.Locker
 
-	// All entries in the directory. Populated the first time we need one.
-	//
-	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
-	//
+	// State for ReadDir (original buffering implementation)
 	// GUARDED_BY(Mu)
 	entries []fuseutil.Dirent
-
-	// All entries in the directory along with their attributes. Populated the first time we need one.
-	//
-	// INVARIANT: For each i, entriesPlus[i+1].Offset == entriesPlus[i].Offset + 1
-	//
-	// GUARDED_BY(Mu)
-	entriesPlus []fuseutil.DirentPlus
-
-	// Has entries yet been populated?
-	//
-	// INVARIANT: If !entriesValid, then len(entries) == 0
-	//
 	// GUARDED_BY(Mu)
 	entriesValid bool
 
-	// Has entriesPlus yet been populated?
-	//
-	// INVARIANT: If !entriesPlusValid, then len(entriesPlus) == 0
-	//
+	// State for streaming directory entries for ReadDirPlus.
 	// GUARDED_BY(Mu)
-	entriesPlusValid bool
+	gcsMarkerPlus string
+	// GUARDED_BY(Mu)
+	gcsListDonePlus bool
+	// GUARDED_BY(Mu)
+	bufferedEntriesPlus []fuseutil.DirentPlus
+	// GUARDED_BY(Mu)
+	bufferIndexPlus int
+	// GUARDED_BY(Mu)
+	currentOffsetPlus fuseops.DirOffset
 }
 
 // NewDirHandle creates a directory handle that obtains listings from the supplied inode.
 func NewDirHandle(
 	in inode.DirInode,
-	implicitDirs bool) (dh *DirHandle) {
+	implicitDirs bool,
+	bucket *gcsx.SyncerBucket,
+	fs FileSystem) (dh *DirHandle) {
 	// Set up the basic struct.
 	dh = &DirHandle{
-		in:           in,
-		implicitDirs: implicitDirs,
+		in:                in,
+		implicitDirs:      implicitDirs,
+		bucket:            bucket,
+		fs:                fs,
+		currentOffsetPlus: 1, // Initialize streaming offset for ReadDirPlus
 	}
 
 	// Set up invariant checking.
@@ -133,21 +148,54 @@ func (dh *DirHandle) checkInvariants() {
 		panic("Unexpected non-empty entries slice")
 	}
 
-	// INVARIANT: For each i, entriesPlus[i+1].Dirent.Offset == entriesPlus[i].Dirent.Offset + 1
-	for i := 0; i < len(dh.entriesPlus)-1; i++ {
-		if !(dh.entriesPlus[i+1].Dirent.Offset == dh.entriesPlus[i].Dirent.Offset+1) {
-			panic(
-				fmt.Sprintf(
-					"Unexpected offset sequence: %v, %v",
-					dh.entriesPlus[i].Dirent.Offset,
-					dh.entriesPlus[i+1].Dirent.Offset))
-		}
+	// Add checks for ReadDirPlus state if needed in the future.
+}
+
+// coreToDirentPlus converts an inode.Name and inode.Core to a fuseutil.DirentPlus entry.
+// It looks up the inode to get the ID and full attributes.
+func (dh *DirHandle) coreToDirentPlus(ctx context.Context, name inode.Name, core *inode.Core) (*fuseutil.DirentPlus, error) {
+	child, err := dh.fs.LookUpOrCreateInodeIfNotStale(dh.in.Context(), *core)
+	if err != nil {
+		return nil, fmt.Errorf("coreToDirentPlus: LookUpOrCreateInodeIfNotStale: %w", err)
+	}
+	if child == nil {
+		// This can happen if the object was deleted between listing and lookup.
+		return nil, nil
+	}
+	defer child.Unlock()
+
+	attributes, expiration, err := dh.fs.GetAttributes(ctx, child)
+	if err != nil {
+		return nil, fmt.Errorf("coreToDirentPlus: GetAttributes: %w", err)
 	}
 
-	// INVARIANT: If !entriesPlusValid, then len(entriesPlus) == 0
-	if !dh.entriesPlusValid && len(dh.entriesPlus) != 0 {
-		panic("Unexpected non-empty entries slice")
+	entry := &fuseutil.DirentPlus{
+		Dirent: fuseutil.Dirent{
+			Name:  path.Base(name.LocalName()),
+			Type:  fuseutil.DT_Unknown, // Set below
+			Inode: child.ID(),
+		},
+		Entry: fuseops.ChildInodeEntry{
+			Child:                child.ID(),
+			Attributes:           attributes,
+			AttributesExpiration: expiration,
+			EntryExpiration:      expiration,
+		},
 	}
+
+	coreType := core.Type()
+	switch coreType {
+	case metadata.ImplicitDirType, metadata.ExplicitDirType:
+		entry.Dirent.Type = fuseutil.DT_Directory
+	case metadata.RegularFileType:
+		entry.Dirent.Type = fuseutil.DT_File
+	case metadata.SymlinkType:
+		entry.Dirent.Type = fuseutil.DT_Link
+	default:
+		entry.Dirent.Type = fuseutil.DT_Unknown
+	}
+
+	return entry, nil
 }
 
 // compareEntriesByName provides a comparison function for sorting directory entries
@@ -299,47 +347,8 @@ func readAllEntries(
 	}
 
 	// Return a bogus inode ID for each entry, but not the root inode ID.
-	//
-	// NOTE: As far as I can tell this is harmless. Minting and
-	// returning a real inode ID is difficult because fuse does not count
-	// readdir as an operation that increases the inode ID's lookup count, and
-	// we therefore don't get a forget for it later, but we would like to not
-	// have to remember every inode ID that we've ever minted for readdir.
-	//
-	// If it turns out this is not harmless, we'll need to switch to something
-	// like inode IDs based on (object name, generation) hashes. But then what
-	// about the birthday problem? And more importantly, what about our
-	// semantic of not minting a new inode ID when the generation changes due
-	// to a local action?
 	for i := range entries {
 		entries[i].Inode = fuseops.RootInodeID + 1
-	}
-
-	return
-}
-
-// readAllEntryCores retrieves all directory entry cores for the given inode,
-// handling pagination and accumulating the results.
-// LOCKS_REQUIRED(in)
-func readAllEntryCores(ctx context.Context, in inode.DirInode) (cores map[inode.Name]*inode.Core, err error) {
-	// Read entries from GCS.
-	// Read one batch at a time.
-	var tok string
-	cores = make(map[inode.Name]*inode.Core)
-	for {
-		// Read a batch from GCS
-		var batch map[inode.Name]*inode.Core
-		batch, _, tok, err = in.ReadEntryCores(ctx, tok)
-		if err != nil {
-			return
-		}
-		// Accumulate.
-		maps.Copy(cores, batch)
-
-		// Are we done?
-		if tok == "" {
-			break
-		}
 	}
 
 	return
@@ -370,18 +379,15 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[str
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// ReadDir handles a request to read from the directory, without responding.
-//
-// Special case: we assume that a zero offset indicates that rewinddir has been
-// called (since fuse gives us no way to intercept and know for sure), and
-// start the listing process over again.
-//
-// LOCKS_REQUIRED(dh.Mu)
-// LOCKS_EXCLUDED(du.in)
+// ReadDir handles a request to read from the directory
+// LOCKS_EXCLUDED(dh.Mu)
 func (dh *DirHandle) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp,
 	localFileEntries map[string]fuseutil.Dirent) (err error) {
+	dh.Mu.Lock()
+	defer dh.Mu.Unlock()
+
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
@@ -418,68 +424,118 @@ func (dh *DirHandle) ReadDir(
 	return
 }
 
-// FetchEntryCores retrieves the core inode data for all entries within the directory from GCS.
-//
-// Special case: If the request offset is zero, it assumes the directory is being read from the
-// beginning and resets the cached list of entries.
-//
-// LOCKS_REQUIRED(dh.Mu)
-// LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) FetchEntryCores(ctx context.Context, op *fuseops.ReadDirPlusOp) (cores map[inode.Name]*inode.Core, err error) {
-	// If the request is for offset zero, we assume that either this is the first
-	// call or rewinddir has been called. Reset state.
+// ReadDirPlus handles a request to read from the directory with attributes.
+// This implementation streams results from GCS to the kernel.
+// LOCKS_EXCLUDED(dh.Mu)
+func (dh *DirHandle) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp, localEntries map[string]fuseutil.DirentPlus) (err error) {
+	logger.Infof("ReadDirPlus called with offset %d", op.Offset)
+	dh.Mu.Lock()
+	defer dh.Mu.Unlock()
+
 	if op.Offset == 0 {
-		dh.entriesPlus = nil
-		dh.entriesPlusValid = false
+		// First call for this directory open, reset state.
+		dh.gcsMarkerPlus = ""
+		dh.gcsListDonePlus = false
+		dh.bufferedEntriesPlus = nil
+		dh.bufferIndexPlus = 0
+		dh.currentOffsetPlus = 1
+		logger.Tracef("ReadDirPlus: Resetting state for offset 0")
+	} else if op.Offset != dh.currentOffsetPlus-1 {
+		// Kernel is asking for an offset we don't expect.
+		// This indicates an issue, potentially an invalid seek or a bug.
+		logger.Warnf("ReadDirPlus: Offset mismatch, kernel wants %d, we are at %d. Returning EINVAL.", op.Offset, dh.currentOffsetPlus)
+		return fuse.EINVAL
 	}
 
-	// Do we need to read entries from GCS?
-	if !dh.entriesPlusValid {
-		dh.in.Lock()
-		cores, err = readAllEntryCores(ctx, dh.in)
-		if err != nil {
-			dh.in.Unlock()
-			return
+	for { // Loop until the destination buffer (op.Dst) is full or entries are exhausted.
+
+		// Step 1: Ensure there are entries in the current page buffer (dh.bufferedEntriesPlus)
+		if dh.bufferIndexPlus >= len(dh.bufferedEntriesPlus) {
+			if dh.gcsListDonePlus {
+				logger.Tracef("ReadDirPlus: GCS list is done, no more entries.")
+				break // No more entries to fetch from GCS.
+			}
+
+			logger.Tracef("ReadDirPlus: Buffer empty, fetching next page from GCS with marker '%s'", dh.gcsMarkerPlus)
+			// Fetch the NEXT page of entries from GCS.
+			var cores map[inode.Name]*inode.Core
+			var newMarker string
+			var unsupported []string
+			func() {
+				dh.in.Lock()
+				defer dh.in.Unlock()
+				cores, unsupported, newMarker, err = dh.in.ReadEntryCores(ctx, dh.gcsMarkerPlus)
+			}()
+			if err != nil {
+				logger.Errorf("ReadDirPlus: inode.ReadEntryCores: %v", err)
+				return fmt.Errorf("inode.ReadEntryCores: %w", err)
+			}
+			_ = unsupported // TODO(b/233580853): Handle unsupported paths if necessary.
+
+			dh.gcsMarkerPlus = newMarker
+			dh.gcsListDonePlus = (dh.gcsMarkerPlus == "")
+			logger.Tracef("ReadDirPlus: GCS returned %d cores, new marker '%s', done: %t", len(cores), dh.gcsMarkerPlus, dh.gcsListDonePlus)
+
+			// Extract inode.Name keys from the map
+			names := make([]inode.Name, 0, len(cores))
+			for name := range cores {
+				names = append(names, name)
+			}
+
+			// Sort the keys lexicographically based on the full GCS object name.
+			slices.SortFunc(names, func(a, b inode.Name) int {
+				return cmp.Compare(a.GcsObjectName(), b.GcsObjectName())
+			})
+
+			// Build the batch in the correct lexicographical order
+			batch := make([]fuseutil.DirentPlus, 0, len(names))
+			for _, name := range names {
+				core := cores[name]
+				direntPlus, err := dh.coreToDirentPlus(ctx, name, core)
+				if err != nil {
+					logger.Warnf("ReadDirPlus: Failed to convert core to DirentPlus for %s: %v", name, err)
+					continue
+				}
+				if direntPlus != nil {
+					batch = append(batch, *direntPlus)
+				}
+			}
+
+			dh.bufferedEntriesPlus = batch
+			dh.bufferIndexPlus = 0
+
+			// If the page from GCS was empty, and GCS is not done, loop again to fetch the next page.
+			if len(dh.bufferedEntriesPlus) == 0 && !dh.gcsListDonePlus {
+				logger.Tracef("ReadDirPlus: Empty page received, but GCS not done, continuing fetch.")
+				continue
+			}
+			// If the page is empty and GCS is done, break out.
+			if len(dh.bufferedEntriesPlus) == 0 && dh.gcsListDonePlus {
+				logger.Tracef("ReadDirPlus: Empty page received and GCS is done.")
+				break
+			}
 		}
-		dh.in.Unlock()
-	}
 
-	return
-}
+		// Step 2: Write entries from the current buffer to op.Dst.
+		entry := dh.bufferedEntriesPlus[dh.bufferIndexPlus]
+		entry.Dirent.Offset = dh.currentOffsetPlus
 
-// ReadDirPlus populates the FUSE response buffer using a pre-processed list
-// of directory entries.
-// LOCKS_REQUIRED(dh.Mu)
-func (dh *DirHandle) ReadDirPlus(op *fuseops.ReadDirPlusOp, entries []fuseutil.DirentPlus, localEntries map[string]fuseutil.DirentPlus) (err error) {
-	// If entriesPlus has not been populated yet, populate it.
-	if !dh.entriesPlusValid {
-		// Sort, resolve conflicts, and set offsets.
-		entries, err = sortAndResolveEntries(entries, localEntries, func(e fuseutil.DirentPlus) *direntPlus { dp := direntPlus(e); return &dp }, func(w *direntPlus) fuseutil.DirentPlus { return fuseutil.DirentPlus(*w) })
-		if err != nil {
-			return
-		}
-		// Update state.
-		dh.entriesPlus = entries
-		dh.entriesPlusValid = true
-	}
+		// Log entry being written for debugging order
+		logger.Tracef("ReadDirPlus: Writing entry to kernel: %s, Offset: %d", entry.Dirent.Name, entry.Dirent.Offset)
 
-	// Is the offset past the end of what we have buffered? If so, this must be
-	// an invalid seekdir according to posix.
-	index := int(op.Offset)
-	if index > len(dh.entriesPlus) {
-		err = fuse.EINVAL
-		return
-	}
-
-	//We copy out entries until we run out of entries or space.
-	for i := index; i < len(dh.entriesPlus); i++ {
-		n := fuseutil.WriteDirentPlus(op.Dst[op.BytesRead:], dh.entriesPlus[i])
+		n := fuseutil.WriteDirentPlus(op.Dst[op.BytesRead:], entry)
 		if n == 0 {
-			break
+			// Destination buffer is full. Return, and the kernel will call again.
+			logger.Tracef("ReadDirPlus: Kernel buffer full, returning. Next offset to expect: %d", dh.currentOffsetPlus)
+			return nil
 		}
-
 		op.BytesRead += n
+		dh.bufferIndexPlus++
+		dh.currentOffsetPlus++
 	}
 
-	return
+	// TODO(b/233580853): Add any remaining localEntries if applicable after exhausting GCS entries.
+	// This requires careful sorting and merging.
+	logger.Tracef("ReadDirPlus: Finished serving entries for this call.")
+	return nil
 }

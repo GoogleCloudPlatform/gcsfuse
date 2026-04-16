@@ -99,9 +99,11 @@ func (t *DirHandleTest) resetDirHandle() {
 		cfg)
 
 	t.dh = NewDirHandle(
-		dirInode,
-		true,
-	)
+	dirInode,
+	true,
+	nil,
+	nil,
+)
 }
 
 func (t *DirHandleTest) validateEntry(entry fuseutil.Dirent, name string, filetype fuseutil.DirentType) {

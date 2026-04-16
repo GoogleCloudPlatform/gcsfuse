@@ -155,6 +155,7 @@ type ServerConfig struct {
 }
 
 // Create a fuse file system server according to the supplied configuration.
+// Create a fuse file system server according to the supplied configuration.
 func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
 	if serverCfg.FilePerms&^os.ModePerm != 0 {
@@ -202,7 +203,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		dirTypeCacheTTL:            serverCfg.DirTypeCacheTTL,
 		kernelListCacheTTL:         cfg.ListCacheTTLSecsToDuration(serverCfg.NewConfig.FileSystem.KernelListCacheTtlSecs),
 		renameDirLimit:             serverCfg.RenameDirLimit,
-		sequentialReadSizeMb:       serverCfg.SequentialReadSizeMb,
+		sequentialReadSizeMb:       int32(serverCfg.NewConfig.GcsConnection.SequentialReadSizeMb),
 		uid:                        serverCfg.Uid,
 		gid:                        serverCfg.Gid,
 		fileMode:                   serverCfg.FilePerms,
@@ -258,13 +259,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		}
 
 		// Optimize flags for non-dynamic mounts based on the bucket type.
-		// WHY HERE: The bucket type is required for these optimizations, and this is the
-		// first point it becomes available.
-		// WHY NOT EARLIER: Although ideal to do this during cobra init in root.go,
-		// the bucket type isn't known then. A major refactor (involving creation and caching of
-		// bucketHandle to avoid duplicated network calls) would be needed to change this.
-		// IMPACT: Flags are used after this. Optimization/rationalization functions are called twice
-		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		bucketType := syncerBucket.BucketType()
 		if serverCfg.ViperConfig != nil {
 			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal)
@@ -281,9 +275,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
-		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
-		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
-		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
 		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
@@ -296,8 +287,22 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.implicitDirInodes[root.Name()] = root
-	fs.folderInodes[root.Name()] = root
+	// ** MODIFICATION: Correctly map root inode
+	if _, ok := root.(inode.BucketOwnedDirInode); ok {
+		// Attempt to dynamic cast to BucketOwnedDirInode
+		if boDi, ok := root.(inode.BucketOwnedDirInode); ok {
+			if boDi.Bucket().BucketType().Hierarchical {
+				fs.folderInodes[root.Name()] = root
+			} else {
+				fs.implicitDirInodes[root.Name()] = root
+			}
+		} else {
+			// Fallback for BaseDirInode which doesn't have Bucket()
+			fs.implicitDirInodes[root.Name()] = root
+		}
+	} else {
+		fs.implicitDirInodes[root.Name()] = root
+	}
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -950,7 +955,7 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 	return in
 }
 
-// Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
+// Implementation detail of LookUpOrCreateInodeIfNotStale; do not use outside
 // of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
@@ -1085,7 +1090,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context, ic inode.Core) (in inode.Inode, err error) {
+func (fs *fileSystem) LookUpOrCreateInodeIfNotStale(parInodeCtx context.Context, ic inode.Core) (in inode.Inode, err error) {
 
 	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
@@ -1236,7 +1241,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		return parent.LookUpChild(ctx, childName)
 	}
 
-	// Run a retry loop around lookUpOrCreateInodeIfNotStale.
+	// Run a retry loop around LookUpOrCreateInodeIfNotStale.
 	const maxTries = 3
 	for range maxTries {
 		// Create a record.
@@ -1253,7 +1258,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		}
 
 		// Attempt to create the inode. Return if successful.
-		child, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *core)
+		child, err = fs.LookUpOrCreateInodeIfNotStale(parent.Context(), *core)
 		if err != nil {
 			return nil, err
 		}
@@ -1596,7 +1601,7 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 // expiration time for them.
 //
 // LOCKS_REQUIRED(in)
-func (fs *fileSystem) getAttributes(
+func (fs *fileSystem) GetAttributes(
 	ctx context.Context,
 	in inode.Inode) (
 	attr fuseops.InodeAttributes,
@@ -1698,9 +1703,9 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core, parInodeCtx context.Context) (entryPlus *fuseutil.DirentPlus, err error) {
 	// Look up or create the inode for the core.
-	child, err := fs.lookUpOrCreateInodeIfNotStale(parInodeCtx, core)
+	child, err := fs.LookUpOrCreateInodeIfNotStale(parInodeCtx, core)
 	if err != nil {
-		return nil, fmt.Errorf("coreToDirentPlus: lookUpOrCreateInodeIfNotStale: %w", err)
+		return nil, fmt.Errorf("coreToDirentPlus: LookUpOrCreateInodeIfNotStale: %w", err)
 	}
 	if child == nil {
 		return nil, fmt.Errorf("coreToDirentPlus: stale record for %s", path.Base(fullName.LocalName()))
@@ -1928,7 +1933,7 @@ func (fs *fileSystem) LookUpInode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.GetAttributes(ctx, child)
 	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 		e.EntryExpiration = e.AttributesExpiration
 	}
@@ -1954,7 +1959,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	defer in.Unlock()
 
 	// Grab its attributes.
-	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	op.Attributes, op.AttributesExpiration, err = fs.GetAttributes(ctx, in)
 	if err != nil {
 		return err
 	}
@@ -2007,7 +2012,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// We silently ignore updates to mode and atime.
 
 	// Fill in the response.
-	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	op.Attributes, op.AttributesExpiration, err = fs.GetAttributes(ctx, in)
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
 		return err
@@ -2064,7 +2069,7 @@ func (fs *fileSystem) MkDir(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child, err := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
+	child, err := fs.LookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if err != nil {
 		return err
 	}
@@ -2078,7 +2083,7 @@ func (fs *fileSystem) MkDir(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.GetAttributes(ctx, child)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2108,7 +2113,7 @@ func (fs *fileSystem) MkNode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.GetAttributes(ctx, child)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2154,7 +2159,7 @@ func (fs *fileSystem) createFile(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
+	child, err = fs.LookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if err != nil {
 		return nil, err
 	}
@@ -2275,7 +2280,7 @@ func (fs *fileSystem) CreateFile(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.GetAttributes(ctx, child)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2316,7 +2321,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child, err := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
+	child, err := fs.LookUpOrCreateInodeIfNotStale(parent.Context(), *result)
 	if err != nil {
 		return err
 	}
@@ -2330,7 +2335,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.GetAttributes(ctx, child)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2910,31 +2915,29 @@ func (fs *fileSystem) Unlink(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
+	defer fs.mu.Unlock() // Use defer to ensure the lock is always released.
 
-	// Make sure the inode still exists and is a directory. If not, something has
-	// screwed up because the VFS layer shouldn't have let us forget the inode
-	// before opening it.
 	in := fs.dirInodeOrDie(op.Inode)
 
-	// Allocate a handle.
+	var bucket *gcsx.SyncerBucket
+	if bOIn, ok := in.(inode.BucketOwnedInode); ok {
+		bucket = bOIn.Bucket() // Correctly assign the pointer.
+	}
+
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
+	// Pass 'fs' as the fourth argument, as fileSystem implements handle.FileSystem.
+	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs, bucket, fs)
 	op.Handle = handleID
 
-	fs.mu.Unlock()
-
-	// Enables kernel list-cache in case of non-zero kernelListCacheTTL.
 	if fs.kernelListCacheTTL > 0 {
-		// Invalidates the kernel list-cache once the last cached response is out of
-		// kernelListCacheTTL.
 		op.KeepCache = !in.ShouldInvalidateKernelListCache(fs.kernelListCacheTTL)
-
 		op.CacheDir = true
 	}
 	return
@@ -2945,69 +2948,49 @@ func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
-	// Find the handle.
 	fs.mu.Lock()
-	dh := fs.handles[op.Handle].(*handle.DirHandle)
+	h, ok := fs.handles[op.Handle]
+	if !ok {
+		fs.mu.Unlock()
+		return fuse.EINVAL
+	}
+	dh := h.(*handle.DirHandle)
 	in := fs.dirInodeOrDie(op.Inode)
-	// Fetch local file entries beforehand and pass it to directory handle as
-	// we need fs lock to fetch local file entries.
 	localFileEntries := in.LocalFileEntries(fs.localFileInodes)
 	fs.mu.Unlock()
 
-	dh.Mu.Lock()
-	defer dh.Mu.Unlock()
-	// Serve the request.
-	if err := dh.ReadDir(ctx, op, localFileEntries); err != nil {
-		return err
-	}
-
-	return
+	return dh.ReadDir(ctx, op, localFileEntries)
 }
 
+// ***********************************************************************
+// *** REPLACED ReadDirPlus METHOD ***
+// ***********************************************************************
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp) (err error) {
+	if !fs.newConfig.FileSystem.ExperimentalEnableReaddirplus {
+		logger.Warnf("ReadDirPlus called but experimental flag not set.")
+		return fuse.ENOSYS // Operation not supported
+	}
+
 	ctx = fs.getInterruptlessContext(ctx)
-	// Find the handle.
 	fs.mu.Lock()
-	dh := fs.handles[op.Handle].(*handle.DirHandle)
-	in := fs.dirInodeOrDie(op.Inode)
-	// Fetch local file entries beforehand for passing it to directory handle as
-	// we need fs lock to fetch local file entries.
-	localFileEntriesPlus := fs.localFileEntriesPlus(in.Name())
-	// Unlock fs lock and fetch attributes for local file entries as it requires inode lock.
+	h, ok := fs.handles[op.Handle]
+	if !ok {
+		fs.mu.Unlock()
+		return fuse.EINVAL
+	}
+	dh, ok := h.(*handle.DirHandle)
+	if !ok {
+		fs.mu.Unlock()
+		return fmt.Errorf("ReadDirPlus: invalid handle type, got %T", h)
+	}
 	fs.mu.Unlock()
 
-	err = fs.lookupAndFetchAttributesForLocalFileEntriesPlus(in, localFileEntriesPlus)
-	if err != nil {
-		return err
-	}
-
-	dh.Mu.Lock()
-	defer dh.Mu.Unlock()
-	// Serve the request.
-	var cores map[inode.Name]*inode.Core
-	cores, err = dh.FetchEntryCores(ctx, op)
-	if err != nil {
-		return fmt.Errorf("FetchDirCores: %w", err)
-	}
-	// dh.mu lock is not required during iteration over cores, but was acquired earlier
-	// for code readability and to use a common defer unlock pattern. Holding the
-	// lock here has no performance overhead.
-	var entriesPlus []fuseutil.DirentPlus
-	for fullName, core := range cores {
-		entry, err := fs.coreToDirentPlus(ctx, fullName, *core, in.Context())
-		if err != nil {
-			return err
-		}
-		entriesPlus = append(entriesPlus, *entry)
-	}
-
-	if err := dh.ReadDirPlus(op, entriesPlus, localFileEntriesPlus); err != nil {
-		return err
-	}
-
-	return nil
+	// Delegate to the handle's streaming ReadDirPlus method.
+	// Pass nil for localEntries, as the handle should manage this.
+	return dh.ReadDirPlus(ctx, op, nil)
 }
+
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(

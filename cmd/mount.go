@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
+	"github.com/jacobsa/fuse/fuseutil" // Added import
 	"github.com/jacobsa/timeutil"
 )
 
@@ -55,15 +56,13 @@ func mountWithStorageHandle(
 		logger.Infof("Creating a temporary directory at %q\n", newConfig.FileSystem.TempDir)
 		var f *os.File
 		f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir))
-		f.Close()
-
 		if err != nil {
 			err = fmt.Errorf(
-				"error writing to temporary directory (%q); are you sure it exists "+
-					"with the correct permissions",
-				err.Error())
+				"error writing to temporary directory (%q): %w",
+				newConfig.FileSystem.TempDir, err)
 			return
 		}
+		f.Close()
 	}
 
 	// Find the current process's UID and GID. If it was invoked as root and the
@@ -139,14 +138,24 @@ be interacting with the file system.`)
 		serverCfg.Notifier = fuse.NewNotifier()
 	}
 
-	logger.Infof("Creating a new server...\n")
-	server, err := fs.NewServer(ctx, serverCfg)
+	logger.Infof("Creating a new file system instance...\n") // Modified log
+
+	fileSystem, err := fs.NewFileSystem(ctx, serverCfg) // Changed from NewServer
 	if err != nil {
-		err = fmt.Errorf("fs.NewServer: %w", err)
-		return
+		return nil, fmt.Errorf("fs.NewFileSystem: %w", err) // Adjusted error
 	}
 
 	fsName := fsName(bucketName)
+
+	// ======================================================
+	// FIXED BLOCK (Incorporating the change)
+	// ======================================================
+
+	logger.Infof("Creating new FUSE server for %q...", fsName)
+
+	server := fuseutil.NewFileSystemServer(fileSystem) // User's central change
+
+	// ======================================================
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
