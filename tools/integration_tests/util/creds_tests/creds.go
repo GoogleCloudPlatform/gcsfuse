@@ -32,7 +32,6 @@ import (
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
@@ -62,37 +61,48 @@ func projectID(ctx context.Context) string {
 
 func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath string) {
 	log.Println("Running credentials tests...")
+	return CreateCredentialsForSA(ctx, NameOfServiceAccount, CredentialsSecretName)
+}
 
-	id := projectID(ctx)
+func CreateCredentialsForSA(ctx context.Context, serviceAccountName, saCredentialsSecretName string) (serviceAccountEmail, localKeyFilePath string) {
+	log.Printf("Creating credentials for %s...", serviceAccountName)
+
+	projID := projectID(ctx)
 
 	// Service account id format is name@project-id.iam.gserviceaccount.com
-	serviceAccount = NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
+	serviceAccountEmail = serviceAccountName + "@" + projID + ".iam.gserviceaccount.com"
 
-	// Download credentials
-	client, err := secretmanager.NewClient(ctx)
+	// Create secretmanager client to download service account credential file.
+	smClient, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Failed to create secret manager client: %v", err))
 	}
-	defer client.Close()
+	defer func() {
+		if err := smClient.Close(); err != nil {
+			log.Printf("Failed to close secret manager client: %v", err)
+		}
+	}()
 	req := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/latest", id, CredentialsSecretName),
+		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/latest", projID, saCredentialsSecretName),
 	}
-	creds, err := client.AccessSecretVersion(ctx, req)
+	secretVersion, err := smClient.AccessSecretVersion(ctx, req)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while fetching key file %v", err))
 	}
 
 	// Create and write creds to local file.
-	file, err := os.CreateTemp("", "creds-*.json")
+	keyFile, err := os.CreateTemp("", "creds-*.json")
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while creating temp credentials file %v", err))
 	}
-	localKeyFilePath = file.Name()
-	_, err = file.Write(creds.Payload.Data)
+	localKeyFilePath = keyFile.Name()
+	_, err = keyFile.Write(secretVersion.Payload.Data)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while writing credentials to local file %v", err))
 	}
-	operations.CloseFile(file)
+	if err := keyFile.Close(); err != nil {
+		log.Printf("Failed to close key file: %v", err)
+	}
 
 	return
 }

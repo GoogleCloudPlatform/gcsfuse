@@ -203,7 +203,7 @@ func setDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientCo
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, bucketName string) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
@@ -228,7 +228,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		setRetryConfig(ctx, sc, clientConfig)
 	}
 
-	err = verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc)
+	err = verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject)
 	unSetDirectPathEnvVariable()
 	if err != nil {
 		return nil, err
@@ -237,7 +237,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	return sc, nil
 }
 
-func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client) error {
+func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string) error {
 	// Verify DirectPath connection by performing an stat call on the bucket
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
 	// Apply detection retry config for initial verification
@@ -248,7 +248,11 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	// Retrieving object attrs through Go Storage Client.
 	var notFoundError *gcs.NotFoundError
 	var testObject = "gcsfuse-dp-object"
-	_, statErr := sc.Bucket(bucketName).Object(testObject).Attrs(verifyCtx)
+	bucketHandle := sc.Bucket(bucketName)
+	if billingProject != "" {
+		bucketHandle = bucketHandle.UserProject(billingProject)
+	}
+	_, statErr := bucketHandle.Object(testObject).Attrs(verifyCtx)
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {
@@ -383,6 +387,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
 	// GetStorageLayout API is not supported for storage-testbench, which are identified by custom-endpoint containing localhost.
 	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "localhost") {
+		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
+		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
 		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
@@ -419,17 +425,17 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, bucketName string) (*storage.Client, error) {
+func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, bucketName string, billingProject string) (*storage.Client, error) {
 	var err error
 	if isbucketZonal {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true, bucketName)
+			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true, bucketName, billingProject)
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.GRPC {
-		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName)
+		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
@@ -442,13 +448,13 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, buck
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
 }
 
-func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Context, bucketName string) (*storage.Client, error) {
+func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Context, bucketName string, billingProject string) (*storage.Client, error) {
 	if sh.grpcClient != nil {
 		return sh.grpcClient, nil
 	}
 
 	var err error
-	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, bucketName)
+	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, bucketName, billingProject)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
 		return sh.grpcClient, nil
@@ -503,7 +509,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		return nil, fmt.Errorf("storageLayout call failed: %s", err)
 	}
 
-	client, err = sh.getClient(ctx, bucketType.Zonal, bucketName)
+	client, err = sh.getClient(ctx, bucketType.Zonal, bucketName, billingProject)
 	if err != nil {
 		return nil, err
 	}
@@ -520,6 +526,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		controlClient:        controlClient,
 		bucketType:           bucketType,
 		finalizeFileForRapid: finalizeFileForRapid,
+		billingProject:       billingProject,
 	}
 
 	return

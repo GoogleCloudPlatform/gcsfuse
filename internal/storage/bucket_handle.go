@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/metadata"
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
@@ -43,6 +44,7 @@ type bucketHandle struct {
 	bucketType           *gcs.BucketType
 	controlClient        StorageControlClient
 	finalizeFileForRapid bool
+	billingProject       string
 }
 
 func (bh *bucketHandle) Name() string {
@@ -375,6 +377,10 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 	if err != nil {
 		err = fmt.Errorf("error while setting attribute selection for List Object query :%w", err)
 		return
+	}
+
+	if bh.billingProject != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", bh.billingProject)
 	}
 
 	itr := bh.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
