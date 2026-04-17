@@ -45,15 +45,15 @@ type dirent fuseutil.Dirent
 type direntPlus fuseutil.DirentPlus
 
 // For Dirent
-func (d *dirent) EntryName() string          { return d.Name }
-func (d *dirent) SetName(name string)        { d.Name = name }
-func (d *dirent) EntryType() fuseutil.DirentType { return d.Type }
+func (d *dirent) EntryName() string                  { return d.Name }
+func (d *dirent) SetName(name string)                { d.Name = name }
+func (d *dirent) EntryType() fuseutil.DirentType     { return d.Type }
 func (d *dirent) SetOffset(offset fuseops.DirOffset) { d.Offset = offset }
 
 // For DirentPlus
-func (dp *direntPlus) EntryName() string          { return dp.Dirent.Name }
-func (dp *direntPlus) SetName(name string)        { dp.Dirent.Name = name }
-func (dp *direntPlus) EntryType() fuseutil.DirentType { return dp.Dirent.Type }
+func (dp *direntPlus) EntryName() string                  { return dp.Dirent.Name }
+func (dp *direntPlus) SetName(name string)                { dp.Dirent.Name = name }
+func (dp *direntPlus) EntryType() fuseutil.DirentType     { return dp.Dirent.Type }
 func (dp *direntPlus) SetOffset(offset fuseops.DirOffset) { dp.Dirent.Offset = offset }
 
 const (
