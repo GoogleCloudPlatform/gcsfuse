@@ -33,7 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
-	"github.com/jacobsa/fuse/fuseutil" // Added import
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -150,7 +150,6 @@ be interacting with the file system.`)
 
 	logger.Infof("Creating new FUSE server for %q...", fsName)
 	server := fuseutil.NewFileSystemServer(fileSystem)
-	// ** NECESSARY CHANGES END HERE **
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
