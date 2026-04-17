@@ -28,6 +28,7 @@ usage() {
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
   echo "    --zonal                                      Run tests with zonal bucket in --bucket-location region."
   echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
+  echo "    --max-flake-retries           <count>        Number of times to retry a failed test. (Default: 1)"
   echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
@@ -131,6 +132,7 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 BUILD_BINARY_IN_SCRIPT=true
+MAX_FLAKE_RETRIES=1
 TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 RUN_PACKAGE_REGEX=""
@@ -138,7 +140,7 @@ SKIP_EMULATOR=false
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,max-flake-retries:,track-resource-usage,output-dir:,help,run-package:,skip-emulator
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -193,6 +195,10 @@ while (( $# >= 1 )); do
         --zonal)
             RUN_TESTS_WITH_ZONAL_BUCKET=true
             shift
+            ;;
+        --max-flake-retries)
+            MAX_FLAKE_RETRIES="$2"
+            shift 2
             ;;
         --track-resource-usage)
             TRACK_RESOURCE_USAGE=true
@@ -272,6 +278,7 @@ if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then
   log_error "Option --test-installed-package and --install-package-from-path are mutually exclusive. Please set only one"
   usage 1
 fi
+validate_option_value "--max-flake-retries" "$MAX_FLAKE_RETRIES"
 
 # Zonal Bucket location validation.
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
@@ -717,29 +724,58 @@ test_package() {
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
 
-  local go_test_cmd test_package_log_file start=$SECONDS exit_code=0 
+  local go_test_cmd start exit_code=0 end
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-  test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
-  # Run the package test command and capture log output with runtime stats.
-  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
 
-  if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
-    exit_code=1
-    log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
-  else
-    log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
-  fi
+  local attempt=0
+  while : ; do
+    start=$SECONDS
+    local current_log_file
+    if [ "$attempt" -eq 0 ]; then
+      current_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
+    else
+      current_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}/retry_attempt_${attempt}.txt")
+    fi
+    
+    log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt $((attempt + 1)))"
 
-  local end=$SECONDS
+    if ! eval "$go_test_cmd" > "$current_log_file" 2>&1; then
+      exit_code=1
+      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt $((attempt + 1)))"
+    else
+      exit_code=0
+      log_info "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt $((attempt + 1)))"
+    fi
+    end=$SECONDS
 
-  # Add the package stats to the file.
-  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
-  # Generate Kokoro artifacts(log) files.
-  generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
-  # Call the helper to organize logs and cleanup the original file
-  organize_test_logfile "$exit_code" "$test_package_log_file" "$package_name" "$bucket_type"
+    # Add the package stats to the file after EVERY attempt.
+    echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+
+    # Organize log file
+    local base_filename="$package_name"
+    if [ "$attempt" -gt 0 ]; then
+      base_filename="${package_name}_attempt_${attempt}"
+    fi
+    
+    # Generate artifacts for Kokoro if this is the last attempt
+    if [[ "$exit_code" -eq 0 ]] || [ "$attempt" -eq "$MAX_FLAKE_RETRIES" ]; then
+      generate_test_log_artifacts "$current_log_file" "$package_name" "$bucket_type"
+    fi
+
+    organize_test_logfile "$exit_code" "$current_log_file" "$base_filename" "$bucket_type"
+
+    if [[ "$exit_code" -eq 0 ]]; then
+      break
+    fi
+
+    attempt=$((attempt + 1))
+    if [ "$attempt" -gt "$MAX_FLAKE_RETRIES" ]; then
+      break
+    fi
+  done
+
   return "$exit_code"
 }
 

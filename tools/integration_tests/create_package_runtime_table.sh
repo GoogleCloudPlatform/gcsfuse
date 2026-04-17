@@ -30,7 +30,9 @@
 #
 # EXAMPLE FILE CONTENT:
 #     pkg1 bucket-standard 0 0 120
+#     pkg2 bucket-premium 1 0 60
 #     pkg2 bucket-premium 0 60 180
+#     pkg3 bucket-standard 1 0 120
 #     pkg3 bucket-standard 1 120 240
 # ==============================================================================
 
@@ -53,6 +55,7 @@ trap 'rm -rf "$VENV_DIR"' EXIT
 PYTHON_SCRIPT_FILE="$VENV_DIR/visualize.py"
 cat << 'EOF' > "$PYTHON_SCRIPT_FILE"
 import sys, os
+from collections import defaultdict
 
 # Column indices for the input file data
 IDX_PKG_NAME = 0
@@ -70,13 +73,12 @@ MIN_LEN_RUNTIME_BAR_HEADER = 31
 
 # Estimated padding for table columns
 PADDING_TIME_COL = 8
-PADDING_STATUS_COL = 10
+PADDING_STATUS_COL = 25
 PADDING_BORDERS = 20
 
 WIDTH_FALLBACK = 80
 SECONDS_PER_MINUTE = 60
 
-# Verify command line arguments
 if len(sys.argv) != 2:
     print(f"Usage: {sys.argv[0]} <FILE_PATH>")
     sys.exit(1)
@@ -86,40 +88,78 @@ if not os.path.isfile(path):
     print(f"Error: File '{path}' not found.")
     sys.exit(1)
 
-# Read input file, filter out empty lines, and sort alphabetically
 with open(path) as f:
-    lines = sorted([l.split() for l in f if l.strip()])
+    lines = [l.split() for l in f if l.strip()]
 
-# Use the 'rich' library to generate a pretty table visualization
+# Group by package and bucket
+groups = defaultdict(list)
+for p in lines:
+    if len(p) >= MIN_REQUIRED_FIELDS:
+        groups[(p[IDX_PKG_NAME], p[IDX_BUCKET_TYPE])].append(p)
+
+# Sort groups by package name and bucket type
+sorted_keys = sorted(groups.keys())
+
 try:
     from rich.console import Console
     from rich.table import Table
     import shutil
 
     # Calculate optimal table width based on content
-    valid_lines = [p for p in lines if len(p) >= MIN_REQUIRED_FIELDS]
-    if valid_lines:
-        max_pkg = max(MIN_LEN_PKG_NAME_HEADER, max(len(p[IDX_PKG_NAME]) for p in valid_lines))
-        max_type = max(MIN_LEN_BUCKET_TYPE_HEADER, max(len(p[IDX_BUCKET_TYPE]) for p in valid_lines))
-        max_rt = max(MIN_LEN_RUNTIME_BAR_HEADER, max(int(p[IDX_START_TIME]) // SECONDS_PER_MINUTE + (int(p[IDX_END_TIME]) - int(p[IDX_START_TIME]) + SECONDS_PER_MINUTE) // SECONDS_PER_MINUTE for p in valid_lines))
+    if groups:
+        max_pkg = max(MIN_LEN_PKG_NAME_HEADER, max(len(k[0]) for k in groups.keys()))
+        max_type = max(MIN_LEN_BUCKET_TYPE_HEADER, max(len(k[1]) for k in groups.keys()))
+        
+        # For runtime bar, we need to find the max total time
+        max_total_time = 0
+        for key, items in groups.items():
+            total_run = 0
+            total_wait = 0
+            for p in items:
+                start, end = int(p[IDX_START_TIME]), int(p[IDX_END_TIME])
+                total_wait += start // SECONDS_PER_MINUTE
+                total_run += (end - start + SECONDS_PER_MINUTE) // SECONDS_PER_MINUTE
+            max_total_time = max(max_total_time, total_wait + total_run)
+            
+        max_rt = max(MIN_LEN_RUNTIME_BAR_HEADER, max_total_time)
         table_width = max_pkg + max_type + PADDING_TIME_COL + PADDING_STATUS_COL + max_rt + PADDING_BORDERS
     else:
         table_width = WIDTH_FALLBACK
-    # Initialize Console and Table with appropriate width and styling
+
     term_width = shutil.get_terminal_size().columns
     console = Console(width=max(term_width, table_width))
     table = Table(title="e2e Test Packages Runtime", show_header=True, header_style="bold magenta")
     for col, kwargs in [("Package Name", {"style": "cyan"}), ("Bucket Type", {"style": "blue"}), 
-                        ("Time", {"justify": "right"}), ("Runtime (░=1m wait, ▓=1m run)", {}),
+                        ("Time", {"justify": "right"}), ("Runtime (░=total wait, ▓=total run)", {}),
                         ("Status", {"justify": "center"})]: table.add_column(col, **kwargs)
 
-    # Populate table rows
-    for p in lines:
-        if len(p) >= MIN_REQUIRED_FIELDS:
-            code, start, end = int(p[IDX_EXIT_CODE]), int(p[IDX_START_TIME]), int(p[IDX_END_TIME])
-            wait, run = start // SECONDS_PER_MINUTE, (end - start + SECONDS_PER_MINUTE) // SECONDS_PER_MINUTE
-            status = "[green]✅ PASSED[/]" if code == 0 else "[red]❌ FAILED[/]"
-            table.add_row(p[IDX_PKG_NAME], p[IDX_BUCKET_TYPE], f"{run}m", f"[dim]{'░'*wait}[/][cyan]{'▓'*run}[/]", status)
+    for key in sorted_keys:
+        items = groups[key]
+        pkg_name, bucket_type = key
+        
+        attempts = len(items)
+        succeeded = any(int(p[IDX_EXIT_CODE]) == 0 for p in items)
+        
+        total_wait = 0
+        total_run = 0
+        for p in items:
+            start, end = int(p[IDX_START_TIME]), int(p[IDX_END_TIME])
+            total_wait += start // SECONDS_PER_MINUTE
+            total_run += (end - start + SECONDS_PER_MINUTE) // SECONDS_PER_MINUTE
+            
+        if succeeded:
+            if attempts > 1:
+                status = f"[yellow]✅ FLAKY (Attempt {attempts})[/]"
+            else:
+                status = "[green]✅ PASSED[/]"
+        else:
+            if attempts > 1:
+                status = f"[red]❌ FAILED (Attempt {attempts})[/]"
+            else:
+                status = "[red]❌ FAILED[/]"
+                
+        table.add_row(pkg_name, bucket_type, f"{total_run}m", f"[dim]{'░'*total_wait}[/][cyan]{'▓'*total_run}[/]", status)
+        
     console.print(table)
     
 except ImportError:
