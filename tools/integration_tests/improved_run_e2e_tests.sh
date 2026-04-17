@@ -424,47 +424,51 @@ acquire_lock() {
   fi
   local lock_file="$1"
   local timeout_seconds=600 # 10 minutes
-  exec 200>"$lock_file" || {
+  local lock_fd
+  exec {lock_fd}>"$lock_file" || {
     log_error "Could not open lock file $lock_file."
     exit 1
   }
   # Attempt to acquire the lock with a timeout
-  if ! flock -x -w "$timeout_seconds" 200; then
+  if ! flock -x -w "$timeout_seconds" "$lock_fd"; then
     log_error "Failed to acquire lock on $lock_file within $timeout_seconds seconds."
     # Close the file descriptor if the lock was not acquired
-    exec 200>&-
+    exec {lock_fd}>&-
     exit 1
   fi
+  LAST_LOCK_FD="$lock_fd"
   return 0
 }
 
 # release_lock: Releases lock or exits script on failure.
-# Args: $1 = path to lock file
+# Args: $1 = lock file descriptor
 release_lock() {
-  if [[ -z "$1" ]]; then
-    log_error "release_lock: Lock file path is required."
+  local lock_fd="$1"
+  if [[ -z "$lock_fd" ]]; then
+    log_error "release_lock: Lock file descriptor is required."
     exit 1
   fi
-  local lock_file="$1"
-  [[ -e "/proc/self/fd/200" || -L "/proc/self/fd/200" ]] && exec 200>&- || {
-    log_error "Lock file descriptor (FD 200) not open for $lock_file. Possible previous error or double release."
+  exec {lock_fd}>&- || {
+    log_error "Failed to close lock file descriptor $lock_fd."
     exit 1
-  } # FD not open or close failed
+  }
   return 0
 }
 
 # logs info to stdout exclusively. used in background commands to ensure logs aren't interleaved.
 log_info_locked() {
   acquire_lock "$LOG_LOCK_FILE"
+  local fd="$LAST_LOCK_FD"
   log_info "$1"
-  release_lock "$LOG_LOCK_FILE"
+  release_lock "$fd"
 }
 
 # logs error to stdout exclusively. Used in background commands to ensure logs aren't interleaved.
 log_error_locked() {
   acquire_lock "$LOG_LOCK_FILE"
+  local fd="$LAST_LOCK_FD"
   log_error "$1"
-  release_lock "$LOG_LOCK_FILE"
+  release_lock "$fd"
 }
 
 # Helper method to organize the test log file based on exit code and bucket type.
@@ -527,10 +531,11 @@ create_bucket() {
       return 1
     fi
     acquire_lock "$BUCKET_CREATION_LOCK_FILE"
+    local fd="$LAST_LOCK_FD"
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
     local status=$?
     sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
-    release_lock "$BUCKET_CREATION_LOCK_FILE"
+    release_lock "$fd"
     if [ $status -eq 0 ]; then
       break
     fi
@@ -538,8 +543,9 @@ create_bucket() {
   echo "$bucket_name"
   # Append to created buckets list file for cleanup
   acquire_lock "$BUCKET_CREATION_LOCK_FILE"
+  local fd="$LAST_LOCK_FD"
   echo "$bucket_name" >> "$CREATED_BUCKETS_LIST_FILE"
-  release_lock "$BUCKET_CREATION_LOCK_FILE"
+  release_lock "$fd"
   rm -rf "$bucket_cmd_log"
   return 0
 }
@@ -710,8 +716,8 @@ create_bucket_and_run_test() {
   fi
 
   # Check if already successful (fast path without lock)
-  if [ -f "${OUTPUT_DIR}/status/${package_name}.success" ]; then
-    log_info_locked "Package [$package_name] already succeeded. Skipping $pkg_arg."
+  if [ -f "${OUTPUT_DIR}/status/${package_name}_${bucket_type}.success" ]; then
+    log_info_locked "Package [$package_name] already succeeded for bucket type [$bucket_type]. Skipping $pkg_arg."
     return 0
   fi
 
@@ -721,11 +727,12 @@ create_bucket_and_run_test() {
 
   # Acquire lock for the package
   acquire_lock "$pkg_lock_file"
+  local fd="$LAST_LOCK_FD"
 
   # Check again after acquiring lock
-  if [ -f "${OUTPUT_DIR}/status/${package_name}.success" ]; then
-    log_info_locked "Package [$package_name] already succeeded (checked after lock). Skipping $pkg_arg."
-    release_lock "$pkg_lock_file"
+  if [ -f "${OUTPUT_DIR}/status/${package_name}_${bucket_type}.success" ]; then
+    log_info_locked "Package [$package_name] already succeeded for bucket type [$bucket_type] (checked after lock). Skipping $pkg_arg."
+    release_lock "$fd"
     return 0
   fi
 
@@ -742,10 +749,10 @@ create_bucket_and_run_test() {
   # If successful, mark it in status file
   if [ $exit_code -eq 0 ]; then
     mkdir -p "${OUTPUT_DIR}/status"
-    touch "${OUTPUT_DIR}/status/${package_name}.success"
+    touch "${OUTPUT_DIR}/status/${package_name}_${bucket_type}.success"
   fi
 
-  release_lock "$pkg_lock_file"
+  release_lock "$fd"
   return $exit_code
 }
 
