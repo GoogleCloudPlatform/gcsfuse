@@ -382,6 +382,21 @@ filter_array() {
   mapfile -t arr < <(printf '%s\n' "${arr[@]}" | grep $invert -E "$regex")
 }
 
+# expand_package_list: Expands an array of packages to include retry attempts.
+# Args: $1 = name of the array variable, $2 = max retries.
+expand_package_list() {
+  local -n arr=$1
+  local max_retries=$2
+  local -a expanded=()
+
+  for attempt in $(seq 1 $max_retries); do
+    for pkg in "${arr[@]}"; do
+      expanded+=("$pkg $attempt")
+    done
+  done
+  arr=("${expanded[@]}")
+}
+
 # Test packages for regional buckets.
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
 # Test packages for zonal buckets.
@@ -394,6 +409,11 @@ if [[ -n "$RUN_PACKAGE_REGEX" ]]; then
   filter_array TEST_PACKAGES_FOR_RB "$RUN_PACKAGE_REGEX"
   filter_array TEST_PACKAGES_FOR_ZB "$RUN_PACKAGE_REGEX"
 fi
+
+expand_package_list TEST_PACKAGES_FOR_RB "$MAX_FLAKE_RETRIES"
+expand_package_list TEST_PACKAGES_FOR_ZB "$MAX_FLAKE_RETRIES"
+expand_package_list TEST_PACKAGES_FOR_TPC "$MAX_FLAKE_RETRIES"
+
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
@@ -678,25 +698,67 @@ create_bucket_and_run_test() {
     log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
     return 1
   fi
-  local package_name="$1"
+  local pkg_arg="$1"
   local bucket_type="$2"
 
+  # Extract base package name and attempt
+  local package_name="$pkg_arg"
+  local attempt=1
+  if [[ "$pkg_arg" =~ (.*)[[:space:]]([0-9]+) ]]; then
+    package_name="${BASH_REMATCH[1]}"
+    attempt="${BASH_REMATCH[2]}"
+  fi
+
+  # Check if already successful (fast path without lock)
+  if [ -f "${OUTPUT_DIR}/status/${package_name}.success" ]; then
+    log_info_locked "Package [$package_name] already succeeded. Skipping $pkg_arg."
+    return 0
+  fi
+
+  # Create a lock file for this package
+  local pkg_lock_file="${OUTPUT_DIR}/locks/${package_name}.lock"
+  mkdir -p "$(dirname "$pkg_lock_file")"
+
+  # Acquire lock for the package
+  acquire_lock "$pkg_lock_file"
+
+  # Check again after acquiring lock
+  if [ -f "${OUTPUT_DIR}/status/${package_name}.success" ]; then
+    log_info_locked "Package [$package_name] already succeeded (checked after lock). Skipping $pkg_arg."
+    release_lock "$pkg_lock_file"
+    return 0
+  fi
+
+  local exit_code=0
+  local bucket_name
   if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
     log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
-    return 1
+    exit_code=1
+  else
+    test_package "$package_name" "$bucket_name" "$bucket_type" "$attempt"
+    exit_code=$?
   fi
-  test_package "$package_name" "$bucket_name" "$bucket_type"
+
+  # If successful, mark it in status file
+  if [ $exit_code -eq 0 ]; then
+    mkdir -p "${OUTPUT_DIR}/status"
+    touch "${OUTPUT_DIR}/status/${package_name}.success"
+  fi
+
+  release_lock "$pkg_lock_file"
+  return $exit_code
 }
 
 # Helper method to executes e2e test package.
 test_package() {
-  if [[ $# -ne 3 ]]; then
+  if [[ $# -lt 3 || $# -gt 4 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
     return 1
   fi
   local package_name="$1"
   local bucket_name="$2"
   local bucket_type="$3"
+  local attempt="${4:-1}"
 
   # Build go package test command.
   local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
@@ -725,57 +787,28 @@ test_package() {
   fi
 
   local go_test_cmd start exit_code=0 end
-  # Use printf %q to quote each argument safely for eval
-  # This ensures spaces and special characters within arguments are handled correctly.
   go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
 
-  local attempt=0
-  while : ; do
-    start=$SECONDS
-    local current_log_file
-    if [ "$attempt" -eq 0 ]; then
-      current_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
-    else
-      current_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}/retry_attempt_${attempt}.txt")
-    fi
-    
-    log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt $((attempt + 1)))"
+  start=$SECONDS
+  test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_${attempt}.txt")
 
-    if ! eval "$go_test_cmd" > "$current_log_file" 2>&1; then
-      exit_code=1
-      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt $((attempt + 1)))"
-    else
-      exit_code=0
-      log_info "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt $((attempt + 1)))"
-    fi
-    end=$SECONDS
+  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] as [${package_name}_${attempt}]"
 
-    # Add the package stats to the file after EVERY attempt.
-    echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
+    exit_code=1
+    log_info "Failed test package [$package_name] for bucket type [$bucket_type] as [${package_name}_${attempt}]"
+  else
+    exit_code=0
+    log_info "Passed test package [$package_name] for bucket type [$bucket_type] as [${package_name}_${attempt}]"
+  fi
+  end=$SECONDS
 
-    # Organize log file
-    local base_filename="$package_name"
-    if [ "$attempt" -gt 0 ]; then
-      base_filename="${package_name}_attempt_${attempt}"
-    fi
-    
-    # Generate artifacts for Kokoro if this is the last attempt
-    if [[ "$exit_code" -eq 0 ]] || [ "$attempt" -eq "$MAX_FLAKE_RETRIES" ]; then
-      generate_test_log_artifacts "$current_log_file" "$package_name" "$bucket_type"
-    fi
-
-    organize_test_logfile "$exit_code" "$current_log_file" "$base_filename" "$bucket_type"
-
-    if [[ "$exit_code" -eq 0 ]]; then
-      break
-    fi
-
-    attempt=$((attempt + 1))
-    if [ "$attempt" -gt "$MAX_FLAKE_RETRIES" ]; then
-      break
-    fi
-  done
-
+ # Add the package stats to the file.
+  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  # Generate Kokoro artifacts(log) files.
+  generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
+  # Call the helper to organize logs and cleanup the original file
+  organize_test_logfile "$exit_code" "$test_package_log_file" "$package_name" "$bucket_type"
   return "$exit_code"
 }
 
@@ -935,7 +968,7 @@ run_test_group() {
   local group_exit_code=0
   log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type}" "${test_packages[@]}"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test '@' ${bucket_type}" "${test_packages[@]}"
   group_exit_code=$?
 
   if [ "$group_exit_code" -ne 0 ]; then
