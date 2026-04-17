@@ -227,14 +227,13 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// TODO(b/503624405): Make the direct-path verification fatal after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
-
 		if status.Code(verifyErr) == codes.DeadlineExceeded {
 			logger.Info("DirectPath verification timed out, continuing without DirectPath verification: %v", verifyErr)
 		} else {
 			logger.Warnf("DirectPath verification failed, continuing without DirectPath: %v", verifyErr)
 		}
 	} else {
-		logger.Infof("DirectPath verification succeeded, continuing with DirectPath")
+		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
 	}
 
 	return sc, nil
