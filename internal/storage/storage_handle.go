@@ -40,7 +40,9 @@ import (
 	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -225,9 +227,14 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// TODO(b/503624405): Make the direct-path verification fatal after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
-		logger.Warnf("DirectPath verification failed, continuing without DirectPath guarantee: %v", verifyErr)
-		// Apply production retry config since verification skipped it on failure.
-		setRetryConfig(ctx, sc, clientConfig)
+
+		if status.Code(verifyErr) == codes.DeadlineExceeded {
+			logger.Info("DirectPath verification timed out, continuing without DirectPath verification: %v", verifyErr)
+		} else {
+			logger.Warnf("DirectPath verification failed, continuing without DirectPath: %v", verifyErr)
+		}
+	} else {
+		logger.Infof("DirectPath verification succeeded, continuing with DirectPath")
 	}
 
 	return sc, nil
@@ -238,7 +245,14 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
 	// Apply detection retry config for initial verification
 	setDPDetectionRetryConfig(ctx, sc, clientConfig)
-	verifyCtx, verifyCancel := context.WithTimeout(ctx, directPathDetectionTimeout)
+
+	// Restore the production level retry config.
+	defer func() {
+		logger.Infof("Applying production retry config after DirectPath verification.")
+		setRetryConfig(ctx, sc, clientConfig)
+	}()
+
+	verifyCtx, verifyCancel := context.WithTimeout(ctx, time.Millisecond)
 	defer verifyCancel()
 
 	// Retrieving object attrs through Go Storage Client.
@@ -255,9 +269,6 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 		return fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, statErr)
 	}
 
-	logger.Infof("DirectPath verification successful for bucket %q, applying production retry config", bucketName)
-	// DirectPath is working! Now apply production retry config for actual usage.
-	setRetryConfig(ctx, sc, clientConfig)
 	return nil
 }
 
