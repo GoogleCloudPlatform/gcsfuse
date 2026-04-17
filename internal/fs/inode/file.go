@@ -33,8 +33,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -128,9 +128,9 @@ type FileInode struct {
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
-	mrdInstance *gcsx.MrdInstance
+	mrdInstance  *gcsx.MrdInstance
 	metricHandle metrics.MetricHandle
-	traceHandle tracing.TraceHandle
+	traceHandle  tracing.TraceHandle
 }
 
 var _ Inode = &FileInode{}
@@ -1103,7 +1103,6 @@ func (f *FileInode) Truncate(
 	}
 	return false, f.truncateUsingTempFile(ctx, size)
 }
-
 
 // recordFallback maps util.OpenMode to metrics.OpenMode and records the fallback metric.
 func (f *FileInode) recordFallback(openMode util.OpenMode, reason metrics.WriteFallbackReason) {
