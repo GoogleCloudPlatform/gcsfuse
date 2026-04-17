@@ -21,6 +21,10 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
+var (
+	emptyFinisher = func() {}
+)
+
 type noopTracer struct{}
 
 func (*noopTracer) StartSpan(ctx context.Context, traceName string) (context.Context, trace.Span) {
@@ -36,6 +40,12 @@ func (*noopTracer) EndSpan(span trace.Span) {}
 func (*noopTracer) RecordError(span trace.Span, err error) {}
 
 func (o *noopTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {}
+
+func (o *noopTracer) SetUploadAttributes(span trace.Span, bytesUploaded int64, objectName string) {}
+
+func (*noopTracer) TraceUpload(ctx context.Context, name string, objName string, bytes *int64, err *error) (context.Context, func()) {
+	return ctx, emptyFinisher
+}
 
 // Return the new context as it is as this is a no-op implementation
 func (*noopTracer) PropagateTraceContext(newCtx context.Context, _ context.Context) context.Context {

@@ -114,4 +114,23 @@ const (
 	Fallocate = "fs.fallocate"
 	// SyncFS flushes all buffered data for the entire filesystem to disk.
 	SyncFS = "fs.sync_fs"
+
+	// --- Write Flow traces ---
+
+	// WriteFileStaged traces a write operation using the legacy staged writes.
+	WriteFileStaged = "write.staged"
+	// SyncFileStaged traces the synchronization of the staged temp file to GCS.
+	SyncFileStaged = "write.staged.sync"
+	// WriteFileStreaming traces a write operation using the buffered writes handler.
+	WriteFileStreaming = "write.streaming"
+	// SyncFileStreaming traces the synchronization of buffered writes to GCS.
+	SyncFileStreaming = "write.streaming.sync"
+	// StreamingUploadBlock traces the upload of a single streaming block to GCS.
+	StreamingUploadBlock = "write.streaming.upload.block"
+	// StreamingUploadFinalize traces the finalization of the streaming upload.
+	StreamingUploadFinalize = "write.streaming.upload.finalize"
+	// StreamingUploadFlush traces the flushing of pending streaming writes.
+	StreamingUploadFlush = "write.streaming.upload.flush"
+	// Tracks the complete go routine that trigger the async upload of the write blocks received
+	StreamingUploader = "write.streaming.uploader"
 )

@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -152,7 +153,8 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		isLocal,
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
-		nil)
+		nil,
+		tracing.NewNoopTracer())
 
 	// Set buffered write config for created inode.
 	t.in.config = &cfg.Config{Write: cfg.WriteConfig{
@@ -177,7 +179,7 @@ func (t *FileStreamingWritesCommon) TestIsUsingBWH() {
 
 func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnZeroSizeRecreatesBwhOnInitAgain() {
 	t.createBufferedWriteHandler()
-	err := t.in.flushUsingBufferedWriteHandler()
+	err := t.in.flushUsingBufferedWriteHandler(context.Background())
 	require.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
 
@@ -193,7 +195,7 @@ func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnNonZeroS
 	gcsSynced, err := t.in.Write(t.ctx, []byte("foobar"), 0, WriteMode)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	err = t.in.flushUsingBufferedWriteHandler()
+	err = t.in.flushUsingBufferedWriteHandler(context.Background())
 	require.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
 
@@ -238,7 +240,7 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 	assert.NoError(t.T(), err)
 	require.False(t.T(), gcsSynced)
 
-	gcsSynced, err = t.in.SyncPendingBufferedWrites()
+	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.True(t.T(), gcsSynced)
@@ -255,7 +257,7 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 	assert.False(t.T(), gcsSynced)
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
-	gcsSynced, err = t.in.SyncPendingBufferedWrites()
+	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.True(t.T(), gcsSynced)
@@ -289,7 +291,7 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
-	gcsSynced, err = t.in.SyncPendingBufferedWrites()
+	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -304,7 +306,7 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	assert.False(t.T(), gcsSynced)
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
-	gcsSynced, err = t.in.SyncPendingBufferedWrites()
+	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -812,14 +814,14 @@ type FakeBufferedWriteHandler struct {
 	FlushFunc func() (*gcs.MinObject, error)
 }
 
-func (t *FakeBufferedWriteHandler) Write(data []byte, offset int64) error {
+func (t *FakeBufferedWriteHandler) Write(ctx context.Context, data []byte, offset int64) error {
 	if t.WriteFunc != nil {
 		return t.WriteFunc(data, offset)
 	}
 	return nil
 }
 
-func (t *FakeBufferedWriteHandler) Flush() (*gcs.MinObject, error) {
+func (t *FakeBufferedWriteHandler) Flush(ctx context.Context) (*gcs.MinObject, error) {
 	if t.FlushFunc != nil {
 		return t.FlushFunc()
 	}
@@ -833,11 +835,11 @@ func (t *FakeBufferedWriteHandler) WriteFileInfo() bufferedwrites.WriteFileInfo 
 	}
 }
 
-func (t *FakeBufferedWriteHandler) Sync() (*gcs.MinObject, error) { return nil, nil }
-func (t *FakeBufferedWriteHandler) SetMtime(_ time.Time)          {}
-func (t *FakeBufferedWriteHandler) Truncate(_ int64) error        { return nil }
-func (t *FakeBufferedWriteHandler) Destroy() error                { return nil }
-func (t *FakeBufferedWriteHandler) Unlink()                       {}
+func (t *FakeBufferedWriteHandler) Sync(ctx context.Context) (*gcs.MinObject, error) { return nil, nil }
+func (t *FakeBufferedWriteHandler) SetMtime(_ time.Time)                             {}
+func (t *FakeBufferedWriteHandler) Truncate(_ int64) error                           { return nil }
+func (t *FakeBufferedWriteHandler) Destroy() error                                   { return nil }
+func (t *FakeBufferedWriteHandler) Unlink()                                          {}
 
 func (t *FakeBufferedWriteHandler) SetTotalSize() {}
 

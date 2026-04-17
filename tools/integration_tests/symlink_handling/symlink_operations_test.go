@@ -166,3 +166,18 @@ func (s *BaseSymlinkSuite) TestCopySymlink() {
 	_, err = os.Stat(s.targetPath)
 	s.Assert().NoError(err)
 }
+
+// TestReadStandardSymlinkInLegacyMode tests that a legacy mount can read a standard symlink.
+func (s *LegacySymlinksTestSuite) TestReadStandardSymlinkInLegacyMode() {
+	// Temporarily enable standard symlink creation to create a standard symlink object.
+	s.isStandardSymlink = true
+	defer func() { s.isStandardSymlink = false }()
+	s.createGCSSymlinkObject(s.linkName, s.targetPath)
+	linkPath := path.Join(s.testDirPath, s.linkName)
+
+	// Read the symlink via the legacy mount.
+	result, err := os.Readlink(linkPath)
+
+	s.Require().NoError(err)
+	s.Assert().Equal(s.targetPath, result)
+}

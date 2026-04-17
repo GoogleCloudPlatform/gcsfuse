@@ -15,6 +15,7 @@
 package bufferedwrites
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -23,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -32,16 +34,16 @@ import (
 type BufferedWriteHandler interface {
 	// Write writes the given data to the buffer. It writes to an existing buffer if
 	// the capacity is available otherwise writes to a new buffer.
-	Write(data []byte, offset int64) (err error)
+	Write(ctx context.Context, data []byte, offset int64) (err error)
 
 	// Sync uploads all the pending buffers to GCS.
 	// Sync returns
 	// 1. un-finalized object created on GCS for zonal buckets.
 	// 2. nil object for non-zonal buckets.
-	Sync() (*gcs.MinObject, error)
+	Sync(ctx context.Context) (*gcs.MinObject, error)
 
 	// Flush finalizes the upload.
-	Flush() (*gcs.MinObject, error)
+	Flush(ctx context.Context) (*gcs.MinObject, error)
 
 	// SetMtime stores the mtime with the bufferedWriteHandler.
 	SetMtime(mtime time.Time)
@@ -98,6 +100,7 @@ type CreateBWHandlerRequest struct {
 	GlobalMaxBlocksSem       *semaphore.Weighted
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
+	TraceHandle              tracing.TraceHandle
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
@@ -123,6 +126,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			BlockSize:                req.BlockSize,
 			ChunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+			TraceHandle:              req.TraceHandle,
 		}),
 		totalSize:     size,
 		mtime:         time.Now(),
@@ -131,7 +135,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 	return
 }
 
-func (wh *bufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error) {
+func (wh *bufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offset int64) (err error) {
 	// Fail early if the uploadHandler has already failed.
 	err = wh.uploadHandler.UploadError()
 	if err != nil {
@@ -145,16 +149,16 @@ func (wh *bufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error)
 
 	if offset == wh.truncatedSize {
 		// Check and update if any data filling has to be done.
-		err = wh.writeDataForTruncatedSize()
+		err = wh.writeDataForTruncatedSize(ctx)
 		if err != nil {
 			return
 		}
 	}
 
-	return wh.appendBuffer(data)
+	return wh.appendBuffer(ctx, data)
 }
 
-func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
+func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byte) (err error) {
 	dataWritten := 0
 	for dataWritten < len(data) {
 		if wh.current == nil {
@@ -175,7 +179,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 		dataWritten += bytesToCopy
 
 		if wh.current.Size() == wh.blockPool.BlockSize() {
-			err := wh.uploadHandler.Upload(wh.current)
+			err := wh.uploadHandler.Upload(ctx, wh.current)
 			if err != nil {
 				return err
 			}
@@ -187,10 +191,10 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 	return
 }
 
-func (wh *bufferedWriteHandlerImpl) Sync() (o *gcs.MinObject, err error) {
+func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject, err error) {
 	// Upload current block (for both regional and zonal buckets).
 	if wh.current != nil && wh.current.Size() != 0 {
-		err = wh.uploadHandler.Upload(wh.current)
+		err = wh.uploadHandler.Upload(ctx, wh.current)
 		if err != nil {
 			return nil, err
 		}
@@ -203,7 +207,7 @@ func (wh *bufferedWriteHandlerImpl) Sync() (o *gcs.MinObject, err error) {
 	// other operations like read.
 	// This functionality is exclusively supported on zonal buckets.
 	if wh.uploadHandler.bucket.BucketType().Zonal {
-		o, err = wh.uploadHandler.FlushPendingWrites()
+		o, err = wh.uploadHandler.FlushPendingWrites(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -225,7 +229,7 @@ func (wh *bufferedWriteHandlerImpl) Sync() (o *gcs.MinObject, err error) {
 }
 
 // Flush finalizes the upload.
-func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
+func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, error) {
 	// Fail early if upload already failed.
 	err := wh.uploadHandler.UploadError()
 	if err != nil {
@@ -233,20 +237,20 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	}
 
 	// In case it is a truncated file, upload empty blocks as required.
-	err = wh.writeDataForTruncatedSize()
+	err = wh.writeDataForTruncatedSize(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if wh.current != nil {
-		err := wh.uploadHandler.Upload(wh.current)
+		err := wh.uploadHandler.Upload(ctx, wh.current)
 		if err != nil {
 			return nil, err
 		}
 		wh.current = nil
 	}
 
-	obj, err := wh.uploadHandler.Finalize()
+	obj, err := wh.uploadHandler.Finalize(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
 	}
@@ -285,7 +289,7 @@ func (wh *bufferedWriteHandlerImpl) Destroy() error {
 	return wh.blockPool.ClearFreeBlockChannel(true)
 }
 
-func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
+func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize(ctx context.Context) error {
 	// If totalSize is greater than truncatedSize, that means user has
 	// written more data than they actually truncated in the beginning.
 	if wh.totalSize >= wh.truncatedSize {
@@ -298,7 +302,7 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
 	chunkSize := 1024 * 1024
 	for i := 0; i < int(diff); i += chunkSize {
 		size := math.Min(float64(chunkSize), float64(int(diff)-i))
-		err := wh.appendBuffer(make([]byte, int(size)))
+		err := wh.appendBuffer(ctx, make([]byte, int(size)))
 		if err != nil {
 			return err
 		}

@@ -899,10 +899,14 @@ func (s *TracingTestSuite) TestTraceWriteFile() {
 			require.NoError(t, err)
 
 			ss := s.globalExporter.GetSpans()
-			require.Len(t, ss, len(tt.spans))
-			for i, spanName := range tt.spans {
-				assert.Equal(t, spanName, ss[i].Name)
-				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			require.GreaterOrEqual(t, len(ss), len(tt.spans))
+			spanNamesInSS := make(map[string]trace.SpanKind)
+			for _, s := range ss {
+				spanNamesInSS[s.Name] = s.SpanKind
+			}
+			for _, spanName := range tt.spans {
+				assert.Contains(t, spanNamesInSS, spanName, "span %s not found", spanName)
+				assert.Equal(t, trace.SpanKindServer, spanNamesInSS[spanName])
 			}
 		})
 	}

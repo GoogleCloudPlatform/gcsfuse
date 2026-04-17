@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -333,6 +334,7 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 			},
 		},
 		MetricHandle:  mh,
+		TraceHandle:   tracing.NewNoopTracer(),
 		CacheClock:    &timeutil.SimulatedClock{},
 		BucketName:    bucketName,
 		BucketManager: bm,
