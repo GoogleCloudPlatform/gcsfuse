@@ -167,8 +167,7 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
-		tracing.NewNoopTracer(),
-		metrics.NewNoopMetrics())
+		tracing.NewNoopTracer(), nil)
 
 	t.in.Lock()
 }

@@ -33,7 +33,6 @@ import (
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -269,8 +268,7 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
-		tracing.NewNoopTracer(),
-		metrics.NewNoopMetrics()) // mrdCache
+		tracing.NewNoopTracer(), nil) // mrdCache
 	return
 }
 
