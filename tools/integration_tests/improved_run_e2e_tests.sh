@@ -423,7 +423,7 @@ acquire_lock() {
     exit 1
   fi
   local lock_file="$1"
-  local timeout_seconds=600 # 10 minutes
+  local timeout_seconds=5400 # 90 minutes
   local lock_fd
   exec {lock_fd}>"$lock_file" || {
     log_error "Could not open lock file $lock_file."
