@@ -40,7 +40,9 @@ import (
 	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -224,6 +226,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
+	defer unSetDirectPathEnvVariable()
 
 	var clientOpts []option.ClientOption
 	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
@@ -234,21 +237,20 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
 	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 
-	// Create client with DirectPath enforced
-	detectionCtx, cancel := context.WithTimeout(ctx, directPathDetectionTimeout)
-	defer cancel()
-	sc, err = storage.NewGRPCClient(detectionCtx, clientOpts...)
-	if err != nil {
-		unSetDirectPathEnvVariable()
+	if sc, err = storage.NewGRPCClient(ctx, clientOpts...); err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
-	} else {
-		setRetryConfig(ctx, sc, clientConfig)
 	}
+	setRetryConfig(ctx, sc, clientConfig)
 
-	err = verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc)
-	unSetDirectPathEnvVariable()
-	if err != nil {
-		return nil, err
+	// TODO(b/503624405): Make the direct-path verification fatal after making the dummy-stat reliable.
+	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc); verifyErr != nil {
+		if status.Code(verifyErr) == codes.DeadlineExceeded {
+			logger.Info("DirectPath verification timed out, continuing without DirectPath verification: %v", verifyErr)
+		} else {
+			logger.Warnf("DirectPath verification failed, continuing without DirectPath: %v", verifyErr)
+		}
+	} else {
+		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
 	}
 
 	return sc, nil
@@ -259,7 +261,14 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
 	// Apply detection retry config for initial verification
 	setDPDetectionRetryConfig(ctx, sc, clientConfig)
-	verifyCtx, verifyCancel := context.WithTimeout(ctx, directPathDetectionTimeout)
+
+	// Restore the production level retry config.
+	defer func() {
+		logger.Infof("Applying production retry config after DirectPath verification.")
+		setRetryConfig(ctx, sc, clientConfig)
+	}()
+
+	verifyCtx, verifyCancel := context.WithTimeout(ctx, time.Millisecond)
 	defer verifyCancel()
 
 	// Retrieving object attrs through Go Storage Client.
@@ -269,14 +278,9 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {
-		// DirectPath verification failed
-		sc.Close()
 		return fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, statErr)
 	}
 
-	logger.Infof("DirectPath verification successful for bucket %q, applying production retry config", bucketName)
-	// DirectPath is working! Now apply production retry config for actual usage.
-	setRetryConfig(ctx, sc, clientConfig)
 	return nil
 }
 
