@@ -296,7 +296,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	// ** MODIFICATION: Correctly map root inode
 	if _, ok := root.(inode.BucketOwnedDirInode); ok {
 		// Attempt to dynamic cast to BucketOwnedDirInode
 		if boDi, ok := root.(inode.BucketOwnedDirInode); ok {
