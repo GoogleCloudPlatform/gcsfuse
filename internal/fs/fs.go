@@ -155,7 +155,6 @@ type ServerConfig struct {
 }
 
 // Create a fuse file system server according to the supplied configuration.
-// Create a fuse file system server according to the supplied configuration.
 func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
 	if serverCfg.FilePerms&^os.ModePerm != 0 {
@@ -259,6 +258,13 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		}
 
 		// Optimize flags for non-dynamic mounts based on the bucket type.
+		// WHY HERE: The bucket type is required for these optimizations, and this is the
+		// first point it becomes available.
+		// WHY NOT EARLIER: Although ideal to do this during cobra init in root.go,
+		// the bucket type isn't known then. A major refactor (involving creation and caching of
+		// bucketHandle to avoid duplicated network calls) would be needed to change this.
+		// IMPACT: Flags are used after this. Optimization/rationalization functions are called twice
+		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		bucketType := syncerBucket.BucketType()
 		if serverCfg.ViperConfig != nil {
 			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal)
@@ -275,6 +281,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
+		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
+		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
+		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
 		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
@@ -2915,13 +2924,15 @@ func (fs *fileSystem) Unlink(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock() // Use defer to ensure the lock is always released.
+	defer fs.mu.Unlock()
 
+	// Make sure the inode still exists and is a directory. If not, something has
+	// screwed up because the VFS layer shouldn't have let us forget the inode
+	// before opening it.
 	in := fs.dirInodeOrDie(op.Inode)
 
 	var bucket *gcsx.SyncerBucket
@@ -2929,14 +2940,17 @@ func (fs *fileSystem) OpenDir(
 		bucket = bOIn.Bucket() // Correctly assign the pointer.
 	}
 
+    // Allocate a handle.
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	// Pass 'fs' as the fourth argument, as fileSystem implements handle.FileSystem.
 	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs, bucket, fs)
 	op.Handle = handleID
 
+	// Enables kernel list-cache in case of non-zero kernelListCacheTTL.
 	if fs.kernelListCacheTTL > 0 {
+		// Invalidates the kernel list-cache once the last cached response is out of
+		// kernelListCacheTTL.
 		op.KeepCache = !in.ShouldInvalidateKernelListCache(fs.kernelListCacheTTL)
 		op.CacheDir = true
 	}
@@ -2956,15 +2970,14 @@ func (fs *fileSystem) ReadDir(
 	}
 	dh := h.(*handle.DirHandle)
 	in := fs.dirInodeOrDie(op.Inode)
+	// Fetch local file entries beforehand and pass it to directory handle as
+	// we need fs lock to fetch local file entries.
 	localFileEntries := in.LocalFileEntries(fs.localFileInodes)
 	fs.mu.Unlock()
 
 	return dh.ReadDir(ctx, op, localFileEntries)
 }
 
-// ***********************************************************************
-// *** REPLACED ReadDirPlus METHOD ***
-// ***********************************************************************
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp) (err error) {
 	if !fs.newConfig.FileSystem.ExperimentalEnableReaddirplus {
