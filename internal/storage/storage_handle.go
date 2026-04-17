@@ -218,10 +218,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
 	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 
-	creationCtx, cancel := context.WithTimeout(ctx, directPathDetectionTimeout)
-	defer cancel()
-
-	if sc, err = storage.NewGRPCClient(creationCtx, clientOpts...); err != nil {
+	if sc, err = storage.NewGRPCClient(ctx, clientOpts...); err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
 	setRetryConfig(ctx, sc, clientConfig)
