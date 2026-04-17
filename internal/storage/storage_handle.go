@@ -207,6 +207,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
+	defer unSetDirectPathEnvVariable()
 
 	var clientOpts []option.ClientOption
 	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
@@ -229,13 +230,10 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		defer cancel()
 	}
 
-	sc, err = storage.NewGRPCClient(creationCtx, clientOpts...)
-	unSetDirectPathEnvVariable()
-	if err != nil {
+	if sc, err = storage.NewGRPCClient(creationCtx, clientOpts...); err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
-	} else {
-		setRetryConfig(ctx, sc, clientConfig)
 	}
+	setRetryConfig(ctx, sc, clientConfig)
 
 	if !skipDirectPathEnforcement {
 		err = verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject)
