@@ -57,7 +57,7 @@ const (
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts      = 5
-	directPathDetectionTimeout          = 10 * time.Second
+	directPathDetectionTimeout          = 5 * time.Minute
 	directPathDetectionMaxBackoff       = 5 * time.Second
 	directPathDetectionMaxRetryDuration = 1 * time.Minute
 )
