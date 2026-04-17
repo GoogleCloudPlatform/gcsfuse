@@ -29,11 +29,11 @@
 #     <package_name> <bucket_type> <exit_code> <start_time_seconds> <end_time_seconds>
 #
 # EXAMPLE FILE CONTENT:
-#     pkg1 bucket-standard 0 0 120
-#     pkg2 bucket-premium 1 0 60
-#     pkg2 bucket-premium 0 60 180
-#     pkg3 bucket-standard 1 0 120
-#     pkg3 bucket-standard 1 120 240
+#     operations hns 0 0 120
+#     operations hns 1 0 60
+#     local_file hns 0 60 180
+#     local_file flat 1 0 120
+#     streaming_writes flat 1 120 240
 # ==============================================================================
 
 if [ "$#" -ne 1 ]; then
@@ -72,7 +72,7 @@ MIN_LEN_BUCKET_TYPE_HEADER = 11
 MIN_LEN_RUNTIME_BAR_HEADER = 31
 
 # Estimated padding for table columns
-PADDING_TIME_COL = 8
+PADDING_TIME_COL = 16
 PADDING_STATUS_COL = 25
 PADDING_BORDERS = 20
 
@@ -131,7 +131,7 @@ try:
     table = Table(title="e2e Test Packages Runtime", show_header=True, header_style="bold magenta")
     for col, kwargs in [("Package Name", {"style": "cyan"}), ("Bucket Type", {"style": "blue"}), 
                         ("Time", {"justify": "right"}), ("Runtime (░=total wait, ▓=total run)", {}),
-                        ("Status", {"justify": "center"})]: table.add_column(col, **kwargs)
+                        ("Status", {"justify": "left"})]: table.add_column(col, **kwargs)
 
     for key in sorted_keys:
         items = groups[key]
@@ -140,25 +140,47 @@ try:
         attempts = len(items)
         succeeded = any(int(p[IDX_EXIT_CODE]) == 0 for p in items)
         
-        total_wait = 0
+        icon_str = ""
+        for p in items:
+            if int(p[IDX_EXIT_CODE]) == 0:
+                icon_str += "✅"
+            else:
+                icon_str += "❌"
+
+        bar_str = ""
+        last_end = 0
         total_run = 0
+        segments = []
+        run_times = []
+        # Sort items by start time to ensure correct timeline
+        items.sort(key=lambda x: int(x[IDX_START_TIME]))
         for p in items:
             start, end = int(p[IDX_START_TIME]), int(p[IDX_END_TIME])
-            total_wait += start // SECONDS_PER_MINUTE
-            total_run += (end - start + SECONDS_PER_MINUTE) // SECONDS_PER_MINUTE
+            wait = max(0, (start - last_end) // SECONDS_PER_MINUTE)
+            run = max(1, (end - start + SECONDS_PER_MINUTE) // SECONDS_PER_MINUTE)
+            
+            seg = ""
+            if wait > 0:
+                seg += '░' * wait
+            seg += '▓' * run
+            segments.append(seg)
+            
+            run_times.append(f"{run}m")
+            last_end = end
+            total_run += run
+            
+        bar_str = '|'.join(segments)
+        time_str = ', '.join(run_times)
             
         if succeeded:
             if attempts > 1:
-                status = f"[yellow]✅ FLAKY (Attempt {attempts})[/]"
+                status = f"[yellow]FLAKED {icon_str}[/]"
             else:
-                status = "[green]✅ PASSED[/]"
+                status = "[green]PASSED ✅[/]"
         else:
-            if attempts > 1:
-                status = f"[red]❌ FAILED (Attempt {attempts})[/]"
-            else:
-                status = "[red]❌ FAILED[/]"
+            status = f"[red]FAILED {icon_str}[/]"
                 
-        table.add_row(pkg_name, bucket_type, f"{total_run}m", f"[dim]{'░'*total_wait}[/][cyan]{'▓'*total_run}[/]", status)
+        table.add_row(pkg_name, bucket_type, time_str, bar_str, status)
         
     console.print(table)
     
