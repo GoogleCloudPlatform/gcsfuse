@@ -296,22 +296,19 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	if _, ok := root.(inode.BucketOwnedDirInode); ok {
-		// Attempt to dynamic cast to BucketOwnedDirInode
-		if boDi, ok := root.(inode.BucketOwnedDirInode); ok {
-			if boDi.Bucket().BucketType().Hierarchical {
-				fs.folderInodes[root.Name()] = root
-			} else {
-				fs.implicitDirInodes[root.Name()] = root
-			}
-		} else {
-			// Fallback for BaseDirInode which doesn't have Bucket()
-			fs.implicitDirInodes[root.Name()] = root
-		}
-	} else {
-		fs.implicitDirInodes[root.Name()] = root
-	}
-	root.Unlock()
+    if boDi, ok := root.(inode.BucketOwnedDirInode); ok {
+        // If the root is a BucketOwnedDirInode, check its bucket type.
+        if boDi.Bucket().BucketType().Hierarchical {
+            fs.folderInodes[root.Name()] = root
+        } else {
+            fs.implicitDirInodes[root.Name()] = root
+        }
+    } else {
+        // If the root is not a BucketOwnedDirInode (e.g., BaseDirInode for multi-bucket mounts),
+        // treat it as an implicit directory.
+        fs.implicitDirInodes[root.Name()] = root
+    }
+    root.Unlock()
 
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
@@ -1707,55 +1704,6 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 	return nil
 }
 
-// coreToDirentPlus creates a fuseutil.DirentPlus entry from an inode core.
-// LOCKS_EXCLUDED(fs.mu)
-func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core, parInodeCtx context.Context) (entryPlus *fuseutil.DirentPlus, err error) {
-	// Look up or create the inode for the core.
-	child, err := fs.LookUpOrCreateInodeIfNotStale(parInodeCtx, core)
-	if err != nil {
-		return nil, fmt.Errorf("coreToDirentPlus: LookUpOrCreateInodeIfNotStale: %w", err)
-	}
-	if child == nil {
-		return nil, fmt.Errorf("coreToDirentPlus: stale record for %s", path.Base(fullName.LocalName()))
-	}
-	defer child.Unlock()
-
-	// Extract the child's attributes.
-	attributes, err := child.Attributes(ctx, false)
-	if err != nil {
-		// The inode is valid, but we couldn't get attributes.
-		return nil, fmt.Errorf("coreToDirentPlus: unable to fetch attributes for %s: %w", path.Base(fullName.LocalName()), err)
-	}
-
-	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
-	entryPlus = &fuseutil.DirentPlus{
-		Dirent: fuseutil.Dirent{
-			Name:  path.Base(fullName.LocalName()),
-			Type:  fuseutil.DT_Unknown,
-			Inode: child.ID(),
-		},
-		Entry: fuseops.ChildInodeEntry{
-			Child:                child.ID(),
-			Attributes:           attributes,
-			AttributesExpiration: expiration,
-		},
-	}
-	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
-		entryPlus.Entry.EntryExpiration = expiration
-	}
-
-	// Set the directory entry type based on the core type.
-	switch core.Type() {
-	case metadata.SymlinkType:
-		entryPlus.Dirent.Type = fuseutil.DT_Link
-	case metadata.RegularFileType:
-		entryPlus.Dirent.Type = fuseutil.DT_File
-	case metadata.ImplicitDirType, metadata.ExplicitDirType:
-		entryPlus.Dirent.Type = fuseutil.DT_Directory
-	}
-
-	return entryPlus, nil
-}
 
 // LocalFileEntries lists the local files (file that is not yet present on GCS) present in the directory.
 // For each entry, only the Dirent field is populated; the ChildInodeEntry field is not set.
@@ -2996,12 +2944,27 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 		fs.mu.Unlock()
 		return fmt.Errorf("ReadDirPlus: invalid handle type, got %T", h)
 	}
+	in := fs.dirInodeOrDie(op.Inode)
+
+	// Fetch local file entries beforehand for passing it to directory handle.
+	// We need the fs lock to fetch local file entries.
+	localFileEntriesPlus := fs.localFileEntriesPlus(in.Name())
 	fs.mu.Unlock()
 
-	// Delegate to the handle's streaming ReadDirPlus method.
-	// Pass nil for localEntries, as the handle should manage this.
-	return dh.ReadDirPlus(ctx, op, nil)
+	// Unlock fs lock. Attributes for local file entries will be fetched
+	// within dh.ReadDirPlus, which acquires inode locks as needed.
+	// This function populates the .Entry field in the localFileEntriesPlus map.
+	err = fs.lookupAndFetchAttributesForLocalFileEntriesPlus(in, localFileEntriesPlus)
+	if err != nil {
+		return err
+	}
+
+	// Delegate to the handle's streaming ReadDirPlus method, passing local entries.
+	// dh.ReadDirPlus will merge these local entries with the streamed GCS results
+	// after exhausting all GCS pages.
+	return dh.ReadDirPlus(ctx, op, localFileEntriesPlus)
 }
+
 
 
 // LOCKS_EXCLUDED(fs.mu)

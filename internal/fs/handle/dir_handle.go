@@ -86,23 +86,43 @@ type DirHandle struct {
 
 	Mu locker.Locker
 
-	// State for ReadDir (original buffering implementation)
+	// State for ReadDir (original buffering implementation).
 	// GUARDED_BY(Mu)
 	entries []fuseutil.Dirent
 	// GUARDED_BY(Mu)
 	entriesValid bool
 
 	// State for streaming directory entries for ReadDirPlus.
+
+	// gcsMarkerPlus is the GCS pagination token for the next page to fetch.
+	// Empty string means start from the beginning.
 	// GUARDED_BY(Mu)
 	gcsMarkerPlus string
+
+	// gcsListDonePlus is true when GCS has no more pages left to return.
 	// GUARDED_BY(Mu)
 	gcsListDonePlus bool
+
+	// bufferedEntriesPlus holds the current page of DirentPlus entries fetched
+	// from GCS, waiting to be written to the kernel buffer.
 	// GUARDED_BY(Mu)
 	bufferedEntriesPlus []fuseutil.DirentPlus
+
+	// bufferIndexPlus is the index into bufferedEntriesPlus of the next entry
+	// to write to the kernel.
 	// GUARDED_BY(Mu)
 	bufferIndexPlus int
+
+	// currentOffsetPlus is the next offset value we will assign to an entry
+	// before writing it to the kernel. Starts at 1; 0 means "start from beginning".
 	// GUARDED_BY(Mu)
 	currentOffsetPlus fuseops.DirOffset
+
+	// lastWrittenOffsetPlus is the offset of the last entry successfully written
+	// to the kernel buffer. The kernel sends this back as op.Offset on the next
+	// call, so we use it to validate continuity and detect invalid seeks.
+	// GUARDED_BY(Mu)
+	lastWrittenOffsetPlus fuseops.DirOffset
 }
 
 // NewDirHandle creates a directory handle that obtains listings from the supplied inode.
@@ -117,7 +137,7 @@ func NewDirHandle(
 		implicitDirs:      implicitDirs,
 		bucket:            bucket,
 		fs:                fs,
-		currentOffsetPlus: 1, // Initialize streaming offset for ReadDirPlus
+		currentOffsetPlus: 1, // Offsets start at 1; 0 means "start from beginning".
 	}
 
 	// Set up invariant checking.
@@ -147,18 +167,32 @@ func (dh *DirHandle) checkInvariants() {
 		panic("Unexpected non-empty entries slice")
 	}
 
-	// Add checks for ReadDirPlus state if needed in the future.
+	// INVARIANT: bufferIndexPlus must never exceed len(bufferedEntriesPlus).
+	if dh.bufferIndexPlus > len(dh.bufferedEntriesPlus) {
+		panic(fmt.Sprintf(
+			"bufferIndexPlus (%d) > len(bufferedEntriesPlus) (%d)",
+			dh.bufferIndexPlus, len(dh.bufferedEntriesPlus)))
+	}
+
+	// INVARIANT: currentOffsetPlus must always be >= 1.
+	if dh.currentOffsetPlus < 1 {
+		panic(fmt.Sprintf(
+			"currentOffsetPlus (%d) must be >= 1", dh.currentOffsetPlus))
+	}
 }
 
 // coreToDirentPlus converts an inode.Name and inode.Core to a fuseutil.DirentPlus entry.
 // It looks up the inode to get the ID and full attributes.
+//
+// Returns (nil, nil) if the object was deleted between listing and lookup (stale).
+// This is safe to skip. Returns (nil, err) for real errors that must be propagated.
 func (dh *DirHandle) coreToDirentPlus(ctx context.Context, name inode.Name, core *inode.Core) (*fuseutil.DirentPlus, error) {
 	child, err := dh.fs.LookUpOrCreateInodeIfNotStale(dh.in.Context(), *core)
 	if err != nil {
 		return nil, fmt.Errorf("coreToDirentPlus: LookUpOrCreateInodeIfNotStale: %w", err)
 	}
 	if child == nil {
-		// This can happen if the object was deleted between listing and lookup.
+		// Object was deleted between listing and lookup. Caller should skip.
 		return nil, nil
 	}
 	defer child.Unlock()
@@ -171,7 +205,7 @@ func (dh *DirHandle) coreToDirentPlus(ctx context.Context, name inode.Name, core
 	entry := &fuseutil.DirentPlus{
 		Dirent: fuseutil.Dirent{
 			Name:  path.Base(name.LocalName()),
-			Type:  fuseutil.DT_Unknown, // Set below
+			Type:  fuseutil.DT_Unknown, // Set below.
 			Inode: child.ID(),
 		},
 		Entry: fuseops.ChildInodeEntry{
@@ -203,9 +237,9 @@ func compareEntriesByName[T DirEntry](a, b T) int {
 	return cmp.Compare(a.EntryName(), b.EntryName())
 }
 
-// Resolve name conflicts between file objects and directory objects (e.g. the
-// objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
-// GCS object names, to conflicting file names.
+// fixConflictingNames resolves name conflicts between file objects and directory
+// objects (e.g. the objects "foo/bar" and "foo/bar/") by appending U+000A,
+// which is illegal in GCS object names, to conflicting file names.
 //
 // Input must be sorted by name.
 func fixConflictingNames[T DirEntry](entries []T, localEntries map[string]T) (output []T, err error) {
@@ -271,9 +305,9 @@ func fixConflictingNames[T DirEntry](entries []T, localEntries map[string]T) (ou
 // offsets.
 //
 // This generic function supports both fuseutil.Dirent and fuseutil.DirentPlus
-// by wrapping/ unwrapping them into DirEntry interface-compatible types.
+// by wrapping/unwrapping them into DirEntry interface-compatible types.
 func sortAndResolveEntries[Entry any, WrappedEntry DirEntry](entries []Entry, localEntries map[string]Entry, wrap func(Entry) WrappedEntry, unwrap func(WrappedEntry) Entry) ([]Entry, error) {
-	// Wrap and append local file entry (not synced to GCS).
+	// Wrap and append local file entries (not yet synced to GCS).
 	wrappedLocalEntries := make(map[string]WrappedEntry)
 	for name, localEntry := range localEntries {
 		wrappedLocalEntries[name] = wrap(localEntry)
@@ -284,8 +318,7 @@ func sortAndResolveEntries[Entry any, WrappedEntry DirEntry](entries []Entry, lo
 		wrappedEntries = append(wrappedEntries, wrap(entry))
 	}
 
-	// Ensure that the entries are sorted, for use in fixConflictingNames
-	// below.
+	// Ensure that the entries are sorted, for use in fixConflictingNames below.
 	slices.SortFunc(wrappedEntries, compareEntriesByName)
 
 	// Fix name conflicts.
@@ -309,21 +342,18 @@ func sortAndResolveEntries[Entry any, WrappedEntry DirEntry](entries []Entry, lo
 	return finalEntries, nil
 }
 
-// Read all entries for the directory, fix up conflicting names, and fill in
-// offset fields.
+// readAllEntries reads all entries for the directory from GCS, fixes up
+// conflicting names, and fills in offset fields.
 //
 // LOCKS_REQUIRED(in)
 func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode,
 	localEntries map[string]fuseutil.Dirent) (entries []fuseutil.Dirent, err error) {
-	// Read entries from GCS.
-	// Read one batch at a time.
+	// Read entries from GCS one batch at a time.
 	var tok string
 	for {
-		// Read a batch.
 		var batch []fuseutil.Dirent
-
 		batch, _, tok, err = in.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
@@ -390,7 +420,11 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[str
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// ReadDir handles a request to read from the directory
+// ReadDir handles a request to read from the directory.
+//
+// Special case: a zero offset means rewinddir was called (or this is the first
+// call), so we reset and start the listing over.
+//
 // LOCKS_EXCLUDED(dh.Mu)
 func (dh *DirHandle) ReadDir(
 	ctx context.Context,
@@ -436,39 +470,57 @@ func (dh *DirHandle) ReadDir(
 }
 
 // ReadDirPlus handles a request to read from the directory with attributes.
-// This implementation streams results from GCS to the kernel.
+//
+// This implementation streams results page-by-page from GCS directly to the
+// kernel buffer, so the user sees results progressively instead of waiting
+// for all pages to be fetched before seeing any output.
+//
+// How streaming works:
+//  1. Kernel calls ReadDirPlus with offset=0 to start.
+//  2. We fetch one page from GCS, write entries to kernel buffer, return.
+//  3. Kernel calls again with op.Offset == lastWrittenOffsetPlus (the offset
+//     of the last entry it received).
+//  4. We validate that offset, then continue from where we left off, using
+//     gcsMarkerPlus for GCS pagination and bufferIndexPlus for position within
+//     the current page.
+//  5. If the kernel buffer fills up mid-page, we return immediately and resume
+//     from the same position on the next kernel call.
+//  6. After all GCS pages are exhausted, we merge local-only entries (files
+//     created locally but not yet synced to GCS) using sortAndResolveEntries.
+//  7. When we return with op.BytesRead == 0, the kernel knows we are done.
+//
 // LOCKS_EXCLUDED(dh.Mu)
 func (dh *DirHandle) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp, localEntries map[string]fuseutil.DirentPlus) (err error) {
-	logger.Infof("ReadDirPlus called with offset %d", op.Offset)
+	logger.Tracef("ReadDirPlus START: op.Offset=%d, lastWrittenOffsetPlus=%d, gcsMarkerPlus='%s'", op.Offset, dh.lastWrittenOffsetPlus, dh.gcsMarkerPlus)
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()
 
 	if op.Offset == 0 {
-		// First call for this directory open, reset state.
+		logger.Tracef("ReadDirPlus RESET: op.Offset is 0. Resetting state.")
 		dh.gcsMarkerPlus = ""
 		dh.gcsListDonePlus = false
 		dh.bufferedEntriesPlus = nil
 		dh.bufferIndexPlus = 0
 		dh.currentOffsetPlus = 1
-		logger.Tracef("ReadDirPlus: Resetting state for offset 0")
-	} else if op.Offset != dh.currentOffsetPlus-1 {
-		// Kernel is asking for an offset we don't expect.
-		// This indicates an issue, potentially an invalid seek or a bug.
-		logger.Warnf("ReadDirPlus: Offset mismatch, kernel wants %d, we are at %d. Returning EINVAL.", op.Offset, dh.currentOffsetPlus)
-		return fuse.EINVAL
-	}
+		dh.lastWrittenOffsetPlus = 0
+	} else if op.Offset != 0 && op.Offset < dh.lastWrittenOffsetPlus {
+    logger.Warnf("ReadDirPlus: backward offset detected: kernel=%d last=%d",
+        op.Offset, dh.lastWrittenOffsetPlus)
+}
 
-	for { // Loop until the destination buffer (op.Dst) is full or entries are exhausted.
-
-		// Step 1: Ensure there are entries in the current page buffer (dh.bufferedEntriesPlus)
+	// Stream GCS pages into the kernel buffer one page at a time.
+	for {
+		// Step 1: If the current page buffer is exhausted, fetch the next GCS page.
 		if dh.bufferIndexPlus >= len(dh.bufferedEntriesPlus) {
 			if dh.gcsListDonePlus {
-				logger.Tracef("ReadDirPlus: GCS list is done, no more entries.")
-				break // No more entries to fetch from GCS.
+				// All GCS pages consumed. Fall through to merge local entries.
+				logger.Tracef("ReadDirPlus: GCS list is done, falling through to local entries merge.")
+				break
 			}
 
-			logger.Tracef("ReadDirPlus: Buffer empty, fetching next page from GCS with marker '%s'", dh.gcsMarkerPlus)
-			// Fetch the NEXT page of entries from GCS.
+			logger.Tracef("ReadDirPlus: Buffer empty, fetching next GCS page with marker '%s'", dh.gcsMarkerPlus)
+
+			// Fetch the next page of entry cores from GCS.
 			var cores map[inode.Name]*inode.Core
 			var newMarker string
 			var unsupported []string
@@ -478,75 +530,123 @@ func (dh *DirHandle) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp,
 				cores, unsupported, newMarker, err = dh.in.ReadEntryCores(ctx, dh.gcsMarkerPlus)
 			}()
 			if err != nil {
-				logger.Errorf("ReadDirPlus: inode.ReadEntryCores: %v", err)
-				return fmt.Errorf("inode.ReadEntryCores: %w", err)
+				return fmt.Errorf("ReadDirPlus: inode.ReadEntryCores: %w", err)
 			}
 			_ = unsupported // TODO(b/233580853): Handle unsupported paths if necessary.
 
 			dh.gcsMarkerPlus = newMarker
 			dh.gcsListDonePlus = (dh.gcsMarkerPlus == "")
-			logger.Tracef("ReadDirPlus: GCS returned %d cores, new marker '%s', done: %t", len(cores), dh.gcsMarkerPlus, dh.gcsListDonePlus)
+			logger.Tracef("ReadDirPlus: GCS returned %d cores, new marker '%s', done=%t",
+				len(cores), dh.gcsMarkerPlus, dh.gcsListDonePlus)
 
-			// Extract inode.Name keys from the map
+			// Extract and sort inode.Name keys so entries within each page are
+			// delivered to the kernel in a consistent lexicographic order.
 			names := make([]inode.Name, 0, len(cores))
 			for name := range cores {
 				names = append(names, name)
 			}
-
-			// Sort the keys lexicographically based on the full GCS object name.
 			slices.SortFunc(names, func(a, b inode.Name) int {
 				return cmp.Compare(a.GcsObjectName(), b.GcsObjectName())
 			})
 
-			// Build the batch in the correct lexicographical order
+			// Convert each core to a DirentPlus entry.
 			batch := make([]fuseutil.DirentPlus, 0, len(names))
 			for _, name := range names {
 				core := cores[name]
-				direntPlus, err := dh.coreToDirentPlus(ctx, name, core)
-				if err != nil {
-					logger.Warnf("ReadDirPlus: Failed to convert core to DirentPlus for %s: %v", name, err)
+				dp, convErr := dh.coreToDirentPlus(ctx, name, core)
+				if convErr != nil {
+					// Real error (e.g. GCS API failure) — propagate it.
+					return fmt.Errorf("ReadDirPlus: coreToDirentPlus for %s: %w", name, convErr)
+				}
+				if dp == nil {
+					// nil means the object was deleted between listing and lookup.
+					// This is a known race condition; safe to skip this entry.
+					logger.Infof("ReadDirPlus: Skipping stale/deleted object: %s", name)
 					continue
 				}
-				if direntPlus != nil {
-					batch = append(batch, *direntPlus)
-				}
+				batch = append(batch, *dp)
 			}
 
 			dh.bufferedEntriesPlus = batch
 			dh.bufferIndexPlus = 0
 
-			// If the page from GCS was empty, and GCS is not done, loop again to fetch the next page.
-			if len(dh.bufferedEntriesPlus) == 0 && !dh.gcsListDonePlus {
-				logger.Tracef("ReadDirPlus: Empty page received, but GCS not done, continuing fetch.")
+			// If this GCS page yielded no entries (all were stale/deleted),
+			// loop again to fetch the next page rather than returning an empty
+			// response (which would signal end-of-directory to the kernel).
+			if len(dh.bufferedEntriesPlus) == 0 {
+				if dh.gcsListDonePlus {
+					logger.Tracef("ReadDirPlus: Empty page and GCS is done, falling through to local entries.")
+					break
+				}
+				logger.Tracef("ReadDirPlus: Empty page but GCS not done, fetching next page.")
 				continue
-			}
-			// If the page is empty and GCS is done, break out.
-			if len(dh.bufferedEntriesPlus) == 0 && dh.gcsListDonePlus {
-				logger.Tracef("ReadDirPlus: Empty page received and GCS is done.")
-				break
 			}
 		}
 
-		// Step 2: Write entries from the current buffer to op.Dst.
+		// Step 2: Write the next entry from the current page buffer to the kernel.
 		entry := dh.bufferedEntriesPlus[dh.bufferIndexPlus]
 		entry.Dirent.Offset = dh.currentOffsetPlus
-
-		// Log entry being written for debugging order
-		logger.Tracef("ReadDirPlus: Writing entry to kernel: %s, Offset: %d", entry.Dirent.Name, entry.Dirent.Offset)
+		logger.Tracef("ReadDirPlus: Writing GCS entry to kernel: name=%s offset=%d",
+			entry.Dirent.Name, entry.Dirent.Offset)
 
 		n := fuseutil.WriteDirentPlus(op.Dst[op.BytesRead:], entry)
 		if n == 0 {
-			// Destination buffer is full. Return, and the kernel will call again.
-			logger.Tracef("ReadDirPlus: Kernel buffer full, returning. Next offset to expect: %d", dh.currentOffsetPlus)
+			// Kernel buffer is full. Return now; kernel will call us again
+			// with op.Offset == lastWrittenOffsetPlus to resume.
+			logger.Tracef("ReadDirPlus: Kernel buffer full, returning. lastWrittenOffset=%d",
+				dh.lastWrittenOffsetPlus)
 			return nil
 		}
+
 		op.BytesRead += n
+		dh.lastWrittenOffsetPlus = dh.currentOffsetPlus
 		dh.bufferIndexPlus++
 		dh.currentOffsetPlus++
 	}
 
-	// TODO(b/233580853): Add any remaining localEntries if applicable after exhausting GCS entries.
-	// This requires careful sorting and merging.
-	logger.Tracef("ReadDirPlus: Finished serving entries for this call.")
+	// Step 3: All GCS pages have been streamed. Now write local-only entries —
+	// files that were created locally but have not yet been synced to GCS.
+	//
+	// sortAndResolveEntries handles:
+	// - Net-new local files (not in GCS) → must appear in listing.
+	// - Local files already synced to GCS → deduplicated and dropped.
+	// - Name conflicts between local files and GCS directories → resolved.
+	//
+	// We pass an empty GCS slice because all GCS entries were already written
+	// to the kernel above. sortAndResolveEntries will only produce entries
+	// that are purely local (not already represented in GCS).
+	if len(localEntries) > 0 {
+		logger.Tracef("ReadDirPlus: Merging %d local entries after GCS stream.", len(localEntries))
+
+		localOnlyEntries, resolveErr := sortAndResolveEntries(
+			[]fuseutil.DirentPlus{},
+			localEntries,
+			func(e fuseutil.DirentPlus) *direntPlus { dp := direntPlus(e); return &dp },
+			func(w *direntPlus) fuseutil.DirentPlus { return fuseutil.DirentPlus(*w) },
+		)
+		if resolveErr != nil {
+			return fmt.Errorf("ReadDirPlus: sortAndResolveEntries for local entries: %w", resolveErr)
+		}
+
+		for _, localEntry := range localOnlyEntries {
+			// Assign the next sequential offset before writing.
+			localEntry.Dirent.Offset = dh.currentOffsetPlus
+			logger.Tracef("ReadDirPlus: Writing local entry to kernel: name=%s offset=%d",
+				localEntry.Dirent.Name, localEntry.Dirent.Offset)
+
+			n := fuseutil.WriteDirentPlus(op.Dst[op.BytesRead:], localEntry)
+			if n == 0 {
+				// Kernel buffer full mid local-entries. Return and resume next call.
+				logger.Tracef("ReadDirPlus: Kernel buffer full at local entry, returning.")
+				return nil
+			}
+
+			op.BytesRead += n
+			dh.lastWrittenOffsetPlus = dh.currentOffsetPlus
+			dh.currentOffsetPlus++
+		}
+	}
+
+	logger.Tracef("ReadDirPlus: Finished serving all entries for this call.")
 	return nil
 }
