@@ -21,7 +21,6 @@ import (
 	"path"
 	"slices"
 	"time"
-	// Removed unused "strconv" and "unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
