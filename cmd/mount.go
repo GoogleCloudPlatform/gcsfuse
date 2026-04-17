@@ -56,9 +56,11 @@ func mountWithStorageHandle(
 		logger.Infof("Creating a temporary directory at %q\n", newConfig.FileSystem.TempDir)
 		var f *os.File
 		f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir))
+
 		if err != nil {
 			err = fmt.Errorf(
-				"error writing to temporary directory (%q): %w",
+				"error writing to temporary directory (%q); are you sure it exists "+
+					"with the correct permissions: %w",
 				newConfig.FileSystem.TempDir, err)
 			return
 		}
@@ -138,24 +140,17 @@ be interacting with the file system.`)
 		serverCfg.Notifier = fuse.NewNotifier()
 	}
 
-	logger.Infof("Creating a new file system instance...\n") // Modified log
-
-	fileSystem, err := fs.NewFileSystem(ctx, serverCfg) // Changed from NewServer
+	logger.Infof("Creating a new file system instance...\n")
+	fileSystem, err := fs.NewFileSystem(ctx, serverCfg)
 	if err != nil {
-		return nil, fmt.Errorf("fs.NewFileSystem: %w", err) // Adjusted error
+		return nil, fmt.Errorf("fs.NewFileSystem: %w", err)
 	}
 
 	fsName := fsName(bucketName)
 
-	// ======================================================
-	// FIXED BLOCK (Incorporating the change)
-	// ======================================================
-
 	logger.Infof("Creating new FUSE server for %q...", fsName)
-
-	server := fuseutil.NewFileSystemServer(fileSystem) // User's central change
-
-	// ======================================================
+	server := fuseutil.NewFileSystemServer(fileSystem)
+	// ** NECESSARY CHANGES END HERE **
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
