@@ -57,7 +57,7 @@ const (
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts      = 5
-	directPathDetectionTimeout          = 5 * time.Minute
+	directPathDetectionTimeout          = 10 * time.Second
 	directPathDetectionMaxBackoff       = 5 * time.Second
 	directPathDetectionMaxRetryDuration = 1 * time.Minute
 )
@@ -203,7 +203,7 @@ func setDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientCo
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, bucketName string, billingProject string, skipDirectPathEnforcement bool) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
@@ -215,31 +215,22 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
-	if !skipDirectPathEnforcement {
-		// Add DirectPath enforcement - client creation will fail if DirectPath is not available
-		clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
-	}
+	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
+	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 
-	var creationCtx context.Context
-	var cancel context.CancelFunc
-	if skipDirectPathEnforcement {
-		creationCtx = ctx
-	} else {
-		// Create client with DirectPath enforced
-		creationCtx, cancel = context.WithTimeout(ctx, directPathDetectionTimeout)
-		defer cancel()
-	}
+	creationCtx, cancel := context.WithTimeout(ctx, directPathDetectionTimeout)
+	defer cancel()
 
 	if sc, err = storage.NewGRPCClient(creationCtx, clientOpts...); err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
 	setRetryConfig(ctx, sc, clientConfig)
 
-	if !skipDirectPathEnforcement {
-		err = verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject)
-		if err != nil {
-			return nil, err
-		}
+	// TODO(b/503624405): Make the direct-path verification fatal after making the dummy-stat reliable.
+	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
+		logger.Warnf("DirectPath verification failed, continuing without DirectPath guarantee: %v", verifyErr)
+		// Apply production retry config since verification skipped it on failure.
+		setRetryConfig(ctx, sc, clientConfig)
 	}
 
 	return sc, nil
@@ -264,8 +255,6 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {
-		// DirectPath verification failed
-		sc.Close()
 		return fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, statErr)
 	}
 
@@ -437,7 +426,7 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, buck
 	var err error
 	if isbucketZonal {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true, bucketName, billingProject, true)
+			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true, bucketName, billingProject)
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
@@ -462,7 +451,7 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	}
 
 	var err error
-	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, bucketName, billingProject, false)
+	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, bucketName, billingProject)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
 		return sh.grpcClient, nil
