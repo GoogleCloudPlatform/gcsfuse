@@ -619,12 +619,12 @@ clean_up() {
 #
 # Usage: run_parallel "parallelism" "command_template_with_@" "max_retries" "substitute1" "substitute2" ...
 #   First argument is extent of parallelism for this command.
-#   Second argument is the command template with single @ (item) and optional # (attempt).
+#   Second argument is the command template with single @ (which expands to item and attempt).
 #   Third argument is the maximum number of retries for failed commands.
 #   Rest of the arguments are values that would be substituted for @ in the command template.
 #
 # Example:
-#   run_parallel 2 "echo 'Processing @ on attempt #' && sleep 1" 2 "itemA" "itemB" "itemC"
+#   run_parallel 2 "echo 'Processing @' && sleep 1" 2 "itemA" "itemB" "itemC"
 # This command will run at max 2 commands in parallel, with up to 2 retries on failure.
 run_parallel() {
   if [[ $# -lt 3 ]]; then
@@ -657,8 +657,7 @@ run_parallel() {
          [[ "${item_attempt[$i]}" -le "$max_retries" ]] && \
          ! [[ " ${cmds_by_pid[@]} " =~ " $i " ]]; then
         
-        local cmd="${cmd_template//@/${item_list[$i]}}"
-        eval "${cmd//#/${item_attempt[$i]}}" &
+        eval "${cmd_template//@/${item_list[$i]} ${item_attempt[$i]}}" &
         local pid=$!
         cmds_by_pid["$pid"]="$i"
 
@@ -699,8 +698,8 @@ create_bucket_and_run_test() {
     log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
     return 1
   fi
-  local package_name="$1"
-  local bucket_type="$2"
+  local bucket_type="$1"
+  local package_name="$2"
   local attempt_number="${3:-1}"
 
   if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
@@ -935,7 +934,7 @@ run_test_group() {
   local group_exit_code=0
   log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type} #" "$MAX_FLAKE_RETRIES" "${test_packages[@]}"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test ${bucket_type} @" "$MAX_FLAKE_RETRIES" "${test_packages[@]}"
   group_exit_code=$?
 
   if [ "$group_exit_code" -ne 0 ]; then
