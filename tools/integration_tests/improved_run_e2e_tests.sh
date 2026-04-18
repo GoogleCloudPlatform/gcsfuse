@@ -690,13 +690,14 @@ create_bucket_and_run_test() {
 
 # Helper method to executes e2e test package.
 test_package() {
-  if [[ $# -ne 3 ]]; then
+  if [[ $# -lt 3 || $# -gt 4 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
     return 1
   fi
   local package_name="$1"
   local bucket_name="$2"
   local bucket_type="$3"
+  local attempt_number="${4:-1}"
 
   # Build go package test command.
   local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
@@ -728,25 +729,31 @@ test_package() {
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-  test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
+  test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt_number}.txt")
   # Run the package test command and capture log output with runtime stats.
-  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
+  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt: $attempt_number)"
 
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
-    log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
+    if [[ "$attempt_number" -le "$MAX_FLAKE_RETRIES" ]]; then
+      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). Will retry."
+    else
+      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). No more retries."
+    fi
   else
-    log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
+    log_info "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number)"
   fi
 
   local end=$SECONDS
 
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
-  # Generate Kokoro artifacts(log) files.
-  generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
+  # Generate Kokoro artifacts(log) files only on terminal attempt.
+  if [[ "$exit_code" -eq 0 || "$attempt_number" -gt "$MAX_FLAKE_RETRIES" ]]; then
+    generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
+  fi
   # Call the helper to organize logs and cleanup the original file
-  organize_test_logfile "$exit_code" "$test_package_log_file" "$package_name" "$bucket_type"
+  organize_test_logfile "$exit_code" "$test_package_log_file" "${package_name}_attempt_${attempt_number}" "$bucket_type"
   return "$exit_code"
 }
 
