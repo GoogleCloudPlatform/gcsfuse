@@ -614,36 +614,20 @@ clean_up() {
   cleanup_created_buckets
 }
 
-# Helper method to process any of the background process and
-# returns exit status of waited pid.
-process_any_pid() {
-  local -n cmds_by_pid_ref="$1"
-  local waited_pid
-  local pid_status # To store the exit status of the waited pid
-
-  wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
-  pid_status=$?
-
-  unset "cmds_by_pid_ref[$waited_pid]"
-  if [[ "$pid_status" -ne 0 ]]; then
-    return 1
-  fi
-  return 0
-}
-
 # run_parallel: Executes commands in parallel based on a template and substitutes.
-#   The function returns a non-zero exit status if any of the parallel commands fail.
+#   The function returns a non-zero exit status if any of the parallel commands fail all attempts.
 #
-# Usage: run_parallel "parallelism" "command_template_with_@" "substitute1" "substitute2" ...
+# Usage: run_parallel "parallelism" "command_template_with_@" "max_retries" "substitute1" "substitute2" ...
 #   First argument is extent of parallelism for this command.
-#   Second argument is the command template with single @.
-#   Rest of the arguments are values that would be substituted in the command template.
+#   Second argument is the command template with single @ (item) and optional # (attempt).
+#   Third argument is the maximum number of retries for failed commands.
+#   Rest of the arguments are values that would be substituted for @ in the command template.
 #
 # Example:
-#   run_parallel 2 "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
-# This command will run at max 2 commands in parallel.
+#   run_parallel 2 "echo 'Processing @ on attempt #' && sleep 1" 2 "itemA" "itemB" "itemC"
+# This command will run at max 2 commands in parallel, with up to 2 retries on failure.
 run_parallel() {
-  if [[ $# -lt 2 ]]; then
+  if [[ $# -lt 3 ]]; then
     log_error_locked "run_parallel() called with incorrect number of arguments."
     return 1
   fi
@@ -651,25 +635,62 @@ run_parallel() {
   shift
   local cmd_template="$1"
   shift
+  local max_retries="$1"
+  shift
+
+  local -a item_list=("$@")
+  local -a item_status=()
+  local -a item_attempt=()
+
+  for i in "${!item_list[@]}"; do
+    item_status[$i]=1
+    item_attempt[$i]=1
+  done
+
   local -A cmds_by_pid=()
-  local overall_exit_code=0 parallel_cmd pid
-  # Launch parallel commands in the background based on parallelism.
-  for arg in "$@"; do
-    parallel_cmd="${cmd_template//@/$arg}"
-    eval "$parallel_cmd" &
-    pid=$!
-    cmds_by_pid["$pid"]="$parallel_cmd"
-    if [[ ${#cmds_by_pid[@]} -eq $parallelism ]]; then
-      process_any_pid "cmds_by_pid"
-      overall_exit_code=$((overall_exit_code || $? ))
+
+  while :; do
+    # Launch items up to parallelism limit
+    for i in "${!item_list[@]}"; do
+      if [[ ${#cmds_by_pid[@]} -lt $parallelism ]] && \
+         [[ "${item_status[$i]}" -ne 0 ]] && \
+         [[ "${item_attempt[$i]}" -le "$max_retries" ]] && \
+         ! [[ " ${cmds_by_pid[@]} " =~ " $i " ]]; then
+        
+        local cmd="${cmd_template//@/${item_list[$i]}}"
+        eval "${cmd//#/${item_attempt[$i]}}" &
+        local pid=$!
+        cmds_by_pid["$pid"]="$i"
+
+      fi
+    done
+
+    # Break if no commands are running
+    [[ ${#cmds_by_pid[@]} -eq 0 ]] && break
+
+    # Wait for any background process to finish
+    local waited_pid
+    wait -n -p waited_pid
+    local exit_status=$?
+    
+    local idx="${cmds_by_pid[$waited_pid]}"
+    unset "cmds_by_pid[$waited_pid]"
+    
+    item_status[$idx]=$exit_status
+
+    if [[ "$exit_status" -ne 0 ]]; then
+      item_attempt[$idx]=$((item_attempt[$idx] + 1))
     fi
   done
-  # Process any remaining PIDs
-  while [[ ${#cmds_by_pid[@]} -gt 0 ]]; do
-      process_any_pid "cmds_by_pid"
-      overall_exit_code=$((overall_exit_code || $? ))
+
+  # Return non-zero if any item failed all attempts
+  for s in "${item_status[@]}"; do
+    if [[ "$s" -ne 0 ]]; then
+      return 1
+    fi
   done
-  return $overall_exit_code
+  
+  return 0
 }
 
 # Helper method that creates a bucket and then runs the test package.
@@ -914,7 +935,7 @@ run_test_group() {
   local group_exit_code=0
   log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type}" "${test_packages[@]}"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type} #" "$MAX_FLAKE_RETRIES" "${test_packages[@]}"
   group_exit_code=$?
 
   if [ "$group_exit_code" -ne 0 ]; then
