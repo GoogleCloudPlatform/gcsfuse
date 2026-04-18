@@ -694,13 +694,13 @@ run_parallel() {
 
 # Helper method that creates a bucket and then runs the test package.
 create_bucket_and_run_test() {
-  if [[ $# -lt 2 || $# -gt 3 ]]; then
+  if [[ $# -ne 3 ]]; then
     log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
     return 1
   fi
   local bucket_type="$1"
   local package_name="$2"
-  local attempt_number="${3:-1}"
+  local attempt_number="$3"
 
   if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
     log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
@@ -711,14 +711,14 @@ create_bucket_and_run_test() {
 
 # Helper method to executes e2e test package.
 test_package() {
-  if [[ $# -lt 3 || $# -gt 4 ]]; then
+  if [[ $# -ne 4 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
     return 1
   fi
   local package_name="$1"
   local bucket_name="$2"
   local bucket_type="$3"
-  local attempt_number="${4:-1}"
+  local attempt_number="$4"
 
   # Build go package test command.
   local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
