@@ -36,6 +36,7 @@ usage() {
   echo "                                                 Example: 'cloud_profiler|operations' to run only cloud_profiler and operations test packages."
   echo "                                                 Example: '!cloud_profiler|operations' to run all test packages except cloud_profiler and operations."
   echo "    --skip-emulator                              Skip running emulator tests. (Default: false)"
+  echo "    --max-flake-retries           <number>       Number of times to retry a package if it fails. (Default: 0)"
   echo "    --help                                       Display this help and exit."
   exit "$1"
 }
@@ -135,10 +136,11 @@ TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 RUN_PACKAGE_REGEX=""
 SKIP_EMULATOR=false
+MAX_FLAKE_RETRIES=0
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,max-flake-retries:
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -210,6 +212,10 @@ while (( $# >= 1 )); do
             SKIP_EMULATOR=true
             shift
             ;;
+        --max-flake-retries)
+            MAX_FLAKE_RETRIES="$2"
+            shift 2
+            ;;
         --help)
             usage 0
             ;;
@@ -266,6 +272,7 @@ fi
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
 validate_option_value "--project-id" "$PROJECT_ID"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
+validate_option_value "--max-flake-retries" "$MAX_FLAKE_RETRIES"
 
 # Validate test install package from path
 if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then 
