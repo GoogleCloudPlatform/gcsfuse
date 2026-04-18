@@ -674,18 +674,19 @@ run_parallel() {
 
 # Helper method that creates a bucket and then runs the test package.
 create_bucket_and_run_test() {
-  if [[ $# -ne 2 ]]; then
+  if [[ $# -lt 2 || $# -gt 3 ]]; then
     log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
     return 1
   fi
   local package_name="$1"
   local bucket_type="$2"
+  local attempt_number="${3:-1}"
 
   if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
     log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
     return 1
   fi
-  test_package "$package_name" "$bucket_name" "$bucket_type"
+  test_package "$package_name" "$bucket_name" "$bucket_type" "$attempt_number"
 }
 
 # Helper method to executes e2e test package.
