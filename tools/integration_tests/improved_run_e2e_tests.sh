@@ -614,76 +614,77 @@ clean_up() {
   cleanup_created_buckets
 }
 
-# run_parallel: Executes commands in parallel based on a template and substitutes.
-#   The function returns a non-zero exit status if any of the parallel commands fail all attempts.
+# run_package_parallel: Executes test packages in parallel.
+#   The function returns a non-zero exit status if any of the packages fail all attempts.
 #
-# Usage: run_parallel "parallelism" "command_template_with_@" "max_retries" "substitute1" "substitute2" ...
+# Usage: run_package_parallel "parallelism" "bucket_type" "max_retries" "package1" "package2" ...
 #   First argument is extent of parallelism for this command.
-#   Second argument is the command template with single @ (which expands to item and attempt).
+#   Second argument is the bucket type ("flat", "hns", "zonal").
 #   Third argument is the maximum number of retries for failed commands.
-#   Rest of the arguments are values that would be substituted for @ in the command template.
+#   Rest of the arguments are package names to run.
 #
 # Example:
-#   run_parallel 2 "echo 'Processing @' && sleep 1" 2 "itemA" "itemB" "itemC"
-# This command will run at max 2 commands in parallel, with up to 2 retries on failure.
-run_parallel() {
+#   run_package_parallel 2 "flat" 2 "managed_folders" "operations" "read_large_files"
+# This command will run at max 2 packages in parallel, with up to 2 retries on failure.
+run_package_parallel() {
   if [[ $# -lt 3 ]]; then
-    log_error_locked "run_parallel() called with incorrect number of arguments."
+    log_error_locked "run_package_parallel() called with incorrect number of arguments."
     return 1
   fi
-  local parallelism="$1"
-  shift
-  local cmd_template="$1"
-  shift
-  local max_retries="$1"
-  shift
+  local parallelism="$1" bucket_type="$2" max_retries="$3"
+  shift 3
 
-  local -a item_list=("$@")
-  local -a item_status=()
-  local -a item_attempt=()
+  local -a package_list=("$@")
+  local -A package_status=()
+  local -A package_attempt=()
 
-  for i in "${!item_list[@]}"; do
-    item_status[$i]=1
-    item_attempt[$i]=1
+  for pkg in "${package_list[@]}"; do
+    package_status["$pkg"]=1
+    package_attempt["$pkg"]=1
   done
 
-  local -A cmds_by_pid=()
+  local -A package_name_by_pid=()
 
   while :; do
-    # Launch items up to parallelism limit
-    for i in "${!item_list[@]}"; do
-      if [[ ${#cmds_by_pid[@]} -lt $parallelism ]] && \
-         [[ "${item_status[$i]}" -ne 0 ]] && \
-         [[ "${item_attempt[$i]}" -le "$max_retries" ]] && \
-         ! [[ " ${cmds_by_pid[@]} " =~ " $i " ]]; then
-        
-        eval "${cmd_template//@/${item_list[$i]} ${item_attempt[$i]}}" &
-        local pid=$!
-        cmds_by_pid["$pid"]="$i"
-
-      fi
+    # Launch packages up to parallelism limit
+    for pkg in "${package_list[@]}"; do
+      # Skip if we hit parallelism limit
+      [[ ${#package_name_by_pid[@]} -ge $parallelism ]] && continue
+      
+      # Skip if package already succeeded
+      [[ "${package_status["$pkg"]}" -eq 0 ]] && continue
+      
+      # Skip if max retries exceeded
+      [[ "${package_attempt["$pkg"]}" -gt "$max_retries" ]] && continue
+      
+      # Skip if already running
+      [[ " ${package_name_by_pid[@]} " =~ " $pkg " ]] && continue
+      
+      create_bucket_and_run_package "${bucket_type}" "$pkg" "${package_attempt["$pkg"]}" &
+      local pid=$!
+      package_name_by_pid["$pid"]="$pkg"
     done
 
     # Break if no commands are running
-    [[ ${#cmds_by_pid[@]} -eq 0 ]] && break
+    [[ ${#package_name_by_pid[@]} -eq 0 ]] && break
 
     # Wait for any background process to finish
     local waited_pid
     wait -n -p waited_pid
     local exit_status=$?
     
-    local idx="${cmds_by_pid[$waited_pid]}"
-    unset "cmds_by_pid[$waited_pid]"
+    local pkg="${package_name_by_pid[$waited_pid]}"
+    unset "package_name_by_pid[$waited_pid]"
     
-    item_status[$idx]=$exit_status
+    package_status["$pkg"]=$exit_status
 
     if [[ "$exit_status" -ne 0 ]]; then
-      item_attempt[$idx]=$((item_attempt[$idx] + 1))
+      package_attempt["$pkg"]=$((package_attempt[$pkg] + 1))
     fi
   done
 
-  # Return non-zero if any item failed all attempts
-  for s in "${item_status[@]}"; do
+  # Return non-zero if any package failed all attempts
+  for s in "${package_status[@]}"; do
     if [[ "$s" -ne 0 ]]; then
       return 1
     fi
@@ -693,9 +694,9 @@ run_parallel() {
 }
 
 # Helper method that creates a bucket and then runs the test package.
-create_bucket_and_run_test() {
+create_bucket_and_run_package() {
   if [[ $# -ne 3 ]]; then
-    log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
+    log_error_locked "create_bucket_and_run_package() called with incorrect number of arguments."
     return 1
   fi
   local bucket_type="$1"
@@ -709,7 +710,7 @@ create_bucket_and_run_test() {
   test_package "$package_name" "$bucket_name" "$bucket_type" "$attempt_number"
 }
 
-# Helper method to executes e2e test package.
+# Helper method to execute an E2E test package.
 test_package() {
   if [[ $# -ne 4 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
@@ -934,7 +935,7 @@ run_test_group() {
   local group_exit_code=0
   log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test ${bucket_type} @" "$MAX_FLAKE_RETRIES" "${test_packages[@]}"
+  run_package_parallel "$PACKAGE_LEVEL_PARALLELISM" "$bucket_type" "$MAX_FLAKE_RETRIES" "${test_packages[@]}"
   group_exit_code=$?
 
   if [ "$group_exit_code" -ne 0 ]; then
