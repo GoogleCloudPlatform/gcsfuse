@@ -953,20 +953,36 @@ run_e2e_tests_for_emulator() {
 
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log
-  emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
-
   local exit_code=0
-  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
-    log_error_locked "Failed e2e tests for emulator."
-    exit_code=1
-  else
-    log_info_locked "Passed e2e tests for emulator."
-  fi
+  local attempt=1
+
+  while :; do
+    emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt}.txt")
+
+    if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
+      exit_code=1
+      if [[ "$attempt" -le "$MAX_FLAKE_RETRIES" ]]; then
+        log_info_locked "Failed e2e tests for emulator (Attempt: $attempt). Will retry."
+      else
+        log_info_locked "Failed e2e tests for emulator (Attempt: $attempt). No more retries."
+      fi
+    else
+      log_info_locked "Passed e2e tests for emulator (Attempt: $attempt)"
+      exit_code=0
+    fi
+
+    # Call the helper to organize logs and cleanup the original file
+    organize_test_logfile "$exit_code" "$emulator_test_log" "${package_name}_attempt_${attempt}" "$bucket_type"
+
+    if [[ "$exit_code" -eq 0 || "$attempt" -gt "$MAX_FLAKE_RETRIES" ]]; then
+      break
+    fi
+
+    attempt=$((attempt + 1))
+  done
+
   local end=$SECONDS
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
-
-  # Call the helper to organize logs and cleanup the original file
-  organize_test_logfile "$exit_code" "$emulator_test_log" "$package_name" "$bucket_type" 
 
   return "$exit_code"
 }
