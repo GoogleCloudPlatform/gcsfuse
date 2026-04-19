@@ -950,8 +950,6 @@ run_e2e_tests_for_emulator() {
   local package_name="emulator_tests"
   local bucket_type="emulator"
 
-  log_info_locked "Started running e2e tests for emulator."
-  local emulator_test_log
   local exit_code=0
   local attempt=1
 
@@ -959,15 +957,17 @@ run_e2e_tests_for_emulator() {
     local start=$SECONDS
     emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt}.txt")
 
+    log_info_locked "Started running test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt)"
+
     if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
       exit_code=1
       if [[ "$attempt" -le "$MAX_FLAKE_RETRIES" ]]; then
-        log_info_locked "Failed e2e tests for emulator (Attempt: $attempt). Will retry."
+        log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt). Will retry."
       else
-        log_info_locked "Failed e2e tests for emulator (Attempt: $attempt). No more retries."
+        log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt). No more retries."
       fi
     else
-      log_info_locked "Passed e2e tests for emulator (Attempt: $attempt)"
+      log_info_locked "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt)"
       exit_code=0
     fi
 
