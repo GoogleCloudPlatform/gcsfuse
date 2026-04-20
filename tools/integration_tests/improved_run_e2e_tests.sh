@@ -36,6 +36,7 @@ usage() {
   echo "                                                 Example: 'cloud_profiler|operations' to run only cloud_profiler and operations test packages."
   echo "                                                 Example: '!cloud_profiler|operations' to run all test packages except cloud_profiler and operations."
   echo "    --skip-emulator                              Skip running emulator tests. (Default: false)"
+  echo "    --flake-attempts              <number>       Number of attempts to run a package if it fails. (Default: 1)"
   echo "    --help                                       Display this help and exit."
   exit "$1"
 }
@@ -135,10 +136,11 @@ TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 RUN_PACKAGE_REGEX=""
 SKIP_EMULATOR=false
+FLAKE_ATTEMPTS=1
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -210,6 +212,10 @@ while (( $# >= 1 )); do
             SKIP_EMULATOR=true
             shift
             ;;
+        --flake-attempts)
+            FLAKE_ATTEMPTS="$2"
+            shift 2
+            ;;
         --help)
             usage 0
             ;;
@@ -266,6 +272,7 @@ fi
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
 validate_option_value "--project-id" "$PROJECT_ID"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
+validate_option_value "--flake-attempts" "$FLAKE_ATTEMPTS"
 
 # Validate test install package from path
 if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then 
@@ -607,89 +614,112 @@ clean_up() {
   cleanup_created_buckets
 }
 
-# Helper method to process any of the background process and
-# returns exit status of waited pid.
-process_any_pid() {
-  local -n cmds_by_pid_ref="$1"
-  local waited_pid
-  local pid_status # To store the exit status of the waited pid
-
-  wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
-  pid_status=$?
-
-  unset "cmds_by_pid_ref[$waited_pid]"
-  if [[ "$pid_status" -ne 0 ]]; then
+# run_package_parallel: Executes test packages in parallel.
+#   The function returns a non-zero exit status if any of the packages fail all attempts.
+#
+# Usage: run_package_parallel "parallelism" "bucket_type" "max_retries" "package1" "package2" ...
+#   First argument is extent of parallelism for this command.
+#   Second argument is the bucket type ("flat", "hns", "zonal").
+#   Third argument is the maximum number of retries for failed commands.
+#   Rest of the arguments are package names to run.
+#
+# Example:
+#   run_package_parallel 2 "flat" 2 "managed_folders" "operations" "read_large_files"
+# This command will run at max 2 packages in parallel, with up to 2 retries on failure.
+run_package_parallel() {
+  if [[ $# -lt 3 ]]; then
+    log_error_locked "run_package_parallel() called with incorrect number of arguments."
     return 1
   fi
+  local parallelism="$1" bucket_type="$2" flake_attempts="$3"
+  shift 3
+
+  local -a package_list=("$@")
+  local -A package_status=()
+  local -A package_attempt=()
+
+  for pkg in "${package_list[@]}"; do
+    package_status["$pkg"]=1
+    package_attempt["$pkg"]=1
+  done
+
+  local -A package_name_by_pid=()
+
+  while :; do
+    # Launch packages up to parallelism limit
+    for pkg in "${package_list[@]}"; do
+      # Skip if we hit parallelism limit
+      [[ ${#package_name_by_pid[@]} -ge $parallelism ]] && continue
+      
+      # Skip if package already succeeded
+      [[ "${package_status["$pkg"]}" -eq 0 ]] && continue
+      
+      # Skip if max retries exceeded
+      [[ "${package_attempt["$pkg"]}" -gt "$flake_attempts" ]] && continue
+      
+      # Skip if already running
+      [[ " ${package_name_by_pid[@]} " =~ " $pkg " ]] && continue
+      
+      create_bucket_and_run_package "${bucket_type}" "$pkg" "${package_attempt["$pkg"]}" &
+      local pid=$!
+      package_name_by_pid["$pid"]="$pkg"
+    done
+
+    # Break if no commands are running
+    [[ ${#package_name_by_pid[@]} -eq 0 ]] && break
+
+    # Wait for any background process to finish
+    local waited_pid
+    wait -n -p waited_pid
+    local exit_status=$?
+    
+    local pkg="${package_name_by_pid[$waited_pid]}"
+    unset "package_name_by_pid[$waited_pid]"
+    
+    package_status["$pkg"]=$exit_status
+
+    if [[ "$exit_status" -ne 0 ]]; then
+      package_attempt["$pkg"]=$((package_attempt[$pkg] + 1))
+    fi
+  done
+
+  # Return non-zero if any package failed all attempts
+  for s in "${package_status[@]}"; do
+    if [[ "$s" -ne 0 ]]; then
+      return 1
+    fi
+  done
+  
   return 0
 }
 
-# run_parallel: Executes commands in parallel based on a template and substitutes.
-#   The function returns a non-zero exit status if any of the parallel commands fail.
-#
-# Usage: run_parallel "parallelism" "command_template_with_@" "substitute1" "substitute2" ...
-#   First argument is extent of parallelism for this command.
-#   Second argument is the command template with single @.
-#   Rest of the arguments are values that would be substituted in the command template.
-#
-# Example:
-#   run_parallel 2 "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
-# This command will run at max 2 commands in parallel.
-run_parallel() {
-  if [[ $# -lt 2 ]]; then
-    log_error_locked "run_parallel() called with incorrect number of arguments."
-    return 1
-  fi
-  local parallelism="$1"
-  shift
-  local cmd_template="$1"
-  shift
-  local -A cmds_by_pid=()
-  local overall_exit_code=0 parallel_cmd pid
-  # Launch parallel commands in the background based on parallelism.
-  for arg in "$@"; do
-    parallel_cmd="${cmd_template//@/$arg}"
-    eval "$parallel_cmd" &
-    pid=$!
-    cmds_by_pid["$pid"]="$parallel_cmd"
-    if [[ ${#cmds_by_pid[@]} -eq $parallelism ]]; then
-      process_any_pid "cmds_by_pid"
-      overall_exit_code=$((overall_exit_code || $? ))
-    fi
-  done
-  # Process any remaining PIDs
-  while [[ ${#cmds_by_pid[@]} -gt 0 ]]; do
-      process_any_pid "cmds_by_pid"
-      overall_exit_code=$((overall_exit_code || $? ))
-  done
-  return $overall_exit_code
-}
-
 # Helper method that creates a bucket and then runs the test package.
-create_bucket_and_run_test() {
-  if [[ $# -ne 2 ]]; then
-    log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
+create_bucket_and_run_package() {
+  if [[ $# -ne 3 ]]; then
+    log_error_locked "create_bucket_and_run_package() called with incorrect number of arguments."
     return 1
   fi
-  local package_name="$1"
-  local bucket_type="$2"
+  local bucket_type="$1"
+  local package_name="$2"
+  local attempt_number="$3"
 
   if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
     log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
     return 1
   fi
-  test_package "$package_name" "$bucket_name" "$bucket_type"
+  test_package "$package_name" "$bucket_name" "$bucket_type" "$attempt_number"
 }
 
-# Helper method to executes e2e test package.
+# Helper method to execute an E2E test package.
 test_package() {
-  if [[ $# -ne 3 ]]; then
+  if [[ $# -ne 4 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
     return 1
   fi
   local package_name="$1"
   local bucket_name="$2"
   local bucket_type="$3"
+  local attempt_number="$4"
 
   # Build go package test command.
   local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
@@ -721,25 +751,31 @@ test_package() {
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-  test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
+  test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt_number}.txt")
   # Run the package test command and capture log output with runtime stats.
-  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
+  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt: $attempt_number)"
 
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
-    log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
+    if [[ "$attempt_number" -lt "$FLAKE_ATTEMPTS" ]]; then
+      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). Will retry."
+    else
+      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). No more retries."
+    fi
   else
-    log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
+    log_info "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number)"
   fi
 
   local end=$SECONDS
 
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
-  # Generate Kokoro artifacts(log) files.
-  generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
+  # Generate Kokoro artifacts(log) files only on terminal attempt.
+  if [[ "$exit_code" -eq 0 || "$attempt_number" -ge "$FLAKE_ATTEMPTS" ]]; then
+    generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
+  fi
   # Call the helper to organize logs and cleanup the original file
-  organize_test_logfile "$exit_code" "$test_package_log_file" "$package_name" "$bucket_type"
+  organize_test_logfile "$exit_code" "$test_package_log_file" "${package_name}_attempt_${attempt_number}" "$bucket_type"
   return "$exit_code"
 }
 
@@ -899,7 +935,7 @@ run_test_group() {
   local group_exit_code=0
   log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type}" "${test_packages[@]}"
+  run_package_parallel "$PACKAGE_LEVEL_PARALLELISM" "$bucket_type" "$FLAKE_ATTEMPTS" "${test_packages[@]}"
   group_exit_code=$?
 
   if [ "$group_exit_code" -ne 0 ]; then
@@ -913,24 +949,40 @@ run_test_group() {
 run_e2e_tests_for_emulator() {
   local package_name="emulator_tests"
   local bucket_type="emulator"
-  local start=$SECONDS
-
-  log_info_locked "Started running e2e tests for emulator."
-  local emulator_test_log
-  emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}.txt")
 
   local exit_code=0
-  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
-    log_error_locked "Failed e2e tests for emulator."
-    exit_code=1
-  else
-    log_info_locked "Passed e2e tests for emulator."
-  fi
-  local end=$SECONDS
-  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  local attempt=1
 
-  # Call the helper to organize logs and cleanup the original file
-  organize_test_logfile "$exit_code" "$emulator_test_log" "$package_name" "$bucket_type" 
+  while :; do
+    local start=$SECONDS
+    emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt}.txt")
+
+    log_info_locked "Started running test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt)"
+
+    if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
+      exit_code=1
+      if [[ "$attempt" -lt "$FLAKE_ATTEMPTS" ]]; then
+        log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt). Will retry."
+      else
+        log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt). No more retries."
+      fi
+    else
+      log_info_locked "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt)"
+      exit_code=0
+    fi
+
+    # Call the helper to organize logs and cleanup the original file
+    organize_test_logfile "$exit_code" "$emulator_test_log" "${package_name}_attempt_${attempt}" "$bucket_type"
+
+    local end=$SECONDS
+    echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+
+    if [[ "$exit_code" -eq 0 || "$attempt" -ge "$FLAKE_ATTEMPTS" ]]; then
+      break
+    fi
+
+    attempt=$((attempt + 1))
+  done
 
   return "$exit_code"
 }

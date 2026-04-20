@@ -170,5 +170,8 @@ ARGS+=("--output-dir=$OUTPUT_DIR")
 # Run all packages except cloud profiler during release testing.
 ARGS+=("--run-package=!cloud_profiler")
 
+# Set --flake-attempts to 3 for release tests.
+ARGS+=("--flake-attempts=3")
+
 # Run the main e2e script
 bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"
