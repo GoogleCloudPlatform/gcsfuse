@@ -36,7 +36,7 @@ usage() {
   echo "                                                 Example: 'cloud_profiler|operations' to run only cloud_profiler and operations test packages."
   echo "                                                 Example: '!cloud_profiler|operations' to run all test packages except cloud_profiler and operations."
   echo "    --skip-emulator                              Skip running emulator tests. (Default: false)"
-  echo "    --max-flake-retries           <number>       Number of times to retry a package if it fails. (Default: 0)"
+  echo "    --flake-attempts              <number>       Number of attempts to run a package if it fails. (Default: 1)"
   echo "    --help                                       Display this help and exit."
   exit "$1"
 }
@@ -136,11 +136,11 @@ TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 RUN_PACKAGE_REGEX=""
 SKIP_EMULATOR=false
-MAX_FLAKE_RETRIES=0
+FLAKE_ATTEMPTS=1
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,max-flake-retries:
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -212,8 +212,8 @@ while (( $# >= 1 )); do
             SKIP_EMULATOR=true
             shift
             ;;
-        --max-flake-retries)
-            MAX_FLAKE_RETRIES="$2"
+        --flake-attempts)
+            FLAKE_ATTEMPTS="$2"
             shift 2
             ;;
         --help)
@@ -272,7 +272,7 @@ fi
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
 validate_option_value "--project-id" "$PROJECT_ID"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
-validate_option_value "--max-flake-retries" "$MAX_FLAKE_RETRIES"
+validate_option_value "--flake-attempts" "$FLAKE_ATTEMPTS"
 
 # Validate test install package from path
 if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then 
@@ -631,7 +631,7 @@ run_package_parallel() {
     log_error_locked "run_package_parallel() called with incorrect number of arguments."
     return 1
   fi
-  local parallelism="$1" bucket_type="$2" max_retries="$3"
+  local parallelism="$1" bucket_type="$2" flake_attempts="$3"
   shift 3
 
   local -a package_list=("$@")
@@ -655,7 +655,7 @@ run_package_parallel() {
       [[ "${package_status["$pkg"]}" -eq 0 ]] && continue
       
       # Skip if max retries exceeded
-      [[ "${package_attempt["$pkg"]}" -gt "$max_retries" ]] && continue
+      [[ "${package_attempt["$pkg"]}" -gt "$flake_attempts" ]] && continue
       
       # Skip if already running
       [[ " ${package_name_by_pid[@]} " =~ " $pkg " ]] && continue
@@ -757,7 +757,7 @@ test_package() {
 
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
-    if [[ "$attempt_number" -le "$MAX_FLAKE_RETRIES" ]]; then
+    if [[ "$attempt_number" -lt "$FLAKE_ATTEMPTS" ]]; then
       log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). Will retry."
     else
       log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). No more retries."
@@ -771,7 +771,7 @@ test_package() {
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
   # Generate Kokoro artifacts(log) files only on terminal attempt.
-  if [[ "$exit_code" -eq 0 || "$attempt_number" -gt "$MAX_FLAKE_RETRIES" ]]; then
+  if [[ "$exit_code" -eq 0 || "$attempt_number" -ge "$FLAKE_ATTEMPTS" ]]; then
     generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
   fi
   # Call the helper to organize logs and cleanup the original file
@@ -935,7 +935,7 @@ run_test_group() {
   local group_exit_code=0
   log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  run_package_parallel "$PACKAGE_LEVEL_PARALLELISM" "$bucket_type" "$MAX_FLAKE_RETRIES" "${test_packages[@]}"
+  run_package_parallel "$PACKAGE_LEVEL_PARALLELISM" "$bucket_type" "$FLAKE_ATTEMPTS" "${test_packages[@]}"
   group_exit_code=$?
 
   if [ "$group_exit_code" -ne 0 ]; then
@@ -961,7 +961,7 @@ run_e2e_tests_for_emulator() {
 
     if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
       exit_code=1
-      if [[ "$attempt" -le "$MAX_FLAKE_RETRIES" ]]; then
+      if [[ "$attempt" -lt "$FLAKE_ATTEMPTS" ]]; then
         log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt). Will retry."
       else
         log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt). No more retries."
@@ -977,7 +977,7 @@ run_e2e_tests_for_emulator() {
     local end=$SECONDS
     echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
 
-    if [[ "$exit_code" -eq 0 || "$attempt" -gt "$MAX_FLAKE_RETRIES" ]]; then
+    if [[ "$exit_code" -eq 0 || "$attempt" -ge "$FLAKE_ATTEMPTS" ]]; then
       break
     fi
 
