@@ -286,14 +286,12 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
-	resp := gcsx.ReadResponse{}
+func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (resp gcsx.ReadResponse, err error) {
 	reqID := uuid.New()
 	start := time.Now()
 	readOffset := req.Offset
 	blockIdx := readOffset / p.config.PrefetchBlockSizeBytes
 	var bytesRead int
-	var err error
 
 	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, p.handleID, readOffset, len(req.Buffer), blockIdx)
 
@@ -309,23 +307,33 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	var dataSlices [][]byte
+	var entriesToCallback []*blockQueueEntry
 	defer func() {
 		dur := time.Since(start)
 		p.metricHandle.BufferedReadReadLatency(ctx, dur)
 		p.metricHandle.GcsReadBytesCount(int64(bytesRead))
+		resp.Data = dataSlices
+		resp.Callback = func() { p.callback(entriesToCallback) }
+		resp.Size = bytesRead
 		if err == nil || errors.Is(err, io.EOF) {
 			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
+		} else if errors.Is(err, gcsx.FallbackToAnotherReader) {
+			// When falling back, we must immediately release the blocks we've acquired references to,
+			// as the response would be overwritten by the new response from othe reader.
+			resp.Callback()
+			resp.Callback = nil
+			resp.Data = nil
+			resp.Size = 0
 		}
 	}()
 
 	if err = p.handleRandomRead(readOffset); err != nil {
-		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
+		err = fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
+		return
 	}
 
 	prefetchTriggered := false
-
-	var dataSlices [][]byte
-	var entriesToCallback []*blockQueueEntry
 	for bytesRead < len(req.Buffer) {
 		p.prepareQueueForOffset(readOffset)
 
@@ -333,7 +341,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 			if err = p.freshStart(readOffset); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, p.handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
-				return resp, gcsx.FallbackToAnotherReader
+				err = gcsx.FallbackToAnotherReader
+				return
 			}
 			prefetchTriggered = true
 		}
@@ -397,10 +406,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 		}
 	}
 
-	resp.Data = dataSlices
-	resp.Callback = func() { p.callback(entriesToCallback) }
-	resp.Size = bytesRead
-	return resp, err
+	return
 }
 
 // callback is called when the FUSE library is finished with buffer slices that
