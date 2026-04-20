@@ -165,6 +165,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		EnableGoogleLibAuth:                     newConfig.EnableGoogleLibAuth,
 		ReadStallRetryConfig:                    newConfig.GcsRetries.ReadStall,
 		MetricHandle:                            metricHandle,
+		ExperimentalEnablePirlo:                 newConfig.FileSystem.ExperimentalEnablePirlo,
 		TracingEnabled:                          cfg.IsTracingEnabled(newConfig),
 		EnableHTTPDNSCache:                      newConfig.GcsConnection.EnableHttpDnsCache,
 		LocalSocketAddress:                      newConfig.GcsConnection.ExperimentalLocalSocketAddress,
