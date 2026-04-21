@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	testDirName       = "TestConcurrentOperations"
-	GKETempDir        = "/gcsfuse-tmp"
+	testDirName    = "TestConcurrentOperations"
+	GKETempDir     = "/gcsfuse-tmp"
 	onlyDirMounted = "OnlyDirConcurrentOperationsTest"
 )
 
@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 		cfg.ConcurrentOperations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ConcurrentOperations[0].Configs[0].Run = "TestConcurrentRead"
 
-				cfg.ConcurrentOperations[0].Configs[1].Flags = []string{
+		cfg.ConcurrentOperations[0].Configs[1].Flags = []string{
 			"--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch",
 			"--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch --client-protocol=grpc",
 			"--kernel-list-cache-ttl-secs=-1",
@@ -103,7 +103,7 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
-	
+
 	// Save mount and root directory variables.
 	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
