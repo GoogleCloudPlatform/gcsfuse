@@ -106,6 +106,16 @@ const (
 	IoMethodOpenedAttr IoMethod = "opened"
 )
 
+// OpenMode is a custom type for the open_mode attribute.
+type OpenMode string
+
+const (
+	OpenModeReadWriteAttr       OpenMode = "read_write"
+	OpenModeReadWriteAppendAttr OpenMode = "read_write_append"
+	OpenModeWriteOnlyAttr       OpenMode = "write_only"
+	OpenModeWriteOnlyAppendAttr OpenMode = "write_only_append"
+)
+
 // ReadType is a custom type for the read_type attribute.
 type ReadType string
 
@@ -141,6 +151,17 @@ const (
 	RetryErrorCategorySTALLEDREADREQUESTAttr RetryErrorCategory = "STALLED_READ_REQUEST"
 )
 
+// WriteFallbackReason is a custom type for the write_fallback_reason attribute.
+type WriteFallbackReason string
+
+const (
+	WriteFallbackReasonConcurrentLimitBreachedAttr WriteFallbackReason = "concurrent_limit_breached"
+	WriteFallbackReasonExistingFileAttr            WriteFallbackReason = "existing_file"
+	WriteFallbackReasonNotEnabledAttr              WriteFallbackReason = "not_enabled"
+	WriteFallbackReasonOtherAttr                   WriteFallbackReason = "other"
+	WriteFallbackReasonOutOfOrderAttr              WriteFallbackReason = "out_of_order"
+)
+
 // MetricHandle provides an interface for recording metrics.
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
@@ -168,6 +189,9 @@ type MetricHandle interface {
 
 	// FsOpsLatency - The cumulative distribution of file system operation latencies
 	FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp)
+
+	// FsStreamingWriteFallbackCount - The cumulative distribution of the number of streaming write fallbacks with reason attached
+	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason)
 
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)
