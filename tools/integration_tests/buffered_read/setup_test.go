@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	testDirName                         = "BufferedReadTest"
-	testFileName                        = "foo"
+	testDirName  = "BufferedReadTest"
+	testFileName = "foo"
 	// Global block size constant for tests
 	blockSizeInBytes = int64(8 * util.MiB)
 	GKETempDir       = "/gcsfuse-tmp"
@@ -39,7 +39,7 @@ const (
 
 var (
 	mountFunc func(*test_suite.TestConfig, []string) error
-		// mount directory is where our tests run.
+	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
 	rootDir string

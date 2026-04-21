@@ -86,7 +86,6 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 
 			s.T().Run(testName, func(t *testing.T) {
 				err := os.Truncate(setup.LogFile(), 0)
-				fmt.Println("pranjall", setup.LogFile())
 				require.NoError(t, err, "Failed to truncate log file")
 				testDir := setup.SetupTestDirectory(testDirName)
 				fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fsTest.fileSize, t)
