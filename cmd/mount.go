@@ -34,6 +34,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
+	"syscall"
 )
 
 // Mount the file system based on the supplied arguments, returning a
@@ -192,7 +193,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	}
 
 	if newConfig.Logging.WireLog != "" {
-		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
+		wireLog, err := os.OpenFile(string(newConfig.Logging.WireLog), os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0644)
 		if err == nil {
 			mountCfg.WireLogger = wireLog
 		} else {
