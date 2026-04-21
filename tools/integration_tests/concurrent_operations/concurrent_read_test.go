@@ -146,9 +146,9 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 // with each reader handling a distinct segment of the file for comprehensive coverage.
 func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	const (
-		fileSize    = 100 * operations.OneMiB       // 100 MiB file
-		numReaders  = 5                             // Number of concurrent readers
-		segmentSize = fileSize / numReaders         // Each reader reads 20 MiB segment
+		fileSize    = 100 * operations.OneMiB // 100 MiB file
+		numReaders  = 5                       // Number of concurrent readers
+		segmentSize = fileSize / numReaders   // Each reader reads 20 MiB segment
 	)
 	// Create a 100MiB test file
 	testFilePath := path.Join(testEnv.testDirPath, "segment_test_file.bin")
@@ -221,9 +221,9 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 // It creates 10 goroutines, each writing a 32 MiB file and then reading it sequentially.
 func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 	const (
-		fileSize      = 32 * operations.OneMiB    // 32 MiB file
-		numGoRoutines = 10                        // Number of concurrent readers
-		chunkSize     = 128 * operations.OneKiB   // 128 KiB chunks for reads
+		fileSize      = 32 * operations.OneMiB  // 32 MiB file
+		numGoRoutines = 10                      // Number of concurrent readers
+		chunkSize     = 128 * operations.OneKiB // 128 KiB chunks for reads
 	)
 	var wg sync.WaitGroup
 	wg.Add(numGoRoutines)
