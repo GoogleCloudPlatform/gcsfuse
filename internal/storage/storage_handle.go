@@ -40,9 +40,7 @@ import (
 	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -227,11 +225,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
-		if status.Code(verifyErr) == codes.DeadlineExceeded {
-			logger.Info("DirectPath verification timed out, continuing without DirectPath verification: %v", verifyErr)
-		} else {
-			logger.Warnf("DirectPath verification failed, continuing without DirectPath: %v", verifyErr)
-		}
+		logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
 		if !isbucketZonal {
 			return nil, verifyErr
 		}
@@ -442,7 +436,7 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, buck
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.GRPC {
-		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, isbucketZonal, bucketName, billingProject)
+		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
@@ -455,13 +449,13 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, buck
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
 }
 
-func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Context, isbucketZonal bool, bucketName string, billingProject string) (*storage.Client, error) {
+func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Context, bucketName string, billingProject string) (*storage.Client, error) {
 	if sh.grpcClient != nil {
 		return sh.grpcClient, nil
 	}
 
 	var err error
-	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, isbucketZonal, false, bucketName, billingProject)
+	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName, billingProject)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
 		return sh.grpcClient, nil
