@@ -313,18 +313,20 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (res
 		dur := time.Since(start)
 		p.metricHandle.BufferedReadReadLatency(ctx, dur)
 		p.metricHandle.GcsReadBytesCount(int64(bytesRead))
+
+		// Setting the return response.
 		resp.Data = dataSlices
 		resp.Callback = func() { p.callback(entriesToCallback) }
 		resp.Size = bytesRead
+
 		if err == nil || errors.Is(err, io.EOF) {
 			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
 		} else if errors.Is(err, gcsx.FallbackToAnotherReader) {
-			// When falling back, we must immediately release the blocks we've acquired references to,
-			// as the response would be overwritten by the new response from othe reader.
-			resp.Callback()
-			resp.Callback = nil
-			resp.Data = nil
-			resp.Size = 0
+			// When falling back, we must immediately release the blocks we've acquired
+			// references to, as the response would be overwritten by the new response
+			// from another reader.
+			p.releaseInflightBlocks(entriesToCallback)
+			resp = gcsx.ReadResponse{}
 		}
 	}()
 
@@ -407,6 +409,18 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (res
 	}
 
 	return
+}
+
+// releaseInflightBlocks immediately invokes the callback for a list of block
+// entries and waits for them to complete. This is used when a read operation
+// must fall back to another reader, ensuring that any blocks referenced during
+// the failed attempt are properly released before proceeding.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) releaseInflightBlocks(entries []*blockQueueEntry) {
+	p.mu.Unlock()
+	defer p.mu.Lock()
+
+	p.callback(entries)
 }
 
 // callback is called when the FUSE library is finished with buffer slices that
