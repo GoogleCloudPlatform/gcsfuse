@@ -50,12 +50,6 @@ type env struct {
 	bucketType    string
 }
 
-func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
-	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
-	setup.SetMntDir(mountDir)
-	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 	// 1. Load and parse the common configuration.
@@ -111,7 +105,7 @@ func TestMain(m *testing.M) {
 	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 	
 	// Save mount and root directory variables.
-	mountDir, rootDir = setup.MntDir(), setup.MntDir()
+	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
