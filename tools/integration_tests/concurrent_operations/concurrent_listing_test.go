@@ -70,7 +70,7 @@ func (s *concurrentListingTest) TearDownTest() {
 //	explicitDir/file1.txt
 //	explicitDir/file2.txt
 func createDirectoryStructureForTestCase(t *testing.T, testCaseDir string) {
-	operations.CreateDirectory(path.Join(testEnv.testDirPath, testCaseDir), t)
+	setup.SetupTestDirectory(path.Join(testDirName, testCaseDir))
 
 	// Create explicitDir structure
 	explicitDir := path.Join(testEnv.testDirPath, testCaseDir, "explicitDir")
@@ -698,7 +698,9 @@ func TestConcurrentListing(t *testing.T) {
 			baseTestName:  t.Name(),
 		}
 		setup.SetUpLogFilePath(nil, GKETempDir, "", testEnv.cfg)
-		mountGCSFuseAndSetupTestDir(nil, ts.ctx, ts.storageClient)
+		setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, nil, mountFunc)
+		setup.SetMntDir(mountDir)
+		testEnv.testDirPath = path.Join(setup.MntDir(), testDirName)
 		t.Run("MountedDirectory", func(t *testing.T) {
 			suite.Run(t, ts)
 		})
@@ -717,7 +719,9 @@ func TestConcurrentListing(t *testing.T) {
 
 		// Mount logic must remain OUTSIDE of the test methods so the mount stays alive
 		setup.SetUpLogFilePath(flags, GKETempDir, "", testEnv.cfg)
-		mountGCSFuseAndSetupTestDir(flags, ts.ctx, ts.storageClient)
+		setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
+		setup.SetMntDir(mountDir)
+		testEnv.testDirPath = path.Join(setup.MntDir(), testDirName)
 
 		// Parallel subtest execution is suspended until its calling test function has
 		// returned. Hence invoking RunTest inside another test, otherwise unmount will

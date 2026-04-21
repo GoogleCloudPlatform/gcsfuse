@@ -50,7 +50,12 @@ type concurrentReadTest struct {
 
 func (s *concurrentReadTest) SetupSuite() {
 	setup.SetUpLogFilePath(s.flags, GKETempDir, "", testEnv.cfg)
-	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	setup.SetMntDir(mountDir)
+}
+
+func (s *concurrentReadTest) SetupTest() {
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (s *concurrentReadTest) TearDownSuite() {
