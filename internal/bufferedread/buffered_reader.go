@@ -314,17 +314,14 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (res
 		p.metricHandle.BufferedReadReadLatency(ctx, dur)
 		p.metricHandle.GcsReadBytesCount(int64(bytesRead))
 
-		// Setting the return response.
-		resp.Data = dataSlices
-		resp.Callback = func() { p.callback(entriesToCallback) }
-		resp.Size = bytesRead
-
 		if err == nil || errors.Is(err, io.EOF) {
 			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
+			// Setting the return response.
+			resp.Data = dataSlices
+			resp.Callback = func() { p.callback(entriesToCallback) }
+			resp.Size = bytesRead
 		} else if errors.Is(err, gcsx.FallbackToAnotherReader) {
-			// When falling back, we must immediately release the blocks we've acquired
-			// references to, as the response would be overwritten by the new response
-			// from another reader.
+			// When falling back, we must immediately release the blocks we've acquired references to.
 			p.releaseInflightBlocks(entriesToCallback)
 			resp = gcsx.ReadResponse{}
 		}
