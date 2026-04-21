@@ -1634,6 +1634,38 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 	t.bucket.AssertExpectations(t.T())
 }
 
+func (t *BufferedReaderTest) TestReadAtFallbackOnSecondBlockDownloadFailure() {
+	// 1. Config: 1 block prefetch, file size is 3 blocks.
+	t.config.InitialPrefetchBlockCnt = 1
+	t.config.MaxPrefetchBlockCnt = 1
+	t.config.MinBlocksPerHandle = 1
+	t.object.Size = uint64(3 * testPrefetchBlockSizeBytes)
+	reader, err := NewBufferedReader(&BufferedReaderOptions{
+		Object:             t.object,
+		Bucket:             t.bucket,
+		Config:             t.config,
+		GlobalMaxBlocksSem: t.globalMaxBlocksSem,
+		WorkerPool:         t.workerPool,
+		MetricHandle:       t.metricHandle,
+		ReadTypeClassifier: t.readTypeClassifier})
+	require.NoError(t.T(), err)
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+	// 2. Mock GCS: First block succeeds, second fails.
+	// freshStart for block 0 will succeed.
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 0), nil).Once()
+
+	// 3. Act: Read spanning 2 blocks.
+	readSize := testPrefetchBlockSizeBytes + 10
+	resp, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{Buffer: make([]byte, readSize), Offset: 0})
+
+	// 4. Assert: Fallback error is returned and response is empty.
+	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "ReadAt should fall back when the second block download fails")
+	assert.Nil(t.T(), resp.Data, "Response data should be nil on fallback")
+	assert.Zero(t.T(), resp.Size, "Response size should be zero on fallback")
+	assert.Nil(t.T(), resp.Callback, "Response callback should be nil on fallback")
+	t.bucket.AssertExpectations(t.T())
+}
+
 func (t *BufferedReaderTest) TestReadAtFallbackOnFreshStartFailure() {
 	t.config.MaxPrefetchBlockCnt = 2
 	t.config.InitialPrefetchBlockCnt = 2
