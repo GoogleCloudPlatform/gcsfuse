@@ -851,9 +851,8 @@ func ParseLogFileFromFlags(flags []string) string {
 		parts := strings.Fields(flagStr)
 		for _, part := range parts {
 			if strings.HasPrefix(part, "--log-file=") {
-				if logPath := strings.TrimPrefix(part, "--log-file="); logPath != "" {
-					return path.Base(logPath)
-				}
+				// Get just the filename from the path
+				return path.Base(strings.TrimPrefix(part, "--log-file="))
 			}
 		}
 	}
