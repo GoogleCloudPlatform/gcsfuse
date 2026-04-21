@@ -141,7 +141,7 @@
     values: *fs_ops_list
 
 - metric-name: "fs/streaming_write_fallback_count"
-  description: "The cumulative distribution of the number of streaming write fallbacks with reason attached"
+  description: "The cumulative number of streaming write fallbacks with reason attached"
   type: "int_counter"
   attributes:
   - attribute-name: open_mode # Note: considering only those modes valid for write

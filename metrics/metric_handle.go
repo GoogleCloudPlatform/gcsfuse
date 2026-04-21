@@ -190,7 +190,7 @@ type MetricHandle interface {
 	// FsOpsLatency - The cumulative distribution of file system operation latencies
 	FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp)
 
-	// FsStreamingWriteFallbackCount - The cumulative distribution of the number of streaming write fallbacks with reason attached
+	// FsStreamingWriteFallbackCount - The cumulative number of streaming write fallbacks with reason attached
 	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason)
 
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random

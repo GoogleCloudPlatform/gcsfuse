@@ -4013,7 +4013,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithExplicitBucketBoundaries(50, 100, 200, 400, 800, 1500, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 20000000, 50000000, 100000000, 200000000, 500000000))
 
 	_, err8 := meter.Int64ObservableCounter("fs/streaming_write_fallback_count",
-		metric.WithDescription("The cumulative distribution of the number of streaming write fallbacks with reason attached"),
+		metric.WithDescription("The cumulative number of streaming write fallbacks with reason attached"),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			conditionallyObserve(obsrv, &fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAtomic, fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAttrSet)
