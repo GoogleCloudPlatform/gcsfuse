@@ -69,7 +69,7 @@ if [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_read" ]; then
 # =================================================================
 # 2) DISTRIBUTED WRITE BENCHMARK + LOCAL PERF TESTS
 # =================================================================
-elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write" ]; then
+elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ]; then
   TOOLS_DIR="${KOKORO_ARTIFACTS_DIR}/github/gcsfuse-tools"
   PERF_BENCHMARKS_FAILED=0
   
@@ -189,8 +189,8 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_zonal" ]; then
   echo "Zonal tests scaffolding ready."
   
   print_duration "Zonal Performance Tests" "$START_TIME"
-  exit 0
-  
+  exit 0 
+
 else
   echo "Unknown or unspecified BENCHMARK_TYPE: ${BENCHMARK_TYPE:-}"
   exit 1
