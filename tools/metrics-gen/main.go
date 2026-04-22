@@ -81,7 +81,7 @@ var funcMap = template.FuncMap{
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
 	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
 	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" || m.Type == "time_histogram" },
-	"isTimeHistogram":             isTimeHistogram,
+	"isTimeHistogram":             func(m Metric) bool { return m.Type == "time_histogram" },
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
 	"getTestFuncArgs":             getTestFuncArgs,
@@ -158,10 +158,6 @@ func getUnitMethod(unit string) string {
 		// Assumes the value is already in the correct unit if not time-based.
 		return ""
 	}
-}
-
-func isTimeHistogram(m Metric) bool {
-	return m.Type == "time_histogram"
 }
 
 func joinInts(nums []int64) string {
