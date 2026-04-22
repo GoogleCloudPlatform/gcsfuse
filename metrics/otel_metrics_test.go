@@ -219,7 +219,7 @@ func TestBufferedReadReadLatency(t *testing.T) {
 	dp, ok := metric[expectedKey]
 	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 	assert.Equal(t, uint64(len(latencies)), dp.Count)
-	assert.Equal(t, int64(totalLatency.Microseconds()), dp.Sum)
+	assert.Equal(t, totalLatency.Microseconds(), dp.Sum)
 }
 
 func TestFileCacheReadBytesCount(t *testing.T) {
@@ -475,7 +475,7 @@ func TestFileCacheReadLatencies(t *testing.T) {
 			dp, ok := metric[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
-			assert.Equal(t, int64(totalLatency.Microseconds()), dp.Sum)
+			assert.Equal(t, totalLatency.Microseconds(), dp.Sum)
 		})
 	}
 }
@@ -4565,7 +4565,7 @@ func TestFsOpsLatency(t *testing.T) {
 			dp, ok := metric[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
-			assert.Equal(t, int64(totalLatency.Microseconds()), dp.Sum)
+			assert.Equal(t, totalLatency.Microseconds(), dp.Sum)
 		})
 	}
 }
@@ -5188,7 +5188,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 			dp, ok := metric[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
-			assert.Equal(t, int64(totalLatency.Milliseconds()), dp.Sum)
+			assert.Equal(t, totalLatency.Milliseconds(), dp.Sum)
 		})
 	}
 }
