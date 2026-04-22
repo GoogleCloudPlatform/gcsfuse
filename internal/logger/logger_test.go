@@ -577,7 +577,7 @@ func TestInitLogFile_NoFollowSymlink(t *testing.T) {
 	// Create a dummy log file
 	f, err := os.Create(logFile)
 	assert.NoError(t, err)
-	f.Close()
+	assert.NoError(t, f.Close())
 
 	// Create a symlink pointing to the log file
 	err = os.Symlink(logFile, symlinkPath)

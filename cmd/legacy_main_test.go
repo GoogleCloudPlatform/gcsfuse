@@ -502,7 +502,7 @@ func TestMount_StderrNoFollowSymlink(t *testing.T) {
 	// Create a dummy log file
 	f, err := os.Create(logFile)
 	assert.NoError(t, err)
-	f.Close()
+	assert.NoError(t, f.Close())
 
 	// Create a symlink at the expected stderr file path pointing to the dummy log file
 	err = os.Symlink(logFile, symlinkPath)
