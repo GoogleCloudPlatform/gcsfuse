@@ -70,20 +70,18 @@ type TemplateData struct {
 
 // Helper functions for the template.
 var funcMap = template.FuncMap{
-	"toPascal":         toPascal,
-	"toCamel":          toCamel,
-	"getVarName":       getVarName,
-	"getAtomicName":    getAtomicName,
-	"getGoType":        getGoType,
-	"getAttrConstName": getAttrConstName,
-	"getUnitMethod":    getUnitMethod,
-	"joinInts":         joinInts,
-	"isCounter":        func(m Metric) bool { return m.Type == "int_counter" },
-	"isUpDownCounter":  func(m Metric) bool { return m.Type == "int_up_down_counter" },
-	"isHistogram":      func(m Metric) bool { return m.Type == "int_histogram" },
-	"isTimeHistogram": func(m Metric) bool {
-		return m.Type == "int_histogram" && (m.Unit == "us" || m.Unit == "ms" || m.Unit == "s")
-	},
+	"toPascal":                    toPascal,
+	"toCamel":                     toCamel,
+	"getVarName":                  getVarName,
+	"getAtomicName":               getAtomicName,
+	"getGoType":                   getGoType,
+	"getAttrConstName":            getAttrConstName,
+	"getUnitMethod":               getUnitMethod,
+	"joinInts":                    joinInts,
+	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
+	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
+	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+	"isTimeHistogram":             isTimeHistogram,
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
 	"getTestFuncArgs":             getTestFuncArgs,
@@ -160,6 +158,10 @@ func getUnitMethod(unit string) string {
 		// Assumes the value is already in the correct unit if not time-based.
 		return ""
 	}
+}
+
+func isTimeHistogram(m Metric) bool {
+	return m.Type == "int_histogram" && (m.Unit == "us" || m.Unit == "ms" || m.Unit == "s")
 }
 
 func joinInts(nums []int64) string {
@@ -397,10 +399,14 @@ func buildSwitches(metric Metric) string {
 				varName := getVarName(metric.Name, combo)
 				unitMethod := getUnitMethod(metric.Unit)
 				valVar := "latency"
-				if unitMethod == "" && metric.Unit != "us" && metric.Unit != "ms" && metric.Unit != "s" {
+				if unitMethod == "" {
 					valVar = "value"
 				}
-				fmt.Fprintf(&builder, "%srecord = histogramRecord{ctx: ctx, instrument: o.%s, value: %s%s, attributes: %s}\n", indent, toCamel(metric.Name), valVar, unitMethod, varName)
+				valueStr := fmt.Sprintf("%s%s", valVar, unitMethod)
+				if metric.Unit == "s" {
+					valueStr = fmt.Sprintf("int64(%s)", valueStr)
+				}
+				fmt.Fprintf(&builder, "%srecord = histogramRecord{ctx: ctx, instrument: o.%s, value: %s, attributes: %s}\n", indent, toCamel(metric.Name), valueStr, varName)
 			}
 			return
 		}
@@ -436,10 +442,14 @@ func buildSwitches(metric Metric) string {
 		if metric.Type == "int_histogram" {
 			unitMethod := getUnitMethod(metric.Unit)
 			valVar := "latency"
-			if unitMethod == "" && metric.Unit != "us" && metric.Unit != "ms" && metric.Unit != "s" {
+			if unitMethod == "" {
 				valVar = "value"
 			}
-			fmt.Fprintf(&builder, "\trecord := histogramRecord{ctx: ctx, instrument: o.%s, value: %s%s}\n", toCamel(metric.Name), valVar, unitMethod)
+			valueStr := fmt.Sprintf("%s%s", valVar, unitMethod)
+			if metric.Unit == "s" {
+				valueStr = fmt.Sprintf("int64(%s)", valueStr)
+			}
+			fmt.Fprintf(&builder, "\trecord := histogramRecord{ctx: ctx, instrument: o.%s, value: %s}\n", toCamel(metric.Name), valueStr)
 		} else if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
 			atomicName := getAtomicName(metric.Name, AttrCombination{})
 			fmt.Fprintf(&builder, "\to.%s.Add(inc)\n", atomicName)

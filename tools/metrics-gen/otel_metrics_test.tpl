@@ -289,7 +289,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			dp, ok := metric[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(len(tc.{{if isTimeHistogram .}}latencies{{else}}values{{end}})), dp.Count)
-			assert.Equal(t, {{if isTimeHistogram .}}totalLatency.{{getLatencyMethod .Unit}}(){{else}}totalValue{{end}}, dp.Sum)
+			assert.Equal(t, {{if isTimeHistogram .}}int64(totalLatency.{{getLatencyMethod .Unit}}()){{else}}totalValue{{end}}, dp.Sum)
 		})
 	}
 	{{- else}}
@@ -324,7 +324,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	dp, ok := metric[expectedKey]
 	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 	assert.Equal(t, uint64(len({{if isTimeHistogram .}}latencies{{else}}values{{end}})), dp.Count)
-	assert.Equal(t, {{if isTimeHistogram .}}totalLatency.{{getLatencyMethod .Unit}}(){{else}}totalValue{{end}}, dp.Sum)
+	assert.Equal(t, {{if isTimeHistogram .}}int64(totalLatency.{{getLatencyMethod .Unit}}()){{else}}totalValue{{end}}, dp.Sum)
 	{{- end}}
 }
 {{end}}
