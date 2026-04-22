@@ -190,7 +190,7 @@ type MetricHandle interface {
 	// GcsRetryCount - The cumulative number of retry requests made to GCS.
 	GcsRetryCount(inc int64, retryErrorCategory RetryErrorCategory)
 
-	// ReadBlockSizes - The cumulative distribution of the number of block sizes across different bucket boundaries
+	// ReadBlockSizes - The cumulative distribution of read block sizes across different bucket boundaries
 	ReadBlockSizes(ctx context.Context, value int64)
 
 	// TestUpdownCounter - Test metric for updown counters.
