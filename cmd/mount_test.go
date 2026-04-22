@@ -17,6 +17,8 @@ package cmd
 import (
 	"testing"
 
+	"os"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 )
@@ -147,4 +149,30 @@ func TestGetFuseMountConfig_EnableReaddirplus(t *testing.T) {
 			assert.Equal(t, tc.expectedValue, fuseMountCfg.EnableReaddirplus)
 		})
 	}
+}
+
+func TestGetFuseMountConfig_WireLogNoFollowSymlink(t *testing.T) {
+	tempDir := t.TempDir()
+	logFile := tempDir + "/wire.log"
+	symlinkPath := tempDir + "/symlink.log"
+
+	// Create a dummy log file
+	f, err := os.Create(logFile)
+	assert.NoError(t, err)
+	f.Close()
+
+	// Create a symlink pointing to the log file
+	err = os.Symlink(logFile, symlinkPath)
+	assert.NoError(t, err)
+
+	newConfig := &cfg.Config{
+		Logging: cfg.LoggingConfig{
+			WireLog: cfg.ResolvedPath(symlinkPath),
+		},
+	}
+
+	// This should fail to create the wire logger because of unix.O_NOFOLLOW
+	fuseMountCfg := getFuseMountConfig("mybucket", newConfig)
+
+	assert.Nil(t, fuseMountCfg.WireLogger)
 }
