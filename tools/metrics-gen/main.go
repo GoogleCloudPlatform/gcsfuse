@@ -80,7 +80,7 @@ var funcMap = template.FuncMap{
 	"joinInts":                    joinInts,
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
 	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
-	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" || m.Type == "time_histogram" },
 	"isTimeHistogram":             isTimeHistogram,
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
@@ -161,7 +161,7 @@ func getUnitMethod(unit string) string {
 }
 
 func isTimeHistogram(m Metric) bool {
-	return m.Type == "int_histogram" && (m.Unit == "us" || m.Unit == "ms" || m.Unit == "s")
+	return m.Type == "time_histogram"
 }
 
 func joinInts(nums []int64) string {
@@ -280,11 +280,11 @@ func validateMetric(m Metric) error {
 	if m.Description == "" {
 		return fmt.Errorf("description is required for metric %q", m.Name)
 	}
-	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "int_up_down_counter" {
-		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', or 'int_up_down_counter', got %q", m.Name, m.Type)
+	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "time_histogram" && m.Type != "int_up_down_counter" {
+		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', 'time_histogram', or 'int_up_down_counter', got %q", m.Name, m.Type)
 	}
 
-	if m.Type == "int_histogram" {
+	if m.Type == "int_histogram" || m.Type == "time_histogram" {
 		if len(m.Boundaries) == 0 {
 			return fmt.Errorf("boundaries are required for histogram metric %q", m.Name)
 		}
@@ -439,7 +439,7 @@ func buildSwitches(metric Metric) string {
 	}
 
 	if len(metric.Attributes) == 0 {
-		if metric.Type == "int_histogram" {
+		if metric.Type == "int_histogram" || metric.Type == "time_histogram" {
 			unitMethod := getUnitMethod(metric.Unit)
 			valVar := "latency"
 			if unitMethod == "" {
@@ -455,7 +455,7 @@ func buildSwitches(metric Metric) string {
 			fmt.Fprintf(&builder, "\to.%s.Add(inc)\n", atomicName)
 		}
 	} else {
-		if metric.Type == "int_histogram" {
+		if metric.Type == "int_histogram" || metric.Type == "time_histogram" {
 			builder.WriteString("\tvar record histogramRecord\n")
 		}
 		recorder(0, AttrCombination{})

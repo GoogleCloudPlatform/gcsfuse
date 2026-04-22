@@ -11,7 +11,7 @@
 - metric-name: "buffered_read/read_latency"
   description: "The cumulative distribution of latencies for ReadAt calls served by the buffered reader."
   unit: "us"
-  type: "int_histogram"
+  type: "time_histogram"
   boundaries: &microseconds_boundaries
   - 50
   - 100
@@ -63,7 +63,7 @@
 
 - metric-name: "file_cache/read_latencies"
   description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false."
-  type: "int_histogram"
+  type: "time_histogram"
   unit: "us"
   boundaries: *microseconds_boundaries
   attributes:
@@ -132,7 +132,7 @@
 
 - metric-name: "fs/ops_latency"
   description: "The cumulative distribution of file system operation latencies"
-  type: "int_histogram"
+  type: "time_histogram"
   unit: "us"
   boundaries: *microseconds_boundaries
   attributes:
@@ -205,7 +205,7 @@
 
 - metric-name: "gcs/request_latencies"
   description: "The cumulative distribution of the GCS request latencies."
-  type: "int_histogram"
+  type: "time_histogram"
   unit: "ms"
   boundaries: &millisecond_boundaries
   - 100
