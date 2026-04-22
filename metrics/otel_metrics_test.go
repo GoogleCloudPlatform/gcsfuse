@@ -4595,15 +4595,6 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_read_write_write_fallback_reason_not_enabled",
-			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "read_write", "not_enabled")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "not_enabled")): 5,
-			},
-		},
-		{
 			name: "open_mode_read_write_write_fallback_reason_other",
 			f: func(m *otelMetrics) {
 				m.FsStreamingWriteFallbackCount(5, "read_write", "other")
@@ -4637,15 +4628,6 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("open_mode", "read_write_append"), attribute.String("write_fallback_reason", "existing_file")): 5,
-			},
-		},
-		{
-			name: "open_mode_read_write_append_write_fallback_reason_not_enabled",
-			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "read_write_append", "not_enabled")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "read_write_append"), attribute.String("write_fallback_reason", "not_enabled")): 5,
 			},
 		},
 		{
@@ -4685,15 +4667,6 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_write_only_write_fallback_reason_not_enabled",
-			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "write_only", "not_enabled")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "write_only"), attribute.String("write_fallback_reason", "not_enabled")): 5,
-			},
-		},
-		{
 			name: "open_mode_write_only_write_fallback_reason_other",
 			f: func(m *otelMetrics) {
 				m.FsStreamingWriteFallbackCount(5, "write_only", "other")
@@ -4727,15 +4700,6 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("open_mode", "write_only_append"), attribute.String("write_fallback_reason", "existing_file")): 5,
-			},
-		},
-		{
-			name: "open_mode_write_only_append_write_fallback_reason_not_enabled",
-			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "write_only_append", "not_enabled")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "write_only_append"), attribute.String("write_fallback_reason", "not_enabled")): 5,
 			},
 		},
 		{

@@ -157,7 +157,6 @@ type WriteFallbackReason string
 const (
 	WriteFallbackReasonConcurrentLimitBreachedAttr WriteFallbackReason = "concurrent_limit_breached"
 	WriteFallbackReasonExistingFileAttr            WriteFallbackReason = "existing_file"
-	WriteFallbackReasonNotEnabledAttr              WriteFallbackReason = "not_enabled"
 	WriteFallbackReasonOtherAttr                   WriteFallbackReason = "other"
 	WriteFallbackReasonOutOfOrderAttr              WriteFallbackReason = "out_of_order"
 )
