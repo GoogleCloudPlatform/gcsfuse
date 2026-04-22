@@ -1167,140 +1167,114 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 		openMode          util.OpenMode
 		offset            int64
 		bufferSize        int
-		bucketType        gcs.BucketType
-		expectedToSkip    bool
+		expectedForRapid  bool
 		useNilReadManager bool
 	}{
 		{
-			name:           "All conditions met (zonal bucket): unfinalized, direct I/O, positive offset, extends beyond size",
-			object:         unfinalizedObject,
-			openMode:       directIOReadMode,
-			offset:         50,
-			bufferSize:     60, // 50 + 60 > 100
-			bucketType:     gcs.BucketType{Zonal: true},
-			expectedToSkip: true,
+			name:             "All conditions met: unfinalized, direct I/O, positive offset, extends beyond size",
+			object:           unfinalizedObject,
+			openMode:         directIOReadMode,
+			offset:           50,
+			bufferSize:       60, // 50 + 60 > 100
+			expectedForRapid: true,
 		},
 		{
-			name:           "All conditions met (pirlo bucket): unfinalized, direct I/O, positive offset, extends beyond size",
-			object:         unfinalizedObject,
-			openMode:       directIOReadMode,
-			offset:         50,
-			bufferSize:     60, // 50 + 60 > 100
-			bucketType:     gcs.BucketType{Pirlo: true},
-			expectedToSkip: true,
+			name:             "Finalized object: should not skip",
+			object:           finalizedObject,
+			openMode:         directIOReadMode,
+			offset:           50,
+			bufferSize:       60,
+			expectedForRapid: false,
 		},
 		{
-			name:           "non_rapid_bucket_finalized_attr_set",
-			object:         finalizedObject,
-			openMode:       directIOReadMode,
-			offset:         50,
-			bufferSize:     60,
-			bucketType:     gcs.BucketType{},
-			expectedToSkip: false,
+			name:             "Not direct I/O: should not skip",
+			object:           unfinalizedObject,
+			openMode:         readOnlyMode,
+			offset:           50,
+			bufferSize:       60,
+			expectedForRapid: false,
 		},
 		{
-			name:           "non_rapid_bucket_finalized_attr_unset",
-			object:         unfinalizedObject,
-			openMode:       directIOReadMode,
-			offset:         50,
-			bufferSize:     60,
-			bucketType:     gcs.BucketType{},
-			expectedToSkip: false,
+			name:             "Negative offset: should not skip",
+			object:           unfinalizedObject,
+			openMode:         directIOReadMode,
+			offset:           -10,
+			bufferSize:       20,
+			expectedForRapid: false,
 		},
 		{
-			name:           "Finalized object: should not skip",
-			object:         finalizedObject,
-			openMode:       directIOReadMode,
-			offset:         50,
-			bufferSize:     60,
-			bucketType:     gcs.BucketType{Zonal: true},
-			expectedToSkip: false,
+			name:             "Read within size: should not skip",
+			object:           unfinalizedObject,
+			openMode:         directIOReadMode,
+			offset:           50,
+			bufferSize:       50, // 50 + 50 <= 100
+			expectedForRapid: false,
 		},
 		{
-			name:           "Not direct I/O: should not skip",
-			object:         unfinalizedObject,
-			openMode:       readOnlyMode,
-			offset:         50,
-			bufferSize:     60,
-			bucketType:     gcs.BucketType{Zonal: true},
-			expectedToSkip: false,
+			name:             "Read exactly at size boundary: should not skip",
+			object:           unfinalizedObject,
+			openMode:         directIOReadMode,
+			offset:           100,
+			bufferSize:       0,
+			expectedForRapid: false,
 		},
 		{
-			name:           "Negative offset: should not skip",
-			object:         unfinalizedObject,
-			openMode:       directIOReadMode,
-			offset:         -10,
-			bufferSize:     20,
-			bucketType:     gcs.BucketType{Zonal: true},
-			expectedToSkip: false,
+			name:             "Read starts at size and extends: should skip",
+			object:           unfinalizedObject,
+			openMode:         directIOReadMode,
+			offset:           100,
+			bufferSize:       10, // 100 + 10 > 100
+			expectedForRapid: true,
 		},
 		{
-			name:           "Read within size: should not skip",
-			object:         unfinalizedObject,
-			openMode:       directIOReadMode,
-			offset:         50,
-			bufferSize:     50, // 50 + 50 <= 100
-			bucketType:     gcs.BucketType{Zonal: true},
-			expectedToSkip: false,
-		},
-		{
-			name:           "Read exactly at size boundary: should not skip",
-			object:         unfinalizedObject,
-			openMode:       directIOReadMode,
-			offset:         100,
-			bufferSize:     0,
-			bucketType:     gcs.BucketType{Zonal: true},
-			expectedToSkip: false,
-		},
-		{
-			name:           "Read starts at size and extends: should skip",
-			object:         unfinalizedObject,
-			openMode:       directIOReadMode,
-			offset:         100,
-			bufferSize:     10, // 100 + 10 > 100
-			bucketType:     gcs.BucketType{Zonal: true},
-			expectedToSkip: true,
-		},
-		{
-			name:           "Read starts before size and extends: should skip",
-			object:         unfinalizedObject,
-			openMode:       directIOReadMode,
-			offset:         101,
-			bufferSize:     10, // 101 + 10 > 100
-			bucketType:     gcs.BucketType{Zonal: true},
-			expectedToSkip: true,
+			name:             "Read starts before size and extends: should skip",
+			object:           unfinalizedObject,
+			openMode:         directIOReadMode,
+			offset:           101,
+			bufferSize:       10, // 101 + 10 > 100
+			expectedForRapid: true,
 		},
 	}
+	bucketTypes := []struct {
+		name       string
+		bucketType gcs.BucketType
+		isRapid    bool
+	}{
+		{name: "Zonal", bucketType: gcs.BucketType{Zonal: true}, isRapid: true},
+		{name: "Pirlo", bucketType: gcs.BucketType{Pirlo: true}, isRapid: true},
+		{name: "Standard", bucketType: gcs.BucketType{}, isRapid: false},
+	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			// Setup test bucket.
-			t.bucket = gcsx.NewSyncerBucket(
-				/*appendThreshold=*/ 1,
-				/*chunkRetryDeadlineSecs=*/ 120,
-				/*chunkTransferTimeoutSecs=*/ 10,
-				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", tc.bucketType),
-			)
-			parent := createDirInode(&t.bucket, &t.clock)
-			config := &cfg.Config{}
-			in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, tc.object.Name, nil, false)
-			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), tc.openMode, config, nil, nil, 0)
-			if tc.useNilReadManager {
-				fh.readManager = nil
+	for _, bt := range bucketTypes {
+		for _, tc := range testCases {
+			t.Run(bt.name+"_"+tc.name, func() {
+				// Setup test bucket.
+				t.bucket = gcsx.NewSyncerBucket(
+					/*appendThreshold=*/ 1,
+					/*chunkRetryDeadlineSecs=*/ 120,
+					/*chunkTransferTimeoutSecs=*/ 10,
+					".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", bt.bucketType),
+				)
+				parent := createDirInode(&t.bucket, &t.clock)
+				config := &cfg.Config{}
+				in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, tc.object.Name, nil, false)
+				fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), tc.openMode, config, nil, nil, 0)
+				if tc.useNilReadManager {
+					fh.readManager = nil
+					req := &gcsx.ReadRequest{Offset: tc.offset, Buffer: make([]byte, tc.bufferSize)}
+					assert.Panics(t.T(), func() { fh.shouldSkipSizeChecks(req) })
+					return
+				}
+				rmConfig := &read_manager.ReadManagerConfig{Config: config}
+				fh.readManager = read_manager.NewReadManager(tc.object, &t.bucket, rmConfig)
 				req := &gcsx.ReadRequest{Offset: tc.offset, Buffer: make([]byte, tc.bufferSize)}
-				assert.Panics(t.T(), func() { fh.shouldSkipSizeChecks(req) })
-				return
-			}
 
-			rmConfig := &read_manager.ReadManagerConfig{Config: config}
-			fh.readManager = read_manager.NewReadManager(tc.object, &t.bucket, rmConfig)
+				skip := fh.shouldSkipSizeChecks(req)
 
-			req := &gcsx.ReadRequest{Offset: tc.offset, Buffer: make([]byte, tc.bufferSize)}
-
-			skip := fh.shouldSkipSizeChecks(req)
-
-			assert.Equal(t.T(), tc.expectedToSkip, skip)
-		})
+				expected := tc.expectedForRapid && bt.isRapid
+				assert.Equal(t.T(), expected, skip)
+			})
+		}
 	}
 }
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {

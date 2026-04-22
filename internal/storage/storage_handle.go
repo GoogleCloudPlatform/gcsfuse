@@ -203,7 +203,7 @@ func setDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientCo
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketZonal bool, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
@@ -226,7 +226,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
 		logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
-		if !isbucketZonal {
+		if !isbucketRapid {
 			return nil, verifyErr
 		}
 	} else {
@@ -431,7 +431,7 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 	var err error
 	if isBucketRapid {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isbucketZonal, true, bucketName, billingProject)
+			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isBucketRapid, true, bucketName, billingProject)
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
