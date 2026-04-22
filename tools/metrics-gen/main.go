@@ -439,7 +439,8 @@ func buildSwitches(metric Metric) string {
 	}
 
 	if len(metric.Attributes) == 0 {
-		if metric.Type == "int_histogram" || metric.Type == "time_histogram" {
+		switch metric.Type {
+		case "int_histogram", "time_histogram":
 			unitMethod := getUnitMethod(metric.Unit)
 			valVar := "latency"
 			if unitMethod == "" {
@@ -450,7 +451,7 @@ func buildSwitches(metric Metric) string {
 				valueStr = fmt.Sprintf("int64(%s)", valueStr)
 			}
 			fmt.Fprintf(&builder, "\trecord := histogramRecord{ctx: ctx, instrument: o.%s, value: %s}\n", toCamel(metric.Name), valueStr)
-		} else if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
+		case "int_counter", "int_up_down_counter":
 			atomicName := getAtomicName(metric.Name, AttrCombination{})
 			fmt.Fprintf(&builder, "\to.%s.Add(inc)\n", atomicName)
 		}
