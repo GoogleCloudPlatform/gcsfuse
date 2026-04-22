@@ -1041,6 +1041,7 @@ type otelMetrics struct {
 	fileCacheReadLatencies                                                             metric.Int64Histogram
 	fsOpsLatency                                                                       metric.Int64Histogram
 	gcsRequestLatencies                                                                metric.Int64Histogram
+	readBlockSizes                                                                     metric.Int64Histogram
 }
 
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
@@ -1062,8 +1063,7 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 
 func (o *otelMetrics) BufferedReadReadLatency(
 	ctx context.Context, latency time.Duration) {
-	var record histogramRecord
-	record = histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
+	record := histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
 
 	select {
 	case o.ch <- record: // Do nothing
@@ -2372,6 +2372,16 @@ func (o *otelMetrics) GcsRetryCount(
 	}
 }
 
+func (o *otelMetrics) ReadBlockSizes(
+	ctx context.Context, value int64) {
+	record := histogramRecord{ctx: ctx, instrument: o.readBlockSizes, value: value}
+
+	select {
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
+	}
+}
+
 func (o *otelMetrics) TestUpdownCounter(
 	inc int64) {
 	o.testUpdownCounterAtomic.Add(inc)
@@ -3463,7 +3473,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err15 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	readBlockSizes, err15 := meter.Int64Histogram("read/block_sizes",
+		metric.WithDescription("The cumulative distribution of the number of block sizes across different bucket boundaries"),
+		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728))
+
+	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3471,7 +3486,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err17 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3480,7 +3495,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -3963,9 +3978,10 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRequestLatencies:                                        gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:           &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:    &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
-		testUpdownCounterAtomic:                                    &testUpdownCounterAtomic,
-		testUpdownCounterWithAttrsRequestTypeAttr1Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
-		testUpdownCounterWithAttrsRequestTypeAttr2Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,
+		readBlockSizes:          readBlockSizes,
+		testUpdownCounterAtomic: &testUpdownCounterAtomic,
+		testUpdownCounterWithAttrsRequestTypeAttr1Atomic: &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
+		testUpdownCounterWithAttrsRequestTypeAttr2Atomic: &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,
 	}, nil
 }
 

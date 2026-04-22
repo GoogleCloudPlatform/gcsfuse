@@ -54,6 +54,8 @@ func (*noopMetrics) GcsRequestLatencies(ctx context.Context, latency time.Durati
 
 func (*noopMetrics) GcsRetryCount(inc int64, retryErrorCategory RetryErrorCategory) {}
 
+func (*noopMetrics) ReadBlockSizes(ctx context.Context, value int64) {}
+
 func (*noopMetrics) TestUpdownCounter(inc int64) {}
 
 func (*noopMetrics) TestUpdownCounterWithAttrs(inc int64, requestType RequestType) {}

@@ -41,7 +41,7 @@ type MetricHandle interface {
 		{{- if or (isCounter .) (isUpDownCounter .) -}}
 			inc int64
 		{{- else -}}
-			ctx context.Context, latency time.Duration
+			ctx context.Context, {{if isTimeHistogram .}}latency time.Duration{{else}}value int64{{end}}
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}

@@ -236,6 +236,27 @@
     - "OTHER_ERRORS"
     - "STALLED_READ_REQUEST"
 
+- metric-name: "read/block_sizes"
+  description: "The cumulative distribution of the number of block sizes across different bucket boundaries"
+  type: "int_histogram"
+  unit: "By"
+  boundaries: &bytes_boundaries # in bytes
+  - 8192
+  - 16384
+  - 32768
+  - 65536
+  - 131072
+  - 262144
+  - 524288
+  - 1048576
+  - 2097152
+  - 4194304
+  - 8388608
+  - 16777216
+  - 33554432
+  - 67108864
+  - 134217728
+
 - metric-name: "test/updown_counter"
   description: "Test metric for updown counters."
   type: "int_up_down_counter"
