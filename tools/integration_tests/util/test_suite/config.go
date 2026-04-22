@@ -66,6 +66,7 @@ type Config struct {
 	ManagedFolders        []TestConfig `yaml:"managed_folders"`
 	ConcurrentOperations  []TestConfig `yaml:"concurrent_operations"`
 	Benchmarking          []TestConfig `yaml:"benchmarking"`
+	BufferedRead          []TestConfig `yaml:"buffered_read"`
 	StaleHandle           []TestConfig `yaml:"stale_handle"`
 	StreamingWrites       []TestConfig `yaml:"streaming_writes"`
 	InactiveStreamTimeout []TestConfig `yaml:"inactive_stream_timeout"`

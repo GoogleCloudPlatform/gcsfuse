@@ -15,6 +15,7 @@
 package buffered_read
 
 import (
+	"log"
 	"os"
 	"path"
 	"syscall"
@@ -36,30 +37,24 @@ import (
 // fallbackSuiteBase provides shared setup and teardown logic for fallback-related test suites.
 type fallbackSuiteBase struct {
 	suite.Suite
-	testFlags *gcsfuseTestFlags
+	flags []string
 }
 
 func (s *fallbackSuiteBase) SetupSuite() {
-	if setup.MountedDirectory() != "" {
-		setupForMountedDirectoryTests()
-		return
-	}
-	configFile := createConfigFile(s.testFlags)
-	flags := []string{"--config-file=" + configFile}
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-}
-
-func (s *fallbackSuiteBase) SetupTest() {
-	err := os.Truncate(setup.LogFile(), 0)
-	require.NoError(s.T(), err, "Failed to truncate log file")
+	setup.SetUpLogFilePath(s.flags, GKETempDir, "", testEnv.cfg)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	setup.SetMntDir(mountDir)
 }
 
 func (s *fallbackSuiteBase) TearDownSuite() {
-	if setup.MountedDirectory() != "" {
-		setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-		return
-	}
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (s *fallbackSuiteBase) SetupTest() {
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
+}
+
+func (s *fallbackSuiteBase) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -83,10 +78,12 @@ type RandomReadFallbackSuite struct {
 // the BufferedReader is not created, and reads fall back to the next reader
 // without any buffered reading.
 func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobalPool_NoReaderAdded() {
-	fileSize := 3 * s.testFlags.blockSizeMB * util.MiB
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
+	fileSize := blockSizeInBytes * 3
 	chunkSize := int64(1 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
 
 	// Open and read the file. Since BufferedReader creation should fail, the read
@@ -94,7 +91,7 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 	content, err := operations.ReadChunkFromFile(filePath, chunkSize, 0, os.O_RDONLY|syscall.O_DIRECT)
 
 	require.NoError(s.T(), err, "Failed to read file")
-	client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testDir), fileName, 0, chunkSize, string(content), s.T())
+	client.ValidateObjectChunkFromGCS(testEnv.ctx, testEnv.storageClient, path.Base(testDir), fileName, 0, chunkSize, string(content), s.T())
 	warningMsg := "Failed to create bufferedReader"
 	found := operations.CheckLogFileForMessage(s.T(), warningMsg, setup.LogFile())
 	assert.True(s.T(), found, "Expected warning message not found in log file")
@@ -103,15 +100,16 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 }
 
 func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
 	const randomReadsThreshold = 3
-	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
 	// Create a file with 4 blocks. We will read backwards from block 3 to 0
 	// to trigger random seek detection.
 	numBlocks := 4
 	fileSize := blockSizeInBytes * int64(numBlocks)
 	chunkSize := int64(1 * util.KiB)
 	testDir := setup.SetupTestDirectory(testDirName)
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
@@ -126,12 +124,13 @@ func (s *RandomReadFallbackSuite) TestRandomRead_Fallback() {
 }
 
 func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
-	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
 	// File size is small, less than one block.
 	fileSize := blockSizeInBytes / 2
 	chunkSize := int64(1 * util.KiB)
 	testDir := setup.SetupTestDirectory(testDirName)
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
@@ -152,9 +151,11 @@ func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
 // due to random reads, the buffered reader is re-engaged once the read pattern
 // becomes sequential again.
 func (s *RandomReadFallbackSuite) TestRandomThenSequential_SwitchesBackToBufferedRead() {
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
 	fileSize := int64(20 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
@@ -182,46 +183,32 @@ func (s *RandomReadFallbackSuite) TestRandomThenSequential_SwitchesBackToBuffere
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestFallbackSuites(t *testing.T) {
-	// Define base flags for insufficient pool creation tests.
-	baseInsufficientPoolFlags := gcsfuseTestFlags{
-		enableBufferedRead:   true,
-		blockSizeMB:          8,
-		minBlocksPerHandle:   2,
-		globalMaxBlocks:      1, // Less than min-blocks-per-handle
-		maxBlocksPerHandle:   10,
-		startBlocksPerHandle: 2,
-	}
+func TestInsufficientPoolCreationSuite(t *testing.T) {
+	ts := &InsufficientPoolCreationSuite{}
 
-	// Define base flags for random read fallback tests.
-	baseRandomReadFlags := gcsfuseTestFlags{
-		enableBufferedRead:   true,
-		blockSizeMB:          8,
-		maxBlocksPerHandle:   20,
-		startBlocksPerHandle: 2,
-		minBlocksPerHandle:   2,
-	}
-
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, &InsufficientPoolCreationSuite{fallbackSuiteBase{testFlags: &baseInsufficientPoolFlags}})
-		suite.Run(t, &RandomReadFallbackSuite{fallbackSuiteBase{testFlags: &baseRandomReadFlags}})
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
 		return
 	}
 
-	protocols := []string{clientProtocolHTTP1, clientProtocolGRPC}
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
+	}
+}
 
-	for _, protocol := range protocols {
-		t.Run(protocol, func(t *testing.T) {
-			// Run the suite for insufficient pool at creation time.
-			insufficientPoolFlags := baseInsufficientPoolFlags
-			insufficientPoolFlags.clientProtocol = protocol
-			suite.Run(t, &InsufficientPoolCreationSuite{fallbackSuiteBase{testFlags: &insufficientPoolFlags}})
+func TestRandomReadFallbackSuite(t *testing.T) {
+	ts := &RandomReadFallbackSuite{}
 
-			// Run the suite for random read fallback scenarios.
-			randomReadFlags := baseRandomReadFlags
-			randomReadFlags.clientProtocol = protocol
-			suite.Run(t, &RandomReadFallbackSuite{fallbackSuiteBase{testFlags: &randomReadFlags}})
-		})
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
+		return
+	}
+
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
 	}
 }

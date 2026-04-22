@@ -16,6 +16,7 @@ package buffered_read
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"syscall"
@@ -36,30 +37,24 @@ import (
 
 type SequentialReadSuite struct {
 	suite.Suite
-	// Helper struct with test flags.
-	testFlags *gcsfuseTestFlags
+	flags []string
 }
 
 func (s *SequentialReadSuite) SetupSuite() {
-	if setup.MountedDirectory() != "" {
-		setupForMountedDirectoryTests()
-		return
-	}
-	// Create config file.
-	configFile := createConfigFile(s.testFlags)
-	// Create the final flags slice.
-	// The static mounting helper adds --log-file and --log-severity flags, so we only need to add the format.
-	flags := []string{"--config-file=" + configFile}
-	// Mount GCSFuse.
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	setup.SetUpLogFilePath(s.flags, GKETempDir, "", testEnv.cfg)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	setup.SetMntDir(mountDir)
 }
 
 func (s *SequentialReadSuite) TearDownSuite() {
-	if setup.MountedDirectory() != "" {
-		setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-		return
-	}
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (s *SequentialReadSuite) SetupTest() {
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
+}
+
+func (s *SequentialReadSuite) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -67,7 +62,6 @@ func (s *SequentialReadSuite) TearDownSuite() {
 // Test Cases
 // //////////////////////////////////////////////////////////////////////
 func (s *SequentialReadSuite) TestSequentialRead() {
-	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
 	fileSizeTests := []struct {
 		name     string
 		fileSize int64
@@ -94,9 +88,9 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 				err := os.Truncate(setup.LogFile(), 0)
 				require.NoError(t, err, "Failed to truncate log file")
 				testDir := setup.SetupTestDirectory(testDirName)
-				fileName := setupFileInTestDir(ctx, storageClient, testDir, fsTest.fileSize, t)
+				fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fsTest.fileSize, t)
 
-				expected := readFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, chunkSize, t)
+				expected := readFileAndValidate(testEnv.ctx, testEnv.storageClient, testDir, fileName, true, 0, chunkSize, t)
 
 				bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(t)
 				validate(expected, bufferedReadLogEntry, false, t)
@@ -111,8 +105,6 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 // The key validation is that all these operations should be served from a single
 // buffered read log entry, indicating efficient handling.
 func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
-	// Constants for block and file sizes
-	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
 	// Header and footer sizes (10KB each)
 	headerSize := 10 * util.KiB
 	footerSize := 10 * util.KiB
@@ -122,7 +114,7 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 		testDir := setup.SetupTestDirectory(testDirName)
 		fileSize := blockSizeInBytes * 2
 		// Create a file of a given size in the test directory.
-		fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, t)
+		fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, t)
 		filePath := path.Join(testDir, fileName)
 		// Get the actual file size.
 		fi, err := os.Stat(filePath)
@@ -160,7 +152,6 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 // TestReadSpanningTwoBlocks verifies that a read spanning two buffer blocks is
 // handled correctly.
 func (s *SequentialReadSuite) TestReadSpanningTwoBlocks() {
-	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
 	// Ensure file is large enough for multi-block reads.
 	fileSize := 3 * blockSizeInBytes
 	// We want to read 512KB, with 256KB in the first block and 256KB in the second.
@@ -171,10 +162,10 @@ func (s *SequentialReadSuite) TestReadSpanningTwoBlocks() {
 	// Truncate the log file before the read operation.
 	err := os.Truncate(setup.LogFile(), 0)
 	require.NoError(s.T(), err, "Failed to truncate log file")
-	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	fileName := setupFileInTestDir(testEnv.ctx, testEnv.storageClient, testDir, fileSize, s.T())
 
 	// readFileAndValidate opens, reads, and closes the file in one go.
-	expected := readFileAndValidate(ctx, storageClient, testDir, fileName, false, readOffset, readSize, s.T())
+	expected := readFileAndValidate(testEnv.ctx, testEnv.storageClient, testDir, fileName, false, readOffset, readSize, s.T())
 
 	bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(s.T())
 	validate(expected, bufferedReadLogEntry, false, s.T())
@@ -186,30 +177,16 @@ func (s *SequentialReadSuite) TestReadSpanningTwoBlocks() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestSequentialReadSuite(t *testing.T) {
-	// Define the different flag configurations to test against.
-	baseTestFlags := gcsfuseTestFlags{
-		enableBufferedRead:   true,
-		blockSizeMB:          8,
-		maxBlocksPerHandle:   20,
-		startBlocksPerHandle: 1,
-		minBlocksPerHandle:   2,
-	}
+	ts := &SequentialReadSuite{}
 
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, &SequentialReadSuite{testFlags: &baseTestFlags})
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
 		return
 	}
 
-	protocols := []string{clientProtocolHTTP1, clientProtocolGRPC}
-
-	for _, protocol := range protocols {
-		// Create a new suite for each protocol.
-		t.Run(protocol, func(t *testing.T) {
-			testFlags := baseTestFlags
-			testFlags.clientProtocol = protocol
-
-			suite.Run(t, &SequentialReadSuite{testFlags: &testFlags})
-		})
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
 	}
 }

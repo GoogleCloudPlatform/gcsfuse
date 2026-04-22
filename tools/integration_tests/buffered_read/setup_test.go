@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -29,76 +30,30 @@ import (
 )
 
 const (
-	testDirName                         = "BufferedReadTest"
-	testFileName                        = "foo"
-	clientProtocolHTTP1                 = "http1"
-	clientProtocolGRPC                  = "grpc"
-	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_buffered_read_test_logs/log.json"
+	testDirName  = "BufferedReadTest"
+	testFileName = "foo"
+	// Global block size constant for tests
+	blockSizeInBytes = int64(8 * util.MiB)
+	GKETempDir       = "/gcsfuse-tmp"
 )
 
 var (
-	mountFunc     func([]string) error
-	storageClient *storage.Client
-	ctx           context.Context
-	rootDir       string
+	mountFunc func(*test_suite.TestConfig, []string) error
+	// mount directory is where our tests run.
+	mountDir string
+	// root directory is the directory to be unmounted.
+	rootDir string
 )
 
-type gcsfuseTestFlags struct {
-	clientProtocol       string
-	enableBufferedRead   bool
-	blockSizeMB          int64
-	maxBlocksPerHandle   int64
-	startBlocksPerHandle int64
-	minBlocksPerHandle   int64
-	globalMaxBlocks      int64
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
 }
 
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func setupForMountedDirectoryTests() {
-	if setup.MountedDirectory() != "" {
-		setup.SetLogFile(logFileNameForMountedDirectoryTests)
-	}
-}
-
-func createConfigFile(flags *gcsfuseTestFlags) string {
-	mountConfig := make(map[string]any)
-	readConfig := make(map[string]any)
-
-	// Only add flags to the config if they have a non-zero/non-default value.
-	// This prevents writing zero values that would override GCSFuse's built-in defaults.
-	if flags.enableBufferedRead {
-		readConfig["enable-buffered-read"] = flags.enableBufferedRead
-	}
-	if flags.blockSizeMB != 0 {
-		readConfig["block-size-mb"] = flags.blockSizeMB
-	}
-	if flags.maxBlocksPerHandle != 0 {
-		readConfig["max-blocks-per-handle"] = flags.maxBlocksPerHandle
-	}
-	if flags.startBlocksPerHandle != 0 {
-		readConfig["start-blocks-per-handle"] = flags.startBlocksPerHandle
-	}
-	if flags.minBlocksPerHandle != 0 {
-		readConfig["min-blocks-per-handle"] = flags.minBlocksPerHandle
-	}
-	if flags.globalMaxBlocks != 0 {
-		readConfig["global-max-blocks"] = flags.globalMaxBlocks
-	}
-	if len(readConfig) > 0 {
-		mountConfig["read"] = readConfig
-	}
-	if flags.clientProtocol != "" {
-		mountConfig["gcs-connection"] = map[string]any{"client-protocol": flags.clientProtocol}
-	}
-	// By default, kernel reader is enabled for zonal buckets. We need to disable it
-	// explicitly to ensure buffered reads are used.
-	mountConfig["file-system"] = map[string]any{"enable-kernel-reader": false}
-	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
-	return filePath
-}
+var testEnv env
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -107,43 +62,70 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.BufferedRead) == 0 {
+		log.Println("No configuration found for buffered_read tests in config. Using flags instead.")
+		cfg.BufferedRead = make([]test_suite.TestConfig, 1)
+		cfg.BufferedRead[0].TestBucket = setup.TestBucket()
+		cfg.BufferedRead[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.BufferedRead[0].LogFile = setup.LogFile()
+		cfg.BufferedRead[0].Configs = make([]test_suite.ConfigItem, 3)
+
+		cfg.BufferedRead[0].Configs[0].Flags = []string{
+			"--enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestBufferedReadSuite.log --log-severity=TRACE",
+			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestBufferedReadSuite.log --log-severity=TRACE",
+		}
+		cfg.BufferedRead[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.BufferedRead[0].Configs[0].Run = "TestSequentialReadSuite"
+
+		cfg.BufferedRead[0].Configs[1].Flags = []string{
+			"--enable-buffered-read --read-block-size-mb=8 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestInsufficientPoolCreationSuite.log --log-severity=TRACE",
+			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestInsufficientPoolCreationSuite.log --log-severity=TRACE",
+		}
+		cfg.BufferedRead[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.BufferedRead[0].Configs[1].Run = "TestInsufficientPoolCreationSuite"
+
+		cfg.BufferedRead[0].Configs[2].Flags = []string{
+			"--enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestRandomReadFallbackSuite.log --log-severity=TRACE",
+			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestRandomReadFallbackSuite.log --log-severity=TRACE",
+		}
+		cfg.BufferedRead[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.BufferedRead[0].Configs[2].Run = "TestRandomReadFallbackSuite"
+	}
+
+	testEnv.ctx = context.Background()
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.BufferedRead[0])
+	testEnv.cfg = &cfg.BufferedRead[0]
+
+	// 2. Create storage client before running tests.
+	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
+			log.Printf("closeStorageClient failed: %v\n", err)
 		}
 	}()
 
-	// A test bucket must be provided for all tests.
-	if setup.TestBucket() == "" {
-		log.Fatal("The --testbucket flag is required for this test.")
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		// Save mount and root directory variables.
+		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
-	if setup.MountedDirectory() != "" {
-		rootDir = setup.MountedDirectory()
-		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
-	}
+	// Run tests for testBucket
+	// Set up test directory.
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
-	// Else run tests for testBucket.
-	setup.SetUpTestDirForTestBucketFlag()
-	rootDir = setup.MntDir()
+	// Save mount and root directory variables.
+	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
-	// Set up the static mounting function.
-	mountFunc = func(flags []string) error {
-		config := &test_suite.TestConfig{
-			TestBucket:              setup.TestBucket(),
-			GKEMountedDirectory:     setup.MountedDirectory(),
-			GCSFuseMountedDirectory: setup.MntDir(),
-			LogFile:                 setup.LogFile(),
-		}
-		return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
-	}
-
-	// Run the tests.
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	os.Exit(successCode)
 }
