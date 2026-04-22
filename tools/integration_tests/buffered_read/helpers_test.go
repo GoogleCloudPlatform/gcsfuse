@@ -118,7 +118,7 @@ func readAndValidateChunk(f *os.File, testDir, fileName string, offset, chunkSiz
 	_, err := f.ReadAt(readBuffer, offset)
 
 	require.NoError(t, err, "ReadAt failed at offset %d", offset)
-	client.ValidateObjectChunkFromGCS(ctx, storageClient, testDir, fileName, offset, chunkSize, string(readBuffer), t)
+	client.ValidateObjectChunkFromGCS(testEnv.ctx, testEnv.storageClient, testDir, fileName, offset, chunkSize, string(readBuffer), t)
 }
 
 // induceRandomReadFallback performs a sequence of backward reads to trigger the
