@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 		cfg.ConcurrentOperations[0].TestBucket = setup.TestBucket()
 		cfg.ConcurrentOperations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ConcurrentOperations[0].LogFile = setup.LogFile()
-		cfg.ConcurrentOperations[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.ConcurrentOperations[0].Configs = make([]test_suite.ConfigItem, 3)
 
 		cfg.ConcurrentOperations[0].Configs[0].Flags = []string{
 			"",
@@ -71,14 +71,18 @@ func TestMain(m *testing.M) {
 		cfg.ConcurrentOperations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ConcurrentOperations[0].Configs[0].Run = "TestConcurrentRead"
 
-		cfg.ConcurrentOperations[0].Configs[1].Flags = []string{
+		cfg.ConcurrentOperations[0].Configs[1].Flags = []string{"--enable-kernel-reader=false"}
+		cfg.ConcurrentOperations[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.ConcurrentOperations[0].Configs[1].Run = "TestConcurrentRead"
+
+		cfg.ConcurrentOperations[0].Configs[2].Flags = []string{
 			"--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch",
 			"--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch --client-protocol=grpc",
 			"--kernel-list-cache-ttl-secs=-1",
 			"--kernel-list-cache-ttl-secs=-1 --client-protocol=grpc",
 		}
-		cfg.ConcurrentOperations[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ConcurrentOperations[0].Configs[1].Run = "TestConcurrentListing"
+		cfg.ConcurrentOperations[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ConcurrentOperations[0].Configs[2].Run = "TestConcurrentListing"
 	}
 
 	testEnv.ctx = context.Background()

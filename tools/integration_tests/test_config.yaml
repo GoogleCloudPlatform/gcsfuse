@@ -1127,6 +1127,14 @@ concurrent_operations:
        run: TestConcurrentRead
        run_on_gke: true
      - flags:
+       - "--enable-kernel-reader=false"
+       compatible:
+         flat: false
+         hns: false
+         zonal: true
+       run: TestConcurrentRead
+       run_on_gke: true
+     - flags:
        - "--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch"
        - "--kernel-list-cache-ttl-secs=0 --enable-metadata-prefetch --client-protocol=grpc"
        - "--kernel-list-cache-ttl-secs=-1"
