@@ -615,6 +615,8 @@ type GcsRetriesConfig struct {
 
 	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
+	MaxMountRetryAttempts int64 `yaml:"max-mount-retry-attempts"`
+
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
 	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
@@ -1185,6 +1187,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
+
+	flagSet.IntP("max-mount-retry-attempts", "", 1, "Defines the maximum retry attempts for specific transient API calls throughout the initial mount sequence. A value of 0 triggers an indefinite retry for each operation in mount.")
+
+	if err := flagSet.MarkHidden("max-mount-retry-attempts"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
 
@@ -1790,6 +1798,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.max-idle-conns-per-host", flagSet.Lookup("max-idle-conns-per-host")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.max-mount-retry-attempts", flagSet.Lookup("max-mount-retry-attempts")); err != nil {
 		return err
 	}
 

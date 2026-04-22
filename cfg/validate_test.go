@@ -600,6 +600,22 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "max_mount_retry_attempts_negative",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					MaxMountRetryAttempts: -1,
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

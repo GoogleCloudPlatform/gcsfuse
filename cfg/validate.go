@@ -267,6 +267,13 @@ func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64)
 	return nil
 }
 
+func isValidMaxMountRetryAttempts(attempts int64) error {
+	if attempts < 0 {
+		return fmt.Errorf("the value of max-mount-retry-attempts can't be less than 0")
+	}
+	return nil
+}
+
 func isValidBufferedReadConfig(rc *ReadConfig) error {
 	if !rc.EnableBufferedRead {
 		return nil
@@ -367,6 +374,10 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 
 	if err = isValidChunkTransferTimeoutForRetriesConfig(config.GcsRetries.ChunkTransferTimeoutSecs); err != nil {
 		return fmt.Errorf("error parsing chunk-transfer-timeout-secs config: %w", err)
+	}
+
+	if err = isValidMaxMountRetryAttempts(config.GcsRetries.MaxMountRetryAttempts); err != nil {
+		return fmt.Errorf("error parsing max-mount-retry-attempts config: %w", err)
 	}
 
 	if err = isValidMetricsConfig(&config.Metrics); err != nil {
