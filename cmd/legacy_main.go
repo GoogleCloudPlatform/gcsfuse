@@ -51,7 +51,6 @@ import (
 	"github.com/kardianos/osext"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
-	"syscall"
 )
 
 const (
@@ -442,7 +441,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		var stderrFile *os.File
 		if newConfig.Logging.FilePath != "" {
 			stderrFileName := string(newConfig.Logging.FilePath) + ".stderr"
-			if stderrFile, err = os.OpenFile(stderrFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND|syscall.O_NOFOLLOW, 0644); err != nil {
+			if stderrFile, err = os.OpenFile(stderrFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND|unix.O_NOFOLLOW, 0644); err != nil {
 				return err
 			}
 		}

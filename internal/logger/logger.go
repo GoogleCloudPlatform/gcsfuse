@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"golang.org/x/sys/unix"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -67,7 +68,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 	if newLogConfig.FilePath != "" {
 		f, err = os.OpenFile(
 			string(newLogConfig.FilePath),
-			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
+			os.O_WRONLY|os.O_CREATE|os.O_APPEND|unix.O_NOFOLLOW,
 			0644,
 		)
 		if err != nil {
