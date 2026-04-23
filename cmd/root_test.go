@@ -1159,7 +1159,6 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					Gid:                     -1,
 					IgnoreInterrupts:        true,
 					InactiveMrdCacheSize:    1000,
-					PreconditionErrors:      true,
 					Uid:                     -1,
 					ExperimentalEnablePirlo: true,
 				},
