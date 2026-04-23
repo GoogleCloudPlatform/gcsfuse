@@ -545,8 +545,6 @@ type FileSystemConfig struct {
 
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
 
-	PreconditionErrors bool `yaml:"precondition-errors"`
-
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
 	TempDir ResolvedPath `yaml:"temp-dir"`
@@ -1224,12 +1222,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
-	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read from is modified by some other concurrent process. This helps prevent silent data loss or data corruption.")
-
-	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
-		return err
-	}
-
 	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
@@ -1834,10 +1826,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("only-dir", flagSet.Lookup("only-dir")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.precondition-errors", flagSet.Lookup("precondition-errors")); err != nil {
 		return err
 	}
 

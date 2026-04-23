@@ -43,9 +43,7 @@ type staleFileHandleCommon struct {
 
 func commonServerConfig() *cfg.Config {
 	return &cfg.Config{
-		FileSystem: cfg.FileSystemConfig{
-			PreconditionErrors: true,
-		},
+		FileSystem: cfg.FileSystemConfig{},
 		MetadataCache: cfg.MetadataCacheConfig{
 			TtlSecs: 0,
 		},

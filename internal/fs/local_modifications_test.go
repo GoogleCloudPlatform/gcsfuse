@@ -1887,7 +1887,9 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 	// Create and open a file.
 	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
 	AssertEq(nil, err)
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// Write some data into it.
 	n, err := f.Write([]byte("taco"))
@@ -2049,7 +2051,9 @@ func (t *FileTest) Chtimes_OpenFile_Clean() {
 	// Open it for reading.
 	f, err := os.Open(p)
 	AssertEq(nil, err)
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// Change its mtime.
 	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
@@ -2082,7 +2086,9 @@ func (t *FileTest) Chtimes_OpenFile_Dirty() {
 	p := path.Join(mntDir, "foo")
 	f, err := os.Create(p)
 	AssertEq(nil, err)
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// Dirty the file.
 	_, err = f.Write([]byte("taco"))
@@ -2171,11 +2177,14 @@ func (t *FileTest) Sync_Clobbered() {
 	var n int
 
 	// Create a file.
-	t.f1, err = os.Create(path.Join(mntDir, "foo"))
+	f, err := os.Create(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// Dirty the file by giving it some contents.
-	n, err = t.f1.Write([]byte("taco"))
+	n, err = f.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
@@ -2192,9 +2201,9 @@ func (t *FileTest) Sync_Clobbered() {
 	// decided to hold back the writes from above until now (in which case the
 	// inode will fail to load the source object), or it may fail silently.
 	// Either way, this should not result in a new generation being created.
-	err = t.f1.Sync()
+	err = f.Sync()
 	if err != nil {
-		ExpectThat(err, Error(HasSubstr("input/output error")))
+		ExpectTrue(errors.Is(err, syscall.ESTALE), "err: %v", err)
 	}
 
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
@@ -2253,7 +2262,9 @@ func (t *FileTest) Close_Clobbered() {
 	// Create a file.
 	f, err := os.Create(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// Dirty the file by giving it some contents.
 	n, err = f.Write([]byte("taco"))
@@ -2273,7 +2284,7 @@ func (t *FileTest) Close_Clobbered() {
 	// faulting in the object's contents on Linux where close may cause cached
 	// writes to be delivered to the file system. But in any case the new
 	// generation should not be replaced.
-	f.Close()
+	_ = f.Close()
 
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
@@ -2716,7 +2727,9 @@ func (t *RenameTest) IntoFileSystem() {
 	// Create a file outside of our file system.
 	f, err := os.CreateTemp("", "memfs_test")
 	AssertEq(nil, err)
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	oldPath := f.Name()
 	defer os.Remove(oldPath)

@@ -532,16 +532,6 @@ params:
         - bucket-type: "zonal"
           value: 16384 # 16 MiB
 
-  - config-path: "file-system.precondition-errors"
-    flag-name: "precondition-errors"
-    type: "bool"
-    usage: >-
-      Throw Stale NFS file handle error in case the object being synced or read
-      from is modified by some other concurrent process. This helps prevent
-      silent data loss or data corruption.
-    hide-flag: true
-    default: true
-
   - config-path: "file-system.rename-dir-limit"
     flag-name: "rename-dir-limit"
     type: "int"

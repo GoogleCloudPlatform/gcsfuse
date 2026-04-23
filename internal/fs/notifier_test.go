@@ -47,7 +47,6 @@ func (t *NotifierTest) SetupSuite() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		FileSystem: cfg.FileSystemConfig{
 			ExperimentalEnableDentryCache: true,
-			PreconditionErrors:            true,
 		},
 		Write: cfg.WriteConfig{
 			EnableStreamingWrites: true,
