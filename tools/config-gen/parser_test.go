@@ -201,6 +201,8 @@ params:
           value: false
         - bucket-type: flat
           value: true
+        - bucket-type: pirlo
+          value: true
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
     type: "int"
@@ -213,6 +215,8 @@ params:
         - bucket-type: hierarchical
           value: 2048
         - bucket-type: flat
+          value: 2048
+        - bucket-type: pirlo
           value: 2048
       machine-based-optimization:
         - group: high-performance
@@ -265,6 +269,7 @@ params:
 				{BucketType: "zonal", Value: true},
 				{BucketType: "hierarchical", Value: false},
 				{BucketType: "flat", Value: true},
+				{BucketType: "pirlo", Value: true},
 			},
 		}
 		assert.Equal(t, "file-system.enable-kernel-reader", param.ConfigPath)
@@ -281,6 +286,7 @@ params:
 				{BucketType: "zonal", Value: 1024},
 				{BucketType: "hierarchical", Value: 2048},
 				{BucketType: "flat", Value: 2048},
+				{BucketType: "pirlo", Value: 2048},
 			},
 			MachineBasedOptimization: []shared.MachineBasedOptimization{
 				{Group: "high-performance", Value: 2048},

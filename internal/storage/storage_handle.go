@@ -203,7 +203,7 @@ func setDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientCo
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketZonal bool, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
@@ -226,7 +226,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
 		logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
-		if !isbucketZonal {
+		if !isbucketRapid {
 			return nil, verifyErr
 		}
 	} else {
@@ -427,11 +427,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, bucketName string, billingProject string) (*storage.Client, error) {
+func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (*storage.Client, error) {
 	var err error
-	if isbucketZonal {
+	if isBucketRapid {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isbucketZonal, true, bucketName, billingProject)
+			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isBucketRapid, true, bucketName, billingProject)
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
@@ -486,11 +486,11 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 	}
 
 	var controlClientWithoutBillingProject StorageControlClient
-	if bucketType.Zonal || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
+	if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
 		// sh.storageControlClient already contains handling for billing project,
 		// and enhanced retries for GetStorageLayout API call. Extending it here for
 		// retries for folder APIs.
-		// For zonal buckets, wrap the control client with retry-on-all-APIs.
+		// For rapid buckets, wrap the control client with retry-on-all-APIs.
 		controlClientWithoutBillingProject = withRetryOnAllAPIs(sh.rawStorageControlClientWithoutGaxRetries, &sh.clientConfig)
 	} else {
 		// Apply GAX retries to the raw storage control client and returns a copy of it,
@@ -511,7 +511,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		return nil, fmt.Errorf("storageLayout call failed: %s", err)
 	}
 
-	client, err = sh.getClient(ctx, bucketType.Zonal, bucketName, billingProject)
+	client, err = sh.getClient(ctx, bucketType.IsRapid(), bucketName, billingProject)
 	if err != nil {
 		return nil, err
 	}

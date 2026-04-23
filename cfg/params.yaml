@@ -386,6 +386,8 @@ params:
       bucket-type-optimization:
         - bucket-type: "zonal"
           value: "DefaultCongestionThreshold()"
+        - bucket-type: "pirlo"
+          value: "DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
@@ -409,6 +411,8 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal"
+          value: true
+        - bucket-type: "pirlo"
           value: true
 
   - config-path: "file-system.experimental-enable-dentry-cache"
@@ -517,6 +521,8 @@ params:
       bucket-type-optimization:
         - bucket-type: "zonal"
           value: "DefaultMaxBackground()"
+        - bucket-type: "pirlo"
+          value: "DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -530,6 +536,8 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal"
+          value: 16384 # 16 MiB
+        - bucket-type: "pirlo"
           value: 16384 # 16 MiB
 
   - config-path: "file-system.rename-dir-limit"

@@ -242,6 +242,7 @@ func TestGetBucketType(t *testing.T) {
 		name         string
 		hierarchical bool
 		zonal        bool
+		pirlo        bool
 		expected     BucketType
 	}{
 		{
@@ -249,6 +250,12 @@ func TestGetBucketType(t *testing.T) {
 			hierarchical: true,
 			zonal:        true,
 			expected:     BucketTypeZonal,
+		},
+		{
+			name:         "Pirlo and Hierarchical (pirlo takes priority)",
+			hierarchical: true,
+			pirlo:        true,
+			expected:     BucketTypePirlo,
 		},
 		{
 			name:         "Hierarchical bucket",
@@ -266,10 +273,10 @@ func TestGetBucketType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetBucketType(tt.hierarchical, tt.zonal)
+			result := GetBucketType(tt.hierarchical, tt.zonal, tt.pirlo)
 			if result != tt.expected {
-				t.Errorf("GetBucketType(%v, %v) = %v; want %v",
-					tt.hierarchical, tt.zonal, result, tt.expected)
+				t.Errorf("GetBucketType(%v, %v, %v) = %v; want %v",
+					tt.hierarchical, tt.zonal, tt.pirlo, result, tt.expected)
 			}
 		})
 	}

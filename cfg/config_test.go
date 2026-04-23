@@ -63,6 +63,14 @@ func TestApplyOptimizations(t *testing.T) {
 				expectOptimized: true,
 				expectedValue:   DefaultCongestionThreshold(),
 			},
+			{
+				name:            "bucket_type_pirlo",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: true,
+				expectedValue:   DefaultCongestionThreshold(),
+			},
 		}
 
 		for _, tc := range testCases {
@@ -129,6 +137,14 @@ func TestApplyOptimizations(t *testing.T) {
 				config:          Config{Profile: ""},
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   true,
+			},
+			{
+				name:            "bucket_type_pirlo",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
 				expectedValue:   true,
 			},
@@ -467,6 +483,14 @@ func TestApplyOptimizations(t *testing.T) {
 				expectOptimized: true,
 				expectedValue:   DefaultMaxBackground(),
 			},
+			{
+				name:            "bucket_type_pirlo",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: true,
+				expectedValue:   DefaultMaxBackground(),
+			},
 		}
 
 		for _, tc := range testCases {
@@ -533,6 +557,14 @@ func TestApplyOptimizations(t *testing.T) {
 				config:          Config{Profile: ""},
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: true,
+				expectedValue:   16384,
+			},
+			{
+				name:            "bucket_type_pirlo",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
 				expectedValue:   16384,
 			},
