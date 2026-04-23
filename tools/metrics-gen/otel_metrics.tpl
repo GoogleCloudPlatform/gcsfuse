@@ -75,7 +75,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	{{- if or (isCounter .) (isUpDownCounter .)}}
 		inc int64
 	{{- else }}
-		ctx context.Context, latency time.Duration
+		ctx context.Context, {{if isTimeHistogram .}}latency time.Duration{{else}}value int64{{end}}
 	{{- end }}
 	{{- if .Attributes}}, {{end}}
 	{{- range $i, $attr := .Attributes -}}
@@ -90,7 +90,6 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	{{- end}}
 	{{buildSwitches .}}
 {{- else }}
-	var record histogramRecord
 	{{buildSwitches .}}
 	select {
 	  case o.ch <- record: // Do nothing
