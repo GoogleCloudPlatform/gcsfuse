@@ -573,21 +573,19 @@ func TestInitLogFile_NoFollowSymlink(t *testing.T) {
 	tempDir := t.TempDir()
 	logFile := tempDir + "/main.log"
 	symlinkPath := tempDir + "/symlink.log"
-
 	// Create a dummy log file
 	f, err := os.Create(logFile)
-	assert.NoError(t, err)
-	assert.NoError(t, f.Close())
-
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
 	// Create a symlink pointing to the log file
 	err = os.Symlink(logFile, symlinkPath)
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 	newLogConfig := cfg.LoggingConfig{
 		FilePath: cfg.ResolvedPath(symlinkPath),
 	}
 
 	err = InitLogFile(newLogConfig, "mybucket")
-	assert.Error(t, err)
+
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "too many levels of symbolic links")
 }

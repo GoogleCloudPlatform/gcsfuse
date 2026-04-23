@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
@@ -155,16 +156,13 @@ func TestGetFuseMountConfig_WireLogNoFollowSymlink(t *testing.T) {
 	tempDir := t.TempDir()
 	logFile := tempDir + "/wire.log"
 	symlinkPath := tempDir + "/symlink.log"
-
 	// Create a dummy log file
 	f, err := os.Create(logFile)
-	assert.NoError(t, err)
-	assert.NoError(t, f.Close())
-
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
 	// Create a symlink pointing to the log file
 	err = os.Symlink(logFile, symlinkPath)
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 	newConfig := &cfg.Config{
 		Logging: cfg.LoggingConfig{
 			WireLog: cfg.ResolvedPath(symlinkPath),

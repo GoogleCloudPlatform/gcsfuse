@@ -498,30 +498,27 @@ func TestMount_StderrNoFollowSymlink(t *testing.T) {
 	logFile := tempDir + "/stderr.log"
 	baseLogPath := tempDir + "/symlink.log"
 	symlinkPath := baseLogPath + ".stderr" // This is the file gcsfuse will try to open
-
 	// Create a dummy log file
 	f, err := os.Create(logFile)
-	assert.NoError(t, err)
-	assert.NoError(t, f.Close())
-
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
 	// Create a symlink at the expected stderr file path pointing to the dummy log file
 	err = os.Symlink(logFile, symlinkPath)
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 	newConfig := &cfg.Config{
 		Logging: cfg.LoggingConfig{
 			FilePath: cfg.ResolvedPath(baseLogPath),
 		},
 		Foreground: false,
 	}
-
 	mountInfo := &mountInfo{
 		config: newConfig,
 	}
 
 	err = Mount(mountInfo, "mybucket", tempDir)
-	assert.Error(t, err)
+
+	require.Error(t, err)
 	// Since os.OpenFile happens *before* daemonize.Run, the error should be returned directly.
 	// We expect "too many levels of symbolic links" to be inside the error string.
-	assert.Contains(t, err.Error(), "too many levels of symbolic links")
+	require.Contains(t, err.Error(), "too many levels of symbolic links")
 }
