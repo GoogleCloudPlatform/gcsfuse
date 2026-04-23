@@ -835,6 +835,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 10,
+					MaxMountRetryAttempts:    1,
 					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
@@ -857,6 +858,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 					ExperimentalNonrapidFolderApiStallRetry: true,
 					ChunkRetryDeadlineSecs:                  180,
 					ChunkTransferTimeoutSecs:                20,
+					MaxMountRetryAttempts:                   1,
 					MaxRetryAttempts:                        math.MaxInt,
 					MaxRetrySleep:                           30 * time.Second,
 					Multiplier:                              2,

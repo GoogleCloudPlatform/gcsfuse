@@ -269,7 +269,7 @@ func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64)
 
 func isValidMaxMountRetryAttempts(attempts int64) error {
 	if attempts < 0 {
-		return fmt.Errorf("the value of max-mount-retry-attempts can't be less than 0")
+		return fmt.Errorf("the value cannot be less than 0")
 	}
 	return nil
 }
