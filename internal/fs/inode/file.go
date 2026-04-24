@@ -1167,9 +1167,6 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 
 	tempFileInUse := f.content != nil
 	if !f.config.Write.EnableStreamingWrites || tempFileInUse {
-		if !tempFileInUse {
-			f.recordFallback(openMode, metrics.WriteFallbackReasonNotEnabledAttr)
-		}
 		// bwh should not be initialized under these conditions.
 		return false, nil
 	}
