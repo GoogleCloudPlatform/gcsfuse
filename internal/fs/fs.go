@@ -3089,8 +3089,6 @@ func (fs *fileSystem) ReadFile(
 	op *fuseops.ReadFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 
-	fs.metricHandle.ReadBlockSizes(ctx, int64(len(op.Dst)))
-
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
