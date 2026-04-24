@@ -264,7 +264,7 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	}
 
 	if off != req.Offset {
-		err = fmt.Errorf("takeover offset for the created appendable object writer does not match the requested offset")
+		err = fmt.Errorf("takeover offset %d for the created appendable object writer does not match the requested offset %d", off, req.Offset)
 		// Offset mismatch implies a stale object view. Return PreconditionError to trigger metadata cache eviction.
 		return nil, &gcs.PreconditionError{Err: err}
 	}
