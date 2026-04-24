@@ -883,6 +883,7 @@ func OverrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath str
 
 func ParseLogFileFromFlags(flags []string) string {
 	for _, flagStr := range flags {
+		flagStr = strings.ReplaceAll(flagStr, ",", " ")
 		parts := strings.Fields(flagStr)
 		for _, part := range parts {
 			if strings.HasPrefix(part, "--log-file=") {
@@ -897,14 +898,25 @@ func ParseLogFileFromFlags(flags []string) string {
 func SetUpLogFilePath(flags []string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
 	var logFilePath string
 	parsedLogFileName := ParseLogFileFromFlags(flags)
-	if cfg.GKEMountedDirectory != "" { // GKE path
-		logFilePath = path.Join(GKETempDir, parsedLogFileName) + ".log"
+
+	// Infer log filename directly from the parsed config block.
+	if parsedLogFileName == "" && cfg != nil && len(cfg.Configs) > 0 {
+		parsedLogFileName = ParseLogFileFromFlags(cfg.Configs[0].Flags)
+	}
+
+	// Default logFile name.
+	if parsedLogFileName == "" {
+		parsedLogFileName = "gcsfuse-tmp.log"
+	}
+
+	if cfg != nil && cfg.GKEMountedDirectory != "" { // GKE path
+		logFilePath = path.Join(GKETempDir, parsedLogFileName)
 		if ConfigFile() == "" {
 			// TODO: clean this up when GKE test migration completes.
 			logFilePath = OldGKElogFilePath
 		}
 	} else {
-		logFilePath = path.Join(TestDir(), GKETempDir, parsedLogFileName) + ".log"
+		logFilePath = path.Join(TestDir(), GKETempDir, parsedLogFileName)
 	}
 	cfg.LogFile = logFilePath
 	SetLogFile(logFilePath)
