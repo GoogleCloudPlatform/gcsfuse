@@ -222,6 +222,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	fmt.Println("createObject")
+	fmt.Println(o.Size)
 	return
 }
 
@@ -285,6 +287,8 @@ func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gc
 	attrs := w.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *MinObject.
 	o = storageutil.ObjectAttrsToMinObject(attrs)
+	fmt.Println("finalizerupload")
+	fmt.Println(o.Size)
 	return
 }
 
