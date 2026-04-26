@@ -1411,12 +1411,10 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 		Offset: 0,
 		Dst:    make([]byte, bufferSize),
 	}
-
 	err = server.ReadFile(ctx, readOp)
 	waitForMetricsProcessing()
 
 	require.NoError(t, err, "ReadFile")
-
 	// Verify read/block_sizes metric
 	var rm metricdata.ResourceMetrics
 	err = reader.Collect(ctx, &rm)
