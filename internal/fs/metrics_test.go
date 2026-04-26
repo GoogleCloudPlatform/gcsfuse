@@ -37,7 +37,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // serverConfigParams holds parameters for creating a test file system.
@@ -1416,27 +1415,7 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 
 	require.NoError(t, err, "ReadFile")
 	// Verify read/block_sizes metric
-	var rm metricdata.ResourceMetrics
-	err = reader.Collect(ctx, &rm)
-	require.NoError(t, err)
-	found := false
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			if m.Name == "read/block_sizes" {
-				found = true
-				data, ok := m.Data.(metricdata.Histogram[int64])
-				require.True(t, ok)
-				require.Len(t, data.DataPoints, 1)
-				dp := data.DataPoints[0]
-				assert.Equal(t, uint64(1), dp.Count)
-				assert.Equal(t, int64(bufferSize), dp.Sum)
-				// First bucket is le=8192, so a 5-byte read falls into it.
-				require.GreaterOrEqual(t, len(dp.BucketCounts), 1)
-				assert.Equal(t, uint64(1), dp.BucketCounts[0])
-			}
-		}
-	}
-	require.True(t, found, "read/block_sizes metric not found")
+	metrics.VerifyHistogramMetric(t, ctx, reader, "read/block_sizes", attribute.NewSet(), uint64(1))
 }
 
 func TestReadFile_ReadBlockSizesMetric_NilBuffer(t *testing.T) {
@@ -1470,25 +1449,5 @@ func TestReadFile_ReadBlockSizesMetric_NilBuffer(t *testing.T) {
 
 	require.NoError(t, err, "ReadFile")
 	// Verify read/block_sizes metric
-	var rm metricdata.ResourceMetrics
-	err = reader.Collect(ctx, &rm)
-	require.NoError(t, err)
-	found := false
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			if m.Name == "read/block_sizes" {
-				found = true
-				data, ok := m.Data.(metricdata.Histogram[int64])
-				require.True(t, ok)
-				require.Len(t, data.DataPoints, 1)
-				dp := data.DataPoints[0]
-				assert.Equal(t, uint64(1), dp.Count)
-				assert.Equal(t, int64(0), dp.Sum)
-				// First bucket is le=8192, so a 0-byte read falls into it.
-				require.GreaterOrEqual(t, len(dp.BucketCounts), 1)
-				assert.Equal(t, uint64(1), dp.BucketCounts[0])
-			}
-		}
-	}
-	require.True(t, found, "read/block_sizes metric not found")
+	metrics.VerifyHistogramMetric(t, ctx, reader, "read/block_sizes", attribute.NewSet(), uint64(1))
 }
