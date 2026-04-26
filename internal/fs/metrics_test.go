@@ -1438,3 +1438,57 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 	}
 	require.True(t, found, "read/block_sizes metric not found")
 }
+
+func TestReadFile_ReadBlockSizesMetric_NilBuffer(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    nil,
+	}
+	err = server.ReadFile(ctx, readOp)
+	waitForMetricsProcessing()
+
+	require.NoError(t, err, "ReadFile")
+	// Verify read/block_sizes metric
+	var rm metricdata.ResourceMetrics
+	err = reader.Collect(ctx, &rm)
+	require.NoError(t, err)
+	found := false
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == "read/block_sizes" {
+				found = true
+				data, ok := m.Data.(metricdata.Histogram[int64])
+				require.True(t, ok)
+				require.Len(t, data.DataPoints, 1)
+				dp := data.DataPoints[0]
+				assert.Equal(t, uint64(1), dp.Count)
+				assert.Equal(t, int64(0), dp.Sum)
+				// First bucket is le=8192, so a 0-byte read falls into it.
+				require.GreaterOrEqual(t, len(dp.BucketCounts), 1)
+				assert.Equal(t, uint64(1), dp.BucketCounts[0])
+			}
+		}
+	}
+	require.True(t, found, "read/block_sizes metric not found")
+}
