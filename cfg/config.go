@@ -681,6 +681,8 @@ type MetricsConfig struct {
 
 	ExperimentalEnableGrpcMetrics bool `yaml:"experimental-enable-grpc-metrics"`
 
+	HealthCheckErrorRateThreshold float64 `yaml:"health-check-error-rate-threshold"`
+
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
@@ -1131,6 +1133,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("grpc-path-strategy"); err != nil {
 		return err
 	}
+
+	flagSet.Float64P("health-check-error-rate-threshold", "", 0.05, "Error rate threshold (errors/total-ops, in range [0.0, 1.0]) above which /readyz returns 503. Only takes effect when --prometheus-port is set.")
 
 	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. A value of 0 indicates no timeout.")
 
@@ -1714,6 +1718,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.grpc-path-strategy", flagSet.Lookup("grpc-path-strategy")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.health-check-error-rate-threshold", flagSet.Lookup("health-check-error-rate-threshold")); err != nil {
 		return err
 	}
 
