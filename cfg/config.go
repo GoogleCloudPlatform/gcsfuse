@@ -1188,7 +1188,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
-	flagSet.IntP("max-mount-retry-attempts", "", 1, "Defines the maximum retry attempts for specific transient API calls throughout the initial mount sequence. A value of 0 triggers an indefinite retry for each operation in mount.")
+	flagSet.IntP("max-mount-retry-attempts", "", 1, "Defines the maximum retry attempts for specific transient API call during mount sequence. A value of 0 triggers an indefinite retry for each API call during mount sequence.")
 
 	if err := flagSet.MarkHidden("max-mount-retry-attempts"); err != nil {
 		return err
