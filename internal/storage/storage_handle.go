@@ -429,25 +429,10 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 
 func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (*storage.Client, error) {
 	var err error
-	if isBucketRapid {
-		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isBucketRapid, true, bucketName, billingProject)
-		}
-		return sh.grpcClientWithBidiConfig, err
+	if sh.grpcClientWithBidiConfig == nil {
+		sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isBucketRapid, true, bucketName, billingProject)
 	}
-
-	if sh.clientConfig.ClientProtocol == cfg.GRPC {
-		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
-	}
-
-	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
-		if sh.httpClient == nil {
-			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
-		}
-		return sh.httpClient, err
-	}
-
-	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
+	return sh.grpcClientWithBidiConfig, err
 }
 
 func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Context, bucketName string, billingProject string) (*storage.Client, error) {

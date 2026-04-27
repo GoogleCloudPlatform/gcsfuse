@@ -380,14 +380,8 @@ params:
       Sets the congestion threshold for background requests. When the number of
       outstanding requests exceeds this threshold, the kernel may start blocking
       new requests. 0 means system default (typically 75% of max-background; 9).
-    default: "0"
+    default: "DefaultCongestionThreshold()"
     hide-flag: true
-    optimizations:
-      bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: "DefaultCongestionThreshold()"
-        - bucket-type: "pirlo"
-          value: "DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
@@ -406,14 +400,8 @@ params:
     flag-name: "enable-kernel-reader"
     type: "bool"
     usage: "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache."
-    default: false
+    default: true
     hide-flag: true
-    optimizations:
-      bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: true
-        - bucket-type: "pirlo"
-          value: true
 
   - config-path: "file-system.experimental-enable-dentry-cache"
     flag-name: "experimental-enable-dentry-cache"
@@ -515,14 +503,8 @@ params:
       kernel readahead, writeback cache etc.) that the kernel will send to the FUSE daemon. 0 means
       system default 
       (typically 12).
-    default: "0"
+    default: "DefaultMaxBackground()"
     hide-flag: true
-    optimizations:
-      bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: "DefaultMaxBackground()"
-        - bucket-type: "pirlo"
-          value: "DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -531,14 +513,8 @@ params:
       Sets max kernel-read-ahead for the mount in KiB. 0 means system default.
       Requires sudo permission to set this value, otherwise the value will be ignored
       and system default will be used.
-    default: "0"
+    default: 16384 # 16 MiB
     hide-flag: true
-    optimizations:
-      bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: 16384 # 16 MiB
-        - bucket-type: "pirlo"
-          value: 16384 # 16 MiB
 
   - config-path: "file-system.rename-dir-limit"
     flag-name: "rename-dir-limit"

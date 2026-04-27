@@ -25,29 +25,7 @@ import (
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
-var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
-	BucketTypeOptimization: []shared.BucketTypeOptimization{
-		{
-			BucketType: "zonal",
-			Value:      int64(DefaultCongestionThreshold()),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultCongestionThreshold()),
-		},
-	},
-}, "file-system.enable-kernel-reader": {
-	BucketTypeOptimization: []shared.BucketTypeOptimization{
-		{
-			BucketType: "zonal",
-			Value:      bool(true),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      bool(true),
-		},
-	},
-}, "file-cache.cache-file-for-range-read": {
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.cache-file-for-range-read": {
 	Profiles: []shared.ProfileOptimization{
 		{
 			Name:  "aiml-serving",
@@ -84,28 +62,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			Name:  "aiml-serving",
 			Value: int64(-1),
-		},
-	},
-}, "file-system.max-background": {
-	BucketTypeOptimization: []shared.BucketTypeOptimization{
-		{
-			BucketType: "zonal",
-			Value:      int64(DefaultMaxBackground()),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultMaxBackground()),
-		},
-	},
-}, "file-system.max-read-ahead-kb": {
-	BucketTypeOptimization: []shared.BucketTypeOptimization{
-		{
-			BucketType: "zonal",
-			Value:      int64(16384),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      int64(16384),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
@@ -241,30 +197,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
-	if !v.IsSet("file-system.congestion-threshold") {
-		rules := AllFlagOptimizationRules["file-system.congestion-threshold"]
-		result := getOptimizedValue(&rules, c.FileSystem.CongestionThreshold, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(int64); ok {
-				if c.FileSystem.CongestionThreshold != val {
-					c.FileSystem.CongestionThreshold = val
-					optimizedFlags["file-system.congestion-threshold"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("file-system.enable-kernel-reader") {
-		rules := AllFlagOptimizationRules["file-system.enable-kernel-reader"]
-		result := getOptimizedValue(&rules, c.FileSystem.EnableKernelReader, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(bool); ok {
-				if c.FileSystem.EnableKernelReader != val {
-					c.FileSystem.EnableKernelReader = val
-					optimizedFlags["file-system.enable-kernel-reader"] = result
-				}
-			}
-		}
-	}
 	if !v.IsSet("file-cache.cache-file-for-range-read") {
 		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
 		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, input, machineTypeToGroupMap)
@@ -297,30 +229,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileSystem.KernelListCacheTtlSecs != val {
 					c.FileSystem.KernelListCacheTtlSecs = val
 					optimizedFlags["file-system.kernel-list-cache-ttl-secs"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("file-system.max-background") {
-		rules := AllFlagOptimizationRules["file-system.max-background"]
-		result := getOptimizedValue(&rules, c.FileSystem.MaxBackground, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(int64); ok {
-				if c.FileSystem.MaxBackground != val {
-					c.FileSystem.MaxBackground = val
-					optimizedFlags["file-system.max-background"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("file-system.max-read-ahead-kb") {
-		rules := AllFlagOptimizationRules["file-system.max-read-ahead-kb"]
-		result := getOptimizedValue(&rules, c.FileSystem.MaxReadAheadKb, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(int64); ok {
-				if c.FileSystem.MaxReadAheadKb != val {
-					c.FileSystem.MaxReadAheadKb = val
-					optimizedFlags["file-system.max-read-ahead-kb"] = result
 				}
 			}
 		}
@@ -826,7 +734,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("congestion-threshold", "", 0, "Sets the congestion threshold for background requests. When the number of outstanding requests exceeds this threshold, the kernel may start blocking new requests. 0 means system default (typically 75% of max-background; 9).")
+	flagSet.IntP("congestion-threshold", "", DefaultCongestionThreshold(), "Sets the congestion threshold for background requests. When the number of outstanding requests exceeds this threshold, the kernel may start blocking new requests. 0 means system default (typically 75% of max-background; 9).")
 
 	if err := flagSet.MarkHidden("congestion-threshold"); err != nil {
 		return err
@@ -952,7 +860,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-kernel-reader", "", false, "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache.")
+	flagSet.BoolP("enable-kernel-reader", "", true, "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache.")
 
 	if err := flagSet.MarkHidden("enable-kernel-reader"); err != nil {
 		return err
@@ -1176,7 +1084,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-background", "", 0, "Sets the maximum number of outstanding background requests (e.g., request corresponding to  kernel readahead, writeback cache etc.) that the kernel will send to the FUSE daemon. 0 means system default  (typically 12).")
+	flagSet.IntP("max-background", "", DefaultMaxBackground(), "Sets the maximum number of outstanding background requests (e.g., request corresponding to  kernel readahead, writeback cache etc.) that the kernel will send to the FUSE daemon. 0 means system default  (typically 12).")
 
 	if err := flagSet.MarkHidden("max-background"); err != nil {
 		return err
@@ -1186,7 +1094,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
-	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
+	flagSet.IntP("max-read-ahead-kb", "", 16384, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
 
 	if err := flagSet.MarkHidden("max-read-ahead-kb"); err != nil {
 		return err
