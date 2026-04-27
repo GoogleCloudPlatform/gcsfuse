@@ -732,9 +732,9 @@ params:
     flag-name: "max-mount-retry-attempts"
     type: "int"
     usage: >-
-      Defines the maximum retry attempts for specific transient API calls
-      throughout the initial mount sequence. A value of 0 triggers an
-      indefinite retry for each operation in mount.
+      Defines the maximum retry attempts for specific transient API call
+      during mount sequence. A value of 0 triggers an
+      indefinite retry for each API call during mount sequence.
     default: "1"
     hide-flag: true
 
