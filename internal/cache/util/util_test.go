@@ -604,6 +604,12 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 				// Match only the content written.
 				sizeToMatch := min(tc.contentSize, writeN, tc.expectedWriteSize)
 				buf := make([]byte, sizeToMatch)
+
+				// Sync the file to ensure all metadata and data are flushed to disk.
+				// This helps prevent stale page cache reads or missing metadata when
+				// mixing O_DIRECT writes with buffered reads.
+				require.NoError(t, file.Sync())
+
 				// Open file again without O_DIRECT
 				readFile, err := os.OpenFile(randName, os.O_RDWR, 0600)
 				require.NoError(t, err)
@@ -614,7 +620,7 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 				if err != nil && err != io.EOF {
 					t.Errorf("error (%v) while reading contents at the time of assertion for: %v", err, tc.name)
 				}
-				assert.True(t, reflect.DeepEqual(string(content[:sizeToMatch]), string(buf)))
+				assert.Equal(t, string(content[:sizeToMatch]), string(buf))
 			}
 		})
 	}
