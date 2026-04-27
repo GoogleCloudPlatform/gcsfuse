@@ -620,7 +620,7 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 				if err != nil && err != io.EOF {
 					t.Errorf("error (%v) while reading contents at the time of assertion for: %v", err, tc.name)
 				}
-				assert.Equal(t, string(content[:sizeToMatch]), string(buf))
+				assert.Equal(t, content[:sizeToMatch], buf)
 			}
 		})
 	}
