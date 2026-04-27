@@ -63,8 +63,6 @@ func (s *KernelReaderParamsSuite) verifyKernelParam(path string, expectedVal str
 
 	if expectedVal != "" {
 		assert.Equal(s.T(), expectedVal, val, "Param %s mismatch", path)
-	} else if setup.IsDynamicMount(testEnv.mountDir, testEnv.rootDir) {
-		assert.NotEqual(s.T(), optimizedVal, val, "Param %s should NOT match optimized default for dynamic mount", path)
 	} else {
 		assert.Equal(s.T(), optimizedVal, val, "Param %s mismatch with optimized default", path)
 	}
@@ -313,8 +311,8 @@ func TestKernelReader_Dynamic(t *testing.T) {
 			log.Printf("Running tests with flags: %s", flags)
 			s := &ReadStrategySuite{
 				flags:               flags,
-				unexpectedLog:       kernelReaderInitMsg,
-				validateParallelism: false,
+				expectedLog:         kernelReaderInitMsg,
+				validateParallelism: true,
 			}
 			suite.Run(t, s)
 		})
