@@ -895,13 +895,23 @@ func ParseLogFileFromFlags(flags []string) string {
 	return ""
 }
 
-func SetUpLogFilePath(flags []string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
+func SetUpLogFilePath(testName string, flags []string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
 	var logFilePath string
 	parsedLogFileName := ParseLogFileFromFlags(flags)
 
 	// Infer log filename directly from the parsed config block.
-	if parsedLogFileName == "" && cfg != nil && len(cfg.Configs) > 0 {
-		parsedLogFileName = ParseLogFileFromFlags(cfg.Configs[0].Flags)
+	if parsedLogFileName == "" && cfg != nil {
+		currentTest := strings.Trim(testName, "^$")
+		currentTest = strings.Split(currentTest, "/")[0]
+
+		if currentTest != "" {
+			for _, c := range cfg.Configs {
+				if c.Run == currentTest {
+					parsedLogFileName = ParseLogFileFromFlags(c.Flags)
+					break
+				}
+			}
+		}
 	}
 
 	// Default logFile name.
