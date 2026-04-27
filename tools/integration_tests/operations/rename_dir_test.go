@@ -29,32 +29,26 @@ import (
 func TestRenameDirToNonEmptyDestDirectory(t *testing.T) {
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-
 	// Create source directory.
 	srcDirPath := path.Join(testDir, "srcDir")
 	err := os.Mkdir(srcDirPath, 0700)
 	assert.NoError(t, err)
-
 	// Create destination directory and put a file in it.
 	destDirPath := path.Join(testDir, "destDir")
 	err = os.Mkdir(destDirPath, 0700)
 	assert.NoError(t, err)
-
 	destFilePath := path.Join(destDirPath, "file.txt")
 	operations.CreateFileWithContent(destFilePath, setup.FilePermission_0600, Content, t)
-
 	// Attempt to rename the source directory to the destination directory.
 	err = os.Rename(srcDirPath, destDirPath)
-
 	// Assert that an error occurred (because destination is not empty).
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "file exists") || strings.Contains(err.Error(), "directory not empty") || strings.Contains(err.Error(), "not empty"), "Error message should mention file exists or not empty, but got: %v", err)
 
-	// If the issue was not fixed, this process could hang on further operations due to leaked locks.
-	// We do some operations to confirm things are healthy.
+	// Perform operations on source and destination to ensure they are healthy.
+	// Context: https://b.corp.google.com/issues/504921217
 	_, err = os.Stat(srcDirPath)
 	assert.NoError(t, err)
-
 	_, err = os.Stat(destDirPath)
 	assert.NoError(t, err)
 
