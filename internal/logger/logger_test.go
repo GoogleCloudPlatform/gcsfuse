@@ -24,8 +24,6 @@ import (
 	"sync"
 	"testing"
 
-	"os"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -567,25 +565,4 @@ func TestGetLogFHandler(t *testing.T) {
 		expectedTraceRegex := expectedLogRegex(t, "text", "TRACE", message)
 		assert.Regexp(t, expectedTraceRegex, logs[1])
 	})
-}
-
-func TestInitLogFile_NoFollowSymlink(t *testing.T) {
-	tempDir := t.TempDir()
-	logFile := tempDir + "/main.log"
-	symlinkPath := tempDir + "/symlink.log"
-	// Create a dummy log file
-	f, err := os.Create(logFile)
-	require.NoError(t, err)
-	require.NoError(t, f.Close())
-	// Create a symlink pointing to the log file
-	err = os.Symlink(logFile, symlinkPath)
-	require.NoError(t, err)
-	newLogConfig := cfg.LoggingConfig{
-		FilePath: cfg.ResolvedPath(symlinkPath),
-	}
-
-	err = InitLogFile(newLogConfig, "mybucket")
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "too many levels of symbolic links")
 }

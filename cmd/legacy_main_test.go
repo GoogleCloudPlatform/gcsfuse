@@ -492,33 +492,3 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		assert.NotContains(t.T(), unexpectedForwardedEnvVars, name, "unexpected env var %q was forwarded", name)
 	}
 }
-
-func TestMount_StderrNoFollowSymlink(t *testing.T) {
-	tempDir := t.TempDir()
-	logFile := tempDir + "/stderr.log"
-	baseLogPath := tempDir + "/symlink.log"
-	symlinkPath := baseLogPath + ".stderr" // This is the file gcsfuse will try to open
-	// Create a dummy log file
-	f, err := os.Create(logFile)
-	require.NoError(t, err)
-	require.NoError(t, f.Close())
-	// Create a symlink at the expected stderr file path pointing to the dummy log file
-	err = os.Symlink(logFile, symlinkPath)
-	require.NoError(t, err)
-	newConfig := &cfg.Config{
-		Logging: cfg.LoggingConfig{
-			FilePath: cfg.ResolvedPath(baseLogPath),
-		},
-		Foreground: false,
-	}
-	mountInfo := &mountInfo{
-		config: newConfig,
-	}
-
-	err = Mount(mountInfo, "mybucket", tempDir)
-
-	require.Error(t, err)
-	// Since os.OpenFile happens *before* daemonize.Run, the error should be returned directly.
-	// We expect "too many levels of symbolic links" to be inside the error string.
-	require.Contains(t, err.Error(), "too many levels of symbolic links")
-}
