@@ -605,10 +605,9 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 				sizeToMatch := min(tc.contentSize, writeN, tc.expectedWriteSize)
 				buf := make([]byte, sizeToMatch)
 
-				// Sync the file to ensure all metadata and data are flushed to disk.
-				// This helps prevent stale page cache reads or missing metadata when
-				// mixing O_DIRECT writes with buffered reads.
-				require.NoError(t, file.Sync())
+				// Close the O_DIRECT file descriptor to flush pending operations
+				// and ensure cache coherence when reading it back.
+				_ = file.Close()
 
 				// Open file again without O_DIRECT
 				readFile, err := os.OpenFile(randName, os.O_RDWR, 0600)
