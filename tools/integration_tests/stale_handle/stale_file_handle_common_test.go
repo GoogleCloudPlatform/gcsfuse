@@ -58,9 +58,9 @@ func (s *staleFileHandleCommon) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
-	// TODO(b/410698332): Remove skip condition once takeover support is available.
+	// TODO(b/510664980): Remove skip condition once the Go SDK correctly surfaces an error when a file is clobbered mid-stream.
 	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip test due to unable to overwrite the unfinalized zonal object.")
+		s.T().Skip("Skipping test due to upstream Go SDK bug causing silent data loss/hangs when closing clobbered unfinalized zonal objects.")
 	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
