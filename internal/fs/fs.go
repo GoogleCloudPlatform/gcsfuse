@@ -2698,6 +2698,8 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	// If the call for getBucketDirInode fails it means directory does not exist.
 	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
 	if err == nil {
+		pendingInodes = append(pendingInodes, newDirInode)
+
 		// If the directory exists, then check if it is empty or not.
 		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
 			return err
@@ -2709,7 +2711,6 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 		newParent.Lock()
 		_ = newParent.DeleteChildDir(ctx, newName, false, newDirInode)
 		newParent.Unlock()
-		pendingInodes = append(pendingInodes, newDirInode)
 	}
 
 	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
