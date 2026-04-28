@@ -600,7 +600,7 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 
 	// Now, update the object in GCS, which changes its generation.
 	in.Lock()
-	gcsSynced, err := in.Write(t.ctx, content2, 0, writeMode)
+	gcsSynced, err := in.Write(t.ctx, content2, 0)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	gcsSynced, err = in.Sync(t.ctx)
@@ -643,7 +643,7 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 
 	// Now, update the object in GCS, which changes its generation.
 	in.Lock()
-	gcsSynced, err := in.Write(t.ctx, content2, 0, writeMode)
+	gcsSynced, err := in.Write(t.ctx, content2, 0)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	gcsSynced, err = in.Sync(t.ctx)
@@ -719,7 +719,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_NotAuthoritative() {
 	in := createFileInode(t.T(), &zonalBucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
 	// Make inode dirty.
 	in.Lock()
-	_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode) // 5 bytes
+	_, err := in.Write(t.ctx, []byte("dirty"), 0) // 5 bytes
 	in.Unlock()
 	require.NoError(t.T(), err)
 	// After write, content should be "dirtydata".

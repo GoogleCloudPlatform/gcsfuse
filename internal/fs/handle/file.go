@@ -373,7 +373,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 // Note that the writes are still done at the inode level.
 // LOCKS_REQUIRED(fh.inode)
 func (fh *FileHandle) Write(ctx context.Context, data []byte, offset int64) (bool, error) {
-	return fh.inode.Write(ctx, data, offset, fh.openMode)
+	return fh.inode.Write(ctx, data, offset)
 }
 
 ////////////////////////////////////////////////////////////////////////

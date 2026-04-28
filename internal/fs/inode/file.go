@@ -666,8 +666,7 @@ func (f *FileInode) Read(
 func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
-	offset int64,
-	openMode util.OpenMode) (bool, error) {
+	offset int64) (bool, error) {
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
