@@ -222,6 +222,26 @@ func (testSuite *BufferedWriteTest) TestWriteAfterTruncateAtCurrentSize() {
 	assert.Equal(testSuite.T(), int64(20), testSuite.bwh.WriteFileInfo().TotalSize)
 }
 
+func (testSuite *BufferedWriteTest) TestOutOfOrderWriteAtStaleTruncatedSize() {
+	err := testSuite.bwh.Write(context.Background(), []byte("hello"), 0)
+	require.Nil(testSuite.T(), err)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	// Truncate to a larger size
+	err = testSuite.bwh.Truncate(10)
+	require.NoError(testSuite.T(), err)
+	// Write past the truncated size (from offset 5, writing 10 bytes -> totalSize = 15)
+	err = testSuite.bwh.Write(context.Background(), []byte("0123456789"), 5)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(-1), bwhImpl.truncatedSize)
+	require.Equal(testSuite.T(), int64(15), bwhImpl.totalSize)
+
+	// Attempt to seek backwards and write exactly at the stale truncatedSize (10)
+	err = testSuite.bwh.Write(context.Background(), []byte("abc"), 10)
+
+	require.Error(testSuite.T(), err)
+	assert.Equal(testSuite.T(), ErrOutOfOrderWrite, err)
+}
+
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
 	err := testSuite.bwh.Write(context.Background(), []byte("hi"), 0)
 	require.Nil(testSuite.T(), err)
@@ -396,7 +416,8 @@ func (testSuite *BufferedWriteTest) TestFlushWithNonZeroTruncatedLengthForEmptyO
 	_, err := testSuite.bwh.Flush(context.Background())
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), bwhImpl.truncatedSize, bwhImpl.totalSize)
+	assert.Equal(testSuite.T(), int64(10), bwhImpl.totalSize)
+	assert.Equal(testSuite.T(), int64(-1), bwhImpl.truncatedSize)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithTruncatedLengthGreaterThanObjectSize() {
@@ -408,7 +429,8 @@ func (testSuite *BufferedWriteTest) TestFlushWithTruncatedLengthGreaterThanObjec
 	_, err = testSuite.bwh.Flush(context.Background())
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), bwhImpl.truncatedSize, bwhImpl.totalSize)
+	assert.Equal(testSuite.T(), int64(10), bwhImpl.totalSize)
+	assert.Equal(testSuite.T(), int64(-1), bwhImpl.truncatedSize)
 }
 
 func (testSuite *BufferedWriteTest) TestTruncateWithLesserSize() {
