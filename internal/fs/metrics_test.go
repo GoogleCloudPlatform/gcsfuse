@@ -37,7 +37,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // serverConfigParams holds parameters for creating a test file system.
@@ -1501,40 +1500,7 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 
 			waitForMetricsProcessing()
 
-			var rm metricdata.ResourceMetrics
-			err = reader.Collect(ctx, &rm)
-			require.NoError(t, err)
-
-			found := false
-			for _, sm := range rm.ScopeMetrics {
-				for _, m := range sm.Metrics {
-					if m.Name == "read/block_sizes" {
-						found = true
-						data, ok := m.Data.(metricdata.Histogram[int64])
-						require.True(t, ok)
-						require.Len(t, data.DataPoints, 1)
-						dp := data.DataPoints[0]
-
-						// Assert total counts and sums
-						require.Equal(t, tc.expectedCount, dp.Count, "Total count mismatch")
-						require.Equal(t, tc.expectedSum, dp.Sum, "Total sum mismatch")
-
-						// Assert individual bucket counts
-						for bucketIdx, expectedCount := range tc.expectedBuckets {
-							require.GreaterOrEqual(t, len(dp.BucketCounts), bucketIdx+1, "Bucket index out of range")
-							require.Equal(t, expectedCount, dp.BucketCounts[bucketIdx], "Bucket %d count mismatch", bucketIdx)
-						}
-
-						// Verify that sum of all bucket counts matches total count
-						var totalBucketCount uint64
-						for _, count := range dp.BucketCounts {
-							totalBucketCount += count
-						}
-						require.Equal(t, tc.expectedCount, totalBucketCount, "Sum of bucket counts must equal total count")
-					}
-				}
-			}
-			require.True(t, found, "read/block_sizes metric not found")
+			metrics.VerifyHistogramFull(t, ctx, reader, "read/block_sizes", attribute.NewSet(), tc.expectedCount, tc.expectedSum, tc.expectedBuckets)
 		})
 	}
 }
