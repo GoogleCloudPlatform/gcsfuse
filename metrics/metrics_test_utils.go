@@ -175,7 +175,7 @@ func VerifyHistogramFull[T int64 | float64](t *testing.T, ctx context.Context, r
 					if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
 						// Assert total count
 						require.Equal(t, expectedCount, dp.Count, "Total count mismatch for %s", metricName)
-						
+
 						// Assert total sum
 						if !cfg.atLeast {
 							require.Equal(t, expectedSum, dp.Sum, "Total sum mismatch for %s", metricName)
