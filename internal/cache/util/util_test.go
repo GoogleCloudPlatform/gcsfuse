@@ -588,18 +588,70 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 			}
 			dst := io.NewOffsetWriter(file, int64(tc.writeOffset))
 
+			t.Logf("DEBUG BEFORE: Subtest '%s', useODIRECT: %v, writeOffset: %v, contentSize: %d, bufferSize: %d", tc.name, tc.useODIRECT, tc.writeOffset, tc.contentSize, tc.bufferSize)
+			if fi, serr := file.Stat(); serr == nil {
+				t.Logf("  Initial File size: %d", fi.Size())
+			}
+
 			writeN, err := CopyUsingMemoryAlignedBuffer(ctx, src, dst, tc.contentSize, tc.bufferSize)
 
+			t.Logf("DEBUG AFTER: Subtest '%s', writeN: %d, err: %v", tc.name, writeN, err)
+			if fi, serr := file.Stat(); serr == nil {
+				t.Logf("  Post-Write File size: %d", fi.Size())
+			}
+
 			if tc.expectedErr {
+				if err == nil {
+					t.Logf("DEBUG FAILURE: Subtest '%s' expected error but got nil!", tc.name)
+
+					scratchName := randName + "_diag"
+					sFile, sErr := os.OpenFile(scratchName, flags, 0600)
+					if sErr == nil {
+						defer func() {
+							_ = sFile.Close()
+							_ = os.Remove(scratchName)
+						}()
+						buf, bErr := GetMemoryAlignedBuffer(4096, 4096)
+						if bErr == nil {
+							nWritten, writeErr := sFile.WriteAt(buf, tc.writeOffset)
+							t.Logf("  Diagnostic Direct WriteAt to offset %d returned: n=%d, err=%v", tc.writeOffset, nWritten, writeErr)
+						} else {
+							t.Logf("  Diagnostic GetMemoryAlignedBuffer error: %v", bErr)
+						}
+					} else {
+						t.Logf("  Diagnostic OpenFile error: %v", sErr)
+					}
+
+					mounts, mErr := os.ReadFile("/proc/mounts")
+					if mErr == nil {
+						cwd, _ := os.Getwd()
+						lines := strings.Split(string(mounts), "\n")
+						t.Logf("  Mount options for current workspace (%s):", cwd)
+						for _, line := range lines {
+							fields := strings.Fields(line)
+							if len(fields) >= 2 && strings.HasPrefix(cwd, fields[1]) {
+								t.Logf("    Mount line: %s", line)
+							}
+						}
+					} else {
+						t.Logf("  Failed to read /proc/mounts: %v", mErr)
+					}
+				} else {
+					t.Logf("DEBUG EXPECTED FAILURE MET: Subtest '%s' received correct error: %v", tc.name, err)
+				}
 				assert.NotNil(t, err)
 				if tc.cancelCtx {
 					assert.ErrorIs(t, err, context.Canceled)
 				}
 			} else {
+				if err != nil {
+					t.Logf("DEBUG UNEXPECTED ERROR: Subtest '%s' failed with error: %v", tc.name, err)
+				}
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedWriteSize, writeN)
 				fileStat, err := file.Stat()
 				require.NoError(t, err)
+				t.Logf("DEBUG SUCCESS: Subtest '%s' passed. writeN: %d, expectedWriteSize: %d, fileStat.Size: %d", tc.name, writeN, tc.expectedWriteSize, fileStat.Size())
 				assert.Equal(t, tc.writeOffset+writeN, fileStat.Size())
 				// Match only the content written.
 				sizeToMatch := min(tc.contentSize, writeN, tc.expectedWriteSize)
