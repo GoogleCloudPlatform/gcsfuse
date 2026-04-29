@@ -171,28 +171,6 @@ func createFileInode(
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *fileTest) TestFileHandleWrite() {
-	parent := createDirInode(&t.bucket, &t.clock)
-	config := &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: false}}
-	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj", nil, false)
-	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), writeMode, &cfg.Config{}, nil, nil, 0)
-	data := []byte("hello")
-
-	_, err := fh.Write(t.ctx, data, 0)
-
-	assert.Nil(t.T(), err)
-	// Validate that write is successful at inode.
-	buf := make([]byte, len(data))
-	n, err := in.Read(t.ctx, buf, 0)
-	buf = buf[:n]
-	// Ignore EOF.
-	if err == io.EOF {
-		err = nil
-	}
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), data, buf)
-}
-
 func (t *fileTest) Test_IsValidReadManager_NilReadManager() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{}
