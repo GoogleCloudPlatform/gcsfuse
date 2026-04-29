@@ -1386,19 +1386,62 @@ func TestSetInodeAttributes_Metrics(t *testing.T) {
 
 func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 	tests := []struct {
-		name         string
-		dst          []byte
-		histogramSum uint64
+		name               string
+		readSizes          []int64
+		nilBufferReadCount int
+		expectedSum        int64
+		expectedCount      uint64
+		expectedBuckets    map[int]uint64 // Maps bucket index to expected count
 	}{
 		{
-			name:         "WithBuffer",
-			dst:          make([]byte, 5),
-			histogramSum: 5,
+			name:          "Reads in first bucket",
+			readSizes:     []int64{1024, 2048, 4096},
+			expectedSum:   7168,
+			expectedCount: 3,
+			expectedBuckets: map[int]uint64{
+				0: 3, // All <= 8192
+			},
 		},
 		{
-			name:         "NilBuffer",
-			dst:          nil,
-			histogramSum: 0,
+			name:          "Reads spanning different buckets - case 1",
+			readSizes:     []int64{5120, 10240, 20480}, // 5KB, 10KB, 20KB
+			expectedSum:   35840,
+			expectedCount: 3,
+			expectedBuckets: map[int]uint64{
+				0: 1, // 5KB <= 8KB
+				1: 1, // 8KB < 10KB <= 16KB
+				2: 1, // 16KB < 20KB <= 32KB
+			},
+		},
+		{
+			name:          "Reads spanning different buckets - case 2",
+			readSizes:     []int64{10240, 12288, 20480}, // 10KB, 12KB, 20KB
+			expectedSum:   43008,
+			expectedCount: 3,
+			expectedBuckets: map[int]uint64{
+				0: 0,
+				1: 2,
+				2: 1,
+			},
+		},
+		{
+			name:          "Reads at exact boundaries",
+			readSizes:     []int64{8192, 16384}, // 8KB, 16KB
+			expectedSum:   24576,
+			expectedCount: 2,
+			expectedBuckets: map[int]uint64{
+				0: 1, // 8KB <= 8KB
+				1: 1, // 8KB < 16KB <= 16KB
+			},
+		},
+		{
+			name:               "Nil byte read",
+			nilBufferReadCount: 1,
+			expectedSum:        0,
+			expectedCount:      1,
+			expectedBuckets: map[int]uint64{
+				0: 1, // 0 <= 8KB
+			},
 		},
 	}
 
@@ -1409,8 +1452,17 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 			server = wrappers.WithMonitoring(server, mh)
 			fileName := "test.txt"
-			content := "test content"
-			createWithContents(ctx, t, bucket, fileName, content)
+
+			// Find the max read size so we can create a file large enough for all read operations.
+			var maxReadSize int64
+			for _, size := range tc.readSizes {
+				if size > maxReadSize {
+					maxReadSize = size
+				}
+			}
+			content := make([]byte, maxReadSize)
+			createWithContents(ctx, t, bucket, fileName, string(content))
+
 			lookupOp := &fuseops.LookUpInodeOp{
 				Parent: fuseops.RootInodeID,
 				Name:   fileName,
@@ -1423,20 +1475,36 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 			err = server.OpenFile(ctx, openOp)
 			require.NoError(t, err, "OpenFile")
 
-			dst := tc.dst
-			readOp := &fuseops.ReadFileOp{
-				Inode:  lookupOp.Entry.Child,
-				Handle: openOp.Handle,
-				Offset: 0,
-				Dst:    dst,
+			// Perform reads with nil buffer
+			for i := 0; i < tc.nilBufferReadCount; i++ {
+				readOp := &fuseops.ReadFileOp{
+					Inode:  lookupOp.Entry.Child,
+					Handle: openOp.Handle,
+					Offset: 0,
+					Dst:    nil,
+				}
+				err = server.ReadFile(ctx, readOp)
+				require.NoError(t, err, "ReadFile with nil buffer")
 			}
-			err = server.ReadFile(ctx, readOp)
+
+			// Perform reads of different sizes
+			for _, size := range tc.readSizes {
+				readOp := &fuseops.ReadFileOp{
+					Inode:  lookupOp.Entry.Child,
+					Handle: openOp.Handle,
+					Offset: 0,
+					Dst:    make([]byte, size),
+				}
+				err = server.ReadFile(ctx, readOp)
+				require.NoError(t, err, "ReadFile for size %d", size)
+			}
+
 			waitForMetricsProcessing()
 
-			require.NoError(t, err, "ReadFile")
 			var rm metricdata.ResourceMetrics
 			err = reader.Collect(ctx, &rm)
 			require.NoError(t, err)
+
 			found := false
 			for _, sm := range rm.ScopeMetrics {
 				for _, m := range sm.Metrics {
@@ -1446,10 +1514,23 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 						require.True(t, ok)
 						require.Len(t, data.DataPoints, 1)
 						dp := data.DataPoints[0]
-						assert.Equal(t, uint64(1), dp.Count)
-						assert.Equal(t, int64(tc.histogramSum), dp.Sum)
-						require.GreaterOrEqual(t, len(dp.BucketCounts), 1)
-						assert.Equal(t, uint64(1), dp.BucketCounts[0])
+
+						// Assert total counts and sums
+						require.Equal(t, tc.expectedCount, dp.Count, "Total count mismatch")
+						require.Equal(t, tc.expectedSum, dp.Sum, "Total sum mismatch")
+
+						// Assert individual bucket counts
+						for bucketIdx, expectedCount := range tc.expectedBuckets {
+							require.GreaterOrEqual(t, len(dp.BucketCounts), bucketIdx+1, "Bucket index out of range")
+							require.Equal(t, expectedCount, dp.BucketCounts[bucketIdx], "Bucket %d count mismatch", bucketIdx)
+						}
+
+						// Verify that sum of all bucket counts matches total count
+						var totalBucketCount uint64
+						for _, count := range dp.BucketCounts {
+							totalBucketCount += count
+						}
+						require.Equal(t, tc.expectedCount, totalBucketCount, "Sum of bucket counts must equal total count")
 					}
 				}
 			}
