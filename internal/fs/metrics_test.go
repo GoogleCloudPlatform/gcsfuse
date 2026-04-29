@@ -1393,12 +1393,12 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 		expectedBuckets    map[int]uint64 // Maps bucket index to expected count
 	}{
 		{
-			name:          "Reads in first bucket",
+			name:          "Reads in bucket > 0 and <= 8KB",
 			readSizes:     []int64{1024, 2048, 4096},
 			expectedSum:   7168,
 			expectedCount: 3,
 			expectedBuckets: map[int]uint64{
-				0: 3, // All <= 8192
+				1: 3, // 0 < size <= 8192
 			},
 		},
 		{
@@ -1407,9 +1407,9 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 			expectedSum:   35840,
 			expectedCount: 3,
 			expectedBuckets: map[int]uint64{
-				0: 1, // 5KB <= 8KB
-				1: 1, // 8KB < 10KB <= 16KB
-				2: 1, // 16KB < 20KB <= 32KB
+				1: 1, // 0 < 5KB <= 8KB
+				2: 1, // 8KB < 10KB <= 16KB
+				3: 1, // 16KB < 20KB <= 32KB
 			},
 		},
 		{
@@ -1418,9 +1418,8 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 			expectedSum:   43008,
 			expectedCount: 3,
 			expectedBuckets: map[int]uint64{
-				0: 0,
-				1: 2,
-				2: 1,
+				2: 2,
+				3: 1,
 			},
 		},
 		{
@@ -1429,8 +1428,8 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 			expectedSum:   24576,
 			expectedCount: 2,
 			expectedBuckets: map[int]uint64{
-				0: 1, // 8KB <= 8KB
-				1: 1, // 8KB < 16KB <= 16KB
+				1: 1, // 0 < 8KB <= 8KB
+				2: 1, // 8KB < 16KB <= 16KB
 			},
 		},
 		{
@@ -1439,7 +1438,7 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 			expectedSum:        0,
 			expectedCount:      1,
 			expectedBuckets: map[int]uint64{
-				0: 1, // 0 <= 8KB
+				0: 1, // size <= 0
 			},
 		},
 	}
