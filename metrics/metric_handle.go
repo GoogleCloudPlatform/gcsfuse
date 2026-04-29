@@ -110,6 +110,7 @@ const (
 type OpenMode string
 
 const (
+	OpenModeOtherAttr           OpenMode = "other"
 	OpenModeReadWriteAttr       OpenMode = "read_write"
 	OpenModeReadWriteAppendAttr OpenMode = "read_write_append"
 	OpenModeWriteOnlyAttr       OpenMode = "write_only"

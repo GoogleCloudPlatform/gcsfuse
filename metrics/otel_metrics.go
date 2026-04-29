@@ -499,6 +499,10 @@ var (
 	fsOpsLatencyFsOpSyncFileAttrSet                                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
 	fsOpsLatencyFsOpUnlinkAttrSet                                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
 	fsOpsLatencyFsOpWriteFileAttrSet                                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
+	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrentLimitBreachedAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrent_limit_breached")))
+	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "existing_file")))
+	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "other")))
+	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOutOfOrderAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "out_of_order")))
 	fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAttrSet       = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "concurrent_limit_breached")))
 	fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonExistingFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "existing_file")))
 	fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonOtherAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "other")))
@@ -1018,6 +1022,10 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic                                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic                                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic                                    *atomic.Int64
+	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrentLimitBreachedAtomic           *atomic.Int64
+	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic                      *atomic.Int64
+	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic                             *atomic.Int64
+	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOutOfOrderAtomic                        *atomic.Int64
 	fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAtomic       *atomic.Int64
 	fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonExistingFileAtomic                  *atomic.Int64
 	fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonOtherAtomic                         *atomic.Int64
@@ -2222,6 +2230,20 @@ func (o *otelMetrics) FsStreamingWriteFallbackCount(
 		return
 	}
 	switch openMode {
+	case OpenModeOtherAttr:
+		switch writeFallbackReason {
+		case WriteFallbackReasonConcurrentLimitBreachedAttr:
+			o.fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrentLimitBreachedAtomic.Add(inc)
+		case WriteFallbackReasonExistingFileAttr:
+			o.fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic.Add(inc)
+		case WriteFallbackReasonOtherAttr:
+			o.fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic.Add(inc)
+		case WriteFallbackReasonOutOfOrderAttr:
+			o.fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOutOfOrderAtomic.Add(inc)
+		default:
+			updateUnrecognizedAttribute(string(writeFallbackReason))
+			return
+		}
 	case OpenModeReadWriteAttr:
 		switch writeFallbackReason {
 		case WriteFallbackReasonConcurrentLimitBreachedAttr:
@@ -2963,7 +2985,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic atomic.Int64
 
-	var fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAtomic,
+	var fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrentLimitBreachedAtomic,
+		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic,
+		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic,
+		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOutOfOrderAtomic,
+		fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAtomic,
 		fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonExistingFileAtomic,
 		fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonOtherAtomic,
 		fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonOutOfOrderAtomic,
@@ -3516,6 +3542,10 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("The cumulative number of streaming write fallbacks with reason attached"),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrentLimitBreachedAtomic, fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrentLimitBreachedAttrSet)
+			conditionallyObserve(obsrv, &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic, fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAttrSet)
+			conditionallyObserve(obsrv, &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic, fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAttrSet)
+			conditionallyObserve(obsrv, &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOutOfOrderAtomic, fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOutOfOrderAttrSet)
 			conditionallyObserve(obsrv, &fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAtomic, fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAttrSet)
 			conditionallyObserve(obsrv, &fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonExistingFileAtomic, fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonExistingFileAttrSet)
 			conditionallyObserve(obsrv, &fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonOtherAtomic, fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonOtherAttrSet)
@@ -4086,6 +4116,10 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic:                  &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic,
 		fsOpsLatency: fsOpsLatency,
+		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrentLimitBreachedAtomic:           &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrentLimitBreachedAtomic,
+		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic:                      &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic,
+		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic:                             &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic,
+		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOutOfOrderAtomic:                        &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOutOfOrderAtomic,
 		fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAtomic:       &fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonConcurrentLimitBreachedAtomic,
 		fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonExistingFileAtomic:                  &fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonExistingFileAtomic,
 		fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonOtherAtomic:                         &fsStreamingWriteFallbackCountOpenModeReadWriteWriteFallbackReasonOtherAtomic,

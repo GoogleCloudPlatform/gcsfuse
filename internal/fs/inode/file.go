@@ -718,7 +718,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
-		f.recordFallback(openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
+		metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
@@ -1063,7 +1063,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
-		f.recordFallback(util.NewOpenMode(util.WriteOnly, 0), metrics.WriteFallbackReasonOutOfOrderAttr)
+		metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, util.NewOpenMode(util.WriteOnly, 0), metrics.WriteFallbackReasonOutOfOrderAttr)
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
@@ -1102,31 +1102,6 @@ func (f *FileInode) Truncate(
 		return f.truncateUsingBufferedWriteHandler(ctx, size)
 	}
 	return false, f.truncateUsingTempFile(ctx, size)
-}
-
-func getMetricOpenMode(openMode util.OpenMode) metrics.OpenMode {
-	isAppend := openMode.IsAppend()
-
-	switch openMode.AccessMode() {
-	case util.ReadWrite:
-		if isAppend {
-			return metrics.OpenModeReadWriteAppendAttr
-		}
-		return metrics.OpenModeReadWriteAttr
-	case util.WriteOnly:
-		if isAppend {
-			return metrics.OpenModeWriteOnlyAppendAttr
-		}
-		return metrics.OpenModeWriteOnlyAttr
-	default:
-		return ""
-	}
-}
-
-// recordFallback maps util.OpenMode to metrics.OpenMode and records the fallback metric.
-func (f *FileInode) recordFallback(openMode util.OpenMode, reason metrics.WriteFallbackReason) {
-	var metricOpenMode metrics.OpenMode = getMetricOpenMode(openMode)
-	f.metricHandle.FsStreamingWriteFallbackCount(1, metricOpenMode, reason)
 }
 
 // Ensures cache content on read if content cache enabled
@@ -1212,11 +1187,11 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
 				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
 				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
-			f.recordFallback(openMode, metrics.WriteFallbackReasonConcurrentLimitBreachedAttr)
+			metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonConcurrentLimitBreachedAttr)
 			return false, nil
 		}
 		if err != nil {
-			f.recordFallback(openMode, metrics.WriteFallbackReasonOtherAttr)
+			metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
 			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
@@ -1234,6 +1209,6 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 		return true
 	}
 	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
-	f.recordFallback(openMode, metrics.WriteFallbackReasonExistingFileAttr)
+	metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
 	return false
 }
