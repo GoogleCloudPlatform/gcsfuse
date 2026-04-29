@@ -45,6 +45,6 @@ func getMetricOpenMode(openMode util.OpenMode) OpenMode {
 }
 
 func RecordStreamingWriteFallbackMetric(mh MetricHandle, openMode util.OpenMode, reason WriteFallbackReason) {
-	var metricOpenMode OpenMode = getMetricOpenMode(openMode)
+	metricOpenMode := getMetricOpenMode(openMode)
 	mh.FsStreamingWriteFallbackCount(1, metricOpenMode, reason)
 }
