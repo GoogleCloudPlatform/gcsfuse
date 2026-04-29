@@ -260,6 +260,7 @@
   type: "int_histogram"
   unit: "By"
   boundaries: &bytes_boundaries # in bytes
+  - 0 # To detect EOF scenarios
   - 8192
   - 16384
   - 32768
