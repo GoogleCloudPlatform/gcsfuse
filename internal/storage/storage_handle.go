@@ -53,12 +53,11 @@ const (
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
-	zonalLocationType         = "zone"
-	stallTimeoutForDirectPath = 60 * time.Second
+	zonalLocationType = "zone"
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts      = 5
-	directPathDetectionTimeout          = 10 * time.Second
+	directPathDetectionTimeout          = 15 * time.Second
 	directPathDetectionMaxBackoff       = 5 * time.Second
 	directPathDetectionMaxRetryDuration = 1 * time.Minute
 )
@@ -83,22 +82,6 @@ type storageClient struct {
 	rawStorageControlClientWithGaxRetries *control.StorageControlClient
 	// storageControlClient is with retry for GetStorageLayout and with handling for billing project.
 	storageControlClient StorageControlClient
-	directPathDetector   *gRPCDirectPathDetector
-}
-
-type gRPCDirectPathDetector struct {
-	clientOptions []option.ClientOption
-}
-
-// isDirectPathPossible checks if gRPC direct connectivity is available for a specific bucket
-// from the environment where the client is running. A `nil` error represents Direct Connectivity was
-// detected.
-func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) error {
-	newCtx, cancel := context.WithTimeout(ctx, stallTimeoutForDirectPath)
-	defer cancel()
-
-	// The storage library will see the timeout in 'newCtx' and abort the request if it takes too long.
-	return storage.CheckDirectConnectivitySupported(newCtx, bucketName, pd.clientOptions...)
 }
 
 // Return clientOpts for both gRPC client and control client.
@@ -220,10 +203,11 @@ func setDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientCo
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, bucketName string) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketZonal bool, enableBidiConfig bool, bucketName string) (sc *storage.Client, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
+	defer unSetDirectPathEnvVariable()
 
 	var clientOpts []option.ClientOption
 	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
@@ -234,21 +218,19 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
 	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 
-	// Create client with DirectPath enforced
-	detectionCtx, cancel := context.WithTimeout(ctx, directPathDetectionTimeout)
-	defer cancel()
-	sc, err = storage.NewGRPCClient(detectionCtx, clientOpts...)
-	if err != nil {
-		unSetDirectPathEnvVariable()
+	if sc, err = storage.NewGRPCClient(ctx, clientOpts...); err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
-	} else {
-		setRetryConfig(ctx, sc, clientConfig)
 	}
+	setRetryConfig(ctx, sc, clientConfig)
 
-	err = verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc)
-	unSetDirectPathEnvVariable()
-	if err != nil {
-		return nil, err
+	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
+	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc); verifyErr != nil {
+		logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
+		if !isbucketZonal {
+			return nil, verifyErr
+		}
+	} else {
+		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
 	}
 
 	return sc, nil
@@ -259,6 +241,13 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
 	// Apply detection retry config for initial verification
 	setDPDetectionRetryConfig(ctx, sc, clientConfig)
+
+	// Restore the production level retry config.
+	defer func() {
+		logger.Infof("Applying production retry config after DirectPath verification.")
+		setRetryConfig(ctx, sc, clientConfig)
+	}()
+
 	verifyCtx, verifyCancel := context.WithTimeout(ctx, directPathDetectionTimeout)
 	defer verifyCancel()
 
@@ -269,14 +258,9 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {
-		// DirectPath verification failed
-		sc.Close()
 		return fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, statErr)
 	}
 
-	logger.Infof("DirectPath verification successful for bucket %q, applying production retry config", bucketName)
-	// DirectPath is working! Now apply production retry config for actual usage.
-	setRetryConfig(ctx, sc, clientConfig)
 	return nil
 }
 
@@ -432,7 +416,6 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		rawStorageControlClientWithGaxRetries:    rawStorageControlClientWithGaxRetries,
 		storageControlClient:                     controlClient,
 		clientConfig:                             clientConfig,
-		directPathDetector:                       &gRPCDirectPathDetector{clientOptions: clientOpts},
 	}
 	return
 }
@@ -441,7 +424,7 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool, buck
 	var err error
 	if isbucketZonal {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true, bucketName)
+			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isbucketZonal, true, bucketName)
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
@@ -466,7 +449,7 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	}
 
 	var err error
-	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, bucketName)
+	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
 		return sh.grpcClient, nil
@@ -524,17 +507,6 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	client, err = sh.getClient(ctx, bucketType.Zonal, bucketName)
 	if err != nil {
 		return nil, err
-	}
-
-	if bucketType.Zonal || sh.clientConfig.ClientProtocol == cfg.GRPC {
-		if sh.directPathDetector != nil {
-			logger.Infof("Checking for DirectPath connectivity for bucket %q", bucketName)
-			if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
-				logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)
-			} else {
-				logger.Infof("Successfully connected over gRPC DirectPath for %s", bucketName)
-			}
-		}
 	}
 
 	storageBucketHandle := client.Bucket(bucketName)
