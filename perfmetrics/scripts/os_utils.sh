@@ -20,6 +20,8 @@ fi
 
 _OS_UTILS_SH_LOADED=true
 
+OS_UTILS_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+
 # Detect OS ID from /etc/os-release
 get_os_id() {
   if [ -f /etc/os-release ]; then
@@ -96,7 +98,7 @@ install_packages_by_os() {
       sudo yum install -y "${rhel_pkgs[@]}"
 
       if [ "$install_crcmod" = true ]; then
-        sudo python3 -m pip install crcmod
+        sudo python3 -m pip install --require-hashes -r "${OS_UTILS_DIR}/crcmod_requirements.txt"
       fi
       ;;
     arch|manjaro)
