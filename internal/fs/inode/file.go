@@ -1104,29 +1104,29 @@ func (f *FileInode) Truncate(
 	return false, f.truncateUsingTempFile(ctx, size)
 }
 
-// recordFallback maps util.OpenMode to metrics.OpenMode and records the fallback metric.
-func (f *FileInode) recordFallback(openMode util.OpenMode, reason metrics.WriteFallbackReason) {
-	if f.metricHandle == nil {
-		return
-	}
-	var metricOpenMode metrics.OpenMode
+func getMetricOpenMode(openMode util.OpenMode) metrics.OpenMode {
+	isAppend := openMode.IsAppend()
+
 	switch openMode.AccessMode() {
 	case util.ReadWrite:
-		if openMode.IsAppend() {
-			metricOpenMode = metrics.OpenModeReadWriteAppendAttr
-		} else {
-			metricOpenMode = metrics.OpenModeReadWriteAttr
+		if isAppend {
+			return metrics.OpenModeReadWriteAppendAttr
 		}
+		return metrics.OpenModeReadWriteAttr
 	case util.WriteOnly:
-		if openMode.IsAppend() {
-			metricOpenMode = metrics.OpenModeWriteOnlyAppendAttr
-		} else {
-			metricOpenMode = metrics.OpenModeWriteOnlyAttr
+		if isAppend {
+			return metrics.OpenModeWriteOnlyAppendAttr
 		}
+		return metrics.OpenModeWriteOnlyAttr
+	default:
+		return ""
 	}
-	if metricOpenMode != "" {
-		f.metricHandle.FsStreamingWriteFallbackCount(1, metricOpenMode, reason)
-	}
+}
+
+// recordFallback maps util.OpenMode to metrics.OpenMode and records the fallback metric.
+func (f *FileInode) recordFallback(openMode util.OpenMode, reason metrics.WriteFallbackReason) {
+	var metricOpenMode metrics.OpenMode = getMetricOpenMode(openMode)
+	f.metricHandle.FsStreamingWriteFallbackCount(1, metricOpenMode, reason)
 }
 
 // Ensures cache content on read if content cache enabled

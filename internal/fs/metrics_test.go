@@ -17,10 +17,9 @@ package fs_test
 import (
 	"context"
 	"os"
+	"syscall"
 	"testing"
 	"time"
-
-	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
@@ -1529,9 +1528,9 @@ func TestStreamingWrite_Fallback_ExistingFile(t *testing.T) {
 	err := server.LookUpInode(ctx, lookUpOp)
 	require.NoError(t, err)
 	openOp := &fuseops.OpenFileOp{
-		Inode: lookUpOp.Entry.Child,
+		Inode:     lookUpOp.Entry.Child,
+		OpenFlags: syscall.O_RDWR,
 	}
-	reflect.ValueOf(openOp).Elem().FieldByName("OpenFlags").Set(reflect.ValueOf(os.O_RDWR).Convert(reflect.ValueOf(openOp).Elem().FieldByName("OpenFlags").Type()))
 	err = server.OpenFile(ctx, openOp)
 	require.NoError(t, err)
 	op := &fuseops.WriteFileOp{
@@ -1542,9 +1541,8 @@ func TestStreamingWrite_Fallback_ExistingFile(t *testing.T) {
 	}
 
 	err = server.WriteFile(ctx, op)
+	require.NoError(t, err)
 	waitForMetricsProcessing()
-
-	assert.NoError(t, err)
 
 	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "existing_file"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
@@ -1589,9 +1587,8 @@ func TestStreamingWrite_Fallback_OutOfOrder(t *testing.T) {
 	}
 
 	err = server.WriteFile(ctx, op2)
+	require.NoError(t, err)
 	waitForMetricsProcessing()
-
-	assert.NoError(t, err)
 
 	attrs := attribute.NewSet(attribute.String("open_mode", "write_only"), attribute.String("write_fallback_reason", "out_of_order"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1)
@@ -1629,9 +1626,9 @@ func TestStreamingWrite_Fallback_ConcurrentLimitBreached(t *testing.T) {
 	err = server.LookUpInode(ctx, lookupOp2)
 	require.NoError(t, err)
 	openOp2 := &fuseops.OpenFileOp{
-		Inode: lookupOp2.Entry.Child,
+		Inode:     lookupOp2.Entry.Child,
+		OpenFlags: syscall.O_RDWR,
 	}
-	reflect.ValueOf(openOp2).Elem().FieldByName("OpenFlags").Set(reflect.ValueOf(os.O_RDWR).Convert(reflect.ValueOf(openOp2).Elem().FieldByName("OpenFlags").Type()))
 	err = server.OpenFile(ctx, openOp2)
 	require.NoError(t, err)
 
@@ -1652,9 +1649,8 @@ func TestStreamingWrite_Fallback_ConcurrentLimitBreached(t *testing.T) {
 	}
 
 	err = server.WriteFile(ctx, op2)
+	require.NoError(t, err)
 	waitForMetricsProcessing()
-
-	assert.NoError(t, err)
 
 	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "concurrent_limit_breached"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
