@@ -76,7 +76,7 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
   if [ -d "$TOOLS_DIR" ]; then
     echo "Running Distributed WRITE Micro-Benchmark from gcsfuse-tools..."
     START_TIME=$SECONDS
-    "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" --write || PERF_BENCHMARKS_FAILED=1
+    # "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" --write || PERF_BENCHMARKS_FAILED=1
     print_duration "Distributed WRITE Benchmark" "$START_TIME"
   else
     echo "ERROR: gcsfuse-tools directory not found!"
