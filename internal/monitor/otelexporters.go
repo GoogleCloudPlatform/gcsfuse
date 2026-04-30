@@ -25,6 +25,7 @@ import (
 	cloudmetric "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
@@ -35,6 +36,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -53,7 +55,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	options = append(options, opts...)
 	shutdownFns = append(shutdownFns, promShutdownFn)
 
-	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+	opts = setupCloudMonitoring(ctx, c)
 	options = append(options, opts...)
 
 	res, err := getResource(ctx, mountID)
@@ -86,26 +88,92 @@ func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
 	return s, true
 }
 
-func setupCloudMonitoring(secs int64) []metric.Option {
-	if secs <= 0 {
+// setupCloudMonitoring creates and configures a Cloud Monitoring metrics exporter.
+//
+// The function attempts to initialize the exporter with the following credential
+// sources in order:
+//  1. Application Default Credentials (ADC)
+//  2. Token URL credentials (if configured via --token-url)
+//
+// When using token URL credentials, it will optionally include the billing project
+// ID if specified, and gracefully falls back to no project ID if that fails.
+//
+// Returns nil if the export interval is not configured or if initialization fails.
+func setupCloudMonitoring(ctx context.Context, c *cfg.Config) []metric.Option {
+	if c.Metrics.CloudMetricsExportIntervalSecs <= 0 {
 		return nil
 	}
-	options := []cloudmetric.Option{
+
+	exporter, err := createCloudMonitoringExporter(ctx, c)
+	if err != nil {
+		logger.Errorf("Failed to create Cloud Monitoring exporter: %v", err)
+		return nil
+	}
+
+	// Wrap the exporter to handle permission denied errors gracefully.
+	wrappedExporter := &permissionAwareExporter{Exporter: exporter}
+
+	interval := time.Duration(c.Metrics.CloudMetricsExportIntervalSecs) * time.Second
+	reader := metric.NewPeriodicReader(wrappedExporter, metric.WithInterval(interval))
+	return []metric.Option{metric.WithReader(reader)}
+}
+
+// createCloudMonitoringExporter attempts to create a Cloud Monitoring exporter
+// with multiple credential sources.
+func createCloudMonitoringExporter(ctx context.Context, c *cfg.Config) (metric.Exporter, error) {
+	baseOptions := []cloudmetric.Option{
 		cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
 	}
+
+	// Attempt to create exporter with default credentials.
+	exporter, err := cloudmetric.New(baseOptions...)
+	if err == nil {
+		logger.Infof("Cloud Monitoring exporter initialized with default credentials")
+		return exporter, nil
+	}
+
+	// Fall back to token URL credentials if configured.
+	if c.GcsAuth.TokenUrl == "" {
+		return nil, fmt.Errorf("default credentials unavailable and no --token-url configured: %w", err)
+	}
+
+	logger.Infof("Default credentials unavailable, using --token-url for Cloud Monitoring")
+	return createCloudMonitoringExporterWithTokenURL(ctx, c, baseOptions)
+}
+
+// createCloudMonitoringExporterWithTokenURL creates a Cloud Monitoring exporter
+// using token URL credentials.
+func createCloudMonitoringExporterWithTokenURL(
+	ctx context.Context,
+	c *cfg.Config,
+	baseOptions []cloudmetric.Option,
+) (metric.Exporter, error) {
+	tokenSrc, err := auth.NewTokenSourceFromURL(ctx, c.GcsAuth.TokenUrl, c.GcsAuth.ReuseTokenFromUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token source: %w", err)
+	}
+
+	clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
+	options := append(baseOptions, cloudmetric.WithMonitoringClientOptions(clientOpts...))
+
+	// Try with explicit project ID if configured.
+	if c.GcsConnection.BillingProject != "" {
+		optionsWithProject := append(options, cloudmetric.WithProjectID(c.GcsConnection.BillingProject))
+		if exporter, err := cloudmetric.New(optionsWithProject...); err == nil {
+			logger.Infof("Cloud Monitoring exporter initialized with --token-url and project %s", c.GcsConnection.BillingProject)
+			return exporter, nil
+		}
+		logger.Infof("Failed to initialize with explicit project ID, retrying without project")
+	}
+
+	// Retry without explicit project ID.
 	exporter, err := cloudmetric.New(options...)
 	if err != nil {
-		logger.Errorf("Error while creating Google Cloud exporter:%v", err)
-		return nil
+		return nil, fmt.Errorf("failed to create exporter with --token-url: %w", err)
 	}
 
-	// Wrap the exporter to handle permission denied errors
-	wrappedExporter := &permissionAwareExporter{
-		Exporter: exporter,
-	}
-
-	reader := metric.NewPeriodicReader(wrappedExporter, metric.WithInterval(time.Duration(secs)*time.Second))
-	return []metric.Option{metric.WithReader(reader)}
+	logger.Infof("Cloud Monitoring exporter initialized with --token-url credentials")
+	return exporter, nil
 }
 
 // permissionAwareExporter wraps a metric.Exporter and disables itself if it encounters

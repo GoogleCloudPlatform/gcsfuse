@@ -16,15 +16,18 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/api/option"
 )
 
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
@@ -53,7 +56,7 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 			return newStdoutTraceExporter()
 		},
 		"gcpexporter": func() (sdktrace.SpanExporter, error) {
-			return newGCPCloudTraceExporter(c)
+			return newGCPCloudTraceExporter(ctx, c)
 		},
 	}
 
@@ -93,18 +96,77 @@ func newStdoutTraceExporter() (sdktrace.SpanExporter, error) {
 	return exporter, nil
 }
 
-func newGCPCloudTraceExporter(c *cfg.Config) (sdktrace.SpanExporter, error) {
-	var traceOptions []cloudtrace.Option
+// newGCPCloudTraceExporter creates a Cloud Trace exporter with fallback credential support.
+//
+// The function attempts to initialize the exporter with the following credential
+// sources in order:
+//  1. Application Default Credentials (ADC)
+//  2. Token URL credentials (if configured via --token-url)
+//
+// Project ID is determined from:
+//  1. Trace.ProjectId config (if set)
+//  2. BillingProject (fallback, if tracing project ID not set)
+//  3. Auto-detected from credentials (if neither is set)
+func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (sdktrace.SpanExporter, error) {
+	baseOptions := buildBaseTraceOptions(c)
 
+	// Attempt to create exporter with default credentials.
+	exporter, err := cloudtrace.New(baseOptions...)
+	if err == nil {
+		logger.Infof("Cloud Trace exporter initialized with default credentials")
+		return exporter, nil
+	}
+
+	// Fall back to token URL credentials if configured.
+	if c.GcsAuth.TokenUrl == "" {
+		return nil, fmt.Errorf("default credentials unavailable and no --token-url configured: %w", err)
+	}
+
+	logger.Infof("Default credentials unavailable, using --token-url for Cloud Trace")
+	return createCloudTraceExporterWithTokenURL(ctx, c, baseOptions)
+}
+
+// buildBaseTraceOptions constructs the base Cloud Trace options including
+// project ID if explicitly configured.
+func buildBaseTraceOptions(c *cfg.Config) []cloudtrace.Option {
+	var options []cloudtrace.Option
 	if c.Trace.ProjectId != "" {
-		traceOptions = append(traceOptions, cloudtrace.WithProjectID(c.Trace.ProjectId))
+		options = append(options, cloudtrace.WithProjectID(c.Trace.ProjectId))
 	}
+	return options
+}
 
-	exporter, err := cloudtrace.New(traceOptions...)
-
+// createCloudTraceExporterWithTokenURL creates a Cloud Trace exporter using
+// token URL credentials.
+func createCloudTraceExporterWithTokenURL(
+	ctx context.Context,
+	c *cfg.Config,
+	baseOptions []cloudtrace.Option,
+) (sdktrace.SpanExporter, error) {
+	tokenSrc, err := auth.NewTokenSourceFromURL(ctx, c.GcsAuth.TokenUrl, c.GcsAuth.ReuseTokenFromUrl)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create token source: %w", err)
 	}
 
+	clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
+	options := append(baseOptions, cloudtrace.WithTraceClientOptions(clientOpts))
+
+	// Try with explicit billing project ID if tracing project ID is not configured.
+	if c.Trace.ProjectId == "" && c.GcsConnection.BillingProject != "" {
+		optionsWithProject := append(options, cloudtrace.WithProjectID(c.GcsConnection.BillingProject))
+		if exporter, err := cloudtrace.New(optionsWithProject...); err == nil {
+			logger.Infof("Cloud Trace exporter initialized with --token-url and project %s", c.GcsConnection.BillingProject)
+			return exporter, nil
+		}
+		logger.Infof("Failed to initialize with explicit project ID, retrying without project")
+	}
+
+	// Retry without explicit project ID.
+	exporter, err := cloudtrace.New(options...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exporter with --token-url: %w", err)
+	}
+
+	logger.Infof("Cloud Trace exporter initialized with --token-url credentials")
 	return exporter, nil
 }
