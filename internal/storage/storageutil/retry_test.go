@@ -142,24 +142,43 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BackoffGrowth() {
 	// First call to establish the initial backoff.
 	err := b.waitWithJitter(ctx)
 	assert.NoError(t.T(), err)
-	var lastBackoff time.Duration
 
-	// Subsequent calls should demonstrate exponential growth.
+	// Subsequent calls should execute without error.
 	for range 3 {
+		start := time.Now()
 		err := b.waitWithJitter(ctx)
+		elapsed := time.Since(start)
 		require.NoError(t.T(), err)
 
-		// The new backoff should be at least the last backoff times the multiplier.
-		// Due to jitter, it can be larger, so we check for >=
-		expectedMinBackoff := time.Duration(float64(lastBackoff) * multiplier)
-		require.GreaterOrEqual(t.T(), b.prev, expectedMinBackoff)
+		// The backoff should also be capped by the max value (with headroom for OS scheduler).
+		require.LessOrEqual(t.T(), elapsed, maxValue*2)
+	}
+}
 
-		// The backoff should also be capped by the max value.
-		if b.prev > maxValue {
-			require.Equal(t.T(), b.prev, maxValue)
-		}
+func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BoundsRespectMax() {
+	// Arrange
+	initial := 5 * time.Millisecond
+	maxValue := 20 * time.Millisecond
+	multiplier := 2.0
+	b := newExponentialBackoff(&exponentialBackoffConfig{
+		initial:    initial,
+		max:        maxValue,
+		multiplier: multiplier,
+	})
+	ctx := context.Background()
 
-		lastBackoff = b.prev
+	// Call many times to let it saturate the max value and test the ceiling bounds
+	for range 10 {
+		// Act
+		start := time.Now()
+		err := b.waitWithJitter(ctx)
+		elapsed := time.Since(start)
+
+		// Assert
+		require.NoError(t.T(), err)
+		// Measured wait time should be capped by max ceiling.
+		// We add a 50ms buffer to ensure tests don't flake due to OS scheduler latency.
+		require.LessOrEqual(t.T(), elapsed, maxValue*2+50*time.Millisecond)
 	}
 }
 

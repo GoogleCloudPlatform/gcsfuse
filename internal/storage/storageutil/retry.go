@@ -49,8 +49,6 @@ type exponentialBackoff struct {
 	config exponentialBackoffConfig
 	// Duration for next backoff. Capped at max. Returned by next().
 	next time.Duration
-	// Duration waited in previous backoff.
-	prev time.Duration
 }
 
 // newExponentialBackoff returns a new exponentialBackoff given
@@ -80,9 +78,6 @@ func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 
 	nextDuration := b.nextDuration()
 	jitteryBackoffDuration := time.Duration(1 + rand.Int63n(int64(nextDuration)))
-	// Ensure that the backoff duration goes up at the rate of at least the multiplier.
-	jitteryBackoffDuration = max(jitteryBackoffDuration, time.Duration(float64(b.prev)*b.config.multiplier))
-	b.prev = jitteryBackoffDuration
 	select {
 	case <-time.After(jitteryBackoffDuration):
 		return nil
