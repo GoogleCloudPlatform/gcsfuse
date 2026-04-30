@@ -23,11 +23,13 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
@@ -262,6 +264,116 @@ func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite(
 	require.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), err, errUploadFailure)
 	assert.Nil(testSuite.T(), obj)
+}
+
+func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
+	testCases := []struct {
+		name       string
+		bucketType gcs.BucketType
+		obj        *gcs.Object
+	}{
+		{
+			name:       "non_zonal",
+			bucketType: gcs.BucketType{Zonal: false},
+		},
+		{
+			name:       "zonal_new_file",
+			bucketType: gcs.BucketType{Zonal: true},
+		},
+		{
+			name:       "zonal_append",
+			bucketType: gcs.BucketType{Zonal: true},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
+	}
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			mockBucket := new(storagemock.TestifyMockBucket)
+			mockBucket.On("BucketType").Return(tc.bucketType)
+			writer := &storagemock.Writer{}
+			writer.On("Write", mock.Anything).Return(2, nil)
+			if tc.bucketType.Zonal && tc.obj != nil {
+				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
+			} else {
+				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+			}
+			mockObj := &gcs.MinObject{Name: "testObject", Size: 0}
+			mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
+			bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+				Object:                   tc.obj,
+				ObjectName:               "testObject",
+				Bucket:                   mockBucket,
+				BlockSize:                blockSize,
+				MaxBlocksPerFile:         10,
+				GlobalMaxBlocksSem:       testSuite.globalSemaphore,
+				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+				TraceHandle:              tracing.NewNoopTracer(),
+			})
+			require.Nil(testSuite.T(), err)
+			err = bwh.Write(context.Background(), []byte("hi"), 0)
+			require.Nil(testSuite.T(), err)
+
+			obj, err := bwh.Flush(context.Background())
+
+			require.Error(testSuite.T(), err)
+			assert.Contains(testSuite.T(), err.Error(), "could not upload entire data, expected offset 2, Got 0")
+			assert.Nil(testSuite.T(), obj)
+		})
+	}
+}
+
+func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
+	testCases := []struct {
+		name       string
+		bucketType gcs.BucketType
+		obj        *gcs.Object
+	}{
+		{
+			name:       "zonal_new_file",
+			bucketType: gcs.BucketType{Zonal: true},
+		},
+		{
+			name:       "zonal_append",
+			bucketType: gcs.BucketType{Zonal: true},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
+	}
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			mockBucket := new(storagemock.TestifyMockBucket)
+			mockBucket.On("BucketType").Return(tc.bucketType)
+			writer := &storagemock.Writer{}
+			writer.On("Write", mock.Anything).Return(2, nil)
+			if tc.bucketType.Zonal && tc.obj != nil {
+				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
+			} else {
+				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+			}
+			mockObj := &gcs.MinObject{Name: "testObject", Size: 0}
+			mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockObj, nil)
+			bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+				Object:                   tc.obj,
+				ObjectName:               "testObject",
+				Bucket:                   mockBucket,
+				BlockSize:                blockSize,
+				MaxBlocksPerFile:         10,
+				GlobalMaxBlocksSem:       testSuite.globalSemaphore,
+				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+				TraceHandle:              tracing.NewNoopTracer(),
+			})
+			require.Nil(testSuite.T(), err)
+			err = bwh.Write(context.Background(), []byte("hi"), 0)
+			require.Nil(testSuite.T(), err)
+
+			obj, err := bwh.Sync(context.Background())
+
+			require.Error(testSuite.T(), err)
+			assert.Contains(testSuite.T(), err.Error(), "could not upload entire data, expected offset 2, Got 0")
+			assert.Nil(testSuite.T(), obj)
+		})
+	}
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUploadFailureInBetween() {

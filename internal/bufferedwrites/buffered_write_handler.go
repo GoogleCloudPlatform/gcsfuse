@@ -255,6 +255,10 @@ func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, 
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
 	}
 
+	if obj != nil && obj.Size != uint64(wh.totalSize) {
+		return nil, fmt.Errorf("could not upload entire data, expected offset %d, Got %d", wh.totalSize, obj.Size)
+	}
+
 	err = wh.blockPool.ClearFreeBlockChannel(true)
 	if err != nil {
 		// Only logging an error in case of resource leak as upload succeeded.
