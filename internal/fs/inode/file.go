@@ -978,8 +978,13 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	}
 
 	if newObj != nil && f.content != nil {
-		if st, statErr := f.content.Stat(); statErr == nil && newObj.Size != uint64(st.Size) {
-			return fmt.Errorf("could not upload entire data, expected size %d, Got %d", st.Size, newObj.Size)
+		st, statErr := f.content.Stat()
+		if statErr != nil {
+			return fmt.Errorf("SyncObject: stat temp file for size validation: %w", statErr)
+		}
+
+		if newObj.Size != uint64(st.Size) {
+			return fmt.Errorf("SyncObject: could not upload entire data, expected size %d, got %d", st.Size, newObj.Size)
 		}
 	}
 

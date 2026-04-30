@@ -185,7 +185,7 @@ func (t *FileMockBucketTest) TestFlushLocalFile_SizeMismatch_ReturnsError() {
 	err = t.in.Flush(t.ctx)
 
 	require.Error(t.T(), err)
-	assert.Contains(t.T(), err.Error(), "could not upload entire data, expected size 4, Got 2")
+	assert.Contains(t.T(), err.Error(), "could not upload entire data, expected size 4, got 2")
 }
 
 func (t *FileMockBucketTest) TestFlushSyncedFileForceFetchObjectFromGCS() {

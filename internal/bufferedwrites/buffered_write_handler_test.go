@@ -317,7 +317,7 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			obj, err := bwh.Flush(context.Background())
 
 			require.Error(testSuite.T(), err)
-			assert.Contains(testSuite.T(), err.Error(), "could not upload entire data, expected offset 2, Got 0")
+			assert.Contains(testSuite.T(), err.Error(), "could not upload entire data, expected size 2, got 0")
 			assert.Nil(testSuite.T(), obj)
 		})
 	}
@@ -370,7 +370,7 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			obj, err := bwh.Sync(context.Background())
 
 			require.Error(testSuite.T(), err)
-			assert.Contains(testSuite.T(), err.Error(), "could not upload entire data, expected offset 2, Got 0")
+			assert.Contains(testSuite.T(), err.Error(), "could not upload entire data, expected size 2, got 0")
 			assert.Nil(testSuite.T(), obj)
 		})
 	}

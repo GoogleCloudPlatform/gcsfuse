@@ -212,7 +212,7 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 			return nil, err
 		}
 		if o.Size != uint64(wh.totalSize) {
-			return nil, fmt.Errorf("could not upload entire data, expected offset %d, Got %d", wh.totalSize, o.Size)
+			return nil, fmt.Errorf("could not upload entire data, expected size %d, got %d", wh.totalSize, o.Size)
 		}
 	}
 	// Release memory used by buffers.
@@ -256,7 +256,7 @@ func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, 
 	}
 
 	if obj != nil && obj.Size != uint64(wh.totalSize) {
-		return nil, fmt.Errorf("could not upload entire data, expected offset %d, Got %d", wh.totalSize, obj.Size)
+		return nil, fmt.Errorf("could not upload entire data, expected size %d, got %d", wh.totalSize, obj.Size)
 	}
 
 	err = wh.blockPool.ClearFreeBlockChannel(true)
