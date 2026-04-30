@@ -1594,7 +1594,7 @@ func TestStreamingWrite_Fallback_OutOfOrder(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1)
 }
 
-func TestStreamingWrite_Fallback_ConcurrentLimitBreached(t *testing.T) {
+func TestStreamingWrite_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableStreamingWrites = true
@@ -1652,6 +1652,6 @@ func TestStreamingWrite_Fallback_ConcurrentLimitBreached(t *testing.T) {
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
-	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "concurrent_limit_breached"))
+	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "concurrency_limit_breached"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
 }

@@ -1187,7 +1187,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
 				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
 				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
-			metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonConcurrentLimitBreachedAttr)
+			metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonConcurrencyLimitBreachedAttr)
 			return false, nil
 		}
 		if err != nil {

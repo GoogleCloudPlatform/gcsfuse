@@ -4577,12 +4577,12 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
-			name: "open_mode_other_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_other_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "other", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "other", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4613,12 +4613,12 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_read_write_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_read_write_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "read_write", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "read_write", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4649,12 +4649,12 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_read_write_append_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_read_write_append_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "read_write_append", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "read_write_append", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "read_write_append"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "read_write_append"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4685,12 +4685,12 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_write_only_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_write_only_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "write_only", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "write_only", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "write_only"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "write_only"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4721,12 +4721,12 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_write_only_append_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_write_only_append_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "write_only_append", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "write_only_append", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "write_only_append"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "write_only_append"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4758,21 +4758,21 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "other", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "other", "concurrency_limit_breached")
 				m.FsStreamingWriteFallbackCount(2, "other", "existing_file")
-				m.FsStreamingWriteFallbackCount(3, "other", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(3, "other", "concurrency_limit_breached")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 8,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 8,
 				attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "existing_file")): 2,
 			},
 		},
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(-5, "other", "concurrent_limit_breached")
-				m.FsStreamingWriteFallbackCount(2, "other", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(-5, "other", "concurrency_limit_breached")
+				m.FsStreamingWriteFallbackCount(2, "other", "concurrency_limit_breached")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 2},
 		},
 	}
 
