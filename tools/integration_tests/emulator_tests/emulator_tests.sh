@@ -118,8 +118,9 @@ sudo docker pull $DOCKER_IMAGE
 CONTAINER_ID=$(sudo docker ps -aqf "name=$CONTAINER_NAME")
 if [[ -n "$CONTAINER_ID" ]]; then
   log_info "Container with ID:[$CONTAINER_ID] is already running with name:[$CONTAINER_NAME]"
-  log_info "Stopping container...."
-  sudo docker stop $CONTAINER_ID
+  log_info "Stopping and removing container...."
+  docker stop $CONTAINER_ID || true
+  docker rm $CONTAINER_ID || true
 fi
 
 wait_for_emulator() {
@@ -175,6 +176,17 @@ if ! curl -X POST --data-binary @test.json \
 fi
 rm test.json
 
+# Create an HNS bucket for control client tests
+cat << EOF > test_hns.json
+{"name":"test-hns-bucket", "hierarchicalNamespace": {"enabled": true}}
+EOF
+if ! curl -X POST --data-binary @test_hns.json -H "Content-Type: application/json" "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"; then
+  log_error "Failed to create bucket test-hns-bucket"
+  exit 1
+fi
+rm test_hns.json
+
+
 # Start the gRPC server on port 8888.
 log_info "Starting the gRPC server on port 8888"
 response=$(curl -w "%{http_code}\n" --retry 5 --retry-max-time 40 -o /dev/null "$STORAGE_EMULATOR_HOST/start_grpc?port=8888")
@@ -192,4 +204,10 @@ if [[ -n "$GCSFUSE_PREBUILT_DIR" ]]; then
 fi
 
 # Run all emulator test packages in sequence to avoid high cpu usage.
-go test -v -p 1 -timeout 10m ./tools/integration_tests/emulator_tests/... --integrationTest --testbucket=test-bucket "${args[@]}"
+TEST_TARGET=${TEST_TARGET:-"./tools/integration_tests/emulator_tests/..."}
+# Run all emulator test packages in sequence to avoid high cpu usage.
+# Run all other emulator tests with standard bucket
+go test -v -p 1 -timeout 10m $(go list ${TEST_TARGET} | grep -v control_client_stall) --integrationTest --testbucket=${TEST_BUCKET:-test-bucket} "${args[@]}"
+
+# Run control_client_stall with HNS bucket
+go test -v -p 1 -timeout 10m ./tools/integration_tests/emulator_tests/control_client_stall/... --integrationTest --testbucket=test-hns-bucket "${args[@]}"

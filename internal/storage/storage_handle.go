@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
+
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -387,10 +387,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
-	// GetStorageLayout API is not supported for storage-testbench, which are identified by custom-endpoint containing localhost.
-	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "localhost") {
-		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
-		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
+	if clientConfig.EnableHNS {
 		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
@@ -414,8 +411,6 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		// Wrap the control client with retry-on-stall logic.
 		// This will retry on only on GetStorageLayout call for all buckets.
 		controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)
-	} else {
-		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
