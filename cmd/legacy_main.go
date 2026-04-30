@@ -460,10 +460,11 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	}
 
 	ctx := context.Background()
+	var mountState monitor.MountState
 	var metricExporterShutdownFn common.ShutdownFn
 	metricHandle := metrics.NewNoopMetrics()
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
-		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
+		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)), &mountState)
 		if metricHandle, err = metrics.NewOTelMetrics(ctx, int(newConfig.Metrics.Workers), int(newConfig.Metrics.BufferSize)); err != nil {
 			metricHandle = metrics.NewNoopMetrics()
 		}
@@ -536,6 +537,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 		}
 		markSuccessfulMount()
+		mountState.SetMounted(true)
 
 		// Apply post mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
 		if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
@@ -554,6 +556,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	if err = mfs.Join(ctx); err != nil {
 		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
 	}
+	mountState.SetMounted(false)
 
 	if shutdownFn != nil {
 		if shutdownErr := shutdownFn(ctx); shutdownErr != nil {

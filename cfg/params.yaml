@@ -1068,6 +1068,14 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "metrics.health-check-error-rate-threshold"
+    flag-name: "health-check-error-rate-threshold"
+    type: "float64"
+    usage: >-
+      Error rate threshold (errors/total-ops, in range [0.0, 1.0]) above which /readyz
+      returns 503. Only takes effect when --prometheus-port is set.
+    default: "0.05"
+
   - config-path: "metrics.prometheus-port"
     flag-name: "prometheus-port"
     type: "int"
