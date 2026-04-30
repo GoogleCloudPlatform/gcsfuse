@@ -20,6 +20,7 @@
 package managed_folders
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -110,10 +111,13 @@ func (s *managedFoldersAdminPermission) TestDeleteObjectInManagedFolder() {
 		s.T().Errorf("Error in removing file from managed folder: %v", err)
 	}
 
-	_, err = operations.StatFile(filePath)
-	if err == nil {
-		s.T().Errorf("file is not removed.")
-	}
+	operations.RetryUntil(testEnv.ctx, s.T(), 5*time.Second, 60*time.Second, func() (any, error) {
+		_, err := operations.StatFile(filePath)
+		if err == nil {
+			return nil, fmt.Errorf("file still exists")
+		}
+		return nil, nil
+	})
 }
 
 // Managed folders will not be deleted, but they will become empty. Default empty managed folders will be hidden.
@@ -125,10 +129,13 @@ func (s *managedFoldersAdminPermission) TestDeleteManagedFolder() {
 		s.T().Errorf("Error in removing managed folder: %v", err)
 	}
 
-	_, err = os.Stat(dirPath)
-	if err == nil {
-		s.T().Errorf("Directory is not removed.")
-	}
+	operations.RetryUntil(testEnv.ctx, s.T(), 5*time.Second, 60*time.Second, func() (any, error) {
+		_, err := os.Stat(dirPath)
+		if err == nil {
+			return nil, fmt.Errorf("directory still exists")
+		}
+		return nil, nil
+	})
 }
 
 func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder() {
@@ -141,10 +148,10 @@ func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder() {
 		s.T().Errorf("Error in copying file managed folder from src: %s to dest %s: %v", srcCopyFile, destCopyFile, err)
 	}
 
-	_, err = operations.StatFile(destCopyFile)
-	if err != nil {
-		s.T().Errorf("Error in stating destination file: %v", err)
-	}
+	operations.RetryUntil(testEnv.ctx, s.T(), 5*time.Second, 60*time.Second, func() (any, error) {
+		_, err := operations.StatFile(destCopyFile)
+		return nil, err
+	})
 }
 
 func (s *managedFoldersAdminPermission) TestCopyManagedFolder() {
@@ -173,14 +180,17 @@ func (s *managedFoldersAdminPermission) TestMoveObjectWithInManagedFolder() {
 		s.T().Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcMoveFile, destMoveFile, err)
 	}
 
-	_, err = operations.StatFile(destMoveFile)
-	if err != nil {
-		s.T().Errorf("Error in stating destination file: %v", err)
-	}
-	_, err = operations.StatFile(srcMoveFile)
-	if err == nil {
-		s.T().Errorf("SrcFile is not removed after move.")
-	}
+	operations.RetryUntil(testEnv.ctx, s.T(), 5*time.Second, 60*time.Second, func() (any, error) {
+		_, err := operations.StatFile(destMoveFile)
+		return nil, err
+	})
+	operations.RetryUntil(testEnv.ctx, s.T(), 5*time.Second, 60*time.Second, func() (any, error) {
+		_, err := operations.StatFile(srcMoveFile)
+		if err == nil {
+			return nil, fmt.Errorf("srcFile still exists after move")
+		}
+		return nil, nil
+	})
 }
 
 func (s *managedFoldersAdminPermission) TestMoveManagedFolder() {

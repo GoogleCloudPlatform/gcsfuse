@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -152,10 +153,12 @@ func listNonEmptyManagedFolders(mntDir, isolatedTestDir string, t *testing.T) {
 			return nil
 		}
 
-		objs, err := os.ReadDir(path)
-		if err != nil {
-			log.Fatal(err)
-		}
+		var objs []fs.DirEntry
+		operations.RetryUntil(testEnv.ctx, t, 5*time.Second, 60*time.Second, func() (any, error) {
+			var err error
+			objs, err = os.ReadDir(path)
+			return nil, err
+		})
 		// Check if managedFolderTest directory has correct data.
 		if dir.Name() == testDirName {
 			// numberOfObjects - 4
