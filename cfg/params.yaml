@@ -728,6 +728,16 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "gcs-retries.max-mount-retry-attempts"
+    flag-name: "max-mount-retry-attempts"
+    type: "int"
+    usage: >-
+      Defines the maximum retry attempts for specific transient API call
+      during mount sequence. A value of 0 triggers an
+      indefinite retry for each API call during mount sequence.
+    default: "1"
+    hide-flag: true
+
   - config-path: "gcs-retries.max-retry-attempts"
     flag-name: "max-retry-attempts"
     type: "int"
