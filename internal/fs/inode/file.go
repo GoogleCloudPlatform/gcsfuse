@@ -1143,14 +1143,14 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().Zonal && openMode.IsAppend() {
+		if f.bucket.BucketType().Zonal && openMode.IsWrite() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
 			// response. Since appends happen at the same generation, StatObject() call is redundant.
 			latestGcsObj = storageutil.ConvertMinObjectToObject(&f.src)
 		} else {
-			// For regional buckets or overwrites for rapid buckets, call StatObject() to fetch extended
+			// For regional buckets, call StatObject() to fetch extended
 			// attributes missing from the cached MinObject, which is required by the CreateObject request
 			// to create the new object generation.
 			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
@@ -1197,7 +1197,7 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+	if f.config.Write.EnableRapidAppends && openMode.IsWrite() && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)

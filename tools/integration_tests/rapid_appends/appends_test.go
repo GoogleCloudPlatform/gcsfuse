@@ -15,6 +15,7 @@
 package rapid_appends
 
 import (
+	"io"
 	"os"
 	"path"
 	"syscall"
@@ -329,4 +330,36 @@ func TestDualMountAppendsTestSuite(t *testing.T) {
 	RunTests(t, "TestDualMountAppendsTestSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
 		return &DualMountAppendsTestSuite{BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags}}
 	})
+}
+
+func (t *SingleMountAppendsTestSuite) TestWriteAtEndToFinalizedObjectNotVisibleUntilClose() {
+	const initialContent = "dummy content"
+
+	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
+	// Create Finalized Object in the GCS bucket.
+	client.CreateFinalizedObjectInGCSTestDir(
+		testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, initialContent, t.T())
+
+	// Append to the finalized object from the primary mount by seeking to the end.
+	data := setup.GenerateRandomString(contentSizeForBW * operations.OneMiB)
+	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
+	fh, err := os.OpenFile(filePath, os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+	_, err = fh.Seek(0, io.SeekEnd)
+	require.NoError(t.T(), err)
+	n, err := fh.Write([]byte(data))
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), len(data), n)
+
+	// Read from GCS to validate appended content is not yet visible.
+	contentBeforeClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), initialContent, string(contentBeforeClose))
+
+	// Close the file handle and verify appended content is now visible.
+	require.NoError(t.T(), fh.Close())
+	expectedContent := initialContent + data
+	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
