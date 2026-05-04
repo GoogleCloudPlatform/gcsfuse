@@ -213,5 +213,8 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
 		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", fsName)
 	}
+	if newConfig.Logging.Severity.Rank() <= cfg.InfoLogSeverity.Rank() {
+		mountCfg.InfoLogger = logger.NewLegacyLogger(logger.LevelInfo, "fuse_debug: ", fsName)
+	}
 	return mountCfg
 }
