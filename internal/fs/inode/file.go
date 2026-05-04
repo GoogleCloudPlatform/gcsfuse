@@ -663,6 +663,30 @@ func (f *FileInode) Read(
 	return
 }
 
+func getMetricOpenMode(openMode util.OpenMode) metrics.OpenMode {
+	isAppend := openMode.IsAppend()
+
+	switch openMode.AccessMode() {
+	case util.ReadWrite:
+		if isAppend {
+			return metrics.OpenModeReadWriteAppendAttr
+		}
+		return metrics.OpenModeReadWriteAttr
+	case util.WriteOnly:
+		if isAppend {
+			return metrics.OpenModeWriteOnlyAppendAttr
+		}
+		return metrics.OpenModeWriteOnlyAttr
+	default:
+		return metrics.OpenModeOtherAttr
+	}
+}
+
+func recordStreamingWriteFallbackMetric(mh metrics.MetricHandle, openMode util.OpenMode, reason metrics.WriteFallbackReason) {
+	metricOpenMode := getMetricOpenMode(openMode)
+	mh.FsStreamingWriteFallbackCount(1, metricOpenMode, reason)
+}
+
 // Serve a write for this file with semantics matching fuseops.WriteFileOp.
 // It returns true if the file is successfully synced during the write operation.
 //
@@ -718,12 +742,12 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
-		metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
+		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
 		return true, f.writeUsingTempFile(ctx, data, offset)
 	}
 	if err != nil {
@@ -1063,12 +1087,12 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
-		metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, util.NewOpenMode(util.WriteOnly, 0), metrics.WriteFallbackReasonOutOfOrderAttr)
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
+		recordStreamingWriteFallbackMetric(f.metricHandle, util.NewOpenMode(util.WriteOnly, 0), metrics.WriteFallbackReasonOutOfOrderAttr)
 		return true, f.truncateUsingTempFile(ctx, size)
 	}
 	if err != nil {
@@ -1187,11 +1211,11 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
 				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
 				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
-			metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonConcurrencyLimitBreachedAttr)
+			recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonConcurrencyLimitBreachedAttr)
 			return false, nil
 		}
 		if err != nil {
-			metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
+			recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
 			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
@@ -1209,6 +1233,6 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 		return true
 	}
 	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
-	metrics.RecordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
+	recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
 	return false
 }

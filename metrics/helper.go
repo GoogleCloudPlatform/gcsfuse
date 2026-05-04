@@ -14,37 +14,9 @@
 
 package metrics
 
-import (
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-)
-
 // CaptureGCSReadMetrics is a helper function to encapsulate the logic for recording
 // GCS read-related metrics.
 func CaptureGCSReadMetrics(mh MetricHandle, readType ReadType, downloadBytes int64) {
 	mh.GcsReadCount(1, readType)
 	mh.GcsDownloadBytesCount(downloadBytes, readType)
-}
-
-func getMetricOpenMode(openMode util.OpenMode) OpenMode {
-	isAppend := openMode.IsAppend()
-
-	switch openMode.AccessMode() {
-	case util.ReadWrite:
-		if isAppend {
-			return OpenModeReadWriteAppendAttr
-		}
-		return OpenModeReadWriteAttr
-	case util.WriteOnly:
-		if isAppend {
-			return OpenModeWriteOnlyAppendAttr
-		}
-		return OpenModeWriteOnlyAttr
-	default:
-		return OpenModeOtherAttr
-	}
-}
-
-func RecordStreamingWriteFallbackMetric(mh MetricHandle, openMode util.OpenMode, reason WriteFallbackReason) {
-	metricOpenMode := getMetricOpenMode(openMode)
-	mh.FsStreamingWriteFallbackCount(1, metricOpenMode, reason)
 }
