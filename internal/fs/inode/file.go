@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
@@ -38,7 +40,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
 
