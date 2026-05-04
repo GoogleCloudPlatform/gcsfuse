@@ -110,6 +110,7 @@ const (
 type OpenMode string
 
 const (
+	OpenModeOtherAttr           OpenMode = "other"
 	OpenModeReadWriteAttr       OpenMode = "read_write"
 	OpenModeReadWriteAppendAttr OpenMode = "read_write_append"
 	OpenModeWriteOnlyAttr       OpenMode = "write_only"
@@ -155,10 +156,10 @@ const (
 type WriteFallbackReason string
 
 const (
-	WriteFallbackReasonConcurrentLimitBreachedAttr WriteFallbackReason = "concurrent_limit_breached"
-	WriteFallbackReasonExistingFileAttr            WriteFallbackReason = "existing_file"
-	WriteFallbackReasonOtherAttr                   WriteFallbackReason = "other"
-	WriteFallbackReasonOutOfOrderAttr              WriteFallbackReason = "out_of_order"
+	WriteFallbackReasonConcurrencyLimitBreachedAttr WriteFallbackReason = "concurrency_limit_breached"
+	WriteFallbackReasonExistingFileAttr             WriteFallbackReason = "existing_file"
+	WriteFallbackReasonOtherAttr                    WriteFallbackReason = "other"
+	WriteFallbackReasonOutOfOrderAttr               WriteFallbackReason = "out_of_order"
 )
 
 // MetricHandle provides an interface for recording metrics.

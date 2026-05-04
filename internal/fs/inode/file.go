@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
@@ -33,11 +35,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -127,8 +129,9 @@ type FileInode struct {
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
-	mrdInstance *gcsx.MrdInstance
-	traceHandle tracing.TraceHandle
+	mrdInstance  *gcsx.MrdInstance
+	metricHandle metrics.MetricHandle
+	traceHandle  tracing.TraceHandle
 }
 
 var _ Inode = &FileInode{}
@@ -154,7 +157,8 @@ func NewFileInode(
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
 	mrdCache *lru.Cache,
-	traceHandle tracing.TraceHandle) (f *FileInode) {
+	traceHandle tracing.TraceHandle,
+	metricHandle metrics.MetricHandle) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -174,6 +178,7 @@ func NewFileInode(
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 		traceHandle:             traceHandle,
+		metricHandle:            metricHandle,
 	}
 
 	if f.bucket.BucketType().IsRapid() {
@@ -659,6 +664,34 @@ func (f *FileInode) Read(
 	return
 }
 
+func getMetricOpenMode(openMode util.OpenMode) metrics.OpenMode {
+	isAppend := openMode.IsAppend()
+
+	switch openMode.AccessMode() {
+	case util.ReadWrite:
+		if isAppend {
+			return metrics.OpenModeReadWriteAppendAttr
+		}
+		return metrics.OpenModeReadWriteAttr
+	case util.WriteOnly:
+		if isAppend {
+			return metrics.OpenModeWriteOnlyAppendAttr
+		}
+		return metrics.OpenModeWriteOnlyAttr
+	default:
+		logger.Warnf("getMetricOpenMode: unexpected accessMode: %d, isAppend: %t", openMode.AccessMode(), openMode.IsAppend())
+		return metrics.OpenModeOtherAttr
+	}
+}
+
+func recordStreamingWriteFallbackMetric(mh metrics.MetricHandle, openMode util.OpenMode, reason metrics.WriteFallbackReason) {
+	if mh == nil {
+		return
+	}
+	metricOpenMode := getMetricOpenMode(openMode)
+	mh.FsStreamingWriteFallbackCount(1, metricOpenMode, reason)
+}
+
 // Serve a write for this file with semantics matching fuseops.WriteFileOp.
 // It returns true if the file is successfully synced during the write operation.
 //
@@ -669,7 +702,7 @@ func (f *FileInode) Write(
 	offset int64,
 	openMode util.OpenMode) (bool, error) {
 	if f.bwh != nil {
-		return f.writeUsingBufferedWrites(ctx, data, offset)
+		return f.writeUsingBufferedWrites(ctx, data, offset, openMode)
 	}
 
 	return false, f.writeUsingTempFile(ctx, data, offset)
@@ -699,7 +732,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (_ bool, err error) {
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64, openMode util.OpenMode) (_ bool, err error) {
 	bytes := int64(len(data))
 	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
 	defer finishSpan()
@@ -719,6 +752,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
+		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
 		return true, f.writeUsingTempFile(ctx, data, offset)
 	}
 	if err != nil {
@@ -1063,6 +1097,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
+		recordStreamingWriteFallbackMetric(f.metricHandle, util.NewOpenMode(util.WriteOnly, 0), metrics.WriteFallbackReasonOutOfOrderAttr)
 		return true, f.truncateUsingTempFile(ctx, size)
 	}
 	if err != nil {
@@ -1181,9 +1216,11 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
 				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
 				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
+			recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonConcurrencyLimitBreachedAttr)
 			return false, nil
 		}
 		if err != nil {
+			recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
 			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
@@ -1201,5 +1238,6 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 		return true
 	}
 	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
+	recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
 	return false
 }
