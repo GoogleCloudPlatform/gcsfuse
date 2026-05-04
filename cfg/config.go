@@ -717,6 +717,14 @@ type MetricsConfig struct {
 
 type MrdConfig struct {
 	PoolSize int64 `yaml:"pool-size"`
+
+	MinConnections int64 `yaml:"min-connections"`
+
+	MaxConnections int64 `yaml:"max-connections"`
+
+	TargetPendingRanges int64 `yaml:"target-pending-ranges"`
+
+	TargetPendingBytes int64 `yaml:"target-pending-bytes"`
 }
 
 type ReadConfig struct {
