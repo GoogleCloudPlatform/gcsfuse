@@ -1512,7 +1512,8 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 	}
 }
 
-func TestStreamingWrite_Fallback_ExistingFile(t *testing.T) {
+func TestStreamingWrites_Fallback_ExistingFile(t *testing.T) {
+	// Arrange
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableStreamingWrites = true
@@ -1540,7 +1541,10 @@ func TestStreamingWrite_Fallback_ExistingFile(t *testing.T) {
 		Data:   []byte("test"),
 	}
 
+	// Act
 	err = server.WriteFile(ctx, op)
+
+	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
@@ -1548,7 +1552,8 @@ func TestStreamingWrite_Fallback_ExistingFile(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
 }
 
-func TestStreamingWrite_Fallback_OutOfOrder(t *testing.T) {
+func TestStreamingWrites_Fallback_OutOfOrder(t *testing.T) {
+	// Arrange
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableStreamingWrites = true
@@ -1586,7 +1591,10 @@ func TestStreamingWrite_Fallback_OutOfOrder(t *testing.T) {
 		Data:   []byte("data"),
 	}
 
+	// Act
 	err = server.WriteFile(ctx, op2)
+
+	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
@@ -1594,7 +1602,8 @@ func TestStreamingWrite_Fallback_OutOfOrder(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1)
 }
 
-func TestStreamingWrite_Fallback_ConcurrencyLimitBreached(t *testing.T) {
+func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
+	// Arrange
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableStreamingWrites = true
@@ -1648,7 +1657,10 @@ func TestStreamingWrite_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 		Data:   []byte("data"),
 	}
 
+	// Act
 	err = server.WriteFile(ctx, op2)
+
+	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
