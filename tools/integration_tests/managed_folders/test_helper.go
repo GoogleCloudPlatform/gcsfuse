@@ -160,6 +160,7 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForNonEmptyManagedFoldersListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForNonEmptyManagedFoldersListTest, len(objs))
+				return nil
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1  -- ManagedFolder1

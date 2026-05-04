@@ -51,7 +51,7 @@ type managedFoldersViewPermission struct {
 func (s *managedFoldersViewPermission) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, testEnv.mountFunc)
 	setup.SetMntDir(testEnv.mountDir)
-	testEnv.testDirPath = setup.SetupTestDirectory(TestDirForManagedFolderTest)
+	testEnv.testDirPath = path.Join(setup.MntDir(), TestDirForManagedFolderTest)
 }
 
 func (s *managedFoldersViewPermission) TearDownSuite() {
