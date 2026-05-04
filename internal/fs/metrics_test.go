@@ -1540,14 +1540,11 @@ func TestStreamingWrites_Fallback_ExistingFile(t *testing.T) {
 		Offset: 0,
 		Data:   []byte("test"),
 	}
-
 	// Act
 	err = server.WriteFile(ctx, op)
-
 	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
-
 	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "existing_file"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
 }
@@ -1590,14 +1587,11 @@ func TestStreamingWrites_Fallback_OutOfOrder(t *testing.T) {
 		Offset: 10,
 		Data:   []byte("data"),
 	}
-
 	// Act
 	err = server.WriteFile(ctx, op2)
-
 	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
-
 	attrs := attribute.NewSet(attribute.String("open_mode", "write_only"), attribute.String("write_fallback_reason", "out_of_order"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1)
 }
@@ -1656,14 +1650,11 @@ func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 		Offset: 0,
 		Data:   []byte("data"),
 	}
-
 	// Act
 	err = server.WriteFile(ctx, op2)
-
 	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
-
 	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "concurrency_limit_breached"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
 }
