@@ -1540,8 +1540,10 @@ func TestStreamingWrites_Fallback_ExistingFile(t *testing.T) {
 		Offset: 0,
 		Data:   []byte("test"),
 	}
+
 	// Act
 	err = server.WriteFile(ctx, op)
+
 	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
@@ -1565,11 +1567,11 @@ func TestStreamingWrites_Fallback_OutOfOrder(t *testing.T) {
 	err := server.LookUpInode(ctx, lookUpOp)
 	require.NoError(t, err)
 	openOp := &fuseops.OpenFileOp{
-		Inode: lookUpOp.Entry.Child,
+		Inode:     lookUpOp.Entry.Child,
+		OpenFlags: syscall.O_WRONLY,
 	}
 	err = server.OpenFile(ctx, openOp)
 	require.NoError(t, err)
-
 	// Write at offset 0.
 	op1 := &fuseops.WriteFileOp{
 		Inode:  lookUpOp.Entry.Child,
@@ -1579,7 +1581,6 @@ func TestStreamingWrites_Fallback_OutOfOrder(t *testing.T) {
 	}
 	err = server.WriteFile(ctx, op1)
 	require.NoError(t, err)
-
 	// Write at offset 10 (out of order).
 	op2 := &fuseops.WriteFileOp{
 		Inode:  lookUpOp.Entry.Child,
@@ -1587,8 +1588,10 @@ func TestStreamingWrites_Fallback_OutOfOrder(t *testing.T) {
 		Offset: 10,
 		Data:   []byte("data"),
 	}
+
 	// Act
 	err = server.WriteFile(ctx, op2)
+
 	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
@@ -1604,12 +1607,10 @@ func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 	params.writeGlobalMaxBlocks = 1
 	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 	server = wrappers.WithMonitoring(server, mh)
-
 	fileName1 := "test1"
 	fileName2 := "test2"
 	createWithContents(ctx, t, bucket, fileName1, "")
 	createWithContents(ctx, t, bucket, fileName2, "")
-
 	lookupOp1 := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   fileName1,
@@ -1617,11 +1618,11 @@ func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 	err := server.LookUpInode(ctx, lookupOp1)
 	require.NoError(t, err)
 	openOp1 := &fuseops.OpenFileOp{
-		Inode: lookupOp1.Entry.Child,
+		Inode:     lookupOp1.Entry.Child,
+		OpenFlags: syscall.O_WRONLY,
 	}
 	err = server.OpenFile(ctx, openOp1)
 	require.NoError(t, err)
-
 	lookupOp2 := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   fileName2,
@@ -1634,7 +1635,6 @@ func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 	}
 	err = server.OpenFile(ctx, openOp2)
 	require.NoError(t, err)
-
 	op1 := &fuseops.WriteFileOp{
 		Inode:  lookupOp1.Entry.Child,
 		Handle: openOp1.Handle,
@@ -1643,15 +1643,16 @@ func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 	}
 	err = server.WriteFile(ctx, op1)
 	require.NoError(t, err)
-
 	op2 := &fuseops.WriteFileOp{
 		Inode:  lookupOp2.Entry.Child,
 		Handle: openOp2.Handle,
 		Offset: 0,
 		Data:   []byte("data"),
 	}
+
 	// Act
 	err = server.WriteFile(ctx, op2)
+
 	// Assert
 	require.NoError(t, err)
 	waitForMetricsProcessing()
