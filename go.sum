@@ -38,6 +38,8 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0.55.0/go.mod h1:vB2GH9GAYYJTO3mEn8oYwzEdhlayZIdQz6zdzgUIRvA=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.55.0 h1:0s6TxfCu2KHkkZPnBfsQ2y5qia0jl3MMrmBhu3nCOYk=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.55.0/go.mod h1:Mf6O40IAyB9zR/1J8nGDDPirZQQPbYJni8Yisy7NTMc=
+github.com/abhishek10004/jacobsa_fuse v0.0.0-20260408060257-421f39071211 h1:l1x/x7Y9emilzW2dmtaCN5ai65VG3TY0tAohy0iuUhw=
+github.com/abhishek10004/jacobsa_fuse v0.0.0-20260408060257-421f39071211/go.mod h1:fcpw1yk/suvFhB8rT9P+pst+NLboWsBLky9csooKjPc=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
@@ -134,8 +136,6 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec h1:xsRGrfdnjvJtEMD2ouh8gOGIeDF9LrgXjo+9Q69RVzI=
 github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec/go.mod h1:Ip4fOwzCrnDVuluHBd7FXIMb7SHOKfkt9/UDrYSZvqI=
-github.com/jacobsa/fuse v0.0.0-20260302145937-f1ba38d60fdf h1:1FpPcJSf6jjJGvIltaLwJCpbFCMI9bVUCAAxUSxqWnY=
-github.com/jacobsa/fuse v0.0.0-20260302145937-f1ba38d60fdf/go.mod h1:fcpw1yk/suvFhB8rT9P+pst+NLboWsBLky9csooKjPc=
 github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd h1:9GCSedGjMcLZCrusBZuo4tyKLpKUPenUUqi34AkuFmA=
 github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd/go.mod h1:TlmyIZDpGmwRoTWiakdr+HA1Tukze6C6XbRVidYq02M=
 github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff h1:2xRHTvkpJ5zJmglXLRqHiZQNjUoOkhUyhTAhEQvPAWw=

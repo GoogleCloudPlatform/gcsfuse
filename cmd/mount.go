@@ -190,6 +190,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// Enable async reads if enable-kernel-reader flag is set to true.
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
+	logger.Infof("EnableKernelReader is %v while creating mountConfig", newConfig.FileSystem.EnableKernelReader)
 
 	if newConfig.Logging.WireLog != "" {
 		wireLog, err := os.Create(string(newConfig.Logging.WireLog))

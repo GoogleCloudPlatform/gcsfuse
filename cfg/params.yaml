@@ -454,6 +454,17 @@ params:
     usage: "Permissions bits for files, in octal."
     default: "0644"
 
+  - config-path: "file-system.fuse-max-pages-limit"
+    flag-name: "fuse-max-pages-limit"
+    type: "int"
+    usage: "Sets the limit for the maximum number of pages that fuse can process in a single request. 256 pages = 1 MB."
+    default: "256"
+    hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: 256
+
   - config-path: "file-system.fuse-options"
     flag-name: "o"
     type: "[]string"

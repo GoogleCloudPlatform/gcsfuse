@@ -642,7 +642,7 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 	assert.Equal(t.T(), content2, output)
 }
 
-func (t *fileTest) Test_ReadWithMrdKernelReader_Success() {
+func (t *fileTest) Test_ReadWithKernelReader_MrdReader_Success() {
 	// 1. Setup
 	expectedData := []byte("hello from mrd reader")
 	objectName := "test_obj_mrd_reader"
@@ -662,7 +662,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_Success() {
 	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
 	// Create File Handle.
 	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
-	require.NotNil(t.T(), fh.mrdKernelReader)
+	require.NotNil(t.T(), fh.kernelReader)
 	// Mock the downloader that mrdKernelReader will use.
 	fakeMRD := fake.NewFakeMultiRangeDownloader(in.Source(), expectedData)
 	mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
@@ -674,8 +674,8 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_Success() {
 	}
 	fh.inode.Lock() // Required by the function signature.
 
-	// 2. Call ReadWithMrdKernelReader.
-	resp, err := fh.ReadWithMrdKernelReader(t.ctx, req)
+	// 2. Call ReadWithKernelReader.
+	resp, err := fh.ReadWithKernelReader(t.ctx, req)
 
 	// 3. Assertions
 	assert.NoError(t.T(), err)
@@ -684,7 +684,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_Success() {
 	mockBucket.AssertExpectations(t.T())
 }
 
-func (t *fileTest) Test_ReadWithMrdKernelReader_NotAuthoritative() {
+func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative() {
 	// 1. Setup
 	zonalBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
@@ -704,7 +704,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_NotAuthoritative() {
 	expectedReadData := "dirtydata"
 	// Create file handle.
 	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
-	require.NotNil(t.T(), fh.mrdKernelReader)
+	require.NotNil(t.T(), fh.kernelReader)
 	// Create read request and take inode lock.
 	buf := make([]byte, len(expectedReadData))
 	req := &gcsx.ReadRequest{
@@ -713,8 +713,8 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_NotAuthoritative() {
 	}
 	fh.inode.Lock()
 
-	// 2. Call ReadWithMrdKernelReader
-	resp, err := fh.ReadWithMrdKernelReader(t.ctx, req)
+	// 2. Call ReadWithKernelReader
+	resp, err := fh.ReadWithKernelReader(t.ctx, req)
 
 	// 3. Assertions
 	// It should read from inode, which contains "dirty data".
@@ -723,7 +723,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_NotAuthoritative() {
 	assert.Equal(t.T(), expectedReadData, string(buf[:resp.Size]))
 }
 
-func (t *fileTest) Test_ReadWithMrdKernelReader_NilReader() {
+func (t *fileTest) Test_ReadWithKernelReader_NilReader() {
 	// 1. Setup with a non-zonal bucket.
 	nonZonalBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
@@ -735,7 +735,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_NilReader() {
 	in := createFileInode(t.T(), &nonZonalBucket, &t.clock, &cfg.Config{}, parent, "test_obj", []byte("data"), false)
 	// Create file handle.
 	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: false}}, nil, nil, 0)
-	require.Nil(t.T(), fh.mrdKernelReader)
+	require.Nil(t.T(), fh.kernelReader)
 	// Create read request and take inode lock.
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 4),
@@ -743,15 +743,15 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_NilReader() {
 	}
 	fh.inode.Lock()
 
-	// 2. Call ReadWithMrdKernelReader.
-	_, err := fh.ReadWithMrdKernelReader(t.ctx, req)
+	// 2. Call ReadWithKernelReader.
+	_, err := fh.ReadWithKernelReader(t.ctx, req)
 
 	// 3. Assertions
 	assert.Error(t.T(), err)
-	assert.Equal(t.T(), "mrdKernelReader is not initialized", err.Error())
+	assert.Equal(t.T(), "kernelReader is not initialized", err.Error())
 }
 
-func (t *fileTest) Test_ReadWithMrdKernelReader_ReadAtError() {
+func (t *fileTest) Test_ReadWithKernelReader_MrdReader_ReadAtError() {
 	// 1. Setup
 	expectedData := []byte("hello from mrd reader")
 	objectName := "test_obj_mrd_reader_error"
@@ -770,7 +770,7 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_ReadAtError() {
 	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, objectName, expectedData, false)
 	// Create file handle.
 	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
-	require.NotNil(t.T(), fh.mrdKernelReader)
+	require.NotNil(t.T(), fh.kernelReader)
 	// Mock the downloader to return an error.
 	expectedErr := errors.New("mrd read error")
 	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(in.Source(), expectedData, 0, expectedErr)
@@ -783,8 +783,8 @@ func (t *fileTest) Test_ReadWithMrdKernelReader_ReadAtError() {
 	}
 	fh.inode.Lock()
 
-	// 2. Call ReadWithMrdKernelReader.
-	resp, err := fh.ReadWithMrdKernelReader(t.ctx, req)
+	// 2. Call ReadWithKernelReader.
+	resp, err := fh.ReadWithKernelReader(t.ctx, req)
 
 	// 3. Assertions
 	assert.Error(t.T(), err)
