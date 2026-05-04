@@ -729,15 +729,16 @@ test_package() {
 
   # Build go package test command.
   local go_test_cmd_parts=()
-  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
-    go_test_cmd_parts+=("-short")
-  fi
+
   if ${USE_COMMON_CONFIG}; then
     go_test_cmd_parts+=("BUCKET_NAME=${bucket_name}")
   fi
   go_test_cmd_parts+=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
   if [[ "$package_name" == "benchmarking" ]]; then
     go_test_cmd_parts+=("-bench=." "-benchtime=100x")
+  fi
+  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
+    go_test_cmd_parts+=("-short")
   fi
   # Test Binary flags after this.
   go_test_cmd_parts+=("-args" "--integrationTest")
