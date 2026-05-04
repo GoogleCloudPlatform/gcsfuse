@@ -173,6 +173,21 @@ func (t *FileMockBucketTest) TestFlushLocalFileDoesNotForceFetchObjectFromGCS() 
 	t.bucket.AssertExpectations(t.T())
 }
 
+func (t *FileMockBucketTest) TestFlushLocalFile_SizeMismatch_ReturnsError() {
+	assert.True(t.T(), t.in.IsLocal())
+	// Write some data so that the local temp file size becomes 4
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
+	require.NoError(t.T(), err)
+	// Mock CreateObject to return an object with a mismatched size
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Size: 2}, nil)
+
+	err = t.in.Flush(t.ctx)
+
+	require.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "could not upload entire data, expected size 4, got 2")
+}
+
 func (t *FileMockBucketTest) TestFlushSyncedFileForceFetchObjectFromGCS() {
 	// Expect a CreateObject call because createLockedInode creates a synced file
 	// inode (backed by GCS object).
