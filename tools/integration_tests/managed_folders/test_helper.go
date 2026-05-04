@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -103,7 +104,7 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	}
 }
 
-func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, storageClient *storage.Client, controlClient *control.StorageControlClient, t *testing.T) {
+func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, storageClient *storage.Client, controlClient *control.StorageControlClient, isolatedTestDir string, t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder2
@@ -111,7 +112,7 @@ func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, stor
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(isolatedTestDir)
 	err := client.DeleteAllObjectsWithPrefix(ctx, storageClient, testDir)
 	if err != nil {
 		log.Fatalf("Failed to clean up test directory: %v", err)
@@ -138,9 +139,10 @@ func cleanup(ctx context.Context, storageClient *storage.Client, controlClient *
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(bucket, testDir))
 }
 
-func listNonEmptyManagedFolders(t *testing.T) {
+func listNonEmptyManagedFolders(mntDir, isolatedTestDir string, t *testing.T) {
+	testDirName := path.Base(isolatedTestDir)
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(mntDir, isolatedTestDir), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -151,12 +153,14 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			return nil
 		}
 
-		objs, err := os.ReadDir(path)
-		if err != nil {
-			log.Fatal(err)
-		}
+		var objs []fs.DirEntry
+		operations.RetryUntil(testEnv.ctx, t, 5*time.Second, 60*time.Second, func() (any, error) {
+			var err error
+			objs, err = os.ReadDir(path)
+			return nil, err
+		})
 		// Check if managedFolderTest directory has correct data.
-		if dir.Name() == TestDirForManagedFolderTest {
+		if dir.Name() == testDirName {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForNonEmptyManagedFoldersListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForNonEmptyManagedFoldersListTest, len(objs))

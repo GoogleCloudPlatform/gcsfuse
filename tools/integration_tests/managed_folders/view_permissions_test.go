@@ -19,12 +19,12 @@
 package managed_folders
 
 import (
-	"log"
 	"os"
 	"path"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -36,33 +36,51 @@ const (
 	DestFolder = "destFolder"
 )
 
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-// The permission granted by roles at project, bucket, and managed folder
-// levels apply additively (union) throughout the resource hierarchy.
-// Hence, here managed folder will have view permission throughout all the tests.
 type managedFoldersViewPermission struct {
-	flags []string
+	managedFoldersPermission string
+	flags                    []string
 	suite.Suite
 }
 
 func (s *managedFoldersViewPermission) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, testEnv.mountFunc)
 	setup.SetMntDir(testEnv.mountDir)
-	testEnv.testDirPath = setup.SetupTestDirectory(TestDirForManagedFolderTest)
+
+	if s.managedFoldersPermission != "nil" {
+		bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+		client.CreateManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, ManagedFolder1), bucket)
+		client.CreateManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, ManagedFolder2), bucket)
+
+		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, IAMRoleForViewPermission, s.T())
+		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, IAMRoleForViewPermission, s.T())
+		// Waiting for 60 seconds for policy changes to propagate. This values we kept based on our experiments.
+		time.Sleep(60 * time.Second)
+	}
 }
 
 func (s *managedFoldersViewPermission) TearDownSuite() {
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+
+	if s.managedFoldersPermission != "nil" {
+		revokePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, IAMRoleForViewPermission, s.T())
+		revokePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, IAMRoleForViewPermission, s.T())
+	}
 }
 
 func (s *managedFoldersViewPermission) SetupTest() {
+	testEnv.testDirPath = setup.SetupTestDirectory(TestDirForManagedFolderTest)
+	createDirectoryStructureForNonEmptyManagedFolders(testEnv.ctx, testEnv.storageClient, testEnv.controlClient, TestDirForManagedFolderTest, s.T())
 }
 
 func (s *managedFoldersViewPermission) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+	// Due to bucket view permissions, it prevents cleaning resources outside managed folders. So we are cleaning managed folders resources only.
+	if s.managedFoldersPermission != "nil" {
+		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1))
+		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2))
+		return
+	}
+	setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -70,7 +88,7 @@ func (s *managedFoldersViewPermission) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders() {
-	listNonEmptyManagedFolders(s.T())
+	listNonEmptyManagedFolders(setup.MntDir(), TestDirForManagedFolderTest, s.T())
 }
 
 func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder() {
@@ -159,22 +177,12 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, ts.flags = range flagsSet {
-		testEnv.bucket, testEnv.testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
-		// Create directory structure for testing.
-		createDirectoryStructureForNonEmptyManagedFolders(testEnv.ctx, testEnv.storageClient, testEnv.controlClient, t)
-		defer cleanup(testEnv.ctx, testEnv.storageClient, testEnv.controlClient, testEnv.bucket, testEnv.testDir, testEnv.serviceAccount, IAMRoleForViewPermission, t)
+		permissions := []string{"nil", IAMRoleForViewPermission}
 
-		// Run tests.
-		log.Printf("Running tests with flags and managed folder have nil permissions: %s", ts.flags)
-		suite.Run(t, ts)
-
-		// Provide storage.objectViewer role to managed folders.
-		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, IAMRoleForViewPermission, t)
-		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, IAMRoleForViewPermission, t)
-		// Waiting for 60 seconds for policy changes to propagate. This values we kept based on our experiments.
-		time.Sleep(60 * time.Second)
-
-		log.Printf("Running tests with flags and managed folder have view permissions: %s", ts.flags)
-		suite.Run(t, ts)
+		for i := range permissions {
+			testEnv.bucket, testEnv.testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+			ts.managedFoldersPermission = permissions[i]
+			suite.Run(t, ts)
+		}
 	}
 }
