@@ -2700,6 +2700,7 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 			if errors.As(deleteErr, &precondErr) {
 				return fuse.ENOTEMPTY
 			}
+			return fmt.Errorf("DeleteChildDir: %w", deleteErr)
 		}
 	}
 
