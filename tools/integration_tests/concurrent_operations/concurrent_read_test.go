@@ -277,21 +277,29 @@ func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestConcurrentRead(t *testing.T) {
-	ts := &concurrentReadTest{
-		ctx:           context.Background(),
-		storageClient: testEnv.storageClient,
-		baseTestName:  t.Name(),
-	}
-
 	// Run tests for mounted directory if the flag is set.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		suite.Run(t, ts)
+		ts := &concurrentReadTest{
+			ctx:           context.Background(),
+			storageClient: testEnv.storageClient,
+			baseTestName:  t.Name(),
+		}
+		t.Run("MountedDirectory", func(t *testing.T) {
+			suite.Run(t, ts)
+		})
 		return
 	}
 
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
-	for _, ts.flags = range flagsSet {
-		log.Printf("Running concurrent read tests with flags: %s", ts.flags)
-		suite.Run(t, ts)
+	for _, flags := range flagsSet {
+		ts := &concurrentReadTest{
+			ctx:           context.Background(),
+			storageClient: testEnv.storageClient,
+			baseTestName:  t.Name(),
+			flags:         flags,
+		}
+		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
+			suite.Run(t, ts)
+		})
 	}
 }
