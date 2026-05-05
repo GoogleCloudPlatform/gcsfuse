@@ -58,6 +58,17 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
+}, "write.finalize-file-on-close": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      bool(false),
+		},
+		{
+			BucketType: "pirlo",
+			Value:      bool(true),
+		},
+	},
 }, "implicit-dirs": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
@@ -273,6 +284,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileCache.CacheFileForRangeRead != val {
 					c.FileCache.CacheFileForRangeRead = val
 					optimizedFlags["file-cache.cache-file-for-range-read"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("write.finalize-file-on-close") {
+		rules := AllFlagOptimizationRules["write.finalize-file-on-close"]
+		result := getOptimizedValue(&rules, c.Write.FinalizeFileOnClose, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.Write.FinalizeFileOnClose != val {
+					c.Write.FinalizeFileOnClose = val
+					optimizedFlags["write.finalize-file-on-close"] = result
 				}
 			}
 		}
@@ -749,9 +772,11 @@ type WriteConfig struct {
 
 	EnableRapidAppends bool `yaml:"enable-rapid-appends"`
 
+	EnableRapidWrites bool `yaml:"enable-rapid-writes"`
+
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
-	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
+	FinalizeFileOnClose bool `yaml:"finalize-file-on-close"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -970,6 +995,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
 
+	flagSet.BoolP("enable-rapid-writes", "", false, "For pirlo, toggles between using STANDARD class and RAPID class for writes.")
+
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
@@ -1116,9 +1143,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
-	flagSet.BoolP("finalize-file-for-rapid", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
+	flagSet.BoolP("finalize-file-on-close", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
 
-	if err := flagSet.MarkHidden("finalize-file-for-rapid"); err != nil {
+	if err := flagSet.MarkHidden("finalize-file-on-close"); err != nil {
 		return err
 	}
 
@@ -1577,6 +1604,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("write.enable-rapid-writes", flagSet.Lookup("enable-rapid-writes")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-retries.read-stall.enable", flagSet.Lookup("enable-read-stall-retry")); err != nil {
 		return err
 	}
@@ -1701,7 +1732,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("write.finalize-file-for-rapid", flagSet.Lookup("finalize-file-for-rapid")); err != nil {
+	if err := v.BindPFlag("write.finalize-file-on-close", flagSet.Lookup("finalize-file-on-close")); err != nil {
 		return err
 	}
 

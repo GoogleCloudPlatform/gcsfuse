@@ -69,8 +69,6 @@ type BucketConfig struct {
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TmpObjectPrefix          string
-	// Used in Zonal buckets to determine if objects should be finalized or not.
-	FinalizeFileForRapid bool
 
 	// Disable Initial ListObject API check during the mount operation.
 	DisableListAccessCheck bool
@@ -185,7 +183,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject, bm.config.FinalizeFileForRapid)
+		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject)
 		if err != nil {
 			err = fmt.Errorf("BucketHandle: %w", err)
 			return

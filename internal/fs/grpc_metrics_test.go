@@ -303,7 +303,7 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 	// Poke the storage client to trigger internal DirectPath checks with a short timeout.
 	// This prevents the subsequent real operations from hanging for 60s.
 	shortCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
-	_, _ = sh.BucketHandle(shortCtx, "test-bucket", "", false)
+	_, _ = sh.BucketHandle(shortCtx, "test-bucket", "")
 	cancel()
 
 	bucketName := "test-bucket"

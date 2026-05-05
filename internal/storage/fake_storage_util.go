@@ -68,7 +68,7 @@ func (f *fakeStorage) CreateStorageHandle() (sh StorageHandle) {
 		grpcClient:               f.fakeStorageServer.Client(),
 		grpcClientWithBidiConfig: f.fakeStorageServer.Client(),
 		storageControlClient:     f.mockClient,
-		clientConfig:             storageutil.StorageClientConfig{ClientProtocol: f.protocol},
+		clientConfig:             storageutil.StorageClientConfig{ClientProtocol: f.protocol, WriteConfig: &cfg.WriteConfig{}},
 	}
 	return
 }
