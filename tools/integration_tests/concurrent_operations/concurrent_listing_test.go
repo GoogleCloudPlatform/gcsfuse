@@ -697,7 +697,7 @@ func TestConcurrentListing(t *testing.T) {
 			storageClient: testEnv.storageClient,
 			baseTestName:  t.Name(),
 		}
-		setup.SetUpLogFilePath(s.T().Name(), nil, GKETempDir, "", testEnv.cfg)
+		setup.SetUpLogFilePath(t.Name(), nil, GKETempDir, "", testEnv.cfg)
 		setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, nil, mountFunc)
 		setup.SetMntDir(mountDir)
 		testEnv.testDirPath = path.Join(setup.MntDir(), testDirName)
@@ -718,7 +718,7 @@ func TestConcurrentListing(t *testing.T) {
 		}
 
 		// Mount logic must remain OUTSIDE of the test methods so the mount stays alive
-		setup.SetUpLogFilePath(s.T().Name(), flags, GKETempDir, "", testEnv.cfg)
+		setup.SetUpLogFilePath(t.Name(), flags, GKETempDir, "", testEnv.cfg)
 		setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
 		setup.SetMntDir(mountDir)
 		testEnv.testDirPath = path.Join(setup.MntDir(), testDirName)
