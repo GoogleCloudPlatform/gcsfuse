@@ -9,10 +9,10 @@ require (
 	cloud.google.com/go/iam v1.6.0
 	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/secretmanager v1.16.0
-	cloud.google.com/go/storage v1.61.3
+	cloud.google.com/go/storage v1.59.2-0.20260505054544-b3112f44a489
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.31.0
-	github.com/fsouza/fake-gcs-server v1.54.0
+	github.com/fsouza/fake-gcs-server v1.52.3
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.20.0
