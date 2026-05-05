@@ -295,6 +295,7 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 		IsGKE:             true,
 		AnonymousAccess:   true,
 		MetricHandle:      mh,
+		WriteConfig:       &cfg.WriteConfig{},
 	}
 
 	sh, err := storage.NewStorageHandle(ctx, clientConfig, "")

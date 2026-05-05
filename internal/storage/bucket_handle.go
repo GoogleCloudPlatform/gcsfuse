@@ -202,7 +202,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ProgressFunc = req.CallBack
 	// Zonal buckets strictly require the appendable API. For Pirlo buckets, enabling appendable
 	// routes writes to the RAPID storage class instead of the STANDARD class.
-	wc.Append = bh.BucketType().Zonal || bh.writeConfig.EnableRapidWrites
+	wc.Append = bh.BucketType().Zonal || (bh.BucketType().Pirlo && bh.writeConfig != nil && bh.writeConfig.EnableRapidWrites)
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
 	// pirlo buckets are. This behavior is controlled by the finalizeFileOnClose flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
@@ -239,7 +239,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ProgressFunc = callBack
 	// Zonal buckets strictly require the appendable API. For Pirlo buckets, enabling appendable
 	// routes writes to the RAPID storage class instead of the STANDARD class.
-	wc.Append = bh.BucketType().Zonal || bh.writeConfig.EnableRapidWrites
+	wc.Append = bh.BucketType().Zonal || (bh.BucketType().Pirlo && bh.writeConfig != nil && bh.writeConfig.EnableRapidWrites)
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
 	// pirlo buckets are. This behavior is controlled by the finalizeFileOnClose flag.
 	// When writer.Append is false, then this parameter is anyways ignored.

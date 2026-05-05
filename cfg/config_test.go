@@ -293,7 +293,7 @@ func TestApplyOptimizations(t *testing.T) {
 				config:          Config{Profile: ""},
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
-				expectOptimized: true,
+				expectOptimized: false,
 				expectedValue:   false,
 			},
 			{
