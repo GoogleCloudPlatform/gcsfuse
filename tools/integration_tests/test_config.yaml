@@ -213,8 +213,8 @@ cloud_profiler:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          # Set the 'PROFILE_LABEL' environment variable for GKE
-          - "--enable-cloud-profiler,--cloud-profiler-cpu,--cloud-profiler-heap,--cloud-profiler-goroutines,--cloud-profiler-mutex,--cloud-profiler-allocated-heap,--cloud-profiler-label=${PROFILE_LABEL}"
+          # Set the 'PROFILE_LABEL' and 'PROFILE_SERVICE_NAME' environment variables for GKE
+          - "--enable-cloud-profiler,--cloud-profiler-cpu,--cloud-profiler-heap,--cloud-profiler-goroutines,--cloud-profiler-mutex,--cloud-profiler-allocated-heap,--cloud-profiler-label=${PROFILE_LABEL},--cloud-profiler-service-name=${PROFILE_SERVICE_NAME}"
         compatible:
           flat: true
           hns: true
