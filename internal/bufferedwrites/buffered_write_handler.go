@@ -141,7 +141,11 @@ func (wh *bufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offs
 	if err != nil {
 		return
 	}
-	if offset != wh.totalSize && offset != wh.truncatedSize {
+	// Once we write past the truncated size, any writes starting from the truncated
+	// offset are considered out of order. For example, if a file is truncated to 10
+	// bytes, and we write 10 bytes starting from offset 5, the total size becomes 15.
+	// A subsequent write at offset 10 (the truncated size) will be rejected as an out of order write.
+	if offset != wh.totalSize && (offset != wh.truncatedSize || wh.totalSize >= wh.truncatedSize) {
 		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
 			wh.uploadHandler.objectName, wh.totalSize, offset)
 		return ErrOutOfOrderWrite
@@ -188,6 +192,13 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 	}
 
 	wh.totalSize += int64(dataWritten)
+
+	// If the file size has surpassed the truncation point, the truncation requirement
+	// is fulfilled and we can safely discard the stale offset.
+	if wh.truncatedSize != -1 && wh.totalSize >= wh.truncatedSize {
+		wh.truncatedSize = -1
+	}
+
 	return
 }
 
