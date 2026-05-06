@@ -115,7 +115,7 @@ func TestMain(m *testing.M) {
 		setup.SetKeyFile(localKeyFilePath)
 		for i := range cfg.RequesterPaysBucket[0].Configs {
 			for j, flag := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
-				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(flag, "${KEY_FILE}", localKeyFilePath)
+				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(flag, "--key-file=", "--key-file="+localKeyFilePath)
 			}
 		}
 	}
