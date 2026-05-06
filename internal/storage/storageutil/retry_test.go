@@ -122,7 +122,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
 	elapsed := time.Since(start)
 
 	assert.NoError(t.T(), err)
-	// The function should wait for a duration higher than initial, but not too high.
+	// The function should wait for a random duration bounded by initial (plus OS scheduler latency).
 	// Keeping a somewhat loose limit to avoid failing because of go itself taking around 10ms sometimes
 	// to return.
 	assert.LessOrEqual(t.T(), elapsed, initial*3, "waitWithJitter should not wait excessively long")
@@ -139,18 +139,25 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BackoffGrowth() {
 	})
 	ctx := context.Background()
 
-	// First call to establish the initial backoff.
+	expectedNext := initial
+
+	start := time.Now()
 	err := b.waitWithJitter(ctx)
+	elapsed := time.Since(start)
 	assert.NoError(t.T(), err)
 
-	// Subsequent calls should execute without error.
+	expectedNext = time.Duration(float64(expectedNext) * multiplier)
+	assert.Equal(t.T(), expectedNext, b.next)
+	assert.LessOrEqual(t.T(), elapsed, maxValue*2)
+
 	for range 3 {
 		start := time.Now()
 		err := b.waitWithJitter(ctx)
 		elapsed := time.Since(start)
 		require.NoError(t.T(), err)
 
-		// The backoff should also be capped by the max value (with headroom for OS scheduler).
+		expectedNext = time.Duration(float64(expectedNext) * multiplier)
+		assert.Equal(t.T(), expectedNext, b.next)
 		require.LessOrEqual(t.T(), elapsed, maxValue*2)
 	}
 }
@@ -178,7 +185,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BoundsRespectMax() {
 		require.NoError(t.T(), err)
 		// Measured wait time should be capped by max ceiling.
 		// We add a 50ms buffer to ensure tests don't flake due to OS scheduler latency.
-		require.LessOrEqual(t.T(), elapsed, maxValue*2+50*time.Millisecond)
+		require.LessOrEqual(t.T(), elapsed, maxValue+50*time.Millisecond)
 	}
 }
 
