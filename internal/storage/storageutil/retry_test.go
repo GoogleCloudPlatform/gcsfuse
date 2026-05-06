@@ -101,36 +101,33 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_ContextCancelled() {
 	elapsed := time.Since(start)
 
 	assert.ErrorIs(t.T(), err, context.Canceled)
-	// The function should return almost immediately.
-	assert.Less(t.T(), elapsed, initial, "waitWithJitter should return quickly when context is cancelled")
+	// The function should return almost immediately without backoff sleep.
+	assert.Less(t.T(), elapsed, 20*time.Millisecond, "waitWithJitter should return quickly when context is cancelled")
 }
 
 func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
-	initial := 5 * time.Millisecond // A short duration to ensure it waits. Making it any shorter can cause random failures
-	// because context cancel itself takes about a millisecond.
+	initial := 100 * time.Millisecond // Much larger than OS scheduler latency
 	maxValue := 5 * initial
 	b := newExponentialBackoff(&exponentialBackoffConfig{
 		initial:    initial,
 		max:        maxValue,
 		multiplier: 2.0,
 	})
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 
 	start := time.Now()
 	err := b.waitWithJitter(ctx)
 	elapsed := time.Since(start)
 
 	assert.NoError(t.T(), err)
-	// The function should wait for a random duration bounded by initial (plus OS scheduler latency).
-	// Keeping a somewhat loose limit to avoid failing because of go itself taking around 10ms sometimes
-	// to return.
-	assert.LessOrEqual(t.T(), elapsed, initial*3, "waitWithJitter should not wait excessively long")
+	// Strict bound: allows at most 120ms for a max 100ms sleep.
+	assert.LessOrEqual(t.T(), elapsed, initial+20*time.Millisecond, "waitWithJitter should not wait excessively long")
 }
 
-func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BackoffGrowth() {
-	initial := 2 * time.Millisecond
-	maxValue := 50 * time.Millisecond
+func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_FirstAttemptBackoffGrowth() {
+	// Arrange
+	initial := 100 * time.Millisecond // Much larger than OS scheduler latency.
+	maxValue := 500 * time.Millisecond
 	multiplier := 2.0
 	b := newExponentialBackoff(&exponentialBackoffConfig{
 		initial:    initial,
@@ -141,24 +138,47 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BackoffGrowth() {
 
 	expectedNext := initial
 
+	// Act
 	start := time.Now()
 	err := b.waitWithJitter(ctx)
 	elapsed := time.Since(start)
+
+	// Assert
 	assert.NoError(t.T(), err)
 
-	expectedNext = time.Duration(float64(expectedNext) * multiplier)
+	expectedNext = min(maxValue, time.Duration(float64(expectedNext)*multiplier))
 	assert.Equal(t.T(), expectedNext, b.next)
-	assert.LessOrEqual(t.T(), elapsed, maxValue*2)
+	assert.LessOrEqual(t.T(), elapsed, initial+20*time.Millisecond)
+}
 
-	for range 3 {
+func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_ConsecutiveAttemptsBackoffGrowth() {
+	// Arrange
+	initial := 100 * time.Millisecond // Much larger than OS scheduler latency.
+	maxValue := 500 * time.Millisecond
+	multiplier := 2.0
+	b := newExponentialBackoff(&exponentialBackoffConfig{
+		initial:    initial,
+		max:        maxValue,
+		multiplier: multiplier,
+	})
+	ctx := context.Background()
+
+	expectedNext := initial
+
+	for range 4 {
+		// Act
 		start := time.Now()
 		err := b.waitWithJitter(ctx)
 		elapsed := time.Since(start)
+
+		currentBackoff := expectedNext
+
+		// Assert
 		require.NoError(t.T(), err)
 
-		expectedNext = time.Duration(float64(expectedNext) * multiplier)
+		expectedNext = min(maxValue, time.Duration(float64(expectedNext)*multiplier))
 		assert.Equal(t.T(), expectedNext, b.next)
-		require.LessOrEqual(t.T(), elapsed, maxValue*2)
+		require.LessOrEqual(t.T(), elapsed, currentBackoff+20*time.Millisecond)
 	}
 }
 
@@ -172,6 +192,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BoundsRespectMax() {
 		max:        maxValue,
 		multiplier: multiplier,
 	})
+	expectedNext := initial
 	ctx := context.Background()
 
 	// Call many times to let it saturate the max value and test the ceiling bounds
@@ -181,11 +202,13 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BoundsRespectMax() {
 		err := b.waitWithJitter(ctx)
 		elapsed := time.Since(start)
 
+		currentBackoff := expectedNext
+
 		// Assert
 		require.NoError(t.T(), err)
-		// Measured wait time should be capped by max ceiling.
-		// We add a 50ms buffer to ensure tests don't flake due to OS scheduler latency.
-		require.LessOrEqual(t.T(), elapsed, maxValue+50*time.Millisecond)
+		expectedNext = min(maxValue, time.Duration(float64(expectedNext)*multiplier))
+		// Measured wait time should be capped by current backoff ceiling plus a scheduler safety margin.
+		require.LessOrEqual(t.T(), elapsed, currentBackoff+20*time.Millisecond)
 	}
 }
 
@@ -222,11 +245,11 @@ type ExecuteWithRetryTestSuite struct {
 
 func (t *ExecuteWithRetryTestSuite) SetupTest() {
 	t.retryConfig = &RetryConfig{
-		RetryDeadline:    500 * time.Microsecond,
-		TotalRetryBudget: 2000 * time.Microsecond,
+		RetryDeadline:    50 * time.Millisecond,
+		TotalRetryBudget: 200 * time.Millisecond,
 		BackoffConfig: exponentialBackoffConfig{
-			initial:    1 * time.Microsecond,
-			max:        100 * time.Microsecond,
+			initial:    1 * time.Millisecond,
+			max:        10 * time.Millisecond,
 			multiplier: 2,
 		},
 	}
@@ -312,7 +335,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RetryableThenNonRetryab
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	// Arrange
-	stallDuration := t.retryConfig.RetryDeadline + 10*time.Millisecond
+	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
 	var callCount int
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
@@ -320,7 +343,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 		select {
 		case <-time.After(stallDuration):
 			// This case should not be hit, as the context deadline
-			// is shorter by 10ms than stallDuration.
+			// is shorter than stallDuration.
 			return "", errors.New("simulated apiCall finished before context timeout")
 		case <-ctx.Done():
 			return "", ctx.Err()
@@ -339,9 +362,9 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 	// Arrange
 	var callCount int
 	// Set a short total retry budget.
-	t.retryConfig.TotalRetryBudget = 500 * time.Microsecond
-	t.retryConfig.RetryDeadline = 100 * time.Microsecond
-	t.retryConfig.BackoffConfig.initial = 1 * time.Microsecond // Ensure backoff pushes it over the edge.
+	t.retryConfig.TotalRetryBudget = 30 * time.Millisecond
+	t.retryConfig.RetryDeadline = 10 * time.Millisecond
+	t.retryConfig.BackoffConfig.initial = 2 * time.Millisecond // Ensure backoff pushes it over the edge.
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
 		return "", status.Error(codes.Unavailable, "server unavailable")
@@ -358,11 +381,11 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutShorterThanRetryDeadline() {
 	// Arrange
 	var callCount int
-	t.retryConfig.RetryDeadline = 1000 * time.Microsecond
-	t.retryConfig.TotalRetryBudget = 10000 * time.Microsecond
-	stallDuration := t.retryConfig.RetryDeadline + 1000*time.Microsecond
+	t.retryConfig.RetryDeadline = 100 * time.Millisecond
+	t.retryConfig.TotalRetryBudget = 1000 * time.Millisecond
+	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
 	// Set a parent context timeout that is shorter than the total retry budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline-500*time.Microsecond)
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline-50*time.Millisecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
@@ -390,9 +413,9 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutSho
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBetweenDeadlines() {
 	// Arrange
 	var callCount int
-	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
+	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
 	// Set a parent context timeout that is longer than one attempt but shorter than the total budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline+50*time.Microsecond)
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline+50*time.Millisecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
@@ -416,8 +439,8 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBet
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutLongerThanBudget() {
 	// Arrange
-	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.TotalRetryBudget+100*time.Microsecond)
+	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.TotalRetryBudget+100*time.Millisecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		select {
