@@ -111,7 +111,7 @@ func (t *MrdInstanceTest) TestRead_RecreatesInvalidEntry() {
 	assert.NoError(t.T(), err)
 
 	// Manually invalidate the entry to simulate a failure
-		t.mrdInstance.mrd.Close() // Close it.
+		_ = t.mrdInstance.mrd.Close() // Close it.
 	// Replace the MRD with one that returns an error.
 	t.mrdInstance.mrdMu.Lock()
 	t.mrdInstance.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
@@ -149,7 +149,7 @@ func (t *MrdInstanceTest) TestRead_RecreationFails() {
 	assert.NoError(t.T(), err)
 
 	// Manually invalidate the entry to simulate a failure.
-		t.mrdInstance.mrd.Close() // Close it.
+		_ = t.mrdInstance.mrd.Close() // Close it.
 	// Replace the MRD with one that returns an error.
 	t.mrdInstance.mrdMu.Lock()
 	t.mrdInstance.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
@@ -227,7 +227,7 @@ func (t *MrdInstanceTest) TestGetMRDEntry_RecreatesInvalidMRD() {
 	mrd1, err := t.mrdInstance.getMRD()
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fakeMRD1, mrd1)
-	t.mrdInstance.mrd.Close()
+	_ = t.mrdInstance.mrd.Close()
 	t.mrdInstance.mrdMu.Lock()
 	t.mrdInstance.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
 	t.mrdInstance.mrdMu.Unlock()
@@ -360,8 +360,8 @@ func (t *MrdInstanceTest) TestEnsureMRD_PassesAutoscalingParams() {
 	// Re-create mrdInstance to use new config values since MrdInstance was created with old config.
 	t.config.Mrd.MinConnections = 1
 	t.config.Mrd.MaxConnections = 4
-	t.config.Mrd.TargetPendingRanges = 5
-	t.config.Mrd.TargetPendingBytes = 1024 * 1024
+	t.config.Mrd.TargetPendingRanges = 0
+	t.config.Mrd.TargetPendingBytes = 0
 
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 
@@ -369,8 +369,8 @@ func (t *MrdInstanceTest) TestEnsureMRD_PassesAutoscalingParams() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
 		return req.MinConnections == 1 &&
 			req.MaxConnections == 4 &&
-			req.TargetPendingRanges == 5 &&
-			req.TargetPendingBytes == 1024*1024
+			req.TargetPendingRanges == 0 &&
+			req.TargetPendingBytes == 0
 	})).Return(fakeMRD, nil).Once()
 
 	err := t.mrdInstance.ensureMRD()

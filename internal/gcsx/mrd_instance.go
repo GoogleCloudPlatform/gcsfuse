@@ -17,6 +17,7 @@ package gcsx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -110,6 +112,13 @@ func (mi *MrdInstance) createAndSwapMRD(obj *gcs.MinObject) error {
 		TargetPendingBytes:  int(mi.config.Mrd.TargetPendingBytes),
 	})
 	if err != nil {
+		var notFoundError *gcs.NotFoundError
+		if errors.As(err, &notFoundError) {
+			return &gcsfuse_errors.FileClobberedError{
+				Err:        fmt.Errorf("createAndSwapMRD: %w", err),
+				ObjectName: obj.Name,
+			}
+		}
 		return err
 	}
 
@@ -229,6 +238,13 @@ func (mi *MrdInstance) ensureMRD() (err error) {
 		TargetPendingBytes:  int(mi.config.Mrd.TargetPendingBytes),
 	})
 	if err != nil {
+		var notFoundError *gcs.NotFoundError
+		if errors.As(err, &notFoundError) {
+			return &gcsfuse_errors.FileClobberedError{
+				Err:        fmt.Errorf("MrdInstance::ensureMRD Error in creating MRD: %w", err),
+				ObjectName: mi.object.Name,
+			}
+		}
 		err = fmt.Errorf("MrdInstance::ensureMRD Error in creating MRD: %w", err)
 	}
 	return
@@ -274,7 +290,7 @@ func closeMRDWithTimeout(mrd gcs.MultiRangeDownloader, caller string, timeout ti
 		go func() {
 			defer close(done)
 			mrd.Wait()
-			mrd.Close()
+			_ = mrd.Close()
 		}()
 
 		timer := time.NewTimer(timeout)
