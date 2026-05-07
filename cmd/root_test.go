@@ -282,6 +282,8 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedWriteBlockSizeMB      int64
 		expectedWriteGlobalMaxBlocks  int64
 		expectedWriteMaxBlocksPerFile int64
+		expectedEnableRapidWrites     bool
+		expectedFinalizeFileOnClose   bool
 	}{
 		{
 			name:                          "Test create-empty-file flag true works when streaming writes are explicitly disabled.",
@@ -431,6 +433,18 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteGlobalMaxBlocks:  16,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
+		{
+			name:                          "Test enable-rapid-writes and finalize-file-on-close flags.",
+			args:                          []string{"gcsfuse", "--enable-rapid-writes=true", "--finalize-file-on-close=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedEnableRapidWrites:     true,
+			expectedFinalizeFileOnClose:   true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -451,6 +465,8 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
 				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 				assert.Equal(t, tc.expectedEnableRapidAppends, wc.EnableRapidAppends)
+				assert.Equal(t, tc.expectedEnableRapidWrites, wc.EnableRapidWrites)
+				assert.Equal(t, tc.expectedFinalizeFileOnClose, wc.FinalizeFileOnClose)
 			}
 		})
 	}

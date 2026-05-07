@@ -105,7 +105,6 @@ be interacting with the file system.`)
 		ChunkRetryDeadlineSecs:             newConfig.GcsRetries.ChunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
-		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,
 		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
 		DummyIOCfg:                         newConfig.DummyIo,
 		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,

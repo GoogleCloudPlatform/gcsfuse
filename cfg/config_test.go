@@ -257,6 +257,83 @@ func TestApplyOptimizations(t *testing.T) {
 			})
 		}
 	})
+	// Tests for write.finalize-file-on-close
+	t.Run("write.finalize-file-on-close", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				userSetFlags: map[string]any{
+					"write.finalize-file-on-close": true,
+					"machine-type":                 "a2-megagpu-16g",
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: false,
+				expectedValue:   true,
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   false,
+			},
+			{
+				name:            "bucket_type_zonal",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
+				expectOptimized: false,
+				expectedValue:   false,
+			},
+			{
+				name:            "bucket_type_pirlo",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: true,
+				expectedValue:   true,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.Write.FinalizeFileOnClose = tc.expectedValue.(bool)
+				} else {
+					c.Write.FinalizeFileOnClose = false
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "write.finalize-file-on-close")
+				} else {
+					assert.NotContains(t, optimizedFlags, "write.finalize-file-on-close")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.Write.FinalizeFileOnClose)
+			})
+		}
+	})
 	// Tests for implicit-dirs
 	t.Run("implicit-dirs", func(t *testing.T) {
 		testCases := []struct {

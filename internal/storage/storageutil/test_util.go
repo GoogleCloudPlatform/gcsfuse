@@ -50,5 +50,6 @@ func GetDefaultStorageClientConfig(keyFile string) (clientConfig StorageClientCo
 			ReqIncreaseRate:     15,
 			ReqTargetPercentile: 0.99,
 		},
+		WriteConfig: &cfg.WriteConfig{},
 	}
 }

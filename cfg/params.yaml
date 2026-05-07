@@ -1262,18 +1262,30 @@ params:
     usage: "Enables support for appends to unfinalized object using streaming writes"
     default: true
 
+  - config-path: "write.enable-rapid-writes"
+    flag-name: "enable-rapid-writes"
+    type: "bool"
+    usage: "For pirlo, toggles between using STANDARD class and RAPID class for writes."
+    default: false
+
   - config-path: "write.enable-streaming-writes"
     flag-name: "enable-streaming-writes"
     type: "bool"
     usage: "Enables streaming uploads during write file operation."
     default: true
 
-  - config-path: "write.finalize-file-for-rapid"
-    flag-name: "finalize-file-for-rapid"
+  - config-path: "write.finalize-file-on-close"
+    flag-name: "finalize-file-on-close"
     type: "bool"
     usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
     default: false
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: false
+        - bucket-type: "pirlo"
+          value: true
 
   - config-path: "write.global-max-blocks"
     flag-name: "write-global-max-blocks"
