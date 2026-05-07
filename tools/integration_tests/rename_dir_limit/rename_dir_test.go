@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -212,9 +213,10 @@ func TestRenameDirectoryWithExistingNonEmptyDestDirectory(t *testing.T) {
 
 	// Go's Rename function does not support renaming a directory into an existing directory.
 	// To achieve this, we call a Python rename function as a workaround.
-	cmd := exec.Command("python3", "-c", fmt.Sprintf("import os; os.rename('%s', '%s')", oldDirPath, newDirPath))
-	output, err := cmd.CombinedOutput()
+	// We catch OSError and exit with the errno so we can validate ENOTEMPTY.
+	cmd := exec.Command("python3", "-c", fmt.Sprintf("import os, sys; exec(\"try:\\n  os.rename('%s', '%s')\\nexcept OSError as e:\\n  sys.exit(e.errno)\")", oldDirPath, newDirPath))
+	_, err := cmd.CombinedOutput()
 
 	assert.Error(t, err)
-	assert.Contains(t, string(output), "Directory not empty")
+	assert.Equal(t, int(syscall.ENOTEMPTY), err.(*exec.ExitError).ExitCode())
 }
