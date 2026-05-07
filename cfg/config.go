@@ -1126,7 +1126,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
-	flagSet.IntP("fuse-max-pages-limit", "", 256, "Sets the limit for the maximum number of pages that fuse can process in a single request. This will update the node level value (on supported kernels) if the new value is greater than the current node level value.")
+	flagSet.IntP("fuse-max-pages-limit", "", DefaultFuseMaxPagesLimit(), "Sets the limit for the maximum number of pages that fuse can process in a single request. This will update the node level value (on supported kernels) if the new value is greater than the current node level value.")
 
 	if err := flagSet.MarkHidden("fuse-max-pages-limit"); err != nil {
 		return err
