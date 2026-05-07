@@ -31,6 +31,25 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+var readMaxPagesLimitFunc = func() (int, error) {
+	data, err := os.ReadFile("/proc/sys/fs/fuse/max_pages_limit")
+	if err != nil {
+		return 0, err
+	}
+	val, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse max_pages_limit: %w", err)
+	}
+	return val, nil
+}
+
+// SupportsFuseMaxPagesLimit checks if the host kernel supports configuring
+// the FUSE max_pages_limit attribute by reading the procfs entry.
+func SupportsFuseMaxPagesLimit() bool {
+	_, err := readMaxPagesLimitFunc()
+	return err == nil
+}
+
 // KernelParamsManager wraps KernelParamsConfig with a mutex to ensure thread safety.
 type KernelParamsManager struct {
 	*KernelParamsConfig
@@ -108,7 +127,7 @@ func PathForParam(name ParamName, major, minor uint32) (string, error) {
 		return fmt.Sprintf("/sys/fs/fuse/connections/%d/congestion_threshold", minor), nil
 
 	case MaxPagesLimit:
-		return "/sys/module/fuse/parameters/max_pages_limit", nil
+		return "/proc/sys/fs/fuse/max_pages_limit", nil
 
 	case TransparentHugePages:
 		return "/sys/kernel/mm/transparent_hugepage/enabled", nil
@@ -191,9 +210,22 @@ func (m *KernelParamsManager) addParam(name ParamName, value string) {
 	})
 }
 
-// SetMaxPagesLimit adds the max_pages_limit parameter to the config.
+// SetMaxPagesLimit adds the max_pages_limit parameter to the config only if the
+// requested limit is greater than the current host max_pages_limit value.
 func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
-	if limit > 0 {
+	if limit <= 0 {
+		return
+	}
+
+	currentLimit, err := readMaxPagesLimitFunc()
+	if err != nil {
+		// If reading the current limit fails, log a warning and fallback to applying the requested limit.
+		logger.Warnf("Failed to read current host max_pages_limit: %v. Falling back to applying requested limit: %d", err, limit)
+		m.addParam(MaxPagesLimit, strconv.Itoa(limit))
+		return
+	}
+
+	if limit > currentLimit {
 		m.addParam(MaxPagesLimit, strconv.Itoa(limit))
 	}
 }

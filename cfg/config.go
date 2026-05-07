@@ -545,6 +545,8 @@ type FileSystemConfig struct {
 
 	FileMode Octal `yaml:"file-mode"`
 
+	FuseMaxPagesLimit int64 `yaml:"fuse-max-pages-limit"`
+
 	FuseOptions []string `yaml:"fuse-options"`
 
 	Gid int64 `yaml:"gid"`
@@ -1123,6 +1125,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
+
+	flagSet.IntP("fuse-max-pages-limit", "", 256, "Sets the limit for the maximum number of pages that fuse can process in a single request. This will update the node level value (on supported kernels) if the new value is greater than the current node level value.")
+
+	if err := flagSet.MarkHidden("fuse-max-pages-limit"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
@@ -1706,6 +1714,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("foreground", flagSet.Lookup("foreground")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-max-pages-limit", flagSet.Lookup("fuse-max-pages-limit")); err != nil {
 		return err
 	}
 
