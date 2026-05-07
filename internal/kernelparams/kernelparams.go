@@ -69,6 +69,11 @@ func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err err
 	return
 }
 
+func SupportsFuseMaxPagesLimit() bool {
+	_, err := os.Stat("/proc/sys/fs/fuse/max_pages_limit")
+	return err == nil
+}
+
 // atomicFileWrite performs a safe write by creating a temporary file and
 // renaming it to the target destination. This ensures the config file is
 // never left in a partially written state.
@@ -108,7 +113,7 @@ func PathForParam(name ParamName, major, minor uint32) (string, error) {
 		return fmt.Sprintf("/sys/fs/fuse/connections/%d/congestion_threshold", minor), nil
 
 	case MaxPagesLimit:
-		return "/sys/module/fuse/parameters/max_pages_limit", nil
+		return "/proc/sys/fs/fuse/max_pages_limit", nil
 
 	case TransparentHugePages:
 		return "/sys/kernel/mm/transparent_hugepage/enabled", nil
