@@ -182,26 +182,6 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 	sc.SetRetry(retryOpts...)
 }
 
-// setDPDetectionRetryConfig applies a lenient retry configuration for DirectPath detection phase.
-// This config is designed to fail fast during the initial connection check.
-func setDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *storageutil.StorageClientConfig) {
-	detectionRetryOpts := []storage.RetryOption{
-		storage.WithBackoff(gax.Backoff{
-			Max:        directPathDetectionMaxBackoff,
-			Multiplier: 1.5, // Gentle multiplier for fast detection
-		}),
-		storage.WithMaxAttempts(directPathDetectionMaxAttempts),
-		storage.WithPolicy(storage.RetryAlways),
-		storage.WithErrorFunc(func(err error) bool {
-			// More permissive during detection to allow quick failure
-			return storageutil.ShouldRetryWithMonitoring(ctx, err, clientConfig.MetricHandle)
-		}),
-		storage.WithMaxRetryDuration(directPathDetectionMaxRetryDuration),
-	}
-
-	sc.SetRetry(detectionRetryOpts...)
-}
-
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
@@ -221,7 +201,6 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	if sc, err = storage.NewGRPCClient(ctx, clientOpts...); err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
-	setRetryConfig(ctx, sc, clientConfig)
 
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
