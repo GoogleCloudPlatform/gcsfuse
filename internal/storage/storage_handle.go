@@ -57,7 +57,7 @@ const (
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts      = 5
-	directPathDetectionTimeout          = 15 * time.Second
+	directPathDetectionTimeout          = 10 * time.Second
 	directPathDetectionMaxBackoff       = 5 * time.Second
 	directPathDetectionMaxRetryDuration = 1 * time.Minute
 )
@@ -239,8 +239,6 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string) error {
 	// Verify DirectPath connection by performing an stat call on the bucket
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
-	// Apply detection retry config for initial verification
-	setDPDetectionRetryConfig(ctx, sc, clientConfig)
 
 	// Restore the production level retry config.
 	defer func() {
@@ -248,17 +246,29 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 		setRetryConfig(ctx, sc, clientConfig)
 	}()
 
-	verifyCtx, verifyCancel := context.WithTimeout(ctx, directPathDetectionTimeout)
-	defer verifyCancel()
-
-	// Retrieving object attrs through Go Storage Client.
 	var notFoundError *gcs.NotFoundError
 	var testObject = "gcsfuse-dp-object"
 	bucketHandle := sc.Bucket(bucketName)
 	if billingProject != "" {
 		bucketHandle = bucketHandle.UserProject(billingProject)
 	}
-	_, statErr := bucketHandle.Object(testObject).Attrs(verifyCtx)
+
+	dpClientConfig := &storageutil.StorageClientConfig{
+		MaxRetrySleep:    directPathDetectionMaxBackoff,
+		RetryMultiplier:  1.5,
+		MaxRetryAttempts: directPathDetectionMaxAttempts,
+	}
+	retryConfig := storageutil.NewRetryConfig(dpClientConfig, directPathDetectionTimeout, directPathDetectionMaxRetryDuration, 1*time.Second)
+
+	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
+		return bucketHandle.Object(testObject).Attrs(attemptCtx)
+	}
+
+	// Disable Go SDK retries for this call to let ExecuteWithRetry handle it.
+	sc.SetRetry(storage.WithMaxAttempts(1))
+
+	_, statErr := storageutil.ExecuteWithRetryAtLogLevel(ctx, retryConfig, "Attrs", testObject, apiCall, logger.LevelInfo)
+
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {

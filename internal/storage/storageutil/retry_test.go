@@ -427,3 +427,22 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCan
 	assert.ErrorIs(t.T(), err, context.Canceled)
 	assert.Equal(t.T(), 0, callCount, "apiCall should not have been executed")
 }
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_MaxAttemptsReached() {
+	// Arrange
+	var callCount int
+	t.retryConfig.MaxAttempts = 2
+	retryableErr := status.Error(codes.Unavailable, "server unavailable")
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		return "", retryableErr
+	}
+
+	// Act
+	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+
+	// Assert
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "failed after 2 attempts")
+	assert.Equal(t.T(), 2, callCount, "apiCall should have been called exactly 2 times")
+}

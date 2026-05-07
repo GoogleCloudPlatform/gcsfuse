@@ -97,6 +97,8 @@ type RetryConfig struct {
 	RetryDeadline time.Duration
 	// Total duration allowed across all the attempts.
 	TotalRetryBudget time.Duration
+	// Max attempts to make for the operation.
+	MaxAttempts int
 	// Config for managing backoff durations in-between retry attempts.
 	BackoffConfig exponentialBackoffConfig
 }
@@ -107,6 +109,7 @@ func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetry
 	return &RetryConfig{
 		RetryDeadline:    retryDeadline,
 		TotalRetryBudget: totalRetryBudget,
+		MaxAttempts:      clientConfig.MaxRetryAttempts,
 		BackoffConfig: exponentialBackoffConfig{
 			initial:    initialBackoff,
 			max:        clientConfig.MaxRetrySleep,
@@ -154,6 +157,10 @@ func ExecuteWithRetryAtLogLevel[T any](
 
 		if err == nil {
 			return result, nil
+		}
+
+		if config.MaxAttempts > 0 && i+1 >= config.MaxAttempts {
+			return zero, fmt.Errorf("%s for %q failed after %d attempts (last server/client error = %v)", operationName, reqDescription, config.MaxAttempts, err)
 		}
 
 		// If the error is not retryable, return it immediately.
