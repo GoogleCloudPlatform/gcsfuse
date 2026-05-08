@@ -98,7 +98,7 @@ install_packages_by_os() {
       sudo yum install -y "${rhel_pkgs[@]}"
 
       if [ "$install_crcmod" = true ]; then
-        sudo python3 -m pip install --require-hashes -r "${OS_UTILS_DIR}/crcmod_requirements.txt"
+        sudo python3 -m pip install --require-hashes -r "${OS_UTILS_DIR}/../../tools/cd_scripts/requirements.txt"
       fi
       ;;
     arch|manjaro)
