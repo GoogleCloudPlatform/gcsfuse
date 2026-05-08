@@ -234,7 +234,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 
 	dpClientConfig := &storageutil.StorageClientConfig{
 		MaxRetrySleep:    directPathDetectionMaxBackoff,
-		RetryMultiplier:  1.5,
+		RetryMultiplier:  clientConfig.RetryMultiplier,
 		MaxRetryAttempts: directPathDetectionMaxAttempts,
 	}
 	retryConfig := storageutil.NewRetryConfig(dpClientConfig, directPathDetectionTimeout, directPathDetectionMaxRetryDuration, storageutil.DefaultInitialBackoff)
