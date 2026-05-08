@@ -237,7 +237,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 		RetryMultiplier:  1.5,
 		MaxRetryAttempts: directPathDetectionMaxAttempts,
 	}
-	retryConfig := storageutil.NewRetryConfig(dpClientConfig, directPathDetectionTimeout, directPathDetectionMaxRetryDuration, 1*time.Second)
+	retryConfig := storageutil.NewRetryConfig(dpClientConfig, directPathDetectionTimeout, directPathDetectionMaxRetryDuration, storageutil.DefaultInitialBackoff)
 
 	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
 		return bucketHandle.Object(testObject).Attrs(attemptCtx)
