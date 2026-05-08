@@ -183,14 +183,14 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (*storage.Client, error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
 	defer unSetDirectPathEnvVariable()
 
 	var clientOpts []option.ClientOption
-	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
+	clientOpts, err := createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
@@ -198,7 +198,8 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
 	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 
-	if sc, err = storage.NewGRPCClient(ctx, clientOpts...); err != nil {
+	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
+	if err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
 
