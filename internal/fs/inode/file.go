@@ -679,6 +679,7 @@ func getMetricOpenMode(openMode util.OpenMode) metrics.OpenMode {
 		}
 		return metrics.OpenModeWriteOnlyAttr
 	default:
+		logger.Warnf("getMetricOpenMode: unexpected accessMode: %d, isAppend: %t", openMode.AccessMode(), openMode.IsAppend())
 		return metrics.OpenModeOtherAttr
 	}
 }

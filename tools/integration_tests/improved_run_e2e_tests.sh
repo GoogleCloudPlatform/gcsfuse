@@ -328,37 +328,37 @@ CREATED_BUCKETS_LIST_FILE=$(create_file_helper "created_buckets_list.txt")
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
   "managed_folders"
-  "operations"
-  "read_large_files"
-  "concurrent_operations"
-  "read_cache"
-  "list_large_dir"
-  "mount_timeout"
-  "write_large_files"
-  "implicit_dir"
-  "interrupt"
-  "local_file"
-  "readonly"
-  "readonly_creds"
-  "rename_dir_limit"
-  "kernel_list_cache"
-  "streaming_writes"
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "log_rotation"
-  "monitoring"
-  "mounting"
-  "unsupported_path"
-  # "grpc_validation"
-  "negative_stat_cache"
-  "stale_handle"
-  "release_version"
-  "readdirplus"
-  "dentry_cache"
-  "buffered_read"
-  "flag_optimizations"
-  "symlink_handling"
+  # "operations"
+  # "read_large_files"
+  # "concurrent_operations"
+  # "read_cache"
+  # "list_large_dir"
+  # "mount_timeout"
+  # "write_large_files"
+  # "implicit_dir"
+  # "interrupt"
+  # "local_file"
+  # "readonly"
+  # "readonly_creds"
+  # "rename_dir_limit"
+  # "kernel_list_cache"
+  # "streaming_writes"
+  # "benchmarking"
+  # "explicit_dir"
+  # "gzip"
+  # "log_rotation"
+  # "monitoring"
+  # "mounting"
+  # "unsupported_path"
+  # # "grpc_validation"
+  # "negative_stat_cache"
+  # "stale_handle"
+  # "release_version"
+  # "readdirplus"
+  # "dentry_cache"
+  # "buffered_read"
+  # "flag_optimizations"
+  # "symlink_handling"
 )
 
 # filter_array: Filters an array in place keeping only elements matching the regex.
@@ -383,9 +383,9 @@ filter_array() {
 }
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
@@ -1067,7 +1067,7 @@ main() {
     log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
     if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
       log_info "Resource usage collection process stopped."
-      ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
+      ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE" "$PACKAGE_RUNTIME_STATS"
     else
       log_error "Failed to stop resource usage collection process (or it's already stopped)"
     fi

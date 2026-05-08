@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -86,6 +87,10 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 	if err != nil {
 		t.Fatalf("Error in writing iam policy in json FileInNonEmptyManagedFoldersTest : %v", err)
 	}
+	err = f.Close()
+	if err != nil {
+		t.Fatalf("Error closing temp file: %v", err)
+	}
 
 	gcloudProvidePermissionCmd := fmt.Sprintf("storage managed-folders set-iam-policy gs://%s/%s %s", bucket, managedFolderPath, f.Name())
 	_, err = operations.ExecuteGcloudCommand(gcloudProvidePermissionCmd)
@@ -103,7 +108,7 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	}
 }
 
-func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, storageClient *storage.Client, controlClient *control.StorageControlClient, t *testing.T) {
+func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, storageClient *storage.Client, controlClient *control.StorageControlClient, isolatedTestDir string, t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder2
@@ -111,7 +116,7 @@ func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, stor
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(isolatedTestDir)
 	err := client.DeleteAllObjectsWithPrefix(ctx, storageClient, testDir)
 	if err != nil {
 		log.Fatalf("Failed to clean up test directory: %v", err)
@@ -124,9 +129,12 @@ func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, stor
 
 	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, ManagedFolder1), bucket)
 	client.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(managedFolder1, FileInNonEmptyManagedFoldersTest), bucket)
+	
 	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, ManagedFolder2), bucket)
 	client.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(managedFolder2, FileInNonEmptyManagedFoldersTest), bucket)
+	
 	client.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(simulatedFolderNonEmptyManagedFoldersTest, FileInNonEmptyManagedFoldersTest), bucket)
+	
 	client.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, FileInNonEmptyManagedFoldersTest), bucket)
 }
 
@@ -138,9 +146,10 @@ func cleanup(ctx context.Context, storageClient *storage.Client, controlClient *
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(bucket, testDir))
 }
 
-func listNonEmptyManagedFolders(t *testing.T) {
+func listNonEmptyManagedFolders(mntDir, isolatedTestDir string, t *testing.T) {
+	testDirName := path.Base(isolatedTestDir)
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(mntDir, isolatedTestDir), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -151,12 +160,14 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			return nil
 		}
 
-		objs, err := os.ReadDir(path)
-		if err != nil {
-			log.Fatal(err)
-		}
+		var objs []fs.DirEntry
+		operations.RetryUntil(testEnv.ctx, t, 5*time.Second, 60*time.Second, func() (any, error) {
+			var err error
+			objs, err = os.ReadDir(path)
+			return nil, err
+		})
 		// Check if managedFolderTest directory has correct data.
-		if dir.Name() == TestDirForManagedFolderTest {
+		if dir.Name() == testDirName {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForNonEmptyManagedFoldersListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForNonEmptyManagedFoldersListTest, len(objs))
@@ -190,8 +201,8 @@ func listNonEmptyManagedFolders(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile  -- FileInNonEmptyManagedFoldersTest
-			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
+			if len(objs) > 0 && (objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir()) {
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
 			}
 		}
 		// Ensure subDirectory is not empty.
@@ -201,8 +212,8 @@ func listNonEmptyManagedFolders(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile  -- FileInNonEmptyManagedFoldersTest
-			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
+			if len(objs) > 0 && (objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir()) {
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
 			}
 		}
 		// Check if subDirectory is empty.
@@ -213,8 +224,8 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile  -- FileInNonEmptyManagedFoldersTest
-			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
+			if len(objs) > 0 && (objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir()) {
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
 			}
 		}
 		return nil
@@ -252,10 +263,13 @@ func moveAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
-func createFileForTest(filePath string, t *testing.T) {
-	file, err := os.Create(filePath)
-	defer operations.CloseFileShouldNotThrowError(t, file)
-	if err != nil {
-		t.Errorf("Error in creating local file, %v", err)
-	}
+func createFileForTest(ctx context.Context, filePath string, t *testing.T) {
+	operations.RetryUntil(ctx, t, 5*time.Second, 60*time.Second, func() (any, error) {
+		file, err := os.Create(filePath)
+		if err != nil {
+			return nil, err
+		}
+		file.Close()
+		return nil, nil
+	})
 }
