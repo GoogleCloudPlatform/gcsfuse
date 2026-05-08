@@ -202,6 +202,12 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
 
+	// Set the production level retry config.
+	defer func() {
+		logger.Infof("Applying production retry config after DirectPath verification.")
+		setRetryConfig(ctx, sc, clientConfig)
+	}()
+
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
 		logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
@@ -218,12 +224,6 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string) error {
 	// Verify DirectPath connection by performing an stat call on the bucket
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
-
-	// Restore the production level retry config.
-	defer func() {
-		logger.Infof("Applying production retry config after DirectPath verification.")
-		setRetryConfig(ctx, sc, clientConfig)
-	}()
 
 	var notFoundError *gcs.NotFoundError
 	var testObject = "gcsfuse-dp-object"
