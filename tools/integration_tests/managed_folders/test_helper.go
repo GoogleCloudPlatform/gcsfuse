@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -101,6 +102,36 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	if err != nil && !strings.Contains(err.Error(), "Policy binding with the specified principal, role, and condition not found!") && !strings.Contains(err.Error(), "The specified managed folder does not exist.") {
 		t.Fatalf("Error in removing permission to managed folder: %v", err)
 	}
+}
+
+func waitForIAMPropagation(bucket, managedFolderPath, serviceAccount, role string, expectPresent bool, t *testing.T) {
+	log.Printf("Waiting for 10 seconds before polling IAM policy...")
+	time.Sleep(10 * time.Second)
+
+	timeout := 60 * time.Second
+	deadline := time.Now().Add(timeout)
+
+	log.Printf("Starting polling every 5 seconds...")
+	for time.Now().Before(deadline) {
+		gcloudCmd := fmt.Sprintf("storage managed-folders get-iam-policy gs://%s/%s", bucket, managedFolderPath)
+		output, err := operations.ExecuteGcloudCommand(gcloudCmd)
+		if err != nil {
+			log.Printf("Error getting IAM policy: %v", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		present := strings.Contains(string(output), role) && strings.Contains(string(output), serviceAccount)
+
+		if present == expectPresent {
+			log.Printf("IAM policy propagated successfully!")
+			return
+		}
+
+		log.Printf("IAM policy not yet propagated, sleeping for 5 seconds...")
+		time.Sleep(5 * time.Second)
+	}
+	log.Printf("WARNING: IAM policy did not propagate within %v. Continuing anyway...", timeout)
 }
 
 func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, storageClient *storage.Client, controlClient *control.StorageControlClient, t *testing.T) {

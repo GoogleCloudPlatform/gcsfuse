@@ -24,7 +24,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
@@ -66,8 +65,9 @@ func (s *managedFoldersAdminPermission) SetupTest() {
 	if s.managedFoldersPermission != "nil" {
 		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
 		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
-		// Waiting for 60 seconds for policy changes to propagate. This values we kept based on our experiments.
-		time.Sleep(60 * time.Second)
+
+		waitForIAMPropagation(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, s.managedFoldersPermission, true, s.T())
+		waitForIAMPropagation(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, s.managedFoldersPermission, true, s.T())
 	}
 }
 

@@ -23,7 +23,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -171,8 +170,9 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 		// Provide storage.objectViewer role to managed folders.
 		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, IAMRoleForViewPermission, t)
 		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, IAMRoleForViewPermission, t)
-		// Waiting for 60 seconds for policy changes to propagate. This values we kept based on our experiments.
-		time.Sleep(60 * time.Second)
+
+		waitForIAMPropagation(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, IAMRoleForViewPermission, true, t)
+		waitForIAMPropagation(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, IAMRoleForViewPermission, true, t)
 
 		log.Printf("Running tests with flags and managed folder have view permissions: %s", ts.flags)
 		suite.Run(t, ts)
