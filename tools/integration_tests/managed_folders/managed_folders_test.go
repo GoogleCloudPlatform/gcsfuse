@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -116,7 +115,7 @@ func TestMain(m *testing.M) {
 
 	for i, testCase := range cfg.ManagedFolders[0].Configs {
 		for j, flag := range testCase.Flags {
-			cfg.ManagedFolders[0].Configs[i].Flags[j] = strings.ReplaceAll(flag, "--key-file=", "--key-file="+testEnv.localKeyFilePath)
+			cfg.ManagedFolders[0].Configs[i].Flags[j] = setup.ReplaceOrAppendFlag(flag, "${KEY_FILE}", "--key-file=", testEnv.localKeyFilePath)
 		}
 	}
 

@@ -102,7 +102,7 @@ func TestMain(m *testing.M) {
 		// Replace --billing-project= placeholder in flags with the default billing project.
 		for i := range cfg.RequesterPaysBucket[0].Configs {
 			for j, flag := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
-				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(flag, "--billing-project=", "--billing-project="+targetBillingProject)
+				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = setup.ReplaceOrAppendFlag(flag, "${BILLING_PROJECT}", "--billing-project=", targetBillingProject)
 			}
 		}
 		// Setup service account credentials for requester-pays testing.
@@ -115,7 +115,7 @@ func TestMain(m *testing.M) {
 		setup.SetKeyFile(localKeyFilePath)
 		for i := range cfg.RequesterPaysBucket[0].Configs {
 			for j, flag := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
-				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(flag, "--key-file=", "--key-file="+localKeyFilePath)
+				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = setup.ReplaceOrAppendFlag(flag, "${KEY_FILE}", "--key-file=", localKeyFilePath)
 			}
 		}
 	}

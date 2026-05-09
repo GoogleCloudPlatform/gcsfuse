@@ -24,7 +24,6 @@ import (
 	"math"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -97,8 +96,8 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	} else if cfg.CloudProfiler[0].GKEMountedDirectory == "" {
 		for i, flag := range cfg.CloudProfiler[0].Configs[0].Flags {
-			flag = strings.ReplaceAll(flag, "--cloud-profiler-label=", "--cloud-profiler-label="+testVersionName)
-			cfg.CloudProfiler[0].Configs[0].Flags[i] = strings.ReplaceAll(flag, "--cloud-profiler-service-name=", "--cloud-profiler-service-name="+testServiceName)
+			flag = setup.ReplaceOrAppendFlag(flag, "${PROFILE_LABEL}", "--cloud-profiler-label=", testVersionName)
+			cfg.CloudProfiler[0].Configs[0].Flags[i] = setup.ReplaceOrAppendFlag(flag, "${PROFILE_SERVICE_NAME}", "--cloud-profiler-service-name=", testServiceName)
 		}
 	}
 

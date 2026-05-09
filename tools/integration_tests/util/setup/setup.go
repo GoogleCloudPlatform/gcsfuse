@@ -91,6 +91,15 @@ func SetKeyFile(kf string) {
 	keyFile = kf
 }
 
+// ReplaceOrAppendFlag replaces the placeholder in the flag if present,
+// or appends the value to the flag prefix if the placeholder is not present.
+func ReplaceOrAppendFlag(flag, placeholder, flagPrefix, value string) string {
+	if strings.Contains(flag, placeholder) {
+		return strings.ReplaceAll(flag, placeholder, value)
+	}
+	return strings.ReplaceAll(flag, flagPrefix, flagPrefix+value)
+}
+
 // Run the shell script to prepare the testData in the specified bucket.
 // First argument will be name of scipt script
 func RunScriptForTestData(args ...string) {
