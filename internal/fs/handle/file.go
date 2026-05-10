@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
@@ -32,7 +34,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
 

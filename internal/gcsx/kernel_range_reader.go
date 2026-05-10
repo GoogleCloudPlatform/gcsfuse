@@ -77,7 +77,7 @@ func (rkr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (Rea
 	if err != nil {
 		return resp, fmt.Errorf("failed to create range reader: %w", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	n, err := io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
 	if err == io.ErrUnexpectedEOF || err == io.EOF {
