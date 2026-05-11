@@ -99,6 +99,7 @@ be interacting with the file system.`)
 		StatCacheMaxSizeMB:                 uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
 		StatCacheTTL:                       time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
 		NegativeStatCacheTTL:               time.Duration(newConfig.MetadataCache.NegativeTtlSecs) * time.Second,
+		EnableNonexistentEntryCaching:      newConfig.MetadataCache.EnableNonexistentEntryCaching,
 		EnableMonitoring:                   cfg.IsMetricsEnabled(&newConfig.Metrics),
 		LogSeverity:                        newConfig.Logging.Severity,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.

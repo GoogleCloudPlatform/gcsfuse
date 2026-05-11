@@ -172,7 +172,8 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 		uncachedHNSBucket,
 		negativeCacheTTL,
 		IsTypeCacheDeprecated,
-		isImplicitDir)
+		isImplicitDir,
+		true)
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl
