@@ -1002,7 +1002,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("enable-new-reader"); err != nil {
 		return err
 	}
-
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
