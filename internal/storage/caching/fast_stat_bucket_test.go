@@ -651,7 +651,7 @@ func (t *StatObjectTest) CacheHit_Negative_Disabled_FetchOnly() {
 	const name = "taco"
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).WillOnce(Return(true, nil))
 	req := &gcs.StatObjectRequest{Name: name, FetchOnlyFromCache: true}
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
+	_, _, err := t.bucket.StatObject(context.Background(), req)
 	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
 }
 
@@ -810,7 +810,7 @@ func (t *StatObjectTest) WrappedSaysNotFound_NegativeCachingDisabled() {
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).WillOnce(Return(nil, nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
 	// Expect NO AddNegativeEntry call
 	req := &gcs.StatObjectRequest{Name: name}
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
+	_, _, err := t.bucket.StatObject(context.Background(), req)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -1058,7 +1058,7 @@ func (t *ListObjectsTest_InsertListing) EmptyListing_NegativeCaching() {
 	ExpectCall(t.wrapped, "BucketType")().WillOnce(Return(gcs.BucketType{}))
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).WillOnce(Return(listing, nil))
 	ExpectCall(t.cache, "AddNegativeEntry")("dir/", Any())
-	_, _ = t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{Prefix: "dir/"})
+	_, _ = t.bucket.ListObjects(context.Background(), &gcs.ListObjectsRequest{Prefix: "dir/"})
 }
 
 func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
