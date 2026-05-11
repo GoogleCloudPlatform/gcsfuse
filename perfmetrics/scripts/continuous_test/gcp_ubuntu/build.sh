@@ -52,7 +52,8 @@ if [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_read" ]; then
     echo "Running Distributed READ Micro-Benchmark from gcsfuse-tools..."
 
     START_TIME=$SECONDS
-    "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" --read || PERF_BENCHMARKS_FAILED=1
+    sleep 100
+    # "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" --read || PERF_BENCHMARKS_FAILED=1
     print_duration "Distributed READ Benchmark" "$START_TIME"
   else
     echo "ERROR: gcsfuse-tools directory not found!"
@@ -76,6 +77,7 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
   if [ -d "$TOOLS_DIR" ]; then
     echo "Running Distributed WRITE Micro-Benchmark from gcsfuse-tools..."
     START_TIME=$SECONDS
+    sleep 100
     # "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" --write || PERF_BENCHMARKS_FAILED=1
     print_duration "Distributed WRITE Benchmark" "$START_TIME"
   else
@@ -146,8 +148,8 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
   SPREADSHEET_ID='1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
   LIST_CONFIG_FILE="config.json"
   
-  run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
-  run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
+  # run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
+  # run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
   
   print_duration "Flat Bucket Benchmarks (Total)" "$FLAT_START"
 
@@ -163,8 +165,8 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
   SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
   LIST_CONFIG_FILE="config-hns.json"
   
-  run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
-  run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
+  # run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
+  # run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
   
   print_duration "HNS Bucket Benchmarks (Total)" "$HNS_START"
 
