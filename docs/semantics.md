@@ -209,7 +209,11 @@ The behavior of stat cache is controlled by the following flags/config parameter
    If this config variable is missing, then the value of ```--stat-cache-ttl``` is used.
    * ```--stat-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This has been deprecated (starting v2.0) and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--stat-cache-ttl``` is ignored.
    
-   Positive and negative stat results will be cached for the specified amount of time.
+   Positive stat results (existing files) will be cached for this specified amount of time.
+
+3. **Negative Stat-cache (Non-existent Entry Caching)**: Controls caching of non-existent paths (`ErrNotExist` / 404 results) to optimize workloads that aggressively poll missing files (e.g., JupyterLab).
+   * `metadata-cache: enable-nonexistent-entry-caching` in the config-file (boolean). Must be set to `true` to enable negative caching. **Disabled by default.**
+   * `metadata-cache: negative-ttl-secs` in the config-file (integer). Sets the TTL in seconds for negative entries when `enable-nonexistent-entry-caching` is `true`. Default is 5 seconds. Use -1 for infinite TTL or 0 to bypass.
 
 Warnings: 
 - Using stat caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:

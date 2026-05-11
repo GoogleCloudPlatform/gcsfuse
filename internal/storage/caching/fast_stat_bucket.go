@@ -51,15 +51,17 @@ func NewFastStatBucket(
 	negativeCacheTTL time.Duration,
 	isTypeCacheDeprecated bool,
 	implicitDir bool,
+	enableNonexistentEntryCaching bool,
 ) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
-		cache:                 cache,
-		clock:                 clock,
-		wrapped:               wrapped,
-		primaryCacheTTL:       primaryCacheTTL,
-		negativeCacheTTL:      negativeCacheTTL,
-		isTypeCacheDeprecated: isTypeCacheDeprecated,
-		implicitDir:           implicitDir,
+		cache:                         cache,
+		clock:                         clock,
+		wrapped:                       wrapped,
+		primaryCacheTTL:               primaryCacheTTL,
+		negativeCacheTTL:              negativeCacheTTL,
+		isTypeCacheDeprecated:         isTypeCacheDeprecated,
+		implicitDir:                   implicitDir,
+		enableNonexistentEntryCaching: enableNonexistentEntryCaching,
 	}
 
 	b = fsb
@@ -92,6 +94,8 @@ type fastStatBucket struct {
 	isTypeCacheDeprecated bool
 
 	implicitDir bool
+
+	enableNonexistentEntryCaching bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -121,6 +125,11 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// Critical check after acquiring lock: If the operation context was cancelled,
 	// we must not update the cache with this stale data.
 	if ctx != nil && ctx.Err() != nil {
+		return
+	}
+
+	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && b.enableNonexistentEntryCaching && strings.HasSuffix(dirName, "/") {
+		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 		return
 	}
 
@@ -241,6 +250,9 @@ func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) addNegativeEntry(name string) {
+	if !b.enableNonexistentEntryCaching {
+		return
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -250,6 +262,9 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
+	if !b.enableNonexistentEntryCaching {
+		return
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -271,6 +286,9 @@ func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
 	defer b.mu.Unlock()
 
 	hit, m = b.cache.LookUp(name, b.clock.Now())
+	if hit && m == nil && !b.enableNonexistentEntryCaching {
+		return false, nil
+	}
 	return
 }
 
@@ -279,6 +297,9 @@ func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
 	defer b.mu.Unlock()
 
 	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
+	if hit && f == nil && !b.enableNonexistentEntryCaching {
+		return false, nil
+	}
 	return hit, f
 }
 

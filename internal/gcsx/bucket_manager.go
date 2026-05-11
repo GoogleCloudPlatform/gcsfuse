@@ -45,9 +45,10 @@ type BucketConfig struct {
 	// Config for TTL of entries for existing file in stat cache
 	StatCacheTTL time.Duration
 	// Config for TTL of entries for non-existing file in stat cache
-	NegativeStatCacheTTL time.Duration
-	EnableMonitoring     bool
-	LogSeverity          cfg.LogSeverity
+	NegativeStatCacheTTL          time.Duration
+	EnableNonexistentEntryCaching bool
+	EnableMonitoring              bool
+	LogSeverity                   cfg.LogSeverity
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -244,7 +245,8 @@ func (bm *bucketManager) SetUpBucket(
 			b,
 			bm.config.NegativeStatCacheTTL,
 			bm.config.IsTypeCacheDeprecated,
-			bm.config.ImplicitDir)
+			bm.config.ImplicitDir,
+			bm.config.EnableNonexistentEntryCaching)
 	}
 
 	// Enable content type awareness

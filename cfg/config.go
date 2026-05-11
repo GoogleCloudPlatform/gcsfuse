@@ -682,6 +682,8 @@ type MetadataCacheConfig struct {
 
 	EnableMetadataPrefetch bool `yaml:"enable-metadata-prefetch"`
 
+	EnableNonexistentEntryCaching bool `yaml:"enable-nonexistent-entry-caching"`
+
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
 
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
@@ -992,6 +994,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("enable-mount-retries"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("enable-nonexistent-entry-caching", "", false, "Cache paths confirmed to not exist (404s) in the unified stat cache.")
 
 	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
@@ -1601,6 +1605,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-retries.enable-mount-retries", flagSet.Lookup("enable-mount-retries")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.enable-nonexistent-entry-caching", flagSet.Lookup("enable-nonexistent-entry-caching")); err != nil {
 		return err
 	}
 
