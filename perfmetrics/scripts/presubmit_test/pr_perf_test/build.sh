@@ -18,6 +18,7 @@
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
+readonly EXECUTE_INTEGRATION_TEST_EXCEPT_MANAGED_FOLDERS_LABEL="execute-integration-tests-except-managed-folders"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly EXECUTE_ORBAX_BENCHMARK_LABEL="execute-orbax-benchmark"
@@ -27,6 +28,7 @@ readonly BUCKET_LOCATION=us-west4
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
 integrationTests=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL\"" pr.json)
+integrationTestsExceptManagedFolders=$(grep "\"$EXECUTE_INTEGRATION_TEST_EXCEPT_MANAGED_FOLDERS_LABEL\"" pr.json)
 integrationTestsOnZB=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB\"" pr.json)
 packageBuildTests=$(grep "$EXECUTE_PACKAGE_BUILD_TEST_LABEL" pr.json)
 checkpointTests=$(grep "$EXECUTE_CHECKPOINT_TEST_LABEL" pr.json)
@@ -36,12 +38,13 @@ machineTypeTest=$(grep "\"$EXECUTE_MACHINE_TYPE_TEST_LABEL\"" pr.json)
 rm pr.json
 perfTestStr="$perfTest"
 integrationTestsStr="$integrationTests"
+integrationTestsExceptManagedFoldersStr="$integrationTestsExceptManagedFolders"
 integrationTestsOnZBStr="$integrationTestsOnZB"
 packageBuildTestsStr="$packageBuildTests"
 checkpointTestStr="$checkpointTests"
 orbaxBenchmarkTestStr="$orbaxBenchmarkTest"
 machineTypeTestStr="$machineTypeTest"
-if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$integrationTestsOnZBStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* && "$orbaxBenchmarkTestStr" != *"$EXECUTE_ORBAX_BENCHMARK_LABEL"* && "$machineTypeTestStr" != *"$EXECUTE_MACHINE_TYPE_TEST_LABEL"* ]]
+if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"* && "$integrationTestsExceptManagedFoldersStr" != *"$EXECUTE_INTEGRATION_TEST_EXCEPT_MANAGED_FOLDERS_LABEL"* && "$integrationTestsOnZBStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* && "$orbaxBenchmarkTestStr" != *"$EXECUTE_ORBAX_BENCHMARK_LABEL"* && "$machineTypeTestStr" != *"$EXECUTE_MACHINE_TYPE_TEST_LABEL"* ]]
 then
   echo "No need to execute tests"
   exit 0
@@ -137,13 +140,23 @@ then
 fi
 
 # Execute integration tests on non-zonal bucket(s).
-if test -n "${integrationTestsStr}" ;
+if test -n "${integrationTestsStr}" || test -n "${integrationTestsExceptManagedFoldersStr}";
 then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
+  # Check if we should exclude managed_folders
+  EXCLUDE_FLAG=""
+  if test -z "${integrationTestsStr}" && test -n "${integrationTestsExceptManagedFoldersStr}"; then
+    EXCLUDE_FLAG="--run-package=!managed_folders"
+  fi
+
   echo "Running e2e tests on non-zonal bucket(s) ..."
-  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh \
+    --bucket-location=$BUCKET_LOCATION \
+    --presubmit \
+    --track-resource-usage \
+    $EXCLUDE_FLAG
 fi
 
 # Execute package build tests.
