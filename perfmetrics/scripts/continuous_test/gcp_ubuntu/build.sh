@@ -90,11 +90,6 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
     PERF_BENCHMARKS_FAILED=1
   fi
   
-  if [ $PERF_BENCHMARKS_FAILED -ne 0 ]; then
-    echo "Distributed WRITE benchmarks have failed."
-    exit 1
-  fi
-  
   # --- Execute local performance tests ---
   echo "Building and installing gcsfuse..."
   BUILD_START=$SECONDS
@@ -183,6 +178,11 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
   ./run_rename_benchmark.sh $UPLOAD_FLAGS
   
   print_duration "Rename Benchmark" "$RENAME_START"
+
+  if [ $PERF_BENCHMARKS_FAILED -ne 0 ]; then
+    echo "Distributed WRITE benchmarks have failed."
+    exit 1
+  fi
 
 # =================================================================
 # 3) ZONAL PERFORMANCE TESTS
