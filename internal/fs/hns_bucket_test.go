@@ -51,6 +51,7 @@ const file1Content = "abcdef"
 const file2Content = "file2"
 const IsTypeCacheDeprecated = true
 const isImplicitDir = true
+const enableNonexistentEntryCaching = true
 
 var expectedFooDirEntries = []dirEntry{
 	{name: "test", isDir: true},
@@ -173,7 +174,7 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 		negativeCacheTTL,
 		IsTypeCacheDeprecated,
 		isImplicitDir,
-		true)
+		enableNonexistentEntryCaching)
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl
