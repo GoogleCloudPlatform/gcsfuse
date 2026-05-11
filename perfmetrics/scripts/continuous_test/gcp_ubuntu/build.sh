@@ -41,6 +41,15 @@ print_duration() {
   echo "================================================================="
 }
 
+# Record start time of the entire script
+TOTAL_START=$SECONDS
+
+# Trap to always print total execution time on exit
+exit_handler() {
+  print_duration "Total Execution Time" "$TOTAL_START"
+}
+trap exit_handler EXIT
+
 # =================================================================
 # 1) DISTRIBUTED READ BENCHMARK
 # =================================================================
@@ -63,8 +72,6 @@ if [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_read" ]; then
     echo "Distributed READ benchmarks have failed."
     exit 1
   fi
-    # Exit successfully so it doesn't run the rest of the script
-  exit 0
 
 # =================================================================
 # 2) DISTRIBUTED WRITE BENCHMARK + LOCAL PERF TESTS
@@ -176,7 +183,6 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
   ./run_rename_benchmark.sh $UPLOAD_FLAGS
   
   print_duration "Rename Benchmark" "$RENAME_START"
-  exit 0
 
 # =================================================================
 # 3) ZONAL PERFORMANCE TESTS
@@ -189,7 +195,6 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_zonal" ]; then
   echo "Zonal tests scaffolding ready."
   
   print_duration "Zonal Performance Tests" "$START_TIME"
-  exit 0 
 
 else
   echo "Unknown or unspecified BENCHMARK_TYPE: ${BENCHMARK_TYPE:-}"
