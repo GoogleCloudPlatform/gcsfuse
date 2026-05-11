@@ -51,7 +51,6 @@ const file1Content = "abcdef"
 const file2Content = "file2"
 const IsTypeCacheDeprecated = true
 const isImplicitDir = true
-const enableNonexistentEntryCaching = true
 
 var expectedFooDirEntries = []dirEntry{
 	{name: "test", isDir: true},
