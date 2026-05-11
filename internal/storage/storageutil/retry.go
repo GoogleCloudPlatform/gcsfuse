@@ -43,6 +43,12 @@ type exponentialBackoffConfig struct {
 	multiplier float64
 }
 
+// SetBackoffOverrides overrides the default backoff settings for a retry config.
+func (c *RetryConfig) SetBackoffOverrides(multiplier float64, max time.Duration) {
+	c.BackoffConfig.multiplier = multiplier
+	c.BackoffConfig.max = max
+}
+
 // exponentialBackoff holds the duration parameters for exponential backoff.
 type exponentialBackoff struct {
 	// config used to create this backoff object.
