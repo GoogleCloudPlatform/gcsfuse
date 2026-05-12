@@ -188,11 +188,10 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
-				return nil
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile  -- FileInNonEmptyManagedFoldersTest
 			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
 			}
 		}
 		// Ensure subDirectory is not empty.
@@ -200,11 +199,10 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
-				return nil
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile  -- FileInNonEmptyManagedFoldersTest
 			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
 			}
 		}
 		// Check if subDirectory is empty.
@@ -212,12 +210,11 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
-				return nil
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile  -- FileInNonEmptyManagedFoldersTest
 			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
 			}
 		}
 		return nil
