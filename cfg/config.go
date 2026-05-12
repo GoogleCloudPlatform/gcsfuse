@@ -1219,7 +1219,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
+	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the total number of attempts (including the initial call) made for an operation if it fails, preventing endless retry loops. For example, a value of 5 means up to 5 total attempts (1 initial call plus 4 retries). A value of 0 indicates unlimited attempts.")
 
 	flagSet.DurationP("max-retry-duration", "", 0*time.Nanosecond, "This is currently unused.")
 
@@ -1227,7 +1227,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.")
+	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum backoff sleep duration allowed between retry attempts. Once the exponential backoff exceeds this limit, subsequent retries will use this constant sleep value.")
 
 	flagSet.IntP("metadata-cache-negative-ttl-secs", "", 5, "The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled negative entries in metadata-cache. Any value set below -1 will throw an error.")
 
@@ -1339,7 +1339,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("rename-dir-limit", "", 0, "Allow rename a directory containing fewer descendants than this limit.")
 
-	flagSet.Float64P("retry-multiplier", "", 2, "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.")
+	flagSet.Float64P("retry-multiplier", "", 2, "The multiplier factor by which the retry backoff duration increases after each failed attempt. For example, a multiplier of 2.0 doubles the backoff sleep duration for each subsequent retry.")
 
 	flagSet.BoolP("reuse-token-from-url", "", true, "If false, the token acquired from token-url is not reused.")
 
