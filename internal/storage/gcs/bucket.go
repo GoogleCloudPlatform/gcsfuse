@@ -110,9 +110,9 @@ type Bucket interface {
 	// object is available for reading immediately.
 	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
 
-	// CreateAppendableObjectWriter creates a *storage.Writer for "Takeover"
+	// CreateAppendableObjectWriter creates a Writer for "Takeover"
 	// operations. It allows appending to an existing, unfinalized object by
-	// leveraging its specific generation number. Unlike a standard new file upload,
+	// leveraging its specific generation number. Unlike a standard new object upload,
 	// this attaches to an existing unfinalized stream. All bytes written will be
 	// appended continuing from the offset passed via the CreateObjectChunkWriterRequest.
 	CreateAppendableObjectWriter(ctx context.Context,
