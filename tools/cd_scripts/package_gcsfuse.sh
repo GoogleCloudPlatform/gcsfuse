@@ -30,7 +30,7 @@ set -e
 function fetch_meta_data_value() {
   metadata_key=$1
   # Fetch metadata value directly from the local metadata server
-  value=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$metadata_key")
+  value=$(curl -sfS -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$metadata_key")
   echo "$value"
 }
 
