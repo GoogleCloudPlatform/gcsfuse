@@ -19,7 +19,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -350,7 +349,7 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
-	overrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
@@ -381,11 +380,4 @@ func TestMain(m *testing.M) {
 	os.Exit(successCode)
 }
 
-func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
-	for _, flags := range t.Configs {
-		for i := range flags.Flags {
-			// Iterate over the indices of the flags slice
-			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
-		}
-	}
-}
+

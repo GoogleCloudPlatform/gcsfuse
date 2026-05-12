@@ -19,7 +19,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"path"
 	"strings"
 	"testing"
 
@@ -95,14 +94,7 @@ var (
 	ctx           context.Context
 )
 
-func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
-	for _, flags := range t.Configs {
-		for i := range flags.Flags {
-			// Iterate over the indices of the flags slice
-			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
-		}
-	}
-}
+
 
 func RunTestOnTPCEndPoint(cfg test_suite.Config, m *testing.M) int {
 	ctx = context.Background()
@@ -180,7 +172,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// 4. Override GKE specific paths with GCSFuse paths if running in GCE environment.
-	overrideFilePathsInFlagSet(&cfg.Operations[0], setup.TestDir())
+	setup.OverrideFilePathsInFlagSet(&cfg.Operations[0], setup.TestDir())
 
 	// Run tests for testBucket
 	// 5. Build the flag sets dynamically from the config.
