@@ -81,6 +81,9 @@ func (testSuite *MountAccessTest) mountWithKeyFile(bucketName, keyFile string) (
 }
 
 func (testSuite *MountAccessTest) TestMountingWithMinimalAccessSucceeds() {
+	if !creds_tests.IsWhitelistedGcpProject(gCtx) {
+		testSuite.T().Skip("Skipping TestMountingWithMinimalAccessSucceeds because the active GCP project is not whitelisted.")
+	}
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials(gCtx)
 	defer func() {
 		if err := os.Remove(localKeyFilePath); err != nil {

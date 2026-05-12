@@ -97,6 +97,11 @@ func TestMain(m *testing.M) {
 
 	testEnv.ctx = context.Background()
 
+	if !creds_tests.IsWhitelistedGcpProject(testEnv.ctx) {
+		log.Printf("Skipping requester-pays bucket tests because the active GCP project is not whitelisted.")
+		os.Exit(0)
+	}
+
 	// When not running in GKE environment.
 	if cfg.RequesterPaysBucket[0].GKEMountedDirectory == "" {
 		// Replace ${BILLING_PROJECT} placeholder in flags with the default billing project.

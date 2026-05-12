@@ -107,16 +107,39 @@ func TestMain(m *testing.M) {
 	}()
 
 	// Fetch credentials and apply permission on bucket.
-	testEnv.serviceAccount, testEnv.localKeyFilePath = creds_tests.CreateCredentials(testEnv.ctx)
-	defer func() {
-		if err := os.Remove(testEnv.localKeyFilePath); err != nil {
-			log.Printf("Failed to delete temp credentials file %s: %v", testEnv.localKeyFilePath, err)
-		}
-	}()
+	if creds_tests.IsWhitelistedGcpProject(testEnv.ctx) {
+		testEnv.serviceAccount, testEnv.localKeyFilePath = creds_tests.CreateCredentials(testEnv.ctx)
+		defer func() {
+			if testEnv.localKeyFilePath != "" {
+				if err := os.Remove(testEnv.localKeyFilePath); err != nil {
+					log.Printf("Failed to delete temp credentials file %s: %v", testEnv.localKeyFilePath, err)
+				}
+			}
+		}()
 
-	for i, testCase := range cfg.ManagedFolders[0].Configs {
-		// Replace the placeholder with the actual key file path.
-		cfg.ManagedFolders[0].Configs[i].Flags[0] = strings.ReplaceAll(testCase.Flags[0], "${KEY_FILE}", testEnv.localKeyFilePath)
+		for i, testCase := range cfg.ManagedFolders[0].Configs {
+			// Replace the placeholder in all flags.
+			for j, flag := range testCase.Flags {
+				cfg.ManagedFolders[0].Configs[i].Flags[j] = strings.ReplaceAll(flag, "${KEY_FILE}", testEnv.localKeyFilePath)
+			}
+		}
+	} else {
+		log.Printf("Skipping credentials setup for managed folders because the active GCP project is not whitelisted.")
+		// We should only run the configs that do not require credentials.
+		var nonCredsConfigs []test_suite.ConfigItem
+		for _, config := range cfg.ManagedFolders[0].Configs {
+			hasKeyFile := false
+			for _, flag := range config.Flags {
+				if strings.Contains(flag, "${KEY_FILE}") {
+					hasKeyFile = true
+					break
+				}
+			}
+			if !hasKeyFile {
+				nonCredsConfigs = append(nonCredsConfigs, config)
+			}
+		}
+		cfg.ManagedFolders[0].Configs = nonCredsConfigs
 	}
 
 	// 3. these tests won't run with mountedDirectory.
