@@ -445,6 +445,28 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableRapidWrites:     true,
 			expectedFinalizeFileOnClose:   true,
 		},
+		{
+			name:                          "Test finalize-file-for-rapid fallback.",
+			args:                          []string{"gcsfuse", "--finalize-file-for-rapid=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedFinalizeFileOnClose:   true,
+		},
+		{
+			name:                          "Test finalize-file-on-close precedence over deprecated flag.",
+			args:                          []string{"gcsfuse", "--finalize-file-for-rapid=true", "--finalize-file-on-close=false", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedFinalizeFileOnClose:   false,
+		},
 	}
 
 	for _, tc := range tests {

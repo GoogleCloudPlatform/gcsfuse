@@ -125,6 +125,14 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			); err != nil {
 				return fmt.Errorf("error while unmarshalling config: %w", err)
 			}
+
+			// Map the deprecated write.finalize-file-for-rapid flag to write.finalize-file-on-close before validation and optimizations.
+			if !viperConfig.IsSet("write.finalize-file-on-close") && viperConfig.IsSet("write.finalize-file-for-rapid") {
+				val := mountInfo.config.Write.FinalizeFileForRapid
+				viperConfig.Set("write.finalize-file-on-close", val)
+				mountInfo.config.Write.FinalizeFileOnClose = val
+			}
+
 			if err := cfg.ValidateConfig(viperConfig, mountInfo.config); err != nil {
 				return fmt.Errorf("invalid config: %w", err)
 			}

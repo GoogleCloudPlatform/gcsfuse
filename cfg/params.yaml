@@ -1274,6 +1274,15 @@ params:
     usage: "Enables streaming uploads during write file operation."
     default: true
 
+  - config-path: "write.finalize-file-for-rapid"
+    flag-name: "finalize-file-for-rapid"
+    type: "bool"
+    usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
+    default: false
+    deprecated: true
+    deprecation-warning: "Please use --finalize-file-on-close instead."
+    hide-flag: true
+
   - config-path: "write.finalize-file-on-close"
     flag-name: "finalize-file-on-close"
     type: "bool"
