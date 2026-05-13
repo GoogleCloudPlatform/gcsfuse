@@ -25,11 +25,9 @@ log_error() {
     echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
 }
 
-# Constants
-readonly RELEASE_PACKAGE_BUCKET="gcsfuse-release-packages"
-
 # Defaults
 LOCAL_RUN=false
+RELEASE_PACKAGE_BUCKET="gcsfuse-release-packages"
 RELEASE_VERSION=""
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 
@@ -37,6 +35,7 @@ usage() {
     echo "Usage: $0 [--local-run] "
     echo "  --local-run                     Pass this flag to run this script for local runs. If this flag is passed then gcsfuse is built" 
     echo "                                  locally instead of getting installed by pre-built package from release bucket."
+    echo "  --release-package-bucket <bkt>  Name of the GCS bucket from which release packages will be fetched. (Default: gcsfuse-release-packages)"
     echo "  --release-version <3.0.0>       Release version determines from which directory the pre-built package is used from release bucket."
     echo "                                  Release version is required if not running using --local-run"
     echo "  --zonal                         Should run tests for zonal bucket (Default: false)"
@@ -47,7 +46,7 @@ usage() {
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=local-run,zonal,release-version:,output-dir:,help
+LONG=local-run,zonal,release-package-bucket:,release-version:,output-dir:,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -76,6 +75,10 @@ while (( $# >= 1 )); do
                 log_error "--release-version value '$RELEASE_VERSION' is incorrectly formatted."
                 usage 1
             fi
+            ;;
+        --release-package-bucket)
+            RELEASE_PACKAGE_BUCKET="$2"
+            shift 2
             ;;
         --zonal)
             RUN_TESTS_WITH_ZONAL_BUCKET=true
