@@ -100,7 +100,6 @@ type RetryConfig struct {
 
 // NewRetryConfig creates a new RetryConfig.
 func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration) *RetryConfig {
-	// TODO: Add checks for non negative value initialization.
 	return &RetryConfig{
 		RetryDeadline:    retryDeadline,
 		TotalRetryBudget: totalRetryBudget,
