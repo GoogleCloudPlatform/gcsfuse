@@ -721,6 +721,17 @@ params:
     default: "10"
     hide-flag: true
 
+  - config-path: "gcs-retries.enable-mount-retries"
+    flag-name: "enable-mount-retries"
+    type: "bool"
+    usage: >-
+      If true, enables retry logic in GCSFuse during the mount sequence 
+      for additional errors (such as metadata server readiness delays, IAM propagation 
+      delays, and temporary bucket non-existence). Intended specifically for the 
+      GKE GCSFuse CSI Driver.
+    default: false
+    hide-flag: true
+
   - config-path: "gcs-retries.experimental-nonrapid-folder-api-stall-retry"
     flag-name: "experimental-nonrapid-folder-api-stall-retry"
     type: "bool"
