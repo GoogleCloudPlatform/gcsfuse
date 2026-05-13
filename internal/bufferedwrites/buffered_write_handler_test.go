@@ -305,6 +305,15 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			bucketType: gcs.BucketType{Zonal: true},
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
+		{
+			name:       "pirlo_new_file_rapid_writes",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+		},
+		{
+			name:       "pirlo_append_rapid_writes",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
 	}
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
@@ -312,7 +321,7 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.bucketType.Zonal && tc.obj != nil {
+			if (tc.bucketType.Zonal || tc.bucketType.Pirlo == gcs.PirloStateRapidWritesEnabled) && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -358,6 +367,15 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			bucketType: gcs.BucketType{Zonal: true},
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
+		{
+			name:       "pirlo_new_file_rapid_writes",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+		},
+		{
+			name:       "pirlo_append_rapid_writes",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
 	}
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
@@ -365,7 +383,7 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.bucketType.Zonal && tc.obj != nil {
+			if (tc.bucketType.Zonal || tc.bucketType.Pirlo == gcs.PirloStateRapidWritesEnabled) && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -463,6 +481,16 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			bucketType: gcs.BucketType{Zonal: true},
 			numBlocks:  .5,
 		},
+		{
+			name:       "pirlo_bucket_rapid_writes_2.5_blocks",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			numBlocks:  2.5,
+		},
+		{
+			name:       "pirlo_bucket_rapid_writes_.5_blocks",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			numBlocks:  .5,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -484,7 +512,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
-			if tc.bucketType.Zonal {
+			if tc.bucketType.Zonal || tc.bucketType.Pirlo == gcs.PirloStateRapidWritesEnabled {
 				require.NotNil(testSuite.T(), o)
 				assert.EqualValues(testSuite.T(), int64(blockSize*tc.numBlocks), o.Size)
 				require.NoError(testSuite.T(), err)

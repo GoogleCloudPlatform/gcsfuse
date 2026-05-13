@@ -174,6 +174,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.ExperimentalEnablePirlo = true
+	sc.WriteConfig = &cfg.WriteConfig{EnableRapidWrites: true}
 	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
 	require.NoError(testSuite.T(), err)
 	client := sh.(*storageClient)
@@ -183,7 +184,7 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	bt, err := client.lookupBucketType(TestBucketName)
 
 	assert.NoError(testSuite.T(), err)
-	assert.True(testSuite.T(), bt.Pirlo)
+	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesEnabled, bt.Pirlo)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
@@ -904,7 +905,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 	tests := []struct {
 		name                 string
 		isZonal              bool
-		isPirlo              bool
+		pirloState           gcs.PirloState
 		billingProject       string
 		folderAPIStallRetry  bool
 		expectFolderRetries  bool
@@ -926,14 +927,14 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 		},
 		{
 			name:                 "PirloBucket_NoBillingProject",
-			isPirlo:              true,
+			pirloState:           gcs.PirloStateRapidWritesEnabled,
 			billingProject:       "",
 			expectFolderRetries:  true,
 			expectGaxRetriesUsed: false,
 		},
 		{
 			name:                 "PirloBucket_WithBillingProject",
-			isPirlo:              true,
+			pirloState:           gcs.PirloStateRapidWritesEnabled,
 			billingProject:       "test-project",
 			expectFolderRetries:  true,
 			expectGaxRetriesUsed: false,
@@ -984,7 +985,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 				rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
 				clientConfig:                             clientConfig,
 			}
-			bucketType := &gcs.BucketType{Zonal: tc.isZonal, Pirlo: tc.isPirlo}
+			bucketType := &gcs.BucketType{Zonal: tc.isZonal, Pirlo: tc.pirloState}
 
 			// Act
 			controlClient := sh.controlClientForBucketHandle(bucketType, tc.billingProject)

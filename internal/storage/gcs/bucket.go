@@ -21,15 +21,29 @@ import (
 	"golang.org/x/net/context"
 )
 
+type PirloState int
+
+const (
+	PirloStateNone PirloState = iota
+	PirloStateRapidWritesEnabled
+	PirloStateRapidWritesDisabled
+)
+
 // BucketType represents bucket features.
 type BucketType struct {
 	Hierarchical bool
 	Zonal        bool
-	Pirlo        bool
+	Pirlo        PirloState
 }
 
 func (bt BucketType) IsRapid() bool {
-	return bt.Zonal || bt.Pirlo
+	return bt.Zonal || bt.Pirlo != PirloStateNone
+}
+
+// RapidWritesEnabled returns true if the bucket supports rapid writes
+// and they are currently active.
+func (bt BucketType) RapidWritesEnabled() bool {
+	return bt.Zonal || bt.Pirlo == PirloStateRapidWritesEnabled
 }
 
 const (

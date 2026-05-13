@@ -448,7 +448,7 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
 	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().IsRapid() && f.content == nil)
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -1189,7 +1189,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().Zonal && openMode.IsAppend() {
+		if f.bucket.BucketType().RapidWritesEnabled() && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
@@ -1245,7 +1245,7 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)

@@ -103,6 +103,26 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterC
 	t.mockBucket.AssertCalled(t.T(), "CreateAppendableObjectWriter", mock.Anything, mock.Anything)
 }
 
+func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterCalledForPirlo() {
+	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled})
+	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
+
+	_ = t.uh.createObjectWriter(context.Background())
+
+	t.mockBucket.AssertCalled(t.T(), "CreateAppendableObjectWriter", mock.Anything, mock.Anything)
+}
+
+func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalledForPirloRapidDisabled() {
+	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled})
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
+
+	_ = t.uh.createObjectWriter(context.Background())
+
+	t.mockBucket.AssertCalled(t.T(), "CreateObjectChunkWriter", mock.Anything, mock.Anything)
+}
+
 func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled() {
 	t.createUploadHandlerWithObjectOfGivenSize(0, finalized)
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
