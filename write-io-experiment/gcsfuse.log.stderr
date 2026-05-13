@@ -1,0 +1,2 @@
+/usr/bin/fusermount3: unknown option 'max_write=16777216'
+Error: mountWithStorageHandle: mount: mount: running /usr/bin/fusermount3: exit status 1
