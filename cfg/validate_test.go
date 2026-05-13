@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -632,6 +633,15 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				GcsRetries: GcsRetriesConfig{
 					MaxRetryAttempts: -3,
+				},
+			},
+		},
+		{
+			name: "Invalid too large max-retry-attempts",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				GcsRetries: GcsRetriesConfig{
+					MaxRetryAttempts: math.MaxInt64,
 				},
 			},
 		},
@@ -1327,6 +1337,19 @@ func Test_isValidMaxRetryAttempts(t *testing.T) {
 		{"valid_attempts_zero", 0, false},
 		{"valid_attempts_positive", 5, false},
 		{"invalid_attempts_negative", -3, true},
+		{"valid_attempts_max_int", int64(math.MaxInt), false},
+	}
+
+	// math.MaxInt is math.MaxInt64 on 64-bit systems and math.MaxInt32 on 32-bit systems.
+	// We can only test the "exceeds math.MaxInt" case on 32-bit systems because on 64-bit systems,
+	// math.MaxInt exceeds the capacity of int64 when we add 1 (it overflows).
+	if int64(math.MaxInt) < math.MaxInt64 {
+		maxIntVal := int64(math.MaxInt)
+		testCases = append(testCases, struct {
+			name             string
+			maxRetryAttempts int64
+			wantErr          bool
+		}{"invalid_attempts_exceeds_max_int", maxIntVal + 1, true})
 	}
 
 	for _, tc := range testCases {

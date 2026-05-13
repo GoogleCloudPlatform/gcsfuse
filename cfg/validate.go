@@ -419,6 +419,9 @@ func isValidMaxRetryAttempts(maxRetryAttempts int64) error {
 	if maxRetryAttempts < 0 {
 		return fmt.Errorf("invalid value for max-retry-attempts: %d; should be >= 0 (0 for unlimited)", maxRetryAttempts)
 	}
+	if maxRetryAttempts > math.MaxInt {
+		return fmt.Errorf("invalid value for max-retry-attempts: %d; exceeds maximum supported value (%d)", maxRetryAttempts, math.MaxInt)
+	}
 	return nil
 }
 
