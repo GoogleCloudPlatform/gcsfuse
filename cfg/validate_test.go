@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"math"
+	"math/bits"
 	"testing"
 	"time"
 
@@ -1355,17 +1356,6 @@ func Test_isValidMaxRetryAttempts_ErrorScenarios(t *testing.T) {
 		{"invalid_attempts_negative", -3},
 	}
 
-	// math.MaxInt is math.MaxInt64 on 64-bit systems and math.MaxInt32 on 32-bit systems.
-	// We can only test the "exceeds math.MaxInt" case on 32-bit systems because on 64-bit systems,
-	// math.MaxInt exceeds the capacity of int64 when we add 1 (it overflows).
-	if int64(math.MaxInt) < math.MaxInt64 {
-		maxIntVal := int64(math.MaxInt)
-		testCases = append(testCases, struct {
-			name             string
-			maxRetryAttempts int64
-		}{"invalid_attempts_exceeds_max_int", maxIntVal + 1})
-	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := isValidMaxRetryAttempts(tc.maxRetryAttempts)
@@ -1373,6 +1363,20 @@ func Test_isValidMaxRetryAttempts_ErrorScenarios(t *testing.T) {
 			assert.Error(t, err)
 		})
 	}
+}
+
+func Test_isValidMaxRetryAttempts_ExceedsMaxInt_ErrorScenario(t *testing.T) {
+	// math.MaxInt is math.MaxInt64 on 64-bit systems and math.MaxInt32 on 32-bit systems.
+	// We can only test the "exceeds math.MaxInt" case on 32-bit systems because on 64-bit systems,
+	// incrementing math.MaxInt overflows int64.
+	if is64Bit := bits.UintSize == 64; is64Bit {
+		t.Skip("Skipping on 64-bit systems because math.MaxInt exceeds the capacity of int64 when incremented.")
+	}
+
+	maxIntVal := int64(math.MaxInt)
+	err := isValidMaxRetryAttempts(maxIntVal + 1)
+
+	assert.Error(t, err)
 }
 
 func Test_isValidMultiplier_ValidScenarios(t *testing.T) {
