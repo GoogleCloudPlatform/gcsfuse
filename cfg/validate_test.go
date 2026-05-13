@@ -1328,16 +1328,31 @@ func TestValidateProfile(t *testing.T) {
 	}
 }
 
-func Test_isValidMaxRetryAttempts(t *testing.T) {
+func Test_isValidMaxRetryAttempts_ValidScenarios(t *testing.T) {
 	testCases := []struct {
 		name             string
 		maxRetryAttempts int64
-		wantErr          bool
 	}{
-		{"valid_attempts_zero", 0, false},
-		{"valid_attempts_positive", 5, false},
-		{"invalid_attempts_negative", -3, true},
-		{"valid_attempts_max_int", int64(math.MaxInt), false},
+		{"valid_attempts_zero", 0},
+		{"valid_attempts_positive", 5},
+		{"valid_attempts_max_int", int64(math.MaxInt)},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxRetryAttempts(tc.maxRetryAttempts)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func Test_isValidMaxRetryAttempts_ErrorScenarios(t *testing.T) {
+	testCases := []struct {
+		name             string
+		maxRetryAttempts int64
+	}{
+		{"invalid_attempts_negative", -3},
 	}
 
 	// math.MaxInt is math.MaxInt64 on 64-bit systems and math.MaxInt32 on 32-bit systems.
@@ -1348,66 +1363,86 @@ func Test_isValidMaxRetryAttempts(t *testing.T) {
 		testCases = append(testCases, struct {
 			name             string
 			maxRetryAttempts int64
-			wantErr          bool
-		}{"invalid_attempts_exceeds_max_int", maxIntVal + 1, true})
+		}{"invalid_attempts_exceeds_max_int", maxIntVal + 1})
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := isValidMaxRetryAttempts(tc.maxRetryAttempts)
-			if tc.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+
+			assert.Error(t, err)
 		})
 	}
 }
 
-func Test_isValidMultiplier(t *testing.T) {
+func Test_isValidMultiplier_ValidScenarios(t *testing.T) {
 	testCases := []struct {
 		name       string
 		multiplier float64
-		wantErr    bool
 	}{
-		{"valid_multiplier_standard", 2.0, false},
-		{"valid_multiplier_minimum", 1.0, false},
-		{"invalid_multiplier_too_low", 0.8, true},
-		{"invalid_multiplier_negative", -1.5, true},
+		{"valid_multiplier_standard", 2.0},
+		{"valid_multiplier_minimum", 1.0},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := isValidMultiplier(tc.multiplier)
-			if tc.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+
+			assert.NoError(t, err)
 		})
 	}
 }
 
-func Test_isValidMaxRetrySleep(t *testing.T) {
+func Test_isValidMultiplier_ErrorScenarios(t *testing.T) {
+	testCases := []struct {
+		name       string
+		multiplier float64
+	}{
+		{"invalid_multiplier_too_low", 0.8},
+		{"invalid_multiplier_negative", -1.5},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMultiplier(tc.multiplier)
+
+			assert.Error(t, err)
+		})
+	}
+}
+
+func Test_isValidMaxRetrySleep_ValidScenarios(t *testing.T) {
 	testCases := []struct {
 		name          string
 		maxRetrySleep time.Duration
-		wantErr       bool
 	}{
-		{"valid_sleep_seconds", 30 * time.Second, false},
-		{"valid_sleep_milliseconds", 500 * time.Millisecond, false},
-		{"invalid_sleep_zero", 0 * time.Second, true},
-		{"invalid_sleep_negative", -10 * time.Second, true},
+		{"valid_sleep_seconds", 30 * time.Second},
+		{"valid_sleep_milliseconds", 500 * time.Millisecond},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := isValidMaxRetrySleep(tc.maxRetrySleep)
-			if tc.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func Test_isValidMaxRetrySleep_ErrorScenarios(t *testing.T) {
+	testCases := []struct {
+		name          string
+		maxRetrySleep time.Duration
+	}{
+		{"invalid_sleep_zero", 0 * time.Second},
+		{"invalid_sleep_negative", -10 * time.Second},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxRetrySleep(tc.maxRetrySleep)
+
+			assert.Error(t, err)
 		})
 	}
 }
