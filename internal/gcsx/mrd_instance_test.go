@@ -17,12 +17,15 @@ package gcsx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -345,7 +348,7 @@ func (t *MrdInstanceTest) TestGetKey() {
 	}
 }
 
-func (t *MrdInstanceTest) TestEnsureMRDPool_Success() {
+func (t *MrdInstanceTest) TestEnsureMRD_Success() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	assert.Nil(t.T(), t.mrdInstance.mrd)
@@ -379,22 +382,22 @@ func (t *MrdInstanceTest) TestEnsureMRD_PassesAutoscalingParams() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *MrdInstanceTest) TestEnsureMRDPool_AlreadyExists() {
+func (t *MrdInstanceTest) TestEnsureMRD_AlreadyExists() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	err := t.mrdInstance.ensureMRD()
 	assert.NoError(t.T(), err)
-	pool := t.mrdInstance.mrd
+	mrd := t.mrdInstance.mrd
 
 	// Call again
 	err = t.mrdInstance.ensureMRD()
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), pool, t.mrdInstance.mrd)
+	assert.Equal(t.T(), mrd, t.mrdInstance.mrd)
 	t.bucket.AssertExpectations(t.T()) // Should only be called once
 }
 
-func (t *MrdInstanceTest) TestEnsureMRDPool_Failure() {
+func (t *MrdInstanceTest) TestEnsureMRD_Failure() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("init error")).Once()
 	assert.Nil(t.T(), t.mrdInstance.mrd)
 
@@ -403,6 +406,19 @@ func (t *MrdInstanceTest) TestEnsureMRDPool_Failure() {
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), t.mrdInstance.mrd)
 	assert.Contains(t.T(), err.Error(), "init error")
+}
+
+func (t *MrdInstanceTest) TestEnsureMRD_NotFoundError() {
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{Err: errors.New("object not found")}).Once()
+	assert.Nil(t.T(), t.mrdInstance.mrd)
+
+	err := t.mrdInstance.ensureMRD()
+
+	assert.Error(t.T(), err)
+	assert.Nil(t.T(), t.mrdInstance.mrd)
+	var fileClobberedErr *gcsfuse_errors.FileClobberedError
+	assert.True(t.T(), errors.As(err, &fileClobberedErr))
+	assert.Equal(t.T(), t.object.Name, fileClobberedErr.ObjectName)
 }
 
 func (t *MrdInstanceTest) TestSize() {
@@ -468,7 +484,7 @@ func (t *MrdInstanceTest) TestDecrementRefCount_Negative() {
 
 
 
-func (t *MrdInstanceTest) TestClosePool() {
+func (t *MrdInstanceTest) TestCloseMRD() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	err := t.mrdInstance.ensureMRD()
@@ -540,18 +556,18 @@ func (t *MrdInstanceTest) TestHandleEviction_SafeToClose() {
 	t.mrdInstance.mrdMu.RUnlock()
 }
 
-func (t *MrdInstanceTest) TestCreateAndSwapPool_Success() {
+func (t *MrdInstanceTest) TestCreateAndSwapMRD_Success() {
 	// Setup initial state
 	initialObj := &gcs.MinObject{Name: "old", Generation: 1}
 	t.mrdInstance.object = initialObj
-	// Create an initial pool
+	// Create an initial MRD
 	fakeMRD1 := fake.NewFakeMultiRangeDownloader(initialObj, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	err := t.mrdInstance.ensureMRD()
 	assert.NoError(t.T(), err)
 	oldMrd := t.mrdInstance.mrd
 	assert.NotNil(t.T(), oldMrd)
-	// Prepare for new pool creation
+	// Prepare for new MRD creation
 	newObj := &gcs.MinObject{Name: "new", Generation: 2}
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(newObj, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
@@ -567,18 +583,18 @@ func (t *MrdInstanceTest) TestCreateAndSwapPool_Success() {
 	assert.Equal(t.T(), fakeMRD2, t.mrdInstance.mrd)
 }
 
-func (t *MrdInstanceTest) TestCreateAndSwapPool_Failure() {
+func (t *MrdInstanceTest) TestCreateAndSwapMRD_Failure() {
 	// Setup initial state
 	initialObj := &gcs.MinObject{Name: "old", Generation: 1}
 	t.mrdInstance.object = initialObj
-	// Create an initial pool
+	// Create an initial MRD
 	fakeMRD1 := fake.NewFakeMultiRangeDownloader(initialObj, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	err := t.mrdInstance.ensureMRD()
 	assert.NoError(t.T(), err)
 	oldMrd := t.mrdInstance.mrd
 	assert.NotNil(t.T(), oldMrd)
-	// Prepare for new pool creation failure
+	// Prepare for new MRD creation failure
 	newObj := &gcs.MinObject{Name: "new", Generation: 2}
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("creation failed")).Once()
 
@@ -589,6 +605,35 @@ func (t *MrdInstanceTest) TestCreateAndSwapPool_Failure() {
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "creation failed")
+	// Verify state remains unchanged
+	assert.Equal(t.T(), oldMrd, t.mrdInstance.mrd)
+	assert.Equal(t.T(), initialObj, t.mrdInstance.object)
+}
+
+func (t *MrdInstanceTest) TestCreateAndSwapMRD_NotFoundError() {
+	// Setup initial state
+	initialObj := &gcs.MinObject{Name: "old", Generation: 1}
+	t.mrdInstance.object = initialObj
+	// Create an initial MRD
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(initialObj, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+	err := t.mrdInstance.ensureMRD()
+	assert.NoError(t.T(), err)
+	oldMrd := t.mrdInstance.mrd
+	assert.NotNil(t.T(), oldMrd)
+	// Prepare for new MRD creation returning NotFoundError
+	newObj := &gcs.MinObject{Name: "new", Generation: 2}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{Err: errors.New("not found")}).Once()
+
+	// Call createAndSwapMRD
+	t.mrdInstance.mrdMu.Lock()
+	err = t.mrdInstance.createAndSwapMRD(newObj)
+	t.mrdInstance.mrdMu.Unlock()
+
+	assert.Error(t.T(), err)
+	var fileClobberedErr *gcsfuse_errors.FileClobberedError
+	assert.True(t.T(), errors.As(err, &fileClobberedErr))
+	assert.Equal(t.T(), newObj.Name, fileClobberedErr.ObjectName)
 	// Verify state remains unchanged
 	assert.Equal(t.T(), oldMrd, t.mrdInstance.mrd)
 	assert.Equal(t.T(), initialObj, t.mrdInstance.object)
