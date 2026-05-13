@@ -636,6 +636,8 @@ type GcsRetriesConfig struct {
 
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
+	EnableMountRetries bool `yaml:"enable-mount-retries"`
+
 	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
@@ -984,6 +986,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+
+	flagSet.BoolP("enable-mount-retries", "", false, "If true, enables retry logic in GCSFuse during the mount sequence  for additional errors (such as metadata server readiness delays, IAM propagation  delays, and temporary bucket non-existence). Intended specifically for the  GKE GCSFuse CSI Driver.")
+
+	if err := flagSet.MarkHidden("enable-mount-retries"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
@@ -1589,6 +1597,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.enable-metadata-prefetch", flagSet.Lookup("enable-metadata-prefetch")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.enable-mount-retries", flagSet.Lookup("enable-mount-retries")); err != nil {
 		return err
 	}
 

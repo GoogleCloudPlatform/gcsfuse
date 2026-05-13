@@ -2103,6 +2103,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 30,
+					EnableMountRetries:       false,
 					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
@@ -2124,6 +2125,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ChunkRetryDeadlineSecs:   360,
 					ChunkTransferTimeoutSecs: 10,
+					EnableMountRetries:       false,
 					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
@@ -2146,9 +2148,32 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 					ExperimentalNonrapidFolderApiStallRetry: true,
 					ChunkRetryDeadlineSecs:                  120,
 					ChunkTransferTimeoutSecs:                10,
+					EnableMountRetries:                      false,
 					MaxRetryAttempts:                        math.MaxInt,
 					MaxRetrySleep:                           30 * time.Second,
 					Multiplier:                              2,
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
+						MinReqTimeout:       1500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
+					},
+				},
+			},
+		},
+		{
+			name: "Test with enable-mount-retries explicitly true",
+			args: []string{"gcsfuse", "--enable-mount-retries=true", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   120,
+					ChunkTransferTimeoutSecs: 10,
+					EnableMountRetries:       true,
+					MaxRetryAttempts:         math.MaxInt,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              true,
 						InitialReqTimeout:   20 * time.Second,
