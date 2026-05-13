@@ -433,8 +433,8 @@ func isValidMultiplier(multiplier float64) error {
 }
 
 func isValidMaxRetrySleep(maxRetrySleep time.Duration) error {
-	if maxRetrySleep <= 0 {
-		return fmt.Errorf("invalid value for max-retry-sleep: %v; should be > 0", maxRetrySleep)
+	if maxRetrySleep < 0 {
+		return fmt.Errorf("invalid value for max-retry-sleep: %v; should be >= 0", maxRetrySleep)
 	}
 	return nil
 }

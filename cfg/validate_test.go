@@ -373,6 +373,30 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "valid_zero_max_retry_sleep",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
+				GcsRetries: GcsRetriesConfig{
+					MaxRetrySleep: 0 * time.Second,
+				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -661,15 +685,6 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				GcsRetries: GcsRetriesConfig{
 					MaxRetrySleep: -10 * time.Second,
-				},
-			},
-		},
-		{
-			name: "Invalid zero max-retry-sleep",
-			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
-				GcsRetries: GcsRetriesConfig{
-					MaxRetrySleep: 0 * time.Second,
 				},
 			},
 		},
@@ -1420,6 +1435,7 @@ func Test_isValidMaxRetrySleep_ValidScenarios(t *testing.T) {
 		name          string
 		maxRetrySleep time.Duration
 	}{
+		{"valid_sleep_zero", 0 * time.Second},
 		{"valid_sleep_seconds", 30 * time.Second},
 		{"valid_sleep_milliseconds", 500 * time.Millisecond},
 	}
@@ -1438,7 +1454,6 @@ func Test_isValidMaxRetrySleep_ErrorScenarios(t *testing.T) {
 		name          string
 		maxRetrySleep time.Duration
 	}{
-		{"invalid_sleep_zero", 0 * time.Second},
 		{"invalid_sleep_negative", -10 * time.Second},
 	}
 
