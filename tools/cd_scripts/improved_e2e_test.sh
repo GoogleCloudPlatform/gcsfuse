@@ -27,7 +27,7 @@ log_error() {
 
 # Defaults
 LOCAL_RUN=false
-RELEASE_PACKAGE_BUCKET="gcsfuse-release-packages"
+RELEASE_PACKAGE_BUCKET=""
 RELEASE_VERSION=""
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 
@@ -35,7 +35,8 @@ usage() {
     echo "Usage: $0 [--local-run] "
     echo "  --local-run                     Pass this flag to run this script for local runs. If this flag is passed then gcsfuse is built" 
     echo "                                  locally instead of getting installed by pre-built package from release bucket."
-    echo "  --release-package-bucket <bkt>  Name of the GCS bucket from which release packages will be fetched. (Default: gcsfuse-release-packages)"
+    echo "  --release-package-bucket <bkt>  Name of the GCS bucket from which release packages will be fetched."
+    echo "                                  Release package bucket is required if not running using --local-run"
     echo "  --release-version <3.0.0>       Release version determines from which directory the pre-built package is used from release bucket."
     echo "                                  Release version is required if not running using --local-run"
     echo "  --zonal                         Should run tests for zonal bucket (Default: false)"
@@ -107,9 +108,15 @@ while (( $# >= 1 )); do
 done
 
 # Argument validation
-if [[ "$LOCAL_RUN" == "false" ]] && [[ -z "$RELEASE_VERSION" ]]; then
-    log_error "--release-version required if not running with --local-run"
-    usage 1
+if [[ "$LOCAL_RUN" == "false" ]]; then
+    if [[ -z "$RELEASE_VERSION" ]]; then
+        log_error "--release-version required if not running with --local-run"
+        usage 1
+    fi
+    if [[ -z "$RELEASE_PACKAGE_BUCKET" ]]; then
+        log_error "--release-package-bucket required if not running with --local-run"
+        usage 1
+    fi
 fi
 
 # Build args for the e2e script 
