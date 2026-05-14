@@ -78,8 +78,11 @@ func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 
 	nextDuration := b.nextDuration()
 	jitteryBackoffDuration := time.Duration(1 + rand.Int63n(max(1, int64(nextDuration))))
+	timer := time.NewTimer(jitteryBackoffDuration)
+	defer timer.Stop()
+
 	select {
-	case <-time.After(jitteryBackoffDuration):
+	case <-timer.C:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

@@ -272,9 +272,12 @@ func closePoolWithTimeout(pool *MRDPool, caller string, timeout time.Duration) {
 			pool.Close()
 		}()
 
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+
 		select {
 		case <-done:
-		case <-time.After(timeout):
+		case <-timer.C:
 			var objectName string
 			if pool.poolConfig != nil && pool.poolConfig.object != nil {
 				objectName = pool.poolConfig.object.Name
