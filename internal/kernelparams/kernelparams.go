@@ -219,9 +219,11 @@ func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
 
 	currentLimit, err := readMaxPagesLimitFunc()
 	if err != nil {
-		// If reading the current limit fails, log a warning and fallback to applying the requested limit.
-		logger.Warnf("Failed to read current host max_pages_limit: %v. Falling back to applying requested limit: %d", err, limit)
-		m.addParam(MaxPagesLimit, strconv.Itoa(limit))
+		// Since max_pages_limit is a shared node-level setting on GKE, we must only
+		// increase it. If we fail to read the current limit, we cannot safely verify
+		// if the requested limit is higher. To prevent lowering the shared node-level
+		// limit or causing mount errors, we log a warning and skip configuring it.
+		logger.Warnf("Failed to read current host max_pages_limit: %v. Skipping max_pages_limit configuration to avoid potentially lowering the shared node-level limit.", err)
 		return
 	}
 
