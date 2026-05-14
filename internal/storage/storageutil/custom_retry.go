@@ -26,6 +26,25 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// IsRetryable checks if the error is transient and should be retried.
+// This method is same as ShouldRetry except it doesn't add logs.
+func IsRetryable(err error) bool {
+	if storage.ShouldRetry(err) {
+		return true
+	}
+	if typed, ok := err.(*googleapi.Error); ok {
+		if typed.Code == 401 {
+			return true
+		}
+	}
+	if status, ok := status.FromError(err); ok {
+		if status.Code() == codes.Unauthenticated {
+			return true
+		}
+	}
+	return false
+}
+
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {

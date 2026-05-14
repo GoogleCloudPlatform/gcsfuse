@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/auth/oauth2adapt"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
@@ -54,7 +55,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		return d, err
 	}
 
-	domain, err := ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall, logger.LevelInfo)
+	domain, err := ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, logger.LevelInfo)
 	if err != nil {
 		logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)
 		// Setting default universe domain to googleapis.com in case we are unable to fetch the domain.

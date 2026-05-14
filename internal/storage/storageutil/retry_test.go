@@ -264,7 +264,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_SuccessOnFirstAttempt()
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.NoError(t.T(), err)
@@ -285,7 +285,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_SuccessAfterRetry() {
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.NoError(t.T(), err)
@@ -303,7 +303,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_FailureOnNonRetryableEr
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, nonRetryableErr)
@@ -325,7 +325,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RetryableThenNonRetryab
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, nonRetryableErr)
@@ -351,7 +351,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	}
 
 	// Act
-	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "Expected context.DeadlineExceeded because each attempt is designed to "+
@@ -371,7 +371,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 	}
 
 	// Act
-	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the total retry budget timeout")
@@ -402,7 +402,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutSho
 	// The parent context will be checked within ExecuteWithRetry before the first attempt,
 	// but the attempt will still proceed. The attempt's context will expire
 	// due to the parent's timeout.
-	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the parent context's timeout")
@@ -429,7 +429,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBet
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the parent context's timeout")
@@ -452,7 +452,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutLon
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from context created in ExecuteWithRetry")
@@ -470,7 +470,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCan
 	}
 
 	// Act
-	_, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+	_, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.Canceled)
@@ -488,15 +488,16 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_MaxAttemptsReached() {
 	}
 
 	// Act
-	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
 	assert.Error(t.T(), err)
-	assert.Contains(t.T(), err.Error(), "failed after 2 attempts")
+	assert.Contains(t.T(), err.Error(), "failed after reaching max attempts (2)")
+	assert.Contains(t.T(), err.Error(), "[request_id=test-request-id]")
 	assert.Equal(t.T(), 2, callCount, "apiCall should have been called exactly 2 times")
 }
 
-func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_SuccessWithCustomPredicate() {
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomRetry_SuccessWithCustomPredicate() {
 	// Arrange
 	var callCount int
 	customErr := errors.New("my custom transient error")
@@ -507,12 +508,12 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_SuccessWith
 		}
 		return "success", nil
 	}
-	customShouldRetry := func(err error) bool {
+	customIsRetryable := func(err error) bool {
 		return errors.Is(err, customErr)
 	}
 
 	// Act
-	result, err := ExecuteWithCustomShouldRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, customShouldRetry)
+	result, err := ExecuteWithCustomRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall, customIsRetryable)
 
 	// Assert
 	assert.NoError(t.T(), err)
@@ -520,7 +521,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_SuccessWith
 	assert.Equal(t.T(), 2, callCount)
 }
 
-func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_FailWithCustomPredicate() {
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomRetry_FailWithCustomPredicate() {
 	// Arrange
 	var callCount int
 	defaultRetryableErr := status.Error(codes.Unavailable, "server unavailable")
@@ -529,12 +530,12 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_FailWithCus
 		return "", defaultRetryableErr
 	}
 	// A custom predicate that rejects everything (returns false)
-	customShouldRetry := func(err error) bool {
+	customIsRetryable := func(err error) bool {
 		return false
 	}
 
 	// Act
-	result, err := ExecuteWithCustomShouldRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, customShouldRetry)
+	result, err := ExecuteWithCustomRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall, customIsRetryable)
 
 	// Assert
 	assert.ErrorIs(t.T(), err, defaultRetryableErr)
@@ -542,7 +543,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_FailWithCus
 	assert.Equal(t.T(), 1, callCount)
 }
 
-func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_CompositionWithDefault() {
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomRetry_CompositionWithDefault() {
 	// Arrange
 	var callCount int
 	customErr := errors.New("my custom transient error")
@@ -558,12 +559,12 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_Composition
 		return "success", nil
 	}
 	// Wrap default ShouldRetry and also allow customErr
-	customShouldRetry := func(err error) bool {
+	customIsRetryable := func(err error) bool {
 		return ShouldRetry(err) || errors.Is(err, customErr)
 	}
 
 	// Act
-	result, err := ExecuteWithCustomShouldRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, customShouldRetry)
+	result, err := ExecuteWithCustomRetry(context.Background(), t.retryConfig, "testOp", "testReq", "test-request-id", apiCall, customIsRetryable)
 
 	// Assert
 	assert.NoError(t.T(), err)
