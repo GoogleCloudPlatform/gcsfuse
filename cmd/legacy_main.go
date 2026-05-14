@@ -543,6 +543,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			kernelparams.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
 			kernelparams.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
 			kernelparams.SetMaxBackgroundRequests(int(newConfig.FileSystem.MaxBackground))
+			kernelparams.SetMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit))
 			kernelparams.ApplyNonGKE(mountPoint)
 		}
 	}

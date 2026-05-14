@@ -154,6 +154,19 @@ type ServerConfig struct {
 	Notifier *fuse.Notifier
 }
 
+// Would be called only when kernel reader was not explicitly enabled by user.
+func shouldEnableKernelReaderForNonRapidBuckets(serverCfg *ServerConfig, bucketType gcs.BucketType) bool {
+	if bucketType.IsRapid() {
+		return false
+	}
+
+	// Do not enable if file cache or buffered read are enabled explicitly by user
+	// or if kernel does not support increasing max pages limit beyond 1MiB.
+	isFileCacheSet := serverCfg.ViperConfig.IsSet("cache-dir")
+	isBufferedReadSet := serverCfg.ViperConfig.IsSet("read.enable-buffered-read")
+	return serverCfg.NewConfig.Profile == "aiml-serving" && !isFileCacheSet && !isBufferedReadSet && kernelparams.SupportsFuseMaxPagesLimit()
+}
+
 // Create a fuse file system server according to the supplied configuration.
 func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
@@ -278,17 +291,70 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
 				}
 			}
+
+			// Manual handling for enable-kernel-reader as requested by user.
+			if !serverCfg.NewConfig.DisableAutoconfig &&
+				!serverCfg.ViperConfig.IsSet("file-system.enable-kernel-reader") &&
+				shouldEnableKernelReaderForNonRapidBuckets(serverCfg, bucketType) {
+				if _, optimized := optimizedFlags["file-system.enable-kernel-reader"]; !optimized {
+					serverCfg.NewConfig.FileSystem.EnableKernelReader = true
+					if optimizedFlags == nil {
+						optimizedFlags = make(map[string]cfg.OptimizationResult)
+					}
+					optimizedFlags["file-system.enable-kernel-reader"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: true,
+					}
+					logger.Info("GCSFuse Config: Automatically enabled enable-kernel-reader for aiml-serving profile on flat/hns bucket.")
+				}
+			}
+
+			// Apply kernel reader specific optimizations for non-rapid buckets if kernel reader is enabled and they are not overridden.
+			if !serverCfg.NewConfig.DisableAutoconfig && !bucketType.IsRapid() && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+				if optimizedFlags == nil {
+					optimizedFlags = make(map[string]cfg.OptimizationResult)
+				}
+				if !serverCfg.ViperConfig.IsSet("file-system.max-read-ahead-kb") && !optimizedFlags["file-system.max-read-ahead-kb"].Optimized {
+					serverCfg.NewConfig.FileSystem.MaxReadAheadKb = 131072
+					optimizedFlags["file-system.max-read-ahead-kb"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(131072),
+					}
+				}
+				if !serverCfg.ViperConfig.IsSet("file-system.max-background") && !optimizedFlags["file-system.max-background"].Optimized {
+					serverCfg.NewConfig.FileSystem.MaxBackground = int64(cfg.DefaultMaxBackgroundForRegional())
+					optimizedFlags["file-system.max-background"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(cfg.DefaultMaxBackgroundForRegional()),
+					}
+				}
+				if !serverCfg.ViperConfig.IsSet("file-system.congestion-threshold") && !optimizedFlags["file-system.congestion-threshold"].Optimized {
+					serverCfg.NewConfig.FileSystem.CongestionThreshold = int64(cfg.DefaultCongestionThresholdForRegional())
+					optimizedFlags["file-system.congestion-threshold"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(cfg.DefaultCongestionThresholdForRegional()),
+					}
+				}
+				if !serverCfg.ViperConfig.IsSet("file-system.fuse-max-pages-limit") && !optimizedFlags["file-system.fuse-max-pages-limit"].Optimized {
+					serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit = 16 * gcsx.MiB / int64(os.Getpagesize())
+					optimizedFlags["file-system.fuse-max-pages-limit"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit),
+					}
+				}
+			}
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
 		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
 		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
-		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && serverCfg.NewConfig.FileSystem.EnableKernelReader {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
 			kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
+			kernelParams.SetMaxPagesLimit(int(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit))
 			kernelParams.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
 		}
 		root = makeRootForBucket(fs, syncerBucket)
