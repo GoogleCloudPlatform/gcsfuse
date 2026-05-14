@@ -191,6 +191,11 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
+	if newConfig.FileSystem.FuseMaxPagesLimit != 0 {
+		// Todo: Set MaxMessageSize to this value
+		// mountCfg.MaxMessageSize = newConfig.FileSystem.FuseMaxPagesLimit * os.Getpagesize()
+	}
+
 	if newConfig.Logging.WireLog != "" {
 		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
 		if err == nil {

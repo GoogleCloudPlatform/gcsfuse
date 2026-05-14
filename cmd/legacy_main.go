@@ -481,6 +481,13 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		logger.Warnf("Failed to setup cloud profiler: %v", err)
 	}
 
+	// Apply pre mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
+	if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
+		kernelparams := kernelparams.NewKernelParamsManager()
+		kernelparams.SetMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit))
+		kernelparams.ApplyNonGKE(mountPoint)
+	}
+
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
@@ -543,7 +550,6 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			kernelparams.SetReadAheadKb(int(newConfig.FileSystem.MaxReadAheadKb))
 			kernelparams.SetCongestionWindowThreshold(int(newConfig.FileSystem.CongestionThreshold))
 			kernelparams.SetMaxBackgroundRequests(int(newConfig.FileSystem.MaxBackground))
-			kernelparams.SetMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit))
 			kernelparams.ApplyNonGKE(mountPoint)
 		}
 	}
