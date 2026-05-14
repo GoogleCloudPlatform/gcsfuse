@@ -743,23 +743,25 @@ params:
     flag-name: "max-retry-attempts"
     type: "int"
     usage: >-
-      It sets a limit on the number of times an operation will be retried if it
-      fails, preventing endless retry loops. A value of 0 indicates no limit.
+      It sets a limit on the total number of attempts (including the initial call) made for an operation if it fails,
+      preventing endless retry loops. For example, a value of 5 means up to 5 total attempts (1 initial call plus 4 retries).
+      A value of 0 indicates unlimited attempts.
     default: "0"
 
   - config-path: "gcs-retries.max-retry-sleep"
     flag-name: "max-retry-sleep"
     type: "duration"
     usage: >-
-      The maximum duration allowed to sleep in a retry loop with exponential
-      backoff for failed requests to GCS backend. Once the backoff duration
-      exceeds this limit, the retry continues with this specified maximum value.
+      The maximum backoff sleep duration allowed between retry attempts.
+      Once the exponential backoff exceeds this limit, subsequent retries will use this constant sleep value.
     default: "30s"
 
   - config-path: "gcs-retries.multiplier"
     flag-name: "retry-multiplier"
     type: "float64"
-    usage: Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.
+    usage: >-
+      The multiplier factor by which the retry backoff duration increases after each failed attempt.
+      For example, a multiplier of 2.0 doubles the backoff sleep duration for each subsequent retry.
     default: 2
 
   - config-path: "gcs-retries.read-stall.enable"

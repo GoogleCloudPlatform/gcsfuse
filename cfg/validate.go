@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/spf13/viper"
@@ -369,6 +370,24 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 		return fmt.Errorf("error parsing chunk-transfer-timeout-secs config: %w", err)
 	}
 
+	if v.IsSet("gcs-retries.max-retry-attempts") {
+		if err = isValidMaxRetryAttempts(config.GcsRetries.MaxRetryAttempts); err != nil {
+			return fmt.Errorf("error parsing max-retry-attempts config: %w", err)
+		}
+	}
+
+	if v.IsSet("gcs-retries.multiplier") {
+		if err = isValidMultiplier(config.GcsRetries.Multiplier); err != nil {
+			return fmt.Errorf("error parsing retry-multiplier config: %w", err)
+		}
+	}
+
+	if v.IsSet("gcs-retries.max-retry-sleep") {
+		if err = isValidMaxRetrySleep(config.GcsRetries.MaxRetrySleep); err != nil {
+			return fmt.Errorf("error parsing max-retry-sleep config: %w", err)
+		}
+	}
+
 	if err = isValidMetricsConfig(&config.Metrics); err != nil {
 		return fmt.Errorf("error parsing metrics config: %w", err)
 	}
@@ -393,5 +412,29 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 		return fmt.Errorf("error parsing optimize profile config: %w", err)
 	}
 
+	return nil
+}
+
+func isValidMaxRetryAttempts(maxRetryAttempts int64) error {
+	if maxRetryAttempts < 0 {
+		return fmt.Errorf("invalid value for max-retry-attempts: %d; should be >= 0 (0 for unlimited)", maxRetryAttempts)
+	}
+	if maxRetryAttempts > math.MaxInt {
+		return fmt.Errorf("invalid value for max-retry-attempts: %d; exceeds maximum supported value (%d)", maxRetryAttempts, math.MaxInt)
+	}
+	return nil
+}
+
+func isValidMultiplier(multiplier float64) error {
+	if multiplier < 1.0 {
+		return fmt.Errorf("invalid value for retry-multiplier: %f; should be >= 1.0", multiplier)
+	}
+	return nil
+}
+
+func isValidMaxRetrySleep(maxRetrySleep time.Duration) error {
+	if maxRetrySleep < 0 {
+		return fmt.Errorf("invalid value for max-retry-sleep: %v; should be >= 0", maxRetrySleep)
+	}
 	return nil
 }
