@@ -71,6 +71,10 @@ func TestMain(m *testing.M) {
 	}
 
 	testEnv.ctx = context.Background()
+	if !creds_tests.IsWhitelistedGcpProject(testEnv.ctx) {
+		log.Printf("Skipping readonly_creds tests because the active GCP project is not whitelisted.")
+		os.Exit(0)
+	}
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.ReadonlyCreds[0])
 	testEnv.cfg = &cfg.ReadonlyCreds[0]
 

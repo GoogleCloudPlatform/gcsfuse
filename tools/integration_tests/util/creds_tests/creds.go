@@ -41,6 +41,19 @@ const CredentialsSecretName = "gcsfuse-integration-tests"
 
 var WhitelistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
 
+// IsWhitelistedGcpProject checks if the active GCP project is one of the WhitelistedGcpProjects.
+func IsWhitelistedGcpProject(ctx context.Context) bool {
+	id, err := metadata.ProjectIDWithContext(ctx)
+	if err != nil {
+		log.Printf("Metadata project ID not available: %v", err)
+		return false
+	}
+	if strings.Contains(id, "cloudtop") {
+		id = WhitelistedGcpProjects[0]
+	}
+	return slices.Contains(WhitelistedGcpProjects, id)
+}
+
 func projectID(ctx context.Context) string {
 	// Fetching project-id to get service account id.
 	id, err := metadata.ProjectIDWithContext(ctx)
@@ -161,6 +174,10 @@ func RevokeCustomRoleFromServiceAccountOnBucket(ctx context.Context, storageClie
 }
 
 func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
+	if !IsWhitelistedGcpProject(ctx) {
+		log.Printf("Skipping credentials tests because the active GCP project is not whitelisted.")
+		return 0
+	}
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
 	defer func() {
 		if err := os.Remove(localKeyFilePath); err != nil {
