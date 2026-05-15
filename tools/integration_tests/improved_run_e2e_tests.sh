@@ -23,6 +23,7 @@ usage() {
   echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
   echo "    --install-package-from-path   <path>         Google Cloud Storage bucket path for GCSFuse package for testing (e.g. gs://<bucket-name>/my-gcsfuse-package.rpm)"
   echo "                                                 This option is mutually exclusive with --test-installed-package. (Default: "")"
+  echo "    --use-common-config                          Run test packages with the common config being used for GKE/GCSFuse test packages. (Default: true)"
   echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
   echo "    --test-on-tpc-endpoint                       Run tests on TPC endpoint. (Default: false)"
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
@@ -126,6 +127,7 @@ fi
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 TEST_INSTALLED_PACKAGE=false
 BUCKET_LOCATION=""
+USE_COMMON_CONFIG=true
 PROJECT_ID=""
 INSTALL_PACKAGE_FROM_PATH=""
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -140,7 +142,7 @@ FLAKE_ATTEMPTS=1
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,use-common-config,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -175,6 +177,10 @@ while (( $# >= 1 )); do
         --install-package-from-path)
             INSTALL_PACKAGE_FROM_PATH="$2"
             shift 2
+            ;;
+        --use-common-config)
+            USE_COMMON_CONFIG=true
+            shift
             ;;
         --skip-non-essential-tests)
             SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
@@ -722,15 +728,29 @@ test_package() {
   local attempt_number="$4"
 
   # Build go package test command.
-  local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
-  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
-    go_test_cmd_parts+=("-short")
+  local go_test_cmd_parts=()
+
+  if ${USE_COMMON_CONFIG}; then
+    go_test_cmd_parts+=("BUCKET_NAME=${bucket_name}")
   fi
+  go_test_cmd_parts+=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
   if [[ "$package_name" == "benchmarking" ]]; then
     go_test_cmd_parts+=("-bench=." "-benchtime=100x")
   fi
+  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
+    go_test_cmd_parts+=("-short")
+  fi
   # Test Binary flags after this.
-  go_test_cmd_parts+=("-args" "--integrationTest" "--testbucket=${bucket_name}")
+  go_test_cmd_parts+=("-args" "--integrationTest")
+
+  if ${USE_COMMON_CONFIG}; then
+    local config_file_path
+    config_file_path=$(realpath "${INTEGRATION_TEST_PACKAGE_DIR}/test_config.yaml")
+    go_test_cmd_parts+=("--config-file=${config_file_path}")
+  else
+    go_test_cmd_parts+=("--testbucket=${bucket_name}")
+  fi
+
   if ${TEST_INSTALLED_PACKAGE}; then
     go_test_cmd_parts+=("--testInstalledPackage")
   fi
@@ -754,6 +774,7 @@ test_package() {
   test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt_number}.txt")
   # Run the package test command and capture log output with runtime stats.
   log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt: $attempt_number)"
+  log_info "Test Command: $go_test_cmd"
 
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
