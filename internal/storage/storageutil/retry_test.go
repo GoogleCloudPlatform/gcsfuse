@@ -495,3 +495,78 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_MaxAttemptsReached() {
 	assert.Contains(t.T(), err.Error(), "failed after 2 attempts")
 	assert.Equal(t.T(), 2, callCount, "apiCall should have been called exactly 2 times")
 }
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_SuccessWithCustomPredicate() {
+	// Arrange
+	var callCount int
+	customErr := errors.New("my custom transient error")
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		if callCount == 1 {
+			return "", customErr
+		}
+		return "success", nil
+	}
+	customShouldRetry := func(err error) bool {
+		return errors.Is(err, customErr)
+	}
+
+	// Act
+	result, err := ExecuteWithCustomShouldRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, customShouldRetry)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "success", result)
+	assert.Equal(t.T(), 2, callCount)
+}
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_FailWithCustomPredicate() {
+	// Arrange
+	var callCount int
+	defaultRetryableErr := status.Error(codes.Unavailable, "server unavailable")
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		return "", defaultRetryableErr
+	}
+	// A custom predicate that rejects everything (returns false)
+	customShouldRetry := func(err error) bool {
+		return false
+	}
+
+	// Act
+	result, err := ExecuteWithCustomShouldRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, customShouldRetry)
+
+	// Assert
+	assert.ErrorIs(t.T(), err, defaultRetryableErr)
+	assert.Empty(t.T(), result)
+	assert.Equal(t.T(), 1, callCount)
+}
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_CompositionWithDefault() {
+	// Arrange
+	var callCount int
+	customErr := errors.New("my custom transient error")
+	defaultRetryableErr := status.Error(codes.Unavailable, "server unavailable")
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		if callCount == 1 {
+			return "", defaultRetryableErr
+		}
+		if callCount == 2 {
+			return "", customErr
+		}
+		return "success", nil
+	}
+	// Wrap default ShouldRetry and also allow customErr
+	customShouldRetry := func(err error) bool {
+		return ShouldRetry(err) || errors.Is(err, customErr)
+	}
+
+	// Act
+	result, err := ExecuteWithCustomShouldRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, customShouldRetry)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "success", result)
+	assert.Equal(t.T(), 3, callCount)
+}
