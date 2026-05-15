@@ -218,7 +218,11 @@ func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
 	}
 
 	currentLimit, err := readMaxPagesLimitFunc()
+	currentLimit, err := readMaxPagesLimitFunc()
 	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
 		// Since max_pages_limit is a shared node-level setting on GKE, we must only
 		// increase it. If we fail to read the current limit, we cannot safely verify
 		// if the requested limit is higher. To prevent lowering the shared node-level
