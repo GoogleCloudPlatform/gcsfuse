@@ -59,7 +59,6 @@ if [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_read" ]; then
   
   if [ -d "$TOOLS_DIR" ]; then
     echo "Running Distributed READ Micro-Benchmark from gcsfuse-tools..."
-
     START_TIME=$SECONDS
     "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" --read || PERF_BENCHMARKS_FAILED=1
     print_duration "Distributed READ Benchmark" "$START_TIME"
@@ -74,9 +73,9 @@ if [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_read" ]; then
   fi
 
 # =================================================================
-# 2) DISTRIBUTED WRITE BENCHMARK + LOCAL PERF TESTS
+# 2) DISTRIBUTED WRITE BENCHMARK
 # =================================================================
-elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ]; then
+elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write" ]; then
   TOOLS_DIR="${KOKORO_ARTIFACTS_DIR}/github/gcsfuse-tools"
   PERF_BENCHMARKS_FAILED=0
   
@@ -89,7 +88,16 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
     echo "ERROR: gcsfuse-tools directory not found!"
     PERF_BENCHMARKS_FAILED=1
   fi
-  
+
+  if [ $PERF_BENCHMARKS_FAILED -ne 0 ]; then
+    echo "Distributed WRITE benchmarks have failed."
+    exit 1
+  fi
+
+# =================================================================
+# 3) LOCAL PERFORMANCE TESTS
+# =================================================================
+elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
   # --- Execute local performance tests ---
   echo "Building and installing gcsfuse..."
   BUILD_START=$SECONDS
@@ -179,13 +187,8 @@ elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_write_and_local_tests" ];
   
   print_duration "Rename Benchmark" "$RENAME_START"
 
-  if [ $PERF_BENCHMARKS_FAILED -ne 0 ]; then
-    echo "Distributed WRITE benchmarks have failed."
-    exit 1
-  fi
-
 # =================================================================
-# 3) ZONAL PERFORMANCE TESTS
+# 4) ZONAL PERFORMANCE TESTS
 # =================================================================
 elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_zonal" ]; then
   echo "Running Zonal Performance Tests..."
