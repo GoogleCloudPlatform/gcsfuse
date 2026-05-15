@@ -218,7 +218,6 @@ func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
 	}
 
 	currentLimit, err := readMaxPagesLimitFunc()
-	currentLimit, err := readMaxPagesLimitFunc()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return
