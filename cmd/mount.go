@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -151,6 +152,12 @@ be interacting with the file system.`)
 	logger.Infof("Mounting file system %q...", fsName)
 
 	mountCfg := getFuseMountConfig(fsName, newConfig)
+	// Apply pre mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
+	if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
+		kernelparams := kernelparams.NewKernelParamsManager()
+		kernelparams.SetMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit))
+		kernelparams.ApplyNonGKE(mountPoint)
+	}
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("mount: %w", err)
@@ -190,6 +197,12 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 	logger.Infof("EnableKernelReader is %v while creating mountConfig", newConfig.FileSystem.EnableKernelReader)
+
+	// Set the max message size if the user has configured a limit on FUSE pages.
+	// This is page_size * fuse-max-pages-limit.
+	if newConfig.FileSystem.FuseMaxPagesLimit > 0 {
+		mountCfg.MaxMessageSize = uint32(os.Getpagesize() * int(newConfig.FileSystem.FuseMaxPagesLimit))
+	}
 
 	if newConfig.Logging.WireLog != "" {
 		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
