@@ -99,10 +99,10 @@ func TestMain(m *testing.M) {
 
 	// When not running in GKE environment.
 	if cfg.RequesterPaysBucket[0].GKEMountedDirectory == "" {
-		// Replace ${BILLING_PROJECT} placeholder in flags with the default billing project.
+		// Replace --billing-project= placeholder in flags with the default billing project.
 		for i := range cfg.RequesterPaysBucket[0].Configs {
-			for j := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
-				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(cfg.RequesterPaysBucket[0].Configs[i].Flags[j], "${BILLING_PROJECT}", targetBillingProject)
+			for j, flag := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
+				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = setup.ReplaceOrAppendFlag(flag, "${BILLING_PROJECT}", "--billing-project=", targetBillingProject)
 			}
 		}
 		// Setup service account credentials for requester-pays testing.
@@ -114,8 +114,8 @@ func TestMain(m *testing.M) {
 		}()
 		setup.SetKeyFile(localKeyFilePath)
 		for i := range cfg.RequesterPaysBucket[0].Configs {
-			for j := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
-				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = strings.ReplaceAll(cfg.RequesterPaysBucket[0].Configs[i].Flags[j], "${KEY_FILE}", localKeyFilePath)
+			for j, flag := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
+				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = setup.ReplaceOrAppendFlag(flag, "${KEY_FILE}", "--key-file=", localKeyFilePath)
 			}
 		}
 	}

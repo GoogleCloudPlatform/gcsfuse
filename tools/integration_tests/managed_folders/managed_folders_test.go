@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -115,8 +114,9 @@ func TestMain(m *testing.M) {
 	}()
 
 	for i, testCase := range cfg.ManagedFolders[0].Configs {
-		// Replace the placeholder with the actual key file path.
-		cfg.ManagedFolders[0].Configs[i].Flags[0] = strings.ReplaceAll(testCase.Flags[0], "${KEY_FILE}", testEnv.localKeyFilePath)
+		for j, flag := range testCase.Flags {
+			cfg.ManagedFolders[0].Configs[i].Flags[j] = setup.ReplaceOrAppendFlag(flag, "${KEY_FILE}", "--key-file=", testEnv.localKeyFilePath)
+		}
 	}
 
 	// 3. these tests won't run with mountedDirectory.

@@ -24,7 +24,6 @@ import (
 	"math"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -96,8 +95,13 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testVersionFlag + testServiceNameFlag
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	} else if cfg.CloudProfiler[0].GKEMountedDirectory == "" {
-		cfg.CloudProfiler[0].Configs[0].Flags[0] = strings.ReplaceAll(cfg.CloudProfiler[0].Configs[0].Flags[0], "--cloud-profiler-label=", fmt.Sprintf("--cloud-profiler-label=%s", testVersionName))
-		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + fmt.Sprintf(" --cloud-profiler-service-name=%s", testServiceName)
+		if len(cfg.CloudProfiler[0].Configs[0].Flags) != 1 {
+			log.Fatalf("Expected exactly 1 config flag, got %d", len(cfg.CloudProfiler[0].Configs[0].Flags))
+		}
+		// If more flags are added in the future, different testVersionName and testServiceName will need to be generated for each flag set.
+		flag := cfg.CloudProfiler[0].Configs[0].Flags[0]
+		flag = setup.ReplaceOrAppendFlag(flag, "${PROFILE_LABEL}", "--cloud-profiler-label=", testVersionName)
+		cfg.CloudProfiler[0].Configs[0].Flags[0] = setup.ReplaceOrAppendFlag(flag, "${PROFILE_SERVICE_NAME}", "--cloud-profiler-service-name=", testServiceName)
 	}
 
 	ctx = context.Background()

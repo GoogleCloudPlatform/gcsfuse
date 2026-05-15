@@ -198,10 +198,12 @@ func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondary
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
 			for i, flagStr := range cfg.Flags {
+				flagStr = strings.ReplaceAll(flagStr, ",", " ")
 				primaryFlags := strings.Fields(flagStr)
 				var secondaryFlags []string
 				if len(cfg.SecondaryFlags) > i {
-					secondaryFlags = strings.Fields(cfg.SecondaryFlags[i])
+					secFlagStr := strings.ReplaceAll(cfg.SecondaryFlags[i], ",", " ")
+					secondaryFlags = strings.Fields(secFlagStr)
 				}
 				suite.Run(t, factory(primaryFlags, secondaryFlags))
 			}
