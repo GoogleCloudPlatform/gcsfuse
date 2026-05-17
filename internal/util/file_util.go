@@ -60,6 +60,11 @@ func (om OpenMode) IsAppend() bool {
 	return om.accessMode != ReadOnly && om.fileFlags&O_APPEND != 0
 }
 
+// IsWrite returns true if the file was opened for writing.
+func (om OpenMode) IsWrite() bool {
+	return om.accessMode != ReadOnly
+}
+
 // IsDirect checks if the O_DIRECT flag is set, indicating that I/O should
 // bypass the kernel's page cache.
 func (om OpenMode) IsDirect() bool {

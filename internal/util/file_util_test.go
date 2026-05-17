@@ -15,6 +15,7 @@
 package util
 
 import (
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -102,6 +103,45 @@ func TestFileOpenMode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mode := FileOpenMode(tc.flags)
 			assert.Equal(t, tc.expectedMode, mode)
+		})
+	}
+}
+
+func TestIsWrite(t *testing.T) {
+	testCases := []struct {
+		name     string
+		openMode OpenMode
+		expected bool
+	}{
+		{
+			name:     "Read only",
+			openMode: NewOpenMode(ReadOnly, 0),
+			expected: false,
+		},
+		{
+			name:     "Write only",
+			openMode: NewOpenMode(WriteOnly, 0),
+			expected: true,
+		},
+		{
+			name:     "Read and write",
+			openMode: NewOpenMode(ReadWrite, 0),
+			expected: true,
+		},
+		{
+			name:     "Write only with append",
+			openMode: NewOpenMode(WriteOnly, syscall.O_APPEND),
+			expected: true,
+		},
+		{
+			name:     "Read and write with append",
+			openMode: NewOpenMode(ReadWrite, syscall.O_APPEND),
+			expected: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.openMode.IsWrite())
 		})
 	}
 }
