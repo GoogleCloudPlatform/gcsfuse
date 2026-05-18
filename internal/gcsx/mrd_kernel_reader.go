@@ -66,6 +66,15 @@ func isShortRead(bytesRead int, bufferSize int, err error) bool {
 	return false
 }
 
+// ReaderName returns the name of the reader.
+func (mkr *MrdKernelReader) ReaderName() string {
+	return "MrdKernelReader"
+}
+
+// CheckInvariants performs internal consistency checks on the reader state.
+func (mkr *MrdKernelReader) CheckInvariants() {
+}
+
 // ReadAt reads data into the provided request buffer starting at the specified
 // offset. It retrieves an available MRD entry and uses it to download the
 // requested byte range.
