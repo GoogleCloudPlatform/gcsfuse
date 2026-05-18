@@ -126,7 +126,7 @@ func (mi *MrdInstance) createAndSwapMRD(obj *gcs.MinObject) error {
 	mi.mrd = mrd
 	mi.object = obj
 
-	closeMRDWithTimeout(oldMrd, "MrdInstance::createAndSwapMRD", mrdPoolCloseTimeout)
+	closeMRDWithTimeout(oldMrd, "MrdInstance::createAndSwapMRD", obj.Name, mrdPoolCloseTimeout)
 	return nil
 }
 
@@ -276,12 +276,16 @@ func (mi *MrdInstance) closeMRD() {
 	defer mi.mrdMu.Unlock()
 	mrd := mi.mrd
 	mi.mrd = nil
-	closeMRDWithTimeout(mrd, "MrdInstance::closeMRD", mrdPoolCloseTimeout)
+	var objectName string
+	if mi.object != nil {
+		objectName = mi.object.Name
+	}
+	closeMRDWithTimeout(mrd, "MrdInstance::closeMRD", objectName, mrdPoolCloseTimeout)
 }
 
 // closeMRDWithTimeout closes the given MRD in a separate goroutine with a timeout.
 // If closing the MRD takes longer than the specified timeout, a warning is logged.
-func closeMRDWithTimeout(mrd gcs.MultiRangeDownloader, caller string, timeout time.Duration) {
+func closeMRDWithTimeout(mrd gcs.MultiRangeDownloader, caller string, objectName string, timeout time.Duration) {
 	if mrd == nil {
 		return
 	}
@@ -300,11 +304,7 @@ func closeMRDWithTimeout(mrd gcs.MultiRangeDownloader, caller string, timeout ti
 		select {
 		case <-done:
 		case <-timer.C:
-			var objectName string
-			if pool.poolConfig != nil && pool.poolConfig.object != nil {
-				objectName = pool.poolConfig.object.Name
-			}
-			logger.Warnf("%s: MRDPool.Close() timed out after %v for object %s", caller, timeout, objectName)
+			logger.Warnf("%s: MRD.Close() timed out after %v for object %s", caller, timeout, objectName)
 		}
 	}()
 }
