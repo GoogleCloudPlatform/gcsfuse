@@ -86,9 +86,6 @@ func (rkr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (Rea
 
 	n, err := io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
 	resp.Size = n
-	if err == io.ErrUnexpectedEOF || err == io.EOF || (err == nil && n < len(req.Buffer)) {
-		err = io.EOF
-	}
 
 	if rkr.metrics != nil {
 		metrics.CaptureGCSReadMetrics(rkr.metrics, metrics.ReadTypeParallelAttr, int64(n))
