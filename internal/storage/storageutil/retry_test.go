@@ -17,9 +17,11 @@ package storageutil
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -569,4 +571,37 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_Composition
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), "success", result)
 	assert.Equal(t.T(), 3, callCount)
+}
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_LogsErrorContext() {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+
+	var callCount int
+	retryableErr := errors.New("transient failure 429")
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		if callCount == 1 {
+			return "", retryableErr
+		}
+		return "success", nil
+	}
+
+	// We need a shouldRetry function that returns true for retryableErr.
+	customShouldRetry := func(err error) bool {
+		return err.Error() == "transient failure 429"
+	}
+
+	// Act
+	// Call ExecuteWithCustomShouldRetryAtLogLevel with LevelWarn, so we can capture the Retrying log
+	_, err := ExecuteWithCustomShouldRetryAtLogLevel(context.Background(), t.retryConfig, "testOp", "testReq", apiCall, customShouldRetry, logger.LevelWarn)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 2, callCount)
+	assert.Contains(t.T(), buf.String(), "Retrying testOp")
+	assert.Contains(t.T(), buf.String(), "testReq")
+	assert.Contains(t.T(), buf.String(), "transient failure 429")
 }
