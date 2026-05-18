@@ -59,10 +59,10 @@ func NewSyncer(
 		bucket: bucket,
 	}
 
-	// Zonal buckets do not currently support Compose, so we always write objects
-	// in their entirety.
+	// Rapid buckets do not currently support Compose,
+	// so we always write objects in their entirety.
 	var composeCreator objectCreator
-	if !bucket.BucketType().Zonal {
+	if !bucket.BucketType().RapidWritesEnabled() {
 		composeCreator = newComposeObjectCreator(
 			tmpObjectPrefix,
 			bucket)
