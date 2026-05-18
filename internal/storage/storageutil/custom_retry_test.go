@@ -227,3 +227,75 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldRetryWithoutLogging(t *testing.T) {
+	// 401
+	var err401 = googleapi.Error{
+		Code: 401,
+		Body: "Invalid Credential",
+	}
+	// gRPC UNAUTHENTICATED
+	var errUnauthenticated = status.Error(codes.Unauthenticated, "unauthenticated")
+	// 400 - bad request
+	var err400 = googleapi.Error{
+		Code: 400,
+	}
+
+	assert.True(t, ShouldRetryWithoutLogging(&err401))
+	assert.True(t, ShouldRetryWithoutLogging(errUnauthenticated))
+	assert.False(t, ShouldRetryWithoutLogging(&err400))
+}
+
+func TestDetermineRetryAction(t *testing.T) {
+	testCases := []struct {
+		name     string
+		err      error
+		expected retryAction
+	}{
+		{
+			name:     "NilError",
+			err:      nil,
+			expected: noRetry,
+		},
+		{
+			name:     "GoogleApiError400",
+			err:      &googleapi.Error{Code: 400},
+			expected: noRetry,
+		},
+		{
+			name:     "GoogleApiError401",
+			err:      &googleapi.Error{Code: 401},
+			expected: retry401,
+		},
+		{
+			name:     "GoogleApiError429",
+			err:      &googleapi.Error{Code: 429},
+			expected: retryTransient,
+		},
+		{
+			name:     "UnauthenticatedGrpcError",
+			err:      status.Error(codes.Unauthenticated, "unauthenticated"),
+			expected: retryUnauthenticated,
+		},
+		{
+			name:     "PermissionDeniedGrpcError",
+			err:      status.Error(codes.PermissionDenied, "permission denied"),
+			expected: noRetry,
+		},
+		{
+			name:     "UnexpectedEOF",
+			err:      io.ErrUnexpectedEOF,
+			expected: retryTransient,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			actual := determineRetryAction(tc.err)
+
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+

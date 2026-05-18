@@ -210,7 +210,7 @@ func ExecuteWithRetryAtLogLevel[T any](
 	apiCall func(attemptCtx context.Context) (T, error),
 	logLevel slog.Level, // Used to log the retry logs at the supplied log level
 ) (T, error) {
-	return ExecuteWithCustomRetryAtLogLevel(ctx, config, operationName, reqDescription, requestID, apiCall, IsRetryable, logLevel)
+	return ExecuteWithCustomRetryAtLogLevel(ctx, config, operationName, reqDescription, requestID, apiCall, ShouldRetryWithoutLogging, logLevel)
 }
 
 // ExecuteWithRetry retries a given operation, logging the initial call at trace level.
@@ -222,7 +222,7 @@ func ExecuteWithRetry[T any](
 	requestID string,
 	apiCall func(attemptCtx context.Context) (T, error),
 ) (T, error) {
-	return ExecuteWithCustomRetry(ctx, config, operationName, reqDescription, requestID, apiCall, IsRetryable)
+	return ExecuteWithCustomRetry(ctx, config, operationName, reqDescription, requestID, apiCall, ShouldRetryWithoutLogging)
 }
 
 

@@ -26,30 +26,23 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// IsRetryable checks if the error is transient and should be retried.
-// This method is same as ShouldRetry except it doesn't add logs.
-func IsRetryable(err error) bool {
-	if storage.ShouldRetry(err) {
-		return true
-	}
-	if typed, ok := err.(*googleapi.Error); ok {
-		if typed.Code == 401 {
-			return true
-		}
-	}
-	if status, ok := status.FromError(err); ok {
-		if status.Code() == codes.Unauthenticated {
-			return true
-		}
-	}
-	return false
-}
+// retryAction defines the classification of a retry decision.
+type retryAction int
 
-func ShouldRetry(err error) (b bool) {
-	b = storage.ShouldRetry(err)
-	if b {
-		logger.Warnf("Retrying for the error: %v", err)
-		return
+const (
+	// noRetry indicates the error is not retryable.
+	noRetry retryAction = iota
+	// retryTransient indicates the error is transient and retryable as per Go-SDK retry policy.
+	retryTransient
+	// retry401 indicates a 401 Unauthorized error which requires a retry due to credentials refresh.
+	retry401
+	// retryUnauthenticated indicates a gRPC Unauthenticated error which requires a retry.
+	retryUnauthenticated
+)
+
+func determineRetryAction(err error) retryAction {
+	if storage.ShouldRetry(err) {
+		return retryTransient
 	}
 
 	// HTTP 401 errors - Invalid Credentials
@@ -61,9 +54,7 @@ func ShouldRetry(err error) (b bool) {
 	// TODO: Please incorporate the correct fix post resolution of the above issue.
 	if typed, ok := err.(*googleapi.Error); ok {
 		if typed.Code == 401 {
-			b = true
-			logger.Warnf("Retrying for error-code 401: %v", err)
-			return
+			return retry401
 		}
 	}
 
@@ -72,12 +63,32 @@ func ShouldRetry(err error) (b bool) {
 	// TODO: Please incorporate the correct fix post resolution of the above issue.
 	if status, ok := status.FromError(err); ok {
 		if status.Code() == codes.Unauthenticated {
-			b = true
-			logger.Warnf("Retrying for UNAUTHENTICATED error: %v", err)
-			return
+			return retryUnauthenticated
 		}
 	}
-	return
+	return noRetry
+}
+
+// ShouldRetryWithoutLogging checks if the error is transient and should be retried.
+// This method is same as ShouldRetry except it doesn't add warning logs.
+func ShouldRetryWithoutLogging(err error) bool {
+	return determineRetryAction(err) != noRetry
+}
+
+func ShouldRetry(err error) bool {
+	switch determineRetryAction(err) {
+	case retryTransient:
+		logger.Warnf("Retrying for the error: %v", err)
+		return true
+	case retry401:
+		logger.Warnf("Retrying for error-code 401: %v", err)
+		return true
+	case retryUnauthenticated:
+		logger.Warnf("Retrying for UNAUTHENTICATED error: %v", err)
+		return true
+	default:
+		return false
+	}
 }
 
 func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metrics.MetricHandle) bool {
