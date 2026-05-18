@@ -103,24 +103,44 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterC
 	t.mockBucket.AssertCalled(t.T(), "CreateAppendableObjectWriter", mock.Anything, mock.Anything)
 }
 
-func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterCalledForPirlo() {
-	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
-	t.mockBucket.On("BucketType").Return(gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled})
-	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
+func (t *UploadHandlerTest) TestCreateObjectWriter_Pirlo() {
+	testCases := []struct {
+		name           string
+		pirloState     gcs.PirloState
+		expectedMethod string
+	}{
+		{
+			name:           "RapidWritesEnabled",
+			pirloState:     gcs.PirloStateRapidWritesEnabled,
+			expectedMethod: "CreateAppendableObjectWriter",
+		},
+		{
+			name:           "RapidWritesDisabled",
+			pirloState:     gcs.PirloStateRapidWritesDisabled,
+			expectedMethod: "CreateObjectChunkWriter",
+		},
+	}
 
-	_ = t.uh.createObjectWriter(context.Background())
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupSubTest()
+			t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
+			t.mockBucket.On("BucketType").Return(gcs.BucketType{Pirlo: tc.pirloState})
+			if tc.expectedMethod == "CreateAppendableObjectWriter" {
+				t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
+			} else {
+				t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
+			}
 
-	t.mockBucket.AssertCalled(t.T(), "CreateAppendableObjectWriter", mock.Anything, mock.Anything)
-}
+			_ = t.uh.createObjectWriter(context.Background())
 
-func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalledForPirloRapidDisabled() {
-	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
-	t.mockBucket.On("BucketType").Return(gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled})
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
-
-	_ = t.uh.createObjectWriter(context.Background())
-
-	t.mockBucket.AssertCalled(t.T(), "CreateObjectChunkWriter", mock.Anything, mock.Anything)
+			if tc.expectedMethod == "CreateAppendableObjectWriter" {
+				t.mockBucket.AssertCalled(t.T(), "CreateAppendableObjectWriter", mock.Anything, mock.Anything)
+			} else {
+				t.mockBucket.AssertCalled(t.T(), "CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			}
+		})
+	}
 }
 
 func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled() {
