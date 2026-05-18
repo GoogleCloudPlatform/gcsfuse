@@ -17,6 +17,7 @@ package gcsx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -34,12 +36,12 @@ import (
 
 const mrdPoolCloseTimeout = 120 * time.Second
 
-// MrdInstance manages a pool of Multi-Range Downloader (MRD) instances for a
-// single file inode. It handles the lifecycle of the MRD pool, including
+// MrdInstance manages a Multi-Range Downloader (MRD) instance for a
+// single file inode. It handles the lifecycle of the MRD, including
 // creation, destruction, and caching.
 type MrdInstance struct {
-	// mrdPool holds the pool of MultiRangeDownloader instances.
-	mrdPool *MRDPool
+	// mrd holds the MultiRangeDownloader instance.
+	mrd gcs.MultiRangeDownloader
 	// inodeId is the ID of the file inode associated with this instance.
 	inodeId fuseops.InodeID
 	// object is the GCS object for which the downloaders are created.
@@ -50,8 +52,8 @@ type MrdInstance struct {
 	refCount int64
 	// refCountMu protects access to refCount.
 	refCountMu sync.Mutex
-	// poolMu protects access to mrdPool.
-	poolMu sync.RWMutex
+	// mrdMu protects access to mrd.
+	mrdMu sync.RWMutex
 	// mrdCache is a shared cache for inactive MrdInstance objects.
 	mrdCache *lru.Cache
 	// holds config specified by the user using config-file flag and CLI flags.
@@ -71,118 +73,121 @@ func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, ino
 }
 
 // SetMinObject sets the gcs.MinObject stored in the MrdInstance to passed value, only if it's non nil.
-// If the generation of the object has changed, it recreates the MRD pool to ensure consistency.
+// If the generation of the object has changed, it recreates the MRD to ensure consistency.
 func (mi *MrdInstance) SetMinObject(minObj *gcs.MinObject) error {
 	if minObj == nil {
 		return fmt.Errorf("MrdInstance::SetMinObject: Missing MinObject")
 	}
 
-	mi.poolMu.Lock()
-	defer mi.poolMu.Unlock()
+	mi.mrdMu.Lock()
+	defer mi.mrdMu.Unlock()
 
 	oldObj := mi.object
-	// No need to create a new pool if the pool does not exist.
+	// No need to create a new MRD if it does not exist.
 	// If generation matches, just update the object (e.g. for size updates) and return.
-	if mi.mrdPool == nil || (oldObj != nil && oldObj.Generation == minObj.Generation) {
+	if mi.mrd == nil || (oldObj != nil && oldObj.Generation == minObj.Generation) {
 		mi.object = minObj
 		return nil
 	}
 
-	// Generations differ, need to create and swap a new pool.
-	if err := mi.createAndSwapPool(minObj); err != nil {
-		return fmt.Errorf("MrdInstance::SetMinObject: failed to create and swap pool: %w", err)
+	// Generations differ, need to create and swap a new MRD.
+	if err := mi.createAndSwapMRD(minObj); err != nil {
+		return fmt.Errorf("MrdInstance::SetMinObject: failed to create and swap MRD: %w", err)
 	}
 
 	return nil
 }
 
-// createAndSwapPool creates a new MRD pool and swaps it with the existing one.
-// It also updates the minObject with the passed object & closes the old pool.
-// LOCKS_REQUIRED(mi.poolMu).
-func (mi *MrdInstance) createAndSwapPool(obj *gcs.MinObject) error {
-	newPool, err := NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.config.Mrd.PoolSize), object: obj, bucket: mi.bucket}, nil)
+// createAndSwapMRD creates a new MRD and swaps it with the existing one.
+// It also updates the minObject with the passed object & closes the old MRD.
+// LOCKS_REQUIRED(mi.mrdMu).
+func (mi *MrdInstance) createAndSwapMRD(obj *gcs.MinObject) error {
+	mrd, err := mi.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+		Name:                obj.Name,
+		Generation:          obj.Generation,
+		ReadCompressed:      obj.HasContentEncodingGzip(),
+		MinConnections:      int(mi.config.Mrd.MinConnections),
+		MaxConnections:      int(mi.config.Mrd.MaxConnections),
+		TargetPendingRanges: int(mi.config.Mrd.TargetPendingRanges),
+		TargetPendingBytes:  int(mi.config.Mrd.TargetPendingBytes),
+	})
 	if err != nil {
+		var notFoundError *gcs.NotFoundError
+		if errors.As(err, &notFoundError) {
+			return &gcsfuse_errors.FileClobberedError{
+				Err:        fmt.Errorf("createAndSwapMRD: %w", err),
+				ObjectName: obj.Name,
+			}
+		}
 		return err
 	}
 
-	oldPool := mi.mrdPool
-	mi.mrdPool = newPool
+	oldMrd := mi.mrd
+	mi.mrd = mrd
 	mi.object = obj
 
-	closePoolWithTimeout(oldPool, "MrdInstance::createAndSwapPool", mrdPoolCloseTimeout)
+	closeMRDWithTimeout(oldMrd, "MrdInstance::createAndSwapMRD", obj.Name, mrdPoolCloseTimeout)
 	return nil
 }
 
 // GetMinObject returns the gcs.MinObject stored in MrdInstance. Used only for unit testing.
 func (mi *MrdInstance) GetMinObject() *gcs.MinObject {
-	mi.poolMu.RLock()
-	defer mi.poolMu.RUnlock()
+	mi.mrdMu.RLock()
+	defer mi.mrdMu.RUnlock()
 	return mi.object
 }
 
-// getMRDEntry returns a valid MRDEntry from the pool.
-// It ensures the pool is initialized and the returned entry is in a usable state,
-// recreating it if necessary.
-func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
-	// Ensure the pool is initialized.
-	if err := mi.ensureMRDPool(); err != nil {
+// getMRD returns the initialized MultiRangeDownloader.
+// It ensures the MRD is initialized and in a usable state, recreating it if necessary.
+func (mi *MrdInstance) getMRD() (gcs.MultiRangeDownloader, error) {
+	// Ensure the MRD is initialized.
+	if err := mi.ensureMRD(); err != nil {
 		return nil, err
 	}
 
-	mi.poolMu.RLock()
-	defer mi.poolMu.RUnlock()
-	if mi.mrdPool == nil {
-		return nil, fmt.Errorf("MrdInstance::getMRDEntry: MRDPool is nil")
+	mi.mrdMu.RLock()
+	defer mi.mrdMu.RUnlock()
+	if mi.mrd == nil {
+		return nil, fmt.Errorf("MrdInstance::getMRD: MRD is nil")
 	}
 
-	entry := mi.mrdPool.Next()
+	// Check if the MRD is valid.
+	isValid := mi.mrd.Error() == nil
 
-	// Check if the entry is valid.
-	entry.mu.RLock()
-	isValid := entry.mrd != nil && entry.mrd.Error() == nil
-	entry.mu.RUnlock()
-
-	// Recreate the entry if it is not valid.
+	// Recreate if it is not valid.
 	if !isValid {
-		if err := mi.mrdPool.RecreateMRD(entry, nil); err != nil {
-			return nil, fmt.Errorf("MrdInstance::getMRDEntry: failed to recreate MRD: %w", err)
+		mi.mrdMu.RUnlock()
+		if err := mi.RecreateMRD(); err != nil {
+			mi.mrdMu.RLock()
+			return nil, fmt.Errorf("MrdInstance::getMRD: failed to recreate MRD: %w", err)
 		}
+		mi.mrdMu.RLock()
 	}
-	return entry, nil
+	return mi.mrd, nil
 }
 
 // Read downloads data from the GCS object into the provided buffer starting at the offset.
-// It handles the details of selecting a valid MRD entry, locking it, and waiting for the async download to complete.
+// It handles the details of locking it, and waiting for the async download to complete.
 func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics metrics.MetricHandle) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
 
-	entry, err := mi.getMRDEntry()
+	mrd, err := mi.getMRD()
 	if err != nil {
 		return 0, err
 	}
 
 	// Prepare the buffer for the read operation.
-	// bytes.NewBuffer creates a buffer using p as the initial content.
-	// Reset() sets the length to 0 but keeps the capacity, allowing writes to fill p.
 	buffer := bytes.NewBuffer(p)
 	buffer.Reset()
 	done := make(chan readResult, 1)
 
-	// Take Read lock before using MRD for reading.
-	entry.mu.RLock()
-	if entry.mrd == nil {
-		entry.mu.RUnlock()
-		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
-	}
-
 	start := time.Now()
 	defer monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
-	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
+	mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
 	})
-	entry.mu.RUnlock()
 
 	if !mi.config.FileSystem.IgnoreInterrupts {
 		select {
@@ -203,65 +208,85 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics
 	}
 }
 
-// ensureMRDPool ensures that the MRD pool is initialized. If the pool
+// ensureMRD ensures that the MRD instance is initialized. If it
 // already exists, this function is a no-op.
-func (mi *MrdInstance) ensureMRDPool() (err error) {
-	// Return early if pool exists.
-	mi.poolMu.RLock()
-	if mi.mrdPool != nil {
-		mi.poolMu.RUnlock()
+func (mi *MrdInstance) ensureMRD() (err error) {
+	// Return early if MRD exists.
+	mi.mrdMu.RLock()
+	if mi.mrd != nil {
+		mi.mrdMu.RUnlock()
 		return
 	}
-	mi.poolMu.RUnlock()
+	mi.mrdMu.RUnlock()
 
-	mi.poolMu.Lock()
-	defer mi.poolMu.Unlock()
+	mi.mrdMu.Lock()
+	defer mi.mrdMu.Unlock()
 
 	// Re-check under write lock to handle race condition.
-	if mi.mrdPool != nil {
+	if mi.mrd != nil {
 		return
 	}
 
-	// Creating a new pool. Not reusing any handle while creating a new pool.
-	mi.mrdPool, err = NewMRDPool(&MRDPoolConfig{PoolSize: int(mi.config.Mrd.PoolSize), object: mi.object, bucket: mi.bucket}, nil)
+	// Creating a new MRD.
+	mrd, err := mi.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+		Name:                mi.object.Name,
+		Generation:          mi.object.Generation,
+		ReadCompressed:      mi.object.HasContentEncodingGzip(),
+		MinConnections:      int(mi.config.Mrd.MinConnections),
+		MaxConnections:      int(mi.config.Mrd.MaxConnections),
+		TargetPendingRanges: int(mi.config.Mrd.TargetPendingRanges),
+		TargetPendingBytes:  int(mi.config.Mrd.TargetPendingBytes),
+	})
 	if err != nil {
-		err = fmt.Errorf("MrdInstance::ensureMRDPool Error in creating MRDPool: %w", err)
+		var notFoundError *gcs.NotFoundError
+		if errors.As(err, &notFoundError) {
+			return &gcsfuse_errors.FileClobberedError{
+				Err:        fmt.Errorf("MrdInstance::ensureMRD Error in creating MRD: %w", err),
+				ObjectName: mi.object.Name,
+			}
+		}
+		return fmt.Errorf("MrdInstance::ensureMRD Error in creating MRD: %w", err)
 	}
+	mi.mrd = mrd
 	return
 }
 
-// RecreateMRD recreates the entire MRD pool. This is typically called by the
+// RecreateMRD recreates the MRD. This is typically called by the
 // file inode when the backing GCS object's generation changes, invalidating
-// all existing downloader instances.
+// the existing downloader instance.
 func (mi *MrdInstance) RecreateMRD() error {
-	mi.poolMu.Lock()
-	defer mi.poolMu.Unlock()
+	mi.mrdMu.Lock()
+	defer mi.mrdMu.Unlock()
 
 	obj := mi.object
 	if obj == nil {
 		return fmt.Errorf("MrdInstance::RecreateMRD: object is nil")
 	}
 
-	if err := mi.createAndSwapPool(obj); err != nil {
-		return fmt.Errorf("MrdInstance::RecreateMRD: failed to create new pool: %w", err)
+	if err := mi.createAndSwapMRD(obj); err != nil {
+		return fmt.Errorf("MrdInstance::RecreateMRD: failed to create new MRD: %w", err)
 	}
 
 	return nil
 }
 
-// closePool closes all MRD instances in the pool and releases associated resources.
-func (mi *MrdInstance) closePool() {
-	mi.poolMu.Lock()
-	defer mi.poolMu.Unlock()
-	pool := mi.mrdPool
-	mi.mrdPool = nil
-	closePoolWithTimeout(pool, "MrdInstance::closePool", mrdPoolCloseTimeout)
+// closeMRD closes the MRD instance and releases associated resources.
+func (mi *MrdInstance) closeMRD() {
+	mi.mrdMu.Lock()
+	defer mi.mrdMu.Unlock()
+	mrd := mi.mrd
+	mi.mrd = nil
+	var objectName string
+	if mi.object != nil {
+		objectName = mi.object.Name
+	}
+	closeMRDWithTimeout(mrd, "MrdInstance::closeMRD", objectName, mrdPoolCloseTimeout)
 }
 
-// closePoolWithTimeout closes the given MRD pool in a separate goroutine with a timeout.
-// If closing the pool takes longer than the specified timeout, a warning is logged.
-func closePoolWithTimeout(pool *MRDPool, caller string, timeout time.Duration) {
-	if pool == nil {
+// closeMRDWithTimeout closes the given MRD in a separate goroutine with a timeout.
+// If closing the MRD takes longer than the specified timeout, a warning is logged.
+func closeMRDWithTimeout(mrd gcs.MultiRangeDownloader, caller string, objectName string, timeout time.Duration) {
+	if mrd == nil {
 		return
 	}
 
@@ -269,7 +294,8 @@ func closePoolWithTimeout(pool *MRDPool, caller string, timeout time.Duration) {
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
-			pool.Close()
+			mrd.Wait()
+			_ = mrd.Close()
 		}()
 
 		timer := time.NewTimer(timeout)
@@ -278,11 +304,7 @@ func closePoolWithTimeout(pool *MRDPool, caller string, timeout time.Duration) {
 		select {
 		case <-done:
 		case <-timer.C:
-			var objectName string
-			if pool.poolConfig != nil && pool.poolConfig.object != nil {
-				objectName = pool.poolConfig.object.Name
-			}
-			logger.Warnf("%s: MRDPool.Close() timed out after %v for object %s", caller, timeout, objectName)
+			logger.Warnf("%s: MRD.Close() timed out after %v for object %s", caller, timeout, objectName)
 		}
 	}()
 }
@@ -305,8 +327,8 @@ func (mi *MrdInstance) Destroy() {
 		mi.mrdCache.Erase(getKey(mi.inodeId))
 	}
 
-	// Close the pool.
-	mi.closePool()
+	// Close the MRD.
+	mi.closeMRD()
 }
 
 // getKey generates a unique key for the MrdInstance based on its inode ID.
@@ -348,7 +370,7 @@ func (mi *MrdInstance) handleEviction() {
 		return
 	}
 
-	mi.closePool()
+	mi.closeMRD()
 }
 
 // DecrementRefCount decreases the reference count. When the count drops to zero, the
@@ -371,14 +393,14 @@ func (mi *MrdInstance) DecrementRefCount() {
 	}
 
 	// Add to cache.
-	// Lock order: refCountMu -> cache.mu -> poolMu (via Size() inside Insert).
+	// Lock order: refCountMu -> cache.mu -> mrdMu (via Size() inside Insert).
 	// This is a safe order.
 	evictedValues, err := mi.mrdCache.Insert(getKey(mi.inodeId), mi)
 	if err != nil {
 		logger.Errorf("MrdInstance::DecrementRefCount: Failed to insert MrdInstance for inode (%d) into cache, destroying immediately: %v", mi.inodeId, err)
 		// The instance could not be inserted into the cache. Since the refCount is 0,
 		// we must close it now to prevent it from being leaked.
-		mi.closePool()
+		mi.closeMRD()
 		return
 	}
 
@@ -405,10 +427,10 @@ func (mi *MrdInstance) DecrementRefCount() {
 
 // Size returns the number of active MRDs.
 func (mi *MrdInstance) Size() uint64 {
-	mi.poolMu.RLock()
-	defer mi.poolMu.RUnlock()
-	if mi.mrdPool != nil {
-		return mi.mrdPool.Size()
+	mi.mrdMu.RLock()
+	defer mi.mrdMu.RUnlock()
+	if mi.mrd != nil {
+		return 1
 	}
 	return 0
 }
