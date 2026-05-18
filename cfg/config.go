@@ -985,7 +985,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+	flagSet.BoolP("enable-metadata-prefetch", "", true, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
 	flagSet.BoolP("enable-mount-retries", "", false, "If true, enables retry logic in GCSFuse during the mount sequence  for additional errors (such as metadata server readiness delays, IAM propagation  delays, and temporary bucket non-existence). Intended specifically for the  GKE GCSFuse CSI Driver.")
 
