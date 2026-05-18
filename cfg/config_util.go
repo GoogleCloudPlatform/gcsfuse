@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -27,6 +28,14 @@ const (
 	// on a single VM. Revise the numbers if you plan to support higher bandwidth VMs.
 	maxBackgroundLimit = 192
 )
+
+var kernelPageSize int = os.Getpagesize()
+
+func DefaultFuseMaxPagesLimit() int {
+	// The default limit is calculated to achieve a 1 MiB maximum request size
+	// based on the kernel page size.
+	return (1024 * 1024) / kernelPageSize
+}
 
 func DefaultMaxBackground() int {
 	return min(max(12, 2*runtime.NumCPU()), maxBackgroundLimit)

@@ -454,6 +454,16 @@ params:
     usage: "Permissions bits for files, in octal."
     default: "0644"
 
+  - config-path: "file-system.fuse-max-pages-limit"
+    flag-name: "fuse-max-pages-limit"
+    type: "int"
+    usage: >-
+      Sets the limit for the maximum number of pages that fuse can process in a
+      single request. This will update the node level value (on supported kernels)
+      if the new value is greater than the current node level value.
+    default: "DefaultFuseMaxPagesLimit()"
+    hide-flag: true
+
   - config-path: "file-system.fuse-options"
     flag-name: "o"
     type: "[]string"
