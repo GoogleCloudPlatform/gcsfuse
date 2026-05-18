@@ -75,6 +75,9 @@ func ShouldRetryWithoutLogging(err error) bool {
 	return determineRetryAction(err) != noRetry
 }
 
+// ShouldRetry checks if the given error is transient and should be retried.
+// It logs a warning message with the error details for any retryable error.
+// Returns true if the error is retryable, false otherwise.
 func ShouldRetry(err error) bool {
 	switch determineRetryAction(err) {
 	case retryTransient:
