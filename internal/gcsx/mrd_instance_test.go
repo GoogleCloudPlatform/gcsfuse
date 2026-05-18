@@ -114,7 +114,7 @@ func (t *MrdInstanceTest) TestRead_RecreatesInvalidEntry() {
 	assert.NoError(t.T(), err)
 
 	// Manually invalidate the entry to simulate a failure
-		_ = t.mrdInstance.mrd.Close() // Close it.
+	_ = t.mrdInstance.mrd.Close() // Close it.
 	// Replace the MRD with one that returns an error.
 	t.mrdInstance.mrdMu.Lock()
 	t.mrdInstance.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
@@ -126,9 +126,9 @@ func (t *MrdInstanceTest) TestRead_RecreatesInvalidEntry() {
 	_, err = t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 
 	assert.NoError(t.T(), err)
-	
+
 	assert.Equal(t.T(), fakeMRD2, t.mrdInstance.mrd)
-	
+
 }
 
 func (t *MrdInstanceTest) TestRead_EnsureFails() {
@@ -152,7 +152,7 @@ func (t *MrdInstanceTest) TestRead_RecreationFails() {
 	assert.NoError(t.T(), err)
 
 	// Manually invalidate the entry to simulate a failure.
-		_ = t.mrdInstance.mrd.Close() // Close it.
+	_ = t.mrdInstance.mrd.Close() // Close it.
 	// Replace the MRD with one that returns an error.
 	t.mrdInstance.mrdMu.Lock()
 	t.mrdInstance.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
@@ -482,8 +482,6 @@ func (t *MrdInstanceTest) TestDecrementRefCount_Negative() {
 	assert.Contains(t.T(), buf.String(), "MrdInstance::DecrementRefCount: Refcount cannot be negative")
 }
 
-
-
 func (t *MrdInstanceTest) TestCloseMRD() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
@@ -711,8 +709,6 @@ func (t *MrdInstanceTest) TestGetMinObject() {
 
 	assert.Equal(t.T(), t.object, obj)
 }
-
-
 
 // logBuffer is a thread-safe buffer for capturing logs in tests.
 type logBuffer struct {

@@ -105,7 +105,7 @@ func (mi *MrdInstance) createAndSwapMRD(obj *gcs.MinObject) error {
 	mrd, err := mi.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
 		Name:                obj.Name,
 		Generation:          obj.Generation,
-		ReadCompressed:     obj.HasContentEncodingGzip(),
+		ReadCompressed:      obj.HasContentEncodingGzip(),
 		MinConnections:      int(mi.config.Mrd.MinConnections),
 		MaxConnections:      int(mi.config.Mrd.MaxConnections),
 		TargetPendingRanges: int(mi.config.Mrd.TargetPendingRanges),
@@ -228,10 +228,10 @@ func (mi *MrdInstance) ensureMRD() (err error) {
 	}
 
 	// Creating a new MRD.
-	mi.mrd, err = mi.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+	mrd, err := mi.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
 		Name:                mi.object.Name,
 		Generation:          mi.object.Generation,
-		ReadCompressed:     mi.object.HasContentEncodingGzip(),
+		ReadCompressed:      mi.object.HasContentEncodingGzip(),
 		MinConnections:      int(mi.config.Mrd.MinConnections),
 		MaxConnections:      int(mi.config.Mrd.MaxConnections),
 		TargetPendingRanges: int(mi.config.Mrd.TargetPendingRanges),
@@ -245,8 +245,9 @@ func (mi *MrdInstance) ensureMRD() (err error) {
 				ObjectName: mi.object.Name,
 			}
 		}
-		err = fmt.Errorf("MrdInstance::ensureMRD Error in creating MRD: %w", err)
+		return fmt.Errorf("MrdInstance::ensureMRD Error in creating MRD: %w", err)
 	}
+	mi.mrd = mrd
 	return
 }
 
