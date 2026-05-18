@@ -54,13 +54,14 @@ func (t *KernelRangeReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.bucket = new(storage.TestifyMockBucket)
-	t.reader = NewKernelRangeReader(t.bucket, t.object, nil)
+	instance := NewKernelRangeReaderInstance(t.object)
+	t.reader = NewKernelRangeReader(t.bucket, instance, nil)
 }
 
 func (t *KernelRangeReaderTest) TestNewKernelRangeReader() {
 	assert.NotNil(t.T(), t.reader)
 	assert.Equal(t.T(), t.bucket, t.reader.bucket)
-	assert.Equal(t.T(), t.object, t.reader.object)
+	assert.Equal(t.T(), t.object, t.reader.instance.GetMinObject())
 }
 
 func (t *KernelRangeReaderTest) TestReaderName() {

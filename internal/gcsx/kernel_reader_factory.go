@@ -24,9 +24,14 @@ import (
 // throughput via connection pooling and multi-range downloads.
 // For Standard (Regional) buckets, it uses the Range-based kernel reader which
 // leverages the kernel read-ahead and creates specific range requests.
-func NewKernelReader(bucket gcs.Bucket, object *gcs.MinObject, mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) Reader {
+func NewKernelReader(
+	bucket gcs.Bucket,
+	kernelRangeReaderInstance *KernelRangeReaderInstance,
+	mrdInstance *MrdInstance,
+	metricsHandle metrics.MetricHandle,
+) Reader {
 	if bucket.BucketType().Zonal {
 		return NewMrdKernelReader(mrdInstance, metricsHandle)
 	}
-	return NewKernelRangeReader(bucket, object, metricsHandle)
+	return NewKernelRangeReader(bucket, kernelRangeReaderInstance, metricsHandle)
 }

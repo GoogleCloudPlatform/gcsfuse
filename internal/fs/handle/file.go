@@ -119,7 +119,7 @@ func NewFileHandle(
 	}
 
 	if c.FileSystem.EnableKernelReader {
-		fh.kernelReader = gcsx.NewKernelReader(inode.Bucket(), inode.Source(), inode.GetMRDInstance(), metricHandle)
+		fh.kernelReader = gcsx.NewKernelReader(inode.Bucket(), inode.GetKernelRangeReaderInstance(), inode.GetMRDInstance(), metricHandle)
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)

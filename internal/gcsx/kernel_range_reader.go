@@ -26,24 +26,24 @@ import (
 // KernelRangeReader implements the Reader interface for regional buckets.
 // It serves read requests by creating a new GCS range reader for each request.
 type KernelRangeReader struct {
-	bucket  gcs.Bucket
-	object  *gcs.MinObject
-	metrics metrics.MetricHandle
+	bucket   gcs.Bucket
+	instance *KernelRangeReaderInstance
+	metrics  metrics.MetricHandle
 }
 
 // NewKernelRangeReader creates a new KernelRangeReader.
-func NewKernelRangeReader(bucket gcs.Bucket, object *gcs.MinObject, metricHandle metrics.MetricHandle) *KernelRangeReader {
+func NewKernelRangeReader(bucket gcs.Bucket, instance *KernelRangeReaderInstance, metricHandle metrics.MetricHandle) *KernelRangeReader {
 	return &KernelRangeReader{
-		bucket:  bucket,
-		object:  object,
-		metrics: metricHandle,
+		bucket:   bucket,
+		instance: instance,
+		metrics:  metricHandle,
 	}
 }
 
 // CheckInvariants performs internal consistency checks on the reader state.
 func (rkr *KernelRangeReader) CheckInvariants() {
-	if rkr.object == nil {
-		panic("KernelRangeReader: object is nil")
+	if rkr.instance == nil {
+		panic("KernelRangeReader: instance is nil")
 	}
 	if rkr.bucket == nil {
 		panic("KernelRangeReader: bucket is nil")
@@ -54,25 +54,30 @@ func (rkr *KernelRangeReader) CheckInvariants() {
 func (rkr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
 	var resp ReadResponse
 
-	if req.Offset >= int64(rkr.object.Size) {
+	obj := rkr.instance.GetMinObject()
+	if obj == nil {
+		return resp, io.EOF
+	}
+
+	if req.Offset >= int64(obj.Size) {
 		return resp, io.EOF
 	}
 
 	endOffset := req.Offset + int64(len(req.Buffer))
-	if endOffset > int64(rkr.object.Size) {
-		endOffset = int64(rkr.object.Size)
+	if endOffset > int64(obj.Size) {
+		endOffset = int64(obj.Size)
 	}
 
 	reader, err := rkr.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
-			Name:       rkr.object.Name,
-			Generation: rkr.object.Generation,
+			Name:       obj.Name,
+			Generation: obj.Generation,
 			Range: &gcs.ByteRange{
 				Start: uint64(req.Offset),
 				Limit: uint64(endOffset),
 			},
-			ReadCompressed: rkr.object.HasContentEncodingGzip(),
+			ReadCompressed: obj.HasContentEncodingGzip(),
 		})
 	if err != nil {
 		return resp, fmt.Errorf("failed to create range reader: %w", err)
