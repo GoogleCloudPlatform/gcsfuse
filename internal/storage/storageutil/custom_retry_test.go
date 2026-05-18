@@ -287,7 +287,6 @@ func TestShouldRetryWithoutLoggingDoesNotLog(t *testing.T) {
 	assert.Empty(t, buf.String())
 }
 
-
 type fakeMetricHandle struct {
 	metrics.MetricHandle
 
