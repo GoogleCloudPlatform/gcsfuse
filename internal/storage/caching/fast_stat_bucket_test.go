@@ -45,6 +45,8 @@ const primaryCacheTTL = time.Second
 const negativeCacheTTL = time.Second * 5
 const isTypeCacheDeprecated = true
 const isImplicitDir = true
+const enableNonexistentEntryCaching = true
+const disableNonexistentEntryCaching = false
 
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
@@ -69,7 +71,8 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
-		isImplicitDir)
+		isImplicitDir,
+		enableNonexistentEntryCaching)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -645,6 +648,15 @@ func (t *StatObjectTest) CacheHit_Negative() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
+func (t *StatObjectTest) CacheHit_Negative_Disabled_FetchOnly() {
+	t.bucket = caching.NewFastStatBucket(primaryCacheTTL, t.cache, &t.clock, t.wrapped, negativeCacheTTL, true, true, disableNonexistentEntryCaching)
+	const name = "taco"
+	ExpectCall(t.cache, "LookUp")(Any(), Any()).WillOnce(Return(true, nil))
+	req := &gcs.StatObjectRequest{Name: name, FetchOnlyFromCache: true}
+	_, _, err := t.bucket.StatObject(context.Background(), req) //nolint:govet
+	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
+}
+
 func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	const name = "taco"
 
@@ -790,8 +802,18 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 	}
 
 	_, _, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	ExpectThat(err, Error(HasSubstr("burrito")))
+}
+
+func (t *StatObjectTest) WrappedSaysNotFound_NegativeCachingDisabled() {
+	t.bucket = caching.NewFastStatBucket(primaryCacheTTL, t.cache, &t.clock, t.wrapped, negativeCacheTTL, true, true, disableNonexistentEntryCaching)
+	const name = "taco"
+	ExpectCall(t.cache, "LookUp")(Any(), Any()).WillOnce(Return(false, nil))
+	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).WillOnce(Return(nil, nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
+	// Expect NO AddNegativeEntry call
+	req := &gcs.StatObjectRequest{Name: name}
+	_, _, err := t.bucket.StatObject(context.Background(), req) //nolint:govet
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *StatObjectTest) WrappedSucceeds() {
@@ -999,7 +1021,8 @@ func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		true,
-		true)
+		true,
+		disableNonexistentEntryCaching)
 }
 
 func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string) {
@@ -1029,6 +1052,15 @@ func (t *ListObjectsTest_InsertListing) EmptyListing() {
 	expectedImplicitDirs := []string{}
 
 	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
+}
+
+func (t *ListObjectsTest_InsertListing) EmptyListing_NegativeCaching() {
+	t.bucket = caching.NewFastStatBucket(primaryCacheTTL, t.cache, &t.clock, t.wrapped, negativeCacheTTL, true, true, enableNonexistentEntryCaching)
+	listing := &gcs.Listing{}
+	ExpectCall(t.wrapped, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).WillOnce(Return(listing, nil))
+	ExpectCall(t.cache, "AddNegativeEntry")("dir/", Any())
+	_, _ = t.bucket.ListObjects(context.Background(), &gcs.ListObjectsRequest{Prefix: "dir/"}) //nolint:govet
 }
 
 func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
@@ -1136,7 +1168,8 @@ func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached(
 		t.wrapped,
 		negativeCacheTTL,
 		true,
-		false)
+		false,
+		disableNonexistentEntryCaching)
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a", Size: 1},

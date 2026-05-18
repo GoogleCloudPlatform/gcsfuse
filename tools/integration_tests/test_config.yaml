@@ -1089,6 +1089,8 @@ negative_stat_cache:
     configs:
       - flags:
           - "--metadata-cache-negative-ttl-secs=0"
+          - "--metadata-cache-negative-ttl-secs=5,--enable-nonexistent-entry-caching=false"
+          - "--metadata-cache-negative-ttl-secs=5"
         compatible:
           flat: true
           hns: true
@@ -1096,7 +1098,7 @@ negative_stat_cache:
         run: "TestDisabledNegativeStatCacheTest"
         run_on_gke: true
       - flags:
-          - "--metadata-cache-negative-ttl-secs=5"
+          - "--metadata-cache-negative-ttl-secs=5,--enable-nonexistent-entry-caching=true"
         compatible:
           flat: true
           hns: true
@@ -1104,7 +1106,7 @@ negative_stat_cache:
         run: "TestFiniteNegativeStatCacheTest"
         run_on_gke: true
       - flags:
-          - "--metadata-cache-negative-ttl-secs=-1"
+          - "--metadata-cache-negative-ttl-secs=-1,--enable-nonexistent-entry-caching=true"
         compatible:
           flat: true
           hns: true

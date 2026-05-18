@@ -682,6 +682,8 @@ type MetadataCacheConfig struct {
 
 	EnableMetadataPrefetch bool `yaml:"enable-metadata-prefetch"`
 
+	EnableNonexistentEntryCaching bool `yaml:"enable-nonexistent-entry-caching"`
+
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
 
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
@@ -998,6 +1000,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("enable-new-reader"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("enable-nonexistent-entry-caching", "", false, "Cache paths confirmed to not exist (404s) in the unified stat cache.")
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
@@ -1605,6 +1609,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-new-reader", flagSet.Lookup("enable-new-reader")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.enable-nonexistent-entry-caching", flagSet.Lookup("enable-nonexistent-entry-caching")); err != nil {
 		return err
 	}
 

@@ -42,6 +42,7 @@ import (
 
 const ttl = 10 * time.Minute
 const negativeCacheTTL = 1 * time.Minute
+const enableNonexistentEntryCaching = true
 
 var (
 	uncachedBucket gcs.Bucket
@@ -69,6 +70,7 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 		negativeCacheTTL,
 		IsTypeCacheDeprecated,
 		isImplicitDir,
+		enableNonexistentEntryCaching,
 	)
 
 	// Enable directory type caching.
@@ -479,6 +481,7 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 			negativeCacheTTL,
 			IsTypeCacheDeprecated,
 			isImplicitDir,
+			enableNonexistentEntryCaching,
 		)
 	}
 

@@ -949,6 +949,12 @@ params:
     deprecated: false
     hide-flag: false
 
+  - config-path: "metadata-cache.enable-nonexistent-entry-caching"
+    flag-name: "enable-nonexistent-entry-caching"
+    type: "bool"
+    usage: "Cache paths confirmed to not exist (404s) in the unified stat cache."
+    default: false
+
   - config-path: "metadata-cache.enable-nonexistent-type-cache"
     flag-name: "enable-nonexistent-type-cache"
     type: "bool"
