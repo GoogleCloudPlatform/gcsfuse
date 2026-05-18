@@ -147,7 +147,7 @@ func ExecuteWithCustomShouldRetryAtLogLevel[T any](
 		if i == 0 {
 			logger.GetLogFHandler(logLevel)("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
 		} else {
-			logger.GetLogFHandler(logLevel)("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+			logger.GetLogFHandler(logger.LevelWarn)("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
 		}
 
 		result, err := apiCall(attemptCtx)
@@ -205,7 +205,7 @@ func ExecuteWithRetryAtLogLevel[T any](
 	apiCall func(attemptCtx context.Context) (T, error),
 	logLevel slog.Level, // Used to log the retry logs at the supplied log level
 ) (T, error) {
-	return ExecuteWithCustomShouldRetryAtLogLevel(ctx, config, operationName, reqDescription, apiCall, ShouldRetry, logLevel)
+	return ExecuteWithCustomShouldRetryAtLogLevel(ctx, config, operationName, reqDescription, apiCall, ShouldRetryWithoutLogging, logLevel)
 }
 
 // ExecuteWithRetry retries a given operation but logs all logs at trace level
@@ -216,5 +216,5 @@ func ExecuteWithRetry[T any](
 	reqDescription string,
 	apiCall func(attemptCtx context.Context) (T, error),
 ) (T, error) {
-	return ExecuteWithCustomShouldRetry(ctx, config, operationName, reqDescription, apiCall, ShouldRetry)
+	return ExecuteWithCustomShouldRetry(ctx, config, operationName, reqDescription, apiCall, ShouldRetryWithoutLogging)
 }

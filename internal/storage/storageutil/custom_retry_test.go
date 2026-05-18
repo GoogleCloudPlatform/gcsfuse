@@ -15,13 +15,17 @@
 package storageutil
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"net"
 	"net/url"
+	"os"
+	"sync"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
@@ -148,6 +152,141 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldRetryWithoutLogging(t *testing.T) {
+	// Arrange
+	var err401 = googleapi.Error{
+		Code: 401,
+		Body: "Invalid Credential",
+	}
+	var errUnauthenticated = status.Error(codes.Unauthenticated, "unauthenticated")
+	var err400 = googleapi.Error{
+		Code: 400,
+	}
+
+	// Act
+	res401 := ShouldRetryWithoutLogging(&err401)
+	resUnauthenticated := ShouldRetryWithoutLogging(errUnauthenticated)
+	res400 := ShouldRetryWithoutLogging(&err400)
+
+	// Assert
+	assert.True(t, res401)
+	assert.True(t, resUnauthenticated)
+	assert.False(t, res400)
+}
+
+func TestDetermineRetryAction(t *testing.T) {
+	// Arrange
+	testCases := []struct {
+		name     string
+		err      error
+		expected retryAction
+	}{
+		{
+			name:     "NilError",
+			err:      nil,
+			expected: noRetry,
+		},
+		{
+			name:     "GoogleApiError400",
+			err:      &googleapi.Error{Code: 400},
+			expected: noRetry,
+		},
+		{
+			name:     "GoogleApiError401",
+			err:      &googleapi.Error{Code: 401},
+			expected: retry401,
+		},
+		{
+			name:     "GoogleApiError429",
+			err:      &googleapi.Error{Code: 429},
+			expected: retryTransient,
+		},
+		{
+			name:     "UnauthenticatedGrpcError",
+			err:      status.Error(codes.Unauthenticated, "unauthenticated"),
+			expected: retryUnauthenticated,
+		},
+		{
+			name:     "PermissionDeniedGrpcError",
+			err:      status.Error(codes.PermissionDenied, "permission denied"),
+			expected: noRetry,
+		},
+		{
+			name:     "UnexpectedEOF",
+			err:      io.ErrUnexpectedEOF,
+			expected: retryTransient,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Act
+			actual := determineRetryAction(tc.err)
+
+			// Assert
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+// logBuffer is a thread-safe buffer for capturing logs in tests.
+type logBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *logBuffer) Write(p []byte) (n int, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *logBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func TestShouldRetryLogsWarning(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+
+	var err401 = &googleapi.Error{
+		Code: 401,
+		Body: "Invalid Credential",
+	}
+
+	// Act
+	retry := ShouldRetry(err401)
+
+	// Assert
+	assert.True(t, retry)
+	assert.Contains(t, buf.String(), "WARNING")
+	assert.Contains(t, buf.String(), "Retrying for error-code 401")
+}
+
+func TestShouldRetryWithoutLoggingDoesNotLog(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+
+	var err401 = &googleapi.Error{
+		Code: 401,
+		Body: "Invalid Credential",
+	}
+
+	// Act
+	retryNoLog := ShouldRetryWithoutLogging(err401)
+
+	// Assert
+	assert.True(t, retryNoLog)
+	assert.Empty(t, buf.String())
+}
+
 
 type fakeMetricHandle struct {
 	metrics.MetricHandle
