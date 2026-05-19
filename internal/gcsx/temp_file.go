@@ -218,8 +218,16 @@ func (tf *tempFile) CheckInvariants() {
 	}
 }
 
+func (tf *tempFile) closeSource() {
+	if tf.source != nil {
+		_ = tf.source.Close()
+		tf.source = nil
+	}
+}
+
 func (tf *tempFile) Destroy() {
 	tf.state = fileDestroyed
+	tf.closeSource()
 	// Throw away the file (for anonymous files).
 	tf.f.Close()
 
@@ -291,7 +299,7 @@ func (tf *tempFile) Truncate(n int64) error {
 	if n == 0 {
 		// Close source reader if incomplete to avoid downloading it.
 		if tf.state == fileIncomplete && tf.source != nil {
-			_ = tf.source.Close()
+			tf.closeSource()
 		}
 		tf.state = fileDirty
 		tf.dirtyThreshold = 0
@@ -314,13 +322,13 @@ func (tf *tempFile) Truncate(n int64) error {
 			}
 			tf.dirtyThreshold = size + written
 			if err == io.EOF {
-				_ = tf.source.Close()
+				tf.closeSource()
 				tf.state = fileComplete
 			}
 		}
 
 		if tf.state == fileIncomplete {
-			_ = tf.source.Close()
+			tf.closeSource()
 			tf.state = fileDirty
 		}
 	}
@@ -371,7 +379,7 @@ func (tf *tempFile) ensure(limit int64) error {
 		n := max(limit-size, minCopyLength)
 		n, err = io.CopyN(tf.f, tf.source, n)
 		if err == io.EOF {
-			tf.source.Close()
+			tf.closeSource()
 			tf.dirtyThreshold = size + n
 			tf.state = fileComplete
 			err = nil
