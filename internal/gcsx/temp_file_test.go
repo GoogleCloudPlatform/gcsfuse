@@ -17,6 +17,7 @@ package gcsx_test
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -345,4 +346,37 @@ func (t *TempFileTest) Truncate_NToIncompleteFilePadsWithZeroesWhenShorterThanN(
 	actual, err := readAll(tf)
 	AssertEq(nil, err)
 	ExpectEq("abcdefghij\x00\x00\x00\x00\x00", string(actual))
+}
+
+func (t *TempFileTest) Truncate_NToIncompleteCacheFileWithExistingBytes() {
+	// Create a temp file on disk and pre-populate it with some bytes.
+	f, err := os.CreateTemp("", "cachefile_test")
+	AssertEq(nil, err)
+	defer func() {
+		_ = os.Remove(f.Name())
+	}()
+
+	_, err = f.Write([]byte("abcdefghijklmnopqrstuvwxyz")) // 26 bytes
+	AssertEq(nil, err)
+
+	pr := &panicReader{}
+	// Wrap it with NewCacheFile (starts as fileIncomplete, size = 26).
+	tf := gcsx.NewCacheFile(pr, f, "", &t.clock)
+	defer tf.Destroy()
+
+	// Truncate to 10 bytes (10 <= 26).
+	err = tf.Truncate(10)
+	ExpectEq(nil, err)
+	ExpectFalse(pr.readCalled) // Should not read from source GCS reader
+
+	// Stat should return size 10 and dirtyThreshold 10.
+	sr, err := tf.Stat()
+	AssertEq(nil, err)
+	ExpectEq(10, sr.Size)
+	ExpectEq(10, sr.DirtyThreshold)
+
+	// Verify contents.
+	actual, err := readAll(tf)
+	AssertEq(nil, err)
+	ExpectEq("abcdefghij", string(actual))
 }

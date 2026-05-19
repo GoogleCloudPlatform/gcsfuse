@@ -305,6 +305,7 @@ func (tf *tempFile) Truncate(n int64) error {
 		if err != nil {
 			return fmt.Errorf("seek: %w", err)
 		}
+		tf.dirtyThreshold = size
 		if size < n {
 			bytesToDownload := n - size
 			written, err := io.CopyN(tf.f, tf.source, bytesToDownload)
