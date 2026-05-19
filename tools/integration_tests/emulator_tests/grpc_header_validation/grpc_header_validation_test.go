@@ -35,11 +35,19 @@ type grpcHeaderValidation struct {
 	proxyProcessId     int
 	proxyServerLogFile string
 	flags              []string
+	baseFlags          []string
 	configPath         string
 	suite.Suite
 }
 
+func (g *grpcHeaderValidation) SetupSuite() {
+	g.baseFlags = make([]string, len(g.flags))
+	copy(g.baseFlags, g.flags)
+}
+
 func (g *grpcHeaderValidation) SetupTest() {
+	g.flags = make([]string, len(g.baseFlags))
+	copy(g.flags, g.baseFlags)
 	g.configPath = "../configs/grpc_header_validation.yaml"
 	g.proxyServerLogFile = setup.CreateProxyServerLogFile(g.T())
 	g.T().Logf("Proxy server log file: %s", g.proxyServerLogFile)
