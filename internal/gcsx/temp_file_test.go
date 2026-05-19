@@ -380,3 +380,23 @@ func (t *TempFileTest) Truncate_NToIncompleteCacheFileWithExistingBytes() {
 	AssertEq(nil, err)
 	ExpectEq("abcdefghij", string(actual))
 }
+
+func (t *TempFileTest) Truncate_DestroyedFileReturnsError() {
+	tf, err := gcsx.NewTempFile(
+		dummyReadCloser{strings.NewReader(initialContent)},
+		"",
+		&t.clock)
+	AssertEq(nil, err)
+
+	// Destroy the file.
+	tf.Destroy()
+
+	// Calling Truncate should return an error.
+	err = tf.Truncate(0)
+	ExpectNe(nil, err)
+	ExpectThat(err.Error(), HasSubstr("file destroyed"))
+
+	err = tf.Truncate(10)
+	ExpectNe(nil, err)
+	ExpectThat(err.Error(), HasSubstr("file destroyed"))
+}

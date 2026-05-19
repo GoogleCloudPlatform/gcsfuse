@@ -296,6 +296,10 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 func (tf *tempFile) Truncate(n int64) error {
+	if tf.state == fileDestroyed {
+		return fmt.Errorf("cannot Truncate: file destroyed")
+	}
+
 	if n == 0 {
 		// Close source reader if incomplete to avoid downloading it.
 		if tf.state == fileIncomplete && tf.source != nil {
