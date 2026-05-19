@@ -203,15 +203,15 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// Zonal buckets strictly require the appendable API. For Pirlo buckets, the
 	// appendable API provides file-like semantics (immediate data visibility)
 	// but defers regional durability until the object is finalized. Users can
-	// choose to keep objects unfinalized by setting the FinalizeFileOnClose flag
+	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
 	// to false, which allows further appends, but if they keep it unfinalized
 	// it never becomes regionally durable.
 	wc.Append = bh.BucketType().RapidWritesEnabled()
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
-	// pirlo buckets are. This behavior is controlled by the finalizeFileOnClose flag.
+	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
-	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileOnClose
+	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -244,15 +244,15 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// Zonal buckets strictly require the appendable API. For Pirlo buckets, the
 	// appendable API provides file-like semantics (immediate data visibility)
 	// but defers regional durability until the object is finalized. Users can
-	// choose to keep objects unfinalized by setting the FinalizeFileOnClose flag
+	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
 	// to false, which allows further appends, but if they keep it unfinalized
 	// it never becomes regionally durable.
 	wc.Append = bh.BucketType().RapidWritesEnabled()
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
-	// pirlo buckets are. This behavior is controlled by the finalizeFileOnClose flag.
+	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
-	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileOnClose
+	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
 	return wc, nil
 }
 
@@ -265,7 +265,7 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	opts := storage.AppendableWriterOpts{
 		ChunkSize:       req.ChunkSize,
 		ProgressFunc:    req.CallBack,
-		FinalizeOnClose: bh.writeConfig.FinalizeFileOnClose,
+		FinalizeOnClose: bh.writeConfig.FinalizeFileForRapid,
 	}
 
 	tw, off, err := obj.NewWriterFromAppendableObject(ctx, &opts) // Takeover writer tw created from offset off.

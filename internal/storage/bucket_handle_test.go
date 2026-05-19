@@ -596,34 +596,34 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 
 func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 	tests := []struct {
-		name                string
-		bucketType          gcs.BucketType
-		finalizeFileOnClose bool
-		expectedAppend      bool
+		name                 string
+		bucketType           gcs.BucketType
+		finalizeFileForRapid bool
+		expectedAppend       bool
 	}{
 		{
-			name:                "StandardBucket",
-			bucketType:          gcs.BucketType{},
-			finalizeFileOnClose: true,
-			expectedAppend:      false,
+			name:                 "StandardBucket",
+			bucketType:           gcs.BucketType{},
+			finalizeFileForRapid: true,
+			expectedAppend:       false,
 		},
 		{
-			name:                "ZonalBucket",
-			bucketType:          gcs.BucketType{Zonal: true},
-			finalizeFileOnClose: false,
-			expectedAppend:      true,
+			name:                 "ZonalBucket",
+			bucketType:           gcs.BucketType{Zonal: true},
+			finalizeFileForRapid: false,
+			expectedAppend:       true,
 		},
 		{
-			name:                "PirloBucket_RapidEnabled",
-			bucketType:          gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
-			finalizeFileOnClose: true,
-			expectedAppend:      true,
+			name:                 "PirloBucket_RapidEnabled",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			finalizeFileForRapid: true,
+			expectedAppend:       true,
 		},
 		{
-			name:                "PirloBucket_RapidDisabled",
-			bucketType:          gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
-			finalizeFileOnClose: false,
-			expectedAppend:      false,
+			name:                 "PirloBucket_RapidDisabled",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			finalizeFileForRapid: false,
+			expectedAppend:       false,
 		},
 	}
 
@@ -631,7 +631,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
 			createBucketHandle(testSuite, &controlpb.StorageLayout{})
 			testSuite.bucketHandle.bucketType = &tt.bucketType
-			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{FinalizeFileOnClose: tt.finalizeFileOnClose}
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{FinalizeFileForRapid: tt.finalizeFileForRapid}
 
 			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object"}, 1024, nil)
 
@@ -639,7 +639,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 			objWr, ok := w.(*ObjectWriter)
 			require.True(t, ok)
 			assert.Equal(t, tt.expectedAppend, objWr.Append)
-			assert.Equal(t, tt.finalizeFileOnClose, objWr.FinalizeOnClose)
+			assert.Equal(t, tt.finalizeFileForRapid, objWr.FinalizeOnClose)
 		})
 	}
 }

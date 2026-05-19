@@ -257,8 +257,8 @@ func TestApplyOptimizations(t *testing.T) {
 			})
 		}
 	})
-	// Tests for write.finalize-file-on-close
-	t.Run("write.finalize-file-on-close", func(t *testing.T) {
+	// Tests for write.finalize-file-for-rapid
+	t.Run("write.finalize-file-for-rapid", func(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
@@ -271,8 +271,8 @@ func TestApplyOptimizations(t *testing.T) {
 				name:   "user_set",
 				config: Config{},
 				userSetFlags: map[string]any{
-					"write.finalize-file-on-close": true,
-					"machine-type":                 "a2-megagpu-16g",
+					"write.finalize-file-for-rapid": true,
+					"machine-type":                  "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
@@ -312,9 +312,9 @@ func TestApplyOptimizations(t *testing.T) {
 				c := tc.config
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
-					c.Write.FinalizeFileOnClose = tc.expectedValue.(bool)
+					c.Write.FinalizeFileForRapid = tc.expectedValue.(bool)
 				} else {
-					c.Write.FinalizeFileOnClose = false
+					c.Write.FinalizeFileForRapid = false
 				}
 
 				v := viper.New()
@@ -325,12 +325,12 @@ func TestApplyOptimizations(t *testing.T) {
 				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizedFlags, "write.finalize-file-on-close")
+					assert.Contains(t, optimizedFlags, "write.finalize-file-for-rapid")
 				} else {
-					assert.NotContains(t, optimizedFlags, "write.finalize-file-on-close")
+					assert.NotContains(t, optimizedFlags, "write.finalize-file-for-rapid")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
-				assert.EqualValues(t, tc.expectedValue, c.Write.FinalizeFileOnClose)
+				assert.EqualValues(t, tc.expectedValue, c.Write.FinalizeFileForRapid)
 			})
 		}
 	})
