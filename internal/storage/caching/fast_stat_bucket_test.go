@@ -810,7 +810,8 @@ func (t *StatObjectTest) WrappedSaysNotFound_NegativeCachingDisabled() {
 	const name = "taco"
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).WillOnce(Return(false, nil))
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).WillOnce(Return(nil, nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
-	// Expect NO AddNegativeEntry call
+	// Expect Erase call to invalidate any stale entry
+	ExpectCall(t.cache, "Erase")(name)
 	req := &gcs.StatObjectRequest{Name: name}
 	_, _, err := t.bucket.StatObject(context.Background(), req) //nolint:govet
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))

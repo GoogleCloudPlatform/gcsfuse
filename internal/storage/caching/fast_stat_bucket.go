@@ -250,11 +250,13 @@ func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) addNegativeEntry(name string) {
-	if !b.enableNonexistentEntryCaching {
-		return
-	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	if !b.enableNonexistentEntryCaching {
+		b.cache.Erase(name)
+		return
+	}
 
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntry(name, expiration)
@@ -262,11 +264,13 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
-	if !b.enableNonexistentEntryCaching {
-		return
-	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	if !b.enableNonexistentEntryCaching {
+		b.cache.Erase(name)
+		return
+	}
 
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntryForFolder(name, expiration)
