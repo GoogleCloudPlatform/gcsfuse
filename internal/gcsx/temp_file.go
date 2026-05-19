@@ -291,7 +291,7 @@ func (tf *tempFile) Truncate(n int64) error {
 	if n == 0 {
 		// Close source reader if incomplete to avoid downloading it.
 		if tf.state == fileIncomplete && tf.source != nil {
-			tf.source.Close()
+			_ = tf.source.Close()
 		}
 		tf.state = fileDirty
 		tf.dirtyThreshold = 0
@@ -313,13 +313,13 @@ func (tf *tempFile) Truncate(n int64) error {
 			}
 			tf.dirtyThreshold = size + written
 			if err == io.EOF {
-				tf.source.Close()
+				_ = tf.source.Close()
 				tf.state = fileComplete
 			}
 		}
 
 		if tf.state == fileIncomplete {
-			tf.source.Close()
+			_ = tf.source.Close()
 			tf.state = fileDirty
 		}
 	}

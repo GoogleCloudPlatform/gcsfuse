@@ -346,5 +346,3 @@ func (t *TempFileTest) Truncate_NToIncompleteFilePadsWithZeroesWhenShorterThanN(
 	AssertEq(nil, err)
 	ExpectEq("abcdefghij\x00\x00\x00\x00\x00", string(actual))
 }
-
-
