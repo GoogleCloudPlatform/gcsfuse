@@ -267,7 +267,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		bucketType := syncerBucket.BucketType()
 		if serverCfg.ViperConfig != nil {
-			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo)
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
@@ -3101,16 +3101,12 @@ func (fs *fileSystem) ReadFile(
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingBWH() {
 		// Flush/Sync Pending streaming writes and issue read within same inode lock.
-		if fh.Inode().Bucket().BucketType().IsRapid() {
-			// With rapid buckets, we can read from unfinalized objects as well.
-			// Hence, there is no need to finalize the object from here for rapid buckets.
-			// Hence, if FinalizeFileOnClose is set, then we will call syncFile otherwise
-			// we can call flushFile (as it will not finalize when FinalizeFileOnClose is false) itself.
-			if fs.newConfig.Write.FinalizeFileOnClose {
-				err = fs.syncFile(ctx, fh.Inode())
-			} else {
-				err = fs.flushFile(ctx, fh.Inode())
-			}
+		// With rapid buckets, we can read from unfinalized objects as well.
+		// Hence, there is no need to finalize the object from here for rapid buckets.
+		// Hence, if FinalizeFileOnClose is set, then we will call syncFile otherwise
+		// we can call flushFile (as it will not finalize when FinalizeFileOnClose is false) itself.
+		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileOnClose {
+			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())
 		}
