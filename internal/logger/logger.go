@@ -256,6 +256,18 @@ func SetOutput(w io.Writer) {
 	slog.SetDefault(defaultLogger)
 }
 
+// NewSDKLogger creates a logger for the Go SDK with a specific level and prefix.
+func NewSDKLogger(enableDebug bool) *slog.Logger {
+	var levelVar *slog.LevelVar
+	if enableDebug {
+		levelVar = new(slog.LevelVar)
+		levelVar.Set(LevelDebug)
+	} else {
+		levelVar = programLevel
+	}
+	return slog.New(defaultLoggerFactory.handler(levelVar, "SDK: "))
+}
+
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file       *os.File

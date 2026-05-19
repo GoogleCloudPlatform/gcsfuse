@@ -377,6 +377,26 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {
 	assert.NotNil(testSuite.T(), storageClient)
 }
 
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithSDKDebugLogs() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.EnableSDKDebugLogs = true
+
+	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
+}
+
+func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient_WithSDKDebugLogs() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.EnableSDKDebugLogs = true
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithAnonymousAccess() {
 	sc := storageutil.GetDefaultStorageClientConfig("incorrect_path")
 	sc.AnonymousAccess = true

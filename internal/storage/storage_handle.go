@@ -152,6 +152,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
 
+	if clientConfig.EnableSDKDebugLogs {
+		clientOpts = append(clientOpts, option.WithLogger(logger.NewSDKLogger(true)))
+	}
+
 	return clientOpts, nil
 }
 
@@ -333,6 +337,11 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			TargetPercentile: clientConfig.ReadStallRetryConfig.ReqTargetPercentile,
 		}))
 	}
+
+	if clientConfig.EnableSDKDebugLogs {
+		clientOpts = append(clientOpts, option.WithLogger(logger.NewSDKLogger(true)))
+	}
+
 	sc, err = storage.NewClient(ctx, clientOpts...)
 	if err != nil {
 		err = fmt.Errorf("go http storage client creation failed: %w", err)

@@ -171,6 +171,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		LocalSocketAddress:                      newConfig.GcsConnection.ExperimentalLocalSocketAddress,
 		EnableGrpcMetrics:                       newConfig.Metrics.ExperimentalEnableGrpcMetrics,
 		IsGKE:                                   isGKE,
+		EnableSDKDebugLogs:                      newConfig.Logging.EnableSdkDebugLogs,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)

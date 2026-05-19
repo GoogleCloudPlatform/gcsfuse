@@ -646,6 +646,8 @@ type LoggingConfig struct {
 	Severity LogSeverity `yaml:"severity"`
 
 	WireLog ResolvedPath `yaml:"wire-log"`
+
+	EnableSdkDebugLogs bool `yaml:"enable-sdk-debug-logs"`
 }
 
 type MetadataCacheConfig struct {
@@ -1169,6 +1171,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("log-rotate-max-file-size-mb", "", 512, "The maximum size in megabytes that a log file can reach before it is rotated.")
 
 	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
+
+	flagSet.BoolP("enable-sdk-debug-logs", "", false, "Enables debug logs for the Go SDK.")
 
 	flagSet.StringP("machine-type", "", "", "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g")
 
@@ -1774,6 +1778,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("logging.severity", flagSet.Lookup("log-severity")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.enable-sdk-debug-logs", flagSet.Lookup("enable-sdk-debug-logs")); err != nil {
 		return err
 	}
 

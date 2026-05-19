@@ -866,6 +866,12 @@ params:
     usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
     default: "info"
 
+  - config-path: "logging.enable-sdk-debug-logs"
+    flag-name: "enable-sdk-debug-logs"
+    type: "bool"
+    usage: "Enables debug logs for the Go SDK."
+    default: false
+
   - config-path: "logging.wire-log"
     flag-name: "wire-log"
     type: "resolvedPath"

@@ -94,6 +94,9 @@ type StorageClientConfig struct {
 
 	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
 	IsGKE bool
+
+	// EnableSDKDebugLogs enables debug logs for the Go SDK.
+	EnableSDKDebugLogs bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
