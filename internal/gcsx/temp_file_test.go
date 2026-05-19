@@ -249,3 +249,35 @@ func (t *TempFileTest) SetMtime() {
 	AssertEq(nil, err)
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(mtime)))
 }
+
+type panicReader struct {
+	readCalled bool
+}
+
+func (pr *panicReader) Read(p []byte) (n int, err error) {
+	pr.readCalled = true
+	return 0, fmt.Errorf("Read should not be called!")
+}
+
+func (pr *panicReader) Close() error {
+	return nil
+}
+
+func (t *TempFileTest) Truncate_ZeroToIncompleteFileDoesNotReadSource() {
+	pr := &panicReader{}
+	tf, err := gcsx.NewTempFile(pr, "", &t.clock)
+	AssertEq(nil, err)
+	defer tf.Destroy()
+
+	err = tf.Truncate(0)
+	ExpectEq(nil, err)
+	ExpectFalse(pr.readCalled)
+
+	// Stat should return size 0 and mtime non-nil.
+	sr, err := tf.Stat()
+	AssertEq(nil, err)
+	ExpectEq(0, sr.Size)
+	ExpectEq(0, sr.DirtyThreshold)
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
+}
+

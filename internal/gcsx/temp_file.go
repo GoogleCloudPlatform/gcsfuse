@@ -288,6 +288,18 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 func (tf *tempFile) Truncate(n int64) error {
+	if n == 0 {
+		// Close source reader if incomplete to avoid downloading it.
+		if tf.state == fileIncomplete && tf.source != nil {
+			tf.source.Close()
+		}
+		tf.state = fileDirty
+		tf.dirtyThreshold = 0
+		newMtime := tf.clock.Now()
+		tf.mtime = &newMtime
+		return tf.f.Truncate(0)
+	}
+
 	err := tf.ensureComplete()
 	if err != nil {
 		return fmt.Errorf("cannot Truncate incomplete file: %w", err)
