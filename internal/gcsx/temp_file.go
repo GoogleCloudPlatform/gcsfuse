@@ -146,9 +146,9 @@ type fileState string
 
 const (
 	fileIncomplete fileState = "fileIncomplete"
-	fileComplete             = "fileComplete"
-	fileDirty                = "fileDirty"
-	fileDestroyed            = "fileDestroyed"
+	fileComplete   fileState = "fileComplete"
+	fileDirty      fileState = "fileDirty"
+	fileDestroyed  fileState = "fileDestroyed"
 )
 
 type tempFile struct {
@@ -208,7 +208,7 @@ func (tf *tempFile) CheckInvariants() {
 		panic(fmt.Errorf("stat: %w", err))
 	}
 
-	if !(sr.DirtyThreshold <= sr.Size) {
+	if sr.DirtyThreshold > sr.Size {
 		panic(fmt.Errorf("mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 
@@ -229,7 +229,7 @@ func (tf *tempFile) Destroy() {
 	tf.state = fileDestroyed
 	tf.closeSource()
 	// Throw away the file (for anonymous files).
-	tf.f.Close()
+	_ = tf.f.Close()
 
 	tf.f = nil
 }
@@ -373,6 +373,9 @@ func (tf *tempFile) ensure(limit int64) error {
 	switch tf.state {
 	case fileIncomplete:
 		size, err := tf.f.Seek(0, 2)
+		if err != nil {
+			return fmt.Errorf("seek: %w", err)
+		}
 		if size >= limit {
 			return nil
 		}
