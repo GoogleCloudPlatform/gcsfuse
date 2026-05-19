@@ -281,3 +281,70 @@ func (t *TempFileTest) Truncate_ZeroToIncompleteFileDoesNotReadSource() {
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
 }
 
+type countingReader struct {
+	content   string
+	readBytes int
+}
+
+func (cr *countingReader) Read(p []byte) (n int, err error) {
+	if cr.readBytes >= len(cr.content) {
+		return 0, io.EOF
+	}
+	n = copy(p, cr.content[cr.readBytes:])
+	cr.readBytes += n
+	return n, nil
+}
+
+func (cr *countingReader) Close() error {
+	return nil
+}
+
+func (t *TempFileTest) Truncate_NToIncompleteFileDownloadsAtMostNBytes() {
+	content := "abcdefghijklmnopqrstuvwxyz0123456789" // 36 bytes
+	cr := &countingReader{content: content}
+	tf, err := gcsx.NewTempFile(cr, "", &t.clock)
+	AssertEq(nil, err)
+	defer tf.Destroy()
+
+	// Truncate to 10 bytes.
+	err = tf.Truncate(10)
+	ExpectEq(nil, err)
+	ExpectEq(10, cr.readBytes)
+
+	// Stat should return size 10 and dirtyThreshold 10.
+	sr, err := tf.Stat()
+	AssertEq(nil, err)
+	ExpectEq(10, sr.Size)
+	ExpectEq(10, sr.DirtyThreshold)
+
+	// Verify contents.
+	actual, err := readAll(tf)
+	AssertEq(nil, err)
+	ExpectEq("abcdefghij", string(actual))
+}
+
+func (t *TempFileTest) Truncate_NToIncompleteFilePadsWithZeroesWhenShorterThanN() {
+	content := "abcdefghij" // 10 bytes
+	cr := &countingReader{content: content}
+	tf, err := gcsx.NewTempFile(cr, "", &t.clock)
+	AssertEq(nil, err)
+	defer tf.Destroy()
+
+	// Truncate to 15 bytes (longer than content).
+	err = tf.Truncate(15)
+	ExpectEq(nil, err)
+	ExpectEq(10, cr.readBytes) // Should read all 10 bytes until EOF
+
+	// Stat should return size 15 and dirtyThreshold 10.
+	sr, err := tf.Stat()
+	AssertEq(nil, err)
+	ExpectEq(15, sr.Size)
+	ExpectEq(10, sr.DirtyThreshold)
+
+	// Verify contents (first 10 are original, last 5 are zeroes).
+	actual, err := readAll(tf)
+	AssertEq(nil, err)
+	ExpectEq("abcdefghij\x00\x00\x00\x00\x00", string(actual))
+}
+
+

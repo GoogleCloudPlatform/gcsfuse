@@ -300,9 +300,28 @@ func (tf *tempFile) Truncate(n int64) error {
 		return tf.f.Truncate(0)
 	}
 
-	err := tf.ensureComplete()
-	if err != nil {
-		return fmt.Errorf("cannot Truncate incomplete file: %w", err)
+	if tf.state == fileIncomplete {
+		size, err := tf.f.Seek(0, 2)
+		if err != nil {
+			return fmt.Errorf("seek: %w", err)
+		}
+		if size < n {
+			bytesToDownload := n - size
+			written, err := io.CopyN(tf.f, tf.source, bytesToDownload)
+			if err != nil && err != io.EOF {
+				return fmt.Errorf("io.CopyN: %w", err)
+			}
+			tf.dirtyThreshold = size + written
+			if err == io.EOF {
+				tf.source.Close()
+				tf.state = fileComplete
+			}
+		}
+
+		if tf.state == fileIncomplete {
+			tf.source.Close()
+			tf.state = fileDirty
+		}
 	}
 
 	// Update our state regarding being dirty.
