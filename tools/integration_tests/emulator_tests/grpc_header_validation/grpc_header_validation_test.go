@@ -106,7 +106,7 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 	assert.Greater(g.T(), validationCount, 0, "Expected at least one successful metadata validation")
 	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
 	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
-	assert.Equal(g.T(), 3, strings.Count(logStr, "/google.storage.v2.Storage/GetObject"), "Expected 3 GetObject calls (1 for each operation)")
+	assert.Equal(g.T(), 4, strings.Count(logStr, "/google.storage.v2.Storage/GetObject"), "Expected 4 GetObject calls (1 verification + 3 operations)")
 	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/BidiWriteObject"), "Expected 1 BidiWriteObject call for writing the file")
 	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/ReadObject"), "Expected 1 ReadObject call for reading the file")
 	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/ListObjects"), "Expected 1 ListObjects call for listing the directory")
