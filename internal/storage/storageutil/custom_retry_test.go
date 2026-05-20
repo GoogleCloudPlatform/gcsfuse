@@ -154,25 +154,47 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 }
 
 func TestShouldRetryWithoutLogging(t *testing.T) {
-	// Arrange
-	var err401 = googleapi.Error{
-		Code: 401,
-		Body: "Invalid Credential",
-	}
-	var errUnauthenticated = status.Error(codes.Unauthenticated, "unauthenticated")
-	var err400 = googleapi.Error{
-		Code: 400,
+	testCases := []struct {
+		name           string
+		err            error
+		expectedResult bool
+	}{
+		{
+			name: "401 error - retryable",
+			err: &googleapi.Error{
+				Code: 401,
+				Body: "Invalid Credential",
+			},
+			expectedResult: true,
+		},
+		{
+			name:           "Unauthenticated error - retryable",
+			err:            status.Error(codes.Unauthenticated, "unauthenticated"),
+			expectedResult: true,
+		},
+		{
+			name: "400 error - non-retryable",
+			err: &googleapi.Error{
+				Code: 400,
+			},
+			expectedResult: false,
+		},
 	}
 
-	// Act
-	res401 := ShouldRetryWithoutLogging(&err401)
-	resUnauthenticated := ShouldRetryWithoutLogging(errUnauthenticated)
-	res400 := ShouldRetryWithoutLogging(&err400)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf logBuffer
+			logger.SetOutput(&buf)
+			defer logger.SetOutput(os.Stdout)
 
-	// Assert
-	assert.True(t, res401)
-	assert.True(t, resUnauthenticated)
-	assert.False(t, res400)
+			// Act
+			actualResult := ShouldRetryWithoutLogging(tc.err)
+
+			// Assert
+			assert.Equal(t, tc.expectedResult, actualResult)
+			assert.Empty(t, buf.String())
+		})
+	}
 }
 
 func TestDetermineRetryAction(t *testing.T) {
@@ -253,7 +275,6 @@ func TestShouldRetryLogsWarning(t *testing.T) {
 	var buf logBuffer
 	logger.SetOutput(&buf)
 	defer logger.SetOutput(os.Stdout)
-
 	var err401 = &googleapi.Error{
 		Code: 401,
 		Body: "Invalid Credential",
@@ -266,25 +287,6 @@ func TestShouldRetryLogsWarning(t *testing.T) {
 	assert.True(t, retry)
 	assert.Contains(t, buf.String(), "WARNING")
 	assert.Contains(t, buf.String(), "Retrying for error-code 401")
-}
-
-func TestShouldRetryWithoutLoggingDoesNotLog(t *testing.T) {
-	// Arrange
-	var buf logBuffer
-	logger.SetOutput(&buf)
-	defer logger.SetOutput(os.Stdout)
-
-	var err401 = &googleapi.Error{
-		Code: 401,
-		Body: "Invalid Credential",
-	}
-
-	// Act
-	retryNoLog := ShouldRetryWithoutLogging(err401)
-
-	// Assert
-	assert.True(t, retryNoLog)
-	assert.Empty(t, buf.String())
 }
 
 type fakeMetricHandle struct {
