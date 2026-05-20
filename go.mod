@@ -107,3 +107,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260319201613-d00831a3d3e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260319201613-d00831a3d3e7 // indirect
 )
+
+replace cloud.google.com/go/storage => github.com/meet2mky/google-cloud-go/storage v0.0.0-20260520062308-e9081823e8f6
