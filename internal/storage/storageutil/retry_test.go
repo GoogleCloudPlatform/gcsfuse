@@ -578,7 +578,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_LogsErrorContext() {
 	var buf logBuffer
 	logger.SetOutput(&buf)
 	defer logger.SetOutput(os.Stdout)
-
 	var callCount int
 	retryableErr := errors.New("transient failure 429")
 	apiCall := func(ctx context.Context) (string, error) {
@@ -588,7 +587,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_LogsErrorContext() {
 		}
 		return "success", nil
 	}
-
 	// We need a shouldRetry function that returns true for retryableErr.
 	customShouldRetry := func(err error) bool {
 		return err.Error() == "transient failure 429"
