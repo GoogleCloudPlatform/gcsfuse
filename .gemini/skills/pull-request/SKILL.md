@@ -34,6 +34,11 @@ type(scope): subject
 
 Agents must synthesize a structured PR body based on the original task requirements and development results, mapping them onto the [pull_request_template.md](../../../.github/pull_request_template.md) sections:
 
+> [!IMPORTANT]
+> **Instructional Block Omission Rule**:
+> The [PR Template](../../../.github/pull_request_template.md) contains an initial introductory/instructional block (lines 1 to 20) detailing conventional commit rules and types. This block is strictly for reference.
+> When compiling and generating the pull request body payload, the agent **MUST REMOVE / OMIT this instructional block** completely. The final PR description body must strictly start with the `### Description` header down to the end of the file.
+
 ### Section A: Description
 * **Guideline**: Summarize *what* was updated and *why*.
 * Detail functional logic changes, additions, structural moves, and documentation additions.
@@ -126,4 +131,4 @@ If the GitHub CLI is unauthenticated or missing scopes:
    ```
    https://github.com/GoogleCloudPlatform/gcsfuse/pull/new/<branch_name>?title=<urlencoded_title>&body=<urlencoded_body>
    ```
-3. Output the generated PR body text directly in markdown so the user can easily copy and paste it into the browser window if requested.
+3. Output the generated PR body text (omitting the top instructions block as per the Omission Rule) directly in markdown so the user can easily copy and paste it into the browser window if requested.
