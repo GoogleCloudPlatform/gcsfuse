@@ -4889,28 +4889,90 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 }
 
 func TestGcsReadBytesCount(t *testing.T) {
-	ctx := context.Background()
-	encoder := attribute.DefaultEncoder()
-	m, rd := setupOTel(ctx, t)
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "read_type_Parallel",
+			f: func(m *otelMetrics) {
+				m.GcsReadBytesCount(5, "Parallel")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Parallel")): 5,
+			},
+		},
+		{
+			name: "read_type_Random",
+			f: func(m *otelMetrics) {
+				m.GcsReadBytesCount(5, "Random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Random")): 5,
+			},
+		},
+		{
+			name: "read_type_Sequential",
+			f: func(m *otelMetrics) {
+				m.GcsReadBytesCount(5, "Sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
+			},
+		},
+		{
+			name: "read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.GcsReadBytesCount(5, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.GcsReadBytesCount(5, "Parallel")
+				m.GcsReadBytesCount(2, "Random")
+				m.GcsReadBytesCount(3, "Parallel")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
+				attribute.NewSet(attribute.String("read_type", "Random")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsReadBytesCount(-5, "Parallel")
+				m.GcsReadBytesCount(2, "Parallel")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
+		},
+	}
 
-	m.GcsReadBytesCount(1024)
-	m.GcsReadBytesCount(2048)
-	waitForMetricsProcessing()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
 
-	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok := metrics["gcs/read_bytes_count"]
-	require.True(t, ok, "gcs/read_bytes_count metric not found")
-	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+			tc.f(m)
+			waitForMetricsProcessing()
 
-	// Test negative increment
-	m.GcsReadBytesCount(-100)
-	waitForMetricsProcessing()
-
-	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok = metrics["gcs/read_bytes_count"]
-	require.True(t, ok, "gcs/read_bytes_count metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["gcs/read_bytes_count"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/read_bytes_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/read_bytes_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
 }
 
 func TestGcsReadCount(t *testing.T) {

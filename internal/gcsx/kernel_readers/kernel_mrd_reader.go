@@ -98,7 +98,7 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 	var bytesRead int
 	defer func() {
 		metrics.CaptureGCSReadMetrics(kmr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
-		kmr.metrics.GcsReadBytesCount(int64(bytesRead))
+		kmr.metrics.GcsReadBytesCount(int64(bytesRead), metrics.ReadTypeParallelAttr)
 	}()
 
 	var err error

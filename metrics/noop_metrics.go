@@ -44,7 +44,7 @@ func (*noopMetrics) FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, 
 
 func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType ReadType) {}
 
-func (*noopMetrics) GcsReadBytesCount(inc int64) {}
+func (*noopMetrics) GcsReadBytesCount(inc int64, readType ReadType) {}
 
 func (*noopMetrics) GcsReadCount(inc int64, readType ReadType) {}
 

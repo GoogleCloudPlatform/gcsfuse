@@ -34,6 +34,7 @@ import (
 //
 // This function doesn't take locks and can be executed parallely.
 func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64, readHandle []byte, rangeMap map[int64]int64) ([]byte, error) {
+	ctx = metrics.ContextWithReadType(ctx, metrics.ReadTypeNames[metrics.ReadTypeParallel])
 	newReader, err := job.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{

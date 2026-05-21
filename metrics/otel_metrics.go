@@ -523,6 +523,10 @@ var (
 	gcsDownloadBytesCountReadTypeParallelAttrSet                                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsDownloadBytesCountReadTypeRandomAttrSet                                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsDownloadBytesCountReadTypeSequentialAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	gcsReadBytesCountReadTypeParallelAttrSet                                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
+	gcsReadBytesCountReadTypeRandomAttrSet                                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
+	gcsReadBytesCountReadTypeSequentialAttrSet                                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	gcsReadBytesCountReadTypeUnknownAttrSet                                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Unknown")))
 	gcsReadCountReadTypeParallelAttrSet                                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsReadCountReadTypeRandomAttrSet                                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsReadCountReadTypeSequentialAttrSet                                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
@@ -1058,7 +1062,10 @@ type otelMetrics struct {
 	gcsDownloadBytesCountReadTypeParallelAtomic                                                           *atomic.Int64
 	gcsDownloadBytesCountReadTypeRandomAtomic                                                             *atomic.Int64
 	gcsDownloadBytesCountReadTypeSequentialAtomic                                                         *atomic.Int64
-	gcsReadBytesCountAtomic                                                                               *atomic.Int64
+	gcsReadBytesCountReadTypeParallelAtomic                                                               *atomic.Int64
+	gcsReadBytesCountReadTypeRandomAtomic                                                                 *atomic.Int64
+	gcsReadBytesCountReadTypeSequentialAtomic                                                             *atomic.Int64
+	gcsReadBytesCountReadTypeUnknownAtomic                                                                *atomic.Int64
 	gcsReadCountReadTypeParallelAtomic                                                                    *atomic.Int64
 	gcsReadCountReadTypeRandomAtomic                                                                      *atomic.Int64
 	gcsReadCountReadTypeSequentialAtomic                                                                  *atomic.Int64
@@ -2352,12 +2359,24 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 }
 
 func (o *otelMetrics) GcsReadBytesCount(
-	inc int64) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/read_bytes_count received a negative increment: %d", inc)
 		return
 	}
-	o.gcsReadBytesCountAtomic.Add(inc)
+	switch readType {
+	case ReadTypeParallelAttr:
+		o.gcsReadBytesCountReadTypeParallelAtomic.Add(inc)
+	case ReadTypeRandomAttr:
+		o.gcsReadBytesCountReadTypeRandomAtomic.Add(inc)
+	case ReadTypeSequentialAttr:
+		o.gcsReadBytesCountReadTypeSequentialAtomic.Add(inc)
+	case ReadTypeUnknownAttr:
+		o.gcsReadBytesCountReadTypeUnknownAtomic.Add(inc)
+	default:
+		updateUnrecognizedAttribute(string(readType))
+		return
+	}
 }
 
 func (o *otelMetrics) GcsReadCount(
@@ -3105,7 +3124,10 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic atomic.Int64
 
-	var gcsReadBytesCountAtomic atomic.Int64
+	var gcsReadBytesCountReadTypeParallelAtomic,
+		gcsReadBytesCountReadTypeRandomAtomic,
+		gcsReadBytesCountReadTypeSequentialAtomic,
+		gcsReadBytesCountReadTypeUnknownAtomic atomic.Int64
 
 	var gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic,
@@ -3684,10 +3706,13 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}))
 
 	_, err10 := meter.Int64ObservableCounter("gcs/read_bytes_count",
-		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
+		metric.WithDescription("The cumulative number of bytes read from GCS objects along with type - Sequential/Random"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserve(obsrv, &gcsReadBytesCountAtomic)
+			conditionallyObserve(obsrv, &gcsReadBytesCountReadTypeParallelAtomic, gcsReadBytesCountReadTypeParallelAttrSet)
+			conditionallyObserve(obsrv, &gcsReadBytesCountReadTypeRandomAtomic, gcsReadBytesCountReadTypeRandomAttrSet)
+			conditionallyObserve(obsrv, &gcsReadBytesCountReadTypeSequentialAtomic, gcsReadBytesCountReadTypeSequentialAttrSet)
+			conditionallyObserve(obsrv, &gcsReadBytesCountReadTypeUnknownAtomic, gcsReadBytesCountReadTypeUnknownAttrSet)
 			return nil
 		}))
 
@@ -4266,33 +4291,36 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsDownloadBytesCountReadTypeParallelAtomic:                                                           &gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic:                                                             &gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic:                                                         &gcsDownloadBytesCountReadTypeSequentialAtomic,
-		gcsReadBytesCountAtomic:                                                            &gcsReadBytesCountAtomic,
-		gcsReadCountReadTypeParallelAtomic:                                                 &gcsReadCountReadTypeParallelAtomic,
-		gcsReadCountReadTypeRandomAtomic:                                                   &gcsReadCountReadTypeRandomAtomic,
-		gcsReadCountReadTypeSequentialAtomic:                                               &gcsReadCountReadTypeSequentialAtomic,
-		gcsReadCountReadTypeUnknownAtomic:                                                  &gcsReadCountReadTypeUnknownAtomic,
-		gcsReaderCountIoMethodClosedAtomic:                                                 &gcsReaderCountIoMethodClosedAtomic,
-		gcsReaderCountIoMethodOpenedAtomic:                                                 &gcsReaderCountIoMethodOpenedAtomic,
-		gcsRequestCountGcsMethodComposeObjectsAtomic:                                       &gcsRequestCountGcsMethodComposeObjectsAtomic,
-		gcsRequestCountGcsMethodCopyObjectAtomic:                                           &gcsRequestCountGcsMethodCopyObjectAtomic,
-		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic:                         &gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
-		gcsRequestCountGcsMethodCreateFolderAtomic:                                         &gcsRequestCountGcsMethodCreateFolderAtomic,
-		gcsRequestCountGcsMethodCreateObjectAtomic:                                         &gcsRequestCountGcsMethodCreateObjectAtomic,
-		gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic:                              &gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
-		gcsRequestCountGcsMethodDeleteFolderAtomic:                                         &gcsRequestCountGcsMethodDeleteFolderAtomic,
-		gcsRequestCountGcsMethodDeleteObjectAtomic:                                         &gcsRequestCountGcsMethodDeleteObjectAtomic,
-		gcsRequestCountGcsMethodFinalizeUploadAtomic:                                       &gcsRequestCountGcsMethodFinalizeUploadAtomic,
-		gcsRequestCountGcsMethodFlushPendingWritesAtomic:                                   &gcsRequestCountGcsMethodFlushPendingWritesAtomic,
-		gcsRequestCountGcsMethodGetFolderAtomic:                                            &gcsRequestCountGcsMethodGetFolderAtomic,
-		gcsRequestCountGcsMethodListObjectsAtomic:                                          &gcsRequestCountGcsMethodListObjectsAtomic,
-		gcsRequestCountGcsMethodMoveObjectAtomic:                                           &gcsRequestCountGcsMethodMoveObjectAtomic,
-		gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic:                              &gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic,
-		gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic:                              &gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic,
-		gcsRequestCountGcsMethodNewReaderAtomic:                                            &gcsRequestCountGcsMethodNewReaderAtomic,
-		gcsRequestCountGcsMethodRenameFolderAtomic:                                         &gcsRequestCountGcsMethodRenameFolderAtomic,
-		gcsRequestCountGcsMethodStatObjectAtomic:                                           &gcsRequestCountGcsMethodStatObjectAtomic,
-		gcsRequestCountGcsMethodUpdateObjectAtomic:                                         &gcsRequestCountGcsMethodUpdateObjectAtomic,
-		gcsRequestLatencies:                                                                gcsRequestLatencies,
+		gcsReadBytesCountReadTypeParallelAtomic:                                                               &gcsReadBytesCountReadTypeParallelAtomic,
+		gcsReadBytesCountReadTypeRandomAtomic:                                                                 &gcsReadBytesCountReadTypeRandomAtomic,
+		gcsReadBytesCountReadTypeSequentialAtomic:                                                             &gcsReadBytesCountReadTypeSequentialAtomic,
+		gcsReadBytesCountReadTypeUnknownAtomic:                                                                &gcsReadBytesCountReadTypeUnknownAtomic,
+		gcsReadCountReadTypeParallelAtomic:                                                                    &gcsReadCountReadTypeParallelAtomic,
+		gcsReadCountReadTypeRandomAtomic:                                                                      &gcsReadCountReadTypeRandomAtomic,
+		gcsReadCountReadTypeSequentialAtomic:                                                                  &gcsReadCountReadTypeSequentialAtomic,
+		gcsReadCountReadTypeUnknownAtomic:                                                                     &gcsReadCountReadTypeUnknownAtomic,
+		gcsReaderCountIoMethodClosedAtomic:                                                                    &gcsReaderCountIoMethodClosedAtomic,
+		gcsReaderCountIoMethodOpenedAtomic:                                                                    &gcsReaderCountIoMethodOpenedAtomic,
+		gcsRequestCountGcsMethodComposeObjectsAtomic:                                                          &gcsRequestCountGcsMethodComposeObjectsAtomic,
+		gcsRequestCountGcsMethodCopyObjectAtomic:                                                              &gcsRequestCountGcsMethodCopyObjectAtomic,
+		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic:                                            &gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
+		gcsRequestCountGcsMethodCreateFolderAtomic:                                                            &gcsRequestCountGcsMethodCreateFolderAtomic,
+		gcsRequestCountGcsMethodCreateObjectAtomic:                                                            &gcsRequestCountGcsMethodCreateObjectAtomic,
+		gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic:                                                 &gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
+		gcsRequestCountGcsMethodDeleteFolderAtomic:                                                            &gcsRequestCountGcsMethodDeleteFolderAtomic,
+		gcsRequestCountGcsMethodDeleteObjectAtomic:                                                            &gcsRequestCountGcsMethodDeleteObjectAtomic,
+		gcsRequestCountGcsMethodFinalizeUploadAtomic:                                                          &gcsRequestCountGcsMethodFinalizeUploadAtomic,
+		gcsRequestCountGcsMethodFlushPendingWritesAtomic:                                                      &gcsRequestCountGcsMethodFlushPendingWritesAtomic,
+		gcsRequestCountGcsMethodGetFolderAtomic:                                                               &gcsRequestCountGcsMethodGetFolderAtomic,
+		gcsRequestCountGcsMethodListObjectsAtomic:                                                             &gcsRequestCountGcsMethodListObjectsAtomic,
+		gcsRequestCountGcsMethodMoveObjectAtomic:                                                              &gcsRequestCountGcsMethodMoveObjectAtomic,
+		gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic:                                                 &gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic,
+		gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic:                                                 &gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic,
+		gcsRequestCountGcsMethodNewReaderAtomic:                                                               &gcsRequestCountGcsMethodNewReaderAtomic,
+		gcsRequestCountGcsMethodRenameFolderAtomic:                                                            &gcsRequestCountGcsMethodRenameFolderAtomic,
+		gcsRequestCountGcsMethodStatObjectAtomic:                                                              &gcsRequestCountGcsMethodStatObjectAtomic,
+		gcsRequestCountGcsMethodUpdateObjectAtomic:                                                            &gcsRequestCountGcsMethodUpdateObjectAtomic,
+		gcsRequestLatencies: gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:                                   &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:                            &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic:       &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic,

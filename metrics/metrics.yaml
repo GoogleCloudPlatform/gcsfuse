@@ -174,9 +174,13 @@
     - "Sequential"
 
 - metric-name: "gcs/read_bytes_count"
-  description: "The cumulative number of bytes read from GCS objects."
+  description: "The cumulative number of bytes read from GCS objects along with type - Sequential/Random"
   unit: "By"
   type: "int_counter"
+  attributes:
+  - attribute-name: read_type
+    attribute-type: string
+    values: *read_types_list
 
 - metric-name: "gcs/read_count"
   description: "Specifies the number of gcs reads made along with type - Sequential/Random"

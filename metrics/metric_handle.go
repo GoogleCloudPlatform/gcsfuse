@@ -213,8 +213,8 @@ type MetricHandle interface {
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)
 
-	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
-	GcsReadBytesCount(inc int64)
+	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects along with type - Sequential/Random
+	GcsReadBytesCount(inc int64, readType ReadType)
 
 	// GcsReadCount - Specifies the number of gcs reads made along with type - Sequential/Random
 	GcsReadCount(inc int64, readType ReadType)
