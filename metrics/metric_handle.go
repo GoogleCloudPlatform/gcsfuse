@@ -20,6 +20,14 @@ import (
 	"time"
 )
 
+// EntryStatus is a custom type for the entry_status attribute.
+type EntryStatus string
+
+const (
+	EntryStatusNegativeAttr EntryStatus = "negative"
+	EntryStatusPositiveAttr EntryStatus = "positive"
+)
+
 // FsErrorCategory is a custom type for the fs_error_category attribute.
 type FsErrorCategory string
 
@@ -104,6 +112,15 @@ type IoMethod string
 const (
 	IoMethodClosedAttr IoMethod = "closed"
 	IoMethodOpenedAttr IoMethod = "opened"
+)
+
+// LookupDetail is a custom type for the lookup_detail attribute.
+type LookupDetail string
+
+const (
+	LookupDetailFoundAttr      LookupDetail = "found"
+	LookupDetailNotFoundAttr   LookupDetail = "not_found"
+	LookupDetailTtlExpiredAttr LookupDetail = "ttl_expired"
 )
 
 // OpenMode is a custom type for the open_mode attribute.
@@ -213,6 +230,9 @@ type MetricHandle interface {
 
 	// GcsRetryCount - The cumulative number of retry requests made to GCS.
 	GcsRetryCount(inc int64, retryErrorCategory RetryErrorCategory)
+
+	// MetadataCacheReadCount - Total number of read requests to the metadata cache. Use attributes to analyze hit/miss ratios, entry types, and specific lookup outcomes (e.g., expiration vs. total absence).
+	MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus EntryStatus, lookupDetail LookupDetail)
 
 	// ReadBlockSizes - The cumulative distribution of read block sizes across different bucket boundaries
 	ReadBlockSizes(ctx context.Context, value int64)

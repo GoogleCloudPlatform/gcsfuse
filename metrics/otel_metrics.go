@@ -569,6 +569,18 @@ var (
 	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")))
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")))
+	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")))
+	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")))
+	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")))
+	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "found")))
+	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "not_found")))
+	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")))
+	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")))
+	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")))
+	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")))
+	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "found")))
+	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "not_found")))
+	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")))
 	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1")))
 	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2")))
 )
@@ -1074,6 +1086,18 @@ type otelMetrics struct {
 	gcsRequestCountGcsMethodUpdateObjectAtomic                                                            *atomic.Int64
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic                                                      *atomic.Int64
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic                                               *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic                          *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic                       *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic                     *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic                          *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic                       *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic                     *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic                         *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic                      *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic                    *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic                         *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic                      *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic                    *atomic.Int64
 	testUpdownCounterAtomic                                                                               *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr1Atomic                                                      *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr2Atomic                                                      *atomic.Int64
@@ -2495,6 +2519,76 @@ func (o *otelMetrics) GcsRetryCount(
 	}
 }
 
+func (o *otelMetrics) MetadataCacheReadCount(
+	inc int64, cacheHit bool, entryStatus EntryStatus, lookupDetail LookupDetail) {
+	if inc < 0 {
+		logger.Errorf("Counter metric metadata_cache/read_count received a negative increment: %d", inc)
+		return
+	}
+	switch cacheHit {
+	case true:
+		switch entryStatus {
+		case EntryStatusNegativeAttr:
+			switch lookupDetail {
+			case LookupDetailFoundAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic.Add(inc)
+			case LookupDetailNotFoundAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic.Add(inc)
+			case LookupDetailTtlExpiredAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(lookupDetail))
+				return
+			}
+		case EntryStatusPositiveAttr:
+			switch lookupDetail {
+			case LookupDetailFoundAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic.Add(inc)
+			case LookupDetailNotFoundAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic.Add(inc)
+			case LookupDetailTtlExpiredAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(lookupDetail))
+				return
+			}
+		default:
+			updateUnrecognizedAttribute(string(entryStatus))
+			return
+		}
+	case false:
+		switch entryStatus {
+		case EntryStatusNegativeAttr:
+			switch lookupDetail {
+			case LookupDetailFoundAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic.Add(inc)
+			case LookupDetailNotFoundAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic.Add(inc)
+			case LookupDetailTtlExpiredAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(lookupDetail))
+				return
+			}
+		case EntryStatusPositiveAttr:
+			switch lookupDetail {
+			case LookupDetailFoundAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic.Add(inc)
+			case LookupDetailNotFoundAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic.Add(inc)
+			case LookupDetailTtlExpiredAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(lookupDetail))
+				return
+			}
+		default:
+			updateUnrecognizedAttribute(string(entryStatus))
+			return
+		}
+	}
+}
+
 func (o *otelMetrics) ReadBlockSizes(
 	ctx context.Context, value int64) {
 	record := histogramRecord{ctx: ctx, instrument: o.readBlockSizes, value: value}
@@ -3043,6 +3137,19 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 	var gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
+
+	var metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic atomic.Int64
 
 	var testUpdownCounterAtomic atomic.Int64
 
@@ -3644,12 +3751,31 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	readBlockSizes, err16 := meter.Int64Histogram("read/block_sizes",
+	_, err16 := meter.Int64ObservableCounter("metadata_cache/read_count",
+		metric.WithDescription("Total number of read requests to the metadata cache. Use attributes to analyze hit/miss ratios, entry types, and specific lookup outcomes (e.g., expiration vs. total absence)."),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic, metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic, metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAttrSet)
+			return nil
+		}))
+
+	readBlockSizes, err17 := meter.Int64Histogram("read/block_sizes",
 		metric.WithDescription("The cumulative distribution of read block sizes across different bucket boundaries"),
 		metric.WithUnit("By"),
 		metric.WithExplicitBucketBoundaries(0, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728))
 
-	_, err17 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	_, err18 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3657,7 +3783,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err18 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err19 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3666,7 +3792,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18, err19}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -4140,35 +4266,47 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsDownloadBytesCountReadTypeParallelAtomic:                                                           &gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic:                                                             &gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic:                                                         &gcsDownloadBytesCountReadTypeSequentialAtomic,
-		gcsReadBytesCountAtomic:                                    &gcsReadBytesCountAtomic,
-		gcsReadCountReadTypeParallelAtomic:                         &gcsReadCountReadTypeParallelAtomic,
-		gcsReadCountReadTypeRandomAtomic:                           &gcsReadCountReadTypeRandomAtomic,
-		gcsReadCountReadTypeSequentialAtomic:                       &gcsReadCountReadTypeSequentialAtomic,
-		gcsReadCountReadTypeUnknownAtomic:                          &gcsReadCountReadTypeUnknownAtomic,
-		gcsReaderCountIoMethodClosedAtomic:                         &gcsReaderCountIoMethodClosedAtomic,
-		gcsReaderCountIoMethodOpenedAtomic:                         &gcsReaderCountIoMethodOpenedAtomic,
-		gcsRequestCountGcsMethodComposeObjectsAtomic:               &gcsRequestCountGcsMethodComposeObjectsAtomic,
-		gcsRequestCountGcsMethodCopyObjectAtomic:                   &gcsRequestCountGcsMethodCopyObjectAtomic,
-		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic: &gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
-		gcsRequestCountGcsMethodCreateFolderAtomic:                 &gcsRequestCountGcsMethodCreateFolderAtomic,
-		gcsRequestCountGcsMethodCreateObjectAtomic:                 &gcsRequestCountGcsMethodCreateObjectAtomic,
-		gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic:      &gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
-		gcsRequestCountGcsMethodDeleteFolderAtomic:                 &gcsRequestCountGcsMethodDeleteFolderAtomic,
-		gcsRequestCountGcsMethodDeleteObjectAtomic:                 &gcsRequestCountGcsMethodDeleteObjectAtomic,
-		gcsRequestCountGcsMethodFinalizeUploadAtomic:               &gcsRequestCountGcsMethodFinalizeUploadAtomic,
-		gcsRequestCountGcsMethodFlushPendingWritesAtomic:           &gcsRequestCountGcsMethodFlushPendingWritesAtomic,
-		gcsRequestCountGcsMethodGetFolderAtomic:                    &gcsRequestCountGcsMethodGetFolderAtomic,
-		gcsRequestCountGcsMethodListObjectsAtomic:                  &gcsRequestCountGcsMethodListObjectsAtomic,
-		gcsRequestCountGcsMethodMoveObjectAtomic:                   &gcsRequestCountGcsMethodMoveObjectAtomic,
-		gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic:      &gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic,
-		gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic:      &gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic,
-		gcsRequestCountGcsMethodNewReaderAtomic:                    &gcsRequestCountGcsMethodNewReaderAtomic,
-		gcsRequestCountGcsMethodRenameFolderAtomic:                 &gcsRequestCountGcsMethodRenameFolderAtomic,
-		gcsRequestCountGcsMethodStatObjectAtomic:                   &gcsRequestCountGcsMethodStatObjectAtomic,
-		gcsRequestCountGcsMethodUpdateObjectAtomic:                 &gcsRequestCountGcsMethodUpdateObjectAtomic,
-		gcsRequestLatencies:                                        gcsRequestLatencies,
-		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:           &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
-		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:    &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
+		gcsReadBytesCountAtomic:                                                            &gcsReadBytesCountAtomic,
+		gcsReadCountReadTypeParallelAtomic:                                                 &gcsReadCountReadTypeParallelAtomic,
+		gcsReadCountReadTypeRandomAtomic:                                                   &gcsReadCountReadTypeRandomAtomic,
+		gcsReadCountReadTypeSequentialAtomic:                                               &gcsReadCountReadTypeSequentialAtomic,
+		gcsReadCountReadTypeUnknownAtomic:                                                  &gcsReadCountReadTypeUnknownAtomic,
+		gcsReaderCountIoMethodClosedAtomic:                                                 &gcsReaderCountIoMethodClosedAtomic,
+		gcsReaderCountIoMethodOpenedAtomic:                                                 &gcsReaderCountIoMethodOpenedAtomic,
+		gcsRequestCountGcsMethodComposeObjectsAtomic:                                       &gcsRequestCountGcsMethodComposeObjectsAtomic,
+		gcsRequestCountGcsMethodCopyObjectAtomic:                                           &gcsRequestCountGcsMethodCopyObjectAtomic,
+		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic:                         &gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
+		gcsRequestCountGcsMethodCreateFolderAtomic:                                         &gcsRequestCountGcsMethodCreateFolderAtomic,
+		gcsRequestCountGcsMethodCreateObjectAtomic:                                         &gcsRequestCountGcsMethodCreateObjectAtomic,
+		gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic:                              &gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
+		gcsRequestCountGcsMethodDeleteFolderAtomic:                                         &gcsRequestCountGcsMethodDeleteFolderAtomic,
+		gcsRequestCountGcsMethodDeleteObjectAtomic:                                         &gcsRequestCountGcsMethodDeleteObjectAtomic,
+		gcsRequestCountGcsMethodFinalizeUploadAtomic:                                       &gcsRequestCountGcsMethodFinalizeUploadAtomic,
+		gcsRequestCountGcsMethodFlushPendingWritesAtomic:                                   &gcsRequestCountGcsMethodFlushPendingWritesAtomic,
+		gcsRequestCountGcsMethodGetFolderAtomic:                                            &gcsRequestCountGcsMethodGetFolderAtomic,
+		gcsRequestCountGcsMethodListObjectsAtomic:                                          &gcsRequestCountGcsMethodListObjectsAtomic,
+		gcsRequestCountGcsMethodMoveObjectAtomic:                                           &gcsRequestCountGcsMethodMoveObjectAtomic,
+		gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic:                              &gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic,
+		gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic:                              &gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic,
+		gcsRequestCountGcsMethodNewReaderAtomic:                                            &gcsRequestCountGcsMethodNewReaderAtomic,
+		gcsRequestCountGcsMethodRenameFolderAtomic:                                         &gcsRequestCountGcsMethodRenameFolderAtomic,
+		gcsRequestCountGcsMethodStatObjectAtomic:                                           &gcsRequestCountGcsMethodStatObjectAtomic,
+		gcsRequestCountGcsMethodUpdateObjectAtomic:                                         &gcsRequestCountGcsMethodUpdateObjectAtomic,
+		gcsRequestLatencies:                                                                gcsRequestLatencies,
+		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:                                   &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
+		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:                            &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic:       &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic:    &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic:  &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic:       &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic:    &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic:  &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic:      &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic:   &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic: &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic:      &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic:   &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic: &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic,
 		readBlockSizes:          readBlockSizes,
 		testUpdownCounterAtomic: &testUpdownCounterAtomic,
 		testUpdownCounterWithAttrsRequestTypeAttr1Atomic: &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
