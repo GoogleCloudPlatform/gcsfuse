@@ -57,8 +57,7 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	localKeyFilePath = path.Join(os.Getenv("HOME"), "creds.json")
 
 	// Download credentials
-	gcloudSecretAccessCmd := fmt.Sprintf("secrets versions access latest --secret %s", CredentialsSecretName)
-	creds, err := operations.ExecuteGcloudCommandf(gcloudSecretAccessCmd)
+	creds, err := operations.ExecuteGcloudCommandf("secrets versions access latest --secret %s", CredentialsSecretName)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while fetching key file %v", err))
 	}
@@ -79,7 +78,7 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 
 func ApplyPermissionToServiceAccount(serviceAccount, permission, bucket string) {
 	// Provide permission to service account for testing.
-	_, err := operations.ExecuteGcloudCommandf(fmt.Sprintf("storage buckets add-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission))
+	_, err := operations.ExecuteGcloudCommandf("storage buckets add-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while setting permissions to SA: %v", err))
 	}
@@ -90,8 +89,7 @@ func ApplyPermissionToServiceAccount(serviceAccount, permission, bucket string) 
 
 func RevokePermission(serviceAccount, permission, bucket string) {
 	// Revoke the permission to service account after testing.
-	cmd := fmt.Sprintf("storage buckets remove-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission)
-	_, err := operations.ExecuteGcloudCommandf(cmd)
+	_, err := operations.ExecuteGcloudCommandf("storage buckets remove-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in unsetting permissions to SA: %v", err))
 	}
