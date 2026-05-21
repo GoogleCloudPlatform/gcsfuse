@@ -323,8 +323,9 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 	for start < end {
 		if newReader == nil {
 			newReaderLimit = min(start+sequentialReadSize, end)
+			cancelCtx := metrics.ContextWithReadType(job.cancelCtx, metrics.ReadTypeNames[metrics.ReadTypeSequential])
 			newReader, err = job.bucket.NewReaderWithReadHandle(
-				job.cancelCtx,
+				cancelCtx,
 				&gcs.ReadObjectRequest{
 					Name:       job.object.Name,
 					Generation: job.object.Generation,

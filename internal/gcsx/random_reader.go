@@ -503,6 +503,7 @@ func (rr *randomReader) readFull(
 func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, readType int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(rr.traceHandle.PropagateTraceContext(context.Background(), ctx))
+	ctx = metrics.ContextWithReadType(ctx, metrics.ReadTypeNames[readType])
 
 	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
 		rr.reader, err = NewInactiveTimeoutReader(
