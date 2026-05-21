@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
@@ -41,22 +42,24 @@ func NewKernelRangeReader(bucket gcs.Bucket, instance *KernelRangeReaderInstance
 }
 
 // CheckInvariants performs internal consistency checks on the reader state.
-func (rkr *KernelRangeReader) CheckInvariants() {
-	if rkr.instance == nil {
+func (krr *KernelRangeReader) CheckInvariants() {
+	if krr.instance == nil {
 		panic("KernelRangeReader: instance is nil")
 	}
-	if rkr.bucket == nil {
+	if krr.bucket == nil {
 		panic("KernelRangeReader: bucket is nil")
 	}
 }
 
 // ReadAt reads data from the object by creating a new range reader.
-func (rkr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
+func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
 	var resp ReadResponse
 
-	obj := rkr.instance.GetMinObject()
+	obj := krr.instance.GetMinObject()
 	if obj == nil {
-		return resp, io.EOF
+		err := fmt.Errorf("KernelRangeReader::ReadAt: Nil MinObject")
+		logger.Error(err.Error())
+		return resp, err
 	}
 
 	if req.Offset >= int64(obj.Size) {
@@ -68,7 +71,7 @@ func (rkr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (Rea
 		endOffset = int64(obj.Size)
 	}
 
-	reader, err := rkr.bucket.NewReaderWithReadHandle(
+	reader, err := krr.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       obj.Name,
@@ -87,19 +90,19 @@ func (rkr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (Rea
 	n, err := io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
 	resp.Size = n
 
-	if rkr.metrics != nil {
-		metrics.CaptureGCSReadMetrics(rkr.metrics, metrics.ReadTypeParallelAttr, int64(n))
-		rkr.metrics.GcsReadBytesCount(int64(n))
+	if krr.metrics != nil {
+		metrics.CaptureGCSReadMetrics(krr.metrics, metrics.ReadTypeParallelAttr, int64(n))
+		krr.metrics.GcsReadBytesCount(int64(n))
 	}
 
 	return resp, err
 }
 
 // Destroy releases resources.
-func (rkr *KernelRangeReader) Destroy() {
+func (krr *KernelRangeReader) Destroy() {
 }
 
 // ReaderName returns the reader name.
-func (rkr *KernelRangeReader) ReaderName() string {
+func (krr *KernelRangeReader) ReaderName() string {
 	return "KernelRangeReader"
 }

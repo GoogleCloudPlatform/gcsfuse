@@ -59,7 +59,7 @@ type FileHandle struct {
 	readManager gcsx.ReadManager
 
 	// kernelReader is a reader that uses a kernel-optimized approach to read data
-	// from a GCS object based on the bucket type (MRD for Zonal, Range for Regional).
+	// from a GCS object based on the bucket type (MRD for Zonal, kernelRangeReader for Regional).
 	kernelReader gcsx.Reader
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.

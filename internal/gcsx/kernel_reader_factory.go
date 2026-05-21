@@ -31,7 +31,7 @@ func NewKernelReader(
 	metricsHandle metrics.MetricHandle,
 ) Reader {
 	if bucket.BucketType().Zonal {
-		return NewMrdKernelReader(mrdInstance, metricsHandle)
+		return NewKernelMRDReader(mrdInstance, metricsHandle)
 	}
 	return NewKernelRangeReader(bucket, kernelRangeReaderInstance, metricsHandle)
 }

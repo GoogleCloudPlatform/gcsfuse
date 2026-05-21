@@ -29,7 +29,7 @@ func TestNewKernelReader_Zonal(t *testing.T) {
 	reader := NewKernelReader(mockBucket, nil, nil, nil)
 
 	assert.NotNil(t, reader)
-	assert.Equal(t, "MrdKernelReader", reader.ReaderName())
+	assert.Equal(t, "KernelMRDReader", reader.ReaderName())
 	mockBucket.AssertExpectations(t)
 }
 
