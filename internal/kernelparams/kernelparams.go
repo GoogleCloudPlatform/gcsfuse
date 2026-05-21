@@ -210,27 +210,32 @@ func (m *KernelParamsManager) addParam(name ParamName, value string) {
 	})
 }
 
-// SetMaxPagesLimit adds the max_pages_limit parameter to the config only if the
-// requested limit is greater than the current host max_pages_limit value.
-func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
+// ShouldUpdateMaxPagesLimit checks whether the FUSE max_pages_limit should be updated
+// to the requested limit based on the current host max_pages_limit value.
+func ShouldUpdateMaxPagesLimit(limit int) bool {
 	if limit <= 0 {
-		return
+		return false
 	}
 
 	currentLimit, err := readMaxPagesLimitFunc()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return
+		// Since max_pages_limit is a shared machine level setting, we must only increase it.
+		// If we fail to read the current limit, we cannot safely verify if the requested
+		// limit is higher. To prevent lowering the shared machine level limit, we log a
+		// warning if we fail to read it, unless the failure is because the parameter
+		// is not supported or present on the host kernel.
+		if !os.IsNotExist(err) {
+			logger.Warnf("Failed to read current host max_pages_limit: %v. Should not configure max_pages_limit to avoid potentially lowering the shared machine level limit.", err)
 		}
-		// Since max_pages_limit is a shared node-level setting on GKE, we must only
-		// increase it. If we fail to read the current limit, we cannot safely verify
-		// if the requested limit is higher. To prevent lowering the shared node-level
-		// limit or causing mount errors, we log a warning and skip configuring it.
-		logger.Warnf("Failed to read current host max_pages_limit: %v. Skipping max_pages_limit configuration to avoid potentially lowering the shared node-level limit.", err)
-		return
+		return false
 	}
 
-	if limit > currentLimit {
+	return limit > currentLimit
+}
+
+// SetMaxPagesLimit adds the max_pages_limit parameter to the config.
+func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
+	if limit > 0 {
 		m.addParam(MaxPagesLimit, strconv.Itoa(limit))
 	}
 }

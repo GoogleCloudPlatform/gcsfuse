@@ -92,14 +92,7 @@ func TestPathForParam(t *testing.T) {
 }
 
 func TestSetMaxPagesLimit_UpdateValue(t *testing.T) {
-	oldFunc := readMaxPagesLimitFunc
-	defer func() { readMaxPagesLimitFunc = oldFunc }()
-	readMaxPagesLimitFunc = func() (int, error) {
-		return 16, nil
-	}
-
 	cfg := NewKernelParamsManager()
-	cfg.SetMaxPagesLimit(123)
 	cfg.SetMaxPagesLimit(456)
 
 	assert.Len(t, cfg.Parameters, 1)
@@ -159,12 +152,6 @@ func TestSetCongestionWindowThreshold(t *testing.T) {
 }
 
 func TestSetMultipleKernelParams(t *testing.T) {
-	oldFunc := readMaxPagesLimitFunc
-	defer func() { readMaxPagesLimitFunc = oldFunc }()
-	readMaxPagesLimitFunc = func() (int, error) {
-		return 16, nil
-	}
-
 	cfg := NewKernelParamsManager()
 
 	cfg.SetMaxPagesLimit(123)
@@ -269,51 +256,81 @@ func TestWriteValue_PermissionDenied_SudoFallback(t *testing.T) {
 	}
 }
 
-func TestSetMaxPagesLimit_HigherThanCurrent(t *testing.T) {
-	// Save old function pointer and defer its restoration
-	oldFunc := readMaxPagesLimitFunc
-	defer func() { readMaxPagesLimitFunc = oldFunc }()
-	// Mock: Set current system limit to a low number (e.g., 16)
-	readMaxPagesLimitFunc = func() (int, error) {
-		return 16, nil
-	}
+func TestSetMaxPagesLimit_Invalid(t *testing.T) {
 	cfg := NewKernelParamsManager()
 
-	// Request a higher limit (256)
-	cfg.SetMaxPagesLimit(256)
+	cfg.SetMaxPagesLimit(-1)
 
-	// It should succeed and add the parameter
-	assert.Len(t, cfg.Parameters, 1)
-	assert.Equal(t, MaxPagesLimit, cfg.Parameters[0].Name)
-	assert.Equal(t, "256", cfg.Parameters[0].Value)
-}
-
-func TestSetMaxPagesLimit_LowerOrEqualThanCurrent(t *testing.T) {
-	// Save old function pointer and defer its restoration
-	oldFunc := readMaxPagesLimitFunc
-	defer func() { readMaxPagesLimitFunc = oldFunc }()
-	// Mock: Set current system limit to a high number (e.g., 512)
-	readMaxPagesLimitFunc = func() (int, error) {
-		return 512, nil
-	}
-	cfg := NewKernelParamsManager()
-
-	// Request a lower limit (256)
-	cfg.SetMaxPagesLimit(256)
-
-	// It should be skipped, leaving the parameters array empty
 	assert.Empty(t, cfg.Parameters)
 }
 
-func TestSetMaxPagesLimit_ReadFailure(t *testing.T) {
+func TestShouldUpdateMaxPagesLimit_HigherThanCurrent(t *testing.T) {
+	// Arrange
+	oldFunc := readMaxPagesLimitFunc
+	defer func() { readMaxPagesLimitFunc = oldFunc }()
+	readMaxPagesLimitFunc = func() (int, error) {
+		return 16, nil
+	}
+
+	// Act
+	got := ShouldUpdateMaxPagesLimit(256)
+
+	// Assert
+	assert.True(t, got)
+}
+
+func TestShouldUpdateMaxPagesLimit_LowerOrEqualThanCurrent(t *testing.T) {
+	// Arrange
+	oldFunc := readMaxPagesLimitFunc
+	defer func() { readMaxPagesLimitFunc = oldFunc }()
+	readMaxPagesLimitFunc = func() (int, error) {
+		return 512, nil
+	}
+
+	// Act
+	got := ShouldUpdateMaxPagesLimit(256)
+
+	// Assert
+	assert.False(t, got)
+}
+
+func TestShouldUpdateMaxPagesLimit_ReadFailure(t *testing.T) {
+	// Arrange
 	oldFunc := readMaxPagesLimitFunc
 	defer func() { readMaxPagesLimitFunc = oldFunc }()
 	readMaxPagesLimitFunc = func() (int, error) {
 		return 0, os.ErrNotExist
 	}
 
-	cfg := NewKernelParamsManager()
-	cfg.SetMaxPagesLimit(123)
+	// Act
+	got := ShouldUpdateMaxPagesLimit(123)
 
-	assert.Empty(t, cfg.Parameters)
+	// Assert
+	assert.False(t, got)
+}
+
+func TestShouldUpdateMaxPagesLimit_InvalidLimit(t *testing.T) {
+	tests := []struct {
+		name  string
+		limit int
+	}{
+		{
+			name:  "Zero limit",
+			limit: 0,
+		},
+		{
+			name:  "Negative limit",
+			limit: -1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Act
+			got := ShouldUpdateMaxPagesLimit(tc.limit)
+
+			// Assert
+			assert.False(t, got)
+		})
+	}
 }
