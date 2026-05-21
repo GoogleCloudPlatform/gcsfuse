@@ -9,7 +9,7 @@ require (
 	cloud.google.com/go/iam v1.6.0
 	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/secretmanager v1.16.0
-	cloud.google.com/go/storage v1.61.3
+	cloud.google.com/go/storage v1.61.4
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.31.0
 	github.com/fsouza/fake-gcs-server v1.54.0
