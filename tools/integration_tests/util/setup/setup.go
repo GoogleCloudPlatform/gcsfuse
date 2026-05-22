@@ -585,6 +585,8 @@ func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 const FlatBucket = "flat"
 const HNSBucket = "hns"
 const ZonalBucket = "zonal"
+const PirloSameZoneBucket = "pirlo_same_zone"
+const PirloDifferentZoneBucket = "pirlo_different_zone"
 
 func BucketType(ctx context.Context, testBucket string) (bucketType string, err error) {
 	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
@@ -612,6 +614,9 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	if err != nil {
 		return "", fmt.Errorf("failed to get bucket attributes: %w", err)
 	}
+
+	// TODO: Identify bucket type Pirlo same zone vs different zone here
+
 	if attrs.LocationType == "zone" {
 		return ZonalBucket, nil
 	}
