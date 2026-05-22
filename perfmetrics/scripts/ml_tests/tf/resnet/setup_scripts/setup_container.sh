@@ -19,7 +19,7 @@
 
 # Install go lang
 BUCKET_TYPE=$1
-wget -O go_tar.tar.gz https://go.dev/dl/go1.26.1.linux-amd64.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.26.3.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
