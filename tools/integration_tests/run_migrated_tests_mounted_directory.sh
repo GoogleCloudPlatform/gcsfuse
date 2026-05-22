@@ -17,8 +17,6 @@
 set -euo pipefail
 
 RUN_ZONAL=false
-PROJECT_ID=""
-BUCKET_LOCATION=""
 MOUNTED_DIR="/home/cpranjal_google_com/mnt"
 PACKAGE_NAME="" # Default is empty to trigger run-all
 RUN_ALL=false
@@ -38,46 +36,27 @@ log_error() {
 }
 
 fetch_gce_metadata() {
-    if [ -z "${PROJECT_ID:-}" ]; then
-        PROJECT_ID=$(curl -s --connect-timeout 2 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id || echo "")
-    fi
-    if [ -z "${BUCKET_LOCATION:-}" ]; then
-        local zone
-        zone=$(curl -s --connect-timeout 2 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone || echo "")
-        if [ -n "$zone" ]; then
-            local zone_name=$(basename "$zone")
-            BUCKET_LOCATION="${zone_name%-*}"
-        fi
-    fi
-    
-    # Cloudtop specific fallback
-    if [[ "$PROJECT_ID" == *"cloudtop"* ]]; then
-        PROJECT_ID="gcs-fuse-test"
-    fi
+    PROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" --connect-timeout 1 http://metadata.google.internal/computeMetadata/v1/project/project-id || gcloud config get-value project 2>/dev/null || echo "gcs-fuse-test")
+    [[ "$PROJECT_ID" == *"cloudtop"* ]] && PROJECT_ID="gcs-fuse-test"
 
-    # Final fallbacks
-    PROJECT_ID="${PROJECT_ID:-gcs-fuse-test}"
+    local zone
+    zone=$(curl -s -H "Metadata-Flavor: Google" --connect-timeout 1 http://metadata.google.internal/computeMetadata/v1/instance/zone || gcloud config get-value compute/zone 2>/dev/null || echo "us-central1-a")
+    local zone_name=$(basename "$zone")
+    BUCKET_LOCATION="${zone_name%-*}"
     BUCKET_LOCATION="${BUCKET_LOCATION:-us-central1}"
 }
 
 create_bucket() {
     local bucket_type="$1"
     local package_name="$2"
-    local project_id="$3"
-    local location="$4"
-    
     local safe_pkg="${package_name//_/-}"
-    # Shorten the components to ensure length strictly <= 63 characters!
     local bucket_name="gcsfuse-mounted-tests-${safe_pkg:0:20}-${bucket_type}-$(date +%s)"
-    local cmd=("gcloud" "alpha" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${project_id}" "--location=${location}" "--uniform-bucket-level-access")
+    local cmd=("gcloud" "alpha" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
 
     if [[ "$bucket_type" == "hns" ]]; then
         cmd+=("--enable-hierarchical-namespace")
     elif [[ "$bucket_type" == "zonal" ]]; then
-        cmd+=("--enable-hierarchical-namespace" "--placement=${location}-a" "--default-storage-class=RAPID")
-    elif [[ "$bucket_type" != "flat" ]]; then
-        log_error "Invalid bucket type: $bucket_type"
-        return 1
+        cmd+=("--enable-hierarchical-namespace" "--placement=${BUCKET_LOCATION}-a" "--default-storage-class=RAPID")
     fi
 
     log_info "Creating $bucket_type bucket: $bucket_name..."
@@ -85,8 +64,6 @@ create_bucket() {
         log_error "Failed to create bucket $bucket_name"
         return 1
     fi
-    
-    # ONLY echo the raw bucket name to stdout so $(create_bucket) stays unpolluted
     echo "$bucket_name"
 }
 
@@ -98,15 +75,13 @@ delete_bucket() {
 
 # --- 1. Argument Parsing ---
 usage() {
-    echo "Usage: $0 [--zonal] [--project-id <project_id>] [--location <location>] [--mount-dir <mounted_directory>] [--package <package_name>] [--all]" >&2
+    echo "Usage: $0 [--zonal] [--mount-dir <mounted_directory>] [--package <package_name>] [--all]" >&2
     exit 1
 }
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --zonal) RUN_ZONAL=true; shift 1 ;;
-        --project-id) PROJECT_ID="$2"; shift 2 ;;
-        --location) BUCKET_LOCATION="$2"; shift 2 ;;
         --mount-dir) MOUNTED_DIR="$2"; shift 2 ;;
         --package) PACKAGE_NAME="$2"; shift 2 ;;
         --all) RUN_ALL=true; shift 1 ;;
@@ -167,6 +142,7 @@ log_info "Using Bucket Location: $BUCKET_LOCATION"
 ACTIVE_MOUNT_DIR=""
 ACTIVE_SEC_MOUNT_DIR=""
 CREATED_BUCKETS=()
+CREATED_FILES=()
 PACKAGE_RUNTIME_STATS=$(mktemp)
 OVERALL_EXIT_CODE=0
 
@@ -185,6 +161,13 @@ cleanup() {
             delete_bucket "$b"
         fi
     done
+    if [ ${#CREATED_FILES[@]} -gt 0 ]; then
+        for f in "${CREATED_FILES[@]}"; do
+            if [ -n "$f" ]; then
+                rm -f "$f"
+            fi
+        done
+    fi
     rm -f "$PACKAGE_RUNTIME_STATS"
 }
 trap cleanup EXIT
@@ -224,6 +207,8 @@ for CURRENT_PACKAGE in $PACKAGES; do
         BUCKET_CREATED_FLAG=false
 
         for (( i=0; i<$NUM_CONFIGS; i++ )); do
+            # Reset configuration specific variables
+            unset PROFILE_LABEL PROFILE_SERVICE_NAME KEY_FILE
             # 1. Check compatibility first!
             IS_COMPATIBLE=$(echo "$CONFIG_BASE" | yq -r ".configs[$i].compatible.${CURRENT_BUCKET_TYPE}")
             if [ "$IS_COMPATIBLE" == "false" ]; then
@@ -236,7 +221,7 @@ for CURRENT_PACKAGE in $PACKAGES; do
                 echo "#################################################################"
                 echo " TESTING PACKAGE: $CURRENT_PACKAGE | BUCKET TYPE: $CURRENT_BUCKET_TYPE"
                 echo "#################################################################"
-                PKG_TEST_BUCKET=$(create_bucket "$CURRENT_BUCKET_TYPE" "$CURRENT_PACKAGE" "$PROJECT_ID" "$BUCKET_LOCATION")
+                PKG_TEST_BUCKET=$(create_bucket "$CURRENT_BUCKET_TYPE" "$CURRENT_PACKAGE")
                 CREATED_BUCKETS+=("$PKG_TEST_BUCKET")
                 BUCKET_CREATED_FLAG=true
             fi
@@ -261,11 +246,54 @@ for CURRENT_PACKAGE in $PACKAGES; do
 
             for (( j=0; j<$NUM_FLAG_SETS; j++ )); do
                 RAW_FLAGS=$(echo "$CONFIG_BASE" | yq -r ".configs[$i].flags[$j]")
-                FLAGS="${RAW_FLAGS//,/ }" 
-                
-                # Secondary flags
                 if [ "$NUM_SEC_FLAGS" -gt "$j" ]; then
                     RAW_SEC_FLAGS=$(echo "$CONFIG_BASE" | yq -r ".configs[$i].secondary_flags[$j]")
+                else
+                    RAW_SEC_FLAGS=""
+                fi
+
+                # Export environment variables for envsubst substitution
+                export BUCKET_NAME="$PKG_TEST_BUCKET"
+                export BILLING_PROJECT="${BILLING_PROJECT:-$PROJECT_ID}"
+
+                # 1. Setup Cloud Profiler unique base-36 decreasing labels if requested in the configuration
+                if [[ "$RAW_FLAGS" == *"\${PROFILE_LABEL}"* || "$RAW_SEC_FLAGS" == *"\${PROFILE_LABEL}"* ]]; then
+                    if [ -z "${PROFILE_LABEL:-}" ]; then
+                        export PROFILE_LABEL=$(python3 -c '
+import time
+val = 9223372036854775807 - time.time_ns()
+alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+res = []
+for _ in range(13):
+    res.append(alphabet[val % 36])
+    val //= 36
+print("".join(reversed(res)) + "-cloud-profiler-test")
+')
+                        export PROFILE_SERVICE_NAME="$PROFILE_LABEL"
+                    fi
+                fi
+
+                # 2. Setup GCS Requester Pays credential/key file from Secret Manager if requested
+                if [[ "$RAW_FLAGS" == *"\${KEY_FILE}"* || "$RAW_SEC_FLAGS" == *"\${KEY_FILE}"* ]]; then
+                    if [ -z "${KEY_FILE:-}" ]; then
+                        local key_file_path=$(mktemp /tmp/requester-pays-key-XXXXXX.json)
+                        log_info "Fetching requester-pays service account key from Secret Manager..."
+                        if gcloud secrets versions access latest --secret="requester-pays-tester" --project="${PROJECT_ID}" > "$key_file_path"; then
+                            export KEY_FILE="$key_file_path"
+                            CREATED_FILES+=("$key_file_path")
+                        else
+                            log_error "Failed to fetch requester-pays service account key from Secret Manager!"
+                            rm -f "$key_file_path"
+                        fi
+                    fi
+                fi
+
+                # Perform dynamic variable substitution and comma-to-space mapping
+                RAW_FLAGS=$(echo "$RAW_FLAGS" | envsubst)
+                FLAGS="${RAW_FLAGS//,/ }"
+
+                if [ "$NUM_SEC_FLAGS" -gt "$j" ]; then
+                    RAW_SEC_FLAGS=$(echo "$RAW_SEC_FLAGS" | envsubst)
                     SEC_FLAGS="${RAW_SEC_FLAGS//,/ }"
                     IS_DUAL_MOUNT=true
                 else
@@ -328,11 +356,11 @@ for CURRENT_PACKAGE in $PACKAGES; do
                 fi
                 
                 # 3. Run Test
-                echo "  Test: GODEBUG=asyncpreemptoff=1 MOUNTED_DIR=\"$PKG_MOUNTED_DIR\" ${IS_DUAL_MOUNT:+MOUNTED_DIR_SECONDARY=\"$PKG_MOUNTED_DIR_SECONDARY\"} ${ONLY_DIR:+ONLY_DIR=\"$ONLY_DIR\"} TEST_BUCKET=\"$PKG_TEST_BUCKET\" BUCKET_NAME=\"$PKG_TEST_BUCKET\" ${GO_CMD[*]}"
+                echo "  Test: GODEBUG=asyncpreemptoff=1 MOUNTED_DIR=\"$PKG_MOUNTED_DIR\" ${IS_DUAL_MOUNT:+MOUNTED_DIR_SECONDARY=\"$PKG_MOUNTED_DIR_SECONDARY\"} ${ONLY_DIR:+ONLY_DIR=\"$ONLY_DIR\"} TEST_BUCKET=\"$PKG_TEST_BUCKET\" BUCKET_NAME=\"$PKG_TEST_BUCKET\" ${BILLING_PROJECT:+BILLING_PROJECT=\"$BILLING_PROJECT\"} ${KEY_FILE:+KEY_FILE=\"$KEY_FILE\"} ${PROFILE_LABEL:+PROFILE_LABEL=\"$PROFILE_LABEL\"} ${PROFILE_SERVICE_NAME:+PROFILE_SERVICE_NAME=\"$PROFILE_SERVICE_NAME\"} ${GO_CMD[*]}"
                 
                 start=$SECONDS
                 exit_code=0
-                if ! env GODEBUG=asyncpreemptoff=1 MOUNTED_DIR="$PKG_MOUNTED_DIR" MOUNTED_DIR_SECONDARY="${IS_DUAL_MOUNT:+$PKG_MOUNTED_DIR_SECONDARY}" ONLY_DIR="$ONLY_DIR" TEST_BUCKET="$PKG_TEST_BUCKET" BUCKET_NAME="$PKG_TEST_BUCKET" "${GO_CMD[@]}"; then
+                if ! env GODEBUG=asyncpreemptoff=1 MOUNTED_DIR="$PKG_MOUNTED_DIR" MOUNTED_DIR_SECONDARY="${IS_DUAL_MOUNT:+$PKG_MOUNTED_DIR_SECONDARY}" ONLY_DIR="$ONLY_DIR" TEST_BUCKET="$PKG_TEST_BUCKET" BUCKET_NAME="$PKG_TEST_BUCKET" BILLING_PROJECT="${BILLING_PROJECT:-}" KEY_FILE="${KEY_FILE:-}" PROFILE_LABEL="${PROFILE_LABEL:-}" PROFILE_SERVICE_NAME="${PROFILE_SERVICE_NAME:-}" "${GO_CMD[@]}"; then
                     exit_code=1
                     OVERALL_EXIT_CODE=1
                     log_error "Tests failed in ${CURRENT_PACKAGE} on bucket type ${CURRENT_BUCKET_TYPE}!"
