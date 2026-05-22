@@ -123,6 +123,29 @@ func getUserAgent(appName, config, mountInstanceID string) string {
 	return fmt.Sprintf("%s (mount-id:%s)", userAgent, mountInstanceID)
 }
 
+func getUserAgentWithConfig(appName, config string, mountConfig *cfg.Config, mountInstanceID string) string {
+	var fullConfig string
+	if mountConfig != nil {
+		var err error
+		fullConfig, err = cfg.SerializeConfigToProtoBase64(mountConfig)
+		if err != nil {
+			fullConfig = ""
+		}
+	}
+
+	var userAgent string
+	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
+	if len(gcsfuseMetadataImageType) > 0 {
+		userAgent = fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s) (CfgProto:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config, fullConfig)
+		userAgent = strings.Join(strings.Fields(userAgent), " ")
+	} else if len(appName) > 0 {
+		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s) (CfgProto:%s)", common.GetVersion(), appName, config, fullConfig)
+	} else {
+		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s) (CfgProto:%s)", common.GetVersion(), config, fullConfig)
+	}
+	return fmt.Sprintf("%s (mount-id:%s)", userAgent, mountInstanceID)
+}
+
 func boolToBin(b bool) string {
 	if b {
 		return "1"
@@ -142,7 +165,8 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return strings.Join(parts, ":")
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool) (storageHandle storage.StorageHandle, err error) {
+
+func createStorageHandle(newConfig *cfg.Config, userAgent string, configUserAgent string, metricHandle metrics.MetricHandle, isGKE bool) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:                          newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:                         int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -152,6 +176,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		MaxRetryAttempts:                        int(newConfig.GcsRetries.MaxRetryAttempts),
 		RetryMultiplier:                         newConfig.GcsRetries.Multiplier,
 		UserAgent:                               userAgent,
+		ConfigUserAgent:                         configUserAgent,
 		CustomEndpoint:                          newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                                 string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:                         newConfig.GcsAuth.AnonymousAccess,
@@ -174,6 +199,9 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		WriteConfig:                             &newConfig.Write,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
+	if storageClientConfig.ConfigUserAgent != "" {
+		logger.Infof("ConfigUserAgent = %s\n", storageClientConfig.ConfigUserAgent)
+	}
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
 	return
 }
@@ -201,8 +229,9 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName)))
+		configUserAgent := getUserAgentWithConfig(newConfig.AppName, getConfigForUserAgent(newConfig), newConfig, logger.MountInstanceID(fsName(bucketName)))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE)
+		storageHandle, err = createStorageHandle(newConfig, userAgent, configUserAgent, metricHandle, isGKE)
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return

@@ -54,6 +54,7 @@ type StorageClientConfig struct {
 	// ClientProtocol decides the go-sdk client to create.
 	ClientProtocol                          cfg.Protocol
 	UserAgent                               string
+	ConfigUserAgent                         string
 	CustomEndpoint                          string
 	KeyFile                                 string
 	TokenUrl                                string

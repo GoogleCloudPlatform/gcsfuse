@@ -81,7 +81,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-			input:           nil,
+				input:           nil,
 				expectOptimized: false,
 				expectedValue:   {{$flag.DefaultValue}},
 			},

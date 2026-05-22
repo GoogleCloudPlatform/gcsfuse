@@ -48,7 +48,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +60,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -72,7 +72,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), true)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -233,8 +233,6 @@ func (t *MainTest) TestGetUserAgentConfig() {
 				FileCache: cfg.FileCacheConfig{MaxSizeMb: -1},
 				Read:      cfg.ReadConfig{EnableBufferedRead: true},
 			},
-			// Note: getConfigForUserAgent runs before config rationalization, which
-			// would disable buffered-read when file-cache is enabled.
 			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:0:0:1:0) (mount-id:testFS-123)", common.GetVersion())),
 		},
 		{
@@ -263,7 +261,6 @@ func (t *MainTest) TestGetUserAgentConfig() {
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(t *testing.T) {
 			userAgent := getUserAgent("AppName", getConfigForUserAgent(tc.mountConfig), "testFS-123")
-
 			assert.Equal(t, tc.expectedUserAgent, userAgent)
 		})
 	}
@@ -271,11 +268,22 @@ func (t *MainTest) TestGetUserAgentConfig() {
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSet() {
 	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
 	mountConfig := &cfg.Config{}
 
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig), "testFS-123")
 
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentWithConfig_SanitizationAndSerialization() {
+	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
+	mountConfig := &cfg.Config{}
+
+	userAgent := getUserAgentWithConfig("AppName", getConfigForUserAgent(mountConfig), mountConfig, "testFS-123")
+
+	expectedConfigProto, _ := cfg.SerializeConfigToProtoBase64(mountConfig)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (CfgProto:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigProto))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
