@@ -33,6 +33,7 @@ import (
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
@@ -50,6 +51,7 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
+var readAheadKb = flag.Int("read-ahead-kb", 1024, "Set read_ahead_kb value on GCSFuse mount point after mounting. If 0 or negative, it will not be set.")
 
 const (
 	FilePermission_0600               = 0600
@@ -137,6 +139,10 @@ func TestOnTPCEndPoint() bool {
 
 func MountedDirectory() string {
 	return *mountedDirectory
+}
+
+func ReadAheadKb() int {
+	return *readAheadKb
 }
 
 func SetLogFile(logFileValue string) {
@@ -434,6 +440,14 @@ func RunTestsForMountedDirectory(mountedDirectory string, m *testing.M) int {
 		return 1
 	}
 	mntDir = mountedDirectory
+
+	if *readAheadKb > 0 {
+		manager := kernelparams.NewKernelParamsManager()
+		manager.SetReadAheadKb(*readAheadKb)
+		manager.ApplyNonGKE(mountedDirectory)
+		log.Printf("Applied read_ahead_kb setting of %d KiB to pre-mounted directory: %s", *readAheadKb, mountedDirectory)
+	}
+
 	return ExecuteTest(m)
 }
 

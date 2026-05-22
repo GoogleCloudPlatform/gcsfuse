@@ -38,7 +38,7 @@ override STAGINGVERSION := $(STAGINGVERSIONPREFIX)$(patsubst $(STAGINGVERSIONPRE
 PROJECT ?= $(shell gcloud config get-value project 2>/dev/null)
 .DEFAULT_GOAL := build
 
-.PHONY: generate imports fmt vet lint build buildTest install test clean-gen clean clean-all build-csi
+.PHONY: generate imports fmt vet lint build buildTest install test clean-gen clean clean-all build-csi e2e-test e2e-exhaustive
 
 generate:
 	go generate ./...
@@ -89,3 +89,13 @@ e2e-test:
 	REGION=$$(echo $$ZONE | sed 's/-[a-z]$$//'); \
 	echo $$REGION; \
 	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION
+
+e2e-exhaustive:
+	ZONE=$$(curl -H "Metadata-Flavor: Google" metadata.google.internal/computeMetadata/v1/instance/zone | awk -F'/' '{print $$NF}'); \
+	echo $$ZONE; \
+	REGION=$$(echo $$ZONE | sed 's/-[a-z]$$//'); \
+	echo $$REGION; \
+	echo "Running E2E tests WITH read-ahead (1024 KiB)..."; \
+	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION --read-ahead-kb 1024 || exit 1; \
+	echo "Running E2E tests WITHOUT read-ahead (0 KiB)..."; \
+	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION --read-ahead-kb 0 || exit 1

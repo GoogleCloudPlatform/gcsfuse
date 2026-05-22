@@ -20,7 +20,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
@@ -55,5 +57,29 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 		log.Println("Error: ", string(output))
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
 	}
+
+	// Apply read-ahead settings if configured
+	if setup.ReadAheadKb() > 0 {
+		mountPoint := getMountPointFromFlags(binaryFile, flags)
+		if mountPoint != "" {
+			manager := kernelparams.NewKernelParamsManager()
+			manager.SetReadAheadKb(setup.ReadAheadKb())
+			manager.ApplyNonGKE(mountPoint)
+			log.Printf("Applied read_ahead_kb setting of %d KiB to mount point: %s", setup.ReadAheadKb(), mountPoint)
+		}
+	}
+
 	return nil
+}
+
+func getMountPointFromFlags(binaryFile string, flags []string) string {
+	if len(flags) < 2 {
+		return ""
+	}
+	// Check if this is the persistent mount helper (sbin/mount.gcsfuse)
+	if strings.Contains(binaryFile, "mount.gcsfuse") {
+		return flags[1]
+	}
+	// Otherwise, it's standard gcsfuse, so the mount point is the last argument
+	return flags[len(flags)-1]
 }
