@@ -197,7 +197,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_NonRetryableError()
 	// Assert
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), layout)
-	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
+	assert.Contains(t.T(), err.Error(), "failed:")
 	assert.Contains(t.T(), err.Error(), nonRetryableErr.Error())
 	t.mockRawClient.AssertExpectations(t.T())
 }
@@ -346,7 +346,7 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_NonRetryableError() {
 	// Assert
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), layout)
-	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
+	assert.Contains(t.T(), err.Error(), "failed:")
 	assert.Contains(t.T(), err.Error(), nonRetryableErr.Error())
 	t.mockRawClient.AssertExpectations(t.T())
 }
@@ -409,7 +409,7 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_NonRetryableError() {
 
 	// Assert
 	assert.Error(t.T(), err)
-	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
+	assert.Contains(t.T(), err.Error(), "failed:")
 	assert.Contains(t.T(), err.Error(), nonRetryableErr.Error())
 	t.mockRawClient.AssertExpectations(t.T())
 }
@@ -478,7 +478,7 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_NonRetryableError() {
 	// Assert
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), folder)
-	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
+	assert.Contains(t.T(), err.Error(), "failed:")
 	assert.Contains(t.T(), err.Error(), nonRetryableErr.Error())
 	t.mockRawClient.AssertExpectations(t.T())
 }
@@ -547,7 +547,7 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_NonRetryableError() {
 	// Assert
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), op)
-	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
+	assert.Contains(t.T(), err.Error(), "failed:")
 	assert.Contains(t.T(), err.Error(), nonRetryableErr.Error())
 	t.mockRawClient.AssertExpectations(t.T())
 }
@@ -616,7 +616,7 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_NonRetryableError() {
 	// Assert
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), folder)
-	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
+	assert.Contains(t.T(), err.Error(), "failed:")
 	assert.Contains(t.T(), err.Error(), nonRetryableErr.Error())
 	t.mockRawClient.AssertExpectations(t.T())
 }

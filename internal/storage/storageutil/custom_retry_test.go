@@ -287,7 +287,7 @@ func TestShouldRetryLogsWarning(t *testing.T) {
 	// Assert
 	assert.True(t, retry)
 	assert.Contains(t, buf.String(), "WARNING")
-	assert.Contains(t, buf.String(), "Retrying for error-code 401")
+	assert.Contains(t, buf.String(), "Retrying for error: googleapi: got HTTP response code 401")
 }
 
 func TestShouldRetryLogsWarningWithRetryContext(t *testing.T) {
@@ -314,11 +314,10 @@ func TestShouldRetryLogsWarningWithRetryContext(t *testing.T) {
 	assert.True(t, retry)
 	logMsg := buf.String()
 	assert.Contains(t, logMsg, "WARNING")
-	assert.Contains(t, logMsg, "Retrying for error-code 401")
-	assert.Contains(t, logMsg, "Invalid Credential")
-	assert.Contains(t, logMsg, "Op: GetObject, Object: ")
+	assert.Contains(t, logMsg, "Retrying GetObject for")
 	assert.Contains(t, logMsg, "some/file.txt")
-	assert.Contains(t, logMsg, "Attempt: 3")
+	assert.Contains(t, logMsg, "Invalid Credential")
+	assert.Contains(t, logMsg, "Attempt: 4")
 	assert.Contains(t, logMsg, "InvocationID: mock-invocation-id-123")
 }
 
@@ -339,7 +338,7 @@ func TestShouldRetryLogsWarningWithNilRetryContext(t *testing.T) {
 	assert.True(t, retry)
 	logMsg := buf.String()
 	assert.Contains(t, logMsg, "WARNING")
-	assert.Contains(t, logMsg, "Retrying for error-code 401: googleapi: Error 401: Invalid Credential")
+	assert.Contains(t, logMsg, "Retrying for error: googleapi: Error 401: Invalid Credential")
 	assert.NotContains(t, logMsg, "Op:")
 	assert.NotContains(t, logMsg, "Object:")
 	assert.NotContains(t, logMsg, "Attempt:")
