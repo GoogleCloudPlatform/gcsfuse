@@ -29,6 +29,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
+	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -189,7 +190,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	defer unSetDirectPathEnvVariable()
 
 	var clientOpts []option.ClientOption
-	clientOpts, err := createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
+	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
@@ -197,7 +198,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
 	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 
-	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
+	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
@@ -246,7 +247,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	// Disable Go SDK retries for this call to let ExecuteWithRetry handle it.
 	sc.SetRetry(storage.WithMaxAttempts(1))
 
-	_, statErr := storageutil.ExecuteWithRetryAtLogLevel(ctx, retryConfig, "Attrs", testObject, apiCall, logger.LevelInfo)
+	_, statErr := storageutil.ExecuteWithRetryAtLogLevel(ctx, retryConfig, "Attrs", testObject, uuid.NewString(), apiCall, logger.LevelInfo)
 
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
@@ -359,7 +360,7 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
 		Prefix:    "",
-		RequestId: "",
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 
 	return stoargeLayout, err
