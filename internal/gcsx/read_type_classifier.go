@@ -42,6 +42,8 @@ type ReadInfo struct {
 // It uses heuristics based on the number of seeks and average read size to classify the read pattern.
 // It is safe for concurrent use by multiple goroutines.
 type ReadTypeClassifier struct {
+	metricHandle metrics.MetricHandle
+
 	// ReadType of the reader. Will be sequential by default.
 	readType atomic.Int64
 
@@ -62,8 +64,9 @@ type ReadTypeClassifier struct {
 	initialOffset int64
 }
 
-func NewReadTypeClassifier(sequentialReadSizeMb int64, initialOffset int64) *ReadTypeClassifier {
+func NewReadTypeClassifier(sequentialReadSizeMb int64, initialOffset int64, mh metrics.MetricHandle) *ReadTypeClassifier {
 	state := &ReadTypeClassifier{
+		metricHandle:         mh,
 		readType:             atomic.Int64{},
 		expectedOffset:       atomic.Int64{},
 		seeks:                atomic.Uint64{},
@@ -124,9 +127,25 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 	numSeeks := rtc.seeks.Load()
 	currentTotalReadBytes := rtc.totalReadBytes.Load()
 
+	var reason metrics.Reason
+
 	if !seekRecorded && rtc.isSeekNeeded(offset) {
 		numSeeks = rtc.seeks.Add(1)
 		seekRecorded = true
+
+		if offset < expOffset {
+			reason = metrics.ReasonBackwardSeekAttr
+		} else if offset > expOffset+maxReadSize {
+			reason = metrics.ReasonForwardSeekAttr
+		}
+	} else if rtc.isSeekNeeded(offset) && seekRecorded {
+		if offset < expOffset {
+			reason = metrics.ReasonBackwardSeekAttr
+		} else if offset > expOffset+maxReadSize {
+			reason = metrics.ReasonForwardSeekAttr
+		}
+	} else if numSeeks == 0 && rtc.initialOffset != 0 && previousReadType == metrics.ReadTypeSequential {
+		reason = metrics.ReasonInitialOffsetNonZeroAttr
 	}
 
 	readType := metrics.ReadTypeRandom
@@ -140,7 +159,21 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 	}
 
 	if readType != previousReadType {
-		rtc.readType.Store(readType)
+		if rtc.readType.CompareAndSwap(previousReadType, readType) {
+			if rtc.metricHandle != nil {
+				if previousReadType == metrics.ReadTypeSequential && readType == metrics.ReadTypeRandom {
+					if reason == "" && rtc.initialOffset != 0 {
+						reason = metrics.ReasonInitialOffsetNonZeroAttr
+					}
+					if reason != "" {
+						rtc.metricHandle.GcsExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
+					}
+				} else if previousReadType == metrics.ReadTypeRandom && readType == metrics.ReadTypeSequential {
+					reason = metrics.ReasonAverageReadSizeLargeEnoughAttr
+					rtc.metricHandle.GcsExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
+				}
+			}
+		}
 	}
 
 	return ReadInfo{
@@ -171,13 +204,30 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 			// Clamp to [minReadSize, maxReadSize]
 			randomReadSize = min(max(randomReadSize, minReadSize), maxReadSize)
 			if currentReadType != metrics.ReadTypeRandom {
-				rtc.readType.Store(metrics.ReadTypeRandom)
+				if rtc.readType.CompareAndSwap(currentReadType, metrics.ReadTypeRandom) {
+					if currentReadType == metrics.ReadTypeSequential && rtc.metricHandle != nil {
+						var reason metrics.Reason
+						if seeks > 0 {
+							// Seek transition already logged in GetReadInfo
+						} else if rtc.initialOffset > 0 {
+							reason = metrics.ReasonInitialOffsetNonZeroAttr
+						}
+						if reason != "" {
+							rtc.metricHandle.GcsExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
+						}
+					}
+				}
 			}
 			return int64(randomReadSize)
 		}
 	}
 	if currentReadType != metrics.ReadTypeSequential {
-		rtc.readType.Store(metrics.ReadTypeSequential)
+		if rtc.readType.CompareAndSwap(currentReadType, metrics.ReadTypeSequential) {
+			if currentReadType == metrics.ReadTypeRandom && rtc.metricHandle != nil {
+				reason := metrics.ReasonAverageReadSizeLargeEnoughAttr
+				rtc.metricHandle.GcsExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
+			}
+		}
 	}
 	return rtc.sequentialReadSizeMb * MB
 }

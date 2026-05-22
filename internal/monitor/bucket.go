@@ -240,8 +240,9 @@ type monitoringReadCloser struct {
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
+	mrc.metricHandle.GcsReadBytesCount(int64(n))
 	readType := metrics.GetReadTypeFromContext(mrc.ctx)
-	mrc.metricHandle.GcsReadBytesCount(int64(n), readType)
+	mrc.metricHandle.GcsExperimentalReadBytesCount(int64(n), readType)
 	return
 }
 

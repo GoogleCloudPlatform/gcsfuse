@@ -341,7 +341,7 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 	rm := &ReadManager{
 		object:             t.object,
 		readers:            []gcsx.Reader{mockReader1, mockReader2},
-		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0),
+		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil),
 		traceHandle:        tracing.NewNoopTracer(),
 	}
 	mockReader1.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
@@ -369,7 +369,7 @@ func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
 	rm := &ReadManager{
 		object:             t.object,
 		readers:            []gcsx.Reader{mockBufferedReader, mockGCSReader},
-		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0),
+		readTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil),
 		traceHandle:        tracing.NewNoopTracer(),
 	}
 	mockBufferedReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()

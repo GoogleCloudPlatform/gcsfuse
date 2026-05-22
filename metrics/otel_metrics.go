@@ -503,10 +503,18 @@ var (
 	gcsDownloadBytesCountReadTypeParallelAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel"),))
 	gcsDownloadBytesCountReadTypeRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random"),))
 	gcsDownloadBytesCountReadTypeSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential"),))
-	gcsReadBytesCountReadTypeParallelAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel"),))
-	gcsReadBytesCountReadTypeRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random"),))
-	gcsReadBytesCountReadTypeSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential"),))
-	gcsReadBytesCountReadTypeUnknownAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Unknown"),))
+	gcsExperimentalReadBytesCountReadTypeParallelAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel"),))
+	gcsExperimentalReadBytesCountReadTypeRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random"),))
+	gcsExperimentalReadBytesCountReadTypeSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential"),))
+	gcsExperimentalReadBytesCountReadTypeUnknownAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Unknown"),))
+	gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"),attribute.String("transition_type", "random_to_sequential"),))
+	gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"),attribute.String("transition_type", "sequential_to_random"),))
+	gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "backward_seek"),attribute.String("transition_type", "random_to_sequential"),))
+	gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "backward_seek"),attribute.String("transition_type", "sequential_to_random"),))
+	gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forward_seek"),attribute.String("transition_type", "random_to_sequential"),))
+	gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forward_seek"),attribute.String("transition_type", "sequential_to_random"),))
+	gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"),attribute.String("transition_type", "random_to_sequential"),))
+	gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"),attribute.String("transition_type", "sequential_to_random"),))
 	gcsReadCountReadTypeParallelAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel"),))
 	gcsReadCountReadTypeRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random"),))
 	gcsReadCountReadTypeSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential"),))
@@ -1009,10 +1017,19 @@ type otelMetrics struct {
 	gcsDownloadBytesCountReadTypeParallelAtomic *atomic.Int64
 	gcsDownloadBytesCountReadTypeRandomAtomic *atomic.Int64
 	gcsDownloadBytesCountReadTypeSequentialAtomic *atomic.Int64
-	gcsReadBytesCountReadTypeParallelAtomic *atomic.Int64
-	gcsReadBytesCountReadTypeRandomAtomic *atomic.Int64
-	gcsReadBytesCountReadTypeSequentialAtomic *atomic.Int64
-	gcsReadBytesCountReadTypeUnknownAtomic *atomic.Int64
+	gcsExperimentalReadBytesCountReadTypeParallelAtomic *atomic.Int64
+	gcsExperimentalReadBytesCountReadTypeRandomAtomic *atomic.Int64
+	gcsExperimentalReadBytesCountReadTypeSequentialAtomic *atomic.Int64
+	gcsExperimentalReadBytesCountReadTypeUnknownAtomic *atomic.Int64
+	gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAtomic *atomic.Int64
+	gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeSequentialToRandomAtomic *atomic.Int64
+	gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAtomic *atomic.Int64
+	gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic *atomic.Int64
+	gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic *atomic.Int64
+	gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic *atomic.Int64
+	gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic *atomic.Int64
+	gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic *atomic.Int64
+	gcsReadBytesCountAtomic *atomic.Int64
 	gcsReadCountReadTypeParallelAtomic *atomic.Int64
 	gcsReadCountReadTypeRandomAtomic *atomic.Int64
 	gcsReadCountReadTypeSequentialAtomic *atomic.Int64
@@ -2208,25 +2225,87 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 	}
 }
 
-func (o *otelMetrics) GcsReadBytesCount(
+func (o *otelMetrics) GcsExperimentalReadBytesCount(
 		inc int64, readType ReadType) {
 	if inc < 0 {
-		logger.Errorf("Counter metric gcs/read_bytes_count received a negative increment: %d", inc)
+		logger.Errorf("Counter metric gcs/experimental_read_bytes_count received a negative increment: %d", inc)
 		return
 	}
 		switch readType {
 		case ReadTypeParallelAttr:
-		o.gcsReadBytesCountReadTypeParallelAtomic.Add(inc)
+		o.gcsExperimentalReadBytesCountReadTypeParallelAtomic.Add(inc)
 		case ReadTypeRandomAttr:
-		o.gcsReadBytesCountReadTypeRandomAtomic.Add(inc)
+		o.gcsExperimentalReadBytesCountReadTypeRandomAtomic.Add(inc)
 		case ReadTypeSequentialAttr:
-		o.gcsReadBytesCountReadTypeSequentialAtomic.Add(inc)
+		o.gcsExperimentalReadBytesCountReadTypeSequentialAtomic.Add(inc)
 		case ReadTypeUnknownAttr:
-		o.gcsReadBytesCountReadTypeUnknownAtomic.Add(inc)
+		o.gcsExperimentalReadBytesCountReadTypeUnknownAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(string(readType))
 			return
 	}
+}
+
+func (o *otelMetrics) GcsExperimentalReadTypeTransitionsCount(
+		inc int64, reason Reason, transitionType TransitionType) {
+	if inc < 0 {
+		logger.Errorf("Counter metric gcs/experimental_read_type_transitions_count received a negative increment: %d", inc)
+		return
+	}
+		switch reason {
+		case ReasonAverageReadSizeLargeEnoughAttr:
+		switch transitionType {
+			case TransitionTypeRandomToSequentialAttr:
+			o.gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAtomic.Add(inc)
+			case TransitionTypeSequentialToRandomAttr:
+			o.gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeSequentialToRandomAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(transitionType))
+				return
+		}
+		case ReasonBackwardSeekAttr:
+		switch transitionType {
+			case TransitionTypeRandomToSequentialAttr:
+			o.gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAtomic.Add(inc)
+			case TransitionTypeSequentialToRandomAttr:
+			o.gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(transitionType))
+				return
+		}
+		case ReasonForwardSeekAttr:
+		switch transitionType {
+			case TransitionTypeRandomToSequentialAttr:
+			o.gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic.Add(inc)
+			case TransitionTypeSequentialToRandomAttr:
+			o.gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(transitionType))
+				return
+		}
+		case ReasonInitialOffsetNonZeroAttr:
+		switch transitionType {
+			case TransitionTypeRandomToSequentialAttr:
+			o.gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic.Add(inc)
+			case TransitionTypeSequentialToRandomAttr:
+			o.gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(transitionType))
+				return
+		}
+		default:
+			updateUnrecognizedAttribute(string(reason))
+			return
+	}
+}
+
+func (o *otelMetrics) GcsReadBytesCount(
+		inc int64) {
+	if inc < 0 {
+		logger.Errorf("Counter metric gcs/read_bytes_count received a negative increment: %d", inc)
+		return
+	}
+		o.gcsReadBytesCountAtomic.Add(inc)
 }
 
 func (o *otelMetrics) GcsReadCount(
@@ -2885,10 +2964,23 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	gcsDownloadBytesCountReadTypeSequentialAtomic atomic.Int64
 
 
-	var gcsReadBytesCountReadTypeParallelAtomic,
-	gcsReadBytesCountReadTypeRandomAtomic,
-	gcsReadBytesCountReadTypeSequentialAtomic,
-	gcsReadBytesCountReadTypeUnknownAtomic atomic.Int64
+	var gcsExperimentalReadBytesCountReadTypeParallelAtomic,
+	gcsExperimentalReadBytesCountReadTypeRandomAtomic,
+	gcsExperimentalReadBytesCountReadTypeSequentialAtomic,
+	gcsExperimentalReadBytesCountReadTypeUnknownAtomic atomic.Int64
+
+
+	var gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAtomic,
+	gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeSequentialToRandomAtomic,
+	gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAtomic,
+	gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic,
+	gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic,
+	gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic,
+	gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic,
+	gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic atomic.Int64
+
+
+	var gcsReadBytesCountAtomic atomic.Int64
 
 
 	var gcsReadCountReadTypeParallelAtomic,
@@ -3442,19 +3534,44 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}))
 
 
-	_, err9 := meter.Int64ObservableCounter("gcs/read_bytes_count",
+	_, err9 := meter.Int64ObservableCounter("gcs/experimental_read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from GCS objects along with type - Sequential/Random"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserve(obsrv, &gcsReadBytesCountReadTypeParallelAtomic, gcsReadBytesCountReadTypeParallelAttrSet)
-			conditionallyObserve(obsrv, &gcsReadBytesCountReadTypeRandomAtomic, gcsReadBytesCountReadTypeRandomAttrSet)
-			conditionallyObserve(obsrv, &gcsReadBytesCountReadTypeSequentialAtomic, gcsReadBytesCountReadTypeSequentialAttrSet)
-			conditionallyObserve(obsrv, &gcsReadBytesCountReadTypeUnknownAtomic, gcsReadBytesCountReadTypeUnknownAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadBytesCountReadTypeParallelAtomic, gcsExperimentalReadBytesCountReadTypeParallelAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadBytesCountReadTypeRandomAtomic, gcsExperimentalReadBytesCountReadTypeRandomAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadBytesCountReadTypeSequentialAtomic, gcsExperimentalReadBytesCountReadTypeSequentialAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadBytesCountReadTypeUnknownAtomic, gcsExperimentalReadBytesCountReadTypeUnknownAttrSet)
 			return nil
 		}))
 
 
-	_, err10 := meter.Int64ObservableCounter("gcs/read_count",
+	_, err10 := meter.Int64ObservableCounter("gcs/experimental_read_type_transitions_count",
+		metric.WithDescription("The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough."),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAtomic, gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeSequentialToRandomAtomic, gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeSequentialToRandomAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAtomic, gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic, gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic, gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic, gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic, gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAttrSet)
+			conditionallyObserve(obsrv, &gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic, gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAttrSet)
+			return nil
+		}))
+
+
+	_, err11 := meter.Int64ObservableCounter("gcs/read_bytes_count",
+		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &gcsReadBytesCountAtomic)
+			return nil
+		}))
+
+
+	_, err12 := meter.Int64ObservableCounter("gcs/read_count",
 		metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3466,7 +3583,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}))
 
 
-	_, err11 := meter.Int64ObservableCounter("gcs/reader_count",
+	_, err13 := meter.Int64ObservableCounter("gcs/reader_count",
 		metric.WithDescription("The cumulative number of GCS object readers opened or closed."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3476,7 +3593,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}))
 
 
-	_, err12 := meter.Int64ObservableCounter("gcs/request_count",
+	_, err14 := meter.Int64ObservableCounter("gcs/request_count",
 		metric.WithDescription("The cumulative number of GCS requests processed along with the GCS method."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3502,13 +3619,13 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	gcsRequestLatencies, err13 := meter.Int64Histogram("gcs/request_latencies",
+	gcsRequestLatencies, err15 := meter.Int64Histogram("gcs/request_latencies",
 		metric.WithDescription("The cumulative distribution of the GCS request latencies."),
 		metric.WithUnit("ms"),
 		metric.WithExplicitBucketBoundaries(100, 200, 400, 800, 1500, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 500000))
 
 
-	_, err14 := meter.Int64ObservableCounter("gcs/retry_count",
+	_, err16 := meter.Int64ObservableCounter("gcs/retry_count",
 		metric.WithDescription("The cumulative number of retry requests made to GCS."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3518,7 +3635,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}))
 
 
-	_, err15 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	_, err17 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3527,7 +3644,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}))
 
 
-	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err18 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3537,7 +3654,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}))
 
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -3991,10 +4108,19 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			gcsDownloadBytesCountReadTypeParallelAtomic: &gcsDownloadBytesCountReadTypeParallelAtomic,
 			gcsDownloadBytesCountReadTypeRandomAtomic: &gcsDownloadBytesCountReadTypeRandomAtomic,
 			gcsDownloadBytesCountReadTypeSequentialAtomic: &gcsDownloadBytesCountReadTypeSequentialAtomic,
-			gcsReadBytesCountReadTypeParallelAtomic: &gcsReadBytesCountReadTypeParallelAtomic,
-			gcsReadBytesCountReadTypeRandomAtomic: &gcsReadBytesCountReadTypeRandomAtomic,
-			gcsReadBytesCountReadTypeSequentialAtomic: &gcsReadBytesCountReadTypeSequentialAtomic,
-			gcsReadBytesCountReadTypeUnknownAtomic: &gcsReadBytesCountReadTypeUnknownAtomic,
+			gcsExperimentalReadBytesCountReadTypeParallelAtomic: &gcsExperimentalReadBytesCountReadTypeParallelAtomic,
+			gcsExperimentalReadBytesCountReadTypeRandomAtomic: &gcsExperimentalReadBytesCountReadTypeRandomAtomic,
+			gcsExperimentalReadBytesCountReadTypeSequentialAtomic: &gcsExperimentalReadBytesCountReadTypeSequentialAtomic,
+			gcsExperimentalReadBytesCountReadTypeUnknownAtomic: &gcsExperimentalReadBytesCountReadTypeUnknownAtomic,
+			gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAtomic: &gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAtomic,
+			gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeSequentialToRandomAtomic: &gcsExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeSequentialToRandomAtomic,
+			gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAtomic: &gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAtomic,
+			gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic: &gcsExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic,
+			gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic: &gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic,
+			gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic: &gcsExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic,
+			gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic: &gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic,
+			gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic: &gcsExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic,
+			gcsReadBytesCountAtomic: &gcsReadBytesCountAtomic,
 			gcsReadCountReadTypeParallelAtomic: &gcsReadCountReadTypeParallelAtomic,
 			gcsReadCountReadTypeRandomAtomic: &gcsReadCountReadTypeRandomAtomic,
 			gcsReadCountReadTypeSequentialAtomic: &gcsReadCountReadTypeSequentialAtomic,
