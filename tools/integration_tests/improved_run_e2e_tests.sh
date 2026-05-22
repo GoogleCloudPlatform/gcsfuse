@@ -773,18 +773,18 @@ test_package() {
   go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
   test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt_number}.txt")
   # Run the package test command and capture log output with runtime stats.
-  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt: $attempt_number)"
-  log_info "Test Command: $go_test_cmd"
+  log_info_locked "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt: $attempt_number)"
+  log_info_locked "Test Command: $go_test_cmd"
 
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
     if [[ "$attempt_number" -lt "$FLAKE_ATTEMPTS" ]]; then
-      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). Will retry."
+      log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). Will retry."
     else
-      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). No more retries."
+      log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). No more retries."
     fi
   else
-    log_info "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number)"
+    log_info_locked "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number)"
   fi
 
   local end=$SECONDS
