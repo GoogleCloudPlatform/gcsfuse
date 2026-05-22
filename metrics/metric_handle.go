@@ -149,8 +149,12 @@ const (
 type Reason string
 
 const (
-	ReasonInsufficientMemoryAttr Reason = "insufficient_memory"
-	ReasonRandomReadDetectedAttr Reason = "random_read_detected"
+	ReasonAverageReadSizeLargeEnoughAttr Reason = "average_read_size_large_enough"
+	ReasonBackwardSeekAttr               Reason = "backward_seek"
+	ReasonForwardSeekAttr                Reason = "forward_seek"
+	ReasonInitialOffsetNonZeroAttr       Reason = "initial_offset_non_zero"
+	ReasonInsufficientMemoryAttr         Reason = "insufficient_memory"
+	ReasonRandomReadDetectedAttr         Reason = "random_read_detected"
 )
 
 // RequestType is a custom type for the request_type attribute.
@@ -167,6 +171,14 @@ type RetryErrorCategory string
 const (
 	RetryErrorCategoryOTHERERRORSAttr        RetryErrorCategory = "OTHER_ERRORS"
 	RetryErrorCategorySTALLEDREADREQUESTAttr RetryErrorCategory = "STALLED_READ_REQUEST"
+)
+
+// TransitionType is a custom type for the transition_type attribute.
+type TransitionType string
+
+const (
+	TransitionTypeRandomToSequentialAttr TransitionType = "random_to_sequential"
+	TransitionTypeSequentialToRandomAttr TransitionType = "sequential_to_random"
 )
 
 // WriteFallbackReason is a custom type for the write_fallback_reason attribute.
@@ -213,8 +225,14 @@ type MetricHandle interface {
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)
 
-	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects along with type - Sequential/Random
-	GcsReadBytesCount(inc int64, readType ReadType)
+	// GcsExperimentalReadBytesCount - The cumulative number of bytes read from GCS objects along with type - Sequential/Random
+	GcsExperimentalReadBytesCount(inc int64, readType ReadType)
+
+	// GcsExperimentalReadTypeTransitionsCount - The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough.
+	GcsExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType)
+
+	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
+	GcsReadBytesCount(inc int64)
 
 	// GcsReadCount - Specifies the number of gcs reads made along with type - Sequential/Random
 	GcsReadCount(inc int64, readType ReadType)

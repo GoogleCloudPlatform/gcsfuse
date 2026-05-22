@@ -335,8 +335,12 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
-	// gcs/read_bytes_count - Sequential
+	// gcs/read_bytes_count - 0 attributes
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
+		attribute.NewSet(),
+		int64(len(content)))
+	// gcs/experimental_read_bytes_count - Sequential
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_bytes_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		int64(len(content)))
 
@@ -365,6 +369,9 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
+		attribute.NewSet(),
+		int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_bytes_count",
 		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		int64(len(content)))
 }
@@ -430,6 +437,9 @@ func TestGCSMetrics_ParallelDownloads(t *testing.T) {
 		5)
 	// Verify read bytes count
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
+		attribute.NewSet(),
+		int64(fileSize))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_bytes_count",
 		attribute.NewSet(attribute.String("read_type", "Parallel")),
 		int64(fileSize))
 }

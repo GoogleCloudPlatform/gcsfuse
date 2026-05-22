@@ -4888,7 +4888,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 	}
 }
 
-func TestGcsReadBytesCount(t *testing.T) {
+func TestGcsExperimentalReadBytesCount(t *testing.T) {
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
@@ -4897,7 +4897,7 @@ func TestGcsReadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Parallel",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(5, "Parallel")
+				m.GcsExperimentalReadBytesCount(5, "Parallel")
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Parallel")): 5,
@@ -4906,7 +4906,7 @@ func TestGcsReadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Random",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(5, "Random")
+				m.GcsExperimentalReadBytesCount(5, "Random")
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Random")): 5,
@@ -4915,7 +4915,7 @@ func TestGcsReadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Sequential",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(5, "Sequential")
+				m.GcsExperimentalReadBytesCount(5, "Sequential")
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
@@ -4924,7 +4924,7 @@ func TestGcsReadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Unknown",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(5, "Unknown")
+				m.GcsExperimentalReadBytesCount(5, "Unknown")
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
@@ -4932,9 +4932,9 @@ func TestGcsReadBytesCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(5, "Parallel")
-				m.GcsReadBytesCount(2, "Random")
-				m.GcsReadBytesCount(3, "Parallel")
+				m.GcsExperimentalReadBytesCount(5, "Parallel")
+				m.GcsExperimentalReadBytesCount(2, "Random")
+				m.GcsExperimentalReadBytesCount(3, "Parallel")
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
 				attribute.NewSet(attribute.String("read_type", "Random")): 2,
@@ -4943,8 +4943,8 @@ func TestGcsReadBytesCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(-5, "Parallel")
-				m.GcsReadBytesCount(2, "Parallel")
+				m.GcsExperimentalReadBytesCount(-5, "Parallel")
+				m.GcsExperimentalReadBytesCount(2, "Parallel")
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
 		},
@@ -4960,12 +4960,12 @@ func TestGcsReadBytesCount(t *testing.T) {
 			waitForMetricsProcessing()
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-			metric, ok := metrics["gcs/read_bytes_count"]
+			metric, ok := metrics["gcs/experimental_read_bytes_count"]
 			if len(tc.expected) == 0 {
-				assert.False(t, ok, "gcs/read_bytes_count metric should not be found")
+				assert.False(t, ok, "gcs/experimental_read_bytes_count metric should not be found")
 				return
 			}
-			require.True(t, ok, "gcs/read_bytes_count metric not found")
+			require.True(t, ok, "gcs/experimental_read_bytes_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -4973,6 +4973,154 @@ func TestGcsReadBytesCount(t *testing.T) {
 			assert.Equal(t, expectedMap, metric)
 		})
 	}
+}
+
+func TestGcsExperimentalReadTypeTransitionsCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "reason_average_read_size_large_enough_transition_type_random_to_sequential",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 5,
+			},
+		},
+		{
+			name: "reason_average_read_size_large_enough_transition_type_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "sequential_to_random")): 5,
+			},
+		},
+		{
+			name: "reason_backward_seek_transition_type_random_to_sequential",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "backward_seek", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "backward_seek"), attribute.String("transition_type", "random_to_sequential")): 5,
+			},
+		},
+		{
+			name: "reason_backward_seek_transition_type_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "backward_seek", "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "backward_seek"), attribute.String("transition_type", "sequential_to_random")): 5,
+			},
+		},
+		{
+			name: "reason_forward_seek_transition_type_random_to_sequential",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "forward_seek", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "forward_seek"), attribute.String("transition_type", "random_to_sequential")): 5,
+			},
+		},
+		{
+			name: "reason_forward_seek_transition_type_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "forward_seek", "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "forward_seek"), attribute.String("transition_type", "sequential_to_random")): 5,
+			},
+		},
+		{
+			name: "reason_initial_offset_non_zero_transition_type_random_to_sequential",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "initial_offset_non_zero", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"), attribute.String("transition_type", "random_to_sequential")): 5,
+			},
+		},
+		{
+			name: "reason_initial_offset_non_zero_transition_type_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "initial_offset_non_zero", "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"), attribute.String("transition_type", "sequential_to_random")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "random_to_sequential")
+				m.GcsExperimentalReadTypeTransitionsCount(2, "average_read_size_large_enough", "sequential_to_random")
+				m.GcsExperimentalReadTypeTransitionsCount(3, "average_read_size_large_enough", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 8,
+				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "sequential_to_random")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReadTypeTransitionsCount(-5, "average_read_size_large_enough", "random_to_sequential")
+				m.GcsExperimentalReadTypeTransitionsCount(2, "average_read_size_large_enough", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 2},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["gcs/experimental_read_type_transitions_count"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/experimental_read_type_transitions_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/experimental_read_type_transitions_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
+func TestGcsReadBytesCount(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+
+	m.GcsReadBytesCount(1024)
+	m.GcsReadBytesCount(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok := metrics["gcs/read_bytes_count"]
+	require.True(t, ok, "gcs/read_bytes_count metric not found")
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.GcsReadBytesCount(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["gcs/read_bytes_count"]
+	require.True(t, ok, "gcs/read_bytes_count metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
 }
 
 func TestGcsReadCount(t *testing.T) {
