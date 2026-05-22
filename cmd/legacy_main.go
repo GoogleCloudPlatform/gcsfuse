@@ -109,16 +109,27 @@ func registerTerminatingSignalHandler(mountPoint string) {
 	}()
 }
 
-func getUserAgent(appName, config, mountInstanceID string) string {
+func getUserAgent(appName string, mountConfig *cfg.Config, mountInstanceID string) string {
+	var configBitset string
+	var fullConfig string
+	if mountConfig != nil {
+		configBitset = getConfigForUserAgent(mountConfig)
+		var err error
+		fullConfig, err = cfg.SerializeConfigToProtoBase64(mountConfig)
+		if err != nil {
+			fullConfig = ""
+		}
+	}
+
 	var userAgent string
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config)
+		userAgent = fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s) (CfgProto:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, configBitset, fullConfig)
 		userAgent = strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, config)
+		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s) (CfgProto:%s)", common.GetVersion(), appName, configBitset, fullConfig)
 	} else {
-		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", common.GetVersion(), config)
+		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s) (CfgProto:%s)", common.GetVersion(), configBitset, fullConfig)
 	}
 	return fmt.Sprintf("%s (mount-id:%s)", userAgent, mountInstanceID)
 }
@@ -200,7 +211,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName)))
+		userAgent := getUserAgent(newConfig.AppName, newConfig, logger.MountInstanceID(fsName(bucketName)))
 		logger.Info("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE)
 		if err != nil {
