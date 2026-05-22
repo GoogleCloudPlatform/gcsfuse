@@ -23,6 +23,7 @@ explicit_dir:
           flat: true
           hns: false
           zonal: false
+          rcu: false
         run_on_gke: true
 
 implicit_dir:
@@ -1175,3 +1176,28 @@ concurrent_operations:
          zonal: true
        run: TestConcurrentListing
        run_on_gke: true
+
+zonal_cache_rcu:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - run: TestZonalCacheRcuSameRegion
+        flags:
+          # TODO: Add the specific GCSFuse flags to test RCU in the SAME region as the VM
+          - "--implicit-dirs,--log-severity=trace"
+        compatible:
+          flat: false
+          hns: false
+          zonal: false
+          rcu: true
+        run_on_gke: true
+      - run: TestZonalCacheRcuDifferentRegion
+        flags:
+          # TODO: Add the specific GCSFuse flags to test RCU in a DIFFERENT region than the VM
+          - "--implicit-dirs,--log-severity=trace"
+        compatible:
+          flat: false
+          hns: false
+          zonal: false
+          rcu: true
+        run_on_gke: true
