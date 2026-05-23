@@ -848,7 +848,7 @@ func IsDynamicMount(mountDir, rootDir string) bool {
 // ExtractServiceVersionFromFlags parses the cloud-profiler-label from a slice of flag strings.
 func ExtractServiceVersionFromFlags(flags []string) string {
 	// Regex to find --cloud-profiler-label=some_value or --cloud-profiler-label some_value
-	re := regexp.MustCompile(`--cloud-profiler-label[=\s]([^\s]+)`)
+	re := regexp.MustCompile(`--cloud-profiler-label[=\s]([^,\s]+)`)
 	for _, flagSet := range flags {
 		matches := re.FindStringSubmatch(flagSet)
 		// matches[0] is the full match, e.g., "--cloud-profiler-label=v1"
@@ -864,7 +864,7 @@ func ExtractServiceVersionFromFlags(flags []string) string {
 // CloudProfilerServiceNameFromFlags parses the cloud-profiler-service-name from a slice of flag strings.
 func CloudProfilerServiceNameFromFlags(flags []string) string {
 	// Regex to find --cloud-profiler-service-name=some_value or --cloud-profiler-service-name some_value
-	re := regexp.MustCompile(`--cloud-profiler-service-name[=\s]([^\s]+)`)
+	re := regexp.MustCompile(`--cloud-profiler-service-name[=\s]([^,\s]+)`)
 	for _, flagSet := range flags {
 		matches := re.FindStringSubmatch(flagSet)
 		// matches[0] is the full match, e.g., "--cloud-profiler-service-name=v1"
