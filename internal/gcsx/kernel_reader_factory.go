@@ -30,7 +30,7 @@ func NewKernelReader(
 	mrdInstance *MrdInstance,
 	metricsHandle metrics.MetricHandle,
 ) Reader {
-	if bucket.BucketType().Zonal {
+	if bucket.BucketType().IsRapid() {
 		return NewKernelMRDReader(mrdInstance, metricsHandle)
 	}
 	return NewKernelRangeReader(bucket, kernelRangeReaderInstance, metricsHandle)

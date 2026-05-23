@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
@@ -643,155 +644,295 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 	assert.Equal(t.T(), content2, output)
 }
 
+type mockStorageReader struct {
+	io.ReadCloser
+}
+
+func (m *mockStorageReader) ReadHandle() storagev2.ReadHandle {
+	return storagev2.ReadHandle{}
+}
+
 func (t *fileTest) Test_ReadWithKernelReader_Success() {
-	// 1. Setup
-	expectedData := []byte("hello from mrd reader")
-	objectName := "test_obj_mrd_reader"
-	// Create a mock bucket that behaves like a zonal bucket.
-	mockBucket := new(storage.TestifyMockBucket)
-	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
-	// Mock CreateObject which is called by createFileInode.
-	mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
-	// Create File Inode.
-	mockSyncerBucket := gcsx.NewSyncerBucket(
-		/*appendThreshold=*/ 1,
-		/*chunkRetryDeadlineSecs=*/ 120,
-		/*chunkTransferTimeoutSecs=*/ 10,
-		".gcsfuse_tmp/", mockBucket,
-	)
-	parent := createDirInode(&mockSyncerBucket, &t.clock)
-	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
-	// Create File Handle.
-	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
-	require.NotNil(t.T(), fh.kernelReader)
-	// Mock the downloader that kernelReader will use.
-	fakeMRD := fake.NewFakeMultiRangeDownloader(in.Source(), expectedData)
-	mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	// Create read request and take inode lock.
-	buf := make([]byte, len(expectedData))
-	req := &gcsx.ReadRequest{
-		Buffer: buf,
-		Offset: 0,
+	testCases := []struct {
+		name    string
+		isZonal bool
+	}{
+		{
+			name:    "Zonal_KernelMRDReader",
+			isZonal: true,
+		},
+		{
+			name:    "Standard_KernelRangeReader",
+			isZonal: false,
+		},
 	}
-	fh.inode.Lock() // Required by the function signature.
 
-	// 2. Call ReadWithKernelReader.
-	resp, err := fh.ReadWithKernelReader(t.ctx, req)
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			expectedData := []byte("hello from kernel reader")
+			objectName := "test_obj_kernel_reader"
+			// Set up mock bucket expectations for bucket type.
+			mockBucket := new(storage.TestifyMockBucket)
+			mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: tc.isZonal})
+			mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
+			mockSyncerBucket := gcsx.NewSyncerBucket(
+				/*appendThreshold=*/ 1,
+				/*chunkRetryDeadlineSecs=*/ 120,
+				/*chunkTransferTimeoutSecs=*/ 10,
+				".gcsfuse_tmp/", mockBucket,
+			)
+			parent := createDirInode(&mockSyncerBucket, &t.clock)
+			// Create the file inode and file handle. Setting EnableKernelReader to true initializes fh.kernelReader.
+			in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
+			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
+			require.NotNil(t.T(), fh.kernelReader)
+			// Create mock readers based on bucket type.
+			if tc.isZonal {
+				// Zonal buckets utilize the Multi-Range Downloader under the hood.
+				fakeMRD := fake.NewFakeMultiRangeDownloader(in.Source(), expectedData)
+				mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+			} else {
+				// Standard/Regional buckets utilize the standard storage Range Reader.
+				mockReader := &mockStorageReader{io.NopCloser(bytes.NewReader(expectedData))}
+				mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
+			}
+			buf := make([]byte, len(expectedData))
+			req := &gcsx.ReadRequest{
+				Buffer: buf,
+				Offset: 0,
+			}
+			// ReadWithKernelReader requires the inode lock to be held by the caller, and unlocks it internally.
+			fh.inode.Lock()
 
-	// 3. Assertions
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), len(expectedData), resp.Size)
-	assert.Equal(t.T(), expectedData, buf[:resp.Size])
-	mockBucket.AssertExpectations(t.T())
+			resp, err := fh.ReadWithKernelReader(t.ctx, req)
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), len(expectedData), resp.Size)
+			assert.Equal(t.T(), expectedData, buf[:resp.Size])
+			mockBucket.AssertExpectations(t.T())
+		})
+	}
 }
 
 func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative() {
-	// 1. Setup
-	zonalBucket := gcsx.NewSyncerBucket(
-		/*appendThreshold=*/ 1,
-		/*chunkRetryDeadlineSecs=*/ 120,
-		/*chunkTransferTimeoutSecs=*/ 10,
-		".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "zonal_bucket", gcs.BucketType{Zonal: true}),
-	)
-	originalData := []byte("some data") // 9 bytes
-	parent := createDirInode(&zonalBucket, &t.clock)
-	in := createFileInode(t.T(), &zonalBucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
-	// Make inode dirty.
-	in.Lock()
-	_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode) // 5 bytes
-	in.Unlock()
-	require.NoError(t.T(), err)
-	// After write, content should be "dirtydata".
-	expectedReadData := "dirtydata"
-	// Create file handle.
-	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
-	require.NotNil(t.T(), fh.kernelReader)
-	// Create read request and take inode lock.
-	buf := make([]byte, len(expectedReadData))
-	req := &gcsx.ReadRequest{
-		Buffer: buf,
-		Offset: 0,
+	testCases := []struct {
+		name    string
+		isZonal bool
+	}{
+		{
+			name:    "Zonal",
+			isZonal: true,
+		},
+		{
+			name:    "Standard",
+			isZonal: false,
+		},
 	}
-	fh.inode.Lock()
 
-	// 2. Call ReadWithKernelReader
-	resp, err := fh.ReadWithKernelReader(t.ctx, req)
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			bucket := gcsx.NewSyncerBucket(
+				/*appendThreshold=*/ 1,
+				/*chunkRetryDeadlineSecs=*/ 120,
+				/*chunkTransferTimeoutSecs=*/ 10,
+				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+			)
+			originalData := []byte("some data")
+			// Create file inode.
+			parent := createDirInode(&bucket, &t.clock)
+			in := createFileInode(t.T(), &bucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
+			// Perform a local write to mark the inode as dirty (not authoritative).
+			in.Lock()
+			_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode)
+			in.Unlock()
+			require.NoError(t.T(), err)
+			expectedReadData := "dirtydata"
+			// Create file handle with kernel reader enabled.
+			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
+			require.NotNil(t.T(), fh.kernelReader)
+			buf := make([]byte, len(expectedReadData))
+			req := &gcsx.ReadRequest{
+				Buffer: buf,
+				Offset: 0,
+			}
+			// ReadWithKernelReader requires the inode lock to be held on entry.
+			fh.inode.Lock()
 
-	// 3. Assertions
-	// It should read from inode, which contains "dirty data".
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), len(expectedReadData), resp.Size)
-	assert.Equal(t.T(), expectedReadData, string(buf[:resp.Size]))
+			// Since the source generation is not authoritative, this should read local un-synced data from the inode.
+			resp, err := fh.ReadWithKernelReader(t.ctx, req)
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), len(expectedReadData), resp.Size)
+			assert.Equal(t.T(), expectedReadData, string(buf[:resp.Size]))
+		})
+	}
+}
+
+func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative_ReadError() {
+	testCases := []struct {
+		name    string
+		isZonal bool
+	}{
+		{
+			name:    "Zonal",
+			isZonal: true,
+		},
+		{
+			name:    "Standard",
+			isZonal: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			bucket := gcsx.NewSyncerBucket(
+				/*appendThreshold=*/ 1,
+				/*chunkRetryDeadlineSecs=*/ 120,
+				/*chunkTransferTimeoutSecs=*/ 10,
+				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+			)
+			originalData := []byte("some data")
+			// Create file inode.
+			parent := createDirInode(&bucket, &t.clock)
+			in := createFileInode(t.T(), &bucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
+			// Perform a local write to mark the inode as dirty (not authoritative).
+			in.Lock()
+			_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode)
+			in.Unlock()
+			require.NoError(t.T(), err)
+			// Create file handle with kernel reader enabled.
+			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
+			require.NotNil(t.T(), fh.kernelReader)
+			buf := make([]byte, 5)
+			req := &gcsx.ReadRequest{
+				Buffer: buf,
+				Offset: -1, // Negative offset will trigger a read error from the local temp file
+			}
+			// ReadWithKernelReader requires the inode lock to be held on entry.
+			fh.inode.Lock()
+
+			// ReadWithKernelReader should fail due to the negative offset.
+			resp, err := fh.ReadWithKernelReader(t.ctx, req)
+
+			assert.Error(t.T(), err)
+			assert.Contains(t.T(), err.Error(), "negative offset")
+			assert.Zero(t.T(), resp.Size)
+		})
+	}
 }
 
 func (t *fileTest) Test_ReadWithKernelReader_NilReader() {
-	// 1. Setup with a non-zonal bucket.
-	nonZonalBucket := gcsx.NewSyncerBucket(
-		/*appendThreshold=*/ 1,
-		/*chunkRetryDeadlineSecs=*/ 120,
-		/*chunkTransferTimeoutSecs=*/ 10,
-		".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "non_zonal_bucket", gcs.BucketType{Zonal: true}),
-	)
-	parent := createDirInode(&nonZonalBucket, &t.clock)
-	in := createFileInode(t.T(), &nonZonalBucket, &t.clock, &cfg.Config{}, parent, "test_obj", []byte("data"), false)
-	// Create file handle.
-	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: false}}, nil, nil, 0)
-	require.Nil(t.T(), fh.kernelReader)
-	// Create read request and take inode lock.
-	req := &gcsx.ReadRequest{
-		Buffer: make([]byte, 4),
-		Offset: 0,
+	testCases := []struct {
+		name    string
+		isZonal bool
+	}{
+		{
+			name:    "Zonal",
+			isZonal: true,
+		},
+		{
+			name:    "Standard",
+			isZonal: false,
+		},
 	}
-	fh.inode.Lock()
 
-	// 2. Call ReadWithKernelReader.
-	_, err := fh.ReadWithKernelReader(t.ctx, req)
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			bucket := gcsx.NewSyncerBucket(
+				/*appendThreshold=*/ 1,
+				/*chunkRetryDeadlineSecs=*/ 120,
+				/*chunkTransferTimeoutSecs=*/ 10,
+				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+			)
+			// Create file inode.
+			parent := createDirInode(&bucket, &t.clock)
+			in := createFileInode(t.T(), &bucket, &t.clock, &cfg.Config{}, parent, "test_obj", []byte("data"), false)
+			// Create a file handle with EnableKernelReader set to false.
+			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: false}}, nil, nil, 0)
+			require.Nil(t.T(), fh.kernelReader)
+			req := &gcsx.ReadRequest{
+				Buffer: make([]byte, 4),
+				Offset: 0,
+			}
+			// ReadWithKernelReader requires the inode lock to be held on entry.
+			fh.inode.Lock()
 
-	// 3. Assertions
-	assert.Error(t.T(), err)
-	assert.Equal(t.T(), "kernelReader is not initialized", err.Error())
+			_, err := fh.ReadWithKernelReader(t.ctx, req)
+
+			assert.Error(t.T(), err)
+			assert.Equal(t.T(), "kernelReader is not initialized", err.Error())
+		})
+	}
 }
 
 func (t *fileTest) Test_ReadWithKernelReader_ReadAtError() {
-	// 1. Setup
-	expectedData := []byte("hello from mrd reader")
-	objectName := "test_obj_mrd_reader_error"
-	// Mock required functions from mock bucket.
-	mockBucket := new(storage.TestifyMockBucket)
-	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
-	mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
-	// Create file inode.
-	mockSyncerBucket := gcsx.NewSyncerBucket(
-		/*appendThreshold=*/ 1,
-		/*chunkRetryDeadlineSecs=*/ 120,
-		/*chunkTransferTimeoutSecs=*/ 10,
-		".gcsfuse_tmp/", mockBucket,
-	)
-	parent := createDirInode(&mockSyncerBucket, &t.clock)
-	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, objectName, expectedData, false)
-	// Create file handle.
-	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
-	require.NotNil(t.T(), fh.kernelReader)
-	// Mock the downloader to return an error.
-	expectedErr := errors.New("mrd read error")
-	fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(in.Source(), expectedData, 0, expectedErr)
-	mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	// Create read request & take inode lock.
-	buf := make([]byte, len(expectedData))
-	req := &gcsx.ReadRequest{
-		Buffer: buf,
-		Offset: 0,
+	testCases := []struct {
+		name        string
+		isZonal     bool
+		expectedErr string
+	}{
+		{
+			name:        "Zonal_KernelMRDReader",
+			isZonal:     true,
+			expectedErr: "mrd read error",
+		},
+		{
+			name:        "Standard_KernelRangeReader",
+			isZonal:     false,
+			expectedErr: "failed to create range reader",
+		},
 	}
-	fh.inode.Lock()
 
-	// 2. Call ReadWithKernelReader.
-	resp, err := fh.ReadWithKernelReader(t.ctx, req)
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			expectedData := []byte("hello from kernel reader")
+			objectName := "test_obj_kernel_reader_error"
+			mockBucket := new(storage.TestifyMockBucket)
+			mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: tc.isZonal})
+			mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
+			mockSyncerBucket := gcsx.NewSyncerBucket(
+				/*appendThreshold=*/ 1,
+				/*chunkRetryDeadlineSecs=*/ 120,
+				/*chunkTransferTimeoutSecs=*/ 10,
+				".gcsfuse_tmp/", mockBucket,
+			)
+			// Create file inode & file handle with kernel reader enabled.
+			parent := createDirInode(&mockSyncerBucket, &t.clock)
+			in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, objectName, expectedData, false)
+			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
+			require.NotNil(t.T(), fh.kernelReader)
+			// Create mock readers based on bucket type.
+			if tc.isZonal {
+				// Mock a Multi-Range Downloader read failure.
+				expectedErr := errors.New("mrd read error")
+				fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(in.Source(), expectedData, 0, expectedErr)
+				mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+			} else {
+				// Mock a range reader creation failure.
+				expectedErr := errors.New("failed to create range reader")
+				mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
+			}
+			buf := make([]byte, len(expectedData))
+			req := &gcsx.ReadRequest{
+				Buffer: buf,
+				Offset: 0,
+			}
+			// ReadWithKernelReader requires the inode lock to be held on entry.
+			fh.inode.Lock()
 
-	// 3. Assertions
-	assert.Error(t.T(), err)
-	assert.Contains(t.T(), err.Error(), expectedErr.Error())
-	assert.Zero(t.T(), resp.Size)
-	mockBucket.AssertExpectations(t.T())
+			resp, err := fh.ReadWithKernelReader(t.ctx, req)
+
+			assert.Error(t.T(), err)
+			assert.Contains(t.T(), err.Error(), tc.expectedErr)
+			assert.Zero(t.T(), resp.Size)
+			mockBucket.AssertExpectations(t.T())
+		})
+	}
 }
 
 func (t *fileTest) TestOpenMode() {

@@ -189,9 +189,7 @@ func NewFileInode(
 		if err != nil {
 			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 		}
-	}
-
-	if !f.bucket.BucketType().Zonal {
+	} else {
 		f.kernelRangeReaderInstance = gcsx.NewKernelRangeReaderInstance(&minObj)
 	}
 
