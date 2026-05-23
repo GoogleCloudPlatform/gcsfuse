@@ -129,6 +129,19 @@ func waitForLogFileToContainConfigDump(logFile string) {
 	assertContainsConfigDump(output)
 }
 
+func readStdoutUntilMounted(stdout io.Reader) []byte {
+	var output []byte
+	buf := make([]byte, 4096)
+
+	for !bytes.Contains(output, []byte("successfully mounted")) {
+		n, err := stdout.Read(buf)
+		output = append(output, buf[:n]...)
+		AssertEq(nil, err, "Output so far:\n%s", output)
+	}
+
+	return output
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -581,15 +594,7 @@ func (t *GcsfuseTest) ForegroundModeDumpsConfigToStdout() {
 		}
 	}()
 
-	var output []byte
-	{
-		buf := make([]byte, 4096)
-		for !bytes.Contains(output, []byte("successfully mounted")) {
-			n, err := stdout.Read(buf)
-			output = append(output, buf[:n]...)
-			AssertEq(nil, err, "Output so far:\n%s", output)
-		}
-	}
+	mountOutput := readStdoutUntilMounted(stdout)
 	mounted = true
 
 	err = util.Unmount(t.dir)
@@ -597,8 +602,8 @@ func (t *GcsfuseTest) ForegroundModeDumpsConfigToStdout() {
 	mounted = false
 
 	remainingOutput, err := io.ReadAll(stdout)
-	AssertEq(nil, err, "Output so far:\n%s", output)
-	output = append(output, remainingOutput...)
+	AssertEq(nil, err, "Output so far:\n%s", mountOutput)
+	output := append(mountOutput, remainingOutput...)
 
 	err = cmd.Wait()
 	AssertEq(nil, err)
