@@ -27,6 +27,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestBucketManager(t *testing.T) { RunTests(t) }
@@ -55,7 +57,9 @@ func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 	t.mockClient = new(storage.MockStorageControlClient)
 	t.fakeStorage = storage.NewFakeStorageWithMockClient(t.mockClient, cfg.HTTP2)
 	t.storageHandle = t.fakeStorage.CreateStorageHandle()
-	t.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+	t.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
+		return strings.Contains(req.Name, TestBucketName)
+	}), mock.Anything).
 		Return(&controlpb.StorageLayout{
 			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 			LocationType:          "zone",
@@ -155,11 +159,18 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
+	// Configure mock to return NotFound error for invalidBucketName layout check
+	t.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
+		return strings.Contains(req.Name, invalidBucketName)
+	}), mock.Anything).
+		Return(nil, status.Errorf(codes.NotFound, "The specified bucket does not exist."))
+
 	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, false, metrics.NewNoopMetrics())
 
 	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), "error in iterating through objects: storage: bucket doesn't exist"))
-	ExpectNe(nil, bucket.Syncer)
+	ExpectTrue(strings.Contains(err.Error(), "storageLayout call failed:"))
+	ExpectTrue(strings.Contains(err.Error(), "code = NotFound desc = The specified bucket does not exist."))
+	ExpectEq(nil, bucket.Syncer)
 }
 
 func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist_IsMultiBucketMountTrue() {
@@ -180,9 +191,16 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist_IsMultiB
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
+	// Configure mock to return NotFound error for invalidBucketName layout check
+	t.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
+		return strings.Contains(req.Name, invalidBucketName)
+	}), mock.Anything).
+		Return(nil, status.Errorf(codes.NotFound, "The specified bucket does not exist."))
+
 	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, true, metrics.NewNoopMetrics())
 
 	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), "error in iterating through objects: storage: bucket doesn't exist"))
-	ExpectNe(nil, bucket.Syncer)
+	ExpectTrue(strings.Contains(err.Error(), "storageLayout call failed:"))
+	ExpectTrue(strings.Contains(err.Error(), "code = NotFound desc = The specified bucket does not exist."))
+	ExpectEq(nil, bucket.Syncer)
 }
