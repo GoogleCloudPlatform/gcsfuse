@@ -46,9 +46,6 @@ func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType ReadType) {}
 
 func (*noopMetrics) GcsExperimentalReadBytesCount(inc int64, readType ReadType) {}
 
-func (*noopMetrics) GcsExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType) {
-}
-
 func (*noopMetrics) GcsReadBytesCount(inc int64) {}
 
 func (*noopMetrics) GcsReadCount(inc int64, readType ReadType) {}
@@ -66,6 +63,9 @@ func (*noopMetrics) MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus
 }
 
 func (*noopMetrics) ReadBlockSizes(ctx context.Context, value int64) {}
+
+func (*noopMetrics) ReadExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType) {
+}
 
 func (*noopMetrics) TestUpdownCounter(inc int64) {}
 

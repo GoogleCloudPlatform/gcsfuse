@@ -166,11 +166,11 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 						reason = metrics.ReasonInitialOffsetNonZeroAttr
 					}
 					if reason != "" {
-						rtc.metricHandle.GcsExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
+						rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
 					}
 				} else if previousReadType == metrics.ReadTypeRandom && readType == metrics.ReadTypeSequential {
 					reason = metrics.ReasonAverageReadSizeLargeEnoughAttr
-					rtc.metricHandle.GcsExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
+					rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
 				}
 			}
 		}
@@ -213,7 +213,7 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 							reason = metrics.ReasonInitialOffsetNonZeroAttr
 						}
 						if reason != "" {
-							rtc.metricHandle.GcsExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
+							rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
 						}
 					}
 				}
@@ -225,7 +225,7 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 		if rtc.readType.CompareAndSwap(currentReadType, metrics.ReadTypeSequential) {
 			if currentReadType == metrics.ReadTypeRandom && rtc.metricHandle != nil {
 				reason := metrics.ReasonAverageReadSizeLargeEnoughAttr
-				rtc.metricHandle.GcsExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
+				rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
 			}
 		}
 	}

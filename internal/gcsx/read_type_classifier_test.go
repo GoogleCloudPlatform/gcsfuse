@@ -657,7 +657,7 @@ type mockMetricHandle struct {
 	lastTransition   metrics.TransitionType
 }
 
-func (m *mockMetricHandle) GcsExperimentalReadTypeTransitionsCount(inc int64, reason metrics.Reason, transitionType metrics.TransitionType) {
+func (m *mockMetricHandle) ReadExperimentalReadTypeTransitionsCount(inc int64, reason metrics.Reason, transitionType metrics.TransitionType) {
 	m.transitionsCount += inc
 	m.lastReason = reason
 	m.lastTransition = transitionType

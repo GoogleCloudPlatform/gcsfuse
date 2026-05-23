@@ -228,9 +228,6 @@ type MetricHandle interface {
 	// GcsExperimentalReadBytesCount - The cumulative number of bytes read from GCS objects along with type - Sequential/Random
 	GcsExperimentalReadBytesCount(inc int64, readType ReadType)
 
-	// GcsExperimentalReadTypeTransitionsCount - The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough.
-	GcsExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType)
-
 	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
 	GcsReadBytesCount(inc int64)
 
@@ -254,6 +251,9 @@ type MetricHandle interface {
 
 	// ReadBlockSizes - The cumulative distribution of read block sizes across different bucket boundaries
 	ReadBlockSizes(ctx context.Context, value int64)
+
+	// ReadExperimentalReadTypeTransitionsCount - The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough.
+	ReadExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType)
 
 	// TestUpdownCounter - Test metric for updown counters.
 	TestUpdownCounter(inc int64)

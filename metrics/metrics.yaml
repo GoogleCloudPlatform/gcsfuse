@@ -182,22 +182,6 @@
     attribute-type: string
     values: *read_types_list
 
-- metric-name: "gcs/experimental_read_type_transitions_count"
-  description: "The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough."
-  type: "int_counter"
-  attributes:
-  - attribute-name: reason
-    attribute-type: string
-    values:
-    - "average_read_size_large_enough"
-    - "backward_seek"
-    - "forward_seek"
-    - "initial_offset_non_zero"
-  - attribute-name: transition_type
-    attribute-type: string
-    values:
-    - "random_to_sequential"
-    - "sequential_to_random"
 
 - metric-name: "gcs/read_bytes_count"
   description: "The cumulative number of bytes read from GCS objects."
@@ -321,6 +305,23 @@
   - 33554432
   - 67108864
   - 134217728
+
+- metric-name: "read/experimental_read_type_transitions_count"
+  description: "The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough."
+  type: "int_counter"
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values:
+    - "average_read_size_large_enough"
+    - "backward_seek"
+    - "forward_seek"
+    - "initial_offset_non_zero"
+  - attribute-name: transition_type
+    attribute-type: string
+    values:
+    - "random_to_sequential"
+    - "sequential_to_random"
 
 - metric-name: "test/updown_counter"
   description: "Test metric for updown counters."
