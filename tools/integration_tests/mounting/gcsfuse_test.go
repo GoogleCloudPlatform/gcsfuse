@@ -17,6 +17,7 @@ package integration_test
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -560,8 +561,7 @@ func (t *GcsfuseTest) ForegroundModeDumpsConfigToStdout() {
 		"--foreground",
 		canned.FakeBucketName,
 		t.dir,
-	},
-		nil)
+	}, nil)
 
 	stdout, err := cmd.StdoutPipe()
 	AssertEq(nil, err)
@@ -592,19 +592,23 @@ func (t *GcsfuseTest) ForegroundModeDumpsConfigToStdout() {
 	}
 	mounted = true
 
-	assertContainsConfigDump(output)
-
 	err = util.Unmount(t.dir)
 	AssertEq(nil, err)
 	mounted = false
 
+	remainingOutput, err := io.ReadAll(stdout)
+	AssertEq(nil, err, "Output so far:\n%s", output)
+	output = append(output, remainingOutput...)
+
 	err = cmd.Wait()
 	AssertEq(nil, err)
 	processDone = true
+
+	assertContainsConfigDump(output)
 }
 
 func (t *GcsfuseTest) BackgroundModeDumpsConfigToLogFile() {
-	logFile := filepath.Join(path.Dir(t.dir), path.Base(t.dir)+".log")
+	logFile := filepath.Join(filepath.Dir(t.dir), filepath.Base(t.dir)+".log")
 	defer os.Remove(logFile)
 
 	err := t.runGcsfuse([]string{
