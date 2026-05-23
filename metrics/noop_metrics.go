@@ -41,8 +41,6 @@ type noopMetrics struct {}
 
 	func (*noopMetrics) GcsExperimentalReadBytesCount(inc int64, readType ReadType){}
 
-	func (*noopMetrics) GcsExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType){}
-
 	func (*noopMetrics) GcsReadBytesCount(inc int64){}
 
 	func (*noopMetrics) GcsReadCount(inc int64, readType ReadType){}
@@ -54,6 +52,12 @@ type noopMetrics struct {}
 	func (*noopMetrics) GcsRequestLatencies(ctx context.Context, latency time.Duration, gcsMethod GcsMethod){}
 
 	func (*noopMetrics) GcsRetryCount(inc int64, retryErrorCategory RetryErrorCategory){}
+
+	func (*noopMetrics) MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus EntryStatus, lookupDetail LookupDetail){}
+
+	func (*noopMetrics) ReadBlockSizes(ctx context.Context, latency time.Duration){}
+
+	func (*noopMetrics) ReadExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType){}
 
 	func (*noopMetrics) TestUpdownCounter(inc int64){}
 

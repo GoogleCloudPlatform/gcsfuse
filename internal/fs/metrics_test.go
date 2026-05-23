@@ -693,7 +693,7 @@ func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(4))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(30))
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_type_transitions_count",
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
 		attribute.NewSet(attribute.String("reason", string(metrics.ReasonInitialOffsetNonZeroAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
 		1)
 }
@@ -1694,7 +1694,7 @@ func TestReadFile_GCSReaderBackwardSeekTransition(t *testing.T) {
 	require.NoError(t, err, "ReadFile")
 	waitForMetricsProcessing()
 
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_type_transitions_count",
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
 		attribute.NewSet(attribute.String("reason", string(metrics.ReasonBackwardSeekAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
 		1)
 }
@@ -1738,7 +1738,7 @@ func TestReadFile_GCSReaderForwardSeekTransition(t *testing.T) {
 	require.NoError(t, err, "ReadFile")
 	waitForMetricsProcessing()
 
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_type_transitions_count",
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
 		attribute.NewSet(attribute.String("reason", string(metrics.ReasonForwardSeekAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
 		1)
 }
@@ -1790,10 +1790,10 @@ func TestReadFile_GCSReaderRandomToSequentialTransition(t *testing.T) {
 	}
 	waitForMetricsProcessing()
 
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_type_transitions_count",
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
 		attribute.NewSet(attribute.String("reason", string(metrics.ReasonInitialOffsetNonZeroAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
 		1)
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_type_transitions_count",
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
 		attribute.NewSet(attribute.String("reason", string(metrics.ReasonAverageReadSizeLargeEnoughAttr)), attribute.String("transition_type", string(metrics.TransitionTypeRandomToSequentialAttr))),
 		1)
 }

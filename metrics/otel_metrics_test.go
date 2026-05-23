@@ -4752,129 +4752,6 @@ func TestGcsExperimentalReadBytesCount(t *testing.T) {
 
 
 
-func TestGcsExperimentalReadTypeTransitionsCount(t *testing.T) {
-	tests := []struct {
-		name     string
-		f        func(m *otelMetrics)
-		expected map[attribute.Set]int64
-	}{
-		{
-			name: "reason_average_read_size_large_enough_transition_type_random_to_sequential",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "random_to_sequential")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 5,
-			},
-		},
-		{
-			name: "reason_average_read_size_large_enough_transition_type_sequential_to_random",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "sequential_to_random")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "sequential_to_random")): 5,
-			},
-		},
-		{
-			name: "reason_backward_seek_transition_type_random_to_sequential",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReadTypeTransitionsCount(5, "backward_seek", "random_to_sequential")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "backward_seek"), attribute.String("transition_type", "random_to_sequential")): 5,
-			},
-		},
-		{
-			name: "reason_backward_seek_transition_type_sequential_to_random",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReadTypeTransitionsCount(5, "backward_seek", "sequential_to_random")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "backward_seek"), attribute.String("transition_type", "sequential_to_random")): 5,
-			},
-		},
-		{
-			name: "reason_forward_seek_transition_type_random_to_sequential",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReadTypeTransitionsCount(5, "forward_seek", "random_to_sequential")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "forward_seek"), attribute.String("transition_type", "random_to_sequential")): 5,
-			},
-		},
-		{
-			name: "reason_forward_seek_transition_type_sequential_to_random",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReadTypeTransitionsCount(5, "forward_seek", "sequential_to_random")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "forward_seek"), attribute.String("transition_type", "sequential_to_random")): 5,
-			},
-		},
-		{
-			name: "reason_initial_offset_non_zero_transition_type_random_to_sequential",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReadTypeTransitionsCount(5, "initial_offset_non_zero", "random_to_sequential")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"), attribute.String("transition_type", "random_to_sequential")): 5,
-			},
-		},
-		{
-			name: "reason_initial_offset_non_zero_transition_type_sequential_to_random",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReadTypeTransitionsCount(5, "initial_offset_non_zero", "sequential_to_random")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"), attribute.String("transition_type", "sequential_to_random")): 5,
-			},
-		},{
-			name: "multiple_attributes_summed",
-			f: func(m *otelMetrics) {m.GcsExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "random_to_sequential")
-				m.GcsExperimentalReadTypeTransitionsCount(2, "average_read_size_large_enough", "sequential_to_random")
-				m.GcsExperimentalReadTypeTransitionsCount(3, "average_read_size_large_enough", "random_to_sequential")
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 8,
-				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "sequential_to_random")): 2,
-			},
-		},
-		{
-			name: "negative_increment",
-			f: func(m *otelMetrics) {m.GcsExperimentalReadTypeTransitionsCount(-5, "average_read_size_large_enough", "random_to_sequential")
-				m.GcsExperimentalReadTypeTransitionsCount(2, "average_read_size_large_enough", "random_to_sequential")
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 2},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			encoder := attribute.DefaultEncoder()
-			m, rd := setupOTel(ctx, t)
-
-			tc.f(m)
-			waitForMetricsProcessing()
-
-			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-			metric, ok := metrics["gcs/experimental_read_type_transitions_count"]
-			if len(tc.expected) == 0 {
-				assert.False(t, ok, "gcs/experimental_read_type_transitions_count metric should not be found")
-				return
-			}
-			require.True(t, ok, "gcs/experimental_read_type_transitions_count metric not found")
-			expectedMap := make(map[string]int64)
-			for k, v := range tc.expected {
-				expectedMap[k.Encoded(encoder)] = v
-			}
-			assert.Equal(t, expectedMap, metric)
-		})
-	}
-}
-
-
-
 func TestGcsReadBytesCount(t *testing.T) {
 	ctx := context.Background()
 	encoder := attribute.DefaultEncoder()
@@ -5473,6 +5350,315 @@ func TestGcsRetryCount(t *testing.T) {
 				return
 			}
 			require.True(t, ok, "gcs/retry_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
+
+
+func TestMetadataCacheReadCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "cache_hit_true_entry_status_negative_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "negative", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_negative_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "negative", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_negative_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "negative", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_positive_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "positive", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_positive_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "positive", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_positive_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "positive", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_negative_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "negative", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_negative_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "negative", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_negative_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "negative", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_positive_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "positive", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_positive_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "positive", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_positive_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "positive", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},{
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {m.MetadataCacheReadCount(5, true, "negative", "found")
+				m.MetadataCacheReadCount(2, true, "negative", "not_found")
+				m.MetadataCacheReadCount(3, true, "negative", "found")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 8,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {m.MetadataCacheReadCount(-5, true, "negative", "found")
+				m.MetadataCacheReadCount(2, true, "negative", "found")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 2},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["metadata_cache/read_count"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "metadata_cache/read_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "metadata_cache/read_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
+
+
+func TestReadBlockSizes(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+	var totalLatency time.Duration
+	latencies := []time.Duration{100 * time., 200 * time.}
+
+	for _, latency := range latencies {
+		m.ReadBlockSizes(ctx, latency)
+		totalLatency += latency
+	}
+	waitForMetricsProcessing()
+
+	metrics := gatherHistogramMetrics(ctx, t, rd)
+	metric, ok := metrics["read/block_sizes"]
+	require.True(t, ok, "read/block_sizes metric not found")
+
+	s := attribute.NewSet()
+	expectedKey := s.Encoded(encoder)
+	dp, ok := metric[expectedKey]
+	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+	assert.Equal(t, uint64(len(latencies)), dp.Count)
+	assert.Equal(t, totalLatency.s(), dp.Sum)
+}
+
+
+
+func TestReadExperimentalReadTypeTransitionsCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "reason_average_read_size_large_enough_transition_type_random_to_sequential",
+			f: func(m *otelMetrics) {
+				m.ReadExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 5,
+			},
+		},
+		{
+			name: "reason_average_read_size_large_enough_transition_type_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.ReadExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "sequential_to_random")): 5,
+			},
+		},
+		{
+			name: "reason_backward_seek_transition_type_random_to_sequential",
+			f: func(m *otelMetrics) {
+				m.ReadExperimentalReadTypeTransitionsCount(5, "backward_seek", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "backward_seek"), attribute.String("transition_type", "random_to_sequential")): 5,
+			},
+		},
+		{
+			name: "reason_backward_seek_transition_type_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.ReadExperimentalReadTypeTransitionsCount(5, "backward_seek", "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "backward_seek"), attribute.String("transition_type", "sequential_to_random")): 5,
+			},
+		},
+		{
+			name: "reason_forward_seek_transition_type_random_to_sequential",
+			f: func(m *otelMetrics) {
+				m.ReadExperimentalReadTypeTransitionsCount(5, "forward_seek", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "forward_seek"), attribute.String("transition_type", "random_to_sequential")): 5,
+			},
+		},
+		{
+			name: "reason_forward_seek_transition_type_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.ReadExperimentalReadTypeTransitionsCount(5, "forward_seek", "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "forward_seek"), attribute.String("transition_type", "sequential_to_random")): 5,
+			},
+		},
+		{
+			name: "reason_initial_offset_non_zero_transition_type_random_to_sequential",
+			f: func(m *otelMetrics) {
+				m.ReadExperimentalReadTypeTransitionsCount(5, "initial_offset_non_zero", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"), attribute.String("transition_type", "random_to_sequential")): 5,
+			},
+		},
+		{
+			name: "reason_initial_offset_non_zero_transition_type_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.ReadExperimentalReadTypeTransitionsCount(5, "initial_offset_non_zero", "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"), attribute.String("transition_type", "sequential_to_random")): 5,
+			},
+		},{
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {m.ReadExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "random_to_sequential")
+				m.ReadExperimentalReadTypeTransitionsCount(2, "average_read_size_large_enough", "sequential_to_random")
+				m.ReadExperimentalReadTypeTransitionsCount(3, "average_read_size_large_enough", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 8,
+				attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "sequential_to_random")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {m.ReadExperimentalReadTypeTransitionsCount(-5, "average_read_size_large_enough", "random_to_sequential")
+				m.ReadExperimentalReadTypeTransitionsCount(2, "average_read_size_large_enough", "random_to_sequential")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "average_read_size_large_enough"), attribute.String("transition_type", "random_to_sequential")): 2},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["read/experimental_read_type_transitions_count"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "read/experimental_read_type_transitions_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "read/experimental_read_type_transitions_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
