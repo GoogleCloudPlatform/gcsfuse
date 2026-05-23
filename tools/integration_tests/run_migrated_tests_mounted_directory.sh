@@ -17,7 +17,7 @@
 set -euo pipefail
 
 RUN_ZONAL=false
-MOUNTED_DIR="/home/cpranjal_google_com/mnt"
+MOUNTED_DIR="/home/$(whoami)/mnt"
 PACKAGE_NAME="" # Default is empty to trigger run-all
 RUN_ALL=false
 
