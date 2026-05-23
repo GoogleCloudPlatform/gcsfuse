@@ -97,5 +97,5 @@ e2e-exhaustive:
 	echo $$REGION; \
 	echo "Running E2E tests WITH read-ahead (1024 KiB)..."; \
 	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION --read-ahead-kb 1024 || exit 1; \
-	echo "Running E2E tests WITHOUT read-ahead (0 KiB)..."; \
-	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION --read-ahead-kb 0 || exit 1
+	echo "Running E2E tests WITHOUT custom read-ahead (default kernel behavior)..."; \
+	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION --read-ahead-kb default || exit 1

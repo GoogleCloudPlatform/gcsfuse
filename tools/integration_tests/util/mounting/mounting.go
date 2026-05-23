@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
@@ -59,13 +60,19 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 	}
 
 	// Apply read-ahead settings if configured
-	if setup.ReadAheadKb() > 0 {
-		mountPoint := getMountPointFromFlags(binaryFile, flags)
-		if mountPoint != "" {
-			manager := kernelparams.NewKernelParamsManager()
-			manager.SetReadAheadKb(setup.ReadAheadKb())
-			manager.ApplyNonGKE(mountPoint)
-			log.Printf("Applied read_ahead_kb setting of %d KiB to mount point: %s", setup.ReadAheadKb(), mountPoint)
+	if setup.ReadAheadKb() != "" && setup.ReadAheadKb() != "default" {
+		kb, err := strconv.Atoi(setup.ReadAheadKb())
+		if err != nil {
+			log.Fatalf("Invalid value for -read-ahead-kb: %q. Must be an integer or 'default'", setup.ReadAheadKb())
+		}
+		if kb >= 0 {
+			mountPoint := getMountPointFromFlags(binaryFile, flags)
+			if mountPoint != "" {
+				manager := kernelparams.NewKernelParamsManager()
+				manager.SetReadAheadKb(kb)
+				manager.ApplyNonGKE(mountPoint)
+				log.Printf("Applied read_ahead_kb setting of %d KiB to mount point: %s", kb, mountPoint)
+			}
 		}
 	}
 

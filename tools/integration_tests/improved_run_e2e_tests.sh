@@ -37,7 +37,7 @@ usage() {
   echo "                                                 Example: '!cloud_profiler|operations' to run all test packages except cloud_profiler and operations."
   echo "    --skip-emulator                              Skip running emulator tests. (Default: false)"
   echo "    --flake-attempts              <number>       Number of attempts to run a package if it fails. (Default: 1)"
-  echo "    --read-ahead-kb               <kb>           Set read_ahead_kb value on FUSE mount point. (Default: 1024)"
+  echo "    --read-ahead-kb               <kb>           Set read_ahead_kb value on FUSE mount point. Set to 'default' to keep default kernel behavior. (Default: 1024)"
   echo "    --help                                       Display this help and exit."
   exit "$1"
 }
@@ -138,7 +138,7 @@ PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parall
 RUN_PACKAGE_REGEX=""
 SKIP_EMULATOR=false
 FLAKE_ATTEMPTS=1
-READ_AHEAD_KB=1024
+READ_AHEAD_KB="1024"
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.

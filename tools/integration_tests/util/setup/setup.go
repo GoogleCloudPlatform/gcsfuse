@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -51,7 +52,7 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
-var readAheadKb = flag.Int("read-ahead-kb", 1024, "Set read_ahead_kb value on GCSFuse mount point after mounting. If 0 or negative, it will not be set.")
+var readAheadKb = flag.String("read-ahead-kb", "1024", "Set read_ahead_kb value on GCSFuse mount point after mounting. Set to 'default' to keep default kernel behavior.")
 
 const (
 	FilePermission_0600               = 0600
@@ -141,7 +142,7 @@ func MountedDirectory() string {
 	return *mountedDirectory
 }
 
-func ReadAheadKb() int {
+func ReadAheadKb() string {
 	return *readAheadKb
 }
 
@@ -441,11 +442,17 @@ func RunTestsForMountedDirectory(mountedDirectory string, m *testing.M) int {
 	}
 	mntDir = mountedDirectory
 
-	if *readAheadKb > 0 {
-		manager := kernelparams.NewKernelParamsManager()
-		manager.SetReadAheadKb(*readAheadKb)
-		manager.ApplyNonGKE(mountedDirectory)
-		log.Printf("Applied read_ahead_kb setting of %d KiB to pre-mounted directory: %s", *readAheadKb, mountedDirectory)
+	if *readAheadKb != "" && *readAheadKb != "default" {
+		kb, err := strconv.Atoi(*readAheadKb)
+		if err != nil {
+			log.Fatalf("Invalid value for -read-ahead-kb: %q. Must be an integer or 'default'", *readAheadKb)
+		}
+		if kb >= 0 {
+			manager := kernelparams.NewKernelParamsManager()
+			manager.SetReadAheadKb(kb)
+			manager.ApplyNonGKE(mountedDirectory)
+			log.Printf("Applied read_ahead_kb setting of %d KiB to pre-mounted directory: %s", kb, mountedDirectory)
+		}
 	}
 
 	return ExecuteTest(m)
