@@ -341,14 +341,14 @@ def _perform_testing(dir, test_type, num_samples):
     num_samples: Number of samples to collect for each test.
   """
   if test_type == "hns":
-    # Creating config file for mounting with hns enabled.
+    # Creating config file for mounting.
     with open("/tmp/config.yml",'w') as mount_config:
-      mount_config.write("enable-hns: true")
+      mount_config.write("")
     mount_flags="--config-file=/tmp/config.yml --stackdriver-export-interval=30s"
   else :
-    # Creating config file for mounting with hns disabled.
+    # Creating config file for mounting.
     with open("/tmp/config.yml",'w') as mount_config:
-      mount_config.write("enable-hns: false")
+      mount_config.write("")
     mount_flags = "--config-file=/tmp/config.yml  --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
 
   # Mounting the gcs bucket.

@@ -95,7 +95,6 @@ func createDirInode(
 	config := &cfg.Config{
 		List:                         cfg.ListConfig{EnableEmptyManagedFolders: false},
 		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
-		EnableHns:                    false,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 	}

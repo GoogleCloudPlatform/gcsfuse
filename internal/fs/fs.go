@@ -2507,8 +2507,7 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child.Name().IsDir() {
-		// If 'enable-hns' flag is false, the bucket type is set to 'NonHierarchical' even for HNS buckets because the control client is nil.
-		// Therefore, an additional 'enable hns' check is not required here.
+		// In hierarchical buckets, perform a hierarchical directory rename.
 		if childBktOwned.Bucket().BucketType().Hierarchical {
 			return fs.renameHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 		}

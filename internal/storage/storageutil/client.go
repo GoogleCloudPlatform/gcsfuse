@@ -75,8 +75,6 @@ type StorageClientConfig struct {
 	GrpcConnPoolSize int
 	GrpcPathStrategy cfg.DirectPathStrategy
 
-	// Enabling new API flow for HNS bucket.
-	EnableHNS bool
 	// EnableGoogleLibAuth indicates whether to use the google library authentication flow
 	EnableGoogleLibAuth bool
 

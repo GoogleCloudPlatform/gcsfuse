@@ -217,12 +217,6 @@ params:
     default: true
     hide-flag: true
 
-  - config-path: "enable-hns"
-    flag-name: "enable-hns"
-    type: "bool"
-    usage: "Enables support for HNS buckets"
-    default: true
-    hide-flag: true
 
   - config-path: "enable-new-reader"
     flag-name: "enable-new-reader"

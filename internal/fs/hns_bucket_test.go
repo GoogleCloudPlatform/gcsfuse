@@ -71,7 +71,6 @@ func (t *HNSBucketTests) SetT(testingT *testing.T) {
 func (t *HNSBucketTests) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = false
 	t.serverCfg.NewConfig = &cfg.Config{
-		EnableHns:                true,
 		EnableAtomicRenameObject: true,
 	}
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
@@ -178,7 +177,6 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 	t.serverCfg.DirTypeCacheTTL = ttl
 	t.serverCfg.ImplicitDirectories = false
 	t.serverCfg.NewConfig = &cfg.Config{
-		EnableHns: true,
 		FileCache: defaultFileCacheConfig(),
 		MetadataCache: cfg.MetadataCacheConfig{
 			// Setting default values.

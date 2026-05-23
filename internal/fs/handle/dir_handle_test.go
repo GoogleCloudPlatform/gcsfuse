@@ -76,7 +76,6 @@ func (t *DirHandleTest) resetDirHandle() {
 	cfg := &cfg2.Config{
 		List:                         cfg2.ListConfig{EnableEmptyManagedFolders: true},
 		MetadataCache:                cfg2.MetadataCacheConfig{TypeCacheMaxSizeMb: 0},
-		EnableHns:                    false,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 	}

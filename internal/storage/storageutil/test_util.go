@@ -40,7 +40,6 @@ func GetDefaultStorageClientConfig(keyFile string) (clientConfig StorageClientCo
 		ReuseTokenFromUrl:          true,
 		ExperimentalEnableJsonRead: false,
 		AnonymousAccess:            false,
-		EnableHNS:                  true,
 		EnableGoogleLibAuth:        true,
 		ReadStallRetryConfig: cfg.ReadStallGcsRetriesConfig{
 			Enable:              false,

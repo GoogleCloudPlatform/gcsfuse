@@ -661,21 +661,6 @@ func SetGlobalVars(cfg *test_suite.TestConfig) {
 	onlyDirMounted = cfg.OnlyDir
 }
 
-// Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
-func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
-	if !IsHierarchicalBucket(ctx, storageClient) {
-		return nil, fmt.Errorf("bucket is not Hierarchical")
-	}
-
-	var flags []string
-	mountConfig4 := map[string]any{
-		"enable-hns": true,
-	}
-	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
-	flags = append(flags, "--config-file="+filePath4)
-	return flags, nil
-}
-
 func separateBucketAndObjectName(bucket, object string) (string, string) {
 	bucketAndObjectPath := strings.SplitN(bucket, "/", 2)
 	bucket = bucketAndObjectPath[0]

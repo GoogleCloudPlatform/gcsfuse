@@ -296,7 +296,6 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithoutBillingProject() {
 	// Arrange.
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.EnableHNS = true
 
 	// Act.
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
@@ -321,7 +320,6 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithoutBillingProject() 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
 	// Arrange.
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.EnableHNS = true
 
 	// Act.
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, projectID)
@@ -672,29 +670,6 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
-}
-
-func (testSuite *StorageHandleTest) TestCreateStorageHandleWithEnableHNSTrue() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.EnableHNS = true
-
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
-
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), sh)
-}
-
-func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndEnableHNSTrue() {
-	url, err := url.Parse(storageutil.CustomEndpoint)
-	require.NoError(testSuite.T(), err)
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.CustomEndpoint = url.String()
-	sc.EnableHNS = true
-
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
-
-	assert.NoError(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), sh)
 }
 
 func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {

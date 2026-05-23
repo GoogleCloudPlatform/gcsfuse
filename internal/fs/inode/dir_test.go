@@ -116,7 +116,6 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 	config := &cfg.Config{
 		List:                         cfg.ListConfig{EnableEmptyManagedFolders: enableManagedFoldersListing},
 		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: typeCacheMaxSizeMB},
-		EnableHns:                    false,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 	}
@@ -164,7 +163,6 @@ func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string
 			TypeCacheMaxSizeMb: 4,
 			TtlSecs:            60,
 		},
-		EnableHns:                    false,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
 	}
@@ -1579,7 +1577,6 @@ func (t *DirTest) TestCreateChildSymlink_StandardSymlinkEnabled() {
 	config := &cfg.Config{
 		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},
 		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
-		EnableHns:                    false,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 		EnableStandardSymlinks:       true,

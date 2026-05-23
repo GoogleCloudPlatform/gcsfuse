@@ -100,7 +100,6 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 	t.config = &cfg.Config{
 		List:                         cfg.ListConfig{EnableEmptyManagedFolders: enableManagedFoldersListing},
 		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: typeCacheMaxSizeMB},
-		EnableHns:                    true,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
 	}
@@ -149,7 +148,6 @@ func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName str
 			TypeCacheMaxSizeMb: 4,
 			TtlSecs:            60,
 		},
-		EnableHns:                    true,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   isTypeCacheDeprecated,
 	}

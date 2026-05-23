@@ -270,7 +270,6 @@ type dirInode struct {
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
 	prevDirListingTimeStamp time.Time
-	isHNSEnabled            bool
 
 	isStandardSymlinkRepresentationEnabled bool
 
@@ -346,7 +345,6 @@ func NewDirInode(
 		enableNonexistentTypeCache:             enableNonexistentTypeCache,
 		name:                                   name,
 		attrs:                                  attrs,
-		isHNSEnabled:                           cfg.EnableHns,
 		isStandardSymlinkRepresentationEnabled: cfg.EnableStandardSymlinks,
 		isUnsupportedPathSupportEnabled:        cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:           cfg.EnableTypeCacheDeprecation,
@@ -636,7 +634,6 @@ func (d *dirInode) CancelCurrDirPrefetcher() {
 	if d.prefetcher != nil {
 		d.prefetcher.Cancel()
 	}
-	return
 }
 
 // UpdateSize is a no-op for implicit directories. These directories are not
@@ -1536,10 +1533,7 @@ func (d *dirInode) InvalidateKernelListCache() {
 }
 
 func (d *dirInode) isBucketHierarchical() bool {
-	if d.isHNSEnabled && d.bucket.BucketType().Hierarchical {
-		return true
-	}
-	return false
+	return d.bucket.BucketType().Hierarchical
 }
 
 func (d *dirInode) IsTypeCacheDeprecated() bool {

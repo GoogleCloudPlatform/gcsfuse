@@ -69,7 +69,6 @@ file-system:
   max-read-ahead-kb: 1024
 list:
   enable-empty-managed-folders: true
-enable-hns: false
 enable-atomic-rename-object: false
 disable-list-access-check: false
 metadata-cache:

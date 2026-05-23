@@ -448,8 +448,6 @@ type Config struct {
 
 	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
 
-	EnableHns bool `yaml:"enable-hns"`
-
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
 	EnableStandardSymlinks bool `yaml:"enable-standard-symlinks"`
@@ -964,12 +962,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-google-lib-auth", "", true, "Enable google library authentication method to fetch the credentials")
 
 	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
-
-	if err := flagSet.MarkHidden("enable-hns"); err != nil {
 		return err
 	}
 
@@ -1581,10 +1573,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
 		return err
 	}
 
