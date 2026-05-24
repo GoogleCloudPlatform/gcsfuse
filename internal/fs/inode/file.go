@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/kernel_readers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -130,7 +131,7 @@ type FileInode struct {
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance               *gcsx.MrdInstance
-	kernelRangeReaderInstance *gcsx.KernelRangeReaderInstance
+	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
 	metricHandle              metrics.MetricHandle
 	traceHandle               tracing.TraceHandle
 }
@@ -190,7 +191,7 @@ func NewFileInode(
 			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 		}
 	} else {
-		f.kernelRangeReaderInstance = gcsx.NewKernelRangeReaderInstance(&minObj)
+		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
 	f.lc.Init(id)
@@ -439,7 +440,7 @@ func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
 }
 
 // Returns KernelRangeReaderInstance for this inode.
-func (f *FileInode) GetKernelRangeReaderInstance() *gcsx.KernelRangeReaderInstance {
+func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeReaderInstance {
 	return f.kernelRangeReaderInstance
 }
 

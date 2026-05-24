@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/kernel_readers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
@@ -119,7 +120,7 @@ func NewFileHandle(
 	}
 
 	if c.FileSystem.EnableKernelReader {
-		fh.kernelReader = gcsx.NewKernelReader(inode.Bucket(), inode.GetKernelRangeReaderInstance(), inode.GetMRDInstance(), metricHandle)
+		fh.kernelReader = kernel_readers.NewKernelReader(inode.Bucket(), inode.GetKernelRangeReaderInstance(), inode.GetMRDInstance(), metricHandle)
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)

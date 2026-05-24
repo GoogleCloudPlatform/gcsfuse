@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package kernel_readers
 
 import (
 	"context"
@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"google.golang.org/grpc/codes"
@@ -31,13 +32,13 @@ import (
 // to switch between sequential and random read strategies.
 type KernelMRDReader struct {
 	mrdInstanceInUse atomic.Bool
-	mrdInstance      *MrdInstance
+	mrdInstance      *gcsx.MrdInstance
 	metrics          metrics.MetricHandle
 }
 
 // NewKernelMRDReader creates a new KernelMRDReader that uses the provided
 // MrdInstance to manage MRD connections.
-func NewKernelMRDReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *KernelMRDReader {
+func NewKernelMRDReader(mrdInstance *gcsx.MrdInstance, metricsHandle metrics.MetricHandle) *KernelMRDReader {
 	return &KernelMRDReader{
 		mrdInstance: mrdInstance,
 		metrics:     metricsHandle,
@@ -78,16 +79,16 @@ func (kmr *KernelMRDReader) CheckInvariants() {
 // ReadAt reads data into the provided request buffer starting at the specified
 // offset. It retrieves an available MRD entry and uses it to download the
 // requested byte range.
-func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
+func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	// If the destination buffer is empty, there's nothing to read.
 	if len(req.Buffer) == 0 {
-		return ReadResponse{}, nil
+		return gcsx.ReadResponse{}, nil
 	}
 
 	// mrdInstance is set to nil in Destroy which will be called only after all active Read operations
 	// have finished. Hence, not taking RLock to access it.
 	if kmr.mrdInstance == nil {
-		return ReadResponse{}, fmt.Errorf("KernelMRDReader: mrdInstance is nil")
+		return gcsx.ReadResponse{}, fmt.Errorf("KernelMRDReader: mrdInstance is nil")
 	}
 
 	if kmr.mrdInstanceInUse.CompareAndSwap(false, true) {
@@ -113,7 +114,7 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadR
 		bytesReadOnRetry, err = kmr.mrdInstance.Read(ctx, retryBuffer, retryOffset, kmr.metrics)
 		bytesRead += bytesReadOnRetry
 	}
-	return ReadResponse{Size: bytesRead}, err
+	return gcsx.ReadResponse{Size: bytesRead}, err
 }
 
 // Destroy cleans up the resources used by the reader, primarily by destroying

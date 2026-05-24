@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package kernel_readers
 
 import (
 	"bytes"
@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	storagev2 "cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
@@ -70,7 +71,7 @@ func (t *KernelRangeReaderTest) TestReaderName() {
 
 func (t *KernelRangeReaderTest) TestReadAt_Success() {
 	data := []byte("hello world")
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
 	}
@@ -86,7 +87,7 @@ func (t *KernelRangeReaderTest) TestReadAt_Success() {
 }
 
 func (t *KernelRangeReaderTest) TestReadAt_EOF() {
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 100, // Equal to object size
 	}
@@ -100,7 +101,7 @@ func (t *KernelRangeReaderTest) TestReadAt_EOF() {
 func (t *KernelRangeReaderTest) TestReadAt_PartialRead() {
 	data := []byte("hello world") // length 11
 	t.object.Size = 10            // Limit read to 10
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 5,
 	}
@@ -118,7 +119,7 @@ func (t *KernelRangeReaderTest) TestReadAt_PartialRead() {
 }
 
 func (t *KernelRangeReaderTest) TestReadAt_NewReaderError() {
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
 	}
@@ -134,7 +135,7 @@ func (t *KernelRangeReaderTest) TestReadAt_NewReaderError() {
 
 func (t *KernelRangeReaderTest) TestReadAt_NilObject() {
 	t.reader.instance.SetMinObject(nil)
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
 	}

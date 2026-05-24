@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package kernel_readers
 
 import (
 	"context"
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -52,8 +53,8 @@ func (krr *KernelRangeReader) CheckInvariants() {
 }
 
 // ReadAt reads data from the object by creating a new range reader.
-func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
-	var resp ReadResponse
+func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	var resp gcsx.ReadResponse
 
 	obj := krr.instance.GetMinObject()
 	if obj == nil {

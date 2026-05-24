@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package kernel_readers
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
@@ -27,9 +28,9 @@ import (
 func NewKernelReader(
 	bucket gcs.Bucket,
 	kernelRangeReaderInstance *KernelRangeReaderInstance,
-	mrdInstance *MrdInstance,
+	mrdInstance *gcsx.MrdInstance,
 	metricsHandle metrics.MetricHandle,
-) Reader {
+) gcsx.Reader {
 	if bucket.BucketType().IsRapid() {
 		return NewKernelMRDReader(mrdInstance, metricsHandle)
 	}
