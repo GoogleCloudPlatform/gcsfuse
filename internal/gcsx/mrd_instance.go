@@ -416,4 +416,3 @@ func (mi *MrdInstance) RefCount() int64 {
 	defer mi.refCountMu.Unlock()
 	return mi.refCount
 }
-

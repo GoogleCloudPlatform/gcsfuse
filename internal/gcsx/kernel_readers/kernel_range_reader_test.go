@@ -145,4 +145,3 @@ func (t *KernelRangeReaderTest) TestReadAt_NilObject() {
 	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt: Nil MinObject")
 	assert.Equal(t.T(), 0, resp.Size)
 }
-
