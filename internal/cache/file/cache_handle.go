@@ -173,7 +173,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	//
 	// Note: Change the below check to `(offset + len(dst)) > int64(fileInfoData.FileSize))` if the below
 	// check causes a problem in any edge-case.
-	if bucket.BucketType().RapidWritesEnabled() && object.IsUnfinalized() && offset >= int64(fileInfoData.FileSize) {
+	if bucket.BucketType().IsRapid() && object.IsUnfinalized() && offset >= int64(fileInfoData.FileSize) {
 		err = util.ErrFallbackToGCS
 		return
 	}

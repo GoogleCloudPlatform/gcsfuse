@@ -79,6 +79,12 @@ func TestZonalFileCacheReaderTestSuite(t *testing.T) {
 	suite.Run(t, zonalBucketFileCacheReaderTestSuite)
 }
 
+func TestPirloFileCacheReaderTestSuite(t *testing.T) {
+	pirloBucketFileCacheReaderTestSuite := &fileCacheReaderTest{
+		bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled}}
+	suite.Run(t, pirloBucketFileCacheReaderTestSuite)
+}
+
 func (t *fileCacheReaderTest) SetupTest() {
 	t.object = &gcs.MinObject{
 		Name:       testObject,
@@ -621,11 +627,11 @@ func (t *fileCacheReaderTest) Test_ReadAt_OffsetBeyondObjectSizeShouldThrowEOFEr
 	assert.ErrorIs(t.T(), err, io.EOF)
 }
 
-func (t *fileCacheReaderTest) skipForNonZonalBucket() {
+func (t *fileCacheReaderTest) skipForNonRapidBucket() {
 	t.T().Helper()
 
-	if !t.bucketType.Zonal {
-		t.T().Skipf("Skipping test for non-zonal bucket type")
+	if !t.bucketType.IsRapid() {
+		t.T().Skipf("Skipping test for non-rapid bucket type")
 	}
 }
 
@@ -656,7 +662,7 @@ func (t *fileCacheReaderTest) waitForDownloadJobToFinish(obj *gcs.MinObject) {
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondCachedSizeAfterSizeIncreasedShouldThrowFallbackError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
@@ -681,7 +687,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondC
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondObjectSizeAfterSizeIncreasedShouldThrowEOFError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
@@ -705,7 +711,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondO
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeWithIncreasedObjectSizeShouldThrowFallbackError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
@@ -730,7 +736,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondObjectSizeWithIncreasedObjectSizeShouldThrowFallbackError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
@@ -755,7 +761,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeShouldNotThrowError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
 
