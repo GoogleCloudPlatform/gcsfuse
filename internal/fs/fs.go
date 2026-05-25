@@ -3103,9 +3103,9 @@ func (fs *fileSystem) ReadFile(
 		// Flush/Sync Pending streaming writes and issue read within same inode lock.
 		// With rapid buckets, we can read from unfinalized objects as well.
 		// Hence, there is no need to finalize the object from here for rapid buckets.
-		// Hence, if FinalizeFileOnClose is set, then we will call syncFile otherwise
-		// we can call flushFile (as it will not finalize when FinalizeFileOnClose is false) itself.
-		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileOnClose {
+		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
+		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
+		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileForRapid {
 			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())

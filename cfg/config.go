@@ -58,7 +58,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
-}, "write.finalize-file-on-close": {
+}, "write.finalize-file-for-rapid": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
@@ -288,14 +288,14 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
-	if !v.IsSet("write.finalize-file-on-close") {
-		rules := AllFlagOptimizationRules["write.finalize-file-on-close"]
-		result := getOptimizedValue(&rules, c.Write.FinalizeFileOnClose, profileName, machineType, input, machineTypeToGroupMap)
+	if !v.IsSet("write.finalize-file-for-rapid") {
+		rules := AllFlagOptimizationRules["write.finalize-file-for-rapid"]
+		result := getOptimizedValue(&rules, c.Write.FinalizeFileForRapid, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
-				if c.Write.FinalizeFileOnClose != val {
-					c.Write.FinalizeFileOnClose = val
-					optimizedFlags["write.finalize-file-on-close"] = result
+				if c.Write.FinalizeFileForRapid != val {
+					c.Write.FinalizeFileForRapid = val
+					optimizedFlags["write.finalize-file-for-rapid"] = result
 				}
 			}
 		}
@@ -778,7 +778,7 @@ type WriteConfig struct {
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
-	FinalizeFileOnClose bool `yaml:"finalize-file-on-close"`
+	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -1151,9 +1151,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
-	flagSet.BoolP("finalize-file-on-close", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
+	flagSet.BoolP("finalize-file-for-rapid", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
 
-	if err := flagSet.MarkHidden("finalize-file-on-close"); err != nil {
+	if err := flagSet.MarkHidden("finalize-file-for-rapid"); err != nil {
 		return err
 	}
 
@@ -1744,7 +1744,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("write.finalize-file-on-close", flagSet.Lookup("finalize-file-on-close")); err != nil {
+	if err := v.BindPFlag("write.finalize-file-for-rapid", flagSet.Lookup("finalize-file-for-rapid")); err != nil {
 		return err
 	}
 
