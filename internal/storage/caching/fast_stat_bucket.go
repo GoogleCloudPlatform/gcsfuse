@@ -124,7 +124,6 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		return
 	}
 
-
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
 	// 1. Parent Directory Inference (Implicit Check)
