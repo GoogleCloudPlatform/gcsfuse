@@ -932,10 +932,21 @@ install_packages() {
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
   export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
   export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+
+  # Ensure the Go bin directory is in PATH for executable lookup
+  export PATH="$(go env GOPATH)/bin:$PATH"
+
   if ${KOKORO_DIR_AVAILABLE} ; then
     # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
-    export PATH="$(go env GOPATH)/bin:$PATH"
+  fi
+
+  # Dynamically install go-better-html-coverage if missing
+  if ! command -v go-better-html-coverage &> /dev/null; then
+    log_info "go-better-html-coverage not found. Attempting to install..."
+    go install github.com/chmouel/go-better-html-coverage@latest || {
+      log_error "Failed to install go-better-html-coverage. Standard coverage will be used as a fallback."
+    }
   fi
 }
 
@@ -1104,31 +1115,87 @@ main() {
 
     log_info "Generating visual interactive HTML browser dashboard..."
     mkdir -p "${OUTPUT_DIR}/coverage"
-    go tool cover -html="${coverage_txt_path}" -o "${coverage_html_path}"
+    
+    local full_coverage_generated=false
+    local diff_coverage_generated=false
+    local diff_html_path="${OUTPUT_DIR}/coverage/e2e-diff-coverage.html"
+    local base_ref=""
 
-    log_info "Functional coverage dashboard compiled successfully!"
-    log_info "👉 Local Click: file://${coverage_html_path}"
+    if command -v go-better-html-coverage &> /dev/null; then
+      log_info "Using go-better-html-coverage for enhanced visual dashboard..."
+      if go-better-html-coverage -n -profile "${coverage_txt_path}" -o "${coverage_html_path}"; then
+        full_coverage_generated=true
+        log_info "Functional coverage dashboard compiled successfully!"
+        log_info "👉 Local Click (Full): file://${coverage_html_path}"
+      else
+        log_error "Failed to generate visual interactive HTML dashboard using go-better-html-coverage."
+      fi
+      
+      # Determine base git branch for diff-coverage
+      if git rev-parse --verify master &>/dev/null; then
+        base_ref="master"
+      elif git rev-parse --verify origin/master &>/dev/null; then
+        base_ref="origin/master"
+      fi
+      
+      if [[ -n "$base_ref" ]]; then
+        log_info "Generating git diff-coverage dashboard against '${base_ref}'..."
+        if go-better-html-coverage -n -ref "${base_ref}" -profile "${coverage_txt_path}" -o "${diff_html_path}"; then
+          diff_coverage_generated=true
+          log_info "👉 Local Click (Diff): file://${diff_html_path}"
+        else
+          log_error "Failed to generate diff-coverage report."
+        fi
+      fi
+    else
+      log_info "WARNING: go-better-html-coverage not found. Unable to compute interactive visual coverage here."
+    fi
 
     if ${KOKORO_DIR_AVAILABLE}; then
-      log_info "Kokoro artifacts path detected. Copying coverage dashboard to target artifacts directory..."
-      cp "${coverage_html_path}" "${KOKORO_ARTIFACTS_DIR}/e2e-coverage.html"
+      if ${full_coverage_generated}; then
+        log_info "Kokoro artifacts path detected. Copying coverage dashboard to target artifacts directory..."
+        cp "${coverage_html_path}" "${KOKORO_ARTIFACTS_DIR}/e2e-coverage.html"
+        
+        # Route 1: Direct Sponge/Fusion UI dynamic link matching Kokoro Run UUID
+        if [[ -n "${KOKORO_BUILD_ID-}" ]]; then
+          log_info "👉 Open Interactive Coverage in Fusion UI (Sponge):"
+          log_info "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=e2e-coverage.html"
+        fi
+
+        # Route 2: Direct GCS Corp-authenticated static dynamic link (renders javascript dashboard standalone!)
+        if [[ -n "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
+          local gcs_http_path="${KOKORO_ARTIFACTS_GCS_PATH#gs://}"
+          log_info "👉 Open Standalone Coverage served from Google Cloud Storage:"
+          log_info "   https://storage.cloud.google.com/${gcs_http_path}/e2e-coverage.html"
+        fi
+
+        # Fallback trace in case dynamic targets aren't exported
+        if [[ -z "${KOKORO_BUILD_ID-}" && -z "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
+          log_info "👉 Kokoro Local Artifact Path: file://${KOKORO_ARTIFACTS_DIR}/e2e-coverage.html"
+        fi
+      fi
       
-      # Route 1: Direct Sponge/Fusion UI dynamic link matching Kokoro Run UUID
-      if [[ -n "${KOKORO_BUILD_ID-}" ]]; then
-        log_info "👉 Open Interactive Coverage in Fusion UI (Sponge):"
-        log_info "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=e2e-coverage.html"
-      fi
+      if ${diff_coverage_generated}; then
+        log_info "Kokoro artifacts path detected. Copying diff-coverage dashboard to target artifacts directory..."
+        cp "${diff_html_path}" "${KOKORO_ARTIFACTS_DIR}/e2e-diff-coverage.html"
+        
+        # Route 1: Direct Sponge/Fusion UI dynamic link matching Kokoro Run UUID
+        if [[ -n "${KOKORO_BUILD_ID-}" ]]; then
+          log_info "👉 Open Interactive Diff-Coverage in Fusion UI (Sponge):"
+          log_info "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=e2e-diff-coverage.html"
+        fi
 
-      # Route 2: Direct GCS Corp-authenticated static dynamic link (renders javascript dashboard standalone!)
-      if [[ -n "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
-        local gcs_http_path="${KOKORO_ARTIFACTS_GCS_PATH#gs://}"
-        log_info "👉 Open Direct Standalone Coverage served from Google Cloud Storage:"
-        log_info "   https://storage.cloud.google.com/${gcs_http_path}/e2e-coverage.html"
-      fi
+        # Route 2: Direct GCS Corp-authenticated static dynamic link (renders javascript dashboard standalone!)
+        if [[ -n "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
+          local gcs_http_path="${KOKORO_ARTIFACTS_GCS_PATH#gs://}"
+          log_info "👉 Open Standalone Diff-Coverage served from Google Cloud Storage:"
+          log_info "   https://storage.cloud.google.com/${gcs_http_path}/e2e-diff-coverage.html"
+        fi
 
-      # Fallback trace in case dynamic targets aren't exported
-      if [[ -z "${KOKORO_BUILD_ID-}" && -z "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
-        log_info "👉 Kokoro Local Artifact Path: file://${KOKORO_ARTIFACTS_DIR}/e2e-coverage.html"
+        # Fallback trace in case dynamic targets aren't exported
+        if [[ -z "${KOKORO_BUILD_ID-}" && -z "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
+          log_info "👉 Kokoro Local Diff Artifact Path: file://${KOKORO_ARTIFACTS_DIR}/e2e-diff-coverage.html"
+        fi
       fi
     fi
     log_info "--------------------------------------------------"
