@@ -128,7 +128,7 @@ func (t *KernelRangeReaderTest) TestReadAt_NewReaderError() {
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
-	assert.ErrorContains(t.T(), err, "failed to create range reader")
+	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt Failed to create range reader")
 	assert.Equal(t.T(), 0, resp.Size)
 	t.bucket.AssertExpectations(t.T())
 }
@@ -142,6 +142,6 @@ func (t *KernelRangeReaderTest) TestReadAt_NilObject() {
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
-	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt: Nil MinObject")
+	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt Nil MinObject")
 	assert.Equal(t.T(), 0, resp.Size)
 }
