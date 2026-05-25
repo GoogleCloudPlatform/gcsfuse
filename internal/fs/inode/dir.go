@@ -715,7 +715,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			return nil, err
 		}
 
-		// 3. Short-circuit on confirmed negative hits for BOTH dir and file
+		// 3. Short-circuit ONLY on confirmed negative hits (tombstones) for BOTH
+		// directory and file paths. If either lookup resulted in a cache miss,
+		// we cannot short-circuit and must fall back to GCS (fetchCoreEntity)
+		// because the un-cached type might still exist.
 		if !dirCacheMiss && !fileCacheMiss {
 			return nil, nil // Definitive ENOENT
 		}
