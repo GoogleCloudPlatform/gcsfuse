@@ -78,6 +78,9 @@ type RandomReader interface {
 	// Return the record for the object to which the reader is bound.
 	Object() (o *gcs.MinObject)
 
+	// UpdateObjectSize updates the size of the object to which the reader is bound.
+	UpdateObjectSize(newSize uint64)
+
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
@@ -424,6 +427,18 @@ func (rr *randomReader) ReadAt(
 func (rr *randomReader) Object() (o *gcs.MinObject) {
 	o = rr.object
 	return
+}
+
+func (rr *randomReader) UpdateObjectSize(newSize uint64) {
+	rr.mu.Lock()
+	rr.object.Size = newSize
+	rr.mu.Unlock()
+
+	rr.fileCacheMu.RLock()
+	defer rr.fileCacheMu.RUnlock()
+	if rr.fileCacheHandle != nil {
+		rr.fileCacheHandle.UpdateJobSize(newSize)
+	}
 }
 
 func (rr *randomReader) Destroy() {

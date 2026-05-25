@@ -481,7 +481,10 @@ func (job *Job) downloadObjectAsync() {
 	// Truncate as the parallel downloads can create file with size little higher
 	// than the actual object size because writing with O_DIRECT happens in size
 	// multiple of cfg.MinimumAlignSizeForWriting.
-	err = cacheFile.Truncate(int64(job.object.Size))
+	job.mu.Lock()
+	sizeToTruncate := job.object.Size
+	job.mu.Unlock()
+	err = cacheFile.Truncate(int64(sizeToTruncate))
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error while truncating cache file: %w", err)
 		job.handleError(err)
@@ -621,4 +624,12 @@ func (job *Job) IsExperimentalParallelDownloadsDefaultOn() bool {
 		return true
 	}
 	return false
+}
+
+// UpdateSize updates the size of the object in the job.
+// Acquires and releases LOCK(job.mu)
+func (job *Job) UpdateSize(newSize uint64) {
+	job.mu.Lock()
+	defer job.mu.Unlock()
+	job.object.Size = newSize
 }
