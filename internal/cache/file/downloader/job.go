@@ -140,23 +140,8 @@ func NewJob(
 		traceHandle = tracing.NewNoopTracer()
 	}
 
-	// Create a copy of MinObject to prevent data race with the reader thread
-	// which might update the size of the object concurrently.
-	objectCopy := *object
-	if object.CRC32C != nil {
-		crcCopy := *object.CRC32C
-		objectCopy.CRC32C = &crcCopy
-	}
-	if object.Metadata != nil {
-		metadataCopy := make(map[string]string)
-		for k, v := range object.Metadata {
-			metadataCopy[k] = v
-		}
-		objectCopy.Metadata = metadataCopy
-	}
-
 	job = &Job{
-		object:                  &objectCopy,
+		object:                  object,
 		bucket:                  bucket,
 		fileInfoCache:           fileInfoCache,
 		sequentialReadSizeMb:    sequentialReadSizeMb,
