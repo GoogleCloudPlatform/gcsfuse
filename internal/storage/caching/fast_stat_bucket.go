@@ -124,6 +124,19 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		return
 	}
 
+	// If the directory listing returned from GCS is empty (both MinObjects and CollapsedRuns
+	// are empty), it means the directory is either an implicit directory that no longer
+	// has any children (because they were deleted) or a non-existent directory.
+	// In either case, if negative caching is enabled (negativeCacheTTL > 0), we cache
+	// this directory name with a trailing slash as a negative entry to short-circuit
+	// subsequent lookups.
+	// Note: Explicit empty directories have a placeholder object (e.g., "dir/"),
+	// which will be returned in MinObjects, so they will not trigger this negative caching.
+	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && b.negativeCacheTTL > 0 && strings.HasSuffix(dirName, "/") {
+		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
+		return
+	}
+
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
 	// 1. Parent Directory Inference (Implicit Check)
@@ -244,6 +257,11 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	if b.negativeCacheTTL <= 0 {
+		b.cache.Erase(name)
+		return
+	}
+
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntry(name, expiration)
 }
@@ -252,6 +270,11 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	if b.negativeCacheTTL <= 0 {
+		b.cache.Erase(name)
+		return
+	}
 
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntryForFolder(name, expiration)
@@ -271,6 +294,9 @@ func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
 	defer b.mu.Unlock()
 
 	hit, m = b.cache.LookUp(name, b.clock.Now())
+	if hit && m == nil && b.negativeCacheTTL <= 0 {
+		return false, nil
+	}
 	return
 }
 
@@ -279,6 +305,9 @@ func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
 	defer b.mu.Unlock()
 
 	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
+	if hit && f == nil && b.negativeCacheTTL <= 0 {
+		return false, nil
+	}
 	return hit, f
 }
 
