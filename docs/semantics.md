@@ -213,6 +213,8 @@ The behavior of stat cache is controlled by the following flags/config parameter
 
 3. **Negative Stat-cache (Non-existent Entry Caching)**: Controls caching of non-existent paths (`ErrNotExist` / 404 results) to optimize workloads that aggressively poll missing files (e.g., JupyterLab).
    * `metadata-cache: negative-ttl-secs` in the config-file (integer). Sets the TTL in seconds for negative entries. Default is 5 seconds. Use -1 for infinite TTL. Setting this to 0 disables negative caching.
+      > [!WARNING]
+      > Using an infinite TTL (`-1`) for negative caching is risky if objects are created externally (by other clients or processes), as those new files/directories will never be visible under the mount until the cache is manually cleared or GCSFuse is restarted.
 
 Warnings: 
 - Using stat caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:

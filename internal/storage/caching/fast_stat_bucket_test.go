@@ -1051,15 +1051,6 @@ func (t *ListObjectsTest_InsertListing) EmptyListing() {
 	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-func (t *ListObjectsTest_InsertListing) EmptyListing_NegativeCaching() {
-	t.bucket = caching.NewFastStatBucket(primaryCacheTTL, t.cache, &t.clock, t.wrapped, negativeCacheTTL, true, true)
-	listing := &gcs.Listing{}
-	ExpectCall(t.wrapped, "BucketType")().WillOnce(Return(gcs.BucketType{}))
-	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).WillOnce(Return(listing, nil))
-	ExpectCall(t.cache, "AddNegativeEntry")("dir/", Any())
-	_, _ = t.bucket.ListObjects(context.Background(), &gcs.ListObjectsRequest{Prefix: "dir/"}) //nolint:govet
-}
-
 func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{

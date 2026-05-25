@@ -124,18 +124,6 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		return
 	}
 
-	// If the directory listing returned from GCS is empty (both MinObjects and CollapsedRuns
-	// are empty), it means the directory is either an implicit directory that no longer
-	// has any children (because they were deleted) or a non-existent directory.
-	// In either case, if negative caching is enabled (negativeCacheTTL > 0), we cache
-	// this directory name with a trailing slash as a negative entry to short-circuit
-	// subsequent lookups.
-	// Note: Explicit empty directories have a placeholder object (e.g., "dir/"),
-	// which will be returned in MinObjects, so they will not trigger this negative caching.
-	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && b.negativeCacheTTL > 0 && strings.HasSuffix(dirName, "/") {
-		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
-		return
-	}
 
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
