@@ -58,9 +58,7 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 
 	obj := krr.instance.GetMinObject()
 	if obj == nil {
-		err := fmt.Errorf("KernelRangeReader::ReadAt: Nil MinObject")
-		logger.Error(err.Error())
-		return resp, err
+		return resp, fmt.Errorf("KernelRangeReader::ReadAt Nil MinObject")
 	}
 
 	if req.Offset >= int64(obj.Size) {
@@ -84,9 +82,13 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 			ReadCompressed: obj.HasContentEncodingGzip(),
 		})
 	if err != nil {
-		return resp, fmt.Errorf("failed to create range reader: %w", err)
+		return resp, fmt.Errorf("KernelRangeReader::ReadAt Failed to create range reader: %w", err)
 	}
-	defer func() { _ = reader.Close() }()
+	defer func() {
+		if err := reader.Close(); err != nil {
+			logger.Warnf("KernelRangeReader::ReadAt Error while closing reader: %v", err)
+		}
+	}()
 
 	n, err := io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
 	resp.Size = n
