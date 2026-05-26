@@ -62,9 +62,11 @@ type RangeReader struct {
 	readHandle []byte
 	cancel     func()
 
-	config       *cfg.Config
-	metricHandle metrics.MetricHandle
-	traceHandle  tracing.TraceHandle
+	config              *cfg.Config
+	metricHandle        metrics.MetricHandle
+	traceHandle         tracing.TraceHandle
+	connectionReadBytes int64
+	preemptionReason    metrics.Reason
 }
 
 func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle) *RangeReader {
@@ -115,22 +117,26 @@ func (rr *RangeReader) destroy() {
 // closeReader fetches the readHandle before closing the reader instance.
 func (rr *RangeReader) closeReader(caller string, readType int64) {
 	if rr.reader != nil && rr.start < rr.limit {
-		var reason metrics.Reason
-		switch caller {
-		case "destroy":
-			reason = metrics.ReasonExplicitCloseAttr
-		case "force_create":
-			reason = metrics.ReasonForcedRecreateAttr
-		case "invalidation":
-			if readType == metrics.ReadTypeRandom {
-				reason = metrics.ReasonSequentialToRandomAttr
-			} else {
-				reason = metrics.ReasonSeekAttr
+		reason := rr.preemptionReason
+		if reason == "" {
+			switch caller {
+			case "destroy":
+				reason = metrics.ReasonExplicitCloseAttr
+			case "force_create":
+				reason = metrics.ReasonForcedRecreateAttr
+			case "invalidation":
+				if readType == metrics.ReadTypeRandom {
+					reason = metrics.ReasonSequentialToRandomAttr
+				} else {
+					reason = metrics.ReasonSeekAttr
+				}
+			default:
+				reason = metrics.ReasonUnknownAttr
 			}
-		default:
-			reason = metrics.ReasonUnknownAttr
+			rr.preemptionReason = reason
+			rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 		}
-		rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
+		rr.metricHandle.GcsExperimentalReaderCancellationBytesCount(rr.connectionReadBytes, reason)
 	}
 
 	rr.readHandle = rr.reader.ReadHandle()
@@ -178,6 +184,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	var n int
 	n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
+	rr.connectionReadBytes += int64(n)
 
 	// Sanity check.
 	if rr.start > rr.limit {
@@ -254,6 +261,7 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 					default:
 						reason = metrics.ReasonUnknownAttr
 					}
+					rr.preemptionReason = reason
 					rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 					rr.cancel()
 				}
@@ -322,6 +330,8 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, re
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+	rr.connectionReadBytes = 0
+	rr.preemptionReason = ""
 
 	requestedDataSize := end - start
 	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)

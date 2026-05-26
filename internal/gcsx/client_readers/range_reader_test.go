@@ -705,6 +705,10 @@ func (m *mockMetricHandleForRangeCancellation) GcsExperimentalReaderCancellation
 	m.Called(inc, reason)
 }
 
+func (m *mockMetricHandleForRangeCancellation) GcsExperimentalReaderCancellationBytesCount(inc int64, reason metrics.Reason) {
+	m.Called(inc, reason)
+}
+
 func (t *rangeReaderTest) Test_ReadAt_SkipBytes() {
 	offset := int64(0)
 	size := int64(20)
@@ -745,7 +749,7 @@ func (t *rangeReaderTest) Test_ReadAt_CancellationRecordsMetric() {
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForRangeCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonCanceledAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(1024), metrics.ReasonCanceledAttr).Return().Once()
 
 	// Initialize RangeReader with our mock metrics handle
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, mh, tracing.NewNoopTracer())
@@ -782,6 +786,8 @@ func (t *rangeReaderTest) Test_ReadAt_CancellationRecordsMetric() {
 	close(finishRead)
 	<-readReturned
 
+	// Set successful connection read bytes prior to preemption close
+	t.rangeReader.connectionReadBytes = 1024
 	t.rangeReader.destroy()
 	mh.AssertExpectations(t.T())
 }
@@ -790,7 +796,7 @@ func (t *rangeReaderTest) Test_ReadAt_DeadlineExceededRecordsMetric() {
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForRangeCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonDeadlineExceededAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(2048), metrics.ReasonDeadlineExceededAttr).Return().Once()
 
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, mh, tracing.NewNoopTracer())
 
@@ -824,13 +830,16 @@ func (t *rangeReaderTest) Test_ReadAt_DeadlineExceededRecordsMetric() {
 	close(finishRead)
 	<-readReturned
 
+	// Set successful connection read bytes prior to preemption close
+	t.rangeReader.connectionReadBytes = 2048
 	t.rangeReader.destroy()
 	mh.AssertExpectations(t.T())
 }
 
 func (t *rangeReaderTest) Test_Destroy_PartiallyReadReaderRecordsMetric() {
 	mh := &mockMetricHandleForRangeCancellation{}
-	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return()
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(512), metrics.ReasonExplicitCloseAttr).Return().Once()
 
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
 
@@ -839,6 +848,7 @@ func (t *rangeReaderTest) Test_Destroy_PartiallyReadReaderRecordsMetric() {
 	t.rangeReader.reader = rc
 	t.rangeReader.start = 2
 	t.rangeReader.limit = 6
+	t.rangeReader.connectionReadBytes = 512
 	t.rangeReader.cancel = func() {}
 
 	// Act: destroy it
@@ -850,7 +860,8 @@ func (t *rangeReaderTest) Test_Destroy_PartiallyReadReaderRecordsMetric() {
 
 func (t *rangeReaderTest) Test_invalidateReader_SeekRecordsMetric() {
 	mh := &mockMetricHandleForRangeCancellation{}
-	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSeekAttr).Return()
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSeekAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(256), metrics.ReasonSeekAttr).Return().Once()
 
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
 
@@ -859,6 +870,7 @@ func (t *rangeReaderTest) Test_invalidateReader_SeekRecordsMetric() {
 	t.rangeReader.reader = rc
 	t.rangeReader.start = 2
 	t.rangeReader.limit = 6
+	t.rangeReader.connectionReadBytes = 256
 	t.rangeReader.cancel = func() {}
 
 	// Act: invalidate it with a misaligned seek jump under sequential readType
@@ -870,7 +882,8 @@ func (t *rangeReaderTest) Test_invalidateReader_SeekRecordsMetric() {
 
 func (t *rangeReaderTest) Test_invalidateReader_SeqToRandomTransitionRecordsMetric() {
 	mh := &mockMetricHandleForRangeCancellation{}
-	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSequentialToRandomAttr).Return()
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSequentialToRandomAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(128), metrics.ReasonSequentialToRandomAttr).Return().Once()
 
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
 
@@ -879,6 +892,7 @@ func (t *rangeReaderTest) Test_invalidateReader_SeqToRandomTransitionRecordsMetr
 	t.rangeReader.reader = rc
 	t.rangeReader.start = 2
 	t.rangeReader.limit = 6
+	t.rangeReader.connectionReadBytes = 128
 	t.rangeReader.cancel = func() {}
 
 	// Act: invalidate it with a misaligned seek jump under random readType (sequential to random transition)
