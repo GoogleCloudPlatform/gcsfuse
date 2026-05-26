@@ -92,12 +92,6 @@ func TestPathForParam(t *testing.T) {
 }
 
 func TestSetMaxPagesLimit_UpdateValue(t *testing.T) {
-	oldFunc := readMaxPagesLimitFunc
-	defer func() { readMaxPagesLimitFunc = oldFunc }()
-	readMaxPagesLimitFunc = func() (int, error) {
-		return 16, nil
-	}
-
 	cfg := NewKernelParamsManager()
 	cfg.SetMaxPagesLimit(456)
 
@@ -158,12 +152,6 @@ func TestSetCongestionWindowThreshold(t *testing.T) {
 }
 
 func TestSetMultipleKernelParams(t *testing.T) {
-	oldFunc := readMaxPagesLimitFunc
-	defer func() { readMaxPagesLimitFunc = oldFunc }()
-	readMaxPagesLimitFunc = func() (int, error) {
-		return 16, nil
-	}
-
 	cfg := NewKernelParamsManager()
 
 	cfg.SetMaxPagesLimit(123)
