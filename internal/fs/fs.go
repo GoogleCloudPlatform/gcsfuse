@@ -350,12 +350,14 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
 		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
 		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && serverCfg.NewConfig.FileSystem.EnableKernelReader {
-			kernelParams := kernelparams.NewKernelParamsManager()
-			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
-			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
-			kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
-			kernelParams.SetMaxPagesLimit(int(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit))
-			kernelParams.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
+			kernelParamsManager := kernelparams.NewKernelParamsManager()
+			kernelParamsManager.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
+			kernelParamsManager.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
+			kernelParamsManager.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
+			if kernelparams.ShouldUpdateMaxPagesLimit(int(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit)) {
+				kernelParamsManager.SetMaxPagesLimit(int(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit))
+			}
+			kernelParamsManager.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
 		}
 		root = makeRootForBucket(fs, syncerBucket)
 	}

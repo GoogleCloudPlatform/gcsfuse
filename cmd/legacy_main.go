@@ -484,9 +484,11 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 
 	// Apply pre mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
 	if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
-		kernelparams := kernelparams.NewKernelParamsManager()
-		kernelparams.SetMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit))
-		kernelparams.ApplyNonGKE(mountPoint)
+		kernelparamsManager := kernelparams.NewKernelParamsManager()
+		if kernelparams.ShouldUpdateMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit)) {
+			kernelparamsManager.SetMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit))
+			kernelparamsManager.ApplyNonGKE(mountPoint)
+		}
 	}
 
 	// Mount, writing information about our progress to the writer that package
