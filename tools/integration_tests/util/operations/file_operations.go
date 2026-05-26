@@ -32,11 +32,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -732,25 +730,6 @@ func ReadAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk s
 	if !bytes.Equal(mountContents, diskContents) {
 		t.Fatalf("data mismatch between mounted directory and local disk")
 	}
-}
-
-func CreateLocalFile(ctx context.Context, t *testing.T, mntDir string, bucket gcs.Bucket, fileName string) (filePath string, f *os.File) {
-	t.Helper()
-	// Creating a file shouldn't create file on GCS.
-	filePath = path.Join(mntDir, fileName)
-
-	f, err := os.Create(filePath)
-
-	assert.Equal(t, nil, err)
-	ValidateObjectNotFoundErr(ctx, t, bucket, fileName)
-	return
-}
-
-func CloseLocalFile(t *testing.T, f **os.File) error {
-	t.Helper()
-	err := (*f).Close()
-	*f = nil
-	return err
 }
 
 func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {

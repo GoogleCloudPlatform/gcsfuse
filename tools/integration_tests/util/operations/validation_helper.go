@@ -16,7 +16,6 @@ package operations
 
 import (
 	"context"
-	"errors"
 	"os"
 	"strings"
 	"syscall"
@@ -24,8 +23,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,15 +34,6 @@ func ValidateNoFileOrDirError(t *testing.T, path string) {
 		t.Fatalf("os.Stat(%s). Expected: %s, Got: %v", path,
 			"no such file or directory", err)
 	}
-}
-
-func ValidateObjectNotFoundErr(ctx context.Context, t *testing.T, bucket gcs.Bucket, fileName string) {
-	t.Helper()
-	var notFoundErr *gcs.NotFoundError
-	_, err := storageutil.ReadObject(ctx, bucket, fileName)
-
-	assert.Error(t, err)
-	assert.True(t, errors.As(err, &notFoundErr))
 }
 
 func ValidateESTALEError(t *testing.T, err error) {

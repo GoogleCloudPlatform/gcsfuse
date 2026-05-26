@@ -34,7 +34,6 @@ import (
 const (
 	testDirName    = "FlagOptimizationsTests"
 	onlyDirMounted = "OnlyDirMountFlagOptimizations"
-	GKETempDir     = "/gcsfuse-tmp"
 )
 
 // To prevent global variable pollution, enhance code clarity,

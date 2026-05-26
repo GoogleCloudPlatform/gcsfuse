@@ -99,7 +99,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.Operations) == 0 {
-		log.Fatal("No configuration found for operations tests in config.")
+		log.Fatal("No configuration found for Operations in config file.")
 	}
 
 	ctx = context.Background()
