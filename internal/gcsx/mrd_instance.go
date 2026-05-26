@@ -412,3 +412,10 @@ func (mi *MrdInstance) Size() uint64 {
 	}
 	return 0
 }
+
+// RefCount returns the reference count of the MrdInstance. Used for testing.
+func (mi *MrdInstance) RefCount() int64 {
+	mi.refCountMu.Lock()
+	defer mi.refCountMu.Unlock()
+	return mi.refCount
+}
