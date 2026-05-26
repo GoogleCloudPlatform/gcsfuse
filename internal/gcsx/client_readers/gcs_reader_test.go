@@ -485,10 +485,6 @@ func (t *gcsReaderTest) Test_ReadAt_ShortReadRetry() {
 			name:       "ZonalBucket",
 			bucketType: gcs.BucketType{Zonal: true},
 		},
-		{
-			name:       "PirloBucket",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
-		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {

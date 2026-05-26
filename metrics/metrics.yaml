@@ -264,28 +264,6 @@
     - ttl_expired
     - not_found
 
-- metric-name: "read/block_sizes"
-  description: "The cumulative distribution of read block sizes across different bucket boundaries"
-  type: "int_histogram"
-  unit: "By"
-  boundaries: &bytes_boundaries # in bytes
-  - 0 # To detect EOF scenarios
-  - 8192
-  - 16384
-  - 32768
-  - 65536
-  - 131072
-  - 262144
-  - 524288
-  - 1048576
-  - 2097152
-  - 4194304
-  - 8388608
-  - 16777216
-  - 33554432
-  - 67108864
-  - 134217728
-
 - metric-name: "read/experimental_read_type_transitions_count"
   description: "The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough."
   type: "int_counter"
