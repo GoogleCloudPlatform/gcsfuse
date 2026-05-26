@@ -17,6 +17,7 @@ package storageutil
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/oauth2adapt"
@@ -47,20 +48,31 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 
 	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
 
-	retryConfig := NewRetryConfig(config, DefaultRetryDeadline, DefaultTotalRetryBudget, DefaultInitialBackoff)
+	var domain string
 
-	apiCall := func(attemptCtx context.Context) (string, error) {
-		d, err := cred.UniverseDomain(attemptCtx)
-		return d, err
-	}
-
-	domain, err := ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall, logger.LevelInfo)
-	if err != nil {
-		logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)
-		// Setting default universe domain to googleapis.com in case we are unable to fetch the domain.
+	// Under Application Default Credentials (ADC) without custom universe configurations,
+	// the target is commercial GCP (googleapis.com). We bypass the metadata server check
+	// to prevent startup stalls (e.g., on GKE Autopilot startup).
+	if config.KeyFile == "" && config.CustomEndpoint == "" && os.Getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN") == "" {
+		logger.Infof("Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup")
 		domain = auth2.UniverseDomainDefault
+	} else {
+		retryConfig := NewRetryConfig(config, DefaultRetryDeadline, DefaultTotalRetryBudget, DefaultInitialBackoff)
+
+		apiCall := func(attemptCtx context.Context) (string, error) {
+			d, err := cred.UniverseDomain(attemptCtx)
+			return d, err
+		}
+
+		domain, err = ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall, logger.LevelInfo)
+		if err != nil {
+			logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)
+			// Setting default universe domain to googleapis.com in case we are unable to fetch the domain.
+			domain = auth2.UniverseDomainDefault
+		} else {
+			logger.Infof("Success in fetching cred.UniverseDomain: %s", domain)
+		}
 	}
-	logger.Infof("Success in fetching cred.UniverseDomain")
 
 	// Temporary Workaround: We've created a small auth object here that omits the 'quota project ID'
 	// to bypass a known issue (b/442805436) in the current authentication library.
