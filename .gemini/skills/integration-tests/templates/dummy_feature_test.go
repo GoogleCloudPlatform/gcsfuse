@@ -67,7 +67,7 @@ func (s *dummyFeatureSuite) TestScenarioExample() {
 	// --- Assert ---
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), testContent, string(content))
-	
+
 	// Safe OS Check assertions
 	_, err = os.Stat(targetFile)
 	assert.NoError(s.T(), err)

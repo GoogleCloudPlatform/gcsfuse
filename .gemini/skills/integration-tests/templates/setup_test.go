@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 			log.Printf("closeStorageClient failed: %v\n", err)
 		}
 	}()
-	
+
 	// OPTIONAL: Omit if control operations are not tested.
 	closeStorageControlClient := client.CreateControlClientWithCancel(&testEnv.ctx, &testEnv.storageControlClient)
 	defer func() {
