@@ -132,16 +132,11 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 
 	var reason metrics.Reason
 
-	if !seekRecorded && rtc.isSeekNeeded(offset) {
-		numSeeks = rtc.seeks.Add(1)
-		seekRecorded = true
-
-		if offset < expOffset {
-			reason = metrics.ReasonBackwardSeekAttr
-		} else if offset > expOffset+maxReadSize {
-			reason = metrics.ReasonForwardSeekAttr
+	if rtc.isSeekNeeded(offset) {
+		if !seekRecorded {
+			numSeeks = rtc.seeks.Add(1)
+			seekRecorded = true
 		}
-	} else if rtc.isSeekNeeded(offset) && seekRecorded {
 		if offset < expOffset {
 			reason = metrics.ReasonBackwardSeekAttr
 		} else if offset > expOffset+maxReadSize {
@@ -161,27 +156,38 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 		readType = metrics.ReadTypeSequential
 	}
 
-	if readType != previousReadType {
-		if rtc.readType.CompareAndSwap(previousReadType, readType) {
-			if previousReadType == metrics.ReadTypeSequential && readType == metrics.ReadTypeRandom {
-				if reason == "" && rtc.initialOffset != 0 {
-					reason = metrics.ReasonInitialOffsetNonZeroAttr
-				}
-				if reason != "" {
-					rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
-				}
-			} else if previousReadType == metrics.ReadTypeRandom && readType == metrics.ReadTypeSequential {
-				reason = metrics.ReasonAverageReadSizeLargeEnoughAttr
-				rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
-			}
-		}
-	}
+	_ = rtc.transitionTo(previousReadType, readType, reason)
 
 	return ReadInfo{
 		ReadType:       readType,
 		ExpectedOffset: expOffset,
 		SeekRecorded:   seekRecorded,
 	}
+}
+
+func (rtc *ReadTypeClassifier) transitionTo(previousType int64, targetType int64, reason metrics.Reason) bool {
+	if previousType == targetType {
+		return false
+	}
+	if !rtc.readType.CompareAndSwap(previousType, targetType) {
+		return false
+	}
+
+	if previousType == metrics.ReadTypeSequential && targetType == metrics.ReadTypeRandom {
+		if reason == "" && rtc.initialOffset != 0 {
+			reason = metrics.ReasonInitialOffsetNonZeroAttr
+		}
+		if reason != "" {
+			rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
+		}
+	} else if previousType == metrics.ReadTypeRandom && targetType == metrics.ReadTypeSequential {
+		if reason == "" {
+			reason = metrics.ReasonAverageReadSizeLargeEnoughAttr
+		}
+		rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
+	}
+
+	return true
 }
 
 // ComputeSeqPrefetchWindowAndAdjustType computes the sequential IO size heuristically based on
@@ -213,34 +219,15 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 }
 
 func (rtc *ReadTypeClassifier) adjustToRandom(currentReadType int64, seeks uint64) {
-	if currentReadType == metrics.ReadTypeRandom {
-		return
+	var reason metrics.Reason
+	if seeks == 0 && rtc.initialOffset > 0 {
+		reason = metrics.ReasonInitialOffsetNonZeroAttr
 	}
-	if rtc.readType.CompareAndSwap(currentReadType, metrics.ReadTypeRandom) {
-		if currentReadType == metrics.ReadTypeSequential {
-			var reason metrics.Reason
-			if seeks > 0 {
-				// Seek transition already logged in GetReadInfo
-			} else if rtc.initialOffset > 0 {
-				reason = metrics.ReasonInitialOffsetNonZeroAttr
-			}
-			if reason != "" {
-				rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
-			}
-		}
-	}
+	_ = rtc.transitionTo(currentReadType, metrics.ReadTypeRandom, reason)
 }
 
 func (rtc *ReadTypeClassifier) adjustToSequential(currentReadType int64) {
-	if currentReadType == metrics.ReadTypeSequential {
-		return
-	}
-	if rtc.readType.CompareAndSwap(currentReadType, metrics.ReadTypeSequential) {
-		if currentReadType == metrics.ReadTypeRandom {
-			reason := metrics.ReasonAverageReadSizeLargeEnoughAttr
-			rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
-		}
-	}
+	_ = rtc.transitionTo(currentReadType, metrics.ReadTypeSequential, metrics.ReasonAverageReadSizeLargeEnoughAttr)
 }
 
 // IsReadSequential returns true if the current read pattern is sequential
