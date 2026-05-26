@@ -44,10 +44,10 @@ func creatingNLocalFilesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testin
 	}
 }
 
-func readingDirNTimesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testing.T) {
+func readingDirNTimesShouldNotThrowError(dirPath string, n int, wg *sync.WaitGroup, t *testing.T) {
 	defer wg.Done()
 	for i := range n {
-		_, err := os.ReadDir(setup.MntDir())
+		_, err := os.ReadDir(dirPath)
 		if err != nil {
 			t.Errorf("Error while reading directory %dth time: %v", i, err)
 		}
@@ -185,7 +185,7 @@ func (t *LocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_DoesNo
 
 	// Concurrently create 100 local files and read directory 200 times.
 	go creatingNLocalFilesShouldNotThrowError(100, &wg, t.T())
-	go readingDirNTimesShouldNotThrowError(200, &wg, t.T())
+	go readingDirNTimesShouldNotThrowError(testDirPath, 200, &wg, t.T())
 
 	wg.Wait()
 }
