@@ -4,9 +4,9 @@ This skill provides a comprehensive, step-by-step runbook for Antigravity agents
 
 ---
 
-## Phase 1: Pre-Implementation Planning & Sign-Off
+## Phase 1: Pre-Implementation Planning & Design
 
-Before writing any new integration tests or modifying files, agents **MUST** walk through the clarification, research, and planning steps to receive explicit permission to begin coding.
+Before writing any new integration tests or modifying files, walk through the clarification, research, and technical design steps to prepare your testing components.
 
 ### 1.1 Pre-Implementation Clarifications
 Engage the developer to confirm basic requirements:
@@ -21,15 +21,11 @@ Engage the developer to confirm basic requirements:
 > **Proactive Reference Cross-Checking**:
 > Do not limit yourself strictly to basic dummy templates! You are highly encouraged to explore and inspect other active packages under [tools/integration_tests](../../../tools/integration_tests) (such as [read_cache](../../../tools/integration_tests/read_cache), [operations](../../../tools/integration_tests/operations), or [negative_stat_cache](../../../tools/integration_tests/negative_stat_cache)) to review real-world design, study current code styles, and cross-reference helper functions. Proactively reiterate your design choices and ensure your target test suite aligns perfectly with established repository standards before proposing changes!
 
-### 1.3 Action Planning & Explicit Sign-Off
-1. **Plan Generation**: Create a detailed plan of action as a markdown artifact (using the `implementation_plan` type). The plan must cover:
-   - A summary of the requirements and the test scenario designs.
-   - The exact list of target files to be created or modified (e.g., test suite paths, configuration entries in `config.go`, and shell targets in `improved_run_e2e_tests.sh`).
-   - Granular task lists (e.g., "Add YAML entries", "Structure setup_test.go TestMain", "Implement AAA sub-suites").
-   - Explicit bucket compatibility lists (`flat`, `hns`, `zonal` / `rapid`) and mount coverage strategies.
-2. **Present & Seek Approval**: Present the plan directly to the user and ask for feedback:
-   > *"Please review this integration testing implementation plan. Let me know if you would like any adjustments, or give me your explicit approval to proceed with implementing these changes!"*
-3. **Strict Sign-Off Lock**: You **MUST NOT** write code or modify ANY file in the workspace until the user gives their explicit approval/confirmation in the chat log.
+### 1.3 Technical Action Plan Guidelines
+When creating a new integration test suite, it is highly recommended to draft a structured technical action plan to scope your work before implementation:
+- **Test Scenario Design**: Summarize the behavior being tested, the preconditions, and the assertions required.
+- **Target Files Identification**: List the exact target paths to be created or modified (e.g., package files, the configuration entry structure in [tools/integration_tests/util/test_suite/config.go](../../../tools/integration_tests/util/test_suite/config.go), and the shell registration list in [tools/integration_tests/improved_run_e2e_tests.sh](../../../tools/integration_tests/improved_run_e2e_tests.sh)).
+- **Compatibility & Mount Mapping**: Map out the explicit list of compatible bucket types (`flat`, `hns`, `zonal` / `rapid`) and mount behaviors (static, dynamic, only-dir) your test suite must cover to ensure clean compliance checks.
 
 ---
 
