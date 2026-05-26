@@ -86,7 +86,7 @@ func (t *gcsReaderTest) SetupTest() {
 		TraceHandle:        tracing.NewNoopTracer(),
 		MrdWrapper:         nil,
 		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 0, nil),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 0, metrics.NewNoopMetrics()),
 	})
 	t.ctx = context.Background()
 }
@@ -111,7 +111,7 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 		TraceHandle:        tracing.NewNoopTracer(),
 		MrdWrapper:         nil,
 		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics()),
 	})
 
 	assert.Equal(t.T(), object, gcsReader.object)
@@ -304,7 +304,7 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 		TraceHandle:        tracing.NewNoopTracer(),
 		MrdWrapper:         nil,
 		Config:             &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics()),
 	})
 	// Set up a blocking reader
 	finishRead := make(chan struct{})
@@ -446,7 +446,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 		TraceHandle:        tracing.NewNoopTracer(),
 		MrdWrapper:         nil,
 		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 13*MiB, nil),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 13*MiB, metrics.NewNoopMetrics()),
 	})
 	t.gcsReader.rangeReader.reader = nil
 	t.gcsReader.mrr.isMRDInUse.Store(false)
@@ -500,7 +500,7 @@ func (t *gcsReaderTest) Test_ReadAt_ShortReadRetry() {
 				TraceHandle:        tracing.NewNoopTracer(),
 				MrdWrapper:         nil,
 				Config:             nil,
-				ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 1, nil),
+				ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 1, metrics.NewNoopMetrics()),
 			})
 			t.object.Size = 200
 			t.mockBucket.On("BucketType", mock.Anything).Return(tc.bucketType)
@@ -530,7 +530,7 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 		TraceHandle:        tracing.NewNoopTracer(),
 		MrdWrapper:         nil,
 		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 1, nil),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 1, metrics.NewNoopMetrics()),
 	})
 
 	// Setup
