@@ -71,7 +71,7 @@ func TestPathForParam(t *testing.T) {
 		{MaxReadAheadKb, 1, 2, "/sys/class/bdi/1:2/read_ahead_kb", false},
 		{MaxBackgroundRequests, 1, 2, "/sys/fs/fuse/connections/2/max_background", false},
 		{CongestionWindowThreshold, 1, 2, "/sys/fs/fuse/connections/2/congestion_threshold", false},
-		{MaxPagesLimit, 1, 2, "/sys/module/fuse/parameters/max_pages_limit", false},
+		{MaxPagesLimit, 1, 2, "/proc/sys/fs/fuse/max_pages_limit", false},
 		{TransparentHugePages, 1, 2, "/sys/kernel/mm/transparent_hugepage/enabled", false},
 		{"unknown", 1, 2, "", true},
 	}
@@ -91,20 +91,8 @@ func TestPathForParam(t *testing.T) {
 	}
 }
 
-func TestSetMaxPagesLimit_NewValue(t *testing.T) {
-	cfg := NewKernelParamsManager()
-
-	cfg.SetMaxPagesLimit(123)
-
-	assert.Len(t, cfg.Parameters, 1)
-	assert.Equal(t, MaxPagesLimit, cfg.Parameters[0].Name)
-	assert.Equal(t, "123", cfg.Parameters[0].Value)
-}
-
 func TestSetMaxPagesLimit_UpdateValue(t *testing.T) {
 	cfg := NewKernelParamsManager()
-	cfg.SetMaxPagesLimit(123)
-
 	cfg.SetMaxPagesLimit(456)
 
 	assert.Len(t, cfg.Parameters, 1)
@@ -265,5 +253,84 @@ func TestWriteValue_PermissionDenied_SudoFallback(t *testing.T) {
 		assert.Equal(t, "new_value\n", string(content))
 	} else {
 		assert.Contains(t, err.Error(), "sudo error")
+	}
+}
+
+func TestSetMaxPagesLimit_Invalid(t *testing.T) {
+	cfg := NewKernelParamsManager()
+
+	cfg.SetMaxPagesLimit(-1)
+
+	assert.Empty(t, cfg.Parameters)
+}
+
+func TestShouldUpdateMaxPagesLimit_HigherThanCurrent(t *testing.T) {
+	// Arrange
+	oldFunc := readMaxPagesLimitFunc
+	defer func() { readMaxPagesLimitFunc = oldFunc }()
+	readMaxPagesLimitFunc = func() (int, error) {
+		return 16, nil
+	}
+
+	// Act
+	got := ShouldUpdateMaxPagesLimit(256)
+
+	// Assert
+	assert.True(t, got)
+}
+
+func TestShouldUpdateMaxPagesLimit_LowerOrEqualThanCurrent(t *testing.T) {
+	// Arrange
+	oldFunc := readMaxPagesLimitFunc
+	defer func() { readMaxPagesLimitFunc = oldFunc }()
+	readMaxPagesLimitFunc = func() (int, error) {
+		return 512, nil
+	}
+
+	// Act
+	got := ShouldUpdateMaxPagesLimit(256)
+
+	// Assert
+	assert.False(t, got)
+}
+
+func TestShouldUpdateMaxPagesLimit_ReadFailure(t *testing.T) {
+	// Arrange
+	oldFunc := readMaxPagesLimitFunc
+	defer func() { readMaxPagesLimitFunc = oldFunc }()
+	readMaxPagesLimitFunc = func() (int, error) {
+		return 0, os.ErrNotExist
+	}
+
+	// Act
+	got := ShouldUpdateMaxPagesLimit(123)
+
+	// Assert
+	assert.False(t, got)
+}
+
+func TestShouldUpdateMaxPagesLimit_InvalidLimit(t *testing.T) {
+	tests := []struct {
+		name  string
+		limit int
+	}{
+		{
+			name:  "Zero limit",
+			limit: 0,
+		},
+		{
+			name:  "Negative limit",
+			limit: -1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Act
+			got := ShouldUpdateMaxPagesLimit(tc.limit)
+
+			// Assert
+			assert.False(t, got)
+		})
 	}
 }

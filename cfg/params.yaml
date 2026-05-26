@@ -454,6 +454,17 @@ params:
     usage: "Permissions bits for files, in octal."
     default: "0644"
 
+  - config-path: "file-system.fuse-max-pages-limit"
+    flag-name: "fuse-max-pages-limit"
+    type: "int"
+    usage: >-
+      Sets the limit for the maximum number of pages that fuse can process in a
+      single request. This is a global, machine-level configuration that applies across all mounts.
+      To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if
+      the specified value is greater than the current system limit.
+    default: "DefaultFuseMaxPagesLimit()"
+    hide-flag: true
+
   - config-path: "file-system.fuse-options"
     flag-name: "o"
     type: "[]string"
