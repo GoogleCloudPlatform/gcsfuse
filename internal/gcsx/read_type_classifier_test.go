@@ -23,7 +23,7 @@ import (
 )
 
 func TestReadTypeClassifier_InitialState(t *testing.T) {
-	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 
 	assert.Equal(t, metrics.ReadTypeSequential, readTypeClassifier.readType.Load())
 	assert.Equal(t, int64(0), readTypeClassifier.expectedOffset.Load())
@@ -107,7 +107,7 @@ func TestReadTypeClassifier_IsSeekNeeded(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 			classifier.readType.Store(tc.readType)
 			classifier.expectedOffset.Store(tc.expectedOffset)
 
@@ -304,7 +304,7 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+			readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 			readTypeClassifier.readType.Store(tc.initialReadType)
 			readTypeClassifier.expectedOffset.Store(tc.initialExpOffset)
 			readTypeClassifier.seeks.Store(tc.initialNumSeeks)
@@ -360,7 +360,7 @@ func TestReadTypeClassifier_RecordRead(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 			classifier.expectedOffset.Store(tc.initialExpectedOffset)
 			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
 
@@ -473,7 +473,7 @@ func TestReadTypeClassifier_ComputeSeqPrefetchWindowAndAdjustType(t *testing.T) 
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(tc.sequentialReadSizeMb, 0, nil)
+			classifier := NewReadTypeClassifier(tc.sequentialReadSizeMb, 0, metrics.NewNoopMetrics())
 			classifier.seeks.Store(tc.initialNumSeeks)
 			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
 			classifier.initialOffset = tc.initialOffset
@@ -510,7 +510,7 @@ func TestReadTypeClassifier_IsSequentialRead(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 			classifier.readType.Store(tc.readType)
 
 			assert.Equal(t, tc.SequentialRead, classifier.IsReadSequential())
@@ -560,7 +560,7 @@ func Test_avgReadBytes(t *testing.T) {
 }
 
 func TestReadTypeClassifier_SequentialReads(t *testing.T) {
-	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 
 	// Simulate 4 reads of 10MB IO.
 	readSizes := []int64{10 * MB, 10 * MB, 10 * MB, 10 * MB}
@@ -579,7 +579,7 @@ func TestReadTypeClassifier_SequentialReads(t *testing.T) {
 }
 
 func TestReadTypeClassifier_RandomReads(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 
 	// Simulate random reads of 5MB each at different offsets.
 	readSizes := []int64{5 * MB, 5 * MB, 5 * MB, 5 * MB}
@@ -595,7 +595,7 @@ func TestReadTypeClassifier_RandomReads(t *testing.T) {
 }
 
 func TestReadTypeClassifier_RandomToSequentialRead(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 	// Start with random reads.
 	randomReadSizes := []int64{2 * MB, 2 * MB, 2 * MB, 2 * MB, 2 * MB}
 	randomOffsets := []int64{50 * MB, 20 * MB, 10 * MB, 30 * MB, 40 * MB}
@@ -621,7 +621,7 @@ func TestReadTypeClassifier_RandomToSequentialRead(t *testing.T) {
 }
 
 func TestReadTypeClassifier_ConcurrentUpdates(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, nil)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 	var wg sync.WaitGroup
 	numGoroutines := 10
 	readsPerGoroutine := 100
