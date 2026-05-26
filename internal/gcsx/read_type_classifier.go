@@ -65,6 +65,9 @@ type ReadTypeClassifier struct {
 }
 
 func NewReadTypeClassifier(sequentialReadSizeMb int64, initialOffset int64, mh metrics.MetricHandle) *ReadTypeClassifier {
+	if mh == nil {
+		mh = metrics.NewNoopMetrics()
+	}
 	state := &ReadTypeClassifier{
 		metricHandle:         mh,
 		readType:             atomic.Int64{},
@@ -160,18 +163,16 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 
 	if readType != previousReadType {
 		if rtc.readType.CompareAndSwap(previousReadType, readType) {
-			if rtc.metricHandle != nil {
-				if previousReadType == metrics.ReadTypeSequential && readType == metrics.ReadTypeRandom {
-					if reason == "" && rtc.initialOffset != 0 {
-						reason = metrics.ReasonInitialOffsetNonZeroAttr
-					}
-					if reason != "" {
-						rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
-					}
-				} else if previousReadType == metrics.ReadTypeRandom && readType == metrics.ReadTypeSequential {
-					reason = metrics.ReasonAverageReadSizeLargeEnoughAttr
-					rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
+			if previousReadType == metrics.ReadTypeSequential && readType == metrics.ReadTypeRandom {
+				if reason == "" && rtc.initialOffset != 0 {
+					reason = metrics.ReasonInitialOffsetNonZeroAttr
 				}
+				if reason != "" {
+					rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
+				}
+			} else if previousReadType == metrics.ReadTypeRandom && readType == metrics.ReadTypeSequential {
+				reason = metrics.ReasonAverageReadSizeLargeEnoughAttr
+				rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
 			}
 		}
 	}
@@ -205,7 +206,7 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 			randomReadSize = min(max(randomReadSize, minReadSize), maxReadSize)
 			if currentReadType != metrics.ReadTypeRandom {
 				if rtc.readType.CompareAndSwap(currentReadType, metrics.ReadTypeRandom) {
-					if currentReadType == metrics.ReadTypeSequential && rtc.metricHandle != nil {
+					if currentReadType == metrics.ReadTypeSequential {
 						var reason metrics.Reason
 						if seeks > 0 {
 							// Seek transition already logged in GetReadInfo
@@ -223,7 +224,7 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 	}
 	if currentReadType != metrics.ReadTypeSequential {
 		if rtc.readType.CompareAndSwap(currentReadType, metrics.ReadTypeSequential) {
-			if currentReadType == metrics.ReadTypeRandom && rtc.metricHandle != nil {
+			if currentReadType == metrics.ReadTypeRandom {
 				reason := metrics.ReasonAverageReadSizeLargeEnoughAttr
 				rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
 			}
