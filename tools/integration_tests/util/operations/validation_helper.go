@@ -16,7 +16,6 @@ package operations
 
 import (
 	"context"
-	"errors"
 	"os"
 	"strings"
 	"syscall"
@@ -24,8 +23,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,27 +36,11 @@ func ValidateNoFileOrDirError(t *testing.T, path string) {
 	}
 }
 
-func ValidateObjectNotFoundErr(ctx context.Context, t *testing.T, bucket gcs.Bucket, fileName string) {
-	t.Helper()
-	var notFoundErr *gcs.NotFoundError
-	_, err := storageutil.ReadObject(ctx, bucket, fileName)
-
-	assert.Error(t, err)
-	assert.True(t, errors.As(err, &notFoundErr))
-}
-
 func ValidateESTALEError(t *testing.T, err error) {
 	t.Helper()
 
 	require.Error(t, err)
 	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
-}
-
-func ValidateEIOError(t *testing.T, err error) {
-	t.Helper()
-
-	require.Error(t, err)
-	assert.Regexp(t, syscall.EIO.Error(), err.Error())
 }
 
 func CheckErrorForReadOnlyFileSystem(t *testing.T, err error) {

@@ -71,18 +71,6 @@ func executeTestsForStaticMounting(config *test_suite.TestConfig, flagsSet [][]s
 	return
 }
 
-// Deprecated: Use RunTestsWithConfigFile instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
-func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
-	config := &test_suite.TestConfig{
-		TestBucket:              setup.TestBucket(),
-		GKEMountedDirectory:     setup.MountedDirectory(),
-		GCSFuseMountedDirectory: setup.MntDir(),
-		LogFile:                 setup.LogFile(),
-	}
-	return RunTestsWithConfigFile(config, flagsSet, m)
-}
-
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running static mounting tests...")
 	log.Printf("GCSFuse Log File for test: %s\n", config.LogFile)

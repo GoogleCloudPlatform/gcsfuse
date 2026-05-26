@@ -86,18 +86,6 @@ func (s *BaseSymlinkSuite) createSymlink(linkName, target string) string {
 	return linkPath
 }
 
-func (s *BaseSymlinkSuite) createTempFile() string {
-	targetFile, err := os.CreateTemp("", "symlink-target")
-	s.Require().NoError(err)
-	s.T().Cleanup(func() {
-		if err := os.Remove(targetFile.Name()); err != nil {
-			s.T().Logf("Error removing temporary file %s: %v", targetFile.Name(), err)
-		}
-	})
-	s.Require().NoError(targetFile.Close())
-	return targetFile.Name()
-}
-
 // validateBackingGCSObjectForSymlink validates the GCS object created for a symlink.
 func (s *BaseSymlinkSuite) validateBackingGCSObjectForSymlink(linkName, target string, isStandardSymlink bool) {
 	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(path.Join(TestDirName, linkName))

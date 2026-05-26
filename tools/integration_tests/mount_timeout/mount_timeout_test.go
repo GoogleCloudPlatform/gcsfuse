@@ -145,10 +145,7 @@ func TestMain(m *testing.M) {
 	// Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.MountTimeout) == 0 {
-		log.Println("No configuration found for mount_timeout tests in config. Using flags instead.")
-		cfg.MountTimeout = make([]test_suite.TestConfig, 1)
-		cfg.MountTimeout[0].TestBucket = setup.TestBucket()
-		cfg.MountTimeout[0].GKEMountedDirectory = setup.MountedDirectory()
+		log.Fatal("No configuration found for MountTimeout in config file.")
 	}
 
 	// Skip for GKE or mounted directory tests.

@@ -46,18 +46,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.StreamingWrites) == 0 {
-		log.Println("No configuration found for streaming_writes tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.StreamingWrites = make([]test_suite.TestConfig, 1)
-		cfg.StreamingWrites[0].TestBucket = setup.TestBucket()
-		cfg.StreamingWrites[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.StreamingWrites[0].LogFile = setup.LogFile()
-		cfg.StreamingWrites[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.StreamingWrites[0].Configs[0].Flags = []string{
-			"--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --client-protocol=grpc --write-global-max-blocks=-1",
-			"--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1",
-		}
-		cfg.StreamingWrites[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for StreamingWrites in config file.")
 	}
 
 	testEnv.ctx = context.Background()

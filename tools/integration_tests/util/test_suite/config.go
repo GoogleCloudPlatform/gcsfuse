@@ -21,13 +21,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// BucketType represents the 'compatible' field.
-type BucketType struct {
-	Flat  bool `yaml:"flat"`
-	Hns   bool `yaml:"hns"`
-	Zonal bool `yaml:"zonal"`
-}
-
 // TestConfig represents the common configuration for test packages.
 type TestConfig struct {
 	GKEMountedDirectory              string `yaml:"mounted_directory"`

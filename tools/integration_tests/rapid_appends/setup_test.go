@@ -58,70 +58,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.RapidAppends) == 0 {
-		log.Println("No configuration found for rapid_appends tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.RapidAppends = make([]test_suite.TestConfig, 1)
-		cfg.RapidAppends[0].TestBucket = setup.TestBucket()
-		cfg.RapidAppends[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.RapidAppends[0].LogFile = setup.LogFile()
-		cfg.RapidAppends[0].Configs = make([]test_suite.ConfigItem, 5)
-
-		// 1. TestSingleMountAppendsTestSuite
-		cfg.RapidAppends[0].Configs[0].Flags = []string{"--write-block-size-mb=1"}
-		cfg.RapidAppends[0].Configs[0].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[0].Run = "TestSingleMountAppendsTestSuite"
-
-		// 2. TestDualMountAppendsTestSuite
-		cfg.RapidAppends[0].Configs[1].Flags = []string{"--write-block-size-mb=1"}
-		cfg.RapidAppends[0].Configs[1].SecondaryFlags = []string{"--write-block-size-mb=1"}
-		cfg.RapidAppends[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[1].Run = "TestDualMountAppendsTestSuite"
-
-		// 3. TestSingleMountReadsTestSuite
-		cfg.RapidAppends[0].Configs[2].Flags = []string{
-			"--metadata-cache-ttl-secs=0",  // NoCache
-			"--metadata-cache-ttl-secs=70", // MetadataCache
-			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0",                               // FileCache
-			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache",                              // MetadataAndFileCache
-			"--metadata-cache-ttl-secs=0 --enable-kernel-reader=false",                                                             // NoCacheWithoutKernelReader
-			"--metadata-cache-ttl-secs=70 --enable-kernel-reader=false",                                                            // MetadataCacheWithMRDWrapperWithoutKernelReader
-			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0 --enable-kernel-reader=false",  // FileCacheWithoutKernelReader
-			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --enable-kernel-reader=false", // MetadataAndFileCacheWithoutKernelReader
-		}
-		cfg.RapidAppends[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[2].Run = "TestSingleMountReadsTestSuite"
-
-		// 4. TestDualMountReadsTestSuiteWithMetadataCache
-		cfg.RapidAppends[0].Configs[3].Flags = []string{
-			"--metadata-cache-ttl-secs=70",
-			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary",
-			"--metadata-cache-ttl-secs=70 --enable-kernel-reader=false",
-			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --enable-kernel-reader=false",
-		}
-		cfg.RapidAppends[0].Configs[3].SecondaryFlags = []string{
-			"--write-block-size-mb=1",
-			"--write-block-size-mb=1",
-			"--write-block-size-mb=1",
-			"--write-block-size-mb=1",
-		}
-		cfg.RapidAppends[0].Configs[3].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[3].Run = "TestDualMountReadsTestSuiteWithMetadataCache"
-
-		// 5. TestDualMountReadsTestSuiteWithoutMetadataCache
-		cfg.RapidAppends[0].Configs[4].Flags = []string{
-			"--metadata-cache-ttl-secs=0",
-			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0",
-			"--metadata-cache-ttl-secs=0 --enable-kernel-reader=false",
-			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0 --enable-kernel-reader=false",
-		}
-		cfg.RapidAppends[0].Configs[4].SecondaryFlags = []string{
-			"--write-block-size-mb=1",
-			"--write-block-size-mb=1",
-			"--write-block-size-mb=1",
-			"--write-block-size-mb=1",
-		}
-		cfg.RapidAppends[0].Configs[4].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[4].Run = "TestDualMountReadsTestSuiteWithoutMetadataCache"
+		log.Fatal("No configuration found for RapidAppends in config file.")
 	}
 
 	testEnv.ctx = context.Background()
