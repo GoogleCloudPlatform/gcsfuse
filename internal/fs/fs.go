@@ -280,7 +280,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		bucketType := syncerBucket.BucketType()
 		if serverCfg.ViperConfig != nil {
-			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo)
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
@@ -346,7 +346,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
-		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
+		// Write post mount kernel settings when kernel reader is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
 		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
 		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && serverCfg.NewConfig.FileSystem.EnableKernelReader {
@@ -1091,7 +1091,8 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			fs.newConfig,
 			fs.globalMaxWriteBlocksSem,
 			fs.mrdCache,
-			fs.traceHandle)
+			fs.traceHandle,
+			fs.metricHandle)
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -2722,18 +2723,6 @@ func (fs *fileSystem) ensureNoLocalFilesInDirectory(dir inode.BucketOwnedDirInod
 	return nil
 }
 
-func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name string) error {
-	unexpected, err := dir.ReadDescendants(context.Background(), 1)
-	if err != nil {
-		return fmt.Errorf("read descendants of the new directory %q: %w", name, err)
-	}
-
-	if len(unexpected) > 0 {
-		return fuse.ENOTEMPTY
-	}
-	return nil
-}
-
 // Rename an old folder to a new folder in a hierarchical bucket. If the new folder already
 // exists and is non-empty, return ENOTEMPTY. If old folder have open files then return
 // ENOTSUP.
@@ -2766,17 +2755,20 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	if err == nil {
 		pendingInodes = append(pendingInodes, newDirInode)
 
-		// If the directory exists, then check if it is empty or not.
-		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
-			return err
-		}
-
-		// This refers to an empty destination directory.
-		// The RenameFolder API does not allow renaming to an existing empty directory.
-		// To make this work, we delete the empty directory first from gcsfuse and then perform rename.
+		// The RenameFolder API does not allow renaming to an empty existing directory.
+		// To make this work, we attempt to delete the destination directory first.
+		// If it is non-empty, this deletion will fail with a PreconditionError,
+		// in which case we immediately return ENOTEMPTY.
 		newParent.Lock()
-		_ = newParent.DeleteChildDir(ctx, newName, false, newDirInode)
+		deleteErr := newParent.DeleteChildDir(ctx, newName, false, newDirInode)
 		newParent.Unlock()
+		if deleteErr != nil {
+			var precondErr *gcs.PreconditionError
+			if errors.As(deleteErr, &precondErr) {
+				return fuse.ENOTEMPTY
+			}
+			return fmt.Errorf("DeleteChildDir: %w", deleteErr)
+		}
 	}
 
 	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
@@ -2795,6 +2787,18 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	}
 
 	return
+}
+
+func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name string) error {
+	unexpected, err := dir.ReadDescendants(context.Background(), 1)
+	if err != nil {
+		return fmt.Errorf("read descendants of the new directory %q: %w", name, err)
+	}
+
+	if len(unexpected) > 0 {
+		return fuse.ENOTEMPTY
+	}
+	return nil
 }
 
 // Rename an old directory to a new directory in a non-hierarchical bucket. If the new directory already
@@ -3163,16 +3167,12 @@ func (fs *fileSystem) ReadFile(
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingBWH() {
 		// Flush/Sync Pending streaming writes and issue read within same inode lock.
-		if fh.Inode().Bucket().BucketType().IsRapid() {
-			// With rapid buckets, we can read from unfinalized objects as well.
-			// Hence, there is no need to finalize the object from here for rapid buckets.
-			// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
-			// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
-			if fs.newConfig.Write.FinalizeFileForRapid {
-				err = fs.syncFile(ctx, fh.Inode())
-			} else {
-				err = fs.flushFile(ctx, fh.Inode())
-			}
+		// With rapid buckets, we can read from unfinalized objects as well.
+		// Hence, there is no need to finalize the object from here for rapid buckets.
+		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
+		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
+		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileForRapid {
+			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())
 		}
@@ -3190,7 +3190,7 @@ func (fs *fileSystem) ReadFile(
 			Buffer: op.Dst,
 			Offset: op.Offset,
 		}
-		resp, err = fh.ReadWithMrdKernelReader(ctx, req)
+		resp, err = fh.ReadWithKernelReader(ctx, req)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback
@@ -3276,13 +3276,8 @@ func (fs *fileSystem) WriteFile(
 		}
 		return err
 	}
-	if fs.newConfig.Write.EnableRapidAppends {
-		// Serve the request via the file handle.
-		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
-	} else {
-		// Serve the request.
-		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.NewOpenMode(util.WriteOnly, 0))
-	}
+	// Serve the request.
+	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode())
 	if err != nil {
 		return
 	}

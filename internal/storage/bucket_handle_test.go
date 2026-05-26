@@ -71,7 +71,7 @@ func createBucketHandle(testSuite *BucketHandleTest, resp *controlpb.StorageLayo
 
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(resp, nil)
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 	testSuite.bucketHandle.controlClient = testSuite.mockClient
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
@@ -590,6 +590,56 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 			assert.Equal(t, tt.objectName, objWr.ObjectName())
 			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
 			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
+	tests := []struct {
+		name                 string
+		bucketType           gcs.BucketType
+		finalizeFileForRapid bool
+		expectedAppend       bool
+	}{
+		{
+			name:                 "StandardBucket",
+			bucketType:           gcs.BucketType{},
+			finalizeFileForRapid: true,
+			expectedAppend:       false,
+		},
+		{
+			name:                 "ZonalBucket",
+			bucketType:           gcs.BucketType{Zonal: true},
+			finalizeFileForRapid: false,
+			expectedAppend:       true,
+		},
+		{
+			name:                 "PirloBucket_RapidEnabled",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			finalizeFileForRapid: true,
+			expectedAppend:       true,
+		},
+		{
+			name:                 "PirloBucket_RapidDisabled",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			finalizeFileForRapid: false,
+			expectedAppend:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{})
+			testSuite.bucketHandle.bucketType = &tt.bucketType
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{FinalizeFileForRapid: tt.finalizeFileForRapid}
+
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object"}, 1024, nil)
+
+			require.NoError(t, err)
+			objWr, ok := w.(*ObjectWriter)
+			require.True(t, ok)
+			assert.Equal(t, tt.expectedAppend, objWr.Append)
+			assert.Equal(t, tt.finalizeFileForRapid, objWr.FinalizeOnClose)
 		})
 	}
 }
@@ -1513,7 +1563,7 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 
 	// Test when the client returns an error.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(x, errors.New("mocked error"))
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 
 	assert.Nil(testSuite.T(), testSuite.bucketHandle)
 	assert.Contains(testSuite.T(), err.Error(), "mocked error")
@@ -1529,7 +1579,7 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithRapidAppendsEnabled() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(&controlpb.StorageLayout{}, nil)
 	testSuite.mockClient.On("getClient", mock.Anything, mock.Anything).Return(&storage.Client{}, nil)
 
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
 	assert.Nil(testSuite.T(), err)

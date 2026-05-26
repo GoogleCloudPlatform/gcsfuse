@@ -126,7 +126,7 @@ func (testSuite *StorageHandleTest) controlClientCallOptionsWithRetry() *control
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockStorageLayout(gcs.BucketType{})
-	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, "", false)
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, "")
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Nil(testSuite.T(), err)
@@ -139,7 +139,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEm
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, fmt.Errorf("bucket does not exist"))
-	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, "", false)
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, "")
 
 	assert.NotNil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), bucketHandle)
@@ -149,7 +149,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmpty
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
 
-	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, projectID, false)
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, projectID)
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Nil(testSuite.T(), err)
@@ -165,7 +165,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, fmt.Errorf("bucket does not exist"))
-	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID, false)
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID)
 
 	assert.Nil(testSuite.T(), bucketHandle)
 	assert.NotNil(testSuite.T(), err)
@@ -174,6 +174,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.ExperimentalEnablePirlo = true
+	sc.WriteConfig = &cfg.WriteConfig{EnableRapidWrites: true}
 	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
 	require.NoError(testSuite.T(), err)
 	client := sh.(*storageClient)
@@ -183,7 +184,7 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	bt, err := client.lookupBucketType(TestBucketName)
 
 	assert.NoError(testSuite.T(), err)
-	assert.True(testSuite.T(), bt.Pirlo)
+	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesEnabled, bt.Pirlo)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
@@ -349,7 +350,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	sh := fakeStorage.CreateStorageHandle()
 	defer fakeStorage.ShutDown()
 	assert.NotNil(testSuite.T(), sh)
-	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID, false)
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID)
 
 	assert.Nil(testSuite.T(), bh)
 	assert.NotNil(testSuite.T(), err)
@@ -904,7 +905,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 	tests := []struct {
 		name                 string
 		isZonal              bool
-		isPirlo              bool
+		pirloState           gcs.PirloState
 		billingProject       string
 		folderAPIStallRetry  bool
 		expectFolderRetries  bool
@@ -926,14 +927,14 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 		},
 		{
 			name:                 "PirloBucket_NoBillingProject",
-			isPirlo:              true,
+			pirloState:           gcs.PirloStateRapidWritesEnabled,
 			billingProject:       "",
 			expectFolderRetries:  true,
 			expectGaxRetriesUsed: false,
 		},
 		{
 			name:                 "PirloBucket_WithBillingProject",
-			isPirlo:              true,
+			pirloState:           gcs.PirloStateRapidWritesEnabled,
 			billingProject:       "test-project",
 			expectFolderRetries:  true,
 			expectGaxRetriesUsed: false,
@@ -984,7 +985,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 				rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
 				clientConfig:                             clientConfig,
 			}
-			bucketType := &gcs.BucketType{Zonal: tc.isZonal, Pirlo: tc.isPirlo}
+			bucketType := &gcs.BucketType{Zonal: tc.isZonal, Pirlo: tc.pirloState}
 
 			// Act
 			controlClient := sh.controlClientForBucketHandle(bucketType, tc.billingProject)

@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
@@ -29,15 +31,16 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/kernel_readers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -127,8 +130,10 @@ type FileInode struct {
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
-	mrdInstance *gcsx.MrdInstance
-	traceHandle tracing.TraceHandle
+	mrdInstance               *gcsx.MrdInstance
+	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
+	metricHandle              metrics.MetricHandle
+	traceHandle               tracing.TraceHandle
 }
 
 var _ Inode = &FileInode{}
@@ -154,7 +159,8 @@ func NewFileInode(
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
 	mrdCache *lru.Cache,
-	traceHandle tracing.TraceHandle) (f *FileInode) {
+	traceHandle tracing.TraceHandle,
+	metricHandle metrics.MetricHandle) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -174,6 +180,7 @@ func NewFileInode(
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 		traceHandle:             traceHandle,
+		metricHandle:            metricHandle,
 	}
 
 	if f.bucket.BucketType().IsRapid() {
@@ -183,6 +190,8 @@ func NewFileInode(
 		if err != nil {
 			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 		}
+	} else {
+		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
 	f.lc.Init(id)
@@ -430,6 +439,11 @@ func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
 	return f.mrdInstance
 }
 
+// Returns KernelRangeReaderInstance for this inode.
+func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeReaderInstance {
+	return f.kernelRangeReaderInstance
+}
+
 // If true, it is safe to serve reads directly from the object given by
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
@@ -443,7 +457,7 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
 	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().IsRapid() && f.content == nil)
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -506,13 +520,13 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 // LOCKS_REQUIRED(f.mu)
 // UpdateSize updates the size of the backing GCS object. It also calls
-// updateMRD to ensure that the multi-range downloader (which is used
-// for random reads) is aware of the new size. This prevents the downloader
-// from operating on stale object information.
+// updateReaders to ensure that the multi-range downloader and kernel range
+// readers are aware of the new size. This prevents the downloader/readers from
+// operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
 	f.attrs.Size = size
-	f.updateMRD()
+	f.updateReaders()
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -659,6 +673,33 @@ func (f *FileInode) Read(
 	return
 }
 
+func getMetricOpenMode(openMode util.OpenMode) metrics.OpenMode {
+	isAppend := openMode.IsAppend()
+
+	switch openMode.AccessMode() {
+	case util.ReadWrite:
+		if isAppend {
+			return metrics.OpenModeReadWriteAppendAttr
+		}
+		return metrics.OpenModeReadWriteAttr
+	case util.WriteOnly:
+		if isAppend {
+			return metrics.OpenModeWriteOnlyAppendAttr
+		}
+		return metrics.OpenModeWriteOnlyAttr
+	default:
+		return metrics.OpenModeOtherAttr
+	}
+}
+
+func recordStreamingWriteFallbackMetric(mh metrics.MetricHandle, openMode util.OpenMode, reason metrics.WriteFallbackReason) {
+	if mh == nil {
+		return
+	}
+	metricOpenMode := getMetricOpenMode(openMode)
+	mh.FsStreamingWriteFallbackCount(1, metricOpenMode, reason)
+}
+
 // Serve a write for this file with semantics matching fuseops.WriteFileOp.
 // It returns true if the file is successfully synced during the write operation.
 //
@@ -669,7 +710,7 @@ func (f *FileInode) Write(
 	offset int64,
 	openMode util.OpenMode) (bool, error) {
 	if f.bwh != nil {
-		return f.writeUsingBufferedWrites(ctx, data, offset)
+		return f.writeUsingBufferedWrites(ctx, data, offset, openMode)
 	}
 
 	return false, f.writeUsingTempFile(ctx, data, offset)
@@ -699,7 +740,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (_ bool, err error) {
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64, openMode util.OpenMode) (_ bool, err error) {
 	bytes := int64(len(data))
 	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
 	defer finishSpan()
@@ -719,6 +760,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
+		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
 		return true, f.writeUsingTempFile(ctx, data, offset)
 	}
 	if err != nil {
@@ -842,7 +884,7 @@ func (f *FileInode) SetMtime(
 			minObj = *minObjPtr
 		}
 		f.src = minObj
-		f.updateMRD()
+		f.updateReaders()
 		return
 	}
 
@@ -976,6 +1018,18 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("SyncObject: %w", err)
 	}
+
+	if newObj != nil && f.content != nil {
+		st, statErr := f.content.Stat()
+		if statErr != nil {
+			return fmt.Errorf("SyncObject: stat temp file for size validation: %w", statErr)
+		}
+
+		if newObj.Size != uint64(st.Size) {
+			return fmt.Errorf("SyncObject: could not upload entire data, expected size %d, got %d", st.Size, newObj.Size)
+		}
+	}
+
 	minObj := storageutil.ConvertObjToMinObject(newObj)
 	// If we wrote out a new object, we need to update our state.
 	f.updateInodeStateAfterFlush(minObj)
@@ -1019,7 +1073,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
 		// Update MRDWrapper
-		f.updateMRD()
+		f.updateReaders()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -1033,17 +1087,21 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 
 // Updates the min object stored in MRDWrapper & MRDInstance corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
-func (f *FileInode) updateMRD() {
-	// updateMRD will be a noop for regional bucket.
+func (f *FileInode) updateReaders() {
+	minObj := f.Source()
+	if f.kernelRangeReaderInstance != nil {
+		f.kernelRangeReaderInstance.SetMinObject(minObj)
+	}
+
+	// This will be a noop for regional bucket.
 	if !f.bucket.BucketType().Zonal {
 		return
 	}
-	minObj := f.Source()
 	if err := f.mrdInstance.SetMinObject(minObj); err != nil {
-		logger.Errorf("FileInode::updateMRD Error in setting minObject for MrdInstance %v", err)
+		logger.Errorf("FileInode::updateReaders Error in setting minObject for MrdInstance %v", err)
 	}
 	if err := f.MRDWrapper.SetMinObject(minObj); err != nil {
-		logger.Errorf("FileInode::updateMRD Error in setting minObject for MRDWrapper %v", err)
+		logger.Errorf("FileInode::updateReaders Error in setting minObject for MRDWrapper %v", err)
 	}
 }
 
@@ -1063,6 +1121,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
+		recordStreamingWriteFallbackMetric(f.metricHandle, util.NewOpenMode(util.WriteOnly, 0), metrics.WriteFallbackReasonOutOfOrderAttr)
 		return true, f.truncateUsingTempFile(ctx, size)
 	}
 	if err != nil {
@@ -1143,7 +1202,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().Zonal && openMode.IsAppend() {
+		if f.bucket.BucketType().RapidWritesEnabled() && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
@@ -1181,9 +1240,11 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
 				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
 				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
+			recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonConcurrencyLimitBreachedAttr)
 			return false, nil
 		}
 		if err != nil {
+			recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
 			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
@@ -1197,9 +1258,10 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
+	recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
 	return false
 }

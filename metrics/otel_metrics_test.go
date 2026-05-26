@@ -4577,12 +4577,48 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
-			name: "open_mode_read_write_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_other_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "read_write", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "other", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
+			},
+		},
+		{
+			name: "open_mode_other_write_fallback_reason_existing_file",
+			f: func(m *otelMetrics) {
+				m.FsStreamingWriteFallbackCount(5, "other", "existing_file")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "existing_file")): 5,
+			},
+		},
+		{
+			name: "open_mode_other_write_fallback_reason_other",
+			f: func(m *otelMetrics) {
+				m.FsStreamingWriteFallbackCount(5, "other", "other")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "other")): 5,
+			},
+		},
+		{
+			name: "open_mode_other_write_fallback_reason_out_of_order",
+			f: func(m *otelMetrics) {
+				m.FsStreamingWriteFallbackCount(5, "other", "out_of_order")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "out_of_order")): 5,
+			},
+		},
+		{
+			name: "open_mode_read_write_write_fallback_reason_concurrency_limit_breached",
+			f: func(m *otelMetrics) {
+				m.FsStreamingWriteFallbackCount(5, "read_write", "concurrency_limit_breached")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4613,12 +4649,12 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_read_write_append_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_read_write_append_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "read_write_append", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "read_write_append", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "read_write_append"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "read_write_append"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4649,12 +4685,12 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_write_only_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_write_only_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "write_only", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "write_only", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "write_only"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "write_only"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4685,12 +4721,12 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			},
 		},
 		{
-			name: "open_mode_write_only_append_write_fallback_reason_concurrent_limit_breached",
+			name: "open_mode_write_only_append_write_fallback_reason_concurrency_limit_breached",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "write_only_append", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "write_only_append", "concurrency_limit_breached")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("open_mode", "write_only_append"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 5,
+				attribute.NewSet(attribute.String("open_mode", "write_only_append"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 5,
 			},
 		},
 		{
@@ -4722,21 +4758,21 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(5, "read_write", "concurrent_limit_breached")
-				m.FsStreamingWriteFallbackCount(2, "read_write", "existing_file")
-				m.FsStreamingWriteFallbackCount(3, "read_write", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(5, "other", "concurrency_limit_breached")
+				m.FsStreamingWriteFallbackCount(2, "other", "existing_file")
+				m.FsStreamingWriteFallbackCount(3, "other", "concurrency_limit_breached")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 8,
-				attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "existing_file")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 8,
+				attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "existing_file")): 2,
 			},
 		},
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.FsStreamingWriteFallbackCount(-5, "read_write", "concurrent_limit_breached")
-				m.FsStreamingWriteFallbackCount(2, "read_write", "concurrent_limit_breached")
+				m.FsStreamingWriteFallbackCount(-5, "other", "concurrency_limit_breached")
+				m.FsStreamingWriteFallbackCount(2, "other", "concurrency_limit_breached")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("open_mode", "read_write"), attribute.String("write_fallback_reason", "concurrent_limit_breached")): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrency_limit_breached")): 2},
 		},
 	}
 
@@ -5448,6 +5484,165 @@ func TestGcsRetryCount(t *testing.T) {
 				return
 			}
 			require.True(t, ok, "gcs/retry_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
+func TestMetadataCacheReadCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "cache_hit_true_entry_status_negative_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "negative", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_negative_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "negative", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_negative_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "negative", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_positive_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "positive", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_positive_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "positive", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_positive_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "positive", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_negative_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "negative", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_negative_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "negative", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_negative_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "negative", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_positive_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "positive", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_positive_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "positive", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_positive_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "positive", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "negative", "found")
+				m.MetadataCacheReadCount(2, true, "negative", "not_found")
+				m.MetadataCacheReadCount(3, true, "negative", "found")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 8,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(-5, true, "negative", "found")
+				m.MetadataCacheReadCount(2, true, "negative", "found")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 2},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["metadata_cache/read_count"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "metadata_cache/read_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "metadata_cache/read_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v

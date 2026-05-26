@@ -21,15 +21,32 @@ import (
 	"golang.org/x/net/context"
 )
 
+type PirloState int
+
+const (
+	// PirloStateNone indicates the bucket is not a Pirlo bucket.
+	PirloStateNone PirloState = iota
+	// PirloStateRapidWritesEnabled indicates it is a Pirlo bucket with rapid writes enabled.
+	PirloStateRapidWritesEnabled
+	// PirloStateRapidWritesDisabled indicates it is a Pirlo bucket with rapid writes disabled.
+	PirloStateRapidWritesDisabled
+)
+
 // BucketType represents bucket features.
 type BucketType struct {
 	Hierarchical bool
 	Zonal        bool
-	Pirlo        bool
+	Pirlo        PirloState
 }
 
 func (bt BucketType) IsRapid() bool {
-	return bt.Zonal || bt.Pirlo
+	return bt.Zonal || bt.Pirlo != PirloStateNone
+}
+
+// RapidWritesEnabled returns true if the bucket supports rapid writes
+// and they are currently active.
+func (bt BucketType) RapidWritesEnabled() bool {
+	return bt.Zonal || bt.Pirlo == PirloStateRapidWritesEnabled
 }
 
 const (
@@ -103,13 +120,18 @@ type Bucket interface {
 		req *CreateObjectRequest) (*Object, error)
 
 	// CreateObjectChunkWriter creates a *storage.Writer that can be used for
-	// resumable uploads. The new object will be available for reading after the
-	// writer is closed (object is finalised).
+	// chunked uploads. Depending on the underlying bucket's capabilities, it is
+	// used for either resumable uploads or appendable object uploads. For standard
+	// resumable uploads, the object becomes available for reading only after the
+	// writer is closed (finalized). For appendable uploads, the unfinalized
+	// object is available for reading immediately.
 	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
 
-	// CreateAppendableObjectWriter creates a *storage.Writer to an object which has been
-	// partially flushed to GCS, but not finalized. All bytes written will be appended
-	// continuing from the offset passed via the CreateObjectChunkWriterRequest.
+	// CreateAppendableObjectWriter creates a Writer for "Takeover"
+	// operations. It allows appending to an existing, unfinalized object by
+	// leveraging its specific generation number. Unlike a standard new object upload,
+	// this attaches to an existing unfinalized stream. All bytes written will be
+	// appended continuing from the offset passed via the CreateObjectChunkWriterRequest.
 	CreateAppendableObjectWriter(ctx context.Context,
 		req *CreateObjectChunkWriterRequest) (Writer, error)
 

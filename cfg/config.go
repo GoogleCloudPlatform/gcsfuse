@@ -58,6 +58,17 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
+}, "write.finalize-file-for-rapid": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "zonal",
+			Value:      bool(false),
+		},
+		{
+			BucketType: "pirlo",
+			Value:      bool(true),
+		},
+	},
 }, "implicit-dirs": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
@@ -273,6 +284,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileCache.CacheFileForRangeRead != val {
 					c.FileCache.CacheFileForRangeRead = val
 					optimizedFlags["file-cache.cache-file-for-range-read"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("write.finalize-file-for-rapid") {
+		rules := AllFlagOptimizationRules["write.finalize-file-for-rapid"]
+		result := getOptimizedValue(&rules, c.Write.FinalizeFileForRapid, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.Write.FinalizeFileForRapid != val {
+					c.Write.FinalizeFileForRapid = val
+					optimizedFlags["write.finalize-file-for-rapid"] = result
 				}
 			}
 		}
@@ -615,6 +638,8 @@ type GcsRetriesConfig struct {
 
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
+	EnableMountRetries bool `yaml:"enable-mount-retries"`
+
 	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
@@ -750,6 +775,8 @@ type WriteConfig struct {
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
 	EnableRapidAppends bool `yaml:"enable-rapid-appends"`
+
+	EnableRapidWrites bool `yaml:"enable-rapid-writes"`
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
@@ -960,7 +987,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+	flagSet.BoolP("enable-metadata-prefetch", "", true, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+
+	flagSet.BoolP("enable-mount-retries", "", false, "If true, enables retry logic in GCSFuse during the mount sequence  for additional errors (such as metadata server readiness delays, IAM propagation  delays, and temporary bucket non-existence). Intended specifically for the  GKE GCSFuse CSI Driver.")
+
+	if err := flagSet.MarkHidden("enable-mount-retries"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
@@ -971,6 +1004,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
+
+	flagSet.BoolP("enable-rapid-writes", "", false, "For pirlo, toggles between using STANDARD class and RAPID class for writes.")
 
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
@@ -1126,7 +1161,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
-	flagSet.IntP("fuse-max-pages-limit", "", DefaultFuseMaxPagesLimit(), "Sets the limit for the maximum number of pages that fuse can process in a single request. This will update the node level value (on supported kernels) if the new value is greater than the current node level value.")
+	flagSet.IntP("fuse-max-pages-limit", "", DefaultFuseMaxPagesLimit(), "Sets the limit for the maximum number of pages that fuse can process in a single request. This is a global, machine-level configuration that applies across all mounts. To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if the specified value is greater than the current system limit.")
 
 	if err := flagSet.MarkHidden("fuse-max-pages-limit"); err != nil {
 		return err
@@ -1200,7 +1235,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
+	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the total number of attempts (including the initial call) made for an operation if it fails, preventing endless retry loops. For example, a value of 5 means up to 5 total attempts (1 initial call plus 4 retries). A value of 0 indicates unlimited attempts.")
 
 	flagSet.DurationP("max-retry-duration", "", 0*time.Nanosecond, "This is currently unused.")
 
@@ -1208,7 +1243,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.")
+	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum backoff sleep duration allowed between retry attempts. Once the exponential backoff exceeds this limit, subsequent retries will use this constant sleep value.")
 
 	flagSet.IntP("metadata-cache-negative-ttl-secs", "", 5, "The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled negative entries in metadata-cache. Any value set below -1 will throw an error.")
 
@@ -1320,7 +1355,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("rename-dir-limit", "", 0, "Allow rename a directory containing fewer descendants than this limit.")
 
-	flagSet.Float64P("retry-multiplier", "", 2, "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.")
+	flagSet.Float64P("retry-multiplier", "", 2, "The multiplier factor by which the retry backoff duration increases after each failed attempt. For example, a multiplier of 2.0 doubles the backoff sleep duration for each subsequent retry.")
 
 	flagSet.BoolP("reuse-token-from-url", "", true, "If false, the token acquired from token-url is not reused.")
 
@@ -1573,6 +1608,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("gcs-retries.enable-mount-retries", flagSet.Lookup("enable-mount-retries")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-new-reader", flagSet.Lookup("enable-new-reader")); err != nil {
 		return err
 	}
@@ -1582,6 +1621,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-rapid-appends", flagSet.Lookup("enable-rapid-appends")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.enable-rapid-writes", flagSet.Lookup("enable-rapid-writes")); err != nil {
 		return err
 	}
 

@@ -579,10 +579,13 @@ func (p *BufferedReader) Destroy() {
 		p.inflightCallbackWg.Wait()
 	}()
 
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+
 	select {
 	case <-done:
 		// Wait completed successfully.
-	case <-time.After(10 * time.Second):
+	case <-timer.C:
 		// If this timeout is reached, it implies that the callback was not called
 		// within 10 seconds, which is highly unexpected. In this scenario, we
 		// proceed with destruction, meaning the in-flight blocks will not be

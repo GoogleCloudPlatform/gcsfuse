@@ -15,6 +15,8 @@
 package cfg
 
 import (
+	"math"
+	"math/bits"
 	"testing"
 	"time"
 
@@ -345,6 +347,56 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "valid_max_retry_attempts_and_multiplier",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
+				GcsRetries: GcsRetriesConfig{
+					MaxRetryAttempts: 3,
+					Multiplier:       2.0,
+					MaxRetrySleep:    30 * time.Second,
+				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
+			},
+		},
+		{
+			name: "valid_zero_max_retry_sleep",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
+				GcsRetries: GcsRetriesConfig{
+					MaxRetrySleep: 0 * time.Second,
+				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -597,6 +649,42 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				},
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
+				},
+			},
+		},
+		{
+			name: "Invalid negative max-retry-attempts",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				GcsRetries: GcsRetriesConfig{
+					MaxRetryAttempts: -3,
+				},
+			},
+		},
+		{
+			name: "Invalid too large max-retry-attempts",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				GcsRetries: GcsRetriesConfig{
+					MaxRetryAttempts: math.MaxInt64,
+				},
+			},
+		},
+		{
+			name: "Invalid multiplier less than 1.0",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				GcsRetries: GcsRetriesConfig{
+					Multiplier: 0.8,
+				},
+			},
+		},
+		{
+			name: "Invalid negative max-retry-sleep",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				GcsRetries: GcsRetriesConfig{
+					MaxRetrySleep: -10 * time.Second,
 				},
 			},
 		},
@@ -1252,6 +1340,128 @@ func TestValidateProfile(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func Test_isValidMaxRetryAttempts_ValidScenarios(t *testing.T) {
+	testCases := []struct {
+		name             string
+		maxRetryAttempts int64
+	}{
+		{"valid_attempts_zero", 0},
+		{"valid_attempts_positive", 5},
+		{"valid_attempts_max_int", int64(math.MaxInt)},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxRetryAttempts(tc.maxRetryAttempts)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func Test_isValidMaxRetryAttempts_ErrorScenarios(t *testing.T) {
+	testCases := []struct {
+		name             string
+		maxRetryAttempts int64
+	}{
+		{"invalid_attempts_negative", -3},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxRetryAttempts(tc.maxRetryAttempts)
+
+			assert.Error(t, err)
+		})
+	}
+}
+
+func Test_isValidMaxRetryAttempts_ExceedsMaxInt_ErrorScenario(t *testing.T) {
+	// math.MaxInt is math.MaxInt64 on 64-bit systems and math.MaxInt32 on 32-bit systems.
+	// We can only test the "exceeds math.MaxInt" case on 32-bit systems because on 64-bit systems,
+	// incrementing math.MaxInt overflows int64.
+	if is64Bit := bits.UintSize == 64; is64Bit {
+		t.Skip("Skipping on 64-bit systems because math.MaxInt exceeds the capacity of int64 when incremented.")
+	}
+
+	maxIntVal := int64(math.MaxInt)
+	err := isValidMaxRetryAttempts(maxIntVal + 1)
+
+	assert.Error(t, err)
+}
+
+func Test_isValidMultiplier_ValidScenarios(t *testing.T) {
+	testCases := []struct {
+		name       string
+		multiplier float64
+	}{
+		{"valid_multiplier_standard", 2.0},
+		{"valid_multiplier_minimum", 1.0},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMultiplier(tc.multiplier)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func Test_isValidMultiplier_ErrorScenarios(t *testing.T) {
+	testCases := []struct {
+		name       string
+		multiplier float64
+	}{
+		{"invalid_multiplier_too_low", 0.8},
+		{"invalid_multiplier_negative", -1.5},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMultiplier(tc.multiplier)
+
+			assert.Error(t, err)
+		})
+	}
+}
+
+func Test_isValidMaxRetrySleep_ValidScenarios(t *testing.T) {
+	testCases := []struct {
+		name          string
+		maxRetrySleep time.Duration
+	}{
+		{"valid_sleep_zero", 0 * time.Second},
+		{"valid_sleep_seconds", 30 * time.Second},
+		{"valid_sleep_milliseconds", 500 * time.Millisecond},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxRetrySleep(tc.maxRetrySleep)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func Test_isValidMaxRetrySleep_ErrorScenarios(t *testing.T) {
+	testCases := []struct {
+		name          string
+		maxRetrySleep time.Duration
+	}{
+		{"invalid_sleep_negative", -10 * time.Second},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxRetrySleep(tc.maxRetrySleep)
+
+			assert.Error(t, err)
 		})
 	}
 }

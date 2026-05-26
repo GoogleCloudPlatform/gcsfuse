@@ -85,7 +85,7 @@ func TestFileTestSuite(t *testing.T) {
 		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
 	})
 	t.Run("Pirlo", func(t *testing.T) {
-		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Pirlo: true}})
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled}})
 	})
 }
 
@@ -170,7 +170,8 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
-		tracing.NewNoopTracer())
+		tracing.NewNoopTracer(),
+		metrics.NewNoopMetrics())
 
 	t.in.Lock()
 }
@@ -261,6 +262,22 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 			bucketType: gcs.BucketType{},
 			finalized:  finalizedTime,
 			openMode:   WriteMode,
+			supported:  false,
+		},
+		{
+			name:       "AppendToUnfinalizedObjOnPirloWithRapidWritesEnabled",
+			content:    nonNilContents,
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			finalized:  unFinalizedTime,
+			openMode:   AppendMode,
+			supported:  true,
+		},
+		{
+			name:       "AppendToUnfinalizedObjOnPirloWithRapidWritesDisabled",
+			content:    nonNilContents,
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			finalized:  unFinalizedTime,
+			openMode:   AppendMode,
 			supported:  false,
 		},
 		{

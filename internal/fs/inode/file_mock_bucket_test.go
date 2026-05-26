@@ -29,6 +29,7 @@ import (
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
@@ -119,7 +120,8 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
-		tracing.NewNoopTracer())
+		tracing.NewNoopTracer(),
+		metrics.NewNoopMetrics())
 
 	// Create empty file for local inode created above.
 	err := t.in.CreateEmptyTempFile(t.ctx)
@@ -156,7 +158,8 @@ func (t *FileMockBucketTest) createGCSBackedFileInode(backingObj *gcs.MinObject)
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
-		tracing.NewNoopTracer())
+		tracing.NewNoopTracer(),
+		metrics.NewNoopMetrics())
 	f.Lock()
 	return f
 }
@@ -171,6 +174,21 @@ func (t *FileMockBucketTest) TestFlushLocalFileDoesNotForceFetchObjectFromGCS() 
 
 	require.NoError(t.T(), err)
 	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *FileMockBucketTest) TestFlushLocalFile_SizeMismatch_ReturnsError() {
+	assert.True(t.T(), t.in.IsLocal())
+	// Write some data so that the local temp file size becomes 4
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
+	require.NoError(t.T(), err)
+	// Mock CreateObject to return an object with a mismatched size
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Size: 2}, nil)
+
+	err = t.in.Flush(t.ctx)
+
+	require.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "could not upload entire data, expected size 4, got 2")
 }
 
 func (t *FileMockBucketTest) TestFlushSyncedFileForceFetchObjectFromGCS() {

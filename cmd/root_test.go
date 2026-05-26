@@ -282,6 +282,8 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedWriteBlockSizeMB      int64
 		expectedWriteGlobalMaxBlocks  int64
 		expectedWriteMaxBlocksPerFile int64
+		expectedEnableRapidWrites     bool
+		expectedFinalizeFileForRapid  bool
 	}{
 		{
 			name:                          "Test create-empty-file flag true works when streaming writes are explicitly disabled.",
@@ -431,6 +433,18 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteGlobalMaxBlocks:  16,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
+		{
+			name:                          "Test enable-rapid-writes and finalize-file-for-rapid flags.",
+			args:                          []string{"gcsfuse", "--enable-rapid-writes=true", "--finalize-file-for-rapid=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedEnableRapidWrites:     true,
+			expectedFinalizeFileForRapid:  true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -451,6 +465,8 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
 				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 				assert.Equal(t, tc.expectedEnableRapidAppends, wc.EnableRapidAppends)
+				assert.Equal(t, tc.expectedEnableRapidWrites, wc.EnableRapidWrites)
+				assert.Equal(t, tc.expectedFinalizeFileForRapid, wc.FinalizeFileForRapid)
 			}
 		})
 	}
@@ -1982,7 +1998,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
@@ -2002,7 +2018,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
@@ -2022,7 +2038,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  1024,
 					TtlSecs:                             9223372036,
@@ -2062,7 +2078,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          true,
 					ExperimentalMetadataPrefetchOnMount: "async",
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  4,
 					TtlSecs:                             120,
@@ -2105,6 +2121,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 30,
+					EnableMountRetries:       false,
 					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
@@ -2126,6 +2143,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ChunkRetryDeadlineSecs:   360,
 					ChunkTransferTimeoutSecs: 10,
+					EnableMountRetries:       false,
 					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
@@ -2148,9 +2166,32 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 					ExperimentalNonrapidFolderApiStallRetry: true,
 					ChunkRetryDeadlineSecs:                  120,
 					ChunkTransferTimeoutSecs:                10,
+					EnableMountRetries:                      false,
 					MaxRetryAttempts:                        math.MaxInt,
 					MaxRetrySleep:                           30 * time.Second,
 					Multiplier:                              2,
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
+						MinReqTimeout:       1500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
+					},
+				},
+			},
+		},
+		{
+			name: "Test with enable-mount-retries explicitly true",
+			args: []string{"gcsfuse", "--enable-mount-retries=true", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   120,
+					ChunkTransferTimeoutSecs: 10,
+					EnableMountRetries:       true,
+					MaxRetryAttempts:         math.MaxInt,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              true,
 						InitialReqTimeout:   20 * time.Second,

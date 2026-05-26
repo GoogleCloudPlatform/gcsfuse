@@ -721,16 +721,27 @@ test_package() {
   local bucket_type="$3"
   local attempt_number="$4"
 
+  local config_file_path
+  config_file_path=$(realpath "${INTEGRATION_TEST_PACKAGE_DIR}/test_config.yaml")
+
   # Build go package test command.
-  local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
-  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
-    go_test_cmd_parts+=("-short")
-  fi
+  local go_test_cmd_parts=(
+    "BUCKET_NAME=${bucket_name}"
+    "GODEBUG=asyncpreemptoff=1"
+    "go" "test" "-v"
+    "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m"
+    "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}"
+  )
   if [[ "$package_name" == "benchmarking" ]]; then
     go_test_cmd_parts+=("-bench=." "-benchtime=100x")
   fi
+  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
+    go_test_cmd_parts+=("-short")
+  fi
   # Test Binary flags after this.
-  go_test_cmd_parts+=("-args" "--integrationTest" "--testbucket=${bucket_name}")
+  go_test_cmd_parts+=("-args" "--integrationTest")
+  go_test_cmd_parts+=("--config-file=${config_file_path}")
+
   if ${TEST_INSTALLED_PACKAGE}; then
     go_test_cmd_parts+=("--testInstalledPackage")
   fi
@@ -753,17 +764,17 @@ test_package() {
   go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
   test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt_number}.txt")
   # Run the package test command and capture log output with runtime stats.
-  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt: $attempt_number)"
+  log_info_locked "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt: $attempt_number)"
 
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
     if [[ "$attempt_number" -lt "$FLAKE_ATTEMPTS" ]]; then
-      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). Will retry."
+      log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). Will retry."
     else
-      log_info "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). No more retries."
+      log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number). No more retries."
     fi
   else
-    log_info "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number)"
+    log_info_locked "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt_number)"
   fi
 
   local end=$SECONDS

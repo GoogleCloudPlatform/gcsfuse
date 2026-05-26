@@ -151,12 +151,13 @@
     - "write_only_append"
     - "read_write"
     - "read_write_append"
+    - "other"
   - attribute-name: write_fallback_reason
     attribute-type: string
     values:
     - "out_of_order"
     - "existing_file"
-    - "concurrent_limit_breached"
+    - "concurrency_limit_breached"
     - "other" # tracks any other errors not from above
 
 - metric-name: "gcs/download_bytes_count"
@@ -254,6 +255,24 @@
     values:
     - "OTHER_ERRORS"
     - "STALLED_READ_REQUEST"
+
+- metric-name: "metadata_cache/read_count"
+  description: "Total number of read requests to the metadata cache. Use attributes to analyze hit/miss ratios, entry types, and specific lookup outcomes (e.g., expiration vs. total absence)."
+  type: "int_counter"
+  attributes:
+  - attribute-name: cache_hit
+    attribute-type: bool
+  - attribute-name: entry_status
+    attribute-type: string
+    values:
+    - positive
+    - negative
+  - attribute-name: lookup_detail
+    attribute-type: string
+    values:
+    - found
+    - ttl_expired
+    - not_found
 
 - metric-name: "read/block_sizes"
   description: "The cumulative distribution of read block sizes across different bucket boundaries"

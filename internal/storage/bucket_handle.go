@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
@@ -39,12 +40,12 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket               *storage.BucketHandle
-	bucketName           string
-	bucketType           *gcs.BucketType
-	controlClient        StorageControlClient
-	finalizeFileForRapid bool
-	billingProject       string
+	bucket         *storage.BucketHandle
+	bucketName     string
+	bucketType     *gcs.BucketType
+	controlClient  StorageControlClient
+	billingProject string
+	writeConfig    *cfg.WriteConfig
 }
 
 func (bh *bucketHandle) Name() string {
@@ -199,12 +200,18 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
 	wc.ProgressFunc = req.CallBack
-	// All objects in zonal buckets must be appendable.
-	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not be finalized by default. Finalize them if finalizeFileForRapid is set to true.
-	// When writer.Append is false,then this parameter is anyways ignored.
-	// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
-	wc.FinalizeOnClose = bh.finalizeFileForRapid
+	// Zonal buckets strictly require the appendable API. For Pirlo buckets, the
+	// appendable API provides file-like semantics (immediate data visibility)
+	// but defers regional durability until the object is finalized. Users can
+	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
+	// to false, which allows further appends, but if they keep it unfinalized
+	// it never becomes regionally durable.
+	wc.Append = bh.BucketType().RapidWritesEnabled()
+	// By default, objects in zonal buckets are not finalized on close, whereas objects in
+	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
+	// When writer.Append is false, then this parameter is anyways ignored.
+	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
+	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -234,13 +241,18 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc.ProgressFunc = callBack
-	// All objects in zonal buckets must be appendable.
-	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not be finalized by default. Finalize them if finalizeFileForRapid is set to true.
+	// Zonal buckets strictly require the appendable API. For Pirlo buckets, the
+	// appendable API provides file-like semantics (immediate data visibility)
+	// but defers regional durability until the object is finalized. Users can
+	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
+	// to false, which allows further appends, but if they keep it unfinalized
+	// it never becomes regionally durable.
+	wc.Append = bh.BucketType().RapidWritesEnabled()
+	// By default, objects in zonal buckets are not finalized on close, whereas objects in
+	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
-	// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
-	wc.FinalizeOnClose = bh.finalizeFileForRapid
-
+	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
+	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
 	return wc, nil
 }
 
@@ -253,7 +265,7 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	opts := storage.AppendableWriterOpts{
 		ChunkSize:       req.ChunkSize,
 		ProgressFunc:    req.CallBack,
-		FinalizeOnClose: bh.finalizeFileForRapid,
+		FinalizeOnClose: bh.writeConfig.FinalizeFileForRapid,
 	}
 
 	tw, off, err := obj.NewWriterFromAppendableObject(ctx, &opts) // Takeover writer tw created from offset off.

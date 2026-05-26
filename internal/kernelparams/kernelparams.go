@@ -210,8 +210,30 @@ func (m *KernelParamsManager) addParam(name ParamName, value string) {
 	})
 }
 
-// SetMaxPagesLimit adds the max_pages_limit parameter to the config only if the
-// requested limit is greater than the current host max_pages_limit value.
+// ShouldUpdateMaxPagesLimit checks whether the FUSE max_pages_limit should be updated
+// to the requested limit based on the current host max_pages_limit value.
+func ShouldUpdateMaxPagesLimit(limit int) bool {
+	if limit <= 0 {
+		return false
+	}
+
+	currentLimit, err := readMaxPagesLimitFunc()
+	if err != nil {
+		// Since max_pages_limit is a shared machine level setting, we must only increase it.
+		// If we fail to read the current limit, we cannot safely verify if the requested
+		// limit is higher. To prevent lowering the shared machine level limit, we log a
+		// warning if we fail to read it, unless the failure is because the parameter
+		// is not supported or present on the host kernel.
+		if !os.IsNotExist(err) {
+			logger.Warnf("Failed to read current host max_pages_limit: %v. Should not configure max_pages_limit to avoid potentially lowering the shared machine level limit.", err)
+		}
+		return false
+	}
+
+	return limit > currentLimit
+}
+
+// SetMaxPagesLimit adds the max_pages_limit parameter to the config.
 func (m *KernelParamsManager) SetMaxPagesLimit(limit int) {
 	if limit <= 0 {
 		return
