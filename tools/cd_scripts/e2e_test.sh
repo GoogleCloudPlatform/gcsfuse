@@ -42,8 +42,9 @@ if [ -f /etc/os-release ]; then
         
         # Check if we are on version 8 or 9 to install 3.11
          if [[ $VERSION_ID =~ ^[89] ]]; then
-            echo "Detected version 8/9. Installing Python 3.11..."
-            sudo yum install -y python311
+            echo "Detected version 8/9. Installing Python 3.11 and dependencies..."
+            # 'sqlite' and 'libxcrypt-compat' are required dependencies for the gcloud installer on version 9.
+            sudo yum install -y python311 sqlite libxcrypt-compat
             PYTHON_BIN="/usr/bin/python3.11"
         else
             # Default behavior for other versions
