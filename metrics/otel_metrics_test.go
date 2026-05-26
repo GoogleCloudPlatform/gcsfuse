@@ -4975,6 +4975,129 @@ func TestGcsExperimentalReadBytesCount(t *testing.T) {
 	}
 }
 
+func TestGcsExperimentalReaderCancellationCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "reason_canceled",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "canceled")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "canceled")): 5,
+			},
+		},
+		{
+			name: "reason_deadline_exceeded",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "deadline_exceeded")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "deadline_exceeded")): 5,
+			},
+		},
+		{
+			name: "reason_explicit_close",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "explicit_close")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "explicit_close")): 5,
+			},
+		},
+		{
+			name: "reason_forced_recreate",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "forced_recreate")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "forced_recreate")): 5,
+			},
+		},
+		{
+			name: "reason_inactive_timeout",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "inactive_timeout")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "inactive_timeout")): 5,
+			},
+		},
+		{
+			name: "reason_seek",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "seek")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "seek")): 5,
+			},
+		},
+		{
+			name: "reason_sequential_to_random",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "sequential_to_random")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "sequential_to_random")): 5,
+			},
+		},
+		{
+			name: "reason_unknown",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "unknown")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "canceled")
+				m.GcsExperimentalReaderCancellationCount(2, "deadline_exceeded")
+				m.GcsExperimentalReaderCancellationCount(3, "canceled")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "canceled")): 8,
+				attribute.NewSet(attribute.String("reason", "deadline_exceeded")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(-5, "canceled")
+				m.GcsExperimentalReaderCancellationCount(2, "canceled")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "canceled")): 2},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["gcs/experimental_reader_cancellation_count"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/experimental_reader_cancellation_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/experimental_reader_cancellation_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
 func TestGcsReadBytesCount(t *testing.T) {
 	ctx := context.Background()
 	encoder := attribute.DefaultEncoder()

@@ -183,6 +183,22 @@
     values: *read_types_list
 
 
+- metric-name: "gcs/experimental_reader_cancellation_count"
+  description: "The cumulative number of times an in-flight GCS object reader was canceled along with the cancellation reason."
+  type: "int_counter"
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values:
+    - "canceled"
+    - "deadline_exceeded"
+    - "explicit_close"
+    - "forced_recreate"
+    - "inactive_timeout"
+    - "seek"
+    - "sequential_to_random"
+    - "unknown"
+
 - metric-name: "gcs/read_bytes_count"
   description: "The cumulative number of bytes read from GCS objects."
   unit: "By"

@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/net/context"
 )
 
@@ -71,6 +72,8 @@ type InactiveTimeoutReader struct {
 
 	// Flag set by Read and reset by the monitor goroutine to track activity within the timeout window.
 	isActive bool
+
+	metricHandle metrics.MetricHandle
 }
 
 var (
@@ -84,22 +87,29 @@ var (
 //
 // If the timeout duration is zero, it returns (nil, ErrZeroInactivityTimeout) as a zero timeout
 // defeats the purpose of this wrapper.
-func NewInactiveTimeoutReader(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, byteRange gcs.ByteRange, timeout time.Duration) (gcs.StorageReader, error) {
-	return NewInactiveTimeoutReaderWithClock(ctx, bucket, object, readHandle, byteRange, timeout, clock.RealClock{})
+func NewInactiveTimeoutReader(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, byteRange gcs.ByteRange, timeout time.Duration, metricHandle metrics.MetricHandle) (gcs.StorageReader, error) {
+	if metricHandle == nil {
+		metricHandle = metrics.NewNoopMetrics()
+	}
+	return NewInactiveTimeoutReaderWithClock(ctx, bucket, object, readHandle, byteRange, timeout, clock.RealClock{}, metricHandle)
 }
 
-func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, byteRange gcs.ByteRange, timeout time.Duration, clock clock.Clock) (gcs.StorageReader, error) {
+func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, byteRange gcs.ByteRange, timeout time.Duration, clock clock.Clock, metricHandle metrics.MetricHandle) (gcs.StorageReader, error) {
 	if timeout == 0 {
 		return nil, ErrZeroInactivityTimeout
 	}
+	if metricHandle == nil {
+		metricHandle = metrics.NewNoopMetrics()
+	}
 
 	itr := &InactiveTimeoutReader{
-		object:     object,
-		bucket:     bucket,
-		reqRange:   byteRange,
-		readHandle: readHandle,
-		mu:         locker.New("InactiveTimeoutReader: "+object.Name, func() {}),
-		isActive:   false,
+		object:       object,
+		bucket:       bucket,
+		reqRange:     byteRange,
+		readHandle:   readHandle,
+		mu:           locker.New("InactiveTimeoutReader: "+object.Name, func() {}),
+		isActive:     false,
+		metricHandle: metricHandle,
 	}
 	itr.ctx, itr.cancel = context.WithCancel(ctx)
 
@@ -241,5 +251,6 @@ func (itr *InactiveTimeoutReader) closeGCSReader() {
 	if err := itr.gcsReader.Close(); err != nil {
 		logger.Warnf("Error closing inactive reader for object %q: %v", itr.object.Name, err)
 	}
+	itr.metricHandle.GcsExperimentalReaderCancellationCount(1, metrics.ReasonInactiveTimeoutAttr)
 	itr.gcsReader = nil
 }
