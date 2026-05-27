@@ -70,6 +70,5 @@ jobs:
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
-        args: -E=unused --timeout 3m0s
+        args: --timeout 3m0s
         only-new-issues: true
-

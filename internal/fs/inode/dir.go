@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -353,7 +354,7 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError
-	if errors.As(err, &gcsErr) {
+	if errors.As(err, &gcsErr) || errors.Is(err, storage.ErrObjectNotExist) {
 		return nil, nil
 	}
 
@@ -374,7 +375,7 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError
-	if errors.As(err, &gcsErr) {
+	if errors.As(err, &gcsErr) || errors.Is(err, storage.ErrObjectNotExist) {
 		return nil, nil
 	}
 

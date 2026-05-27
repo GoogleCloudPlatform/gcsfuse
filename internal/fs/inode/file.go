@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -184,7 +185,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	}
 	// Special case: "not found" means we have been clobbered.
 	var notFoundErr *gcs.NotFoundError
-	if errors.As(err, &notFoundErr) {
+	if errors.As(err, &notFoundErr) || errors.Is(err, storage.ErrObjectNotExist) {
 		err = nil
 		if f.IsLocal() {
 			// For localFile, it is expected that object doesn't exist in GCS.
@@ -536,7 +537,7 @@ func (f *FileInode) SetMtime(
 	}
 
 	var notFoundErr *gcs.NotFoundError
-	if errors.As(err, &notFoundErr) {
+	if errors.As(err, &notFoundErr) || errors.Is(err, storage.ErrObjectNotExist) {
 		// Special case: silently ignore not found errors, which mean the file has
 		// been unlinked.
 		err = nil
