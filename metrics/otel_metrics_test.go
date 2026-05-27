@@ -5527,6 +5527,33 @@ func TestMetadataCacheReadCount(t *testing.T) {
 			},
 		},
 		{
+			name: "cache_hit_true_entry_status_not_applicable_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "not_applicable", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "not_applicable"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_not_applicable_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "not_applicable", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "not_applicable"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status_not_applicable_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "not_applicable", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "not_applicable"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
 			name: "cache_hit_true_entry_status_positive_lookup_detail_found",
 			f: func(m *otelMetrics) {
 				m.MetadataCacheReadCount(5, true, "positive", "found")
@@ -5578,6 +5605,33 @@ func TestMetadataCacheReadCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_not_applicable_lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "not_applicable", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "not_applicable"), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_not_applicable_lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "not_applicable", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "not_applicable"), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status_not_applicable_lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "not_applicable", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "not_applicable"), attribute.String("lookup_detail", "ttl_expired")): 5,
 			},
 		},
 		{
