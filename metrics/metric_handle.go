@@ -24,9 +24,9 @@ import (
 type EntryStatus string
 
 const (
-	EntryStatusNegativeAttr      EntryStatus = "negative"
-	EntryStatusNotApplicableAttr EntryStatus = "not_applicable"
-	EntryStatusPositiveAttr      EntryStatus = "positive"
+	EntryStatusAttr         EntryStatus = ""
+	EntryStatusNegativeAttr EntryStatus = "negative"
+	EntryStatusPositiveAttr EntryStatus = "positive"
 )
 
 // FsErrorCategory is a custom type for the fs_error_category attribute.

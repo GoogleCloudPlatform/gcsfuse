@@ -267,7 +267,7 @@
     values:
     - positive
     - negative
-    - not_applicable
+    - ""
   - attribute-name: lookup_detail
     attribute-type: string
     values:
