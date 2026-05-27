@@ -315,24 +315,24 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 					optimizedFlags = make(map[string]cfg.OptimizationResult)
 				}
 				if !serverCfg.ViperConfig.IsSet("file-system.max-read-ahead-kb") && !optimizedFlags["file-system.max-read-ahead-kb"].Optimized {
-					serverCfg.NewConfig.FileSystem.MaxReadAheadKb = 131072
+					serverCfg.NewConfig.FileSystem.MaxReadAheadKb = int64(cfg.DefaultMaxReadAheadKbForNonRapid())
 					optimizedFlags["file-system.max-read-ahead-kb"] = cfg.OptimizationResult{
 						Optimized:  true,
-						FinalValue: int64(131072),
+						FinalValue: int64(cfg.DefaultMaxReadAheadKbForNonRapid()),
 					}
 				}
 				if !serverCfg.ViperConfig.IsSet("file-system.max-background") && !optimizedFlags["file-system.max-background"].Optimized {
-					serverCfg.NewConfig.FileSystem.MaxBackground = int64(cfg.DefaultMaxBackgroundForRegional())
+					serverCfg.NewConfig.FileSystem.MaxBackground = int64(cfg.DefaultMaxBackgroundForNonRapid())
 					optimizedFlags["file-system.max-background"] = cfg.OptimizationResult{
 						Optimized:  true,
-						FinalValue: int64(cfg.DefaultMaxBackgroundForRegional()),
+						FinalValue: int64(cfg.DefaultMaxBackgroundForNonRapid()),
 					}
 				}
 				if !serverCfg.ViperConfig.IsSet("file-system.congestion-threshold") && !optimizedFlags["file-system.congestion-threshold"].Optimized {
-					serverCfg.NewConfig.FileSystem.CongestionThreshold = int64(cfg.DefaultCongestionThresholdForRegional())
+					serverCfg.NewConfig.FileSystem.CongestionThreshold = int64(cfg.DefaultCongestionThresholdForNonRapid())
 					optimizedFlags["file-system.congestion-threshold"] = cfg.OptimizationResult{
 						Optimized:  true,
-						FinalValue: int64(cfg.DefaultCongestionThresholdForRegional()),
+						FinalValue: int64(cfg.DefaultCongestionThresholdForNonRapid()),
 					}
 				}
 				if !serverCfg.ViperConfig.IsSet("file-system.fuse-max-pages-limit") && !optimizedFlags["file-system.fuse-max-pages-limit"].Optimized {
