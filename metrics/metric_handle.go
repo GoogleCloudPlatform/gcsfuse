@@ -33,6 +33,7 @@ const (
 type FsErrorCategory string
 
 const (
+	FsErrorCategoryAttr                         FsErrorCategory = ""
 	FsErrorCategoryDEVICEERRORAttr              FsErrorCategory = "DEVICE_ERROR"
 	FsErrorCategoryDIRNOTEMPTYAttr              FsErrorCategory = "DIR_NOT_EMPTY"
 	FsErrorCategoryFILEDIRERRORAttr             FsErrorCategory = "FILE_DIR_ERROR"
@@ -55,6 +56,7 @@ const (
 type FsOp string
 
 const (
+	FsOpAttr                   FsOp = ""
 	FsOpBatchForgetAttr        FsOp = "BatchForget"
 	FsOpCreateFileAttr         FsOp = "CreateFile"
 	FsOpCreateLinkAttr         FsOp = "CreateLink"
@@ -86,6 +88,7 @@ const (
 type GcsMethod string
 
 const (
+	GcsMethodAttr                             GcsMethod = ""
 	GcsMethodComposeObjectsAttr               GcsMethod = "ComposeObjects"
 	GcsMethodCopyObjectAttr                   GcsMethod = "CopyObject"
 	GcsMethodCreateAppendableObjectWriterAttr GcsMethod = "CreateAppendableObjectWriter"
@@ -111,6 +114,7 @@ const (
 type IoMethod string
 
 const (
+	IoMethodAttr       IoMethod = ""
 	IoMethodClosedAttr IoMethod = "closed"
 	IoMethodOpenedAttr IoMethod = "opened"
 )
@@ -119,6 +123,7 @@ const (
 type LookupDetail string
 
 const (
+	LookupDetailAttr           LookupDetail = ""
 	LookupDetailFoundAttr      LookupDetail = "found"
 	LookupDetailNotFoundAttr   LookupDetail = "not_found"
 	LookupDetailTtlExpiredAttr LookupDetail = "ttl_expired"
@@ -128,6 +133,7 @@ const (
 type OpenMode string
 
 const (
+	OpenModeAttr                OpenMode = ""
 	OpenModeOtherAttr           OpenMode = "other"
 	OpenModeReadWriteAttr       OpenMode = "read_write"
 	OpenModeReadWriteAppendAttr OpenMode = "read_write_append"
@@ -139,6 +145,7 @@ const (
 type ReadType string
 
 const (
+	ReadTypeAttr           ReadType = ""
 	ReadTypeBufferedAttr   ReadType = "Buffered"
 	ReadTypeParallelAttr   ReadType = "Parallel"
 	ReadTypeRandomAttr     ReadType = "Random"
@@ -150,6 +157,7 @@ const (
 type Reason string
 
 const (
+	ReasonAttr                   Reason = ""
 	ReasonInsufficientMemoryAttr Reason = "insufficient_memory"
 	ReasonRandomReadDetectedAttr Reason = "random_read_detected"
 )
@@ -158,6 +166,7 @@ const (
 type RequestType string
 
 const (
+	RequestTypeAttr      RequestType = ""
 	RequestTypeAttr1Attr RequestType = "attr1"
 	RequestTypeAttr2Attr RequestType = "attr2"
 )
@@ -166,6 +175,7 @@ const (
 type RetryErrorCategory string
 
 const (
+	RetryErrorCategoryAttr                   RetryErrorCategory = ""
 	RetryErrorCategoryOTHERERRORSAttr        RetryErrorCategory = "OTHER_ERRORS"
 	RetryErrorCategorySTALLEDREADREQUESTAttr RetryErrorCategory = "STALLED_READ_REQUEST"
 )
@@ -174,6 +184,7 @@ const (
 type WriteFallbackReason string
 
 const (
+	WriteFallbackReasonAttr                         WriteFallbackReason = ""
 	WriteFallbackReasonConcurrencyLimitBreachedAttr WriteFallbackReason = "concurrency_limit_breached"
 	WriteFallbackReasonExistingFileAttr             WriteFallbackReason = "existing_file"
 	WriteFallbackReasonOtherAttr                    WriteFallbackReason = "other"

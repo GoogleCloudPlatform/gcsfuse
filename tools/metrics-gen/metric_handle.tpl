@@ -25,8 +25,11 @@ import (
 // {{.TypeName}} is a custom type for the {{.AttributeName}} attribute.
 type {{.TypeName}} string
 const (
+	{{.TypeName}}Attr {{.TypeName}} = ""
 {{- range .Values}}
+	{{- if ne . ""}}
 	{{getAttrConstName $attr.TypeName .}} {{$attr.TypeName}} = "{{.}}"
+	{{- end}}
 {{- end}}
 )
 {{end}}
