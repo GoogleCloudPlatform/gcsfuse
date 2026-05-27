@@ -14,6 +14,25 @@
 
 package metrics
 
+import "context"
+
+type contextKeyType int
+
+const readTypeKey contextKeyType = iota
+
+// GetReadTypeFromContext returns the ReadType stored in the context, or ReadTypeUnknownAttr if not present.
+func GetReadTypeFromContext(ctx context.Context) ReadType {
+	if val, ok := ctx.Value(readTypeKey).(ReadType); ok {
+		return val
+	}
+	return ReadTypeUnknownAttr
+}
+
+// ContextWithReadType returns a new context with the provided ReadType stored.
+func ContextWithReadType(ctx context.Context, readType ReadType) context.Context {
+	return context.WithValue(ctx, readTypeKey, readType)
+}
+
 // CaptureGCSReadMetrics is a helper function to encapsulate the logic for recording
 // GCS read-related metrics.
 func CaptureGCSReadMetrics(mh MetricHandle, readType ReadType, downloadBytes int64) {

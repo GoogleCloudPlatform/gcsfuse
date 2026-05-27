@@ -62,14 +62,18 @@ type RangeReader struct {
 	readHandle []byte
 	cancel     func()
 
-	config       *cfg.Config
-	metricHandle metrics.MetricHandle
-	traceHandle  tracing.TraceHandle
+	config           *cfg.Config
+	metricHandle     metrics.MetricHandle
+	traceHandle      tracing.TraceHandle
+	preemptionReason metrics.Reason
 }
 
 func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle) *RangeReader {
 	if traceHandle == nil {
 		traceHandle = tracing.NewNoopTracer()
+	}
+	if metricHandle == nil {
+		metricHandle = metrics.NewNoopMetrics()
 	}
 
 	return &RangeReader{
@@ -103,14 +107,38 @@ func (rr *RangeReader) checkInvariants() {
 func (rr *RangeReader) destroy() {
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
-		rr.closeReader()
+		rr.closeReader(context.Background(), "destroy", metrics.ReadTypeUnknown)
 		rr.reader = nil
 		rr.cancel = nil
 	}
 }
 
 // closeReader fetches the readHandle before closing the reader instance.
-func (rr *RangeReader) closeReader() {
+func (rr *RangeReader) closeReader(ctx context.Context, caller string, readType int64) {
+	if rr.reader != nil && rr.start < rr.limit {
+		reason := rr.preemptionReason
+		if reason == "" {
+			switch caller {
+			case "destroy":
+				reason = metrics.ReasonExplicitCloseAttr
+			case "force_create":
+				reason = metrics.ReasonForcedRecreateAttr
+			case "invalidation":
+				if readType == metrics.ReadTypeRandom {
+					reason = metrics.ReasonSequentialToRandomAttr
+				} else {
+					reason = metrics.ReasonSeekAttr
+				}
+			default:
+				reason = metrics.ReasonUnknownAttr
+			}
+			rr.preemptionReason = reason
+			rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
+		}
+		unreadBytes := rr.limit - rr.start
+		rr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(ctx, unreadBytes, reason)
+	}
+
 	rr.readHandle = rr.reader.ReadHandle()
 	err := rr.reader.Close()
 	if err != nil {
@@ -125,7 +153,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 	)
 
 	if req.ForceCreateReader && rr.reader != nil {
-		rr.closeReader()
+		rr.closeReader(ctx, "force_create", metrics.ReadTypeUnknown)
 		rr.reader = nil
 		rr.cancel = nil
 		rr.start = -1
@@ -162,7 +190,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 		err = fmt.Errorf("reader returned extra bytes: %d", rr.start-rr.limit)
 
 		// Don't attempt to reuse the reader when it's malfunctioning.
-		rr.closeReader()
+		rr.closeReader(ctx, "malfunction", metrics.ReadTypeUnknown)
 		rr.reader = nil
 		rr.cancel = nil
 		rr.start = -1
@@ -173,7 +201,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 
 	// Are we finished with this reader now?
 	if rr.start == rr.limit {
-		rr.closeReader()
+		rr.closeReader(ctx, "normal", metrics.ReadTypeUnknown)
 		rr.reader = nil
 		rr.cancel = nil
 	}
@@ -223,6 +251,17 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 					return
 
 				default:
+					var reason metrics.Reason
+					switch {
+					case errors.Is(ctx.Err(), context.Canceled):
+						reason = metrics.ReasonCanceledAttr
+					case errors.Is(ctx.Err(), context.DeadlineExceeded):
+						reason = metrics.ReasonDeadlineExceededAttr
+					default:
+						reason = metrics.ReasonUnknownAttr
+					}
+					rr.preemptionReason = reason
+					rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 					rr.cancel()
 				}
 			}
@@ -237,6 +276,7 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 // from GCS defined by SequentialReadSizeMb flag to serve future read requests.
 func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, readType int64) error {
 	ctx, cancel := context.WithCancel(rr.traceHandle.PropagateTraceContext(context.Background(), ctx))
+	ctx = metrics.ContextWithReadType(ctx, metrics.ReadTypeNames[readType])
 	var err error
 
 	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
@@ -249,7 +289,8 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, re
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			rr.config.Read.InactiveStreamTimeout)
+			rr.config.Read.InactiveStreamTimeout,
+			rr.metricHandle)
 	} else {
 		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
 			ctx,
@@ -288,6 +329,7 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, re
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+	rr.preemptionReason = ""
 
 	requestedDataSize := end - start
 	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
@@ -323,13 +365,14 @@ func (rr *RangeReader) skipBytes(offset int64) {
 // Parameters:
 //   - startOffset: the starting byte position of the requested read.
 //   - endOffset: the ending byte position of the requested read.
-func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64) {
+//   - readType: the strategy of the incoming read operation.
+func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(ctx context.Context, startOffset, endOffset int64, readType int64) {
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(endOffset), float64(rr.object.Size))
 	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) {
-		rr.closeReader()
+		rr.closeReader(ctx, "invalidation", readType)
 		rr.reader = nil
 		rr.cancel = nil
 	}
@@ -343,7 +386,7 @@ func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCS
 	// Since we are reading from an existing reader, we only need to read what was requested.
 	endOffset := min(req.Offset + int64(len(req.Buffer)))
 
-	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, endOffset)
+	rr.invalidateReaderIfMisalignedOrTooSmall(ctx, req.Offset, endOffset, req.ReadType)
 	if rr.reader != nil {
 		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, endOffset, req.ReadType)
 	}

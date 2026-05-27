@@ -44,6 +44,13 @@ func (*noopMetrics) FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, 
 
 func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType ReadType) {}
 
+func (*noopMetrics) GcsExperimentalReadBytesCount(inc int64, readType ReadType) {}
+
+func (*noopMetrics) GcsExperimentalReaderCancellationCount(inc int64, reason Reason) {}
+
+func (*noopMetrics) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason Reason) {
+}
+
 func (*noopMetrics) GcsReadBytesCount(inc int64) {}
 
 func (*noopMetrics) GcsReadCount(inc int64, readType ReadType) {}
@@ -61,6 +68,9 @@ func (*noopMetrics) MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus
 }
 
 func (*noopMetrics) ReadBlockSizes(ctx context.Context, value int64) {}
+
+func (*noopMetrics) ReadExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType) {
+}
 
 func (*noopMetrics) TestUpdownCounter(inc int64) {}
 

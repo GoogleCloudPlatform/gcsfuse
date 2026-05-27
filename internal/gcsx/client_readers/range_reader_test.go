@@ -375,7 +375,7 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 		t.Run(tt.name, func() {
 			tt.readerSetup()
 
-			t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(tt.offset, tt.offset+int64(tt.bufferSize))
+			t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(context.Background(), tt.offset, tt.offset+int64(tt.bufferSize), metrics.ReadTypeSequential)
 
 			if tt.expectReaderNil {
 				assert.Nil(t.T(), t.rangeReader.reader, "rangeReader.reader should be nil")
@@ -694,4 +694,203 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 	secondReader := t.rangeReader.reader
 	assert.NotEqual(t.T(), firstReader, secondReader)
 	t.mockBucket.AssertExpectations(t.T())
+}
+
+type mockMetricHandleForRangeCancellation struct {
+	metrics.MetricHandle
+	mock.Mock
+}
+
+func (m *mockMetricHandleForRangeCancellation) GcsExperimentalReaderCancellationCount(inc int64, reason metrics.Reason) {
+	m.Called(inc, reason)
+}
+
+func (m *mockMetricHandleForRangeCancellation) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason metrics.Reason) {
+	m.Called(ctx, value, reason)
+}
+
+func (t *rangeReaderTest) Test_ReadAt_SkipBytes() {
+	offset := int64(0)
+	size := int64(20)
+	content := []byte("abcdefghijklmnopqrst")
+
+	// Create initial reader
+	r := &fake.FakeReader{ReadCloser: getReadCloser(content)}
+	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
+
+	// First read request (read 5 bytes starting at offset 0)
+	buf1 := make([]byte, 5)
+	resp1, err1 := t.rangeReader.ReadAt(t.ctx, &gcsx.GCSReaderRequest{
+		Buffer:    buf1,
+		Offset:    0,
+		EndOffset: 20,
+		ReadInfo:  &gcsx.ReadInfo{},
+	})
+	t.Require().NoError(err1)
+	t.Equal(5, resp1.Size)
+	t.Equal(content[:5], buf1)
+	t.Equal(int64(5), t.rangeReader.start)
+
+	// Second read request (read 5 bytes starting at offset 10 - forward seek skip of 5 bytes!)
+	buf2 := make([]byte, 5)
+	resp2, err2 := t.rangeReader.ReadAt(t.ctx, &gcsx.GCSReaderRequest{
+		Buffer:    buf2,
+		Offset:    10,
+		EndOffset: 20,
+		ReadInfo:  &gcsx.ReadInfo{},
+	})
+	t.Require().NoError(err2)
+	t.Equal(5, resp2.Size)
+	t.Equal(content[10:15], buf2)
+	t.Equal(int64(15), t.rangeReader.start) // start should be 15 now!
+}
+
+func (t *rangeReaderTest) Test_ReadAt_CancellationRecordsMetric() {
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForRangeCancellation{}
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonCanceledAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(2), metrics.ReasonCanceledAttr).Return().Once()
+
+	// Initialize RangeReader with our mock metrics handle
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, mh, tracing.NewNoopTracer())
+
+	// Set up a blocking reader
+	finishRead := make(chan struct{})
+	blocking := &blockingReader{c: finishRead}
+	rc := io.NopCloser(blocking)
+
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: rc}
+	t.rangeReader.start = 0
+	t.rangeReader.limit = 2
+
+	cancelCalled := make(chan struct{})
+	t.rangeReader.cancel = func() { close(cancelCalled) }
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	readReturned := make(chan struct{})
+
+	go func() {
+		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+			Buffer:    make([]byte, 2),
+			Offset:    0,
+			EndOffset: 2,
+			ReadInfo:  &gcsx.ReadInfo{},
+		})
+		close(readReturned)
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+	<-cancelCalled
+	close(finishRead)
+	<-readReturned
+
+	t.rangeReader.destroy()
+	mh.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_ReadAt_DeadlineExceededRecordsMetric() {
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForRangeCancellation{}
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonDeadlineExceededAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(2), metrics.ReasonDeadlineExceededAttr).Return().Once()
+
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, mh, tracing.NewNoopTracer())
+
+	// Set up a blocking reader
+	finishRead := make(chan struct{})
+	blocking := &blockingReader{c: finishRead}
+	rc := io.NopCloser(blocking)
+
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: rc}
+	t.rangeReader.start = 0
+	t.rangeReader.limit = 2
+
+	cancelCalled := make(chan struct{})
+	t.rangeReader.cancel = func() { close(cancelCalled) }
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	defer cancel()
+	readReturned := make(chan struct{})
+
+	go func() {
+		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+			Buffer:    make([]byte, 2),
+			Offset:    0,
+			EndOffset: 2,
+			ReadInfo:  &gcsx.ReadInfo{},
+		})
+		close(readReturned)
+	}()
+
+	<-cancelCalled
+	close(finishRead)
+	<-readReturned
+
+	t.rangeReader.destroy()
+	mh.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_Destroy_PartiallyReadReaderRecordsMetric() {
+	mh := &mockMetricHandleForRangeCancellation{}
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonExplicitCloseAttr).Return().Once()
+
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
+
+	// Simulate an active, partially read reader.
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader("xxxxxx"))}
+	t.rangeReader.reader = rc
+	t.rangeReader.start = 2
+	t.rangeReader.limit = 6
+	t.rangeReader.cancel = func() {}
+
+	// Act: destroy it
+	t.rangeReader.destroy()
+
+	assert.Nil(t.T(), t.rangeReader.reader)
+	mh.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_invalidateReader_SeekRecordsMetric() {
+	mh := &mockMetricHandleForRangeCancellation{}
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSeekAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonSeekAttr).Return().Once()
+
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
+
+	// Simulate an active, partially read reader.
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader("xxxxxx"))}
+	t.rangeReader.reader = rc
+	t.rangeReader.start = 2
+	t.rangeReader.limit = 6
+	t.rangeReader.cancel = func() {}
+
+	// Act: invalidate it with a misaligned seek jump under sequential readType
+	t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(context.Background(), 4, 6, metrics.ReadTypeSequential)
+
+	assert.Nil(t.T(), t.rangeReader.reader)
+	mh.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_invalidateReader_SeqToRandomTransitionRecordsMetric() {
+	mh := &mockMetricHandleForRangeCancellation{}
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSequentialToRandomAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonSequentialToRandomAttr).Return().Once()
+
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
+
+	// Simulate an active, partially read reader.
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader("xxxxxx"))}
+	t.rangeReader.reader = rc
+	t.rangeReader.start = 2
+	t.rangeReader.limit = 6
+	t.rangeReader.cancel = func() {}
+
+	// Act: invalidate it with a misaligned seek jump under random readType (sequential to random transition)
+	t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(context.Background(), 4, 6, metrics.ReadTypeRandom)
+
+	assert.Nil(t.T(), t.rangeReader.reader)
+	mh.AssertExpectations(t.T())
 }

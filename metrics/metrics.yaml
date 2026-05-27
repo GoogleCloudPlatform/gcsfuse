@@ -173,6 +173,58 @@
     - "Random"
     - "Sequential"
 
+- metric-name: "gcs/experimental_read_bytes_count"
+  description: "The cumulative number of bytes read from GCS objects along with type - Sequential/Random"
+  unit: "By"
+  type: "int_counter"
+  attributes:
+  - attribute-name: read_type
+    attribute-type: string
+    values: *read_types_list
+
+
+- metric-name: "gcs/experimental_reader_cancellation_count"
+  description: "The cumulative number of times an in-flight GCS object reader was canceled along with the cancellation reason."
+  type: "int_counter"
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values: &cancellation_reasons_list
+    - "canceled"
+    - "deadline_exceeded"
+    - "explicit_close"
+    - "forced_recreate"
+    - "inactive_timeout"
+    - "seek"
+    - "sequential_to_random"
+    - "unknown"
+
+- metric-name: "gcs/experimental_reader_cancellation_unread_bytes"
+  description: "The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers."
+  unit: "By"
+  type: "int_histogram"
+  boundaries: &bytes_boundaries
+  - 0 # To detect EOF scenarios
+  - 8192
+  - 16384
+  - 32768
+  - 65536
+  - 131072
+  - 262144
+  - 524288
+  - 1048576
+  - 2097152
+  - 4194304
+  - 8388608
+  - 16777216
+  - 33554432
+  - 67108864
+  - 134217728
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values: *cancellation_reasons_list
+
 - metric-name: "gcs/read_bytes_count"
   description: "The cumulative number of bytes read from GCS objects."
   unit: "By"
@@ -278,23 +330,24 @@
   description: "The cumulative distribution of read block sizes across different bucket boundaries"
   type: "int_histogram"
   unit: "By"
-  boundaries: &bytes_boundaries # in bytes
-  - 0 # To detect EOF scenarios
-  - 8192
-  - 16384
-  - 32768
-  - 65536
-  - 131072
-  - 262144
-  - 524288
-  - 1048576
-  - 2097152
-  - 4194304
-  - 8388608
-  - 16777216
-  - 33554432
-  - 67108864
-  - 134217728
+  boundaries: *bytes_boundaries
+
+- metric-name: "read/experimental_read_type_transitions_count"
+  description: "The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough."
+  type: "int_counter"
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values:
+    - "average_read_size_large_enough"
+    - "backward_seek"
+    - "forward_seek"
+    - "initial_offset_non_zero"
+  - attribute-name: transition_type
+    attribute-type: string
+    values:
+    - "random_to_sequential"
+    - "sequential_to_random"
 
 - metric-name: "test/updown_counter"
   description: "Test metric for updown counters."

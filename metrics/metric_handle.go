@@ -149,8 +149,20 @@ const (
 type Reason string
 
 const (
-	ReasonInsufficientMemoryAttr Reason = "insufficient_memory"
-	ReasonRandomReadDetectedAttr Reason = "random_read_detected"
+	ReasonAverageReadSizeLargeEnoughAttr Reason = "average_read_size_large_enough"
+	ReasonBackwardSeekAttr               Reason = "backward_seek"
+	ReasonCanceledAttr                   Reason = "canceled"
+	ReasonDeadlineExceededAttr           Reason = "deadline_exceeded"
+	ReasonExplicitCloseAttr              Reason = "explicit_close"
+	ReasonForcedRecreateAttr             Reason = "forced_recreate"
+	ReasonForwardSeekAttr                Reason = "forward_seek"
+	ReasonInactiveTimeoutAttr            Reason = "inactive_timeout"
+	ReasonInitialOffsetNonZeroAttr       Reason = "initial_offset_non_zero"
+	ReasonInsufficientMemoryAttr         Reason = "insufficient_memory"
+	ReasonRandomReadDetectedAttr         Reason = "random_read_detected"
+	ReasonSeekAttr                       Reason = "seek"
+	ReasonSequentialToRandomAttr         Reason = "sequential_to_random"
+	ReasonUnknownAttr                    Reason = "unknown"
 )
 
 // RequestType is a custom type for the request_type attribute.
@@ -167,6 +179,14 @@ type RetryErrorCategory string
 const (
 	RetryErrorCategoryOTHERERRORSAttr        RetryErrorCategory = "OTHER_ERRORS"
 	RetryErrorCategorySTALLEDREADREQUESTAttr RetryErrorCategory = "STALLED_READ_REQUEST"
+)
+
+// TransitionType is a custom type for the transition_type attribute.
+type TransitionType string
+
+const (
+	TransitionTypeRandomToSequentialAttr TransitionType = "random_to_sequential"
+	TransitionTypeSequentialToRandomAttr TransitionType = "sequential_to_random"
 )
 
 // WriteFallbackReason is a custom type for the write_fallback_reason attribute.
@@ -213,6 +233,15 @@ type MetricHandle interface {
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)
 
+	// GcsExperimentalReadBytesCount - The cumulative number of bytes read from GCS objects along with type - Sequential/Random
+	GcsExperimentalReadBytesCount(inc int64, readType ReadType)
+
+	// GcsExperimentalReaderCancellationCount - The cumulative number of times an in-flight GCS object reader was canceled along with the cancellation reason.
+	GcsExperimentalReaderCancellationCount(inc int64, reason Reason)
+
+	// GcsExperimentalReaderCancellationUnreadBytes - The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers.
+	GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason Reason)
+
 	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
 	GcsReadBytesCount(inc int64)
 
@@ -236,6 +265,9 @@ type MetricHandle interface {
 
 	// ReadBlockSizes - The cumulative distribution of read block sizes across different bucket boundaries
 	ReadBlockSizes(ctx context.Context, value int64)
+
+	// ReadExperimentalReadTypeTransitionsCount - The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough.
+	ReadExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType)
 
 	// TestUpdownCounter - Test metric for updown counters.
 	TestUpdownCounter(inc int64)

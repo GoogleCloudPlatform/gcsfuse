@@ -16,6 +16,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,12 +97,18 @@ func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 						return
 					}
 				}
+
+				// If metric exists but attrs don't match, print recorded data points
+				var recordedPoints []string
+				for _, dp := range data.DataPoints {
+					recordedPoints = append(recordedPoints, fmt.Sprintf("attrs: %v, value: %d", dp.Attributes.ToSlice(), dp.Value))
+				}
+				require.Fail(t, fmt.Sprintf("Data point for attributes %v not found in %s metric. Recorded data points: %v", attrs.ToSlice(), metricName, recordedPoints))
 			}
 		}
 	}
 
 	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
 }
 
 // VerifyHistogramMetric finds a histogram metric across all scopes and verifies its count.
@@ -140,13 +147,13 @@ func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.Man
 						}
 					}
 				default:
-					require.Fail(t, "metric %s is not an expected histogram type, but %T", metricName, m.Data)
+					require.Fail(t, fmt.Sprintf("metric %s is not an expected histogram type, but %T", metricName, m.Data))
 				}
 			}
 		}
 	}
 	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+	require.Fail(t, fmt.Sprintf("Data point for attributes %v not found in %s metric", attrs, metricName))
 }
 
 // VerifyHistogramFull finds a histogram metric and fully verifies its state including total count, sum, and bucket distribution.
@@ -200,5 +207,5 @@ func VerifyHistogramFull[T int64 | float64](t *testing.T, ctx context.Context, r
 		}
 	}
 	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+	require.Fail(t, fmt.Sprintf("Data point for attributes %v not found in %s metric", attrs, metricName))
 }

@@ -339,6 +339,10 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
 		attribute.NewSet(),
 		int64(len(content)))
+	// gcs/experimental_read_bytes_count - Sequential
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_bytes_count",
+		attribute.NewSet(attribute.String("read_type", "Sequential")),
+		int64(len(content)))
 
 	// Second Read - Should hit cache
 	readOp2 := &fuseops.ReadFileOp{
@@ -366,6 +370,9 @@ func TestGCSMetrics_WithFileCache(t *testing.T) {
 		1)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
 		attribute.NewSet(),
+		int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_bytes_count",
+		attribute.NewSet(attribute.String("read_type", "Sequential")),
 		int64(len(content)))
 }
 
@@ -431,6 +438,9 @@ func TestGCSMetrics_ParallelDownloads(t *testing.T) {
 	// Verify read bytes count
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
 		attribute.NewSet(),
+		int64(fileSize))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_bytes_count",
+		attribute.NewSet(attribute.String("read_type", "Parallel")),
 		int64(fileSize))
 }
 

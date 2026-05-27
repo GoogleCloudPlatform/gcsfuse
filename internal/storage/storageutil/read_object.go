@@ -19,6 +19,7 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/net/context"
 )
 
@@ -33,6 +34,7 @@ func ReadObject(
 		Name: name,
 	}
 
+	ctx = metrics.ContextWithReadType(ctx, metrics.ReadTypeSequentialAttr)
 	rc, err := bucket.NewReaderWithReadHandle(ctx, req)
 	if err != nil {
 		return

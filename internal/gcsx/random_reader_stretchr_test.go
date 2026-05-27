@@ -1250,3 +1250,197 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_WithAndWithoutReadConfig() {
 		})
 	}
 }
+
+type mockMetricHandleForCancellation struct {
+	metrics.MetricHandle
+	mock.Mock
+}
+
+func (m *mockMetricHandleForCancellation) GcsExperimentalReaderCancellationCount(inc int64, reason metrics.Reason) {
+	m.Called(inc, reason)
+}
+
+func (m *mockMetricHandleForCancellation) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason metrics.Reason) {
+	m.Called(ctx, value, reason)
+}
+
+func (t *RandomReaderStretchrTest) Test_ReadFull_CancellationRecordsMetric() {
+	// Set up a reader that will block until we tell it to return.
+	finishRead := make(chan struct{})
+	rc := io.NopCloser(&blockingReader{finishRead})
+
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForCancellation{}
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonCanceledAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(3), metrics.ReasonCanceledAttr).Return().Once()
+
+	// Initialize custom random reader
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, mh, tracing.NewNoopTracer(), nil, nil, 0)
+	wrapped := rr.(*randomReader)
+	wrapped.reader = &fake.FakeReader{ReadCloser: rc}
+	wrapped.start = 1
+	wrapped.limit = 4
+	wrapped.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}
+
+	// Snoop on when cancel is called.
+	cancelCalled := make(chan struct{})
+	wrapped.cancel = func() { close(cancelCalled) }
+
+	// Start a read in the background using a context that we control.
+	readReturned := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		buf := make([]byte, 2)
+		_, _ = wrapped.ReadAt(ctx, buf, 1)
+		close(readReturned)
+	}()
+
+	// Wait a bit to ensure goroutine is blocking on the read
+	time.Sleep(10 * time.Millisecond)
+
+	// Act: cancel the context
+	cancel()
+
+	// Wait for background cancellation processing to complete
+	<-cancelCalled
+
+	// Clean up blocking read
+	close(finishRead)
+	<-readReturned
+
+	wrapped.Destroy()
+
+	// Assert: verify that metrics were tracked exactly as expected!
+	mh.AssertExpectations(t.T())
+}
+
+func (t *RandomReaderStretchrTest) Test_ReadFull_DeadlineExceededRecordsMetric() {
+	// Set up a reader that will block until we tell it to return.
+	finishRead := make(chan struct{})
+	rc := io.NopCloser(&blockingReader{finishRead})
+
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForCancellation{}
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonDeadlineExceededAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(3), metrics.ReasonDeadlineExceededAttr).Return().Once()
+
+	// Initialize custom random reader
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, mh, tracing.NewNoopTracer(), nil, nil, 0)
+	wrapped := rr.(*randomReader)
+	wrapped.reader = &fake.FakeReader{ReadCloser: rc}
+	wrapped.start = 1
+	wrapped.limit = 4
+	wrapped.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}
+
+	// Snoop on when cancel is called.
+	cancelCalled := make(chan struct{})
+	wrapped.cancel = func() { close(cancelCalled) }
+
+	// Start a read in the background using a context with a very short timeout.
+	readReturned := make(chan struct{})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	defer cancel()
+
+	go func() {
+		buf := make([]byte, 2)
+		_, _ = wrapped.ReadAt(ctx, buf, 1)
+		close(readReturned)
+	}()
+
+	// Wait for background timeout cancellation processing to complete
+	<-cancelCalled
+
+	// Clean up blocking read
+	close(finishRead)
+	<-readReturned
+
+	wrapped.Destroy()
+
+	// Assert: verify that metrics were tracked exactly as expected!
+	mh.AssertExpectations(t.T())
+}
+
+func (t *RandomReaderStretchrTest) Test_invalidateReader_SeekMisalignmentRecordsMetric() {
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForCancellation{}
+	// Expect ReasonSeekAttr and ReasonSeekAttr bytes to be called!
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSeekAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonSeekAttr).Return().Once()
+
+	// Initialize random reader
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, mh, tracing.NewNoopTracer(), nil, nil, 0)
+	wrapped := rr.(*randomReader)
+
+	// Simulate an existing, partially read sequential reader.
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader("xxxxxx"))}
+	wrapped.reader = rc
+	wrapped.start = 2
+	wrapped.limit = 6
+	wrapped.cancel = func() {}
+	wrapped.readType.Store(metrics.ReadTypeSequential)
+
+	// Act: trigger invalidation by passing a different/misaligned starting offset (e.g., offset 4)
+	wrapped.invalidateReaderIfMisalignedOrTooSmall(context.Background(), 4, 6, metrics.ReadTypeSequential)
+
+	// Assert: connection closed and cancellation metric verified!
+	assert.Nil(t.T(), wrapped.reader)
+	mh.AssertExpectations(t.T())
+}
+
+func (t *RandomReaderStretchrTest) Test_invalidateReader_SeqToRandomTransitionRecordsMetric() {
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForCancellation{}
+	// Expect ReasonSequentialToRandomAttr and ReasonSequentialToRandomAttr bytes to be called!
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSequentialToRandomAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonSequentialToRandomAttr).Return().Once()
+
+	// Initialize random reader
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, mh, tracing.NewNoopTracer(), nil, nil, 0)
+	wrapped := rr.(*randomReader)
+
+	// Simulate an existing, partially read sequential reader.
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader("xxxxxx"))}
+	wrapped.reader = rc
+	wrapped.start = 2
+	wrapped.limit = 6
+	wrapped.cancel = func() {}
+	wrapped.readType.Store(metrics.ReadTypeRandom)
+
+	// Act: trigger invalidation by passing a different/misaligned starting offset (e.g., offset 4) and target Random readType
+	wrapped.invalidateReaderIfMisalignedOrTooSmall(context.Background(), 4, 6, metrics.ReadTypeRandom)
+
+	// Assert: verify that metrics were tracked exactly as expected!
+	assert.Nil(t.T(), wrapped.reader)
+	mh.AssertExpectations(t.T())
+}
+
+func (t *RandomReaderStretchrTest) Test_Destroy_PartiallyReadSequentialReaderRecordsMetric() {
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForCancellation{}
+	// Expect ReasonExplicitCloseAttr and ReasonExplicitCloseAttr bytes to be called!
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonExplicitCloseAttr).Return().Once()
+
+	// Initialize random reader
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, mh, tracing.NewNoopTracer(), nil, nil, 0)
+	wrapped := rr.(*randomReader)
+
+	// Simulate an existing, partially read sequential reader.
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader("xxxxxx"))}
+	wrapped.reader = rc
+	wrapped.start = 2
+	wrapped.limit = 6
+	wrapped.cancel = func() {}
+
+	// Act: destroy the reader
+	wrapped.Destroy()
+
+	// Assert: connection closed and explicit close cancellation metric verified!
+	assert.Nil(t.T(), wrapped.reader)
+	mh.AssertExpectations(t.T())
+}
