@@ -89,6 +89,14 @@ var funcMap = template.FuncMap{
 	"getLatencyUnit":              getLatencyUnit,
 	"getLatencyMethod":            getLatencyMethod,
 	"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
+	"hasEmptyValue": func(values []string) bool {
+		for _, v := range values {
+			if v == "" {
+				return true
+			}
+		}
+		return false
+	},
 }
 
 func toPascal(s string) string {
