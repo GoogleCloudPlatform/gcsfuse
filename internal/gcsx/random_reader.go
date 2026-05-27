@@ -191,6 +191,9 @@ type randomReader struct {
 
 	config *cfg.Config
 
+	connectionReadBytes int64
+	preemptionReason    metrics.Reason
+
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
 	expectedOffset atomic.Int64
@@ -497,6 +500,7 @@ func (rr *randomReader) readFull(
 					default:
 						reason = metrics.ReasonUnknownAttr
 					}
+					rr.preemptionReason = reason
 					rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 					rr.cancel()
 				}
@@ -566,6 +570,8 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+	rr.connectionReadBytes = 0
+	rr.preemptionReason = ""
 
 	requestedDataSize := end - start
 	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
@@ -741,6 +747,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	// it as possible.
 	n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
+	rr.connectionReadBytes += int64(n)
 	rr.totalReadBytes.Add(uint64(n))
 
 	// Sanity check.
@@ -807,20 +814,24 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 // LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) closeReader(caller string, readType int64) {
 	if rr.reader != nil && rr.start < rr.limit {
-		var reason metrics.Reason
-		switch caller {
-		case "destroy":
-			reason = metrics.ReasonExplicitCloseAttr
-		case "invalidation":
-			if readType == metrics.ReadTypeRandom {
-				reason = metrics.ReasonSequentialToRandomAttr
-			} else {
-				reason = metrics.ReasonSeekAttr
+		reason := rr.preemptionReason
+		if reason == "" {
+			switch caller {
+			case "destroy":
+				reason = metrics.ReasonExplicitCloseAttr
+			case "invalidation":
+				if readType == metrics.ReadTypeRandom {
+					reason = metrics.ReasonSequentialToRandomAttr
+				} else {
+					reason = metrics.ReasonSeekAttr
+				}
+			default:
+				reason = metrics.ReasonUnknownAttr
 			}
-		default:
-			reason = metrics.ReasonUnknownAttr
+			rr.preemptionReason = reason
+			rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 		}
-		rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
+		rr.metricHandle.GcsExperimentalReaderCancellationBytesCount(rr.connectionReadBytes, reason)
 	}
 
 	rr.readHandle = rr.reader.ReadHandle()

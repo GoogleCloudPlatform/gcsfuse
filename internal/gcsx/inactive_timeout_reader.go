@@ -73,7 +73,8 @@ type InactiveTimeoutReader struct {
 	// Flag set by Read and reset by the monitor goroutine to track activity within the timeout window.
 	isActive bool
 
-	metricHandle metrics.MetricHandle
+	metricHandle        metrics.MetricHandle
+	connectionReadBytes uint64
 }
 
 var (
@@ -165,10 +166,12 @@ func (itr *InactiveTimeoutReader) Read(p []byte) (n int, err error) {
 		if itr.gcsReader, err = itr.createGCSReader(); err != nil {
 			return 0, err
 		}
+		itr.connectionReadBytes = 0
 	}
 
 	n, err = itr.gcsReader.Read(p)
 	itr.seen += uint64(n)
+	itr.connectionReadBytes += uint64(n)
 	return n, err
 }
 
@@ -252,5 +255,6 @@ func (itr *InactiveTimeoutReader) closeGCSReader() {
 		logger.Warnf("Error closing inactive reader for object %q: %v", itr.object.Name, err)
 	}
 	itr.metricHandle.GcsExperimentalReaderCancellationCount(1, metrics.ReasonInactiveTimeoutAttr)
+	itr.metricHandle.GcsExperimentalReaderCancellationBytesCount(int64(itr.connectionReadBytes), metrics.ReasonInactiveTimeoutAttr)
 	itr.gcsReader = nil
 }
