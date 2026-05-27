@@ -564,6 +564,8 @@ type FileSystemConfig struct {
 
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
+	ExperimentalLargeDirWarningThreshold int64 `yaml:"experimental-large-dir-warning-threshold"`
+
 	ExperimentalODirect bool `yaml:"experimental-o-direct"`
 
 	FileMode Octal `yaml:"file-mode"`
@@ -1066,6 +1068,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("experimental-grpc-conn-pool-size", "", 1, "The number of gRPC channel in grpc client.")
 
 	if err := flagSet.MarkDeprecated("experimental-grpc-conn-pool-size", "Experimental flag: can be removed in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.IntP("experimental-large-dir-warning-threshold", "", 0, "Logs a warning when a directory listing contains at least this many entries. Set to 0 to disable.")
+
+	if err := flagSet.MarkHidden("experimental-large-dir-warning-threshold"); err != nil {
 		return err
 	}
 
@@ -1669,6 +1677,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-large-dir-warning-threshold", flagSet.Lookup("experimental-large-dir-warning-threshold")); err != nil {
 		return err
 	}
 

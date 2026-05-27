@@ -15,13 +15,17 @@
 package handle
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
 	cfg2 "github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
@@ -73,8 +77,13 @@ func (t *DirHandleTest) TearDown() {}
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 func (t *DirHandleTest) resetDirHandle() {
+	t.resetDirHandleWithLargeDirWarningThreshold(0)
+}
+
+func (t *DirHandleTest) resetDirHandleWithLargeDirWarningThreshold(threshold int64) {
 	cfg := &cfg2.Config{
 		List:                         cfg2.ListConfig{EnableEmptyManagedFolders: true},
+		FileSystem:                   cfg2.FileSystemConfig{ExperimentalLargeDirWarningThreshold: threshold},
 		MetadataCache:                cfg2.MetadataCacheConfig{TypeCacheMaxSizeMb: 0},
 		EnableHns:                    false,
 		EnableUnsupportedPathSupport: true,
@@ -198,6 +207,38 @@ func (t *DirHandleTest) EnsureEntriesWithOnlyGCSFiles() {
 	AssertEq(2, len(t.dh.entries))
 	t.validateEntry(t.dh.entries[0], "gcsObject1", fuseutil.DT_File)
 	t.validateEntry(t.dh.entries[1], "gcsObject2", fuseutil.DT_File)
+}
+
+func (t *DirHandleTest) EnsureEntriesLogsLargeDirectoryWarningWhenThresholdIsMet() {
+	t.resetDirHandleWithLargeDirWarningThreshold(2)
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject1", nil)
+	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject2", nil)
+	AssertEq(nil, err)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stderr)
+
+	err = t.dh.ensureEntries(t.ctx, nil)
+
+	AssertEq(nil, err)
+	AssertTrue(strings.Contains(buf.String(), "experimental large directory warning threshold"))
+	AssertTrue(strings.Contains(buf.String(), "contains 2 entries"))
+}
+
+func (t *DirHandleTest) EnsureEntriesDoesNotLogLargeDirectoryWarningWhenDisabled() {
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject1", nil)
+	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject2", nil)
+	AssertEq(nil, err)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stderr)
+
+	err = t.dh.ensureEntries(t.ctx, nil)
+
+	AssertEq(nil, err)
+	AssertFalse(strings.Contains(buf.String(), "experimental large directory warning threshold"))
 }
 
 func (t *DirHandleTest) EnsureEntriesWithOnlyLocalFiles() {
@@ -399,6 +440,32 @@ func (t *DirHandleTest) ReadDirPlusResponseForNoFile() {
 	AssertEq(0, op.BytesRead)
 	AssertTrue(t.dh.entriesPlusValid)
 	AssertEq(0, len(t.dh.entriesPlus))
+}
+
+func (t *DirHandleTest) ReadDirPlusLogsLargeDirectoryWarningWhenThresholdIsMet() {
+	t.resetDirHandleWithLargeDirWarningThreshold(2)
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Dst: make([]byte, 1024)},
+	}
+	gcsEntries := []fuseutil.DirentPlus{
+		{
+			Dirent: fuseutil.Dirent{Name: "gcsObject1", Type: fuseutil.DT_File},
+			Entry:  fuseops.ChildInodeEntry{Child: 1001},
+		},
+		{
+			Dirent: fuseutil.Dirent{Name: "gcsObject2", Type: fuseutil.DT_File},
+			Entry:  fuseops.ChildInodeEntry{Child: 1002},
+		},
+	}
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stderr)
+
+	err := t.dh.ReadDirPlus(op, gcsEntries, nil)
+
+	AssertEq(nil, err)
+	AssertTrue(strings.Contains(buf.String(), "experimental large directory warning threshold"))
+	AssertTrue(strings.Contains(buf.String(), "contains 2 entries"))
 }
 
 func (t *DirHandleTest) ReadDirPlusSameNameLocalAndGCSFile() {

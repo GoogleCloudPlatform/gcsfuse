@@ -439,6 +439,13 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.experimental-large-dir-warning-threshold"
+    flag-name: "experimental-large-dir-warning-threshold"
+    type: "int"
+    usage: "Logs a warning when a directory listing contains at least this many entries. Set to 0 to disable."
+    default: "0"
+    hide-flag: true
+
   - config-path: "file-system.experimental-o-direct"
     flag-name: "experimental-o-direct"
     type: "bool"
