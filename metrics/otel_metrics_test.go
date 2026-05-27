@@ -4744,129 +4744,6 @@ func TestGcsExperimentalReadBytesCount(t *testing.T) {
 	}
 }
 
-func TestGcsExperimentalReaderCancellationBytesCount(t *testing.T) {
-	tests := []struct {
-		name     string
-		f        func(m *otelMetrics)
-		expected map[attribute.Set]int64
-	}{
-		{
-			name: "reason_canceled",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "canceled")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "canceled")): 5,
-			},
-		},
-		{
-			name: "reason_deadline_exceeded",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "deadline_exceeded")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "deadline_exceeded")): 5,
-			},
-		},
-		{
-			name: "reason_explicit_close",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "explicit_close")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "explicit_close")): 5,
-			},
-		},
-		{
-			name: "reason_forced_recreate",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "forced_recreate")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "forced_recreate")): 5,
-			},
-		},
-		{
-			name: "reason_inactive_timeout",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "inactive_timeout")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "inactive_timeout")): 5,
-			},
-		},
-		{
-			name: "reason_seek",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "seek")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "seek")): 5,
-			},
-		},
-		{
-			name: "reason_sequential_to_random",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "sequential_to_random")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "sequential_to_random")): 5,
-			},
-		},
-		{
-			name: "reason_unknown",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "unknown")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "unknown")): 5,
-			},
-		}, {
-			name: "multiple_attributes_summed",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(5, "canceled")
-				m.GcsExperimentalReaderCancellationBytesCount(2, "deadline_exceeded")
-				m.GcsExperimentalReaderCancellationBytesCount(3, "canceled")
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "canceled")): 8,
-				attribute.NewSet(attribute.String("reason", "deadline_exceeded")): 2,
-			},
-		},
-		{
-			name: "negative_increment",
-			f: func(m *otelMetrics) {
-				m.GcsExperimentalReaderCancellationBytesCount(-5, "canceled")
-				m.GcsExperimentalReaderCancellationBytesCount(2, "canceled")
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "canceled")): 2},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			encoder := attribute.DefaultEncoder()
-			m, rd := setupOTel(ctx, t)
-
-			tc.f(m)
-			waitForMetricsProcessing()
-
-			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-			metric, ok := metrics["gcs/experimental_reader_cancellation_bytes_count"]
-			if len(tc.expected) == 0 {
-				assert.False(t, ok, "gcs/experimental_reader_cancellation_bytes_count metric should not be found")
-				return
-			}
-			require.True(t, ok, "gcs/experimental_reader_cancellation_bytes_count metric not found")
-			expectedMap := make(map[string]int64)
-			for k, v := range tc.expected {
-				expectedMap[k.Encoded(encoder)] = v
-			}
-			assert.Equal(t, expectedMap, metric)
-		})
-	}
-}
-
 func TestGcsExperimentalReaderCancellationCount(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -4986,6 +4863,84 @@ func TestGcsExperimentalReaderCancellationCount(t *testing.T) {
 				expectedMap[k.Encoded(encoder)] = v
 			}
 			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
+func TestGcsExperimentalReaderCancellationUnreadBytes(t *testing.T) {
+	tests := []struct {
+		name      string
+		latencies []time.Duration
+		reason    Reason
+	}{
+		{
+			name:      "reason_canceled",
+			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
+			reason:    "canceled",
+		},
+		{
+			name:      "reason_deadline_exceeded",
+			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
+			reason:    "deadline_exceeded",
+		},
+		{
+			name:      "reason_explicit_close",
+			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
+			reason:    "explicit_close",
+		},
+		{
+			name:      "reason_forced_recreate",
+			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
+			reason:    "forced_recreate",
+		},
+		{
+			name:      "reason_inactive_timeout",
+			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
+			reason:    "inactive_timeout",
+		},
+		{
+			name:      "reason_seek",
+			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
+			reason:    "seek",
+		},
+		{
+			name:      "reason_sequential_to_random",
+			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
+			reason:    "sequential_to_random",
+		},
+		{
+			name:      "reason_unknown",
+			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
+			reason:    "unknown",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+			var totalLatency time.Duration
+
+			for _, latency := range tc.latencies {
+				m.GcsExperimentalReaderCancellationUnreadBytes(ctx, latency, tc.reason)
+				totalLatency += latency
+			}
+			waitForMetricsProcessing()
+
+			metrics := gatherHistogramMetrics(ctx, t, rd)
+			metric, ok := metrics["gcs/experimental_reader_cancellation_unread_bytes"]
+			require.True(t, ok, "gcs/experimental_reader_cancellation_unread_bytes metric not found")
+
+			attrs := []attribute.KeyValue{
+				attribute.String("reason", string(tc.reason)),
+			}
+			s := attribute.NewSet(attrs...)
+			expectedKey := s.Encoded(encoder)
+			dp, ok := metric[expectedKey]
+			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
+			assert.Equal(t, totalLatency.Nanoseconds(), dp.Sum)
 		})
 	}
 }

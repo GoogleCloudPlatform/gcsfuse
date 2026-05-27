@@ -1260,8 +1260,8 @@ func (m *mockMetricHandleForCancellation) GcsExperimentalReaderCancellationCount
 	m.Called(inc, reason)
 }
 
-func (m *mockMetricHandleForCancellation) GcsExperimentalReaderCancellationBytesCount(inc int64, reason metrics.Reason) {
-	m.Called(inc, reason)
+func (m *mockMetricHandleForCancellation) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value time.Duration, reason metrics.Reason) {
+	m.Called(ctx, value, reason)
 }
 
 func (t *RandomReaderStretchrTest) Test_ReadFull_CancellationRecordsMetric() {
@@ -1272,7 +1272,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFull_CancellationRecordsMetric() {
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonCanceledAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(1024), metrics.ReasonCanceledAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(3), metrics.ReasonCanceledAttr).Return().Once()
 
 	// Initialize custom random reader
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
@@ -1310,8 +1310,6 @@ func (t *RandomReaderStretchrTest) Test_ReadFull_CancellationRecordsMetric() {
 	close(finishRead)
 	<-readReturned
 
-	// Set successful connection read bytes prior to preemption close
-	wrapped.connectionReadBytes = 1024
 	wrapped.Destroy()
 
 	// Assert: verify that metrics were tracked exactly as expected!
@@ -1326,7 +1324,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFull_DeadlineExceededRecordsMetric()
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonDeadlineExceededAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(2048), metrics.ReasonDeadlineExceededAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(3), metrics.ReasonDeadlineExceededAttr).Return().Once()
 
 	// Initialize custom random reader
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
@@ -1359,8 +1357,6 @@ func (t *RandomReaderStretchrTest) Test_ReadFull_DeadlineExceededRecordsMetric()
 	close(finishRead)
 	<-readReturned
 
-	// Set successful connection read bytes prior to preemption close
-	wrapped.connectionReadBytes = 2048
 	wrapped.Destroy()
 
 	// Assert: verify that metrics were tracked exactly as expected!
@@ -1372,7 +1368,7 @@ func (t *RandomReaderStretchrTest) Test_invalidateReader_SeekMisalignmentRecords
 	mh := &mockMetricHandleForCancellation{}
 	// Expect ReasonSeekAttr and ReasonSeekAttr bytes to be called!
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSeekAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(256), metrics.ReasonSeekAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonSeekAttr).Return().Once()
 
 	// Initialize random reader
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
@@ -1384,12 +1380,11 @@ func (t *RandomReaderStretchrTest) Test_invalidateReader_SeekMisalignmentRecords
 	wrapped.reader = rc
 	wrapped.start = 2
 	wrapped.limit = 6
-	wrapped.connectionReadBytes = 256
 	wrapped.cancel = func() {}
 	wrapped.readType.Store(metrics.ReadTypeSequential)
 
 	// Act: trigger invalidation by passing a different/misaligned starting offset (e.g., offset 4)
-	wrapped.invalidateReaderIfMisalignedOrTooSmall(4, 6, metrics.ReadTypeSequential)
+	wrapped.invalidateReaderIfMisalignedOrTooSmall(context.Background(), 4, 6, metrics.ReadTypeSequential)
 
 	// Assert: connection closed and cancellation metric verified!
 	assert.Nil(t.T(), wrapped.reader)
@@ -1401,7 +1396,7 @@ func (t *RandomReaderStretchrTest) Test_invalidateReader_SeqToRandomTransitionRe
 	mh := &mockMetricHandleForCancellation{}
 	// Expect ReasonSequentialToRandomAttr and ReasonSequentialToRandomAttr bytes to be called!
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSequentialToRandomAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(512), metrics.ReasonSequentialToRandomAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonSequentialToRandomAttr).Return().Once()
 
 	// Initialize random reader
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
@@ -1413,12 +1408,11 @@ func (t *RandomReaderStretchrTest) Test_invalidateReader_SeqToRandomTransitionRe
 	wrapped.reader = rc
 	wrapped.start = 2
 	wrapped.limit = 6
-	wrapped.connectionReadBytes = 512
 	wrapped.cancel = func() {}
 	wrapped.readType.Store(metrics.ReadTypeRandom)
 
 	// Act: trigger invalidation by passing a different/misaligned starting offset (e.g., offset 4) and target Random readType
-	wrapped.invalidateReaderIfMisalignedOrTooSmall(4, 6, metrics.ReadTypeRandom)
+	wrapped.invalidateReaderIfMisalignedOrTooSmall(context.Background(), 4, 6, metrics.ReadTypeRandom)
 
 	// Assert: verify that metrics were tracked exactly as expected!
 	assert.Nil(t.T(), wrapped.reader)
@@ -1430,7 +1424,7 @@ func (t *RandomReaderStretchrTest) Test_Destroy_PartiallyReadSequentialReaderRec
 	mh := &mockMetricHandleForCancellation{}
 	// Expect ReasonExplicitCloseAttr and ReasonExplicitCloseAttr bytes to be called!
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationBytesCount", int64(128), metrics.ReasonExplicitCloseAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonExplicitCloseAttr).Return().Once()
 
 	// Initialize random reader
 	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, mh, tracing.NewNoopTracer(), nil, nil, 0)
@@ -1441,7 +1435,6 @@ func (t *RandomReaderStretchrTest) Test_Destroy_PartiallyReadSequentialReaderRec
 	wrapped.reader = rc
 	wrapped.start = 2
 	wrapped.limit = 6
-	wrapped.connectionReadBytes = 128
 	wrapped.cancel = func() {}
 
 	// Act: destroy the reader

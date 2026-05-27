@@ -153,6 +153,8 @@ func getUnitMethod(unit string) string {
 		return ".Milliseconds()"
 	case "s":
 		return ".Seconds()"
+	case "By":
+		return ".Nanoseconds()"
 	default:
 		// Assumes the value is already in the correct unit if not time-based.
 		return ""
@@ -214,6 +216,8 @@ func getLatencyUnit(unit string) string {
 		return "Millisecond"
 	case "s":
 		return "Second"
+	case "By":
+		return "Nanosecond"
 	default:
 		return ""
 	}
