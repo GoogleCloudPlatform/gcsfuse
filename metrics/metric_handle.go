@@ -236,11 +236,11 @@ type MetricHandle interface {
 	// GcsExperimentalReadBytesCount - The cumulative number of bytes read from GCS objects along with type - Sequential/Random
 	GcsExperimentalReadBytesCount(inc int64, readType ReadType)
 
-	// GcsExperimentalReaderCancellationBytesCount - The cumulative number of bytes successfully read from in-flight GCS object readers that were subsequently canceled/aborted along with the cancellation reason.
-	GcsExperimentalReaderCancellationBytesCount(inc int64, reason Reason)
-
 	// GcsExperimentalReaderCancellationCount - The cumulative number of times an in-flight GCS object reader was canceled along with the cancellation reason.
 	GcsExperimentalReaderCancellationCount(inc int64, reason Reason)
+
+	// GcsExperimentalReaderCancellationUnreadBytes - The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers.
+	GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason Reason)
 
 	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
 	GcsReadBytesCount(inc int64)

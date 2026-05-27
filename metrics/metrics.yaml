@@ -183,9 +183,8 @@
     values: *read_types_list
 
 
-- metric-name: "gcs/experimental_reader_cancellation_bytes_count"
-  description: "The cumulative number of bytes successfully read from in-flight GCS object readers that were subsequently canceled/aborted along with the cancellation reason."
-  unit: "By"
+- metric-name: "gcs/experimental_reader_cancellation_count"
+  description: "The cumulative number of times an in-flight GCS object reader was canceled along with the cancellation reason."
   type: "int_counter"
   attributes:
   - attribute-name: reason
@@ -200,9 +199,27 @@
     - "sequential_to_random"
     - "unknown"
 
-- metric-name: "gcs/experimental_reader_cancellation_count"
-  description: "The cumulative number of times an in-flight GCS object reader was canceled along with the cancellation reason."
-  type: "int_counter"
+- metric-name: "gcs/experimental_reader_cancellation_unread_bytes"
+  description: "The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers."
+  unit: "By"
+  type: "int_histogram"
+  boundaries: &bytes_boundaries
+  - 0 # To detect EOF scenarios
+  - 8192
+  - 16384
+  - 32768
+  - 65536
+  - 131072
+  - 262144
+  - 524288
+  - 1048576
+  - 2097152
+  - 4194304
+  - 8388608
+  - 16777216
+  - 33554432
+  - 67108864
+  - 134217728
   attributes:
   - attribute-name: reason
     attribute-type: string
@@ -313,23 +330,7 @@
   description: "The cumulative distribution of read block sizes across different bucket boundaries"
   type: "int_histogram"
   unit: "By"
-  boundaries: &bytes_boundaries # in bytes
-  - 0 # To detect EOF scenarios
-  - 8192
-  - 16384
-  - 32768
-  - 65536
-  - 131072
-  - 262144
-  - 524288
-  - 1048576
-  - 2097152
-  - 4194304
-  - 8388608
-  - 16777216
-  - 33554432
-  - 67108864
-  - 134217728
+  boundaries: *bytes_boundaries
 
 - metric-name: "read/experimental_read_type_transitions_count"
   description: "The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough."

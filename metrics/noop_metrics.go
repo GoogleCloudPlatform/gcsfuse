@@ -46,9 +46,10 @@ func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType ReadType) {}
 
 func (*noopMetrics) GcsExperimentalReadBytesCount(inc int64, readType ReadType) {}
 
-func (*noopMetrics) GcsExperimentalReaderCancellationBytesCount(inc int64, reason Reason) {}
-
 func (*noopMetrics) GcsExperimentalReaderCancellationCount(inc int64, reason Reason) {}
+
+func (*noopMetrics) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason Reason) {
+}
 
 func (*noopMetrics) GcsReadBytesCount(inc int64) {}
 

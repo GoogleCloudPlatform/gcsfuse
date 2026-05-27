@@ -527,14 +527,6 @@ var (
 	gcsExperimentalReadBytesCountReadTypeRandomAttrSet                                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsExperimentalReadBytesCountReadTypeSequentialAttrSet                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
 	gcsExperimentalReadBytesCountReadTypeUnknownAttrSet                                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Unknown")))
-	gcsExperimentalReaderCancellationBytesCountReasonCanceledAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "canceled")))
-	gcsExperimentalReaderCancellationBytesCountReasonDeadlineExceededAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "deadline_exceeded")))
-	gcsExperimentalReaderCancellationBytesCountReasonExplicitCloseAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "explicit_close")))
-	gcsExperimentalReaderCancellationBytesCountReasonForcedRecreateAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forced_recreate")))
-	gcsExperimentalReaderCancellationBytesCountReasonInactiveTimeoutAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "inactive_timeout")))
-	gcsExperimentalReaderCancellationBytesCountReasonSeekAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "seek")))
-	gcsExperimentalReaderCancellationBytesCountReasonSequentialToRandomAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "sequential_to_random")))
-	gcsExperimentalReaderCancellationBytesCountReasonUnknownAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "unknown")))
 	gcsExperimentalReaderCancellationCountReasonCanceledAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "canceled")))
 	gcsExperimentalReaderCancellationCountReasonDeadlineExceededAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "deadline_exceeded")))
 	gcsExperimentalReaderCancellationCountReasonExplicitCloseAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "explicit_close")))
@@ -543,6 +535,14 @@ var (
 	gcsExperimentalReaderCancellationCountReasonSeekAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "seek")))
 	gcsExperimentalReaderCancellationCountReasonSequentialToRandomAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "sequential_to_random")))
 	gcsExperimentalReaderCancellationCountReasonUnknownAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "unknown")))
+	gcsExperimentalReaderCancellationUnreadBytesReasonCanceledAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "canceled")))
+	gcsExperimentalReaderCancellationUnreadBytesReasonDeadlineExceededAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "deadline_exceeded")))
+	gcsExperimentalReaderCancellationUnreadBytesReasonExplicitCloseAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "explicit_close")))
+	gcsExperimentalReaderCancellationUnreadBytesReasonForcedRecreateAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forced_recreate")))
+	gcsExperimentalReaderCancellationUnreadBytesReasonInactiveTimeoutAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "inactive_timeout")))
+	gcsExperimentalReaderCancellationUnreadBytesReasonSeekAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "seek")))
+	gcsExperimentalReaderCancellationUnreadBytesReasonSequentialToRandomAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "sequential_to_random")))
+	gcsExperimentalReaderCancellationUnreadBytesReasonUnknownAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "unknown")))
 	gcsReadCountReadTypeParallelAttrSet                                                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsReadCountReadTypeRandomAttrSet                                                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsReadCountReadTypeSequentialAttrSet                                                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
@@ -1090,14 +1090,6 @@ type otelMetrics struct {
 	gcsExperimentalReadBytesCountReadTypeRandomAtomic                                                              *atomic.Int64
 	gcsExperimentalReadBytesCountReadTypeSequentialAtomic                                                          *atomic.Int64
 	gcsExperimentalReadBytesCountReadTypeUnknownAtomic                                                             *atomic.Int64
-	gcsExperimentalReaderCancellationBytesCountReasonCanceledAtomic                                                *atomic.Int64
-	gcsExperimentalReaderCancellationBytesCountReasonDeadlineExceededAtomic                                        *atomic.Int64
-	gcsExperimentalReaderCancellationBytesCountReasonExplicitCloseAtomic                                           *atomic.Int64
-	gcsExperimentalReaderCancellationBytesCountReasonForcedRecreateAtomic                                          *atomic.Int64
-	gcsExperimentalReaderCancellationBytesCountReasonInactiveTimeoutAtomic                                         *atomic.Int64
-	gcsExperimentalReaderCancellationBytesCountReasonSeekAtomic                                                    *atomic.Int64
-	gcsExperimentalReaderCancellationBytesCountReasonSequentialToRandomAtomic                                      *atomic.Int64
-	gcsExperimentalReaderCancellationBytesCountReasonUnknownAtomic                                                 *atomic.Int64
 	gcsExperimentalReaderCancellationCountReasonCanceledAtomic                                                     *atomic.Int64
 	gcsExperimentalReaderCancellationCountReasonDeadlineExceededAtomic                                             *atomic.Int64
 	gcsExperimentalReaderCancellationCountReasonExplicitCloseAtomic                                                *atomic.Int64
@@ -1160,6 +1152,7 @@ type otelMetrics struct {
 	bufferedReadReadLatency                                                                                        metric.Int64Histogram
 	fileCacheReadLatencies                                                                                         metric.Int64Histogram
 	fsOpsLatency                                                                                                   metric.Int64Histogram
+	gcsExperimentalReaderCancellationUnreadBytes                                                                   metric.Int64Histogram
 	gcsRequestLatencies                                                                                            metric.Int64Histogram
 	readBlockSizes                                                                                                 metric.Int64Histogram
 }
@@ -2428,35 +2421,6 @@ func (o *otelMetrics) GcsExperimentalReadBytesCount(
 	}
 }
 
-func (o *otelMetrics) GcsExperimentalReaderCancellationBytesCount(
-	inc int64, reason Reason) {
-	if inc < 0 {
-		logger.Errorf("Counter metric gcs/experimental_reader_cancellation_bytes_count received a negative increment: %d", inc)
-		return
-	}
-	switch reason {
-	case ReasonCanceledAttr:
-		o.gcsExperimentalReaderCancellationBytesCountReasonCanceledAtomic.Add(inc)
-	case ReasonDeadlineExceededAttr:
-		o.gcsExperimentalReaderCancellationBytesCountReasonDeadlineExceededAtomic.Add(inc)
-	case ReasonExplicitCloseAttr:
-		o.gcsExperimentalReaderCancellationBytesCountReasonExplicitCloseAtomic.Add(inc)
-	case ReasonForcedRecreateAttr:
-		o.gcsExperimentalReaderCancellationBytesCountReasonForcedRecreateAtomic.Add(inc)
-	case ReasonInactiveTimeoutAttr:
-		o.gcsExperimentalReaderCancellationBytesCountReasonInactiveTimeoutAtomic.Add(inc)
-	case ReasonSeekAttr:
-		o.gcsExperimentalReaderCancellationBytesCountReasonSeekAtomic.Add(inc)
-	case ReasonSequentialToRandomAttr:
-		o.gcsExperimentalReaderCancellationBytesCountReasonSequentialToRandomAtomic.Add(inc)
-	case ReasonUnknownAttr:
-		o.gcsExperimentalReaderCancellationBytesCountReasonUnknownAtomic.Add(inc)
-	default:
-		updateUnrecognizedAttribute(string(reason))
-		return
-	}
-}
-
 func (o *otelMetrics) GcsExperimentalReaderCancellationCount(
 	inc int64, reason Reason) {
 	if inc < 0 {
@@ -2483,6 +2447,37 @@ func (o *otelMetrics) GcsExperimentalReaderCancellationCount(
 	default:
 		updateUnrecognizedAttribute(string(reason))
 		return
+	}
+}
+
+func (o *otelMetrics) GcsExperimentalReaderCancellationUnreadBytes(
+	ctx context.Context, value int64, reason Reason) {
+	var record histogramRecord
+	switch reason {
+	case ReasonCanceledAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonCanceledAttrSet}
+	case ReasonDeadlineExceededAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonDeadlineExceededAttrSet}
+	case ReasonExplicitCloseAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonExplicitCloseAttrSet}
+	case ReasonForcedRecreateAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonForcedRecreateAttrSet}
+	case ReasonInactiveTimeoutAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonInactiveTimeoutAttrSet}
+	case ReasonSeekAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonSeekAttrSet}
+	case ReasonSequentialToRandomAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonSequentialToRandomAttrSet}
+	case ReasonUnknownAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonUnknownAttrSet}
+	default:
+		updateUnrecognizedAttribute(string(reason))
+		return
+	}
+
+	select {
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
 	}
 }
 
@@ -3298,15 +3293,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsExperimentalReadBytesCountReadTypeSequentialAtomic,
 		gcsExperimentalReadBytesCountReadTypeUnknownAtomic atomic.Int64
 
-	var gcsExperimentalReaderCancellationBytesCountReasonCanceledAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonDeadlineExceededAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonExplicitCloseAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonForcedRecreateAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonInactiveTimeoutAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonSeekAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonSequentialToRandomAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonUnknownAtomic atomic.Int64
-
 	var gcsExperimentalReaderCancellationCountReasonCanceledAtomic,
 		gcsExperimentalReaderCancellationCountReasonDeadlineExceededAtomic,
 		gcsExperimentalReaderCancellationCountReasonExplicitCloseAtomic,
@@ -3914,22 +3900,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err11 := meter.Int64ObservableCounter("gcs/experimental_reader_cancellation_bytes_count",
-		metric.WithDescription("The cumulative number of bytes successfully read from in-flight GCS object readers that were subsequently canceled/aborted along with the cancellation reason."),
-		metric.WithUnit("By"),
-		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationBytesCountReasonCanceledAtomic, gcsExperimentalReaderCancellationBytesCountReasonCanceledAttrSet)
-			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationBytesCountReasonDeadlineExceededAtomic, gcsExperimentalReaderCancellationBytesCountReasonDeadlineExceededAttrSet)
-			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationBytesCountReasonExplicitCloseAtomic, gcsExperimentalReaderCancellationBytesCountReasonExplicitCloseAttrSet)
-			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationBytesCountReasonForcedRecreateAtomic, gcsExperimentalReaderCancellationBytesCountReasonForcedRecreateAttrSet)
-			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationBytesCountReasonInactiveTimeoutAtomic, gcsExperimentalReaderCancellationBytesCountReasonInactiveTimeoutAttrSet)
-			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationBytesCountReasonSeekAtomic, gcsExperimentalReaderCancellationBytesCountReasonSeekAttrSet)
-			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationBytesCountReasonSequentialToRandomAtomic, gcsExperimentalReaderCancellationBytesCountReasonSequentialToRandomAttrSet)
-			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationBytesCountReasonUnknownAtomic, gcsExperimentalReaderCancellationBytesCountReasonUnknownAttrSet)
-			return nil
-		}))
-
-	_, err12 := meter.Int64ObservableCounter("gcs/experimental_reader_cancellation_count",
+	_, err11 := meter.Int64ObservableCounter("gcs/experimental_reader_cancellation_count",
 		metric.WithDescription("The cumulative number of times an in-flight GCS object reader was canceled along with the cancellation reason."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3943,6 +3914,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &gcsExperimentalReaderCancellationCountReasonUnknownAtomic, gcsExperimentalReaderCancellationCountReasonUnknownAttrSet)
 			return nil
 		}))
+
+	gcsExperimentalReaderCancellationUnreadBytes, err12 := meter.Int64Histogram("gcs/experimental_reader_cancellation_unread_bytes",
+		metric.WithDescription("The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers."),
+		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(0, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728))
 
 	_, err13 := meter.Int64ObservableCounter("gcs/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
@@ -4546,14 +4522,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsExperimentalReadBytesCountReadTypeRandomAtomic:                                                     &gcsExperimentalReadBytesCountReadTypeRandomAtomic,
 		gcsExperimentalReadBytesCountReadTypeSequentialAtomic:                                                 &gcsExperimentalReadBytesCountReadTypeSequentialAtomic,
 		gcsExperimentalReadBytesCountReadTypeUnknownAtomic:                                                    &gcsExperimentalReadBytesCountReadTypeUnknownAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonCanceledAtomic:                                       &gcsExperimentalReaderCancellationBytesCountReasonCanceledAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonDeadlineExceededAtomic:                               &gcsExperimentalReaderCancellationBytesCountReasonDeadlineExceededAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonExplicitCloseAtomic:                                  &gcsExperimentalReaderCancellationBytesCountReasonExplicitCloseAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonForcedRecreateAtomic:                                 &gcsExperimentalReaderCancellationBytesCountReasonForcedRecreateAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonInactiveTimeoutAtomic:                                &gcsExperimentalReaderCancellationBytesCountReasonInactiveTimeoutAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonSeekAtomic:                                           &gcsExperimentalReaderCancellationBytesCountReasonSeekAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonSequentialToRandomAtomic:                             &gcsExperimentalReaderCancellationBytesCountReasonSequentialToRandomAtomic,
-		gcsExperimentalReaderCancellationBytesCountReasonUnknownAtomic:                                        &gcsExperimentalReaderCancellationBytesCountReasonUnknownAtomic,
 		gcsExperimentalReaderCancellationCountReasonCanceledAtomic:                                            &gcsExperimentalReaderCancellationCountReasonCanceledAtomic,
 		gcsExperimentalReaderCancellationCountReasonDeadlineExceededAtomic:                                    &gcsExperimentalReaderCancellationCountReasonDeadlineExceededAtomic,
 		gcsExperimentalReaderCancellationCountReasonExplicitCloseAtomic:                                       &gcsExperimentalReaderCancellationCountReasonExplicitCloseAtomic,
@@ -4562,6 +4530,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsExperimentalReaderCancellationCountReasonSeekAtomic:                                                &gcsExperimentalReaderCancellationCountReasonSeekAtomic,
 		gcsExperimentalReaderCancellationCountReasonSequentialToRandomAtomic:                                  &gcsExperimentalReaderCancellationCountReasonSequentialToRandomAtomic,
 		gcsExperimentalReaderCancellationCountReasonUnknownAtomic:                                             &gcsExperimentalReaderCancellationCountReasonUnknownAtomic,
+		gcsExperimentalReaderCancellationUnreadBytes:                                                          gcsExperimentalReaderCancellationUnreadBytes,
 		gcsReadBytesCountAtomic:                                                            &gcsReadBytesCountAtomic,
 		gcsReadCountReadTypeParallelAtomic:                                                 &gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic:                                                   &gcsReadCountReadTypeRandomAtomic,

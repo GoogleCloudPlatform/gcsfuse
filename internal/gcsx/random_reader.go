@@ -191,8 +191,7 @@ type randomReader struct {
 
 	config *cfg.Config
 
-	connectionReadBytes int64
-	preemptionReason    metrics.Reason
+	preemptionReason metrics.Reason
 
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
@@ -448,7 +447,7 @@ func (rr *randomReader) Destroy() {
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		if rr.reader != nil {
-			rr.closeReader("destroy", metrics.ReadTypeUnknown)
+			rr.closeReader(context.Background(), "destroy", metrics.ReadTypeUnknown)
 		}
 		rr.reader = nil
 		rr.cancel = nil
@@ -570,7 +569,6 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
-	rr.connectionReadBytes = 0
 	rr.preemptionReason = ""
 
 	requestedDataSize := end - start
@@ -705,13 +703,13 @@ func (rr *randomReader) skipBytes(offset int64) {
 // for the requested offset and length. If the reader is misaligned (not at the requested
 // offset) or cannot serve the full request within its limit, it is closed and discarded.
 // LOCKS_REQUIRED (rr.mu)
-func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64, readType int64) {
+func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(ctx context.Context, startOffset, endOffset int64, readType int64) {
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(endOffset), float64(rr.object.Size))
 	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) {
-		rr.closeReader("invalidation", readType)
+		rr.closeReader(ctx, "invalidation", readType)
 		rr.reader = nil
 		rr.cancel = nil
 	}
@@ -723,7 +721,7 @@ func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endO
 // LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) readFromExistingRangeReader(ctx context.Context, p []byte, offset int64) (n int, err error) {
 	rr.skipBytes(offset)
-	rr.invalidateReaderIfMisalignedOrTooSmall(offset, offset+int64(len(p)), rr.readType.Load())
+	rr.invalidateReaderIfMisalignedOrTooSmall(ctx, offset, offset+int64(len(p)), rr.readType.Load())
 	if rr.reader != nil {
 		return rr.readFromRangeReader(ctx, p, offset, offset+int64(len(p)), rr.readType.Load())
 	}
@@ -747,7 +745,6 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	// it as possible.
 	n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
-	rr.connectionReadBytes += int64(n)
 	rr.totalReadBytes.Add(uint64(n))
 
 	// Sanity check.
@@ -755,7 +752,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		err = fmt.Errorf("Reader returned extra bytes: %d", rr.start-rr.limit)
 
 		// Don't attempt to reuse the reader when it's behaving wackily.
-		rr.closeReader("malfunction", metrics.ReadTypeUnknown)
+		rr.closeReader(ctx, "malfunction", metrics.ReadTypeUnknown)
 		rr.reader = nil
 		rr.cancel = nil
 		rr.start = -1
@@ -766,7 +763,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Are we finished with this reader now?
 	if rr.start == rr.limit {
-		rr.closeReader("normal", metrics.ReadTypeUnknown)
+		rr.closeReader(ctx, "normal", metrics.ReadTypeUnknown)
 		rr.reader = nil
 		rr.cancel = nil
 	}
@@ -812,7 +809,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 
 // closeReader fetches the readHandle before closing the reader instance.
 // LOCKS_REQUIRED (rr.mu)
-func (rr *randomReader) closeReader(caller string, readType int64) {
+func (rr *randomReader) closeReader(ctx context.Context, caller string, readType int64) {
 	if rr.reader != nil && rr.start < rr.limit {
 		reason := rr.preemptionReason
 		if reason == "" {
@@ -831,7 +828,8 @@ func (rr *randomReader) closeReader(caller string, readType int64) {
 			rr.preemptionReason = reason
 			rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 		}
-		rr.metricHandle.GcsExperimentalReaderCancellationBytesCount(rr.connectionReadBytes, reason)
+		unreadBytes := rr.limit - rr.start
+		rr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(ctx, unreadBytes, reason)
 	}
 
 	rr.readHandle = rr.reader.ReadHandle()
