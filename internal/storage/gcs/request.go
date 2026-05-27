@@ -245,10 +245,10 @@ type MultiRangeDownloaderRequest struct {
 	ReadHandle []byte
 
 	// Multistream autoscaling settings.
-	MinConnections      int
-	MaxConnections      int
-	TargetPendingRanges int
-	TargetPendingBytes  int
+	MinConnections      int64
+	MaxConnections      int64
+	TargetPendingRanges int64
+	TargetPendingBytes  int64
 }
 
 type StatObjectRequest struct {

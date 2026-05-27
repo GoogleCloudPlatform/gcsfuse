@@ -902,6 +902,33 @@ func Test_isValidMRDConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "invalid_min_connections_without_max_connections_large",
+			mrdConfig: MrdConfig{
+				PoolSize:       1,
+				MinConnections: 5,
+				MaxConnections: 0,
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid_min_connections_without_max_connections_small",
+			mrdConfig: MrdConfig{
+				PoolSize:       1,
+				MinConnections: 2,
+				MaxConnections: 0,
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid_both_connections_zero",
+			mrdConfig: MrdConfig{
+				PoolSize:       1,
+				MinConnections: 0,
+				MaxConnections: 0,
+			},
+			wantErr: false,
+		},
+		{
 			name: "invalid_target_pending_ranges_negative",
 			mrdConfig: MrdConfig{
 				PoolSize:            1,

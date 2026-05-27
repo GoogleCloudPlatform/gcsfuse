@@ -306,6 +306,9 @@ func isValidMRDConfig(mrdConfig *MrdConfig) error {
 	if mrdConfig.MaxConnections < 0 {
 		return fmt.Errorf("invalid value of max-connections: %d; should be >=0", mrdConfig.MaxConnections)
 	}
+	if mrdConfig.MinConnections > 0 && mrdConfig.MaxConnections == 0 {
+		return fmt.Errorf("max-connections must be specified when min-connections (%d) is set", mrdConfig.MinConnections)
+	}
 	if mrdConfig.MinConnections > 0 && mrdConfig.MaxConnections > 0 && mrdConfig.MinConnections > mrdConfig.MaxConnections {
 		return fmt.Errorf("min-connections (%d) cannot be greater than max-connections (%d)", mrdConfig.MinConnections, mrdConfig.MaxConnections)
 	}
