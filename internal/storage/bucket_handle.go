@@ -715,9 +715,27 @@ func (bh *bucketHandle) NewMultiRangeDownloader(
 		obj = obj.ReadHandle(req.ReadHandle)
 	}
 
-	var opts []storage.MRDOption
+	minConnections := req.MinConnections
+	if minConnections <= 0 {
+		minConnections = 1
+	}
+	maxConnections := req.MaxConnections
+	if maxConnections <= 0 {
+		maxConnections = 4
+	}
+
+	opts := []storage.MRDOption{
+		storage.WithMinConnections(minConnections),
+		storage.WithMaxConnections(maxConnections),
+	}
 	if bh.disableGrpcReadChecksums {
 		opts = append(opts, storage.WithDisableMRDReadChecksum())
+	}
+	if req.TargetPendingRanges > 0 {
+		opts = append(opts, storage.WithTargetPendingRanges(req.TargetPendingRanges))
+	}
+	if req.TargetPendingBytes > 0 {
+		opts = append(opts, storage.WithTargetPendingBytes(req.TargetPendingBytes))
 	}
 
 	mrd, err = obj.NewMultiRangeDownloader(ctx, opts...)
