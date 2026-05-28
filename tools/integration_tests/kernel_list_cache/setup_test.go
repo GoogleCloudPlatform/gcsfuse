@@ -104,10 +104,10 @@ func TestMain(m *testing.M) {
 		mountDir = rootDir
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
 	}
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, testDirName)
 	os.Exit(successCode)
 }

@@ -94,7 +94,7 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	}
 }
 
-func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
+func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder2
@@ -103,6 +103,10 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+
+	// Clean up any leftover test data from previous interrupted runs to prevent object count assertions from failing.
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, TestDirForManagedFolderTest)
+
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
@@ -118,7 +122,7 @@ func cleanup(ctx context.Context, client *storage.Client, bucket, testDir, servi
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, iam_role, t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket())
-	setup.CleanupDirectoryOnGCS(ctx, client, path.Join(bucket, testDir))
+	setup.CleanupDirectoryOnGCS(ctx, client, TestDirForManagedFolderTest)
 }
 
 func listNonEmptyManagedFolders(t *testing.T) {
@@ -142,7 +146,7 @@ func listNonEmptyManagedFolders(t *testing.T) {
 		if dir.Name() == TestDirForManagedFolderTest {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForNonEmptyManagedFoldersListTest {
-				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForNonEmptyManagedFoldersListTest, len(objs))
+				t.Fatalf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForNonEmptyManagedFoldersListTest, len(objs))
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1  -- ManagedFolder1
@@ -170,34 +174,34 @@ func listNonEmptyManagedFolders(t *testing.T) {
 		if dir.Name() == ManagedFolder1 {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
-				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
+				t.Fatalf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile  -- FileInNonEmptyManagedFoldersTest
 			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
 			}
 		}
 		// Ensure subDirectory is not empty.
 		if dir.Name() == ManagedFolder2 {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
-				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
+				t.Fatalf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile  -- FileInNonEmptyManagedFoldersTest
 			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
 			}
 		}
 		// Check if subDirectory is empty.
 		if dir.Name() == SimulatedFolderNonEmptyManagedFoldersTest {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
-				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
+				t.Fatalf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile  -- FileInNonEmptyManagedFoldersTest
 			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[0].Name())
 			}
 		}
 		return nil

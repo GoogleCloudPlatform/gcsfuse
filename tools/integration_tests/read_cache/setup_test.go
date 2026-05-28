@@ -104,6 +104,8 @@ func setupForMountedDirectoryTests() {
 }
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
+	// Clean up any leftover test data from previous runs to ensure a clean state.
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
@@ -181,10 +183,10 @@ func TestMain(m *testing.M) {
 		mountDir = rootDir
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
 	}
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, testDirName)
 	os.Exit(successCode)
 }
