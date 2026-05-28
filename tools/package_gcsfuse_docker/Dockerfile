@@ -17,7 +17,7 @@
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
-FROM golang:1.26.3 as builder
+FROM golang:1.26.3-bookworm as builder
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
 
@@ -87,5 +87,5 @@ RUN fpm \
     --rpm-digest sha256 \
     --license Apache-2.0 \
     --vendor "" \
-    --url "https://$GCSFUSE_REPO" \
+    --url "$GCSFUSE_REPO" \
     --description "A user-space file system for Google Cloud Storage."
