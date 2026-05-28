@@ -480,8 +480,14 @@ function run_non_parallel_tests() {
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE" # Use double quotes for log_file
+
+    local zonal_arg=""
+    if [[ -n "$major" ]] && [[ "$major" -gt 2 || ( "$major" -eq 2 && "$minor" -ge 12 ) ]]; then
+      zonal_arg="--zonal=${zonal}"
+    fi
+
     if [[ -d "$test_path_non_parallel" ]]; then
-      GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" $GO_TEST_SHORT_FLAG -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
+      GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" $GO_TEST_SHORT_FLAG -p 1 $zonal_arg --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
       exit_code_non_parallel=$?
     else
       echo "Test path $test_path_non_parallel does not exist. Skipping tests." >> "$log_file"
@@ -521,8 +527,14 @@ function run_parallel_tests() {
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE"
+
+    local zonal_arg=""
+    if [[ -n "$major" ]] && [[ "$major" -gt 2 || ( "$major" -eq 2 && "$minor" -ge 12 ) ]]; then
+      zonal_arg="--zonal=${zonal}"
+    fi
+
     if [[ -d "$test_path_parallel" ]]; then
-      GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" $GO_TEST_SHORT_FLAG -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
+      GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" $GO_TEST_SHORT_FLAG -p 1 $zonal_arg --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
       pid=$!
       pids+=("$pid")
     else
@@ -557,6 +569,12 @@ function run_e2e_tests() {
   local -n test_dir_non_parallel=$3
   local is_zonal=$4
   local overall_exit_code=0
+
+  # Skip execution entirely if a zonal test is requested on a version prior to v2.12.0
+  if [[ "$is_zonal" == "true" ]] && [[ -n "$major" ]] && [[ "$major" -lt 2 || ( "$major" -eq 2 && "$minor" -lt 12 ) ]]; then
+    echo "GCSFuse version $VERSION is prior to 2.12.0. Skipping $testcase tests completely."
+    return 0
+  fi
 
   prefix=${VM_INSTANCE_NAME}
   if [[ "$testcase" != "flat" ]]; then
