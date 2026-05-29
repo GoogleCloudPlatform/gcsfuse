@@ -17,40 +17,46 @@ Agents must apply this skill when reviewing pull requests, inspecting local diff
 
 ## 2. GCSFuse Architectural Anatomy & Boundaries
 
-Understanding and maintaining the core decoupling in GCSFuse is necessary to prevent structural erosion. The block diagram below traces the path of a typical system-level FUSE request down to the Google Cloud Storage API:
+Understanding and maintaining the core decoupling in GCSFuse is necessary to prevent structural erosion. The text diagram below traces the path of a typical system-level FUSE request down to the Google Cloud Storage API:
 
-```mermaid
-graph TD
-    subgraph Client Application Layer
-        OS["Operating System (Kernel FUSE Driver)"]
-    end
-
-    subgraph Filesystem Interface (FS)
-        FS_L["internal/fs package"]
-        IN["inode.go / dir.go / file.go"]
-    end
-
-    subgraph Extension & Coordination Layer (GCSX)
-        BM["internal/gcsx (BucketManager / Syncer)"]
-        FC["internal/cache (File / Stat / Metadata caches)"]
-    end
-
-    subgraph Low-level Storage Client Wrapper
-        ST["internal/storage package (GCS Storage Client)"]
-        AU["internal/auth package (OAuth / LibAuth)"]
-    end
-
-    subgraph External services
-        GCS["Google Cloud Storage JSON/gRPC APIs"]
-    end
-
-    OS -->|FUSE syscall requests| FS_L
-    FS_L -->|Dispatches calls| IN
-    IN -->|Delegates to bucket cache/syncer| BM
-    BM -->|Interacts with local store| FC
-    BM -->|Resolves remote references| ST
-    ST -->|Performs authenticated net connection| AU
-    ST -->|Executes API calls| GCS
+```text
++-------------------------------------------------------------+
+|                  Client Application Layer                   |
+|         [Operating System (Kernel FUSE Driver)]             |
++-------------------------------------------------------------+
+                              |
+                              v  (FUSE syscall requests)
++-------------------------------------------------------------+
+|                 Filesystem Interface (FS)                   |
+|                  [internal/fs package]                      |
+|                            |                                |
+|                            v  (Dispatches calls)            |
+|               [inode.go / dir.go / file.go]                 |
++-------------------------------------------------------------+
+                              |
+                              v  (Delegates to bucket cache/syncer)
++-------------------------------------------------------------+
+|             Extension & Coordination Layer (GCSX)           |
+|         [internal/gcsx (BucketManager / Syncer)]            |
+|                            |                                |
+|                            v  (Interacts with local store)  |
+|         [internal/cache (File/Stat/Metadata caches)]        |
++-------------------------------------------------------------+
+                              |
+                              v  (Resolves remote references)
++-------------------------------------------------------------+
+|             Low-level Storage Client Wrapper                |
+|       [internal/storage (GCS Storage Client)]               |
+|                            |                                |
+|                            v  (Performs authenticated net)  |
+|               [internal/auth (OAuth / LibAuth)]             |
++-------------------------------------------------------------+
+                              |
+                              v  (Executes API calls)
++-------------------------------------------------------------+
+|                     External Services                       |
+|           [Google Cloud Storage JSON/gRPC APIs]             |
++-------------------------------------------------------------+
 ```
 
 ### Architectural Directory Map & Responsibilities
@@ -273,14 +279,40 @@ Verify that functional changes are tested under the matching suite directory:
 
 When performing a code review, follow this systematic evaluation process:
 
-```mermaid
-graph TD
-    Step1[1. Run Static Validation] --> Step2[2. Review Module Architecture]
-    Step2 --> Step3[3. Trace Concurrency and Locking Safety]
-    Step3 --> Step4[4. Verify Contexts and Errors]
-    Step4 --> Step5[5. Audit Code Generators]
-    Step5 --> Step6[6. Evaluate Test Coverage]
-    Step6 --> Step7[7. Output Code Review Report]
+```text
+  +-------------------------------------------------+
+  |            1. Run Static Validation             |
+  +-------------------------------------------------+
+                           |
+                           v
+  +-------------------------------------------------+
+  |          2. Review Module Architecture          |
+  +-------------------------------------------------+
+                           |
+                           v
+  +-------------------------------------------------+
+  |      3. Trace Concurrency and Locking Safety    |
+  +-------------------------------------------------+
+                           |
+                           v
+  +-------------------------------------------------+
+  |          4. Verify Contexts and Errors          |
+  +-------------------------------------------------+
+                           |
+                           v
+  +-------------------------------------------------+
+  |            5. Audit Code Generators             |
+  +-------------------------------------------------+
+                           |
+                           v
+  +-------------------------------------------------+
+  |           6. Evaluate Test Coverage             |
+  +-------------------------------------------------+
+                           |
+                           v
+  +-------------------------------------------------+
+  |          7. Output Code Review Report           |
+  +-------------------------------------------------+
 ```
 
 ### Step 1: Run Static Validation
