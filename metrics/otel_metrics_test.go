@@ -4804,6 +4804,15 @@ func TestGcsExperimentalReaderCancellationCount(t *testing.T) {
 			},
 		},
 		{
+			name: "reason_normal",
+			f: func(m *otelMetrics) {
+				m.GcsExperimentalReaderCancellationCount(5, "normal")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "normal")): 5,
+			},
+		},
+		{
 			name: "reason_seek",
 			f: func(m *otelMetrics) {
 				m.GcsExperimentalReaderCancellationCount(5, "seek")
@@ -4905,6 +4914,11 @@ func TestGcsExperimentalReaderCancellationUnreadBytes(t *testing.T) {
 			name:      "reason_inactive_timeout",
 			values: []int64{100, 200},
 			reason: "inactive_timeout",
+		},
+		{
+			name:      "reason_normal",
+			values: []int64{100, 200},
+			reason: "normal",
 		},
 		{
 			name:      "reason_seek",

@@ -810,7 +810,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 // closeReader fetches the readHandle before closing the reader instance.
 // LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) closeReader(ctx context.Context, caller string, readType int64) {
-	if rr.reader != nil && rr.start < rr.limit {
+	if rr.reader != nil && rr.start <= rr.limit {
 		reason := rr.preemptionReason
 		if reason == "" {
 			switch caller {
@@ -822,6 +822,8 @@ func (rr *randomReader) closeReader(ctx context.Context, caller string, readType
 				} else {
 					reason = metrics.ReasonSeekAttr
 				}
+			case "normal":
+				reason = metrics.ReasonNormalAttr
 			default:
 				reason = metrics.ReasonUnknownAttr
 			}

@@ -133,6 +133,7 @@ const (
 	ReasonInactiveTimeoutAttr Reason = "inactive_timeout"
 	ReasonInitialOffsetNonZeroAttr Reason = "initial_offset_non_zero"
 	ReasonInsufficientMemoryAttr Reason = "insufficient_memory"
+	ReasonNormalAttr Reason = "normal"
 	ReasonRandomReadDetectedAttr Reason = "random_read_detected"
 	ReasonSeekAttr Reason = "seek"
 	ReasonSequentialToRandomAttr Reason = "sequential_to_random"

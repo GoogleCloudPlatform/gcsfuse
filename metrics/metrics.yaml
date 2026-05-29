@@ -175,6 +175,7 @@
     - "explicit_close"
     - "forced_recreate"
     - "inactive_timeout"
+    - "normal"
     - "seek"
     - "sequential_to_random"
     - "unknown"
@@ -185,6 +186,7 @@
   type: "int_histogram"
   boundaries:
   - 0 # To detect EOF scenarios
+  - 1
   - 8192
   - 16384
   - 32768

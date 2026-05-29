@@ -1444,3 +1444,28 @@ func (t *RandomReaderStretchrTest) Test_Destroy_PartiallyReadSequentialReaderRec
 	assert.Nil(t.T(), wrapped.reader)
 	mh.AssertExpectations(t.T())
 }
+
+func (t *RandomReaderStretchrTest) Test_CloseReader_CompletelyReadStreamRecordsMetric() {
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForCancellation{}
+	// Expect ReasonNormalAttr and ReasonNormalAttr bytes with value 0 to be called!
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonNormalAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(0), metrics.ReasonNormalAttr).Return().Once()
+
+	// Initialize random reader
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, mh, tracing.NewNoopTracer(), nil, nil, 0)
+	wrapped := rr.(*randomReader)
+
+	// Simulate an existing, completely read reader.
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader(""))}
+	wrapped.reader = rc
+	wrapped.start = 6
+	wrapped.limit = 6
+	wrapped.cancel = func() {}
+
+	// Act: trigger closing via normal path
+	wrapped.closeReader(context.Background(), "normal", metrics.ReadTypeUnknown)
+
+	// Assert: verify normal metric is logged correctly!
+	mh.AssertExpectations(t.T())
+}
