@@ -82,27 +82,30 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	mountConfig := &cfg.Config{}
 
-	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig), "testFS-123")
+	userAgent := getUserAgent("AppName", mountConfig, "testFS-123")
 
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
+	expectedConfigProto, _ := cfg.SerializeConfigToProtoBase64(mountConfig)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (CfgProto:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigProto))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	mountConfig := &cfg.Config{}
 
-	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig), "testFS-123")
+	userAgent := getUserAgent("AppName", mountConfig, "testFS-123")
 
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
+	expectedConfigProto, _ := cfg.SerializeConfigToProtoBase64(mountConfig)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (CfgProto:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigProto))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
 	mountConfig := &cfg.Config{}
 
-	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig), "testFS-123")
+	userAgent := getUserAgent("AppName", mountConfig, "testFS-123")
 
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
+	expectedConfigProto, _ := cfg.SerializeConfigToProtoBase64(mountConfig)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (CfgProto:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigProto))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -262,19 +265,24 @@ func (t *MainTest) TestGetUserAgentConfig() {
 
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(t *testing.T) {
-			userAgent := getUserAgent("AppName", getConfigForUserAgent(tc.mountConfig), "testFS-123")
+			userAgent := getUserAgent("AppName", tc.mountConfig, "testFS-123")
 
-			assert.Equal(t, tc.expectedUserAgent, userAgent)
+			expectedConfigProto, _ := cfg.SerializeConfigToProtoBase64(tc.mountConfig)
+			expectedUA := strings.Replace(tc.expectedUserAgent, ") (mount-id:", fmt.Sprintf(") (CfgProto:%s) (mount-id:", expectedConfigProto), 1)
+
+			assert.Equal(t, expectedUA, userAgent)
 		})
 	}
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSet() {
 	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
 	mountConfig := &cfg.Config{}
 
-	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig), "testFS-123")
+	userAgent := getUserAgent("", mountConfig, "testFS-123")
+
+	expectedConfigProto, _ := cfg.SerializeConfigToProtoBase64(mountConfig)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (CfgProto:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigProto))
 
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }

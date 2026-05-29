@@ -1,0 +1,270 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// GENERATED CODE - DO NOT EDIT MANUALLY.
+
+syntax = "proto3";
+
+package cfg;
+
+option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb;pb";
+
+
+
+message CloudProfilerConfig {
+  bool allocated_heap = 343497;
+  bool cpu = 382386;
+  bool enabled = 393223;
+  bool goroutines = 410647;
+  bool heap = 201992;
+  string label = 331366;
+  bool mutex = 88109;
+  string service_name = 217368;
+}
+
+
+message Config {
+  string app_name = 73902;
+  string cache_dir = 51295;
+  CloudProfilerConfig cloud_profiler = 364966;
+  DebugConfig debug = 242627;
+  bool disable_autoconfig = 192713;
+  bool disable_list_access_check = 457418;
+  DummyIoConfig dummy_io = 422490;
+  bool enable_atomic_rename_object = 355529;
+  bool enable_google_lib_auth = 293633;
+  bool enable_hns = 284296;
+  bool enable_new_reader = 26510;
+  bool enable_standard_symlinks = 157602;
+  bool enable_type_cache_deprecation = 164385;
+  bool enable_unsupported_path_support = 210940;
+  FileCacheConfig file_cache = 379494;
+  FileSystemConfig file_system = 352829;
+  bool foreground = 63171;
+  GcsAuthConfig gcs_auth = 347401;
+  GcsConnectionConfig gcs_connection = 13127;
+  GcsRetriesConfig gcs_retries = 213445;
+  bool implicit_dirs = 258965;
+  ListConfig list = 190004;
+  LoggingConfig logging = 418053;
+  string machine_type = 409041;
+  MetadataCacheConfig metadata_cache = 471157;
+  MetricsConfig metrics = 413357;
+  MrdConfig mrd = 351533;
+  string only_dir = 396853;
+  string profile = 228981;
+  ReadConfig read = 61568;
+  TraceConfig trace = 477569;
+  WorkloadInsightConfig workload_insight = 478843;
+  WriteConfig write = 57215;
+}
+
+
+message DebugConfig {
+  bool exit_on_invariant_violation = 420411;
+  bool fuse = 6158;
+  bool gcs = 386700;
+  bool log_mutex = 82554;
+}
+
+
+message DummyIoConfig {
+  bool enable = 200815;
+  int64 per_mb_latency = 129860;
+  int64 reader_latency = 268973;
+}
+
+
+message FileCacheConfig {
+  bool cache_file_for_range_read = 628;
+  int64 download_chunk_size_mb = 318217;
+  bool enable_crc = 125577;
+  bool enable_experimental_shared_chunk_cache = 57409;
+  bool enable_o_direct = 317431;
+  bool enable_parallel_downloads = 434047;
+  string exclude_regex = 62361;
+  bool experimental_disable_size_calculation_fix = 115425;
+  bool experimental_enable_chunk_cache = 27938;
+  bool experimental_parallel_downloads_default_on = 206280;
+  string include_regex = 20995;
+  int64 max_parallel_downloads = 382340;
+  int64 max_size_mb = 435444;
+  int64 parallel_downloads_per_file = 248153;
+  int64 shared_cache_chunk_size_mb = 328346;
+  int64 write_buffer_size = 222860;
+}
+
+
+message FileSystemConfig {
+  int64 congestion_threshold = 181165;
+  uint32 dir_mode = 4707;
+  bool disable_parallel_dirops = 147085;
+  bool enable_kernel_reader = 156900;
+  bool experimental_enable_dentry_cache = 195144;
+  bool experimental_enable_pirlo = 78260;
+  bool experimental_enable_readdirplus = 34347;
+  bool experimental_o_direct = 194785;
+  uint32 file_mode = 468780;
+  repeated string fuse_options = 304576;
+  int64 gid = 446359;
+  bool ignore_interrupts = 37905;
+  int64 inactive_mrd_cache_size = 235600;
+  int64 kernel_list_cache_ttl_secs = 260428;
+  string kernel_params_file = 403604;
+  int64 max_background = 141989;
+  int64 max_read_ahead_kb = 171241;
+  int64 rename_dir_limit = 190203;
+  string temp_dir = 204148;
+  int64 uid = 488485;
+}
+
+
+message GcsAuthConfig {
+  bool anonymous_access = 245234;
+  string key_file = 7804;
+  bool reuse_token_from_url = 176981;
+  string token_url = 468997;
+}
+
+
+message GcsConnectionConfig {
+  string billing_project = 138317;
+  string client_protocol = 314440;
+  string custom_endpoint = 274323;
+  bool enable_http_dns_cache = 190565;
+  bool experimental_enable_json_read = 438788;
+  string experimental_local_socket_address = 63865;
+  int64 grpc_conn_pool_size = 36846;
+  string grpc_path_strategy = 212955;
+  int64 http_client_timeout = 332607;
+  double limit_bytes_per_sec = 171151;
+  double limit_ops_per_sec = 371862;
+  int64 max_conns_per_host = 323531;
+  int64 max_idle_conns_per_host = 432085;
+  int64 sequential_read_size_mb = 418558;
+}
+
+
+message GcsRetriesConfig {
+  int64 chunk_retry_deadline_secs = 79302;
+  int64 chunk_transfer_timeout_secs = 185562;
+  bool enable_mount_retries = 354929;
+  bool experimental_nonrapid_folder_api_stall_retry = 214282;
+  int64 max_retry_attempts = 191921;
+  int64 max_retry_sleep = 488794;
+  double multiplier = 229918;
+  ReadStallGcsRetriesConfig read_stall = 137333;
+}
+
+
+message ListConfig {
+  bool enable_empty_managed_folders = 88668;
+}
+
+
+message LogRotateLoggingConfig {
+  int64 backup_file_count = 269269;
+  bool compress = 152778;
+  int64 max_file_size_mb = 31782;
+}
+
+
+message LoggingConfig {
+  string file_path = 451460;
+  string format = 32146;
+  LogRotateLoggingConfig log_rotate = 487752;
+  string severity = 343262;
+  string wire_log = 2752;
+}
+
+
+message MetadataCacheConfig {
+  int64 deprecated_stat_cache_capacity = 425746;
+  int64 deprecated_stat_cache_ttl = 153796;
+  int64 deprecated_type_cache_ttl = 40910;
+  bool enable_metadata_prefetch = 333280;
+  bool enable_nonexistent_type_cache = 219903;
+  string experimental_metadata_prefetch_on_mount = 152217;
+  int64 metadata_prefetch_entries_limit = 361448;
+  int64 metadata_prefetch_max_workers = 69462;
+  int64 negative_ttl_secs = 249570;
+  int64 stat_cache_max_size_mb = 288003;
+  int64 ttl_secs = 311261;
+  int64 type_cache_max_size_mb = 101065;
+}
+
+
+message MetricsConfig {
+  int64 buffer_size = 450462;
+  int64 cloud_metrics_export_interval_secs = 21430;
+  bool experimental_enable_grpc_metrics = 310293;
+  int64 prometheus_port = 271658;
+  int64 stackdriver_export_interval = 453448;
+  bool use_new_names = 480836;
+  int64 workers = 17446;
+}
+
+
+message MrdConfig {
+  int64 pool_size = 296546;
+}
+
+
+message ReadConfig {
+  int64 block_size_mb = 5463;
+  bool enable_buffered_read = 233524;
+  int64 global_max_blocks = 438873;
+  int64 inactive_stream_timeout = 499614;
+  int64 max_blocks_per_handle = 260323;
+  int64 min_blocks_per_handle = 168549;
+  int64 random_seek_threshold = 314600;
+  int64 start_blocks_per_handle = 419985;
+}
+
+
+message ReadStallGcsRetriesConfig {
+  bool enable = 74078;
+  int64 initial_req_timeout = 165638;
+  int64 max_req_timeout = 3772;
+  int64 min_req_timeout = 427942;
+  double req_increase_rate = 172205;
+  double req_target_percentile = 423077;
+}
+
+
+message TraceConfig {
+  repeated string exporters = 129389;
+  string project_id = 308719;
+  double sampling_ratio = 262775;
+}
+
+
+message WorkloadInsightConfig {
+  int64 forward_merge_threshold_mb = 7926;
+  string output_file = 35900;
+  bool visualize = 403503;
+}
+
+
+message WriteConfig {
+  int64 block_size_mb = 332980;
+  bool create_empty_file = 177600;
+  bool enable_rapid_appends = 292261;
+  bool enable_rapid_writes = 319404;
+  bool enable_streaming_writes = 403470;
+  bool finalize_file_on_close = 350104;
+  int64 global_max_blocks = 117142;
+  int64 max_blocks_per_file = 448118;
+}
+

@@ -24,6 +24,7 @@ import (
 	"path"
 	"reflect"
 	"slices"
+	"strings"
 	"text/template" // NOLINT
 	"unicode"
 
@@ -77,8 +78,11 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 	}()
 	// Define the custom function map.
 	funcMap := template.FuncMap{
-		"formatValue": formatValue,
-		"title":       cases.Title(language.English).String,
+		"formatValue":    formatValue,
+		"title":          cases.Title(language.English).String,
+		"protoType":      protoType,
+		"protoFieldName": protoFieldName,
+		"protoTag":       protoTag,
 	}
 
 	file := path.Base(templateFile)
@@ -152,6 +156,20 @@ func main() {
 			panic(fmt.Sprintf("failed to generate file %q: %v", generatedFilePath, err))
 		}
 	}
+
+	// Generate config.proto
+	protoFilePath := path.Join(*outDir, "config.proto")
+	protoTemplatePath := path.Join(*templateDir, "config.proto.tpl")
+	err = write(templateData{
+		FlagTemplateData:      fd,
+		TypeTemplateData:      td,
+		MachineTypeToGroupMap: machineTypeToGroupMap,
+		MachineTypeGroups:     paramsYAML.MachineTypeGroups,
+		Backticks:             "`",
+	}, protoFilePath, protoTemplatePath)
+	if err != nil {
+		panic(fmt.Sprintf("failed to generate file %q: %v", protoFilePath, err))
+	}
 }
 
 // formatValue is a custom template function that correctly formats values for Go code.
@@ -174,4 +192,57 @@ func formatValue(v any) string {
 		// Use %v for other types like int, bool, etc.
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+func protoType(goType string) string {
+	switch goType {
+	case "bool":
+		return "bool"
+	case "string", "LogSeverity", "Protocol", "DirectPathStrategy", "ResolvedPath":
+		return "string"
+	case "int64", "time.Duration":
+		return "int64"
+	case "Octal":
+		return "uint32"
+	case "float64":
+		return "double"
+	case "[]string":
+		return "repeated string"
+	case "[]int64":
+		return "repeated int64"
+	default:
+		return goType
+	}
+}
+
+func protoFieldName(name string) string {
+	var buf strings.Builder
+	for i, r := range name {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				buf.WriteByte('_')
+			}
+			buf.WriteRune(unicode.ToLower(r))
+		} else {
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
+}
+
+func protoTag(typeName string, fieldName string) int {
+	// Create a unique key based on type name and field name
+	key := typeName + "." + fieldName
+	const prime = 16777619
+	var hash uint32 = 2166136261
+	for i := 0; i < len(key); i++ {
+		hash ^= uint32(key[i])
+		hash *= prime
+	}
+	// Map to [1, 500000]
+	val := int(hash%500000) + 1
+	if val >= 19000 && val <= 19999 {
+		val += 1000
+	}
+	return val
 }
