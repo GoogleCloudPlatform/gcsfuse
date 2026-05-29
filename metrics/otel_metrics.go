@@ -3857,7 +3857,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	gcsExperimentalReaderLifespanBytes, err11 := meter.Int64Histogram("gcs/experimental_reader_lifespan_bytes",
 		metric.WithDescription("The distribution of bytes read or left unread by an in-flight GCS object reader before it was closed, tracked across preemption triggers and byte states (read vs. unread)."),
 		metric.WithUnit("By"),
-		metric.WithExplicitBucketBoundaries(0, 1, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728))
+		metric.WithExplicitBucketBoundaries(0, 1, 1048576, 4194304, 16777216, 33554432, 52428800, 67108864, 104857600, 134217728, 268435456, 536870912))
 
 
 	_, err12 := meter.Int64ObservableCounter("gcs/read_bytes_count",
