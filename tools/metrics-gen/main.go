@@ -89,6 +89,14 @@ var funcMap = template.FuncMap{
 	"getLatencyUnit":              getLatencyUnit,
 	"getLatencyMethod":            getLatencyMethod,
 	"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
+	"hasEmptyValue": func(values []string) bool {
+		for _, v := range values {
+			if v == "" {
+				return true
+			}
+		}
+		return false
+	},
 }
 
 func toPascal(s string) string {
@@ -198,6 +206,9 @@ func getTestFuncArgs(combo AttrCombination) string {
 func getExpectedAttrs(combo AttrCombination) string {
 	var parts []string
 	for _, pair := range combo {
+		if pair.Value == "" {
+			continue
+		}
 		if pair.Type != "bool" {
 			parts = append(parts, fmt.Sprintf(`attribute.String("%s", "%s")`, pair.Name, pair.Value))
 		} else { // bool

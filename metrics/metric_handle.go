@@ -24,6 +24,7 @@ import (
 type EntryStatus string
 
 const (
+	EntryStatusAttr         EntryStatus = ""
 	EntryStatusNegativeAttr EntryStatus = "negative"
 	EntryStatusPositiveAttr EntryStatus = "positive"
 )

@@ -279,11 +279,16 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			metric, ok := metrics["{{.Name}}"]
 			require.True(t, ok, "{{.Name}} metric not found")
 
-			attrs := []attribute.KeyValue{
-				{{- range .Attributes}}
-				attribute.{{if eq .Type "bool"}}Bool("{{.Name}}", tc.{{toCamel .Name}}){{else}}String("{{.Name}}", string(tc.{{toCamel .Name}})){{end}},
-				{{- end}}
+			var attrs []attribute.KeyValue
+			{{- range .Attributes}}
+			{{if eq .Type "bool" -}}
+			attrs = append(attrs, attribute.Bool("{{.Name}}", tc.{{toCamel .Name}}))
+			{{- else -}}
+			if tc.{{toCamel .Name}} != "" {
+				attrs = append(attrs, attribute.String("{{.Name}}", string(tc.{{toCamel .Name}})))
 			}
+			{{- end}}
+			{{- end}}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
 			dp, ok := metric[expectedKey]

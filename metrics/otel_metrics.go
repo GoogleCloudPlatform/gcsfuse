@@ -569,12 +569,18 @@ var (
 	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")))
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")))
+	metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailFoundAttrSet                                  = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "found")))
+	metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailNotFoundAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "not_found")))
+	metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailTtlExpiredAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "ttl_expired")))
 	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")))
 	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")))
 	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")))
 	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "found")))
 	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "not_found")))
 	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")))
+	metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailFoundAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("lookup_detail", "found")))
+	metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailNotFoundAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("lookup_detail", "not_found")))
+	metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailTtlExpiredAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("lookup_detail", "ttl_expired")))
 	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")))
 	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")))
 	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "ttl_expired")))
@@ -1086,12 +1092,18 @@ type otelMetrics struct {
 	gcsRequestCountGcsMethodUpdateObjectAtomic                                                            *atomic.Int64
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic                                                      *atomic.Int64
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic                                               *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailFoundAtomic                                  *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailNotFoundAtomic                               *atomic.Int64
+	metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailTtlExpiredAtomic                             *atomic.Int64
 	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic                          *atomic.Int64
 	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic                       *atomic.Int64
 	metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic                     *atomic.Int64
 	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic                          *atomic.Int64
 	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic                       *atomic.Int64
 	metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic                     *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailFoundAtomic                                 *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailNotFoundAtomic                              *atomic.Int64
+	metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailTtlExpiredAtomic                            *atomic.Int64
 	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic                         *atomic.Int64
 	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic                      *atomic.Int64
 	metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic                    *atomic.Int64
@@ -2528,6 +2540,18 @@ func (o *otelMetrics) MetadataCacheReadCount(
 	switch cacheHit {
 	case true:
 		switch entryStatus {
+		case EntryStatusAttr:
+			switch lookupDetail {
+			case LookupDetailFoundAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailFoundAtomic.Add(inc)
+			case LookupDetailNotFoundAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailNotFoundAtomic.Add(inc)
+			case LookupDetailTtlExpiredAttr:
+				o.metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailTtlExpiredAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(lookupDetail))
+				return
+			}
 		case EntryStatusNegativeAttr:
 			switch lookupDetail {
 			case LookupDetailFoundAttr:
@@ -2558,6 +2582,18 @@ func (o *otelMetrics) MetadataCacheReadCount(
 		}
 	case false:
 		switch entryStatus {
+		case EntryStatusAttr:
+			switch lookupDetail {
+			case LookupDetailFoundAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailFoundAtomic.Add(inc)
+			case LookupDetailNotFoundAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailNotFoundAtomic.Add(inc)
+			case LookupDetailTtlExpiredAttr:
+				o.metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailTtlExpiredAtomic.Add(inc)
+			default:
+				updateUnrecognizedAttribute(string(lookupDetail))
+				return
+			}
 		case EntryStatusNegativeAttr:
 			switch lookupDetail {
 			case LookupDetailFoundAttr:
@@ -3138,12 +3174,18 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	var gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
 
-	var metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic,
+	var metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailTtlExpiredAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic,
@@ -3755,12 +3797,18 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("Total number of read requests to the metadata cache. Use attributes to analyze hit/miss ratios, entry types, and specific lookup outcomes (e.g., expiration vs. total absence)."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailNotFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailTtlExpiredAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailFoundAtomic, metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailNotFoundAttrSet)
+			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailTtlExpiredAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic, metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic, metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAttrSet)
 			conditionallyObserve(obsrv, &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic, metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAttrSet)
@@ -4295,12 +4343,18 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRequestLatencies:                                                                gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:                                   &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:                            &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailFoundAtomic:               &metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailNotFoundAtomic:            &metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailTtlExpiredAtomic:          &metadataCacheReadCountCacheHitTrueEntryStatusLookupDetailTtlExpiredAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic:       &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailFoundAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic:    &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailNotFoundAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic:  &metadataCacheReadCountCacheHitTrueEntryStatusNegativeLookupDetailTtlExpiredAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic:       &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailFoundAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic:    &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailNotFoundAtomic,
 		metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic:  &metadataCacheReadCountCacheHitTrueEntryStatusPositiveLookupDetailTtlExpiredAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailFoundAtomic:              &metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailNotFoundAtomic:           &metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailNotFoundAtomic,
+		metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailTtlExpiredAtomic:         &metadataCacheReadCountCacheHitFalseEntryStatusLookupDetailTtlExpiredAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic:      &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailFoundAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic:   &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailNotFoundAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic: &metadataCacheReadCountCacheHitFalseEntryStatusNegativeLookupDetailTtlExpiredAtomic,

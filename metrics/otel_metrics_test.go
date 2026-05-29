@@ -467,9 +467,8 @@ func TestFileCacheReadLatencies(t *testing.T) {
 			metric, ok := metrics["file_cache/read_latencies"]
 			require.True(t, ok, "file_cache/read_latencies metric not found")
 
-			attrs := []attribute.KeyValue{
-				attribute.Bool("cache_hit", tc.cacheHit),
-			}
+			var attrs []attribute.KeyValue
+			attrs = append(attrs, attribute.Bool("cache_hit", tc.cacheHit))
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
 			dp, ok := metric[expectedKey]
@@ -4557,8 +4556,9 @@ func TestFsOpsLatency(t *testing.T) {
 			metric, ok := metrics["fs/ops_latency"]
 			require.True(t, ok, "fs/ops_latency metric not found")
 
-			attrs := []attribute.KeyValue{
-				attribute.String("fs_op", string(tc.fsOp)),
+			var attrs []attribute.KeyValue
+			if tc.fsOp != "" {
+				attrs = append(attrs, attribute.String("fs_op", string(tc.fsOp)))
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -5411,8 +5411,9 @@ func TestGcsRequestLatencies(t *testing.T) {
 			metric, ok := metrics["gcs/request_latencies"]
 			require.True(t, ok, "gcs/request_latencies metric not found")
 
-			attrs := []attribute.KeyValue{
-				attribute.String("gcs_method", string(tc.gcsMethod)),
+			var attrs []attribute.KeyValue
+			if tc.gcsMethod != "" {
+				attrs = append(attrs, attribute.String("gcs_method", string(tc.gcsMethod)))
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -5500,6 +5501,33 @@ func TestMetadataCacheReadCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
+			name: "cache_hit_true_entry_status__lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status__lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_true_entry_status__lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, true, "", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
 			name: "cache_hit_true_entry_status_negative_lookup_detail_found",
 			f: func(m *otelMetrics) {
 				m.MetadataCacheReadCount(5, true, "negative", "found")
@@ -5551,6 +5579,33 @@ func TestMetadataCacheReadCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status__lookup_detail_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "", "found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("lookup_detail", "found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status__lookup_detail_not_found",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "", "not_found")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("lookup_detail", "not_found")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_entry_status__lookup_detail_ttl_expired",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheReadCount(5, false, "", "ttl_expired")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("lookup_detail", "ttl_expired")): 5,
 			},
 		},
 		{
@@ -5609,21 +5664,21 @@ func TestMetadataCacheReadCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.MetadataCacheReadCount(5, true, "negative", "found")
-				m.MetadataCacheReadCount(2, true, "negative", "not_found")
-				m.MetadataCacheReadCount(3, true, "negative", "found")
+				m.MetadataCacheReadCount(5, true, "", "found")
+				m.MetadataCacheReadCount(2, true, "", "not_found")
+				m.MetadataCacheReadCount(3, true, "", "found")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 8,
-				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "not_found")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "found")): 8,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "not_found")): 2,
 			},
 		},
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.MetadataCacheReadCount(-5, true, "negative", "found")
-				m.MetadataCacheReadCount(2, true, "negative", "found")
+				m.MetadataCacheReadCount(-5, true, "", "found")
+				m.MetadataCacheReadCount(2, true, "", "found")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("entry_status", "negative"), attribute.String("lookup_detail", "found")): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("lookup_detail", "found")): 2},
 		},
 	}
 
