@@ -50,7 +50,7 @@ const minReadSize = MiB
 const maxReadSize = 8 * MiB
 
 // Minimum number of seeks before evaluating if the read pattern is random.
-const minSeeksForRandom = 2
+const minSeeksForRandom = 1
 
 // TODO(b/385826024): Revert timeout to an appropriate value
 const TimeoutForMultiRangeRead = time.Hour

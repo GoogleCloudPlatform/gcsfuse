@@ -440,17 +440,22 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 
 // This test validates the bug fix where seeks are not updated correctly in case of zonal bucket random reads (b/410904634).
 func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
-	// Re-initialize GCSReader with initialOffset 13 MiB to force Random read type.
+	// Re-initialize GCSReader. Starts sequential by default.
 	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
 		MetricHandle:       metrics.NewNoopMetrics(),
 		TraceHandle:        tracing.NewNoopTracer(),
 		MrdWrapper:         nil,
 		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 13*MiB, metrics.NewNoopMetrics()),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 0, metrics.NewNoopMetrics()),
 	})
 	t.gcsReader.rangeReader.reader = nil
 	t.gcsReader.mrr.isMRDInUse.Store(false)
 	t.object.Size = 20 * MiB
+
+	// Force transition to Random mode by recording a read and a seek
+	t.gcsReader.readTypeClassifier.RecordRead(0, 1)
+	t.gcsReader.readTypeClassifier.RecordSeek(10 * MiB)
+
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, nil)
@@ -460,7 +465,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 
 	readRanges := [][]int{{11 * MiB, 15 * MiB}, {12 * MiB, 14 * MiB}, {10 * MiB, 12 * MiB}, {9 * MiB, 11 * MiB}, {8 * MiB, 10 * MiB}}
 	// Series of random reads to check if seeks are updated correctly and MRD is invoked always
-	seeks := 0
+	seeks := 2
 	for _, readRange := range readRanges {
 		buf := make([]byte, readRange[1]-readRange[0])
 
@@ -496,8 +501,10 @@ func (t *gcsReaderTest) Test_ReadAt_ShortReadRetry() {
 				TraceHandle:        tracing.NewNoopTracer(),
 				MrdWrapper:         nil,
 				Config:             nil,
-				ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 1, metrics.NewNoopMetrics()),
+				ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 0, metrics.NewNoopMetrics()),
 			})
+			t.gcsReader.readTypeClassifier.RecordRead(0, 1)
+			t.gcsReader.readTypeClassifier.RecordSeek(9 * MiB)
 			t.object.Size = 200
 			t.mockBucket.On("BucketType", mock.Anything).Return(tc.bucketType)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
@@ -520,14 +527,15 @@ func (t *gcsReaderTest) Test_ReadAt_ShortReadRetry() {
 }
 
 func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
-	// Re-initialize GCSReader with initialOffset 1 to force Random read type.
 	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
 		MetricHandle:       metrics.NewNoopMetrics(),
 		TraceHandle:        tracing.NewNoopTracer(),
 		MrdWrapper:         nil,
 		Config:             nil,
-		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 1, metrics.NewNoopMetrics()),
+		ReadTypeClassifier: gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 0, metrics.NewNoopMetrics()),
 	})
+	t.gcsReader.readTypeClassifier.RecordRead(0, 1)
+	t.gcsReader.readTypeClassifier.RecordSeek(9 * MiB)
 
 	// Setup
 	t.object.Size = 20 * MiB

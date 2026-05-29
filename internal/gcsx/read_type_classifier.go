@@ -145,8 +145,6 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 			numSeeks = rtc.seeks.Add(1)
 			seekRecorded = true
 		}
-	} else if numSeeks == 0 && rtc.initialOffset != 0 && previousReadType == metrics.ReadTypeSequential {
-		reason = metrics.ReasonInitialOffsetNonZeroAttr
 	}
 
 	readType := metrics.ReadTypeRandom
@@ -154,8 +152,8 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 
 	// Classify as Sequential if:
 	// 1. The average read size is large enough.
-	// 2. OR we haven't performed any seeks yet AND the first read was at offset 0.
-	if averageReadBytes >= maxReadSize || (numSeeks == 0 && rtc.initialOffset == 0) {
+	// 2. OR no seeks have occurred yet on this reader (sequential by default).
+	if averageReadBytes >= maxReadSize || numSeeks == 0 {
 		readType = metrics.ReadTypeSequential
 	}
 
@@ -177,9 +175,6 @@ func (rtc *ReadTypeClassifier) transitionTo(previousType int64, targetType int64
 	}
 
 	if previousType == metrics.ReadTypeSequential && targetType == metrics.ReadTypeRandom {
-		if reason == "" && rtc.initialOffset != 0 {
-			reason = metrics.ReasonInitialOffsetNonZeroAttr
-		}
 		if reason != "" {
 			rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
 		}
@@ -204,9 +199,8 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 	currentReadType := rtc.readType.Load()
 	seeks := rtc.seeks.Load()
 
-	// Evaluate for Random read type if seeks > 0 or the first read was non-zero.
-	// A non-zero initial offset implies random access even with zero seeks, so we check average read bytes.
-	if seeks > 0 || rtc.initialOffset > 0 {
+	// Evaluate for Random read type if seeks > 0.
+	if seeks > 0 {
 		averageReadBytes := avgReadBytes(rtc.totalReadBytes.Load(), seeks)
 
 		if averageReadBytes < maxReadSize {
@@ -222,11 +216,7 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 }
 
 func (rtc *ReadTypeClassifier) adjustToRandom(currentReadType int64, seeks uint64) {
-	var reason metrics.Reason
-	if seeks == 0 && rtc.initialOffset > 0 {
-		reason = metrics.ReasonInitialOffsetNonZeroAttr
-	}
-	_ = rtc.transitionTo(currentReadType, metrics.ReadTypeRandom, reason)
+	_ = rtc.transitionTo(currentReadType, metrics.ReadTypeRandom, "")
 }
 
 func (rtc *ReadTypeClassifier) adjustToSequential(currentReadType int64) {

@@ -5861,24 +5861,6 @@ func TestReadExperimentalReadTypeTransitionsCount(t *testing.T) {
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("reason", "forward_seek"), attribute.String("transition_type", "sequential_to_random")): 5,
 			},
-		},
-		{
-			name: "reason_initial_offset_non_zero_transition_type_random_to_sequential",
-			f: func(m *otelMetrics) {
-				m.ReadExperimentalReadTypeTransitionsCount(5, "initial_offset_non_zero", "random_to_sequential")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"), attribute.String("transition_type", "random_to_sequential")): 5,
-			},
-		},
-		{
-			name: "reason_initial_offset_non_zero_transition_type_sequential_to_random",
-			f: func(m *otelMetrics) {
-				m.ReadExperimentalReadTypeTransitionsCount(5, "initial_offset_non_zero", "sequential_to_random")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"), attribute.String("transition_type", "sequential_to_random")): 5,
-			},
 		},{
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {m.ReadExperimentalReadTypeTransitionsCount(5, "average_read_size_large_enough", "random_to_sequential")

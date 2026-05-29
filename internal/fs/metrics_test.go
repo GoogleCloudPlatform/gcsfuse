@@ -691,10 +691,16 @@ func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
 	require.NoError(t, err, "ReadFile")
 	waitForMetricsProcessing()
 
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(4))
-	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(30))
+	// Verify 3 GCS random reader network connections downloading exactly 28 bytes in total (7 + 9 + 12).
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(3))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(28))
+
+	// Verify 1 initial GCS sequential reader connection downloading exactly 2 bytes (12 - 10) on startup.
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(1))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(2))
+
 	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
-		attribute.NewSet(attribute.String("reason", string(metrics.ReasonInitialOffsetNonZeroAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
+		attribute.NewSet(attribute.String("reason", string(metrics.ReasonBackwardSeekAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
 		1)
 }
 
@@ -1497,7 +1503,7 @@ func TestReadFile_GCSReaderRandomToSequentialTransition(t *testing.T) {
 	err = server.OpenFile(ctx, openOp)
 	require.NoError(t, err, "OpenFile")
 
-	// First read: offset 100 (non-zero). Starts as Random.
+	// First read: offset 100. Starts as Sequential by default.
 	readOp := &fuseops.ReadFileOp{
 		Inode:  lookupOp.Entry.Child,
 		Handle: openOp.Handle,
@@ -1507,11 +1513,17 @@ func TestReadFile_GCSReaderRandomToSequentialTransition(t *testing.T) {
 	err = server.ReadFile(ctx, readOp)
 	require.NoError(t, err, "ReadFile")
 
+	// Second read: offset 50 (backward seek to transition immediately to Random).
+	readOp.Offset = 50
+	readOp.Dst = make([]byte, 5)
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+
 	// Contiguous reads: 9 contiguous reads of 1MB each.
-	// This will increment totalReadBytes to 9MB + 5 bytes without triggering seeks.
-	// At the start of the 9th read, averageReadBytes will cross 8MB threshold, triggering transition to Sequential.
+	// This will increment totalReadBytes to 9MB + 10 bytes with exactly 1 seek.
+	// At the start of the 9th read, averageReadBytes will cross 8MB threshold, triggering transition back to Sequential.
 	chunkSize := 1 * 1024 * 1024 // 1MB
-	var nextOffset int64 = 105
+	var nextOffset int64 = 55
 	for i := 0; i < 9; i++ {
 		readOp.Offset = nextOffset
 		readOp.Dst = make([]byte, chunkSize)
@@ -1522,7 +1534,7 @@ func TestReadFile_GCSReaderRandomToSequentialTransition(t *testing.T) {
 	waitForMetricsProcessing()
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
-		attribute.NewSet(attribute.String("reason", string(metrics.ReasonInitialOffsetNonZeroAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
+		attribute.NewSet(attribute.String("reason", string(metrics.ReasonBackwardSeekAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
 		1)
 	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
 		attribute.NewSet(attribute.String("reason", string(metrics.ReasonAverageReadSizeLargeEnoughAttr)), attribute.String("transition_type", string(metrics.TransitionTypeRandomToSequentialAttr))),

@@ -131,7 +131,6 @@ const (
 	ReasonForcedRecreateAttr Reason = "forced_recreate"
 	ReasonForwardSeekAttr Reason = "forward_seek"
 	ReasonInactiveTimeoutAttr Reason = "inactive_timeout"
-	ReasonInitialOffsetNonZeroAttr Reason = "initial_offset_non_zero"
 	ReasonInsufficientMemoryAttr Reason = "insufficient_memory"
 	ReasonNormalAttr Reason = "normal"
 	ReasonRandomReadDetectedAttr Reason = "random_read_detected"
@@ -245,7 +244,7 @@ type MetricHandle interface {
 	MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus EntryStatus, lookupDetail LookupDetail)
 
 
-	// ReadExperimentalReadTypeTransitionsCount - The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough.
+	// ReadExperimentalReadTypeTransitionsCount - The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, or average_read_size_large_enough.
 	ReadExperimentalReadTypeTransitionsCount(inc int64, reason Reason, transitionType TransitionType)
 
 

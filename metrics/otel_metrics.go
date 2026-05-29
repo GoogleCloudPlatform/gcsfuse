@@ -598,8 +598,6 @@ var (
 	readExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "backward_seek"),attribute.String("transition_type", "sequential_to_random"),))
 	readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forward_seek"),attribute.String("transition_type", "random_to_sequential"),))
 	readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forward_seek"),attribute.String("transition_type", "sequential_to_random"),))
-	readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"),attribute.String("transition_type", "random_to_sequential"),))
-	readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "initial_offset_non_zero"),attribute.String("transition_type", "sequential_to_random"),))
 	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1"),))
 	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2"),)))
 
@@ -1115,8 +1113,6 @@ type otelMetrics struct {
 	readExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic *atomic.Int64
 	readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic *atomic.Int64
 	readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic *atomic.Int64
-	readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic *atomic.Int64
-	readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic *atomic.Int64
 	testUpdownCounterAtomic *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr1Atomic *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr2Atomic *atomic.Int64
@@ -2715,16 +2711,6 @@ func (o *otelMetrics) ReadExperimentalReadTypeTransitionsCount(
 				updateUnrecognizedAttribute(string(transitionType))
 				return
 		}
-		case ReasonInitialOffsetNonZeroAttr:
-		switch transitionType {
-			case TransitionTypeRandomToSequentialAttr:
-			o.readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic.Add(inc)
-			case TransitionTypeSequentialToRandomAttr:
-			o.readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic.Add(inc)
-			default:
-				updateUnrecognizedAttribute(string(transitionType))
-				return
-		}
 		default:
 			updateUnrecognizedAttribute(string(reason))
 			return
@@ -3307,9 +3293,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	readExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeRandomToSequentialAtomic,
 	readExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic,
 	readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic,
-	readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic,
-	readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic,
-	readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic atomic.Int64
+	readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic atomic.Int64
 
 
 	var testUpdownCounterAtomic atomic.Int64
@@ -3954,7 +3938,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 
 	_, err19 := meter.Int64ObservableCounter("read/experimental_read_type_transitions_count",
-		metric.WithDescription("The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough."),
+		metric.WithDescription("The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, or average_read_size_large_enough."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			conditionallyObserve(obsrv, &readExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAtomic, readExperimentalReadTypeTransitionsCountReasonAverageReadSizeLargeEnoughTransitionTypeRandomToSequentialAttrSet)
@@ -3963,8 +3947,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &readExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic, readExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAttrSet)
 			conditionallyObserve(obsrv, &readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic, readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAttrSet)
 			conditionallyObserve(obsrv, &readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic, readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAttrSet)
-			conditionallyObserve(obsrv, &readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic, readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAttrSet)
-			conditionallyObserve(obsrv, &readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic, readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAttrSet)
 			return nil
 		}))
 
@@ -4503,8 +4485,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			readExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic: &readExperimentalReadTypeTransitionsCountReasonBackwardSeekTransitionTypeSequentialToRandomAtomic,
 			readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic: &readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeRandomToSequentialAtomic,
 			readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic: &readExperimentalReadTypeTransitionsCountReasonForwardSeekTransitionTypeSequentialToRandomAtomic,
-			readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic: &readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeRandomToSequentialAtomic,
-			readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic: &readExperimentalReadTypeTransitionsCountReasonInitialOffsetNonZeroTransitionTypeSequentialToRandomAtomic,
 			testUpdownCounterAtomic: &testUpdownCounterAtomic,
 			testUpdownCounterWithAttrsRequestTypeAttr1Atomic: &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
 			testUpdownCounterWithAttrsRequestTypeAttr2Atomic: &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,
