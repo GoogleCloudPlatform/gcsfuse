@@ -4869,49 +4869,49 @@ func TestGcsExperimentalReaderCancellationCount(t *testing.T) {
 
 func TestGcsExperimentalReaderCancellationUnreadBytes(t *testing.T) {
 	tests := []struct {
-		name      string
-		latencies []time.Duration
-		reason    Reason
+		name   string
+		values []int64
+		reason Reason
 	}{
 		{
-			name:      "reason_canceled",
-			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
-			reason:    "canceled",
+			name:   "reason_canceled",
+			values: []int64{100, 200},
+			reason: "canceled",
 		},
 		{
-			name:      "reason_deadline_exceeded",
-			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
-			reason:    "deadline_exceeded",
+			name:   "reason_deadline_exceeded",
+			values: []int64{100, 200},
+			reason: "deadline_exceeded",
 		},
 		{
-			name:      "reason_explicit_close",
-			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
-			reason:    "explicit_close",
+			name:   "reason_explicit_close",
+			values: []int64{100, 200},
+			reason: "explicit_close",
 		},
 		{
-			name:      "reason_forced_recreate",
-			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
-			reason:    "forced_recreate",
+			name:   "reason_forced_recreate",
+			values: []int64{100, 200},
+			reason: "forced_recreate",
 		},
 		{
-			name:      "reason_inactive_timeout",
-			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
-			reason:    "inactive_timeout",
+			name:   "reason_inactive_timeout",
+			values: []int64{100, 200},
+			reason: "inactive_timeout",
 		},
 		{
-			name:      "reason_seek",
-			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
-			reason:    "seek",
+			name:   "reason_seek",
+			values: []int64{100, 200},
+			reason: "seek",
 		},
 		{
-			name:      "reason_sequential_to_random",
-			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
-			reason:    "sequential_to_random",
+			name:   "reason_sequential_to_random",
+			values: []int64{100, 200},
+			reason: "sequential_to_random",
 		},
 		{
-			name:      "reason_unknown",
-			latencies: []time.Duration{100 * time.Nanosecond, 200 * time.Nanosecond},
-			reason:    "unknown",
+			name:   "reason_unknown",
+			values: []int64{100, 200},
+			reason: "unknown",
 		},
 	}
 
@@ -4920,11 +4920,11 @@ func TestGcsExperimentalReaderCancellationUnreadBytes(t *testing.T) {
 			ctx := context.Background()
 			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
-			var totalLatency time.Duration
+			var totalValue int64
 
-			for _, latency := range tc.latencies {
-				m.GcsExperimentalReaderCancellationUnreadBytes(ctx, latency, tc.reason)
-				totalLatency += latency
+			for _, value := range tc.values {
+				m.GcsExperimentalReaderCancellationUnreadBytes(ctx, value, tc.reason)
+				totalValue += value
 			}
 			waitForMetricsProcessing()
 
@@ -4939,8 +4939,8 @@ func TestGcsExperimentalReaderCancellationUnreadBytes(t *testing.T) {
 			expectedKey := s.Encoded(encoder)
 			dp, ok := metric[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
-			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
-			assert.Equal(t, totalLatency.Nanoseconds(), dp.Sum)
+			assert.Equal(t, uint64(len(tc.values)), dp.Count)
+			assert.Equal(t, totalValue, dp.Sum)
 		})
 	}
 }

@@ -1260,7 +1260,7 @@ func (m *mockMetricHandleForCancellation) GcsExperimentalReaderCancellationCount
 	m.Called(inc, reason)
 }
 
-func (m *mockMetricHandleForCancellation) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value time.Duration, reason metrics.Reason) {
+func (m *mockMetricHandleForCancellation) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason metrics.Reason) {
 	m.Called(ctx, value, reason)
 }
 
@@ -1272,7 +1272,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFull_CancellationRecordsMetric() {
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonCanceledAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(3), metrics.ReasonCanceledAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(3), metrics.ReasonCanceledAttr).Return().Once()
 
 	// Initialize custom random reader
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
@@ -1324,7 +1324,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFull_DeadlineExceededRecordsMetric()
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonDeadlineExceededAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(3), metrics.ReasonDeadlineExceededAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(3), metrics.ReasonDeadlineExceededAttr).Return().Once()
 
 	// Initialize custom random reader
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
@@ -1368,7 +1368,7 @@ func (t *RandomReaderStretchrTest) Test_invalidateReader_SeekMisalignmentRecords
 	mh := &mockMetricHandleForCancellation{}
 	// Expect ReasonSeekAttr and ReasonSeekAttr bytes to be called!
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSeekAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonSeekAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonSeekAttr).Return().Once()
 
 	// Initialize random reader
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
@@ -1396,7 +1396,7 @@ func (t *RandomReaderStretchrTest) Test_invalidateReader_SeqToRandomTransitionRe
 	mh := &mockMetricHandleForCancellation{}
 	// Expect ReasonSequentialToRandomAttr and ReasonSequentialToRandomAttr bytes to be called!
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSequentialToRandomAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonSequentialToRandomAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonSequentialToRandomAttr).Return().Once()
 
 	// Initialize random reader
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false})
@@ -1424,7 +1424,7 @@ func (t *RandomReaderStretchrTest) Test_Destroy_PartiallyReadSequentialReaderRec
 	mh := &mockMetricHandleForCancellation{}
 	// Expect ReasonExplicitCloseAttr and ReasonExplicitCloseAttr bytes to be called!
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonExplicitCloseAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonExplicitCloseAttr).Return().Once()
 
 	// Initialize random reader
 	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, mh, tracing.NewNoopTracer(), nil, nil, 0)

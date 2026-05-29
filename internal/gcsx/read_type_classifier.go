@@ -132,15 +132,18 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 
 	var reason metrics.Reason
 
+	if offset != expOffset && expOffset != 0 {
+		if offset < expOffset {
+			reason = metrics.ReasonBackwardSeekAttr
+		} else {
+			reason = metrics.ReasonForwardSeekAttr
+		}
+	}
+
 	if rtc.isSeekNeeded(offset) {
 		if !seekRecorded {
 			numSeeks = rtc.seeks.Add(1)
 			seekRecorded = true
-		}
-		if offset < expOffset {
-			reason = metrics.ReasonBackwardSeekAttr
-		} else if offset > expOffset+maxReadSize {
-			reason = metrics.ReasonForwardSeekAttr
 		}
 	} else if numSeeks == 0 && rtc.initialOffset != 0 && previousReadType == metrics.ReadTypeSequential {
 		reason = metrics.ReasonInitialOffsetNonZeroAttr

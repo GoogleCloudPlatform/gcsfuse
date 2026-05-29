@@ -253,6 +253,6 @@ func (itr *InactiveTimeoutReader) closeGCSReader() {
 	}
 	itr.metricHandle.GcsExperimentalReaderCancellationCount(1, metrics.ReasonInactiveTimeoutAttr)
 	unreadBytes := int64(itr.reqRange.Limit - itr.reqRange.Start - itr.seen)
-	itr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(itr.ctx, time.Duration(unreadBytes), metrics.ReasonInactiveTimeoutAttr)
+	itr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(itr.ctx, unreadBytes, metrics.ReasonInactiveTimeoutAttr)
 	itr.gcsReader = nil
 }

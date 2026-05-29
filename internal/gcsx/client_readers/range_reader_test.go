@@ -705,7 +705,7 @@ func (m *mockMetricHandleForRangeCancellation) GcsExperimentalReaderCancellation
 	m.Called(inc, reason)
 }
 
-func (m *mockMetricHandleForRangeCancellation) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value time.Duration, reason metrics.Reason) {
+func (m *mockMetricHandleForRangeCancellation) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason metrics.Reason) {
 	m.Called(ctx, value, reason)
 }
 
@@ -749,7 +749,7 @@ func (t *rangeReaderTest) Test_ReadAt_CancellationRecordsMetric() {
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForRangeCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonCanceledAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(2), metrics.ReasonCanceledAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(2), metrics.ReasonCanceledAttr).Return().Once()
 
 	// Initialize RangeReader with our mock metrics handle
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, mh, tracing.NewNoopTracer())
@@ -794,7 +794,7 @@ func (t *rangeReaderTest) Test_ReadAt_DeadlineExceededRecordsMetric() {
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForRangeCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonDeadlineExceededAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(2), metrics.ReasonDeadlineExceededAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(2), metrics.ReasonDeadlineExceededAttr).Return().Once()
 
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, mh, tracing.NewNoopTracer())
 
@@ -835,7 +835,7 @@ func (t *rangeReaderTest) Test_ReadAt_DeadlineExceededRecordsMetric() {
 func (t *rangeReaderTest) Test_Destroy_PartiallyReadReaderRecordsMetric() {
 	mh := &mockMetricHandleForRangeCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonExplicitCloseAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonExplicitCloseAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonExplicitCloseAttr).Return().Once()
 
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
 
@@ -856,7 +856,7 @@ func (t *rangeReaderTest) Test_Destroy_PartiallyReadReaderRecordsMetric() {
 func (t *rangeReaderTest) Test_invalidateReader_SeekRecordsMetric() {
 	mh := &mockMetricHandleForRangeCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSeekAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonSeekAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonSeekAttr).Return().Once()
 
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
 
@@ -877,7 +877,7 @@ func (t *rangeReaderTest) Test_invalidateReader_SeekRecordsMetric() {
 func (t *rangeReaderTest) Test_invalidateReader_SeqToRandomTransitionRecordsMetric() {
 	mh := &mockMetricHandleForRangeCancellation{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonSequentialToRandomAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, time.Duration(4), metrics.ReasonSequentialToRandomAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(4), metrics.ReasonSequentialToRandomAttr).Return().Once()
 
 	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
 

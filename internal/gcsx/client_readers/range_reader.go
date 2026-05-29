@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
@@ -137,7 +136,7 @@ func (rr *RangeReader) closeReader(ctx context.Context, caller string, readType 
 			rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 		}
 		unreadBytes := rr.limit - rr.start
-		rr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(ctx, time.Duration(unreadBytes), reason)
+		rr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(ctx, unreadBytes, reason)
 	}
 
 	rr.readHandle = rr.reader.ReadHandle()

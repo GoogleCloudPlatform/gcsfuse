@@ -1135,8 +1135,7 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 
 func (o *otelMetrics) BufferedReadReadLatency(
 	ctx context.Context, latency time.Duration) {
-	var record histogramRecord
-	record = histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
+	record := histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
 
 	select {
 	case o.ch <- record: // Do nothing
@@ -2328,25 +2327,25 @@ func (o *otelMetrics) GcsExperimentalReaderCancellationCount(
 }
 
 func (o *otelMetrics) GcsExperimentalReaderCancellationUnreadBytes(
-	ctx context.Context, latency time.Duration, reason Reason) {
+	ctx context.Context, value int64, reason Reason) {
 	var record histogramRecord
 	switch reason {
 	case ReasonCanceledAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: latency.Nanoseconds(), attributes: gcsExperimentalReaderCancellationUnreadBytesReasonCanceledAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonCanceledAttrSet}
 	case ReasonDeadlineExceededAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: latency.Nanoseconds(), attributes: gcsExperimentalReaderCancellationUnreadBytesReasonDeadlineExceededAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonDeadlineExceededAttrSet}
 	case ReasonExplicitCloseAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: latency.Nanoseconds(), attributes: gcsExperimentalReaderCancellationUnreadBytesReasonExplicitCloseAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonExplicitCloseAttrSet}
 	case ReasonForcedRecreateAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: latency.Nanoseconds(), attributes: gcsExperimentalReaderCancellationUnreadBytesReasonForcedRecreateAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonForcedRecreateAttrSet}
 	case ReasonInactiveTimeoutAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: latency.Nanoseconds(), attributes: gcsExperimentalReaderCancellationUnreadBytesReasonInactiveTimeoutAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonInactiveTimeoutAttrSet}
 	case ReasonSeekAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: latency.Nanoseconds(), attributes: gcsExperimentalReaderCancellationUnreadBytesReasonSeekAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonSeekAttrSet}
 	case ReasonSequentialToRandomAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: latency.Nanoseconds(), attributes: gcsExperimentalReaderCancellationUnreadBytesReasonSequentialToRandomAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonSequentialToRandomAttrSet}
 	case ReasonUnknownAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: latency.Nanoseconds(), attributes: gcsExperimentalReaderCancellationUnreadBytesReasonUnknownAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonUnknownAttrSet}
 	default:
 		updateUnrecognizedAttribute(string(reason))
 		return

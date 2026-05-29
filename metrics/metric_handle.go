@@ -216,7 +216,7 @@ type MetricHandle interface {
 	GcsExperimentalReaderCancellationCount(inc int64, reason Reason)
 
 	// GcsExperimentalReaderCancellationUnreadBytes - The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers.
-	GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, latency time.Duration, reason Reason)
+	GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason Reason)
 
 	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
 	GcsReadBytesCount(inc int64)

@@ -829,7 +829,7 @@ func (rr *randomReader) closeReader(ctx context.Context, caller string, readType
 			rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 		}
 		unreadBytes := rr.limit - rr.start
-		rr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(ctx, time.Duration(unreadBytes), reason)
+		rr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(ctx, unreadBytes, reason)
 	}
 
 	rr.readHandle = rr.reader.ReadHandle()
