@@ -1070,6 +1070,13 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "metrics.project-id"
+    flag-name: "metrics-project-id"
+    type: "string"
+    usage: "Specify the GCP project id to which metrics will be exported. When unset, a project id will be inferred as per the default credential detection process"
+    default: ""
+    hide-flag: true
+
   - config-path: "metrics.prometheus-port"
     flag-name: "prometheus-port"
     type: "int"
