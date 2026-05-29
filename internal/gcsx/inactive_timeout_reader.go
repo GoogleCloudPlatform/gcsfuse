@@ -252,7 +252,11 @@ func (itr *InactiveTimeoutReader) closeGCSReader() {
 		logger.Warnf("Error closing inactive reader for object %q: %v", itr.object.Name, err)
 	}
 	itr.metricHandle.GcsExperimentalReaderCancellationCount(1, metrics.ReasonInactiveTimeoutAttr)
-	unreadBytes := int64(itr.reqRange.Limit - itr.reqRange.Start - itr.seen)
+	requestedBytes := itr.reqRange.Limit - itr.reqRange.Start
+	var unreadBytes int64
+	if itr.seen < requestedBytes {
+		unreadBytes = int64(requestedBytes - itr.seen)
+	}
 	itr.metricHandle.GcsExperimentalReaderLifespanBytes(itr.ctx, unreadBytes, metrics.ReasonInactiveTimeoutAttr, metrics.StateUnreadAttr)
 	bytesRead := int64(itr.seen)
 	itr.metricHandle.GcsExperimentalReaderLifespanBytes(itr.ctx, bytesRead, metrics.ReasonInactiveTimeoutAttr, metrics.StateReadAttr)
