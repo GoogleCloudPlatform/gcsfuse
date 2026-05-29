@@ -151,6 +151,12 @@ const (
 	RetryErrorCategoryOTHERERRORSAttr RetryErrorCategory = "OTHER_ERRORS"
 	RetryErrorCategorySTALLEDREADREQUESTAttr RetryErrorCategory = "STALLED_READ_REQUEST"
 )
+// State is a custom type for the state attribute.
+type State string
+const (
+	StateReadAttr State = "read"
+	StateUnreadAttr State = "unread"
+)
 // TransitionType is a custom type for the transition_type attribute.
 type TransitionType string
 const (
@@ -207,8 +213,8 @@ type MetricHandle interface {
 	GcsExperimentalReaderCancellationCount(inc int64, reason Reason)
 
 
-	// GcsExperimentalReaderCancellationUnreadBytes - The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers.
-	GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason Reason)
+	// GcsExperimentalReaderLifespanBytes - The distribution of bytes read or left unread by an in-flight GCS object reader before it was closed, tracked across preemption triggers and byte states (read vs. unread).
+	GcsExperimentalReaderLifespanBytes(ctx context.Context, value int64, reason Reason, state State)
 
 
 	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.

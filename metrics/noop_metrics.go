@@ -43,7 +43,7 @@ type noopMetrics struct {}
 
 	func (*noopMetrics) GcsExperimentalReaderCancellationCount(inc int64, reason Reason){}
 
-	func (*noopMetrics) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason Reason){}
+	func (*noopMetrics) GcsExperimentalReaderLifespanBytes(ctx context.Context, value int64, reason Reason, state State){}
 
 	func (*noopMetrics) GcsReadBytesCount(inc int64){}
 

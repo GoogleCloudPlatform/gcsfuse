@@ -193,6 +193,8 @@ type randomReader struct {
 
 	preemptionReason metrics.Reason
 
+	connectionStart int64
+
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
 	expectedOffset atomic.Int64
@@ -569,6 +571,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+	rr.connectionStart = start
 	rr.preemptionReason = ""
 
 	requestedDataSize := end - start
@@ -831,7 +834,9 @@ func (rr *randomReader) closeReader(ctx context.Context, caller string, readType
 			rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 		}
 		unreadBytes := rr.limit - rr.start
-		rr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(ctx, unreadBytes, reason)
+		rr.metricHandle.GcsExperimentalReaderLifespanBytes(ctx, unreadBytes, reason, metrics.StateUnreadAttr)
+		bytesRead := rr.start - rr.connectionStart
+		rr.metricHandle.GcsExperimentalReaderLifespanBytes(ctx, bytesRead, reason, metrics.StateReadAttr)
 	}
 
 	rr.readHandle = rr.reader.ReadHandle()

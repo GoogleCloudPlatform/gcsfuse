@@ -66,6 +66,7 @@ type RangeReader struct {
 	metricHandle     metrics.MetricHandle
 	traceHandle      tracing.TraceHandle
 	preemptionReason metrics.Reason
+	connectionStart  int64
 }
 
 func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle) *RangeReader {
@@ -138,7 +139,9 @@ func (rr *RangeReader) closeReader(ctx context.Context, caller string, readType 
 			rr.metricHandle.GcsExperimentalReaderCancellationCount(1, reason)
 		}
 		unreadBytes := rr.limit - rr.start
-		rr.metricHandle.GcsExperimentalReaderCancellationUnreadBytes(ctx, unreadBytes, reason)
+		rr.metricHandle.GcsExperimentalReaderLifespanBytes(ctx, unreadBytes, reason, metrics.StateUnreadAttr)
+		bytesRead := rr.start - rr.connectionStart
+		rr.metricHandle.GcsExperimentalReaderLifespanBytes(ctx, bytesRead, reason, metrics.StateReadAttr)
 	}
 
 	rr.readHandle = rr.reader.ReadHandle()
@@ -331,6 +334,7 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, re
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+	rr.connectionStart = start
 	rr.preemptionReason = ""
 
 	requestedDataSize := end - start

@@ -4884,56 +4884,120 @@ func TestGcsExperimentalReaderCancellationCount(t *testing.T) {
 
 
 
-func TestGcsExperimentalReaderCancellationUnreadBytes(t *testing.T) {
+func TestGcsExperimentalReaderLifespanBytes(t *testing.T) {
 	tests := []struct {
 		name      string
 		values []int64
 		reason Reason
+		state State
 	}{
 		{
-			name:      "reason_canceled",
+			name:      "reason_canceled_state_read",
 			values: []int64{100, 200},
 			reason: "canceled",
+			state: "read",
 		},
 		{
-			name:      "reason_deadline_exceeded",
+			name:      "reason_canceled_state_unread",
+			values: []int64{100, 200},
+			reason: "canceled",
+			state: "unread",
+		},
+		{
+			name:      "reason_deadline_exceeded_state_read",
 			values: []int64{100, 200},
 			reason: "deadline_exceeded",
+			state: "read",
 		},
 		{
-			name:      "reason_explicit_close",
+			name:      "reason_deadline_exceeded_state_unread",
+			values: []int64{100, 200},
+			reason: "deadline_exceeded",
+			state: "unread",
+		},
+		{
+			name:      "reason_explicit_close_state_read",
 			values: []int64{100, 200},
 			reason: "explicit_close",
+			state: "read",
 		},
 		{
-			name:      "reason_forced_recreate",
+			name:      "reason_explicit_close_state_unread",
+			values: []int64{100, 200},
+			reason: "explicit_close",
+			state: "unread",
+		},
+		{
+			name:      "reason_forced_recreate_state_read",
 			values: []int64{100, 200},
 			reason: "forced_recreate",
+			state: "read",
 		},
 		{
-			name:      "reason_inactive_timeout",
+			name:      "reason_forced_recreate_state_unread",
+			values: []int64{100, 200},
+			reason: "forced_recreate",
+			state: "unread",
+		},
+		{
+			name:      "reason_inactive_timeout_state_read",
 			values: []int64{100, 200},
 			reason: "inactive_timeout",
+			state: "read",
 		},
 		{
-			name:      "reason_normal",
+			name:      "reason_inactive_timeout_state_unread",
+			values: []int64{100, 200},
+			reason: "inactive_timeout",
+			state: "unread",
+		},
+		{
+			name:      "reason_normal_state_read",
 			values: []int64{100, 200},
 			reason: "normal",
+			state: "read",
 		},
 		{
-			name:      "reason_seek",
+			name:      "reason_normal_state_unread",
+			values: []int64{100, 200},
+			reason: "normal",
+			state: "unread",
+		},
+		{
+			name:      "reason_seek_state_read",
 			values: []int64{100, 200},
 			reason: "seek",
+			state: "read",
 		},
 		{
-			name:      "reason_sequential_to_random",
+			name:      "reason_seek_state_unread",
+			values: []int64{100, 200},
+			reason: "seek",
+			state: "unread",
+		},
+		{
+			name:      "reason_sequential_to_random_state_read",
 			values: []int64{100, 200},
 			reason: "sequential_to_random",
+			state: "read",
 		},
 		{
-			name:      "reason_unknown",
+			name:      "reason_sequential_to_random_state_unread",
+			values: []int64{100, 200},
+			reason: "sequential_to_random",
+			state: "unread",
+		},
+		{
+			name:      "reason_unknown_state_read",
 			values: []int64{100, 200},
 			reason: "unknown",
+			state: "read",
+		},
+		{
+			name:      "reason_unknown_state_unread",
+			values: []int64{100, 200},
+			reason: "unknown",
+			state: "unread",
 		},
 	}
 
@@ -4945,17 +5009,18 @@ func TestGcsExperimentalReaderCancellationUnreadBytes(t *testing.T) {
 			var totalValue int64
 
 			for _, value := range tc.values {
-				m.GcsExperimentalReaderCancellationUnreadBytes(ctx, value, tc.reason)
+				m.GcsExperimentalReaderLifespanBytes(ctx, value, tc.reason, tc.state)
 				totalValue += value
 			}
 			waitForMetricsProcessing()
 
 			metrics := gatherHistogramMetrics(ctx, t, rd)
-			metric, ok := metrics["gcs/experimental_reader_cancellation_unread_bytes"]
-			require.True(t, ok, "gcs/experimental_reader_cancellation_unread_bytes metric not found")
+			metric, ok := metrics["gcs/experimental_reader_lifespan_bytes"]
+			require.True(t, ok, "gcs/experimental_reader_lifespan_bytes metric not found")
 
 			attrs := []attribute.KeyValue{
 				attribute.String("reason", string(tc.reason)),
+				attribute.String("state", string(tc.state)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)

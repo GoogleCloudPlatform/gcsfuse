@@ -180,12 +180,12 @@
     - "sequential_to_random"
     - "unknown"
 
-- metric-name: "gcs/experimental_reader_cancellation_unread_bytes"
-  description: "The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers."
+- metric-name: "gcs/experimental_reader_lifespan_bytes"
+  description: "The distribution of bytes read or left unread by an in-flight GCS object reader before it was closed, tracked across preemption triggers and byte states (read vs. unread)."
   unit: "By"
   type: "int_histogram"
   boundaries:
-  - 0 # To detect EOF scenarios
+  - 0 # To detect EOF/0-byte scenarios
   - 1
   - 8192
   - 16384
@@ -206,6 +206,11 @@
   - attribute-name: reason
     attribute-type: string
     values: *cancellation_reasons_list
+  - attribute-name: state
+    attribute-type: string
+    values:
+    - "read"
+    - "unread"
 
 - metric-name: "gcs/read_bytes_count"
   description: "The cumulative number of bytes read from GCS objects."

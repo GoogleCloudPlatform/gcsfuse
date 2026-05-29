@@ -387,8 +387,8 @@ func (m *mockMetricHandleForCancellationTestSuite) GcsExperimentalReaderCancella
 	m.Called(inc, reason)
 }
 
-func (m *mockMetricHandleForCancellationTestSuite) GcsExperimentalReaderCancellationUnreadBytes(ctx context.Context, value int64, reason metrics.Reason) {
-	m.Called(ctx, value, reason)
+func (m *mockMetricHandleForCancellationTestSuite) GcsExperimentalReaderLifespanBytes(ctx context.Context, value int64, reason metrics.Reason, state metrics.State) {
+	m.Called(ctx, value, reason, state)
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_handleTimeout_InactiveCloseRecordsMetric() {
@@ -414,7 +414,8 @@ func (s *InactiveTimeoutReaderTestSuite) Test_handleTimeout_InactiveCloseRecords
 	// Setup mock metrics handle
 	mh := &mockMetricHandleForCancellationTestSuite{}
 	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonInactiveTimeoutAttr).Return().Once()
-	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(17), metrics.ReasonInactiveTimeoutAttr).Return().Once()
+	mh.On("GcsExperimentalReaderLifespanBytes", mock.Anything, int64(17), metrics.ReasonInactiveTimeoutAttr, metrics.StateUnreadAttr).Return().Once()
+	mh.On("GcsExperimentalReaderLifespanBytes", mock.Anything, int64(0), metrics.ReasonInactiveTimeoutAttr, metrics.StateReadAttr).Return().Once()
 
 	// Setup InactiveTimeoutReader
 	var err error

@@ -516,15 +516,24 @@ var (
 	gcsExperimentalReaderCancellationCountReasonSeekAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "seek"),))
 	gcsExperimentalReaderCancellationCountReasonSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "sequential_to_random"),))
 	gcsExperimentalReaderCancellationCountReasonUnknownAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "unknown"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonCanceledAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "canceled"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonDeadlineExceededAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "deadline_exceeded"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonExplicitCloseAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "explicit_close"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonForcedRecreateAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forced_recreate"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonInactiveTimeoutAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "inactive_timeout"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonNormalAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "normal"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonSeekAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "seek"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonSequentialToRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "sequential_to_random"),))
-	gcsExperimentalReaderCancellationUnreadBytesReasonUnknownAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "unknown"),))
+	gcsExperimentalReaderLifespanBytesReasonCanceledStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "canceled"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonCanceledStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "canceled"),attribute.String("state", "unread"),))
+	gcsExperimentalReaderLifespanBytesReasonDeadlineExceededStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "deadline_exceeded"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonDeadlineExceededStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "deadline_exceeded"),attribute.String("state", "unread"),))
+	gcsExperimentalReaderLifespanBytesReasonExplicitCloseStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "explicit_close"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonExplicitCloseStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "explicit_close"),attribute.String("state", "unread"),))
+	gcsExperimentalReaderLifespanBytesReasonForcedRecreateStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forced_recreate"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonForcedRecreateStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "forced_recreate"),attribute.String("state", "unread"),))
+	gcsExperimentalReaderLifespanBytesReasonInactiveTimeoutStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "inactive_timeout"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonInactiveTimeoutStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "inactive_timeout"),attribute.String("state", "unread"),))
+	gcsExperimentalReaderLifespanBytesReasonNormalStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "normal"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonNormalStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "normal"),attribute.String("state", "unread"),))
+	gcsExperimentalReaderLifespanBytesReasonSeekStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "seek"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonSeekStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "seek"),attribute.String("state", "unread"),))
+	gcsExperimentalReaderLifespanBytesReasonSequentialToRandomStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "sequential_to_random"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonSequentialToRandomStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "sequential_to_random"),attribute.String("state", "unread"),))
+	gcsExperimentalReaderLifespanBytesReasonUnknownStateReadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "unknown"),attribute.String("state", "read"),))
+	gcsExperimentalReaderLifespanBytesReasonUnknownStateUnreadAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "unknown"),attribute.String("state", "unread"),))
 	gcsReadCountReadTypeParallelAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel"),))
 	gcsReadCountReadTypeRandomAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random"),))
 	gcsReadCountReadTypeSequentialAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential"),))
@@ -1114,7 +1123,7 @@ type otelMetrics struct {
 	bufferedReadReadLatency metric.Int64Histogram
 	fileCacheReadLatencies metric.Int64Histogram
 	fsOpsLatency metric.Int64Histogram
-	gcsExperimentalReaderCancellationUnreadBytes metric.Int64Histogram
+	gcsExperimentalReaderLifespanBytes metric.Int64Histogram
 	gcsRequestLatencies metric.Int64Histogram
 }
 
@@ -2328,28 +2337,100 @@ func (o *otelMetrics) GcsExperimentalReaderCancellationCount(
 	}
 }
 
-func (o *otelMetrics) GcsExperimentalReaderCancellationUnreadBytes(
-		ctx context.Context, value int64, reason Reason) {
+func (o *otelMetrics) GcsExperimentalReaderLifespanBytes(
+		ctx context.Context, value int64, reason Reason, state State) {
 		var record histogramRecord
 	switch reason {
 		case ReasonCanceledAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonCanceledAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonCanceledStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonCanceledStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		case ReasonDeadlineExceededAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonDeadlineExceededAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonDeadlineExceededStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonDeadlineExceededStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		case ReasonExplicitCloseAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonExplicitCloseAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonExplicitCloseStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonExplicitCloseStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		case ReasonForcedRecreateAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonForcedRecreateAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonForcedRecreateStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonForcedRecreateStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		case ReasonInactiveTimeoutAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonInactiveTimeoutAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonInactiveTimeoutStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonInactiveTimeoutStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		case ReasonNormalAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonNormalAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonNormalStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonNormalStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		case ReasonSeekAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonSeekAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonSeekStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonSeekStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		case ReasonSequentialToRandomAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonSequentialToRandomAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonSequentialToRandomStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonSequentialToRandomStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		case ReasonUnknownAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderCancellationUnreadBytes, value: value, attributes: gcsExperimentalReaderCancellationUnreadBytesReasonUnknownAttrSet}
+		switch state {
+			case StateReadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonUnknownStateReadAttrSet}
+			case StateUnreadAttr:
+			record = histogramRecord{ctx: ctx, instrument: o.gcsExperimentalReaderLifespanBytes, value: value, attributes: gcsExperimentalReaderLifespanBytesReasonUnknownStateUnreadAttrSet}
+			default:
+				updateUnrecognizedAttribute(string(state))
+				return
+		}
 		default:
 			updateUnrecognizedAttribute(string(reason))
 			return
@@ -3773,8 +3854,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	gcsExperimentalReaderCancellationUnreadBytes, err11 := meter.Int64Histogram("gcs/experimental_reader_cancellation_unread_bytes",
-		metric.WithDescription("The distribution of requested bytes that went unread when an in-flight GCS object reader was canceled or aborted, tracked across preemption triggers."),
+	gcsExperimentalReaderLifespanBytes, err11 := meter.Int64Histogram("gcs/experimental_reader_lifespan_bytes",
+		metric.WithDescription("The distribution of bytes read or left unread by an in-flight GCS object reader before it was closed, tracked across preemption triggers and byte states (read vs. unread)."),
 		metric.WithUnit("By"),
 		metric.WithExplicitBucketBoundaries(0, 1, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728))
 
@@ -4374,7 +4455,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			gcsExperimentalReaderCancellationCountReasonSeekAtomic: &gcsExperimentalReaderCancellationCountReasonSeekAtomic,
 			gcsExperimentalReaderCancellationCountReasonSequentialToRandomAtomic: &gcsExperimentalReaderCancellationCountReasonSequentialToRandomAtomic,
 			gcsExperimentalReaderCancellationCountReasonUnknownAtomic: &gcsExperimentalReaderCancellationCountReasonUnknownAtomic,
-			gcsExperimentalReaderCancellationUnreadBytes: gcsExperimentalReaderCancellationUnreadBytes,
+			gcsExperimentalReaderLifespanBytes: gcsExperimentalReaderLifespanBytes,
 			gcsReadBytesCountAtomic: &gcsReadBytesCountAtomic,
 			gcsReadCountReadTypeParallelAtomic: &gcsReadCountReadTypeParallelAtomic,
 			gcsReadCountReadTypeRandomAtomic: &gcsReadCountReadTypeRandomAtomic,
