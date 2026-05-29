@@ -115,7 +115,7 @@ func (rr *RangeReader) destroy() {
 
 // closeReader fetches the readHandle before closing the reader instance.
 func (rr *RangeReader) closeReader(ctx context.Context, caller string, readType int64) {
-	if rr.reader != nil && rr.start < rr.limit {
+	if rr.reader != nil && rr.start <= rr.limit {
 		reason := rr.preemptionReason
 		if reason == "" {
 			switch caller {
@@ -129,6 +129,8 @@ func (rr *RangeReader) closeReader(ctx context.Context, caller string, readType 
 				} else {
 					reason = metrics.ReasonSeekAttr
 				}
+			case "normal":
+				reason = metrics.ReasonNormalAttr
 			default:
 				reason = metrics.ReasonUnknownAttr
 			}

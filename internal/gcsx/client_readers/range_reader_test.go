@@ -894,3 +894,28 @@ func (t *rangeReaderTest) Test_invalidateReader_SeqToRandomTransitionRecordsMetr
 	assert.Nil(t.T(), t.rangeReader.reader)
 	mh.AssertExpectations(t.T())
 }
+
+func (t *rangeReaderTest) Test_CloseReader_CompletelyReadStreamRecordsMetric() {
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForRangeCancellation{}
+	// Expect ReasonNormalAttr and ReasonNormalAttr bytes with value 0 to be called!
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonNormalAttr).Return().Once()
+	mh.On("GcsExperimentalReaderCancellationUnreadBytes", mock.Anything, int64(0), metrics.ReasonNormalAttr).Return().Once()
+
+	// Initialize RangeReader with mock metrics handle
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, mh, tracing.NewNoopTracer())
+
+	// Simulate an existing, completely read reader.
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader(""))}
+	t.rangeReader.reader = rc
+	t.rangeReader.start = 6
+	t.rangeReader.limit = 6
+	t.rangeReader.cancel = func() {}
+
+	// Act: trigger closing via normal path
+	t.rangeReader.closeReader(context.Background(), "normal", metrics.ReadTypeUnknown)
+	t.rangeReader.reader = nil
+
+	// Assert: verify normal metric is logged correctly!
+	mh.AssertExpectations(t.T())
+}
