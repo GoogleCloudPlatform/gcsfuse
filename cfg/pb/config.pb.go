@@ -18,7 +18,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v3.21.12
-// source: config.proto
+// source: cfg/config.proto
 
 package pb
 
@@ -39,21 +39,21 @@ const (
 
 type CloudProfilerConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AllocatedHeap bool                   `protobuf:"varint,343497,opt,name=allocated_heap,json=allocatedHeap,proto3" json:"allocated_heap,omitempty"`
-	Cpu           bool                   `protobuf:"varint,382386,opt,name=cpu,proto3" json:"cpu,omitempty"`
-	Enabled       bool                   `protobuf:"varint,393223,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Goroutines    bool                   `protobuf:"varint,410647,opt,name=goroutines,proto3" json:"goroutines,omitempty"`
-	Heap          bool                   `protobuf:"varint,201992,opt,name=heap,proto3" json:"heap,omitempty"`
-	Label         string                 `protobuf:"bytes,331366,opt,name=label,proto3" json:"label,omitempty"`
-	Mutex         bool                   `protobuf:"varint,88109,opt,name=mutex,proto3" json:"mutex,omitempty"`
-	ServiceName   string                 `protobuf:"bytes,217368,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
+	AllocatedHeap bool                   `protobuf:"varint,1,opt,name=allocated_heap,json=allocatedHeap,proto3" json:"allocated_heap,omitempty"`
+	Cpu           bool                   `protobuf:"varint,2,opt,name=cpu,proto3" json:"cpu,omitempty"`
+	Enabled       bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Goroutines    bool                   `protobuf:"varint,4,opt,name=goroutines,proto3" json:"goroutines,omitempty"`
+	Heap          bool                   `protobuf:"varint,5,opt,name=heap,proto3" json:"heap,omitempty"`
+	Label         string                 `protobuf:"bytes,6,opt,name=label,proto3" json:"label,omitempty"`
+	Mutex         bool                   `protobuf:"varint,7,opt,name=mutex,proto3" json:"mutex,omitempty"`
+	ServiceName   string                 `protobuf:"bytes,8,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CloudProfilerConfig) Reset() {
 	*x = CloudProfilerConfig{}
-	mi := &file_config_proto_msgTypes[0]
+	mi := &file_cfg_config_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -65,7 +65,7 @@ func (x *CloudProfilerConfig) String() string {
 func (*CloudProfilerConfig) ProtoMessage() {}
 
 func (x *CloudProfilerConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[0]
+	mi := &file_cfg_config_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -78,7 +78,7 @@ func (x *CloudProfilerConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloudProfilerConfig.ProtoReflect.Descriptor instead.
 func (*CloudProfilerConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{0}
+	return file_cfg_config_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *CloudProfilerConfig) GetAllocatedHeap() bool {
@@ -139,46 +139,46 @@ func (x *CloudProfilerConfig) GetServiceName() string {
 
 type Config struct {
 	state                        protoimpl.MessageState `protogen:"open.v1"`
-	AppName                      string                 `protobuf:"bytes,73902,opt,name=app_name,json=appName,proto3" json:"app_name,omitempty"`
-	CacheDir                     string                 `protobuf:"bytes,51295,opt,name=cache_dir,json=cacheDir,proto3" json:"cache_dir,omitempty"`
-	CloudProfiler                *CloudProfilerConfig   `protobuf:"bytes,364966,opt,name=cloud_profiler,json=cloudProfiler,proto3" json:"cloud_profiler,omitempty"`
-	Debug                        *DebugConfig           `protobuf:"bytes,242627,opt,name=debug,proto3" json:"debug,omitempty"`
-	DisableAutoconfig            bool                   `protobuf:"varint,192713,opt,name=disable_autoconfig,json=disableAutoconfig,proto3" json:"disable_autoconfig,omitempty"`
-	DisableListAccessCheck       bool                   `protobuf:"varint,457418,opt,name=disable_list_access_check,json=disableListAccessCheck,proto3" json:"disable_list_access_check,omitempty"`
-	DummyIo                      *DummyIoConfig         `protobuf:"bytes,422490,opt,name=dummy_io,json=dummyIo,proto3" json:"dummy_io,omitempty"`
-	EnableAtomicRenameObject     bool                   `protobuf:"varint,355529,opt,name=enable_atomic_rename_object,json=enableAtomicRenameObject,proto3" json:"enable_atomic_rename_object,omitempty"`
-	EnableGoogleLibAuth          bool                   `protobuf:"varint,293633,opt,name=enable_google_lib_auth,json=enableGoogleLibAuth,proto3" json:"enable_google_lib_auth,omitempty"`
-	EnableHns                    bool                   `protobuf:"varint,284296,opt,name=enable_hns,json=enableHns,proto3" json:"enable_hns,omitempty"`
-	EnableNewReader              bool                   `protobuf:"varint,26510,opt,name=enable_new_reader,json=enableNewReader,proto3" json:"enable_new_reader,omitempty"`
-	EnableStandardSymlinks       bool                   `protobuf:"varint,157602,opt,name=enable_standard_symlinks,json=enableStandardSymlinks,proto3" json:"enable_standard_symlinks,omitempty"`
-	EnableTypeCacheDeprecation   bool                   `protobuf:"varint,164385,opt,name=enable_type_cache_deprecation,json=enableTypeCacheDeprecation,proto3" json:"enable_type_cache_deprecation,omitempty"`
-	EnableUnsupportedPathSupport bool                   `protobuf:"varint,210940,opt,name=enable_unsupported_path_support,json=enableUnsupportedPathSupport,proto3" json:"enable_unsupported_path_support,omitempty"`
-	FileCache                    *FileCacheConfig       `protobuf:"bytes,379494,opt,name=file_cache,json=fileCache,proto3" json:"file_cache,omitempty"`
-	FileSystem                   *FileSystemConfig      `protobuf:"bytes,352829,opt,name=file_system,json=fileSystem,proto3" json:"file_system,omitempty"`
-	Foreground                   bool                   `protobuf:"varint,63171,opt,name=foreground,proto3" json:"foreground,omitempty"`
-	GcsAuth                      *GcsAuthConfig         `protobuf:"bytes,347401,opt,name=gcs_auth,json=gcsAuth,proto3" json:"gcs_auth,omitempty"`
-	GcsConnection                *GcsConnectionConfig   `protobuf:"bytes,13127,opt,name=gcs_connection,json=gcsConnection,proto3" json:"gcs_connection,omitempty"`
-	GcsRetries                   *GcsRetriesConfig      `protobuf:"bytes,213445,opt,name=gcs_retries,json=gcsRetries,proto3" json:"gcs_retries,omitempty"`
-	ImplicitDirs                 bool                   `protobuf:"varint,258965,opt,name=implicit_dirs,json=implicitDirs,proto3" json:"implicit_dirs,omitempty"`
-	List                         *ListConfig            `protobuf:"bytes,190004,opt,name=list,proto3" json:"list,omitempty"`
-	Logging                      *LoggingConfig         `protobuf:"bytes,418053,opt,name=logging,proto3" json:"logging,omitempty"`
-	MachineType                  string                 `protobuf:"bytes,409041,opt,name=machine_type,json=machineType,proto3" json:"machine_type,omitempty"`
-	MetadataCache                *MetadataCacheConfig   `protobuf:"bytes,471157,opt,name=metadata_cache,json=metadataCache,proto3" json:"metadata_cache,omitempty"`
-	Metrics                      *MetricsConfig         `protobuf:"bytes,413357,opt,name=metrics,proto3" json:"metrics,omitempty"`
-	Mrd                          *MrdConfig             `protobuf:"bytes,351533,opt,name=mrd,proto3" json:"mrd,omitempty"`
-	OnlyDir                      string                 `protobuf:"bytes,396853,opt,name=only_dir,json=onlyDir,proto3" json:"only_dir,omitempty"`
-	Profile                      string                 `protobuf:"bytes,228981,opt,name=profile,proto3" json:"profile,omitempty"`
-	Read                         *ReadConfig            `protobuf:"bytes,61568,opt,name=read,proto3" json:"read,omitempty"`
-	Trace                        *TraceConfig           `protobuf:"bytes,477569,opt,name=trace,proto3" json:"trace,omitempty"`
-	WorkloadInsight              *WorkloadInsightConfig `protobuf:"bytes,478843,opt,name=workload_insight,json=workloadInsight,proto3" json:"workload_insight,omitempty"`
-	Write                        *WriteConfig           `protobuf:"bytes,57215,opt,name=write,proto3" json:"write,omitempty"`
+	AppName                      string                 `protobuf:"bytes,1,opt,name=app_name,json=appName,proto3" json:"app_name,omitempty"`
+	CacheDir                     string                 `protobuf:"bytes,2,opt,name=cache_dir,json=cacheDir,proto3" json:"cache_dir,omitempty"`
+	CloudProfiler                *CloudProfilerConfig   `protobuf:"bytes,3,opt,name=cloud_profiler,json=cloudProfiler,proto3" json:"cloud_profiler,omitempty"`
+	Debug                        *DebugConfig           `protobuf:"bytes,4,opt,name=debug,proto3" json:"debug,omitempty"`
+	DisableAutoconfig            bool                   `protobuf:"varint,5,opt,name=disable_autoconfig,json=disableAutoconfig,proto3" json:"disable_autoconfig,omitempty"`
+	DisableListAccessCheck       bool                   `protobuf:"varint,6,opt,name=disable_list_access_check,json=disableListAccessCheck,proto3" json:"disable_list_access_check,omitempty"`
+	DummyIo                      *DummyIoConfig         `protobuf:"bytes,7,opt,name=dummy_io,json=dummyIo,proto3" json:"dummy_io,omitempty"`
+	EnableAtomicRenameObject     bool                   `protobuf:"varint,8,opt,name=enable_atomic_rename_object,json=enableAtomicRenameObject,proto3" json:"enable_atomic_rename_object,omitempty"`
+	EnableGoogleLibAuth          bool                   `protobuf:"varint,9,opt,name=enable_google_lib_auth,json=enableGoogleLibAuth,proto3" json:"enable_google_lib_auth,omitempty"`
+	EnableHns                    bool                   `protobuf:"varint,10,opt,name=enable_hns,json=enableHns,proto3" json:"enable_hns,omitempty"`
+	EnableNewReader              bool                   `protobuf:"varint,11,opt,name=enable_new_reader,json=enableNewReader,proto3" json:"enable_new_reader,omitempty"`
+	EnableStandardSymlinks       bool                   `protobuf:"varint,12,opt,name=enable_standard_symlinks,json=enableStandardSymlinks,proto3" json:"enable_standard_symlinks,omitempty"`
+	EnableTypeCacheDeprecation   bool                   `protobuf:"varint,13,opt,name=enable_type_cache_deprecation,json=enableTypeCacheDeprecation,proto3" json:"enable_type_cache_deprecation,omitempty"`
+	EnableUnsupportedPathSupport bool                   `protobuf:"varint,14,opt,name=enable_unsupported_path_support,json=enableUnsupportedPathSupport,proto3" json:"enable_unsupported_path_support,omitempty"`
+	FileCache                    *FileCacheConfig       `protobuf:"bytes,15,opt,name=file_cache,json=fileCache,proto3" json:"file_cache,omitempty"`
+	FileSystem                   *FileSystemConfig      `protobuf:"bytes,16,opt,name=file_system,json=fileSystem,proto3" json:"file_system,omitempty"`
+	Foreground                   bool                   `protobuf:"varint,17,opt,name=foreground,proto3" json:"foreground,omitempty"`
+	GcsAuth                      *GcsAuthConfig         `protobuf:"bytes,18,opt,name=gcs_auth,json=gcsAuth,proto3" json:"gcs_auth,omitempty"`
+	GcsConnection                *GcsConnectionConfig   `protobuf:"bytes,19,opt,name=gcs_connection,json=gcsConnection,proto3" json:"gcs_connection,omitempty"`
+	GcsRetries                   *GcsRetriesConfig      `protobuf:"bytes,20,opt,name=gcs_retries,json=gcsRetries,proto3" json:"gcs_retries,omitempty"`
+	ImplicitDirs                 bool                   `protobuf:"varint,21,opt,name=implicit_dirs,json=implicitDirs,proto3" json:"implicit_dirs,omitempty"`
+	List                         *ListConfig            `protobuf:"bytes,22,opt,name=list,proto3" json:"list,omitempty"`
+	Logging                      *LoggingConfig         `protobuf:"bytes,23,opt,name=logging,proto3" json:"logging,omitempty"`
+	MachineType                  string                 `protobuf:"bytes,24,opt,name=machine_type,json=machineType,proto3" json:"machine_type,omitempty"`
+	MetadataCache                *MetadataCacheConfig   `protobuf:"bytes,25,opt,name=metadata_cache,json=metadataCache,proto3" json:"metadata_cache,omitempty"`
+	Metrics                      *MetricsConfig         `protobuf:"bytes,26,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	Mrd                          *MrdConfig             `protobuf:"bytes,27,opt,name=mrd,proto3" json:"mrd,omitempty"`
+	OnlyDir                      string                 `protobuf:"bytes,28,opt,name=only_dir,json=onlyDir,proto3" json:"only_dir,omitempty"`
+	Profile                      string                 `protobuf:"bytes,29,opt,name=profile,proto3" json:"profile,omitempty"`
+	Read                         *ReadConfig            `protobuf:"bytes,30,opt,name=read,proto3" json:"read,omitempty"`
+	Trace                        *TraceConfig           `protobuf:"bytes,31,opt,name=trace,proto3" json:"trace,omitempty"`
+	WorkloadInsight              *WorkloadInsightConfig `protobuf:"bytes,32,opt,name=workload_insight,json=workloadInsight,proto3" json:"workload_insight,omitempty"`
+	Write                        *WriteConfig           `protobuf:"bytes,33,opt,name=write,proto3" json:"write,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Config) Reset() {
 	*x = Config{}
-	mi := &file_config_proto_msgTypes[1]
+	mi := &file_cfg_config_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -190,7 +190,7 @@ func (x *Config) String() string {
 func (*Config) ProtoMessage() {}
 
 func (x *Config) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[1]
+	mi := &file_cfg_config_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -203,7 +203,7 @@ func (x *Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Config.ProtoReflect.Descriptor instead.
 func (*Config) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{1}
+	return file_cfg_config_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Config) GetAppName() string {
@@ -439,17 +439,17 @@ func (x *Config) GetWrite() *WriteConfig {
 
 type DebugConfig struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
-	ExitOnInvariantViolation bool                   `protobuf:"varint,420411,opt,name=exit_on_invariant_violation,json=exitOnInvariantViolation,proto3" json:"exit_on_invariant_violation,omitempty"`
-	Fuse                     bool                   `protobuf:"varint,6158,opt,name=fuse,proto3" json:"fuse,omitempty"`
-	Gcs                      bool                   `protobuf:"varint,386700,opt,name=gcs,proto3" json:"gcs,omitempty"`
-	LogMutex                 bool                   `protobuf:"varint,82554,opt,name=log_mutex,json=logMutex,proto3" json:"log_mutex,omitempty"`
+	ExitOnInvariantViolation bool                   `protobuf:"varint,1,opt,name=exit_on_invariant_violation,json=exitOnInvariantViolation,proto3" json:"exit_on_invariant_violation,omitempty"`
+	Fuse                     bool                   `protobuf:"varint,2,opt,name=fuse,proto3" json:"fuse,omitempty"`
+	Gcs                      bool                   `protobuf:"varint,3,opt,name=gcs,proto3" json:"gcs,omitempty"`
+	LogMutex                 bool                   `protobuf:"varint,4,opt,name=log_mutex,json=logMutex,proto3" json:"log_mutex,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
 
 func (x *DebugConfig) Reset() {
 	*x = DebugConfig{}
-	mi := &file_config_proto_msgTypes[2]
+	mi := &file_cfg_config_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -461,7 +461,7 @@ func (x *DebugConfig) String() string {
 func (*DebugConfig) ProtoMessage() {}
 
 func (x *DebugConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[2]
+	mi := &file_cfg_config_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -474,7 +474,7 @@ func (x *DebugConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DebugConfig.ProtoReflect.Descriptor instead.
 func (*DebugConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{2}
+	return file_cfg_config_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *DebugConfig) GetExitOnInvariantViolation() bool {
@@ -507,16 +507,16 @@ func (x *DebugConfig) GetLogMutex() bool {
 
 type DummyIoConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Enable        bool                   `protobuf:"varint,200815,opt,name=enable,proto3" json:"enable,omitempty"`
-	PerMbLatency  int64                  `protobuf:"varint,129860,opt,name=per_mb_latency,json=perMbLatency,proto3" json:"per_mb_latency,omitempty"`
-	ReaderLatency int64                  `protobuf:"varint,268973,opt,name=reader_latency,json=readerLatency,proto3" json:"reader_latency,omitempty"`
+	Enable        bool                   `protobuf:"varint,1,opt,name=enable,proto3" json:"enable,omitempty"`
+	PerMbLatency  int64                  `protobuf:"varint,2,opt,name=per_mb_latency,json=perMbLatency,proto3" json:"per_mb_latency,omitempty"`
+	ReaderLatency int64                  `protobuf:"varint,3,opt,name=reader_latency,json=readerLatency,proto3" json:"reader_latency,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DummyIoConfig) Reset() {
 	*x = DummyIoConfig{}
-	mi := &file_config_proto_msgTypes[3]
+	mi := &file_cfg_config_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -528,7 +528,7 @@ func (x *DummyIoConfig) String() string {
 func (*DummyIoConfig) ProtoMessage() {}
 
 func (x *DummyIoConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[3]
+	mi := &file_cfg_config_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -541,7 +541,7 @@ func (x *DummyIoConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DummyIoConfig.ProtoReflect.Descriptor instead.
 func (*DummyIoConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{3}
+	return file_cfg_config_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DummyIoConfig) GetEnable() bool {
@@ -567,29 +567,29 @@ func (x *DummyIoConfig) GetReaderLatency() int64 {
 
 type FileCacheConfig struct {
 	state                                  protoimpl.MessageState `protogen:"open.v1"`
-	CacheFileForRangeRead                  bool                   `protobuf:"varint,628,opt,name=cache_file_for_range_read,json=cacheFileForRangeRead,proto3" json:"cache_file_for_range_read,omitempty"`
-	DownloadChunkSizeMb                    int64                  `protobuf:"varint,318217,opt,name=download_chunk_size_mb,json=downloadChunkSizeMb,proto3" json:"download_chunk_size_mb,omitempty"`
-	EnableCrc                              bool                   `protobuf:"varint,125577,opt,name=enable_crc,json=enableCrc,proto3" json:"enable_crc,omitempty"`
-	EnableExperimentalSharedChunkCache     bool                   `protobuf:"varint,57409,opt,name=enable_experimental_shared_chunk_cache,json=enableExperimentalSharedChunkCache,proto3" json:"enable_experimental_shared_chunk_cache,omitempty"`
-	EnableODirect                          bool                   `protobuf:"varint,317431,opt,name=enable_o_direct,json=enableODirect,proto3" json:"enable_o_direct,omitempty"`
-	EnableParallelDownloads                bool                   `protobuf:"varint,434047,opt,name=enable_parallel_downloads,json=enableParallelDownloads,proto3" json:"enable_parallel_downloads,omitempty"`
-	ExcludeRegex                           string                 `protobuf:"bytes,62361,opt,name=exclude_regex,json=excludeRegex,proto3" json:"exclude_regex,omitempty"`
-	ExperimentalDisableSizeCalculationFix  bool                   `protobuf:"varint,115425,opt,name=experimental_disable_size_calculation_fix,json=experimentalDisableSizeCalculationFix,proto3" json:"experimental_disable_size_calculation_fix,omitempty"`
-	ExperimentalEnableChunkCache           bool                   `protobuf:"varint,27938,opt,name=experimental_enable_chunk_cache,json=experimentalEnableChunkCache,proto3" json:"experimental_enable_chunk_cache,omitempty"`
-	ExperimentalParallelDownloadsDefaultOn bool                   `protobuf:"varint,206280,opt,name=experimental_parallel_downloads_default_on,json=experimentalParallelDownloadsDefaultOn,proto3" json:"experimental_parallel_downloads_default_on,omitempty"`
-	IncludeRegex                           string                 `protobuf:"bytes,20995,opt,name=include_regex,json=includeRegex,proto3" json:"include_regex,omitempty"`
-	MaxParallelDownloads                   int64                  `protobuf:"varint,382340,opt,name=max_parallel_downloads,json=maxParallelDownloads,proto3" json:"max_parallel_downloads,omitempty"`
-	MaxSizeMb                              int64                  `protobuf:"varint,435444,opt,name=max_size_mb,json=maxSizeMb,proto3" json:"max_size_mb,omitempty"`
-	ParallelDownloadsPerFile               int64                  `protobuf:"varint,248153,opt,name=parallel_downloads_per_file,json=parallelDownloadsPerFile,proto3" json:"parallel_downloads_per_file,omitempty"`
-	SharedCacheChunkSizeMb                 int64                  `protobuf:"varint,328346,opt,name=shared_cache_chunk_size_mb,json=sharedCacheChunkSizeMb,proto3" json:"shared_cache_chunk_size_mb,omitempty"`
-	WriteBufferSize                        int64                  `protobuf:"varint,222860,opt,name=write_buffer_size,json=writeBufferSize,proto3" json:"write_buffer_size,omitempty"`
+	CacheFileForRangeRead                  bool                   `protobuf:"varint,1,opt,name=cache_file_for_range_read,json=cacheFileForRangeRead,proto3" json:"cache_file_for_range_read,omitempty"`
+	DownloadChunkSizeMb                    int64                  `protobuf:"varint,2,opt,name=download_chunk_size_mb,json=downloadChunkSizeMb,proto3" json:"download_chunk_size_mb,omitempty"`
+	EnableCrc                              bool                   `protobuf:"varint,3,opt,name=enable_crc,json=enableCrc,proto3" json:"enable_crc,omitempty"`
+	EnableExperimentalSharedChunkCache     bool                   `protobuf:"varint,4,opt,name=enable_experimental_shared_chunk_cache,json=enableExperimentalSharedChunkCache,proto3" json:"enable_experimental_shared_chunk_cache,omitempty"`
+	EnableODirect                          bool                   `protobuf:"varint,5,opt,name=enable_o_direct,json=enableODirect,proto3" json:"enable_o_direct,omitempty"`
+	EnableParallelDownloads                bool                   `protobuf:"varint,6,opt,name=enable_parallel_downloads,json=enableParallelDownloads,proto3" json:"enable_parallel_downloads,omitempty"`
+	ExcludeRegex                           string                 `protobuf:"bytes,7,opt,name=exclude_regex,json=excludeRegex,proto3" json:"exclude_regex,omitempty"`
+	ExperimentalDisableSizeCalculationFix  bool                   `protobuf:"varint,8,opt,name=experimental_disable_size_calculation_fix,json=experimentalDisableSizeCalculationFix,proto3" json:"experimental_disable_size_calculation_fix,omitempty"`
+	ExperimentalEnableChunkCache           bool                   `protobuf:"varint,9,opt,name=experimental_enable_chunk_cache,json=experimentalEnableChunkCache,proto3" json:"experimental_enable_chunk_cache,omitempty"`
+	ExperimentalParallelDownloadsDefaultOn bool                   `protobuf:"varint,10,opt,name=experimental_parallel_downloads_default_on,json=experimentalParallelDownloadsDefaultOn,proto3" json:"experimental_parallel_downloads_default_on,omitempty"`
+	IncludeRegex                           string                 `protobuf:"bytes,11,opt,name=include_regex,json=includeRegex,proto3" json:"include_regex,omitempty"`
+	MaxParallelDownloads                   int64                  `protobuf:"varint,12,opt,name=max_parallel_downloads,json=maxParallelDownloads,proto3" json:"max_parallel_downloads,omitempty"`
+	MaxSizeMb                              int64                  `protobuf:"varint,13,opt,name=max_size_mb,json=maxSizeMb,proto3" json:"max_size_mb,omitempty"`
+	ParallelDownloadsPerFile               int64                  `protobuf:"varint,14,opt,name=parallel_downloads_per_file,json=parallelDownloadsPerFile,proto3" json:"parallel_downloads_per_file,omitempty"`
+	SharedCacheChunkSizeMb                 int64                  `protobuf:"varint,15,opt,name=shared_cache_chunk_size_mb,json=sharedCacheChunkSizeMb,proto3" json:"shared_cache_chunk_size_mb,omitempty"`
+	WriteBufferSize                        int64                  `protobuf:"varint,16,opt,name=write_buffer_size,json=writeBufferSize,proto3" json:"write_buffer_size,omitempty"`
 	unknownFields                          protoimpl.UnknownFields
 	sizeCache                              protoimpl.SizeCache
 }
 
 func (x *FileCacheConfig) Reset() {
 	*x = FileCacheConfig{}
-	mi := &file_config_proto_msgTypes[4]
+	mi := &file_cfg_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -601,7 +601,7 @@ func (x *FileCacheConfig) String() string {
 func (*FileCacheConfig) ProtoMessage() {}
 
 func (x *FileCacheConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[4]
+	mi := &file_cfg_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -614,7 +614,7 @@ func (x *FileCacheConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileCacheConfig.ProtoReflect.Descriptor instead.
 func (*FileCacheConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{4}
+	return file_cfg_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *FileCacheConfig) GetCacheFileForRangeRead() bool {
@@ -731,33 +731,33 @@ func (x *FileCacheConfig) GetWriteBufferSize() int64 {
 
 type FileSystemConfig struct {
 	state                         protoimpl.MessageState `protogen:"open.v1"`
-	CongestionThreshold           int64                  `protobuf:"varint,181165,opt,name=congestion_threshold,json=congestionThreshold,proto3" json:"congestion_threshold,omitempty"`
-	DirMode                       uint32                 `protobuf:"varint,4707,opt,name=dir_mode,json=dirMode,proto3" json:"dir_mode,omitempty"`
-	DisableParallelDirops         bool                   `protobuf:"varint,147085,opt,name=disable_parallel_dirops,json=disableParallelDirops,proto3" json:"disable_parallel_dirops,omitempty"`
-	EnableKernelReader            bool                   `protobuf:"varint,156900,opt,name=enable_kernel_reader,json=enableKernelReader,proto3" json:"enable_kernel_reader,omitempty"`
-	ExperimentalEnableDentryCache bool                   `protobuf:"varint,195144,opt,name=experimental_enable_dentry_cache,json=experimentalEnableDentryCache,proto3" json:"experimental_enable_dentry_cache,omitempty"`
-	ExperimentalEnablePirlo       bool                   `protobuf:"varint,78260,opt,name=experimental_enable_pirlo,json=experimentalEnablePirlo,proto3" json:"experimental_enable_pirlo,omitempty"`
-	ExperimentalEnableReaddirplus bool                   `protobuf:"varint,34347,opt,name=experimental_enable_readdirplus,json=experimentalEnableReaddirplus,proto3" json:"experimental_enable_readdirplus,omitempty"`
-	ExperimentalODirect           bool                   `protobuf:"varint,194785,opt,name=experimental_o_direct,json=experimentalODirect,proto3" json:"experimental_o_direct,omitempty"`
-	FileMode                      uint32                 `protobuf:"varint,468780,opt,name=file_mode,json=fileMode,proto3" json:"file_mode,omitempty"`
-	FuseOptions                   []string               `protobuf:"bytes,304576,rep,name=fuse_options,json=fuseOptions,proto3" json:"fuse_options,omitempty"`
-	Gid                           int64                  `protobuf:"varint,446359,opt,name=gid,proto3" json:"gid,omitempty"`
-	IgnoreInterrupts              bool                   `protobuf:"varint,37905,opt,name=ignore_interrupts,json=ignoreInterrupts,proto3" json:"ignore_interrupts,omitempty"`
-	InactiveMrdCacheSize          int64                  `protobuf:"varint,235600,opt,name=inactive_mrd_cache_size,json=inactiveMrdCacheSize,proto3" json:"inactive_mrd_cache_size,omitempty"`
-	KernelListCacheTtlSecs        int64                  `protobuf:"varint,260428,opt,name=kernel_list_cache_ttl_secs,json=kernelListCacheTtlSecs,proto3" json:"kernel_list_cache_ttl_secs,omitempty"`
-	KernelParamsFile              string                 `protobuf:"bytes,403604,opt,name=kernel_params_file,json=kernelParamsFile,proto3" json:"kernel_params_file,omitempty"`
-	MaxBackground                 int64                  `protobuf:"varint,141989,opt,name=max_background,json=maxBackground,proto3" json:"max_background,omitempty"`
-	MaxReadAheadKb                int64                  `protobuf:"varint,171241,opt,name=max_read_ahead_kb,json=maxReadAheadKb,proto3" json:"max_read_ahead_kb,omitempty"`
-	RenameDirLimit                int64                  `protobuf:"varint,190203,opt,name=rename_dir_limit,json=renameDirLimit,proto3" json:"rename_dir_limit,omitempty"`
-	TempDir                       string                 `protobuf:"bytes,204148,opt,name=temp_dir,json=tempDir,proto3" json:"temp_dir,omitempty"`
-	Uid                           int64                  `protobuf:"varint,488485,opt,name=uid,proto3" json:"uid,omitempty"`
+	CongestionThreshold           int64                  `protobuf:"varint,1,opt,name=congestion_threshold,json=congestionThreshold,proto3" json:"congestion_threshold,omitempty"`
+	DirMode                       uint32                 `protobuf:"varint,2,opt,name=dir_mode,json=dirMode,proto3" json:"dir_mode,omitempty"`
+	DisableParallelDirops         bool                   `protobuf:"varint,3,opt,name=disable_parallel_dirops,json=disableParallelDirops,proto3" json:"disable_parallel_dirops,omitempty"`
+	EnableKernelReader            bool                   `protobuf:"varint,4,opt,name=enable_kernel_reader,json=enableKernelReader,proto3" json:"enable_kernel_reader,omitempty"`
+	ExperimentalEnableDentryCache bool                   `protobuf:"varint,5,opt,name=experimental_enable_dentry_cache,json=experimentalEnableDentryCache,proto3" json:"experimental_enable_dentry_cache,omitempty"`
+	ExperimentalEnablePirlo       bool                   `protobuf:"varint,6,opt,name=experimental_enable_pirlo,json=experimentalEnablePirlo,proto3" json:"experimental_enable_pirlo,omitempty"`
+	ExperimentalEnableReaddirplus bool                   `protobuf:"varint,7,opt,name=experimental_enable_readdirplus,json=experimentalEnableReaddirplus,proto3" json:"experimental_enable_readdirplus,omitempty"`
+	ExperimentalODirect           bool                   `protobuf:"varint,8,opt,name=experimental_o_direct,json=experimentalODirect,proto3" json:"experimental_o_direct,omitempty"`
+	FileMode                      uint32                 `protobuf:"varint,9,opt,name=file_mode,json=fileMode,proto3" json:"file_mode,omitempty"`
+	FuseOptions                   []string               `protobuf:"bytes,10,rep,name=fuse_options,json=fuseOptions,proto3" json:"fuse_options,omitempty"`
+	Gid                           int64                  `protobuf:"varint,11,opt,name=gid,proto3" json:"gid,omitempty"`
+	IgnoreInterrupts              bool                   `protobuf:"varint,12,opt,name=ignore_interrupts,json=ignoreInterrupts,proto3" json:"ignore_interrupts,omitempty"`
+	InactiveMrdCacheSize          int64                  `protobuf:"varint,13,opt,name=inactive_mrd_cache_size,json=inactiveMrdCacheSize,proto3" json:"inactive_mrd_cache_size,omitempty"`
+	KernelListCacheTtlSecs        int64                  `protobuf:"varint,14,opt,name=kernel_list_cache_ttl_secs,json=kernelListCacheTtlSecs,proto3" json:"kernel_list_cache_ttl_secs,omitempty"`
+	KernelParamsFile              string                 `protobuf:"bytes,15,opt,name=kernel_params_file,json=kernelParamsFile,proto3" json:"kernel_params_file,omitempty"`
+	MaxBackground                 int64                  `protobuf:"varint,16,opt,name=max_background,json=maxBackground,proto3" json:"max_background,omitempty"`
+	MaxReadAheadKb                int64                  `protobuf:"varint,17,opt,name=max_read_ahead_kb,json=maxReadAheadKb,proto3" json:"max_read_ahead_kb,omitempty"`
+	RenameDirLimit                int64                  `protobuf:"varint,18,opt,name=rename_dir_limit,json=renameDirLimit,proto3" json:"rename_dir_limit,omitempty"`
+	TempDir                       string                 `protobuf:"bytes,19,opt,name=temp_dir,json=tempDir,proto3" json:"temp_dir,omitempty"`
+	Uid                           int64                  `protobuf:"varint,20,opt,name=uid,proto3" json:"uid,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *FileSystemConfig) Reset() {
 	*x = FileSystemConfig{}
-	mi := &file_config_proto_msgTypes[5]
+	mi := &file_cfg_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -769,7 +769,7 @@ func (x *FileSystemConfig) String() string {
 func (*FileSystemConfig) ProtoMessage() {}
 
 func (x *FileSystemConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[5]
+	mi := &file_cfg_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -782,7 +782,7 @@ func (x *FileSystemConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileSystemConfig.ProtoReflect.Descriptor instead.
 func (*FileSystemConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{5}
+	return file_cfg_config_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *FileSystemConfig) GetCongestionThreshold() int64 {
@@ -927,17 +927,17 @@ func (x *FileSystemConfig) GetUid() int64 {
 
 type GcsAuthConfig struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	AnonymousAccess   bool                   `protobuf:"varint,245234,opt,name=anonymous_access,json=anonymousAccess,proto3" json:"anonymous_access,omitempty"`
-	KeyFile           string                 `protobuf:"bytes,7804,opt,name=key_file,json=keyFile,proto3" json:"key_file,omitempty"`
-	ReuseTokenFromUrl bool                   `protobuf:"varint,176981,opt,name=reuse_token_from_url,json=reuseTokenFromUrl,proto3" json:"reuse_token_from_url,omitempty"`
-	TokenUrl          string                 `protobuf:"bytes,468997,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"`
+	AnonymousAccess   bool                   `protobuf:"varint,1,opt,name=anonymous_access,json=anonymousAccess,proto3" json:"anonymous_access,omitempty"`
+	KeyFile           string                 `protobuf:"bytes,2,opt,name=key_file,json=keyFile,proto3" json:"key_file,omitempty"`
+	ReuseTokenFromUrl bool                   `protobuf:"varint,3,opt,name=reuse_token_from_url,json=reuseTokenFromUrl,proto3" json:"reuse_token_from_url,omitempty"`
+	TokenUrl          string                 `protobuf:"bytes,4,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GcsAuthConfig) Reset() {
 	*x = GcsAuthConfig{}
-	mi := &file_config_proto_msgTypes[6]
+	mi := &file_cfg_config_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -949,7 +949,7 @@ func (x *GcsAuthConfig) String() string {
 func (*GcsAuthConfig) ProtoMessage() {}
 
 func (x *GcsAuthConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[6]
+	mi := &file_cfg_config_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -962,7 +962,7 @@ func (x *GcsAuthConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GcsAuthConfig.ProtoReflect.Descriptor instead.
 func (*GcsAuthConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{6}
+	return file_cfg_config_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GcsAuthConfig) GetAnonymousAccess() bool {
@@ -995,27 +995,27 @@ func (x *GcsAuthConfig) GetTokenUrl() string {
 
 type GcsConnectionConfig struct {
 	state                          protoimpl.MessageState `protogen:"open.v1"`
-	BillingProject                 string                 `protobuf:"bytes,138317,opt,name=billing_project,json=billingProject,proto3" json:"billing_project,omitempty"`
-	ClientProtocol                 string                 `protobuf:"bytes,314440,opt,name=client_protocol,json=clientProtocol,proto3" json:"client_protocol,omitempty"`
-	CustomEndpoint                 string                 `protobuf:"bytes,274323,opt,name=custom_endpoint,json=customEndpoint,proto3" json:"custom_endpoint,omitempty"`
-	EnableHttpDnsCache             bool                   `protobuf:"varint,190565,opt,name=enable_http_dns_cache,json=enableHttpDnsCache,proto3" json:"enable_http_dns_cache,omitempty"`
-	ExperimentalEnableJsonRead     bool                   `protobuf:"varint,438788,opt,name=experimental_enable_json_read,json=experimentalEnableJsonRead,proto3" json:"experimental_enable_json_read,omitempty"`
-	ExperimentalLocalSocketAddress string                 `protobuf:"bytes,63865,opt,name=experimental_local_socket_address,json=experimentalLocalSocketAddress,proto3" json:"experimental_local_socket_address,omitempty"`
-	GrpcConnPoolSize               int64                  `protobuf:"varint,36846,opt,name=grpc_conn_pool_size,json=grpcConnPoolSize,proto3" json:"grpc_conn_pool_size,omitempty"`
-	GrpcPathStrategy               string                 `protobuf:"bytes,212955,opt,name=grpc_path_strategy,json=grpcPathStrategy,proto3" json:"grpc_path_strategy,omitempty"`
-	HttpClientTimeout              int64                  `protobuf:"varint,332607,opt,name=http_client_timeout,json=httpClientTimeout,proto3" json:"http_client_timeout,omitempty"`
-	LimitBytesPerSec               float64                `protobuf:"fixed64,171151,opt,name=limit_bytes_per_sec,json=limitBytesPerSec,proto3" json:"limit_bytes_per_sec,omitempty"`
-	LimitOpsPerSec                 float64                `protobuf:"fixed64,371862,opt,name=limit_ops_per_sec,json=limitOpsPerSec,proto3" json:"limit_ops_per_sec,omitempty"`
-	MaxConnsPerHost                int64                  `protobuf:"varint,323531,opt,name=max_conns_per_host,json=maxConnsPerHost,proto3" json:"max_conns_per_host,omitempty"`
-	MaxIdleConnsPerHost            int64                  `protobuf:"varint,432085,opt,name=max_idle_conns_per_host,json=maxIdleConnsPerHost,proto3" json:"max_idle_conns_per_host,omitempty"`
-	SequentialReadSizeMb           int64                  `protobuf:"varint,418558,opt,name=sequential_read_size_mb,json=sequentialReadSizeMb,proto3" json:"sequential_read_size_mb,omitempty"`
+	BillingProject                 string                 `protobuf:"bytes,1,opt,name=billing_project,json=billingProject,proto3" json:"billing_project,omitempty"`
+	ClientProtocol                 string                 `protobuf:"bytes,2,opt,name=client_protocol,json=clientProtocol,proto3" json:"client_protocol,omitempty"`
+	CustomEndpoint                 string                 `protobuf:"bytes,3,opt,name=custom_endpoint,json=customEndpoint,proto3" json:"custom_endpoint,omitempty"`
+	EnableHttpDnsCache             bool                   `protobuf:"varint,4,opt,name=enable_http_dns_cache,json=enableHttpDnsCache,proto3" json:"enable_http_dns_cache,omitempty"`
+	ExperimentalEnableJsonRead     bool                   `protobuf:"varint,5,opt,name=experimental_enable_json_read,json=experimentalEnableJsonRead,proto3" json:"experimental_enable_json_read,omitempty"`
+	ExperimentalLocalSocketAddress string                 `protobuf:"bytes,6,opt,name=experimental_local_socket_address,json=experimentalLocalSocketAddress,proto3" json:"experimental_local_socket_address,omitempty"`
+	GrpcConnPoolSize               int64                  `protobuf:"varint,7,opt,name=grpc_conn_pool_size,json=grpcConnPoolSize,proto3" json:"grpc_conn_pool_size,omitempty"`
+	GrpcPathStrategy               string                 `protobuf:"bytes,8,opt,name=grpc_path_strategy,json=grpcPathStrategy,proto3" json:"grpc_path_strategy,omitempty"`
+	HttpClientTimeout              int64                  `protobuf:"varint,9,opt,name=http_client_timeout,json=httpClientTimeout,proto3" json:"http_client_timeout,omitempty"`
+	LimitBytesPerSec               float64                `protobuf:"fixed64,10,opt,name=limit_bytes_per_sec,json=limitBytesPerSec,proto3" json:"limit_bytes_per_sec,omitempty"`
+	LimitOpsPerSec                 float64                `protobuf:"fixed64,11,opt,name=limit_ops_per_sec,json=limitOpsPerSec,proto3" json:"limit_ops_per_sec,omitempty"`
+	MaxConnsPerHost                int64                  `protobuf:"varint,12,opt,name=max_conns_per_host,json=maxConnsPerHost,proto3" json:"max_conns_per_host,omitempty"`
+	MaxIdleConnsPerHost            int64                  `protobuf:"varint,13,opt,name=max_idle_conns_per_host,json=maxIdleConnsPerHost,proto3" json:"max_idle_conns_per_host,omitempty"`
+	SequentialReadSizeMb           int64                  `protobuf:"varint,14,opt,name=sequential_read_size_mb,json=sequentialReadSizeMb,proto3" json:"sequential_read_size_mb,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *GcsConnectionConfig) Reset() {
 	*x = GcsConnectionConfig{}
-	mi := &file_config_proto_msgTypes[7]
+	mi := &file_cfg_config_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1027,7 @@ func (x *GcsConnectionConfig) String() string {
 func (*GcsConnectionConfig) ProtoMessage() {}
 
 func (x *GcsConnectionConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[7]
+	mi := &file_cfg_config_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1040,7 @@ func (x *GcsConnectionConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GcsConnectionConfig.ProtoReflect.Descriptor instead.
 func (*GcsConnectionConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{7}
+	return file_cfg_config_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GcsConnectionConfig) GetBillingProject() string {
@@ -1143,21 +1143,21 @@ func (x *GcsConnectionConfig) GetSequentialReadSizeMb() int64 {
 
 type GcsRetriesConfig struct {
 	state                                   protoimpl.MessageState     `protogen:"open.v1"`
-	ChunkRetryDeadlineSecs                  int64                      `protobuf:"varint,79302,opt,name=chunk_retry_deadline_secs,json=chunkRetryDeadlineSecs,proto3" json:"chunk_retry_deadline_secs,omitempty"`
-	ChunkTransferTimeoutSecs                int64                      `protobuf:"varint,185562,opt,name=chunk_transfer_timeout_secs,json=chunkTransferTimeoutSecs,proto3" json:"chunk_transfer_timeout_secs,omitempty"`
-	EnableMountRetries                      bool                       `protobuf:"varint,354929,opt,name=enable_mount_retries,json=enableMountRetries,proto3" json:"enable_mount_retries,omitempty"`
-	ExperimentalNonrapidFolderApiStallRetry bool                       `protobuf:"varint,214282,opt,name=experimental_nonrapid_folder_api_stall_retry,json=experimentalNonrapidFolderApiStallRetry,proto3" json:"experimental_nonrapid_folder_api_stall_retry,omitempty"`
-	MaxRetryAttempts                        int64                      `protobuf:"varint,191921,opt,name=max_retry_attempts,json=maxRetryAttempts,proto3" json:"max_retry_attempts,omitempty"`
-	MaxRetrySleep                           int64                      `protobuf:"varint,488794,opt,name=max_retry_sleep,json=maxRetrySleep,proto3" json:"max_retry_sleep,omitempty"`
-	Multiplier                              float64                    `protobuf:"fixed64,229918,opt,name=multiplier,proto3" json:"multiplier,omitempty"`
-	ReadStall                               *ReadStallGcsRetriesConfig `protobuf:"bytes,137333,opt,name=read_stall,json=readStall,proto3" json:"read_stall,omitempty"`
+	ChunkRetryDeadlineSecs                  int64                      `protobuf:"varint,1,opt,name=chunk_retry_deadline_secs,json=chunkRetryDeadlineSecs,proto3" json:"chunk_retry_deadline_secs,omitempty"`
+	ChunkTransferTimeoutSecs                int64                      `protobuf:"varint,2,opt,name=chunk_transfer_timeout_secs,json=chunkTransferTimeoutSecs,proto3" json:"chunk_transfer_timeout_secs,omitempty"`
+	EnableMountRetries                      bool                       `protobuf:"varint,3,opt,name=enable_mount_retries,json=enableMountRetries,proto3" json:"enable_mount_retries,omitempty"`
+	ExperimentalNonrapidFolderApiStallRetry bool                       `protobuf:"varint,4,opt,name=experimental_nonrapid_folder_api_stall_retry,json=experimentalNonrapidFolderApiStallRetry,proto3" json:"experimental_nonrapid_folder_api_stall_retry,omitempty"`
+	MaxRetryAttempts                        int64                      `protobuf:"varint,5,opt,name=max_retry_attempts,json=maxRetryAttempts,proto3" json:"max_retry_attempts,omitempty"`
+	MaxRetrySleep                           int64                      `protobuf:"varint,6,opt,name=max_retry_sleep,json=maxRetrySleep,proto3" json:"max_retry_sleep,omitempty"`
+	Multiplier                              float64                    `protobuf:"fixed64,7,opt,name=multiplier,proto3" json:"multiplier,omitempty"`
+	ReadStall                               *ReadStallGcsRetriesConfig `protobuf:"bytes,8,opt,name=read_stall,json=readStall,proto3" json:"read_stall,omitempty"`
 	unknownFields                           protoimpl.UnknownFields
 	sizeCache                               protoimpl.SizeCache
 }
 
 func (x *GcsRetriesConfig) Reset() {
 	*x = GcsRetriesConfig{}
-	mi := &file_config_proto_msgTypes[8]
+	mi := &file_cfg_config_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1169,7 +1169,7 @@ func (x *GcsRetriesConfig) String() string {
 func (*GcsRetriesConfig) ProtoMessage() {}
 
 func (x *GcsRetriesConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[8]
+	mi := &file_cfg_config_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1182,7 +1182,7 @@ func (x *GcsRetriesConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GcsRetriesConfig.ProtoReflect.Descriptor instead.
 func (*GcsRetriesConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{8}
+	return file_cfg_config_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GcsRetriesConfig) GetChunkRetryDeadlineSecs() int64 {
@@ -1243,14 +1243,14 @@ func (x *GcsRetriesConfig) GetReadStall() *ReadStallGcsRetriesConfig {
 
 type ListConfig struct {
 	state                     protoimpl.MessageState `protogen:"open.v1"`
-	EnableEmptyManagedFolders bool                   `protobuf:"varint,88668,opt,name=enable_empty_managed_folders,json=enableEmptyManagedFolders,proto3" json:"enable_empty_managed_folders,omitempty"`
+	EnableEmptyManagedFolders bool                   `protobuf:"varint,1,opt,name=enable_empty_managed_folders,json=enableEmptyManagedFolders,proto3" json:"enable_empty_managed_folders,omitempty"`
 	unknownFields             protoimpl.UnknownFields
 	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *ListConfig) Reset() {
 	*x = ListConfig{}
-	mi := &file_config_proto_msgTypes[9]
+	mi := &file_cfg_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1262,7 +1262,7 @@ func (x *ListConfig) String() string {
 func (*ListConfig) ProtoMessage() {}
 
 func (x *ListConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[9]
+	mi := &file_cfg_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1275,7 +1275,7 @@ func (x *ListConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConfig.ProtoReflect.Descriptor instead.
 func (*ListConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{9}
+	return file_cfg_config_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListConfig) GetEnableEmptyManagedFolders() bool {
@@ -1287,16 +1287,16 @@ func (x *ListConfig) GetEnableEmptyManagedFolders() bool {
 
 type LogRotateLoggingConfig struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	BackupFileCount int64                  `protobuf:"varint,269269,opt,name=backup_file_count,json=backupFileCount,proto3" json:"backup_file_count,omitempty"`
-	Compress        bool                   `protobuf:"varint,152778,opt,name=compress,proto3" json:"compress,omitempty"`
-	MaxFileSizeMb   int64                  `protobuf:"varint,31782,opt,name=max_file_size_mb,json=maxFileSizeMb,proto3" json:"max_file_size_mb,omitempty"`
+	BackupFileCount int64                  `protobuf:"varint,1,opt,name=backup_file_count,json=backupFileCount,proto3" json:"backup_file_count,omitempty"`
+	Compress        bool                   `protobuf:"varint,2,opt,name=compress,proto3" json:"compress,omitempty"`
+	MaxFileSizeMb   int64                  `protobuf:"varint,3,opt,name=max_file_size_mb,json=maxFileSizeMb,proto3" json:"max_file_size_mb,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *LogRotateLoggingConfig) Reset() {
 	*x = LogRotateLoggingConfig{}
-	mi := &file_config_proto_msgTypes[10]
+	mi := &file_cfg_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1308,7 +1308,7 @@ func (x *LogRotateLoggingConfig) String() string {
 func (*LogRotateLoggingConfig) ProtoMessage() {}
 
 func (x *LogRotateLoggingConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[10]
+	mi := &file_cfg_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1321,7 +1321,7 @@ func (x *LogRotateLoggingConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogRotateLoggingConfig.ProtoReflect.Descriptor instead.
 func (*LogRotateLoggingConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{10}
+	return file_cfg_config_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *LogRotateLoggingConfig) GetBackupFileCount() int64 {
@@ -1347,18 +1347,18 @@ func (x *LogRotateLoggingConfig) GetMaxFileSizeMb() int64 {
 
 type LoggingConfig struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
-	FilePath      string                  `protobuf:"bytes,451460,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
-	Format        string                  `protobuf:"bytes,32146,opt,name=format,proto3" json:"format,omitempty"`
-	LogRotate     *LogRotateLoggingConfig `protobuf:"bytes,487752,opt,name=log_rotate,json=logRotate,proto3" json:"log_rotate,omitempty"`
-	Severity      string                  `protobuf:"bytes,343262,opt,name=severity,proto3" json:"severity,omitempty"`
-	WireLog       string                  `protobuf:"bytes,2752,opt,name=wire_log,json=wireLog,proto3" json:"wire_log,omitempty"`
+	FilePath      string                  `protobuf:"bytes,1,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	Format        string                  `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	LogRotate     *LogRotateLoggingConfig `protobuf:"bytes,3,opt,name=log_rotate,json=logRotate,proto3" json:"log_rotate,omitempty"`
+	Severity      string                  `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"`
+	WireLog       string                  `protobuf:"bytes,5,opt,name=wire_log,json=wireLog,proto3" json:"wire_log,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LoggingConfig) Reset() {
 	*x = LoggingConfig{}
-	mi := &file_config_proto_msgTypes[11]
+	mi := &file_cfg_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1370,7 +1370,7 @@ func (x *LoggingConfig) String() string {
 func (*LoggingConfig) ProtoMessage() {}
 
 func (x *LoggingConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[11]
+	mi := &file_cfg_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1383,7 +1383,7 @@ func (x *LoggingConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoggingConfig.ProtoReflect.Descriptor instead.
 func (*LoggingConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{11}
+	return file_cfg_config_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *LoggingConfig) GetFilePath() string {
@@ -1423,25 +1423,25 @@ func (x *LoggingConfig) GetWireLog() string {
 
 type MetadataCacheConfig struct {
 	state                               protoimpl.MessageState `protogen:"open.v1"`
-	DeprecatedStatCacheCapacity         int64                  `protobuf:"varint,425746,opt,name=deprecated_stat_cache_capacity,json=deprecatedStatCacheCapacity,proto3" json:"deprecated_stat_cache_capacity,omitempty"`
-	DeprecatedStatCacheTtl              int64                  `protobuf:"varint,153796,opt,name=deprecated_stat_cache_ttl,json=deprecatedStatCacheTtl,proto3" json:"deprecated_stat_cache_ttl,omitempty"`
-	DeprecatedTypeCacheTtl              int64                  `protobuf:"varint,40910,opt,name=deprecated_type_cache_ttl,json=deprecatedTypeCacheTtl,proto3" json:"deprecated_type_cache_ttl,omitempty"`
-	EnableMetadataPrefetch              bool                   `protobuf:"varint,333280,opt,name=enable_metadata_prefetch,json=enableMetadataPrefetch,proto3" json:"enable_metadata_prefetch,omitempty"`
-	EnableNonexistentTypeCache          bool                   `protobuf:"varint,219903,opt,name=enable_nonexistent_type_cache,json=enableNonexistentTypeCache,proto3" json:"enable_nonexistent_type_cache,omitempty"`
-	ExperimentalMetadataPrefetchOnMount string                 `protobuf:"bytes,152217,opt,name=experimental_metadata_prefetch_on_mount,json=experimentalMetadataPrefetchOnMount,proto3" json:"experimental_metadata_prefetch_on_mount,omitempty"`
-	MetadataPrefetchEntriesLimit        int64                  `protobuf:"varint,361448,opt,name=metadata_prefetch_entries_limit,json=metadataPrefetchEntriesLimit,proto3" json:"metadata_prefetch_entries_limit,omitempty"`
-	MetadataPrefetchMaxWorkers          int64                  `protobuf:"varint,69462,opt,name=metadata_prefetch_max_workers,json=metadataPrefetchMaxWorkers,proto3" json:"metadata_prefetch_max_workers,omitempty"`
-	NegativeTtlSecs                     int64                  `protobuf:"varint,249570,opt,name=negative_ttl_secs,json=negativeTtlSecs,proto3" json:"negative_ttl_secs,omitempty"`
-	StatCacheMaxSizeMb                  int64                  `protobuf:"varint,288003,opt,name=stat_cache_max_size_mb,json=statCacheMaxSizeMb,proto3" json:"stat_cache_max_size_mb,omitempty"`
-	TtlSecs                             int64                  `protobuf:"varint,311261,opt,name=ttl_secs,json=ttlSecs,proto3" json:"ttl_secs,omitempty"`
-	TypeCacheMaxSizeMb                  int64                  `protobuf:"varint,101065,opt,name=type_cache_max_size_mb,json=typeCacheMaxSizeMb,proto3" json:"type_cache_max_size_mb,omitempty"`
+	DeprecatedStatCacheCapacity         int64                  `protobuf:"varint,1,opt,name=deprecated_stat_cache_capacity,json=deprecatedStatCacheCapacity,proto3" json:"deprecated_stat_cache_capacity,omitempty"`
+	DeprecatedStatCacheTtl              int64                  `protobuf:"varint,2,opt,name=deprecated_stat_cache_ttl,json=deprecatedStatCacheTtl,proto3" json:"deprecated_stat_cache_ttl,omitempty"`
+	DeprecatedTypeCacheTtl              int64                  `protobuf:"varint,3,opt,name=deprecated_type_cache_ttl,json=deprecatedTypeCacheTtl,proto3" json:"deprecated_type_cache_ttl,omitempty"`
+	EnableMetadataPrefetch              bool                   `protobuf:"varint,4,opt,name=enable_metadata_prefetch,json=enableMetadataPrefetch,proto3" json:"enable_metadata_prefetch,omitempty"`
+	EnableNonexistentTypeCache          bool                   `protobuf:"varint,5,opt,name=enable_nonexistent_type_cache,json=enableNonexistentTypeCache,proto3" json:"enable_nonexistent_type_cache,omitempty"`
+	ExperimentalMetadataPrefetchOnMount string                 `protobuf:"bytes,6,opt,name=experimental_metadata_prefetch_on_mount,json=experimentalMetadataPrefetchOnMount,proto3" json:"experimental_metadata_prefetch_on_mount,omitempty"`
+	MetadataPrefetchEntriesLimit        int64                  `protobuf:"varint,7,opt,name=metadata_prefetch_entries_limit,json=metadataPrefetchEntriesLimit,proto3" json:"metadata_prefetch_entries_limit,omitempty"`
+	MetadataPrefetchMaxWorkers          int64                  `protobuf:"varint,8,opt,name=metadata_prefetch_max_workers,json=metadataPrefetchMaxWorkers,proto3" json:"metadata_prefetch_max_workers,omitempty"`
+	NegativeTtlSecs                     int64                  `protobuf:"varint,9,opt,name=negative_ttl_secs,json=negativeTtlSecs,proto3" json:"negative_ttl_secs,omitempty"`
+	StatCacheMaxSizeMb                  int64                  `protobuf:"varint,10,opt,name=stat_cache_max_size_mb,json=statCacheMaxSizeMb,proto3" json:"stat_cache_max_size_mb,omitempty"`
+	TtlSecs                             int64                  `protobuf:"varint,11,opt,name=ttl_secs,json=ttlSecs,proto3" json:"ttl_secs,omitempty"`
+	TypeCacheMaxSizeMb                  int64                  `protobuf:"varint,12,opt,name=type_cache_max_size_mb,json=typeCacheMaxSizeMb,proto3" json:"type_cache_max_size_mb,omitempty"`
 	unknownFields                       protoimpl.UnknownFields
 	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *MetadataCacheConfig) Reset() {
 	*x = MetadataCacheConfig{}
-	mi := &file_config_proto_msgTypes[12]
+	mi := &file_cfg_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1453,7 +1453,7 @@ func (x *MetadataCacheConfig) String() string {
 func (*MetadataCacheConfig) ProtoMessage() {}
 
 func (x *MetadataCacheConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[12]
+	mi := &file_cfg_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1466,7 +1466,7 @@ func (x *MetadataCacheConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetadataCacheConfig.ProtoReflect.Descriptor instead.
 func (*MetadataCacheConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{12}
+	return file_cfg_config_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MetadataCacheConfig) GetDeprecatedStatCacheCapacity() int64 {
@@ -1555,20 +1555,20 @@ func (x *MetadataCacheConfig) GetTypeCacheMaxSizeMb() int64 {
 
 type MetricsConfig struct {
 	state                          protoimpl.MessageState `protogen:"open.v1"`
-	BufferSize                     int64                  `protobuf:"varint,450462,opt,name=buffer_size,json=bufferSize,proto3" json:"buffer_size,omitempty"`
-	CloudMetricsExportIntervalSecs int64                  `protobuf:"varint,21430,opt,name=cloud_metrics_export_interval_secs,json=cloudMetricsExportIntervalSecs,proto3" json:"cloud_metrics_export_interval_secs,omitempty"`
-	ExperimentalEnableGrpcMetrics  bool                   `protobuf:"varint,310293,opt,name=experimental_enable_grpc_metrics,json=experimentalEnableGrpcMetrics,proto3" json:"experimental_enable_grpc_metrics,omitempty"`
-	PrometheusPort                 int64                  `protobuf:"varint,271658,opt,name=prometheus_port,json=prometheusPort,proto3" json:"prometheus_port,omitempty"`
-	StackdriverExportInterval      int64                  `protobuf:"varint,453448,opt,name=stackdriver_export_interval,json=stackdriverExportInterval,proto3" json:"stackdriver_export_interval,omitempty"`
-	UseNewNames                    bool                   `protobuf:"varint,480836,opt,name=use_new_names,json=useNewNames,proto3" json:"use_new_names,omitempty"`
-	Workers                        int64                  `protobuf:"varint,17446,opt,name=workers,proto3" json:"workers,omitempty"`
+	BufferSize                     int64                  `protobuf:"varint,1,opt,name=buffer_size,json=bufferSize,proto3" json:"buffer_size,omitempty"`
+	CloudMetricsExportIntervalSecs int64                  `protobuf:"varint,2,opt,name=cloud_metrics_export_interval_secs,json=cloudMetricsExportIntervalSecs,proto3" json:"cloud_metrics_export_interval_secs,omitempty"`
+	ExperimentalEnableGrpcMetrics  bool                   `protobuf:"varint,3,opt,name=experimental_enable_grpc_metrics,json=experimentalEnableGrpcMetrics,proto3" json:"experimental_enable_grpc_metrics,omitempty"`
+	PrometheusPort                 int64                  `protobuf:"varint,4,opt,name=prometheus_port,json=prometheusPort,proto3" json:"prometheus_port,omitempty"`
+	StackdriverExportInterval      int64                  `protobuf:"varint,5,opt,name=stackdriver_export_interval,json=stackdriverExportInterval,proto3" json:"stackdriver_export_interval,omitempty"`
+	UseNewNames                    bool                   `protobuf:"varint,6,opt,name=use_new_names,json=useNewNames,proto3" json:"use_new_names,omitempty"`
+	Workers                        int64                  `protobuf:"varint,7,opt,name=workers,proto3" json:"workers,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *MetricsConfig) Reset() {
 	*x = MetricsConfig{}
-	mi := &file_config_proto_msgTypes[13]
+	mi := &file_cfg_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1580,7 +1580,7 @@ func (x *MetricsConfig) String() string {
 func (*MetricsConfig) ProtoMessage() {}
 
 func (x *MetricsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[13]
+	mi := &file_cfg_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1593,7 +1593,7 @@ func (x *MetricsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricsConfig.ProtoReflect.Descriptor instead.
 func (*MetricsConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{13}
+	return file_cfg_config_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MetricsConfig) GetBufferSize() int64 {
@@ -1647,14 +1647,14 @@ func (x *MetricsConfig) GetWorkers() int64 {
 
 type MrdConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PoolSize      int64                  `protobuf:"varint,296546,opt,name=pool_size,json=poolSize,proto3" json:"pool_size,omitempty"`
+	PoolSize      int64                  `protobuf:"varint,1,opt,name=pool_size,json=poolSize,proto3" json:"pool_size,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MrdConfig) Reset() {
 	*x = MrdConfig{}
-	mi := &file_config_proto_msgTypes[14]
+	mi := &file_cfg_config_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1666,7 +1666,7 @@ func (x *MrdConfig) String() string {
 func (*MrdConfig) ProtoMessage() {}
 
 func (x *MrdConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[14]
+	mi := &file_cfg_config_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1679,7 +1679,7 @@ func (x *MrdConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MrdConfig.ProtoReflect.Descriptor instead.
 func (*MrdConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{14}
+	return file_cfg_config_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *MrdConfig) GetPoolSize() int64 {
@@ -1691,21 +1691,21 @@ func (x *MrdConfig) GetPoolSize() int64 {
 
 type ReadConfig struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
-	BlockSizeMb           int64                  `protobuf:"varint,5463,opt,name=block_size_mb,json=blockSizeMb,proto3" json:"block_size_mb,omitempty"`
-	EnableBufferedRead    bool                   `protobuf:"varint,233524,opt,name=enable_buffered_read,json=enableBufferedRead,proto3" json:"enable_buffered_read,omitempty"`
-	GlobalMaxBlocks       int64                  `protobuf:"varint,438873,opt,name=global_max_blocks,json=globalMaxBlocks,proto3" json:"global_max_blocks,omitempty"`
-	InactiveStreamTimeout int64                  `protobuf:"varint,499614,opt,name=inactive_stream_timeout,json=inactiveStreamTimeout,proto3" json:"inactive_stream_timeout,omitempty"`
-	MaxBlocksPerHandle    int64                  `protobuf:"varint,260323,opt,name=max_blocks_per_handle,json=maxBlocksPerHandle,proto3" json:"max_blocks_per_handle,omitempty"`
-	MinBlocksPerHandle    int64                  `protobuf:"varint,168549,opt,name=min_blocks_per_handle,json=minBlocksPerHandle,proto3" json:"min_blocks_per_handle,omitempty"`
-	RandomSeekThreshold   int64                  `protobuf:"varint,314600,opt,name=random_seek_threshold,json=randomSeekThreshold,proto3" json:"random_seek_threshold,omitempty"`
-	StartBlocksPerHandle  int64                  `protobuf:"varint,419985,opt,name=start_blocks_per_handle,json=startBlocksPerHandle,proto3" json:"start_blocks_per_handle,omitempty"`
+	BlockSizeMb           int64                  `protobuf:"varint,1,opt,name=block_size_mb,json=blockSizeMb,proto3" json:"block_size_mb,omitempty"`
+	EnableBufferedRead    bool                   `protobuf:"varint,2,opt,name=enable_buffered_read,json=enableBufferedRead,proto3" json:"enable_buffered_read,omitempty"`
+	GlobalMaxBlocks       int64                  `protobuf:"varint,3,opt,name=global_max_blocks,json=globalMaxBlocks,proto3" json:"global_max_blocks,omitempty"`
+	InactiveStreamTimeout int64                  `protobuf:"varint,4,opt,name=inactive_stream_timeout,json=inactiveStreamTimeout,proto3" json:"inactive_stream_timeout,omitempty"`
+	MaxBlocksPerHandle    int64                  `protobuf:"varint,5,opt,name=max_blocks_per_handle,json=maxBlocksPerHandle,proto3" json:"max_blocks_per_handle,omitempty"`
+	MinBlocksPerHandle    int64                  `protobuf:"varint,6,opt,name=min_blocks_per_handle,json=minBlocksPerHandle,proto3" json:"min_blocks_per_handle,omitempty"`
+	RandomSeekThreshold   int64                  `protobuf:"varint,7,opt,name=random_seek_threshold,json=randomSeekThreshold,proto3" json:"random_seek_threshold,omitempty"`
+	StartBlocksPerHandle  int64                  `protobuf:"varint,8,opt,name=start_blocks_per_handle,json=startBlocksPerHandle,proto3" json:"start_blocks_per_handle,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ReadConfig) Reset() {
 	*x = ReadConfig{}
-	mi := &file_config_proto_msgTypes[15]
+	mi := &file_cfg_config_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1717,7 +1717,7 @@ func (x *ReadConfig) String() string {
 func (*ReadConfig) ProtoMessage() {}
 
 func (x *ReadConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[15]
+	mi := &file_cfg_config_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1730,7 +1730,7 @@ func (x *ReadConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadConfig.ProtoReflect.Descriptor instead.
 func (*ReadConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{15}
+	return file_cfg_config_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ReadConfig) GetBlockSizeMb() int64 {
@@ -1791,19 +1791,19 @@ func (x *ReadConfig) GetStartBlocksPerHandle() int64 {
 
 type ReadStallGcsRetriesConfig struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	Enable              bool                   `protobuf:"varint,74078,opt,name=enable,proto3" json:"enable,omitempty"`
-	InitialReqTimeout   int64                  `protobuf:"varint,165638,opt,name=initial_req_timeout,json=initialReqTimeout,proto3" json:"initial_req_timeout,omitempty"`
-	MaxReqTimeout       int64                  `protobuf:"varint,3772,opt,name=max_req_timeout,json=maxReqTimeout,proto3" json:"max_req_timeout,omitempty"`
-	MinReqTimeout       int64                  `protobuf:"varint,427942,opt,name=min_req_timeout,json=minReqTimeout,proto3" json:"min_req_timeout,omitempty"`
-	ReqIncreaseRate     float64                `protobuf:"fixed64,172205,opt,name=req_increase_rate,json=reqIncreaseRate,proto3" json:"req_increase_rate,omitempty"`
-	ReqTargetPercentile float64                `protobuf:"fixed64,423077,opt,name=req_target_percentile,json=reqTargetPercentile,proto3" json:"req_target_percentile,omitempty"`
+	Enable              bool                   `protobuf:"varint,1,opt,name=enable,proto3" json:"enable,omitempty"`
+	InitialReqTimeout   int64                  `protobuf:"varint,2,opt,name=initial_req_timeout,json=initialReqTimeout,proto3" json:"initial_req_timeout,omitempty"`
+	MaxReqTimeout       int64                  `protobuf:"varint,3,opt,name=max_req_timeout,json=maxReqTimeout,proto3" json:"max_req_timeout,omitempty"`
+	MinReqTimeout       int64                  `protobuf:"varint,4,opt,name=min_req_timeout,json=minReqTimeout,proto3" json:"min_req_timeout,omitempty"`
+	ReqIncreaseRate     float64                `protobuf:"fixed64,5,opt,name=req_increase_rate,json=reqIncreaseRate,proto3" json:"req_increase_rate,omitempty"`
+	ReqTargetPercentile float64                `protobuf:"fixed64,6,opt,name=req_target_percentile,json=reqTargetPercentile,proto3" json:"req_target_percentile,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ReadStallGcsRetriesConfig) Reset() {
 	*x = ReadStallGcsRetriesConfig{}
-	mi := &file_config_proto_msgTypes[16]
+	mi := &file_cfg_config_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1815,7 +1815,7 @@ func (x *ReadStallGcsRetriesConfig) String() string {
 func (*ReadStallGcsRetriesConfig) ProtoMessage() {}
 
 func (x *ReadStallGcsRetriesConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[16]
+	mi := &file_cfg_config_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1828,7 +1828,7 @@ func (x *ReadStallGcsRetriesConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadStallGcsRetriesConfig.ProtoReflect.Descriptor instead.
 func (*ReadStallGcsRetriesConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{16}
+	return file_cfg_config_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ReadStallGcsRetriesConfig) GetEnable() bool {
@@ -1875,16 +1875,16 @@ func (x *ReadStallGcsRetriesConfig) GetReqTargetPercentile() float64 {
 
 type TraceConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Exporters     []string               `protobuf:"bytes,129389,rep,name=exporters,proto3" json:"exporters,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,308719,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	SamplingRatio float64                `protobuf:"fixed64,262775,opt,name=sampling_ratio,json=samplingRatio,proto3" json:"sampling_ratio,omitempty"`
+	Exporters     []string               `protobuf:"bytes,1,rep,name=exporters,proto3" json:"exporters,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	SamplingRatio float64                `protobuf:"fixed64,3,opt,name=sampling_ratio,json=samplingRatio,proto3" json:"sampling_ratio,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TraceConfig) Reset() {
 	*x = TraceConfig{}
-	mi := &file_config_proto_msgTypes[17]
+	mi := &file_cfg_config_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1896,7 +1896,7 @@ func (x *TraceConfig) String() string {
 func (*TraceConfig) ProtoMessage() {}
 
 func (x *TraceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[17]
+	mi := &file_cfg_config_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1909,7 +1909,7 @@ func (x *TraceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceConfig.ProtoReflect.Descriptor instead.
 func (*TraceConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{17}
+	return file_cfg_config_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TraceConfig) GetExporters() []string {
@@ -1935,16 +1935,16 @@ func (x *TraceConfig) GetSamplingRatio() float64 {
 
 type WorkloadInsightConfig struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
-	ForwardMergeThresholdMb int64                  `protobuf:"varint,7926,opt,name=forward_merge_threshold_mb,json=forwardMergeThresholdMb,proto3" json:"forward_merge_threshold_mb,omitempty"`
-	OutputFile              string                 `protobuf:"bytes,35900,opt,name=output_file,json=outputFile,proto3" json:"output_file,omitempty"`
-	Visualize               bool                   `protobuf:"varint,403503,opt,name=visualize,proto3" json:"visualize,omitempty"`
+	ForwardMergeThresholdMb int64                  `protobuf:"varint,1,opt,name=forward_merge_threshold_mb,json=forwardMergeThresholdMb,proto3" json:"forward_merge_threshold_mb,omitempty"`
+	OutputFile              string                 `protobuf:"bytes,2,opt,name=output_file,json=outputFile,proto3" json:"output_file,omitempty"`
+	Visualize               bool                   `protobuf:"varint,3,opt,name=visualize,proto3" json:"visualize,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
 
 func (x *WorkloadInsightConfig) Reset() {
 	*x = WorkloadInsightConfig{}
-	mi := &file_config_proto_msgTypes[18]
+	mi := &file_cfg_config_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1956,7 +1956,7 @@ func (x *WorkloadInsightConfig) String() string {
 func (*WorkloadInsightConfig) ProtoMessage() {}
 
 func (x *WorkloadInsightConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[18]
+	mi := &file_cfg_config_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1969,7 +1969,7 @@ func (x *WorkloadInsightConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkloadInsightConfig.ProtoReflect.Descriptor instead.
 func (*WorkloadInsightConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{18}
+	return file_cfg_config_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *WorkloadInsightConfig) GetForwardMergeThresholdMb() int64 {
@@ -1995,21 +1995,21 @@ func (x *WorkloadInsightConfig) GetVisualize() bool {
 
 type WriteConfig struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
-	BlockSizeMb           int64                  `protobuf:"varint,332980,opt,name=block_size_mb,json=blockSizeMb,proto3" json:"block_size_mb,omitempty"`
-	CreateEmptyFile       bool                   `protobuf:"varint,177600,opt,name=create_empty_file,json=createEmptyFile,proto3" json:"create_empty_file,omitempty"`
-	EnableRapidAppends    bool                   `protobuf:"varint,292261,opt,name=enable_rapid_appends,json=enableRapidAppends,proto3" json:"enable_rapid_appends,omitempty"`
-	EnableRapidWrites     bool                   `protobuf:"varint,319404,opt,name=enable_rapid_writes,json=enableRapidWrites,proto3" json:"enable_rapid_writes,omitempty"`
-	EnableStreamingWrites bool                   `protobuf:"varint,403470,opt,name=enable_streaming_writes,json=enableStreamingWrites,proto3" json:"enable_streaming_writes,omitempty"`
-	FinalizeFileOnClose   bool                   `protobuf:"varint,350104,opt,name=finalize_file_on_close,json=finalizeFileOnClose,proto3" json:"finalize_file_on_close,omitempty"`
-	GlobalMaxBlocks       int64                  `protobuf:"varint,117142,opt,name=global_max_blocks,json=globalMaxBlocks,proto3" json:"global_max_blocks,omitempty"`
-	MaxBlocksPerFile      int64                  `protobuf:"varint,448118,opt,name=max_blocks_per_file,json=maxBlocksPerFile,proto3" json:"max_blocks_per_file,omitempty"`
+	BlockSizeMb           int64                  `protobuf:"varint,1,opt,name=block_size_mb,json=blockSizeMb,proto3" json:"block_size_mb,omitempty"`
+	CreateEmptyFile       bool                   `protobuf:"varint,2,opt,name=create_empty_file,json=createEmptyFile,proto3" json:"create_empty_file,omitempty"`
+	EnableRapidAppends    bool                   `protobuf:"varint,3,opt,name=enable_rapid_appends,json=enableRapidAppends,proto3" json:"enable_rapid_appends,omitempty"`
+	EnableRapidWrites     bool                   `protobuf:"varint,4,opt,name=enable_rapid_writes,json=enableRapidWrites,proto3" json:"enable_rapid_writes,omitempty"`
+	EnableStreamingWrites bool                   `protobuf:"varint,5,opt,name=enable_streaming_writes,json=enableStreamingWrites,proto3" json:"enable_streaming_writes,omitempty"`
+	FinalizeFileOnClose   bool                   `protobuf:"varint,6,opt,name=finalize_file_on_close,json=finalizeFileOnClose,proto3" json:"finalize_file_on_close,omitempty"`
+	GlobalMaxBlocks       int64                  `protobuf:"varint,7,opt,name=global_max_blocks,json=globalMaxBlocks,proto3" json:"global_max_blocks,omitempty"`
+	MaxBlocksPerFile      int64                  `protobuf:"varint,8,opt,name=max_blocks_per_file,json=maxBlocksPerFile,proto3" json:"max_blocks_per_file,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
 
 func (x *WriteConfig) Reset() {
 	*x = WriteConfig{}
-	mi := &file_config_proto_msgTypes[19]
+	mi := &file_cfg_config_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2021,7 +2021,7 @@ func (x *WriteConfig) String() string {
 func (*WriteConfig) ProtoMessage() {}
 
 func (x *WriteConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[19]
+	mi := &file_cfg_config_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2034,7 +2034,7 @@ func (x *WriteConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteConfig.ProtoReflect.Descriptor instead.
 func (*WriteConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{19}
+	return file_cfg_config_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *WriteConfig) GetBlockSizeMb() int64 {
@@ -2093,239 +2093,236 @@ func (x *WriteConfig) GetMaxBlocksPerFile() int64 {
 	return 0
 }
 
-var File_config_proto protoreflect.FileDescriptor
+var File_cfg_config_proto protoreflect.FileDescriptor
 
-const file_config_proto_rawDesc = "" +
+const file_cfg_config_proto_rawDesc = "" +
 	"\n" +
-	"\fconfig.proto\x12\x03cfg\"\xfb\x01\n" +
-	"\x13CloudProfilerConfig\x12'\n" +
-	"\x0eallocated_heap\x18\xc9\xfb\x14 \x01(\bR\rallocatedHeap\x12\x12\n" +
-	"\x03cpu\x18\xb2\xab\x17 \x01(\bR\x03cpu\x12\x1a\n" +
-	"\aenabled\x18\x87\x80\x18 \x01(\bR\aenabled\x12 \n" +
+	"\x10cfg/config.proto\x12\x03cfg\"\xeb\x01\n" +
+	"\x13CloudProfilerConfig\x12%\n" +
+	"\x0eallocated_heap\x18\x01 \x01(\bR\rallocatedHeap\x12\x10\n" +
+	"\x03cpu\x18\x02 \x01(\bR\x03cpu\x12\x18\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\x1e\n" +
 	"\n" +
-	"goroutines\x18\x97\x88\x19 \x01(\bR\n" +
-	"goroutines\x12\x14\n" +
-	"\x04heap\x18\x88\xaa\f \x01(\bR\x04heap\x12\x16\n" +
-	"\x05label\x18\xe6\x9c\x14 \x01(\tR\x05label\x12\x16\n" +
-	"\x05mutex\x18\xad\xb0\x05 \x01(\bR\x05mutex\x12#\n" +
-	"\fservice_name\x18\x98\xa2\r \x01(\tR\vserviceName\"\xd8\f\n" +
-	"\x06Config\x12\x1b\n" +
-	"\bapp_name\x18\xae\xc1\x04 \x01(\tR\aappName\x12\x1d\n" +
-	"\tcache_dir\x18ߐ\x03 \x01(\tR\bcacheDir\x12A\n" +
-	"\x0ecloud_profiler\x18\xa6\xa3\x16 \x01(\v2\x18.cfg.CloudProfilerConfigR\rcloudProfiler\x12(\n" +
-	"\x05debug\x18\xc3\xe7\x0e \x01(\v2\x10.cfg.DebugConfigR\x05debug\x12/\n" +
-	"\x12disable_autoconfig\x18\xc9\xe1\v \x01(\bR\x11disableAutoconfig\x12;\n" +
-	"\x19disable_list_access_check\x18\xca\xf5\x1b \x01(\bR\x16disableListAccessCheck\x12/\n" +
-	"\bdummy_io\x18\xda\xe4\x19 \x01(\v2\x12.cfg.DummyIoConfigR\adummyIo\x12?\n" +
-	"\x1benable_atomic_rename_object\x18\xc9\xd9\x15 \x01(\bR\x18enableAtomicRenameObject\x125\n" +
-	"\x16enable_google_lib_auth\x18\x81\xf6\x11 \x01(\bR\x13enableGoogleLibAuth\x12\x1f\n" +
+	"goroutines\x18\x04 \x01(\bR\n" +
+	"goroutines\x12\x12\n" +
+	"\x04heap\x18\x05 \x01(\bR\x04heap\x12\x14\n" +
+	"\x05label\x18\x06 \x01(\tR\x05label\x12\x14\n" +
+	"\x05mutex\x18\a \x01(\bR\x05mutex\x12!\n" +
+	"\fservice_name\x18\b \x01(\tR\vserviceName\"\x97\f\n" +
+	"\x06Config\x12\x19\n" +
+	"\bapp_name\x18\x01 \x01(\tR\aappName\x12\x1b\n" +
+	"\tcache_dir\x18\x02 \x01(\tR\bcacheDir\x12?\n" +
+	"\x0ecloud_profiler\x18\x03 \x01(\v2\x18.cfg.CloudProfilerConfigR\rcloudProfiler\x12&\n" +
+	"\x05debug\x18\x04 \x01(\v2\x10.cfg.DebugConfigR\x05debug\x12-\n" +
+	"\x12disable_autoconfig\x18\x05 \x01(\bR\x11disableAutoconfig\x129\n" +
+	"\x19disable_list_access_check\x18\x06 \x01(\bR\x16disableListAccessCheck\x12-\n" +
+	"\bdummy_io\x18\a \x01(\v2\x12.cfg.DummyIoConfigR\adummyIo\x12=\n" +
+	"\x1benable_atomic_rename_object\x18\b \x01(\bR\x18enableAtomicRenameObject\x123\n" +
+	"\x16enable_google_lib_auth\x18\t \x01(\bR\x13enableGoogleLibAuth\x12\x1d\n" +
 	"\n" +
-	"enable_hns\x18\x88\xad\x11 \x01(\bR\tenableHns\x12,\n" +
-	"\x11enable_new_reader\x18\x8e\xcf\x01 \x01(\bR\x0fenableNewReader\x12:\n" +
-	"\x18enable_standard_symlinks\x18\xa2\xcf\t \x01(\bR\x16enableStandardSymlinks\x12C\n" +
-	"\x1denable_type_cache_deprecation\x18\xa1\x84\n" +
-	" \x01(\bR\x1aenableTypeCacheDeprecation\x12G\n" +
-	"\x1fenable_unsupported_path_support\x18\xfc\xef\f \x01(\bR\x1cenableUnsupportedPathSupport\x125\n" +
+	"enable_hns\x18\n" +
+	" \x01(\bR\tenableHns\x12*\n" +
+	"\x11enable_new_reader\x18\v \x01(\bR\x0fenableNewReader\x128\n" +
+	"\x18enable_standard_symlinks\x18\f \x01(\bR\x16enableStandardSymlinks\x12A\n" +
+	"\x1denable_type_cache_deprecation\x18\r \x01(\bR\x1aenableTypeCacheDeprecation\x12E\n" +
+	"\x1fenable_unsupported_path_support\x18\x0e \x01(\bR\x1cenableUnsupportedPathSupport\x123\n" +
 	"\n" +
-	"file_cache\x18\xe6\x94\x17 \x01(\v2\x14.cfg.FileCacheConfigR\tfileCache\x128\n" +
-	"\vfile_system\x18\xbd\xc4\x15 \x01(\v2\x15.cfg.FileSystemConfigR\n" +
-	"fileSystem\x12 \n" +
+	"file_cache\x18\x0f \x01(\v2\x14.cfg.FileCacheConfigR\tfileCache\x126\n" +
+	"\vfile_system\x18\x10 \x01(\v2\x15.cfg.FileSystemConfigR\n" +
+	"fileSystem\x12\x1e\n" +
 	"\n" +
-	"foreground\x18\xc3\xed\x03 \x01(\bR\n" +
-	"foreground\x12/\n" +
-	"\bgcs_auth\x18\x89\x9a\x15 \x01(\v2\x12.cfg.GcsAuthConfigR\agcsAuth\x12@\n" +
-	"\x0egcs_connection\x18\xc7f \x01(\v2\x18.cfg.GcsConnectionConfigR\rgcsConnection\x128\n" +
-	"\vgcs_retries\x18Ń\r \x01(\v2\x15.cfg.GcsRetriesConfigR\n" +
-	"gcsRetries\x12%\n" +
-	"\rimplicit_dirs\x18\x95\xe7\x0f \x01(\bR\fimplicitDirs\x12%\n" +
-	"\x04list\x18\xb4\xcc\v \x01(\v2\x0f.cfg.ListConfigR\x04list\x12.\n" +
-	"\alogging\x18\x85\xc2\x19 \x01(\v2\x12.cfg.LoggingConfigR\alogging\x12#\n" +
-	"\fmachine_type\x18\xd1\xfb\x18 \x01(\tR\vmachineType\x12A\n" +
-	"\x0emetadata_cache\x18\xf5\xe0\x1c \x01(\v2\x18.cfg.MetadataCacheConfigR\rmetadataCache\x12.\n" +
-	"\ametrics\x18\xad\x9d\x19 \x01(\v2\x12.cfg.MetricsConfigR\ametrics\x12\"\n" +
-	"\x03mrd\x18\xad\xba\x15 \x01(\v2\x0e.cfg.MrdConfigR\x03mrd\x12\x1b\n" +
-	"\bonly_dir\x18\xb5\x9c\x18 \x01(\tR\aonlyDir\x12\x1a\n" +
-	"\aprofile\x18\xf5\xfc\r \x01(\tR\aprofile\x12%\n" +
-	"\x04read\x18\x80\xe1\x03 \x01(\v2\x0f.cfg.ReadConfigR\x04read\x12(\n" +
-	"\x05trace\x18\x81\x93\x1d \x01(\v2\x10.cfg.TraceConfigR\x05trace\x12G\n" +
-	"\x10workload_insight\x18\xfb\x9c\x1d \x01(\v2\x1a.cfg.WorkloadInsightConfigR\x0fworkloadInsight\x12(\n" +
-	"\x05write\x18\xff\xbe\x03 \x01(\v2\x10.cfg.WriteConfigR\x05write\"\x96\x01\n" +
-	"\vDebugConfig\x12?\n" +
-	"\x1bexit_on_invariant_violation\x18\xbb\xd4\x19 \x01(\bR\x18exitOnInvariantViolation\x12\x13\n" +
-	"\x04fuse\x18\x8e0 \x01(\bR\x04fuse\x12\x12\n" +
-	"\x03gcs\x18\x8c\xcd\x17 \x01(\bR\x03gcs\x12\x1d\n" +
-	"\tlog_mutex\x18\xfa\x84\x05 \x01(\bR\blogMutex\"z\n" +
-	"\rDummyIoConfig\x12\x18\n" +
-	"\x06enable\x18\xef\xa0\f \x01(\bR\x06enable\x12&\n" +
-	"\x0eper_mb_latency\x18\xc4\xf6\a \x01(\x03R\fperMbLatency\x12'\n" +
-	"\x0ereader_latency\x18\xad\xb5\x10 \x01(\x03R\rreaderLatency\"\xba\a\n" +
-	"\x0fFileCacheConfig\x129\n" +
-	"\x19cache_file_for_range_read\x18\xf4\x04 \x01(\bR\x15cacheFileForRangeRead\x125\n" +
-	"\x16download_chunk_size_mb\x18\x89\xb6\x13 \x01(\x03R\x13downloadChunkSizeMb\x12\x1f\n" +
+	"foreground\x18\x11 \x01(\bR\n" +
+	"foreground\x12-\n" +
+	"\bgcs_auth\x18\x12 \x01(\v2\x12.cfg.GcsAuthConfigR\agcsAuth\x12?\n" +
+	"\x0egcs_connection\x18\x13 \x01(\v2\x18.cfg.GcsConnectionConfigR\rgcsConnection\x126\n" +
+	"\vgcs_retries\x18\x14 \x01(\v2\x15.cfg.GcsRetriesConfigR\n" +
+	"gcsRetries\x12#\n" +
+	"\rimplicit_dirs\x18\x15 \x01(\bR\fimplicitDirs\x12#\n" +
+	"\x04list\x18\x16 \x01(\v2\x0f.cfg.ListConfigR\x04list\x12,\n" +
+	"\alogging\x18\x17 \x01(\v2\x12.cfg.LoggingConfigR\alogging\x12!\n" +
+	"\fmachine_type\x18\x18 \x01(\tR\vmachineType\x12?\n" +
+	"\x0emetadata_cache\x18\x19 \x01(\v2\x18.cfg.MetadataCacheConfigR\rmetadataCache\x12,\n" +
+	"\ametrics\x18\x1a \x01(\v2\x12.cfg.MetricsConfigR\ametrics\x12 \n" +
+	"\x03mrd\x18\x1b \x01(\v2\x0e.cfg.MrdConfigR\x03mrd\x12\x19\n" +
+	"\bonly_dir\x18\x1c \x01(\tR\aonlyDir\x12\x18\n" +
+	"\aprofile\x18\x1d \x01(\tR\aprofile\x12#\n" +
+	"\x04read\x18\x1e \x01(\v2\x0f.cfg.ReadConfigR\x04read\x12&\n" +
+	"\x05trace\x18\x1f \x01(\v2\x10.cfg.TraceConfigR\x05trace\x12E\n" +
+	"\x10workload_insight\x18  \x01(\v2\x1a.cfg.WorkloadInsightConfigR\x0fworkloadInsight\x12&\n" +
+	"\x05write\x18! \x01(\v2\x10.cfg.WriteConfigR\x05write\"\x8f\x01\n" +
+	"\vDebugConfig\x12=\n" +
+	"\x1bexit_on_invariant_violation\x18\x01 \x01(\bR\x18exitOnInvariantViolation\x12\x12\n" +
+	"\x04fuse\x18\x02 \x01(\bR\x04fuse\x12\x10\n" +
+	"\x03gcs\x18\x03 \x01(\bR\x03gcs\x12\x1b\n" +
+	"\tlog_mutex\x18\x04 \x01(\bR\blogMutex\"t\n" +
+	"\rDummyIoConfig\x12\x16\n" +
+	"\x06enable\x18\x01 \x01(\bR\x06enable\x12$\n" +
+	"\x0eper_mb_latency\x18\x02 \x01(\x03R\fperMbLatency\x12%\n" +
+	"\x0ereader_latency\x18\x03 \x01(\x03R\rreaderLatency\"\x9b\a\n" +
+	"\x0fFileCacheConfig\x128\n" +
+	"\x19cache_file_for_range_read\x18\x01 \x01(\bR\x15cacheFileForRangeRead\x123\n" +
+	"\x16download_chunk_size_mb\x18\x02 \x01(\x03R\x13downloadChunkSizeMb\x12\x1d\n" +
 	"\n" +
-	"enable_crc\x18\x89\xd5\a \x01(\bR\tenableCrc\x12T\n" +
-	"&enable_experimental_shared_chunk_cache\x18\xc1\xc0\x03 \x01(\bR\"enableExperimentalSharedChunkCache\x12(\n" +
-	"\x0fenable_o_direct\x18\xf7\xaf\x13 \x01(\bR\renableODirect\x12<\n" +
-	"\x19enable_parallel_downloads\x18\xff\xbe\x1a \x01(\bR\x17enableParallelDownloads\x12%\n" +
-	"\rexclude_regex\x18\x99\xe7\x03 \x01(\tR\fexcludeRegex\x12Z\n" +
-	")experimental_disable_size_calculation_fix\x18\xe1\x85\a \x01(\bR%experimentalDisableSizeCalculationFix\x12G\n" +
-	"\x1fexperimental_enable_chunk_cache\x18\xa2\xda\x01 \x01(\bR\x1cexperimentalEnableChunkCache\x12\\\n" +
-	"*experimental_parallel_downloads_default_on\x18\xc8\xcb\f \x01(\bR&experimentalParallelDownloadsDefaultOn\x12%\n" +
-	"\rinclude_regex\x18\x83\xa4\x01 \x01(\tR\fincludeRegex\x126\n" +
-	"\x16max_parallel_downloads\x18\x84\xab\x17 \x01(\x03R\x14maxParallelDownloads\x12 \n" +
-	"\vmax_size_mb\x18\xf4\xc9\x1a \x01(\x03R\tmaxSizeMb\x12?\n" +
-	"\x1bparallel_downloads_per_file\x18ْ\x0f \x01(\x03R\x18parallelDownloadsPerFile\x12<\n" +
-	"\x1ashared_cache_chunk_size_mb\x18\x9a\x85\x14 \x01(\x03R\x16sharedCacheChunkSizeMb\x12,\n" +
-	"\x11write_buffer_size\x18\x8c\xcd\r \x01(\x03R\x0fwriteBufferSize\"\xbb\a\n" +
-	"\x10FileSystemConfig\x123\n" +
-	"\x14congestion_threshold\x18\xad\x87\v \x01(\x03R\x13congestionThreshold\x12\x1a\n" +
-	"\bdir_mode\x18\xe3$ \x01(\rR\adirMode\x128\n" +
-	"\x17disable_parallel_dirops\x18\x8d\xfd\b \x01(\bR\x15disableParallelDirops\x122\n" +
-	"\x14enable_kernel_reader\x18\xe4\xc9\t \x01(\bR\x12enableKernelReader\x12I\n" +
-	" experimental_enable_dentry_cache\x18\xc8\xf4\v \x01(\bR\x1dexperimentalEnableDentryCache\x12<\n" +
-	"\x19experimental_enable_pirlo\x18\xb4\xe3\x04 \x01(\bR\x17experimentalEnablePirlo\x12H\n" +
-	"\x1fexperimental_enable_readdirplus\x18\xab\x8c\x02 \x01(\bR\x1dexperimentalEnableReaddirplus\x124\n" +
-	"\x15experimental_o_direct\x18\xe1\xf1\v \x01(\bR\x13experimentalODirect\x12\x1d\n" +
-	"\tfile_mode\x18\xac\xce\x1c \x01(\rR\bfileMode\x12#\n" +
-	"\ffuse_options\x18\xc0\xcb\x12 \x03(\tR\vfuseOptions\x12\x12\n" +
-	"\x03gid\x18\x97\x9f\x1b \x01(\x03R\x03gid\x12-\n" +
-	"\x11ignore_interrupts\x18\x91\xa8\x02 \x01(\bR\x10ignoreInterrupts\x127\n" +
-	"\x17inactive_mrd_cache_size\x18а\x0e \x01(\x03R\x14inactiveMrdCacheSize\x12<\n" +
-	"\x1akernel_list_cache_ttl_secs\x18\xcc\xf2\x0f \x01(\x03R\x16kernelListCacheTtlSecs\x12.\n" +
-	"\x12kernel_params_file\x18\x94\xd1\x18 \x01(\tR\x10kernelParamsFile\x12'\n" +
-	"\x0emax_background\x18\xa5\xd5\b \x01(\x03R\rmaxBackground\x12+\n" +
-	"\x11max_read_ahead_kb\x18\xe9\xb9\n" +
-	" \x01(\x03R\x0emaxReadAheadKb\x12*\n" +
-	"\x10rename_dir_limit\x18\xfb\xcd\v \x01(\x03R\x0erenameDirLimit\x12\x1b\n" +
-	"\btemp_dir\x18\xf4\xba\f \x01(\tR\atempDir\x12\x12\n" +
-	"\x03uid\x18\xa5\xe8\x1d \x01(\x03R\x03uid\"\xaa\x01\n" +
-	"\rGcsAuthConfig\x12+\n" +
-	"\x10anonymous_access\x18\xf2\xfb\x0e \x01(\bR\x0fanonymousAccess\x12\x1a\n" +
-	"\bkey_file\x18\xfc< \x01(\tR\akeyFile\x121\n" +
-	"\x14reuse_token_from_url\x18\xd5\xe6\n" +
-	" \x01(\bR\x11reuseTokenFromUrl\x12\x1d\n" +
-	"\ttoken_url\x18\x85\xd0\x1c \x01(\tR\btokenUrl\"\xee\x05\n" +
-	"\x13GcsConnectionConfig\x12)\n" +
-	"\x0fbilling_project\x18\u0378\b \x01(\tR\x0ebillingProject\x12)\n" +
-	"\x0fclient_protocol\x18Ș\x13 \x01(\tR\x0eclientProtocol\x12)\n" +
-	"\x0fcustom_endpoint\x18\x93\xdf\x10 \x01(\tR\x0ecustomEndpoint\x123\n" +
-	"\x15enable_http_dns_cache\x18\xe5\xd0\v \x01(\bR\x12enableHttpDnsCache\x12C\n" +
-	"\x1dexperimental_enable_json_read\x18\x84\xe4\x1a \x01(\bR\x1aexperimentalEnableJsonRead\x12K\n" +
-	"!experimental_local_socket_address\x18\xf9\xf2\x03 \x01(\tR\x1eexperimentalLocalSocketAddress\x12/\n" +
-	"\x13grpc_conn_pool_size\x18\xee\x9f\x02 \x01(\x03R\x10grpcConnPoolSize\x12.\n" +
-	"\x12grpc_path_strategy\x18\xdb\xff\f \x01(\tR\x10grpcPathStrategy\x120\n" +
-	"\x13http_client_timeout\x18\xbf\xa6\x14 \x01(\x03R\x11httpClientTimeout\x12/\n" +
-	"\x13limit_bytes_per_sec\x18\x8f\xb9\n" +
-	" \x01(\x01R\x10limitBytesPerSec\x12+\n" +
-	"\x11limit_ops_per_sec\x18\x96\xd9\x16 \x01(\x01R\x0elimitOpsPerSec\x12-\n" +
-	"\x12max_conns_per_host\x18\xcb\xdf\x13 \x01(\x03R\x0fmaxConnsPerHost\x126\n" +
-	"\x17max_idle_conns_per_host\x18կ\x1a \x01(\x03R\x13maxIdleConnsPerHost\x127\n" +
-	"\x17sequential_read_size_mb\x18\xfe\xc5\x19 \x01(\x03R\x14sequentialReadSizeMb\"\xe2\x03\n" +
-	"\x10GcsRetriesConfig\x12;\n" +
-	"\x19chunk_retry_deadline_secs\x18\xc6\xeb\x04 \x01(\x03R\x16chunkRetryDeadlineSecs\x12?\n" +
-	"\x1bchunk_transfer_timeout_secs\x18ک\v \x01(\x03R\x18chunkTransferTimeoutSecs\x122\n" +
-	"\x14enable_mount_retries\x18\xf1\xd4\x15 \x01(\bR\x12enableMountRetries\x12_\n" +
-	",experimental_nonrapid_folder_api_stall_retry\x18\x8a\x8a\r \x01(\bR'experimentalNonrapidFolderApiStallRetry\x12.\n" +
-	"\x12max_retry_attempts\x18\xb1\xdb\v \x01(\x03R\x10maxRetryAttempts\x12(\n" +
-	"\x0fmax_retry_sleep\x18\xda\xea\x1d \x01(\x03R\rmaxRetrySleep\x12 \n" +
+	"enable_crc\x18\x03 \x01(\bR\tenableCrc\x12R\n" +
+	"&enable_experimental_shared_chunk_cache\x18\x04 \x01(\bR\"enableExperimentalSharedChunkCache\x12&\n" +
+	"\x0fenable_o_direct\x18\x05 \x01(\bR\renableODirect\x12:\n" +
+	"\x19enable_parallel_downloads\x18\x06 \x01(\bR\x17enableParallelDownloads\x12#\n" +
+	"\rexclude_regex\x18\a \x01(\tR\fexcludeRegex\x12X\n" +
+	")experimental_disable_size_calculation_fix\x18\b \x01(\bR%experimentalDisableSizeCalculationFix\x12E\n" +
+	"\x1fexperimental_enable_chunk_cache\x18\t \x01(\bR\x1cexperimentalEnableChunkCache\x12Z\n" +
+	"*experimental_parallel_downloads_default_on\x18\n" +
+	" \x01(\bR&experimentalParallelDownloadsDefaultOn\x12#\n" +
+	"\rinclude_regex\x18\v \x01(\tR\fincludeRegex\x124\n" +
+	"\x16max_parallel_downloads\x18\f \x01(\x03R\x14maxParallelDownloads\x12\x1e\n" +
+	"\vmax_size_mb\x18\r \x01(\x03R\tmaxSizeMb\x12=\n" +
+	"\x1bparallel_downloads_per_file\x18\x0e \x01(\x03R\x18parallelDownloadsPerFile\x12:\n" +
+	"\x1ashared_cache_chunk_size_mb\x18\x0f \x01(\x03R\x16sharedCacheChunkSizeMb\x12*\n" +
+	"\x11write_buffer_size\x18\x10 \x01(\x03R\x0fwriteBufferSize\"\x94\a\n" +
+	"\x10FileSystemConfig\x121\n" +
+	"\x14congestion_threshold\x18\x01 \x01(\x03R\x13congestionThreshold\x12\x19\n" +
+	"\bdir_mode\x18\x02 \x01(\rR\adirMode\x126\n" +
+	"\x17disable_parallel_dirops\x18\x03 \x01(\bR\x15disableParallelDirops\x120\n" +
+	"\x14enable_kernel_reader\x18\x04 \x01(\bR\x12enableKernelReader\x12G\n" +
+	" experimental_enable_dentry_cache\x18\x05 \x01(\bR\x1dexperimentalEnableDentryCache\x12:\n" +
+	"\x19experimental_enable_pirlo\x18\x06 \x01(\bR\x17experimentalEnablePirlo\x12F\n" +
+	"\x1fexperimental_enable_readdirplus\x18\a \x01(\bR\x1dexperimentalEnableReaddirplus\x122\n" +
+	"\x15experimental_o_direct\x18\b \x01(\bR\x13experimentalODirect\x12\x1b\n" +
+	"\tfile_mode\x18\t \x01(\rR\bfileMode\x12!\n" +
+	"\ffuse_options\x18\n" +
+	" \x03(\tR\vfuseOptions\x12\x10\n" +
+	"\x03gid\x18\v \x01(\x03R\x03gid\x12+\n" +
+	"\x11ignore_interrupts\x18\f \x01(\bR\x10ignoreInterrupts\x125\n" +
+	"\x17inactive_mrd_cache_size\x18\r \x01(\x03R\x14inactiveMrdCacheSize\x12:\n" +
+	"\x1akernel_list_cache_ttl_secs\x18\x0e \x01(\x03R\x16kernelListCacheTtlSecs\x12,\n" +
+	"\x12kernel_params_file\x18\x0f \x01(\tR\x10kernelParamsFile\x12%\n" +
+	"\x0emax_background\x18\x10 \x01(\x03R\rmaxBackground\x12)\n" +
+	"\x11max_read_ahead_kb\x18\x11 \x01(\x03R\x0emaxReadAheadKb\x12(\n" +
+	"\x10rename_dir_limit\x18\x12 \x01(\x03R\x0erenameDirLimit\x12\x19\n" +
+	"\btemp_dir\x18\x13 \x01(\tR\atempDir\x12\x10\n" +
+	"\x03uid\x18\x14 \x01(\x03R\x03uid\"\xa3\x01\n" +
+	"\rGcsAuthConfig\x12)\n" +
+	"\x10anonymous_access\x18\x01 \x01(\bR\x0fanonymousAccess\x12\x19\n" +
+	"\bkey_file\x18\x02 \x01(\tR\akeyFile\x12/\n" +
+	"\x14reuse_token_from_url\x18\x03 \x01(\bR\x11reuseTokenFromUrl\x12\x1b\n" +
+	"\ttoken_url\x18\x04 \x01(\tR\btokenUrl\"\xd2\x05\n" +
+	"\x13GcsConnectionConfig\x12'\n" +
+	"\x0fbilling_project\x18\x01 \x01(\tR\x0ebillingProject\x12'\n" +
+	"\x0fclient_protocol\x18\x02 \x01(\tR\x0eclientProtocol\x12'\n" +
+	"\x0fcustom_endpoint\x18\x03 \x01(\tR\x0ecustomEndpoint\x121\n" +
+	"\x15enable_http_dns_cache\x18\x04 \x01(\bR\x12enableHttpDnsCache\x12A\n" +
+	"\x1dexperimental_enable_json_read\x18\x05 \x01(\bR\x1aexperimentalEnableJsonRead\x12I\n" +
+	"!experimental_local_socket_address\x18\x06 \x01(\tR\x1eexperimentalLocalSocketAddress\x12-\n" +
+	"\x13grpc_conn_pool_size\x18\a \x01(\x03R\x10grpcConnPoolSize\x12,\n" +
+	"\x12grpc_path_strategy\x18\b \x01(\tR\x10grpcPathStrategy\x12.\n" +
+	"\x13http_client_timeout\x18\t \x01(\x03R\x11httpClientTimeout\x12-\n" +
+	"\x13limit_bytes_per_sec\x18\n" +
+	" \x01(\x01R\x10limitBytesPerSec\x12)\n" +
+	"\x11limit_ops_per_sec\x18\v \x01(\x01R\x0elimitOpsPerSec\x12+\n" +
+	"\x12max_conns_per_host\x18\f \x01(\x03R\x0fmaxConnsPerHost\x124\n" +
+	"\x17max_idle_conns_per_host\x18\r \x01(\x03R\x13maxIdleConnsPerHost\x125\n" +
+	"\x17sequential_read_size_mb\x18\x0e \x01(\x03R\x14sequentialReadSizeMb\"\xd2\x03\n" +
+	"\x10GcsRetriesConfig\x129\n" +
+	"\x19chunk_retry_deadline_secs\x18\x01 \x01(\x03R\x16chunkRetryDeadlineSecs\x12=\n" +
+	"\x1bchunk_transfer_timeout_secs\x18\x02 \x01(\x03R\x18chunkTransferTimeoutSecs\x120\n" +
+	"\x14enable_mount_retries\x18\x03 \x01(\bR\x12enableMountRetries\x12]\n" +
+	",experimental_nonrapid_folder_api_stall_retry\x18\x04 \x01(\bR'experimentalNonrapidFolderApiStallRetry\x12,\n" +
+	"\x12max_retry_attempts\x18\x05 \x01(\x03R\x10maxRetryAttempts\x12&\n" +
+	"\x0fmax_retry_sleep\x18\x06 \x01(\x03R\rmaxRetrySleep\x12\x1e\n" +
 	"\n" +
-	"multiplier\x18\x9e\x84\x0e \x01(\x01R\n" +
-	"multiplier\x12?\n" +
+	"multiplier\x18\a \x01(\x01R\n" +
+	"multiplier\x12=\n" +
 	"\n" +
-	"read_stall\x18\xf5\xb0\b \x01(\v2\x1e.cfg.ReadStallGcsRetriesConfigR\treadStall\"O\n" +
+	"read_stall\x18\b \x01(\v2\x1e.cfg.ReadStallGcsRetriesConfigR\treadStall\"M\n" +
 	"\n" +
-	"ListConfig\x12A\n" +
-	"\x1cenable_empty_managed_folders\x18ܴ\x05 \x01(\bR\x19enableEmptyManagedFolders\"\x8f\x01\n" +
-	"\x16LogRotateLoggingConfig\x12,\n" +
-	"\x11backup_file_count\x18շ\x10 \x01(\x03R\x0fbackupFileCount\x12\x1c\n" +
-	"\bcompress\x18ʩ\t \x01(\bR\bcompress\x12)\n" +
-	"\x10max_file_size_mb\x18\xa6\xf8\x01 \x01(\x03R\rmaxFileSizeMb\"\xc0\x01\n" +
-	"\rLoggingConfig\x12\x1d\n" +
-	"\tfile_path\x18\x84\xc7\x1b \x01(\tR\bfilePath\x12\x18\n" +
-	"\x06format\x18\x92\xfb\x01 \x01(\tR\x06format\x12<\n" +
+	"ListConfig\x12?\n" +
+	"\x1cenable_empty_managed_folders\x18\x01 \x01(\bR\x19enableEmptyManagedFolders\"\x89\x01\n" +
+	"\x16LogRotateLoggingConfig\x12*\n" +
+	"\x11backup_file_count\x18\x01 \x01(\x03R\x0fbackupFileCount\x12\x1a\n" +
+	"\bcompress\x18\x02 \x01(\bR\bcompress\x12'\n" +
+	"\x10max_file_size_mb\x18\x03 \x01(\x03R\rmaxFileSizeMb\"\xb7\x01\n" +
+	"\rLoggingConfig\x12\x1b\n" +
+	"\tfile_path\x18\x01 \x01(\tR\bfilePath\x12\x16\n" +
+	"\x06format\x18\x02 \x01(\tR\x06format\x12:\n" +
 	"\n" +
-	"log_rotate\x18\xc8\xe2\x1d \x01(\v2\x1b.cfg.LogRotateLoggingConfigR\tlogRotate\x12\x1c\n" +
-	"\bseverity\x18\xde\xf9\x14 \x01(\tR\bseverity\x12\x1a\n" +
-	"\bwire_log\x18\xc0\x15 \x01(\tR\awireLog\"\xf4\x05\n" +
-	"\x13MetadataCacheConfig\x12E\n" +
-	"\x1edeprecated_stat_cache_capacity\x18\x92\xfe\x19 \x01(\x03R\x1bdeprecatedStatCacheCapacity\x12;\n" +
-	"\x19deprecated_stat_cache_ttl\x18ı\t \x01(\x03R\x16deprecatedStatCacheTtl\x12;\n" +
-	"\x19deprecated_type_cache_ttl\x18ο\x02 \x01(\x03R\x16deprecatedTypeCacheTtl\x12:\n" +
-	"\x18enable_metadata_prefetch\x18\xe0\xab\x14 \x01(\bR\x16enableMetadataPrefetch\x12C\n" +
-	"\x1denable_nonexistent_type_cache\x18\xff\xb5\r \x01(\bR\x1aenableNonexistentTypeCache\x12V\n" +
-	"'experimental_metadata_prefetch_on_mount\x18\x99\xa5\t \x01(\tR#experimentalMetadataPrefetchOnMount\x12G\n" +
-	"\x1fmetadata_prefetch_entries_limit\x18\xe8\x87\x16 \x01(\x03R\x1cmetadataPrefetchEntriesLimit\x12C\n" +
-	"\x1dmetadata_prefetch_max_workers\x18֞\x04 \x01(\x03R\x1ametadataPrefetchMaxWorkers\x12,\n" +
-	"\x11negative_ttl_secs\x18\xe2\x9d\x0f \x01(\x03R\x0fnegativeTtlSecs\x124\n" +
-	"\x16stat_cache_max_size_mb\x18\x83\xca\x11 \x01(\x03R\x12statCacheMaxSizeMb\x12\x1b\n" +
-	"\bttl_secs\x18\xdd\xff\x12 \x01(\x03R\attlSecs\x124\n" +
-	"\x16type_cache_max_size_mb\x18ɕ\x06 \x01(\x03R\x12typeCacheMaxSizeMb\"\xfa\x02\n" +
-	"\rMetricsConfig\x12!\n" +
-	"\vbuffer_size\x18\x9e\xbf\x1b \x01(\x03R\n" +
-	"bufferSize\x12L\n" +
-	"\"cloud_metrics_export_interval_secs\x18\xb6\xa7\x01 \x01(\x03R\x1ecloudMetricsExportIntervalSecs\x12I\n" +
-	" experimental_enable_grpc_metrics\x18\x95\xf8\x12 \x01(\bR\x1dexperimentalEnableGrpcMetrics\x12)\n" +
-	"\x0fprometheus_port\x18\xaa\xca\x10 \x01(\x03R\x0eprometheusPort\x12@\n" +
-	"\x1bstackdriver_export_interval\x18\xc8\xd6\x1b \x01(\x03R\x19stackdriverExportInterval\x12$\n" +
-	"\ruse_new_names\x18Ĭ\x1d \x01(\bR\vuseNewNames\x12\x1a\n" +
-	"\aworkers\x18\xa6\x88\x01 \x01(\x03R\aworkers\"*\n" +
-	"\tMrdConfig\x12\x1d\n" +
-	"\tpool_size\x18\xe2\x8c\x12 \x01(\x03R\bpoolSize\"\xa6\x03\n" +
+	"log_rotate\x18\x03 \x01(\v2\x1b.cfg.LogRotateLoggingConfigR\tlogRotate\x12\x1a\n" +
+	"\bseverity\x18\x04 \x01(\tR\bseverity\x12\x19\n" +
+	"\bwire_log\x18\x05 \x01(\tR\awireLog\"\xdc\x05\n" +
+	"\x13MetadataCacheConfig\x12C\n" +
+	"\x1edeprecated_stat_cache_capacity\x18\x01 \x01(\x03R\x1bdeprecatedStatCacheCapacity\x129\n" +
+	"\x19deprecated_stat_cache_ttl\x18\x02 \x01(\x03R\x16deprecatedStatCacheTtl\x129\n" +
+	"\x19deprecated_type_cache_ttl\x18\x03 \x01(\x03R\x16deprecatedTypeCacheTtl\x128\n" +
+	"\x18enable_metadata_prefetch\x18\x04 \x01(\bR\x16enableMetadataPrefetch\x12A\n" +
+	"\x1denable_nonexistent_type_cache\x18\x05 \x01(\bR\x1aenableNonexistentTypeCache\x12T\n" +
+	"'experimental_metadata_prefetch_on_mount\x18\x06 \x01(\tR#experimentalMetadataPrefetchOnMount\x12E\n" +
+	"\x1fmetadata_prefetch_entries_limit\x18\a \x01(\x03R\x1cmetadataPrefetchEntriesLimit\x12A\n" +
+	"\x1dmetadata_prefetch_max_workers\x18\b \x01(\x03R\x1ametadataPrefetchMaxWorkers\x12*\n" +
+	"\x11negative_ttl_secs\x18\t \x01(\x03R\x0fnegativeTtlSecs\x122\n" +
+	"\x16stat_cache_max_size_mb\x18\n" +
+	" \x01(\x03R\x12statCacheMaxSizeMb\x12\x19\n" +
+	"\bttl_secs\x18\v \x01(\x03R\attlSecs\x122\n" +
+	"\x16type_cache_max_size_mb\x18\f \x01(\x03R\x12typeCacheMaxSizeMb\"\xec\x02\n" +
+	"\rMetricsConfig\x12\x1f\n" +
+	"\vbuffer_size\x18\x01 \x01(\x03R\n" +
+	"bufferSize\x12J\n" +
+	"\"cloud_metrics_export_interval_secs\x18\x02 \x01(\x03R\x1ecloudMetricsExportIntervalSecs\x12G\n" +
+	" experimental_enable_grpc_metrics\x18\x03 \x01(\bR\x1dexperimentalEnableGrpcMetrics\x12'\n" +
+	"\x0fprometheus_port\x18\x04 \x01(\x03R\x0eprometheusPort\x12>\n" +
+	"\x1bstackdriver_export_interval\x18\x05 \x01(\x03R\x19stackdriverExportInterval\x12\"\n" +
+	"\ruse_new_names\x18\x06 \x01(\bR\vuseNewNames\x12\x18\n" +
+	"\aworkers\x18\a \x01(\x03R\aworkers\"(\n" +
+	"\tMrdConfig\x12\x1b\n" +
+	"\tpool_size\x18\x01 \x01(\x03R\bpoolSize\"\x97\x03\n" +
 	"\n" +
-	"ReadConfig\x12#\n" +
-	"\rblock_size_mb\x18\xd7* \x01(\x03R\vblockSizeMb\x122\n" +
-	"\x14enable_buffered_read\x18\xb4\xa0\x0e \x01(\bR\x12enableBufferedRead\x12,\n" +
-	"\x11global_max_blocks\x18\xd9\xe4\x1a \x01(\x03R\x0fglobalMaxBlocks\x128\n" +
-	"\x17inactive_stream_timeout\x18\x9e\xbf\x1e \x01(\x03R\x15inactiveStreamTimeout\x123\n" +
-	"\x15max_blocks_per_handle\x18\xe3\xf1\x0f \x01(\x03R\x12maxBlocksPerHandle\x123\n" +
-	"\x15min_blocks_per_handle\x18\xe5\xa4\n" +
-	" \x01(\x03R\x12minBlocksPerHandle\x124\n" +
-	"\x15random_seek_threshold\x18\xe8\x99\x13 \x01(\x03R\x13randomSeekThreshold\x127\n" +
-	"\x17start_blocks_per_handle\x18\x91\xd1\x19 \x01(\x03R\x14startBlocksPerHandle\"\x9e\x02\n" +
-	"\x19ReadStallGcsRetriesConfig\x12\x18\n" +
-	"\x06enable\x18\xde\xc2\x04 \x01(\bR\x06enable\x120\n" +
-	"\x13initial_req_timeout\x18\x86\x8e\n" +
-	" \x01(\x03R\x11initialReqTimeout\x12'\n" +
-	"\x0fmax_req_timeout\x18\xbc\x1d \x01(\x03R\rmaxReqTimeout\x12(\n" +
-	"\x0fmin_req_timeout\x18\xa6\x8f\x1a \x01(\x03R\rminReqTimeout\x12,\n" +
-	"\x11req_increase_rate\x18\xad\xc1\n" +
-	" \x01(\x01R\x0freqIncreaseRate\x124\n" +
-	"\x15req_target_percentile\x18\xa5\xe9\x19 \x01(\x01R\x13reqTargetPercentile\"w\n" +
-	"\vTraceConfig\x12\x1e\n" +
-	"\texporters\x18\xed\xf2\a \x03(\tR\texporters\x12\x1f\n" +
+	"ReadConfig\x12\"\n" +
+	"\rblock_size_mb\x18\x01 \x01(\x03R\vblockSizeMb\x120\n" +
+	"\x14enable_buffered_read\x18\x02 \x01(\bR\x12enableBufferedRead\x12*\n" +
+	"\x11global_max_blocks\x18\x03 \x01(\x03R\x0fglobalMaxBlocks\x126\n" +
+	"\x17inactive_stream_timeout\x18\x04 \x01(\x03R\x15inactiveStreamTimeout\x121\n" +
+	"\x15max_blocks_per_handle\x18\x05 \x01(\x03R\x12maxBlocksPerHandle\x121\n" +
+	"\x15min_blocks_per_handle\x18\x06 \x01(\x03R\x12minBlocksPerHandle\x122\n" +
+	"\x15random_seek_threshold\x18\a \x01(\x03R\x13randomSeekThreshold\x125\n" +
+	"\x17start_blocks_per_handle\x18\b \x01(\x03R\x14startBlocksPerHandle\"\x93\x02\n" +
+	"\x19ReadStallGcsRetriesConfig\x12\x16\n" +
+	"\x06enable\x18\x01 \x01(\bR\x06enable\x12.\n" +
+	"\x13initial_req_timeout\x18\x02 \x01(\x03R\x11initialReqTimeout\x12&\n" +
+	"\x0fmax_req_timeout\x18\x03 \x01(\x03R\rmaxReqTimeout\x12&\n" +
+	"\x0fmin_req_timeout\x18\x04 \x01(\x03R\rminReqTimeout\x12*\n" +
+	"\x11req_increase_rate\x18\x05 \x01(\x01R\x0freqIncreaseRate\x122\n" +
+	"\x15req_target_percentile\x18\x06 \x01(\x01R\x13reqTargetPercentile\"q\n" +
+	"\vTraceConfig\x12\x1c\n" +
+	"\texporters\x18\x01 \x03(\tR\texporters\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\xef\xeb\x12 \x01(\tR\tprojectId\x12'\n" +
-	"\x0esampling_ratio\x18\xf7\x84\x10 \x01(\x01R\rsamplingRatio\"\x98\x01\n" +
-	"\x15WorkloadInsightConfig\x12<\n" +
-	"\x1aforward_merge_threshold_mb\x18\xf6= \x01(\x03R\x17forwardMergeThresholdMb\x12!\n" +
-	"\voutput_file\x18\xbc\x98\x02 \x01(\tR\n" +
-	"outputFile\x12\x1e\n" +
-	"\tvisualize\x18\xaf\xd0\x18 \x01(\bR\tvisualize\"\x97\x03\n" +
-	"\vWriteConfig\x12$\n" +
-	"\rblock_size_mb\x18\xb4\xa9\x14 \x01(\x03R\vblockSizeMb\x12,\n" +
-	"\x11create_empty_file\x18\xc0\xeb\n" +
-	" \x01(\bR\x0fcreateEmptyFile\x122\n" +
-	"\x14enable_rapid_appends\x18\xa5\xeb\x11 \x01(\bR\x12enableRapidAppends\x120\n" +
-	"\x13enable_rapid_writes\x18\xac\xbf\x13 \x01(\bR\x11enableRapidWrites\x128\n" +
-	"\x17enable_streaming_writes\x18\x8e\xd0\x18 \x01(\bR\x15enableStreamingWrites\x125\n" +
-	"\x16finalize_file_on_close\x18\x98\xaf\x15 \x01(\bR\x13finalizeFileOnClose\x12,\n" +
-	"\x11global_max_blocks\x18\x96\x93\a \x01(\x03R\x0fglobalMaxBlocks\x12/\n" +
-	"\x13max_blocks_per_file\x18\xf6\xac\x1b \x01(\x03R\x10maxBlocksPerFileB5Z3github.com/googlecloudplatform/gcsfuse/v3/cfg/pb;pbb\x06proto3"
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12%\n" +
+	"\x0esampling_ratio\x18\x03 \x01(\x01R\rsamplingRatio\"\x93\x01\n" +
+	"\x15WorkloadInsightConfig\x12;\n" +
+	"\x1aforward_merge_threshold_mb\x18\x01 \x01(\x03R\x17forwardMergeThresholdMb\x12\x1f\n" +
+	"\voutput_file\x18\x02 \x01(\tR\n" +
+	"outputFile\x12\x1c\n" +
+	"\tvisualize\x18\x03 \x01(\bR\tvisualize\"\x87\x03\n" +
+	"\vWriteConfig\x12\"\n" +
+	"\rblock_size_mb\x18\x01 \x01(\x03R\vblockSizeMb\x12*\n" +
+	"\x11create_empty_file\x18\x02 \x01(\bR\x0fcreateEmptyFile\x120\n" +
+	"\x14enable_rapid_appends\x18\x03 \x01(\bR\x12enableRapidAppends\x12.\n" +
+	"\x13enable_rapid_writes\x18\x04 \x01(\bR\x11enableRapidWrites\x126\n" +
+	"\x17enable_streaming_writes\x18\x05 \x01(\bR\x15enableStreamingWrites\x123\n" +
+	"\x16finalize_file_on_close\x18\x06 \x01(\bR\x13finalizeFileOnClose\x12*\n" +
+	"\x11global_max_blocks\x18\a \x01(\x03R\x0fglobalMaxBlocks\x12-\n" +
+	"\x13max_blocks_per_file\x18\b \x01(\x03R\x10maxBlocksPerFileB5Z3github.com/googlecloudplatform/gcsfuse/v3/cfg/pb;pbb\x06proto3"
 
 var (
-	file_config_proto_rawDescOnce sync.Once
-	file_config_proto_rawDescData []byte
+	file_cfg_config_proto_rawDescOnce sync.Once
+	file_cfg_config_proto_rawDescData []byte
 )
 
-func file_config_proto_rawDescGZIP() []byte {
-	file_config_proto_rawDescOnce.Do(func() {
-		file_config_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_config_proto_rawDesc), len(file_config_proto_rawDesc)))
+func file_cfg_config_proto_rawDescGZIP() []byte {
+	file_cfg_config_proto_rawDescOnce.Do(func() {
+		file_cfg_config_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_cfg_config_proto_rawDesc), len(file_cfg_config_proto_rawDesc)))
 	})
-	return file_config_proto_rawDescData
+	return file_cfg_config_proto_rawDescData
 }
 
-var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
-var file_config_proto_goTypes = []any{
+var file_cfg_config_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_cfg_config_proto_goTypes = []any{
 	(*CloudProfilerConfig)(nil),       // 0: cfg.CloudProfilerConfig
 	(*Config)(nil),                    // 1: cfg.Config
 	(*DebugConfig)(nil),               // 2: cfg.DebugConfig
@@ -2347,7 +2344,7 @@ var file_config_proto_goTypes = []any{
 	(*WorkloadInsightConfig)(nil),     // 18: cfg.WorkloadInsightConfig
 	(*WriteConfig)(nil),               // 19: cfg.WriteConfig
 }
-var file_config_proto_depIdxs = []int32{
+var file_cfg_config_proto_depIdxs = []int32{
 	0,  // 0: cfg.Config.cloud_profiler:type_name -> cfg.CloudProfilerConfig
 	2,  // 1: cfg.Config.debug:type_name -> cfg.DebugConfig
 	3,  // 2: cfg.Config.dummy_io:type_name -> cfg.DummyIoConfig
@@ -2374,26 +2371,26 @@ var file_config_proto_depIdxs = []int32{
 	0,  // [0:19] is the sub-list for field type_name
 }
 
-func init() { file_config_proto_init() }
-func file_config_proto_init() {
-	if File_config_proto != nil {
+func init() { file_cfg_config_proto_init() }
+func file_cfg_config_proto_init() {
+	if File_cfg_config_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_config_proto_rawDesc), len(file_config_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cfg_config_proto_rawDesc), len(file_cfg_config_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_config_proto_goTypes,
-		DependencyIndexes: file_config_proto_depIdxs,
-		MessageInfos:      file_config_proto_msgTypes,
+		GoTypes:           file_cfg_config_proto_goTypes,
+		DependencyIndexes: file_cfg_config_proto_depIdxs,
+		MessageInfos:      file_cfg_config_proto_msgTypes,
 	}.Build()
-	File_config_proto = out.File
-	file_config_proto_goTypes = nil
-	file_config_proto_depIdxs = nil
+	File_cfg_config_proto = out.File
+	file_cfg_config_proto_goTypes = nil
+	file_cfg_config_proto_depIdxs = nil
 }

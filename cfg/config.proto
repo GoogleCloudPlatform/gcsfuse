@@ -23,248 +23,248 @@ option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb;pb";
 
 
 message CloudProfilerConfig {
-  bool allocated_heap = 343497;
-  bool cpu = 382386;
-  bool enabled = 393223;
-  bool goroutines = 410647;
-  bool heap = 201992;
-  string label = 331366;
-  bool mutex = 88109;
-  string service_name = 217368;
+  bool allocated_heap = 1;
+  bool cpu = 2;
+  bool enabled = 3;
+  bool goroutines = 4;
+  bool heap = 5;
+  string label = 6;
+  bool mutex = 7;
+  string service_name = 8;
 }
 
 
 message Config {
-  string app_name = 73902;
-  string cache_dir = 51295;
-  CloudProfilerConfig cloud_profiler = 364966;
-  DebugConfig debug = 242627;
-  bool disable_autoconfig = 192713;
-  bool disable_list_access_check = 457418;
-  DummyIoConfig dummy_io = 422490;
-  bool enable_atomic_rename_object = 355529;
-  bool enable_google_lib_auth = 293633;
-  bool enable_hns = 284296;
-  bool enable_new_reader = 26510;
-  bool enable_standard_symlinks = 157602;
-  bool enable_type_cache_deprecation = 164385;
-  bool enable_unsupported_path_support = 210940;
-  FileCacheConfig file_cache = 379494;
-  FileSystemConfig file_system = 352829;
-  bool foreground = 63171;
-  GcsAuthConfig gcs_auth = 347401;
-  GcsConnectionConfig gcs_connection = 13127;
-  GcsRetriesConfig gcs_retries = 213445;
-  bool implicit_dirs = 258965;
-  ListConfig list = 190004;
-  LoggingConfig logging = 418053;
-  string machine_type = 409041;
-  MetadataCacheConfig metadata_cache = 471157;
-  MetricsConfig metrics = 413357;
-  MrdConfig mrd = 351533;
-  string only_dir = 396853;
-  string profile = 228981;
-  ReadConfig read = 61568;
-  TraceConfig trace = 477569;
-  WorkloadInsightConfig workload_insight = 478843;
-  WriteConfig write = 57215;
+  string app_name = 1;
+  string cache_dir = 2;
+  CloudProfilerConfig cloud_profiler = 3;
+  DebugConfig debug = 4;
+  bool disable_autoconfig = 5;
+  bool disable_list_access_check = 6;
+  DummyIoConfig dummy_io = 7;
+  bool enable_atomic_rename_object = 8;
+  bool enable_google_lib_auth = 9;
+  bool enable_hns = 10;
+  bool enable_new_reader = 11;
+  bool enable_standard_symlinks = 12;
+  bool enable_type_cache_deprecation = 13;
+  bool enable_unsupported_path_support = 14;
+  FileCacheConfig file_cache = 15;
+  FileSystemConfig file_system = 16;
+  bool foreground = 17;
+  GcsAuthConfig gcs_auth = 18;
+  GcsConnectionConfig gcs_connection = 19;
+  GcsRetriesConfig gcs_retries = 20;
+  bool implicit_dirs = 21;
+  ListConfig list = 22;
+  LoggingConfig logging = 23;
+  string machine_type = 24;
+  MetadataCacheConfig metadata_cache = 25;
+  MetricsConfig metrics = 26;
+  MrdConfig mrd = 27;
+  string only_dir = 28;
+  string profile = 29;
+  ReadConfig read = 30;
+  TraceConfig trace = 31;
+  WorkloadInsightConfig workload_insight = 32;
+  WriteConfig write = 33;
 }
 
 
 message DebugConfig {
-  bool exit_on_invariant_violation = 420411;
-  bool fuse = 6158;
-  bool gcs = 386700;
-  bool log_mutex = 82554;
+  bool exit_on_invariant_violation = 1;
+  bool fuse = 2;
+  bool gcs = 3;
+  bool log_mutex = 4;
 }
 
 
 message DummyIoConfig {
-  bool enable = 200815;
-  int64 per_mb_latency = 129860;
-  int64 reader_latency = 268973;
+  bool enable = 1;
+  int64 per_mb_latency = 2;
+  int64 reader_latency = 3;
 }
 
 
 message FileCacheConfig {
-  bool cache_file_for_range_read = 628;
-  int64 download_chunk_size_mb = 318217;
-  bool enable_crc = 125577;
-  bool enable_experimental_shared_chunk_cache = 57409;
-  bool enable_o_direct = 317431;
-  bool enable_parallel_downloads = 434047;
-  string exclude_regex = 62361;
-  bool experimental_disable_size_calculation_fix = 115425;
-  bool experimental_enable_chunk_cache = 27938;
-  bool experimental_parallel_downloads_default_on = 206280;
-  string include_regex = 20995;
-  int64 max_parallel_downloads = 382340;
-  int64 max_size_mb = 435444;
-  int64 parallel_downloads_per_file = 248153;
-  int64 shared_cache_chunk_size_mb = 328346;
-  int64 write_buffer_size = 222860;
+  bool cache_file_for_range_read = 1;
+  int64 download_chunk_size_mb = 2;
+  bool enable_crc = 3;
+  bool enable_experimental_shared_chunk_cache = 4;
+  bool enable_o_direct = 5;
+  bool enable_parallel_downloads = 6;
+  string exclude_regex = 7;
+  bool experimental_disable_size_calculation_fix = 8;
+  bool experimental_enable_chunk_cache = 9;
+  bool experimental_parallel_downloads_default_on = 10;
+  string include_regex = 11;
+  int64 max_parallel_downloads = 12;
+  int64 max_size_mb = 13;
+  int64 parallel_downloads_per_file = 14;
+  int64 shared_cache_chunk_size_mb = 15;
+  int64 write_buffer_size = 16;
 }
 
 
 message FileSystemConfig {
-  int64 congestion_threshold = 181165;
-  uint32 dir_mode = 4707;
-  bool disable_parallel_dirops = 147085;
-  bool enable_kernel_reader = 156900;
-  bool experimental_enable_dentry_cache = 195144;
-  bool experimental_enable_pirlo = 78260;
-  bool experimental_enable_readdirplus = 34347;
-  bool experimental_o_direct = 194785;
-  uint32 file_mode = 468780;
-  repeated string fuse_options = 304576;
-  int64 gid = 446359;
-  bool ignore_interrupts = 37905;
-  int64 inactive_mrd_cache_size = 235600;
-  int64 kernel_list_cache_ttl_secs = 260428;
-  string kernel_params_file = 403604;
-  int64 max_background = 141989;
-  int64 max_read_ahead_kb = 171241;
-  int64 rename_dir_limit = 190203;
-  string temp_dir = 204148;
-  int64 uid = 488485;
+  int64 congestion_threshold = 1;
+  uint32 dir_mode = 2;
+  bool disable_parallel_dirops = 3;
+  bool enable_kernel_reader = 4;
+  bool experimental_enable_dentry_cache = 5;
+  bool experimental_enable_pirlo = 6;
+  bool experimental_enable_readdirplus = 7;
+  bool experimental_o_direct = 8;
+  uint32 file_mode = 9;
+  repeated string fuse_options = 10;
+  int64 gid = 11;
+  bool ignore_interrupts = 12;
+  int64 inactive_mrd_cache_size = 13;
+  int64 kernel_list_cache_ttl_secs = 14;
+  string kernel_params_file = 15;
+  int64 max_background = 16;
+  int64 max_read_ahead_kb = 17;
+  int64 rename_dir_limit = 18;
+  string temp_dir = 19;
+  int64 uid = 20;
 }
 
 
 message GcsAuthConfig {
-  bool anonymous_access = 245234;
-  string key_file = 7804;
-  bool reuse_token_from_url = 176981;
-  string token_url = 468997;
+  bool anonymous_access = 1;
+  string key_file = 2;
+  bool reuse_token_from_url = 3;
+  string token_url = 4;
 }
 
 
 message GcsConnectionConfig {
-  string billing_project = 138317;
-  string client_protocol = 314440;
-  string custom_endpoint = 274323;
-  bool enable_http_dns_cache = 190565;
-  bool experimental_enable_json_read = 438788;
-  string experimental_local_socket_address = 63865;
-  int64 grpc_conn_pool_size = 36846;
-  string grpc_path_strategy = 212955;
-  int64 http_client_timeout = 332607;
-  double limit_bytes_per_sec = 171151;
-  double limit_ops_per_sec = 371862;
-  int64 max_conns_per_host = 323531;
-  int64 max_idle_conns_per_host = 432085;
-  int64 sequential_read_size_mb = 418558;
+  string billing_project = 1;
+  string client_protocol = 2;
+  string custom_endpoint = 3;
+  bool enable_http_dns_cache = 4;
+  bool experimental_enable_json_read = 5;
+  string experimental_local_socket_address = 6;
+  int64 grpc_conn_pool_size = 7;
+  string grpc_path_strategy = 8;
+  int64 http_client_timeout = 9;
+  double limit_bytes_per_sec = 10;
+  double limit_ops_per_sec = 11;
+  int64 max_conns_per_host = 12;
+  int64 max_idle_conns_per_host = 13;
+  int64 sequential_read_size_mb = 14;
 }
 
 
 message GcsRetriesConfig {
-  int64 chunk_retry_deadline_secs = 79302;
-  int64 chunk_transfer_timeout_secs = 185562;
-  bool enable_mount_retries = 354929;
-  bool experimental_nonrapid_folder_api_stall_retry = 214282;
-  int64 max_retry_attempts = 191921;
-  int64 max_retry_sleep = 488794;
-  double multiplier = 229918;
-  ReadStallGcsRetriesConfig read_stall = 137333;
+  int64 chunk_retry_deadline_secs = 1;
+  int64 chunk_transfer_timeout_secs = 2;
+  bool enable_mount_retries = 3;
+  bool experimental_nonrapid_folder_api_stall_retry = 4;
+  int64 max_retry_attempts = 5;
+  int64 max_retry_sleep = 6;
+  double multiplier = 7;
+  ReadStallGcsRetriesConfig read_stall = 8;
 }
 
 
 message ListConfig {
-  bool enable_empty_managed_folders = 88668;
+  bool enable_empty_managed_folders = 1;
 }
 
 
 message LogRotateLoggingConfig {
-  int64 backup_file_count = 269269;
-  bool compress = 152778;
-  int64 max_file_size_mb = 31782;
+  int64 backup_file_count = 1;
+  bool compress = 2;
+  int64 max_file_size_mb = 3;
 }
 
 
 message LoggingConfig {
-  string file_path = 451460;
-  string format = 32146;
-  LogRotateLoggingConfig log_rotate = 487752;
-  string severity = 343262;
-  string wire_log = 2752;
+  string file_path = 1;
+  string format = 2;
+  LogRotateLoggingConfig log_rotate = 3;
+  string severity = 4;
+  string wire_log = 5;
 }
 
 
 message MetadataCacheConfig {
-  int64 deprecated_stat_cache_capacity = 425746;
-  int64 deprecated_stat_cache_ttl = 153796;
-  int64 deprecated_type_cache_ttl = 40910;
-  bool enable_metadata_prefetch = 333280;
-  bool enable_nonexistent_type_cache = 219903;
-  string experimental_metadata_prefetch_on_mount = 152217;
-  int64 metadata_prefetch_entries_limit = 361448;
-  int64 metadata_prefetch_max_workers = 69462;
-  int64 negative_ttl_secs = 249570;
-  int64 stat_cache_max_size_mb = 288003;
-  int64 ttl_secs = 311261;
-  int64 type_cache_max_size_mb = 101065;
+  int64 deprecated_stat_cache_capacity = 1;
+  int64 deprecated_stat_cache_ttl = 2;
+  int64 deprecated_type_cache_ttl = 3;
+  bool enable_metadata_prefetch = 4;
+  bool enable_nonexistent_type_cache = 5;
+  string experimental_metadata_prefetch_on_mount = 6;
+  int64 metadata_prefetch_entries_limit = 7;
+  int64 metadata_prefetch_max_workers = 8;
+  int64 negative_ttl_secs = 9;
+  int64 stat_cache_max_size_mb = 10;
+  int64 ttl_secs = 11;
+  int64 type_cache_max_size_mb = 12;
 }
 
 
 message MetricsConfig {
-  int64 buffer_size = 450462;
-  int64 cloud_metrics_export_interval_secs = 21430;
-  bool experimental_enable_grpc_metrics = 310293;
-  int64 prometheus_port = 271658;
-  int64 stackdriver_export_interval = 453448;
-  bool use_new_names = 480836;
-  int64 workers = 17446;
+  int64 buffer_size = 1;
+  int64 cloud_metrics_export_interval_secs = 2;
+  bool experimental_enable_grpc_metrics = 3;
+  int64 prometheus_port = 4;
+  int64 stackdriver_export_interval = 5;
+  bool use_new_names = 6;
+  int64 workers = 7;
 }
 
 
 message MrdConfig {
-  int64 pool_size = 296546;
+  int64 pool_size = 1;
 }
 
 
 message ReadConfig {
-  int64 block_size_mb = 5463;
-  bool enable_buffered_read = 233524;
-  int64 global_max_blocks = 438873;
-  int64 inactive_stream_timeout = 499614;
-  int64 max_blocks_per_handle = 260323;
-  int64 min_blocks_per_handle = 168549;
-  int64 random_seek_threshold = 314600;
-  int64 start_blocks_per_handle = 419985;
+  int64 block_size_mb = 1;
+  bool enable_buffered_read = 2;
+  int64 global_max_blocks = 3;
+  int64 inactive_stream_timeout = 4;
+  int64 max_blocks_per_handle = 5;
+  int64 min_blocks_per_handle = 6;
+  int64 random_seek_threshold = 7;
+  int64 start_blocks_per_handle = 8;
 }
 
 
 message ReadStallGcsRetriesConfig {
-  bool enable = 74078;
-  int64 initial_req_timeout = 165638;
-  int64 max_req_timeout = 3772;
-  int64 min_req_timeout = 427942;
-  double req_increase_rate = 172205;
-  double req_target_percentile = 423077;
+  bool enable = 1;
+  int64 initial_req_timeout = 2;
+  int64 max_req_timeout = 3;
+  int64 min_req_timeout = 4;
+  double req_increase_rate = 5;
+  double req_target_percentile = 6;
 }
 
 
 message TraceConfig {
-  repeated string exporters = 129389;
-  string project_id = 308719;
-  double sampling_ratio = 262775;
+  repeated string exporters = 1;
+  string project_id = 2;
+  double sampling_ratio = 3;
 }
 
 
 message WorkloadInsightConfig {
-  int64 forward_merge_threshold_mb = 7926;
-  string output_file = 35900;
-  bool visualize = 403503;
+  int64 forward_merge_threshold_mb = 1;
+  string output_file = 2;
+  bool visualize = 3;
 }
 
 
 message WriteConfig {
-  int64 block_size_mb = 332980;
-  bool create_empty_file = 177600;
-  bool enable_rapid_appends = 292261;
-  bool enable_rapid_writes = 319404;
-  bool enable_streaming_writes = 403470;
-  bool finalize_file_on_close = 350104;
-  int64 global_max_blocks = 117142;
-  int64 max_blocks_per_file = 448118;
+  int64 block_size_mb = 1;
+  bool create_empty_file = 2;
+  bool enable_rapid_appends = 3;
+  bool enable_rapid_writes = 4;
+  bool enable_streaming_writes = 5;
+  bool finalize_file_on_close = 6;
+  int64 global_max_blocks = 7;
+  int64 max_blocks_per_file = 8;
 }
 

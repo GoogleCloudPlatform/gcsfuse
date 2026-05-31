@@ -17,12 +17,14 @@
 package main
 
 import (
+	"bufio"
 	"cmp"
 	"flag"
 	"fmt"
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"text/template" // NOLINT
@@ -33,10 +35,18 @@ import (
 	"golang.org/x/text/language"
 )
 
+type FieldTagInfo struct {
+	Tag  int
+	Type string
+}
+
+type RegistryMap map[string]map[string]FieldTagInfo
+
 var (
-	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed")
-	paramsFile  = flag.String("paramsFile", "", "Params YAML file")
-	templateDir = flag.String("templateDir", ".", "Directory containing the template files")
+	outDir         = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed")
+	paramsFile     = flag.String("paramsFile", "", "Params YAML file")
+	templateDir    = flag.String("templateDir", ".", "Directory containing the template files")
+	globalRegistry RegistryMap
 )
 
 type OptimizationRulesMap = map[string]shared.OptimizationRules
@@ -120,7 +130,17 @@ func main() {
 		panic(err)
 	}
 
+	globalRegistry, err = loadProtoRegistry(*outDir)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load proto tag registry: %v", err))
+	}
+
 	td, err := constructTypeTemplateData(paramsYAML.Params)
+	if err != nil {
+		panic(err)
+	}
+
+	protoTd, err := constructProtoTypeTemplateData(paramsYAML.Params, globalRegistry)
 	if err != nil {
 		panic(err)
 	}
@@ -132,6 +152,9 @@ func main() {
 
 	// Sort to have reliable ordering.
 	slices.SortFunc(td, func(i, j typeTemplateData) int {
+		return cmp.Compare(i.TypeName, j.TypeName)
+	})
+	slices.SortFunc(protoTd, func(i, j typeTemplateData) int {
 		return cmp.Compare(i.TypeName, j.TypeName)
 	})
 	slices.SortFunc(fd, func(i, j flagTemplateData) int {
@@ -162,7 +185,7 @@ func main() {
 	protoTemplatePath := path.Join(*templateDir, "config.proto.tpl")
 	err = write(templateData{
 		FlagTemplateData:      fd,
-		TypeTemplateData:      td,
+		TypeTemplateData:      protoTd,
 		MachineTypeToGroupMap: machineTypeToGroupMap,
 		MachineTypeGroups:     paramsYAML.MachineTypeGroups,
 		Backticks:             "`",
@@ -170,6 +193,79 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to generate file %q: %v", protoFilePath, err))
 	}
+}
+
+func loadProtoRegistry(outDir string) (RegistryMap, error) {
+	registry := make(RegistryMap)
+	protoPath := path.Join(outDir, "config.proto")
+	file, err := os.Open(protoPath)
+	if os.IsNotExist(err) {
+		return registry, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	messageStartRegex := regexp.MustCompile(`^\s*message\s+([a-zA-Z0-9_]+)\s*\{`)
+	fieldRegex := regexp.MustCompile(`^\s*(repeated\s+)?([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+)\s*=\s*([0-9]+)\s*;`)
+	messageEndRegex := regexp.MustCompile(`^\s*\}`)
+
+	var currentMessage string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if m := messageStartRegex.FindStringSubmatch(line); m != nil {
+			currentMessage = m[1]
+			if registry[currentMessage] == nil {
+				registry[currentMessage] = make(map[string]FieldTagInfo)
+			}
+			continue
+		}
+		if currentMessage != "" {
+			if m := fieldRegex.FindStringSubmatch(line); m != nil {
+				repeatedPrefix := m[1]
+				protoTypeStr := m[2]
+				protoFldName := m[3]
+				tagStr := m[4]
+
+				var tagVal int
+				_, err := fmt.Sscanf(tagStr, "%d", &tagVal)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse tag %q in line %q: %v", tagStr, line, err)
+				}
+
+				goFldName, err := toGoFieldName(protoFldName)
+				if err != nil {
+					return nil, fmt.Errorf("failed to convert field name %q in line %q: %v", protoFldName, line, err)
+				}
+
+				fullType := protoTypeStr
+				if repeatedPrefix != "" {
+					fullType = repeatedPrefix + protoTypeStr
+				}
+
+				registry[currentMessage][goFldName] = FieldTagInfo{
+					Tag:  tagVal,
+					Type: fullType,
+				}
+				continue
+			}
+			if messageEndRegex.MatchString(line) {
+				currentMessage = ""
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return registry, nil
+}
+
+func toGoFieldName(snake string) (string, error) {
+	dashed := strings.ReplaceAll(snake, "_", "-")
+	return capitalizeIdentifier(dashed)
 }
 
 // formatValue is a custom template function that correctly formats values for Go code.
@@ -231,6 +327,11 @@ func protoFieldName(name string) string {
 }
 
 func protoTag(typeName string, fieldName string) int {
+	if globalRegistry[typeName] != nil {
+		if info, ok := globalRegistry[typeName][fieldName]; ok {
+			return info.Tag
+		}
+	}
 	// Create a unique key based on type name and field name
 	key := typeName + "." + fieldName
 	const prime = 16777619

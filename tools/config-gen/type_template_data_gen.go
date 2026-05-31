@@ -168,3 +168,126 @@ func constructTypeTemplateData(paramsConfig []Param) ([]typeTemplateData, error)
 	})
 	return ttd, nil
 }
+
+func constructProtoTypeTemplateData(paramsConfig []Param, registry RegistryMap) ([]typeTemplateData, error) {
+	var fields []fieldInfo
+	for _, p := range paramsConfig {
+		// ConfigPath can be empty for deprecated flags.
+		if p.ConfigPath == "" {
+			continue
+		}
+		f, err := computeFields(p)
+		if err != nil {
+			return nil, err
+		}
+
+		fields = append(fields, f...)
+	}
+
+	ttf := make(map[string][]fieldInfo)
+	for _, f := range fields {
+		ttf[f.TypeName] = append(ttf[f.TypeName], f)
+	}
+
+	var ttd []typeTemplateData
+	for typeName, activeFields := range ttf {
+		// Compact active fields first.
+		activeFields = slices.Compact(activeFields)
+
+		// Ensure TypeName is registered.
+		if registry[typeName] == nil {
+			registry[typeName] = make(map[string]FieldTagInfo)
+		}
+
+		// Check if the registry contains old hash tags (tags > 1000).
+		hasOldTags := false
+		for _, info := range registry[typeName] {
+			if info.Tag > 1000 {
+				hasOldTags = true
+				break
+			}
+		}
+		if hasOldTags {
+			var regFields []string
+			for fName := range registry[typeName] {
+				regFields = append(regFields, fName)
+			}
+			for _, f := range activeFields {
+				found := false
+				for _, rf := range regFields {
+					if rf == f.FieldName {
+						found = true
+						break
+					}
+				}
+				if !found {
+					regFields = append(regFields, f.FieldName)
+					registry[typeName][f.FieldName] = FieldTagInfo{Tag: 0, Type: f.DataType}
+				}
+			}
+			slices.Sort(regFields)
+			for idx, fName := range regFields {
+				info := registry[typeName][fName]
+				info.Tag = idx + 1
+				registry[typeName][fName] = info
+			}
+		}
+
+		// 1. Assign stable tags to all active fields.
+		for _, f := range activeFields {
+			if _, ok := registry[typeName][f.FieldName]; !ok {
+				// Find next consecutive tag number
+				maxTag := 0
+				for _, info := range registry[typeName] {
+					if info.Tag > maxTag {
+						maxTag = info.Tag
+					}
+				}
+				registry[typeName][f.FieldName] = FieldTagInfo{
+					Tag:  maxTag + 1,
+					Type: f.DataType,
+				}
+			}
+		}
+
+		// 2. Retain deleted fields from the registry (Additive-Only requirement).
+		finalFields := make([]fieldInfo, len(activeFields))
+		copy(finalFields, activeFields)
+
+		for regFieldName, regFieldInfo := range registry[typeName] {
+			found := false
+			for _, f := range activeFields {
+				if f.FieldName == regFieldName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				// This is a deleted/deprecated field! Retain it in config.proto.
+				finalFields = append(finalFields, fieldInfo{
+					TypeName:   typeName,
+					FieldName:  regFieldName,
+					DataType:   regFieldInfo.Type,
+					ConfigPath: "", // Mark as not active
+					Sensitive:  false,
+				})
+			}
+		}
+
+		// Sort final fields alphabetically for stable proto structure.
+		slices.SortFunc(finalFields, func(i, j fieldInfo) int {
+			return cmp.Compare(i.FieldName, j.FieldName)
+		})
+
+		ttd = append(ttd, typeTemplateData{
+			TypeName: typeName,
+			Fields:   finalFields,
+		})
+	}
+
+	// Sort type names for reliable ordering.
+	slices.SortFunc(ttd, func(i, j typeTemplateData) int {
+		return cmp.Compare(i.TypeName, j.TypeName)
+	})
+	return ttd, nil
+}
