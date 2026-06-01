@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -81,6 +82,9 @@ func (testSuite *MountAccessTest) mountWithKeyFile(bucketName, keyFile string) (
 }
 
 func (testSuite *MountAccessTest) TestMountingWithMinimalAccessSucceeds() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, testBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", testBucket)
+	}
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials(gCtx)
 	defer func() {
 		if err := os.Remove(localKeyFilePath); err != nil {
