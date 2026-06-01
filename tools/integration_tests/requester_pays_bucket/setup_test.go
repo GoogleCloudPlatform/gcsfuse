@@ -99,6 +99,10 @@ func TestMain(m *testing.M) {
 
 	// When not running in GKE environment.
 	if cfg.RequesterPaysBucket[0].GKEMountedDirectory == "" {
+		if !creds_tests.IsAllowlistedProject(testEnv.ctx) {
+			log.Printf("The active GCP project is not one of the allowlisted projects. Skipping requester pays bucket tests.")
+			os.Exit(0)
+		}
 		// Replace --billing-project= placeholder in flags with the default billing project.
 		for i := range cfg.RequesterPaysBucket[0].Configs {
 			for j, flag := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
