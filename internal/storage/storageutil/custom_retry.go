@@ -36,7 +36,7 @@ const (
 	retryTransient
 	// retry401 indicates a 401 Unauthorized error which requires a retry due to credentials refresh.
 	retry401
-	// retryUnauthenticated indicates a gRPC Unauthenticated error which requires a retry.
+	// retryUnauthenticated indicates a gRPC Unauthenticated error which requires a retry due to credentials refresh.
 	retryUnauthenticated
 )
 
@@ -51,7 +51,7 @@ func determineRetryAction(err error) retryAction {
 	// issues. Actual fix will be refresh the token earlier than 1 hr.
 	// Changes will be done post resolution of the below issue:
 	// https://github.com/golang/oauth2/issues/623
-	// TODO: Please incorporate the correct fix post resolution of the above issue.
+	// TODO(b/518674297): Please incorporate the correct fix post resolution of the above issue.
 	if typed, ok := err.(*googleapi.Error); ok {
 		if typed.Code == 401 {
 			return retry401
@@ -60,7 +60,7 @@ func determineRetryAction(err error) retryAction {
 
 	// This is the same case as above, but for gRPC UNAUTHENTICATED errors. See
 	// https://github.com/golang/oauth2/issues/623
-	// TODO: Please incorporate the correct fix post resolution of the above issue.
+	// TODO(b/518674297): Please incorporate the correct fix post resolution of the above issue.
 	if status, ok := status.FromError(err); ok {
 		if status.Code() == codes.Unauthenticated {
 			return retryUnauthenticated
