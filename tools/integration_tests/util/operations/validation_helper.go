@@ -52,6 +52,13 @@ func ValidateESTALEError(t *testing.T, err error) {
 	t.Helper()
 
 	require.Error(t, err)
+	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
+}
+
+func ValidateESTALEOrEIOError(t *testing.T, err error) {
+	t.Helper()
+
+	require.Error(t, err)
 	// FUSE kernel driver can translate ESTALE to EIO (input/output error) on some operations/kernels.
 	// So we accept both "stale file handle" (ESTALE) and "input/output error" (EIO).
 	errMsg := err.Error()
