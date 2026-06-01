@@ -23,6 +23,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,8 +42,21 @@ const CredentialsSecretName = "gcsfuse-integration-tests"
 
 var AllowlistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
 
+var (
+	cachedProjectID string
+	projectIDOnce   sync.Once
+)
+
+func getCachedProjectID(ctx context.Context) (string, error) {
+	var err error
+	projectIDOnce.Do(func() {
+		cachedProjectID, err = metadata.ProjectIDWithContext(ctx)
+	})
+	return cachedProjectID, err
+}
+
 func IsAllowlistedProject(ctx context.Context) bool {
-	id, err := metadata.ProjectIDWithContext(ctx)
+	id, err := getCachedProjectID(ctx)
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)
 		return false
@@ -55,7 +69,7 @@ func IsAllowlistedProject(ctx context.Context) bool {
 
 func projectID(ctx context.Context) string {
 	// Fetching project-id to get service account id.
-	id, err := metadata.ProjectIDWithContext(ctx)
+	id, err := getCachedProjectID(ctx)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in fetching project id: %v", err))
 	}

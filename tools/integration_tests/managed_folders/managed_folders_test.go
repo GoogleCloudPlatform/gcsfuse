@@ -88,6 +88,13 @@ func TestMain(m *testing.M) {
 	}
 
 	testEnv.ctx = context.Background()
+
+	// Check if the GCP project is allowlisted before doing setup or initializing clients.
+	if !creds_tests.IsAllowlistedProject(testEnv.ctx) {
+		log.Printf("The active GCP project is not one of the allowlisted projects. Skipping managed folders tests.")
+		os.Exit(0)
+	}
+
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.ManagedFolders[0])
 	testEnv.cfg = &cfg.ManagedFolders[0]
 
@@ -106,10 +113,6 @@ func TestMain(m *testing.M) {
 	}()
 
 	// Fetch credentials and apply permission on bucket.
-	if !creds_tests.IsAllowlistedProject(testEnv.ctx) {
-		log.Printf("The active GCP project is not one of the allowlisted projects. Skipping managed folders tests.")
-		os.Exit(0)
-	}
 	testEnv.serviceAccount, testEnv.localKeyFilePath = creds_tests.CreateCredentials(testEnv.ctx)
 	defer func() {
 		if err := os.Remove(testEnv.localKeyFilePath); err != nil {
