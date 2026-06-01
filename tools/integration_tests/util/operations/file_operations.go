@@ -109,7 +109,7 @@ func CopyFileAllowOverwrite(srcFileName, newFileName string) (err error) {
 func ReadFile(filePath string) (content []byte, err error) {
 	content, err = os.ReadFile(filePath)
 	if err != nil {
-		err = fmt.Errorf("ReadFile: %v", err)
+		err = fmt.Errorf("ReadFile: %w", err)
 		return
 	}
 	return
@@ -140,7 +140,7 @@ func RenameFile(fileName string, newFileName string) (err error) {
 func WriteFileInAppendMode(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		err = fmt.Errorf("open file for append: %v", err)
+		err = fmt.Errorf("open file for append: %w", err)
 		return
 	}
 
@@ -155,7 +155,7 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 func WriteFile(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		err = fmt.Errorf("open file for write at start: %v", err)
+		err = fmt.Errorf("open file for write at start: %w", err)
 		return
 	}
 
