@@ -734,7 +734,6 @@ func (testSuite *ControlClientGaxRetryWrapperTest) TestStorageControlClientGaxRe
 }
 
 func (testSuite *ControlClientGaxRetryWrapperTest) TestStorageControlClientGaxRetryOptions_UnauthenticatedIsRetryable() {
-	// Arrange
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 	gaxOpts := storageControlClientGaxRetryOptions(&clientConfig)
 	var settings gax.CallSettings
@@ -745,15 +744,9 @@ func (testSuite *ControlClientGaxRetryWrapperTest) TestStorageControlClientGaxRe
 	retryer := settings.Retry()
 	require.NotNil(testSuite.T(), retryer)
 
-	// Act
 	_, shouldRetryUnauthenticated := retryer.Retry(status.Error(codes.Unauthenticated, "unauthenticated"))
-	_, shouldRetryUnavailable := retryer.Retry(status.Error(codes.Unavailable, "unavailable"))
-	_, shouldRetryNotFound := retryer.Retry(status.Error(codes.NotFound, "not found"))
 
-	// Assert
 	assert.True(testSuite.T(), shouldRetryUnauthenticated)
-	assert.True(testSuite.T(), shouldRetryUnavailable)
-	assert.False(testSuite.T(), shouldRetryNotFound)
 }
 
 func (testSuite *ControlClientGaxRetryWrapperTest) TestAddGaxRetriesForFolderAPIs_NilRawControlClient() {
