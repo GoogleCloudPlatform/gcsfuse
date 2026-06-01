@@ -36,7 +36,7 @@ const (
 	retryTransient
 	// retry401 indicates a 401 Unauthorized error which requires a retry due to credentials refresh.
 	retry401
-	// retryUnauthenticated indicates a gRPC Unauthenticated error which requires a retry.
+	// retryUnauthenticated indicates a gRPC Unauthenticated error which requires a retry due to credentials refresh.
 	retryUnauthenticated
 )
 
