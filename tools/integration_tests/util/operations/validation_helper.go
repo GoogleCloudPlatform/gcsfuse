@@ -52,7 +52,12 @@ func ValidateESTALEError(t *testing.T, err error) {
 	t.Helper()
 
 	require.Error(t, err)
-	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
+	// FUSE kernel driver can translate ESTALE to EIO (input/output error) on some operations/kernels.
+	// So we accept both "stale file handle" (ESTALE) and "input/output error" (EIO).
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, syscall.ESTALE.Error()) && !strings.Contains(errMsg, syscall.EIO.Error()) {
+		t.Fatalf("Expected error to contain %q or %q. Got: %q", syscall.ESTALE.Error(), syscall.EIO.Error(), errMsg)
+	}
 }
 
 func ValidateEIOError(t *testing.T, err error) {
