@@ -186,8 +186,10 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
 		// attributes in a single operation.
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
-		// Enable async reads if enable-kernel-reader flag is set to true.
+		// Enable async reads if the kernel reader is enabled
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
+		// Enable async direct IO if the kernel reader is enabled
+		EnableAsyncDIO: newConfig.FileSystem.EnableKernelReader,
 	}
 
 	if newConfig.Logging.WireLog != "" {
