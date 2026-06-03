@@ -83,8 +83,8 @@ mkdir -p "$OUTPUT_DIR/merged" "$OUTPUT_DIR/reports"
 local_merged_dir="$OUTPUT_DIR/merged"
 reports_dir="$OUTPUT_DIR/reports"
 coverage_txt_path="$reports_dir/combined_coverage.out"
-coverage_html_path="$reports_dir/combined_coverage.html"
-diff_html_path="$reports_dir/combined_diff_coverage.html"
+coverage_html_path="$reports_dir/e2e-coverage.html"
+diff_html_path="$reports_dir/e2e-diff-coverage.html"
 
 # 1. Merge binary profiles
 go tool covdata merge -i="$joined_dirs" -o="$local_merged_dir"
@@ -153,35 +153,35 @@ fi
 if ${KOKORO_DIR_AVAILABLE}; then
   if ${full_coverage_generated}; then
     echo "Kokoro artifacts path detected. Copying coverage dashboard to target artifacts directory..."
-    cp "$coverage_html_path" "$KOKORO_ARTIFACTS_DIR/combined-coverage.html"
+    cp "$coverage_html_path" "$KOKORO_ARTIFACTS_DIR/e2e-coverage.html"
     
     # Route 1: Direct Sponge/Fusion UI dynamic link matching Kokoro Run UUID
     if [[ -n "${KOKORO_BUILD_ID-}" ]]; then
       echo "👉 Open Interactive Coverage in Fusion UI (Sponge):"
-      echo "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=combined-coverage.html"
+      echo "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=e2e-coverage.html"
     fi
 
     # Route 2: Direct GCS Corp-authenticated static dynamic link
     if [[ -n "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
       gcs_http_path="${KOKORO_ARTIFACTS_GCS_PATH#gs://}"
       echo "👉 Open Standalone Coverage served from Google Cloud Storage:"
-      echo "   https://storage.cloud.google.com/${gcs_http_path}/combined-coverage.html"
+      echo "   https://storage.cloud.google.com/${gcs_http_path}/e2e-coverage.html"
     fi
   fi
 
   if ${diff_coverage_generated}; then
     echo "Copying diff-coverage dashboard to target artifacts directory..."
-    cp "$diff_html_path" "$KOKORO_ARTIFACTS_DIR/combined-diff-coverage.html"
+    cp "$diff_html_path" "$KOKORO_ARTIFACTS_DIR/e2e-diff-coverage.html"
     
     if [[ -n "${KOKORO_BUILD_ID-}" ]]; then
       echo "👉 Open Interactive Diff-Coverage in Fusion UI (Sponge):"
-      echo "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=combined-diff-coverage.html"
+      echo "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=e2e-diff-coverage.html"
     fi
 
     if [[ -n "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
       gcs_http_path="${KOKORO_ARTIFACTS_GCS_PATH#gs://}"
       echo "👉 Open Standalone Diff-Coverage served from Google Cloud Storage:"
-      echo "   https://storage.cloud.google.com/${gcs_http_path}/combined-diff-coverage.html"
+      echo "   https://storage.cloud.google.com/${gcs_http_path}/e2e-diff-coverage.html"
     fi
   fi
 fi
