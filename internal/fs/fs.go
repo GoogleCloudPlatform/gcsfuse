@@ -59,6 +59,7 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ServerConfig struct {
@@ -1224,6 +1225,10 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (*inode.Core, error) {
+		var lockSpan trace.Span
+		if fs.isTracingEnabled {
+			_, lockSpan = fs.traceHandle.StartSpan(ctx, tracing.InodeLockAcquisition)
+		}
 		if fs.newConfig.FileSystem.DisableParallelDirops {
 			parent.Lock()
 			defer parent.Unlock()
@@ -1232,6 +1237,9 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 			// inode when its child is looked up.
 			parent.LockForChildLookup()
 			defer parent.UnlockForChildLookup()
+		}
+		if lockSpan != nil {
+			fs.traceHandle.EndSpan(lockSpan)
 		}
 		return parent.LookUpChild(ctx, childName)
 	}
