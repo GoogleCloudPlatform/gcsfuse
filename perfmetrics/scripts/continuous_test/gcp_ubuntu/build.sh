@@ -25,8 +25,11 @@ sudo apt-get install -y git
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
-# Get the latest commitId of yesterday in the log file.
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+# Get the branch name that was cloned by Kokoro
+branchName=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1)
+# Get the latest commitId. Build gcsfuse and run
+commitId=$(git log -n 1 --pretty=%H)
+echo "Running tests on branch: ${branchName} at commit ID: ${commitId}"
 
 # -----------------------------------------------------------------
 # Helper function to calculate and print execution time

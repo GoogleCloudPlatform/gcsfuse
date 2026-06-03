@@ -37,7 +37,7 @@ if ! ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId > "$build_log"
     exit 1
 fi
 
-echo "Checking out commit ${commitId} to ensure tests are run from this commit"
+echo "Checking out commit ${commitId}."
 git checkout $commitId
 
 if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET-}" == "true" ]]; then
