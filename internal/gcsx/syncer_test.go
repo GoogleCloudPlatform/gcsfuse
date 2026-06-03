@@ -359,6 +359,33 @@ func (t *SyncerTest) SyncObjectShouldInvokeFullObjectCreatorWhenSrcObjectIsNil()
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
 }
+
+func (t *SyncerTest) UnfinalizedObjectBypassesDirtyThresholdCheck() {
+	var err error
+	t.fullCreator.o = &gcs.Object{}
+	t.fullCreator.err = nil
+	// Simulate an unfinalized object (Finalized time is zero).
+	t.srcObject.Finalized = time.Time{}
+	t.srcObject.Size = 0
+	// Set up the content to have a dirty threshold of 5.
+	// We populate NewTempFile with 10 bytes of data so tf.dirtyThreshold is initialized to 10.
+	t.content, err = NewTempFile(
+		dummyReadCloser{strings.NewReader("1234567890")},
+		"",
+		&t.clock)
+	AssertEq(nil, err)
+	// Write at offset 5 to make dirtyThreshold = min(10, 5) = 5.
+	_, err = t.content.WriteAt([]byte("hi"), 5)
+	AssertEq(nil, err)
+
+	o, err := t.call()
+
+	// It should bypass the weird dirty threshold error and succeed.
+	AssertEq(nil, err)
+	ExpectEq(t.fullCreator.o, o)
+	ExpectTrue(t.fullCreator.called)
+}
+
 func (t *SyncerTest) NotDirty() {
 	// Call
 	o, err := t.call()

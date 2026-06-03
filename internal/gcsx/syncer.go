@@ -181,8 +181,9 @@ func (os *syncer) SyncObject(
 	}
 
 	// Make sure the dirty threshold makes sense.
+	// Note: This check is not needed for unfinalized objects as they are always uploaded in their entirety.
 	srcSize := int64(srcObject.Size)
-	if sr.DirtyThreshold > srcSize {
+	if !srcObject.Finalized.IsZero() && sr.DirtyThreshold > srcSize {
 		err = fmt.Errorf(
 			"stat returned weird DirtyThreshold field: %d vs. %d",
 			sr.DirtyThreshold,
