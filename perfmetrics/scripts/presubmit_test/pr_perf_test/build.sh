@@ -133,7 +133,34 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on zonal bucket(s) ..."
-  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+  mkdir -p /tmp/zonal_run
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage --enable-coverage --output-dir=/tmp/zonal_run
+
+  echo "Running unit tests with binary coverage..."
+  PACKAGES=$(go list ./... | grep -v 'tools/integration_tests')
+  mkdir -p /tmp/unit_run
+  set +e
+  go test -cover -covermode=atomic -coverpkg=github.com/googlecloudplatform/gcsfuse/v3/... $PACKAGES -args -test.gocoverdir=/tmp/unit_run
+  set -e
+
+  input_dirs="/tmp/unit_run,/tmp/zonal_run/e2e_coverage_data"
+
+  if test -n "${integrationTestsStr}"; then
+    echo "Waiting for non-zonal E2E tests to finish and upload coverage..."
+    commit_sha=$(git rev-parse HEAD)
+    sharing_bucket="${COVERAGE_SHARING_BUCKET:-gcsfuse-coverage-archive}"
+    gcs_cov_path="gs://${sharing_bucket}/${commit_sha}/e2e_regional"
+
+    while ! gcloud storage ls "${gcs_cov_path}/" &>/dev/null; do
+      sleep 30
+    done
+    echo "Non-zonal coverage found! Downloading..."
+    mkdir -p /tmp/non_zonal_run_download
+    gcloud storage cp -r "${gcs_cov_path}/*" /tmp/non_zonal_run_download/
+    input_dirs="${input_dirs},/tmp/non_zonal_run_download"
+  fi
+
+  bash ./tools/scripts/merge_coverage.sh --input-dirs="$input_dirs" --output-dir=/tmp/zonal_run
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -143,7 +170,13 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
-  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+  mkdir -p /tmp/non_zonal_run
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage --enable-coverage --output-dir=/tmp/non_zonal_run
+
+  echo "Uploading raw coverage data to GCS..."
+  commit_sha=$(git rev-parse HEAD)
+  sharing_bucket="${COVERAGE_SHARING_BUCKET:-gcsfuse-coverage-archive}"
+  gcloud storage cp -r /tmp/non_zonal_run/e2e_coverage_data/* "gs://${sharing_bucket}/${commit_sha}/e2e_regional/"
 fi
 
 # Execute package build tests.

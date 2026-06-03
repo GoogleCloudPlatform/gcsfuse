@@ -80,6 +80,9 @@ func (t *MountHelperTest) mountHelperCommand(args []string) (cmd *exec.Cmd) {
 	cmd.Env = []string{
 		fmt.Sprintf("PATH=%s", path.Join(gBuildDir, "bin")),
 	}
+	if gcoverdir := os.Getenv("GOCOVERDIR"); gcoverdir != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GOCOVERDIR=%s", gcoverdir))
+	}
 
 	return
 }

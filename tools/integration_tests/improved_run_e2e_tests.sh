@@ -37,6 +37,7 @@ usage() {
   echo "                                                 Example: '!cloud_profiler|operations' to run all test packages except cloud_profiler and operations."
   echo "    --skip-emulator                              Skip running emulator tests. (Default: false)"
   echo "    --flake-attempts              <number>       Number of attempts to run a package if it fails. (Default: 1)"
+  echo "    --enable-coverage                            Enable code coverage tracing for integration and E2E runs. (Default: false)"
   echo "    --help                                       Display this help and exit."
   exit "$1"
 }
@@ -137,10 +138,11 @@ PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parall
 RUN_PACKAGE_REGEX=""
 SKIP_EMULATOR=false
 FLAKE_ATTEMPTS=1
+ENABLE_COVERAGE=false
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:,enable-coverage
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -216,6 +218,10 @@ while (( $# >= 1 )); do
             FLAKE_ATTEMPTS="$2"
             shift 2
             ;;
+        --enable-coverage)
+            ENABLE_COVERAGE=true
+            shift
+            ;;
         --help)
             usage 0
             ;;
@@ -240,17 +246,25 @@ validate_option_value() {
   fi
 }
 
-# Fallback to /tmp if OUTPUT_DIR is unset
-BASE_PATH="${OUTPUT_DIR:-/tmp}"
-mkdir -p "$BASE_PATH" || { 
-    log_error "Failed to create or access output directory '$BASE_PATH'"; 
-    exit 1 
-}
-OUTPUT_DIR=$(mktemp -d "${BASE_PATH%/}/gcsfuse-e2e-run-XXXXXXXX") || {
-    log_error "Failed to create unique output directory in '$BASE_PATH'";
-    exit 1
-}
+if [[ -z "$OUTPUT_DIR" ]]; then
+  OUTPUT_DIR=$(mktemp -d "/tmp/gcsfuse-e2e-run-XXXXXXXX") || {
+      log_error "Failed to create unique output directory in '/tmp'";
+      exit 1
+  }
+else
+  mkdir -p "$OUTPUT_DIR" || {
+      log_error "Failed to create or access output directory '$OUTPUT_DIR'";
+      exit 1
+  }
+fi
 log_info "Output directory for the e2e run is set to '$OUTPUT_DIR'"
+
+if ${ENABLE_COVERAGE}; then
+  COVERAGE_DATA_DIR="${OUTPUT_DIR}/e2e_coverage_data"
+  mkdir -p "${COVERAGE_DATA_DIR}"
+  export GOCOVERDIR="${COVERAGE_DATA_DIR}"
+  log_info "Code Coverage tracking enabled. Counter outputs will gather in '${GOCOVERDIR}'"
+fi
 
 if [[ -z "$BUCKET_LOCATION" ]]; then
   log_info "Bucket Location is not provided, using GCE VM Location '$GCE_VM_LOCATION' as bucket location."
@@ -880,8 +894,12 @@ build_gcsfuse_once() {
   fi
   log_info "Using GCSFuse source directory: ${gcsfuse_src_dir}"
 
+  local build_args=()
+  if ${ENABLE_COVERAGE}; then
+    build_args+=("--" "-cover" "-covermode=atomic" "-coverpkg=github.com/googlecloudplatform/gcsfuse/v3/...")
+  fi
   log_info "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
-  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "0.0.0")
+  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "0.0.0" "${build_args[@]}")
   if [ $? -ne 0 ]; then
     log_error "Building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go' failed."
     rm -rf "${build_output_dir}" # Clean up created temp dir
@@ -926,10 +944,21 @@ install_packages() {
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
   export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
   export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+
+  # Ensure the Go bin directory is in PATH for executable lookup
+  export PATH="$(go env GOPATH)/bin:$PATH"
+
   if ${KOKORO_DIR_AVAILABLE} ; then
     # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
-    export PATH="$(go env GOPATH)/bin:$PATH"
+  fi
+
+  # Dynamically install go-better-html-coverage if missing
+  if ! command -v go-better-html-coverage &> /dev/null; then
+    log_info "go-better-html-coverage not found. Attempting to install..."
+    go install github.com/chmouel/go-better-html-coverage@latest || {
+      log_error "Failed to install go-better-html-coverage. Standard coverage will be used as a fallback."
+    }
   fi
 }
 
@@ -1083,6 +1112,9 @@ main() {
       log_error "Failed to stop resource usage collection process (or it's already stopped)"
     fi
   fi
+
+  
+
   exit $overall_exit_code
 }
 
