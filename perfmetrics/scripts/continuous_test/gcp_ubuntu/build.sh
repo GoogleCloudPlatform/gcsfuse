@@ -27,8 +27,12 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Get the branch name that was cloned by Kokoro
 branchName=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1)
-# Get the latest commitId. Build gcsfuse and run
-commitId=$(git log -n 1 --pretty=%H)
+# Get the commitId. Build gcsfuse and run
+if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
+  commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+else
+  commitId=$(git log -n 1 --pretty=%H)
+fi
 echo "Running tests on branch: ${branchName} at commit ID: ${commitId}"
 
 # -----------------------------------------------------------------
