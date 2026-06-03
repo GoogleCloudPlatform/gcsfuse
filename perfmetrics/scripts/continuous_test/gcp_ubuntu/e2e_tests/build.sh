@@ -22,21 +22,27 @@ if [[ $# -gt 0 ]]; then
     exit 1
 fi
 
-readonly BUCKET_LOCATION="us-central1"
-
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
-echo "Building and installing gcsfuse..."
-# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+# Get the branch name that was cloned by Kokoro
+branchName=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1)
+# Get the latest commitId. Build gcsfuse and run
+commitId=$(git log -n 1 --pretty=%H)
+echo "Running E2E tests on branch: ${branchName} at commit ID: ${commitId}"
 
-# To execute tests for a specific commitId, ensure you've checked out from that commitId first.
+echo "Building and installing gcsfuse..."
+build_log=$(mktemp)
+if ! ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId > "$build_log" 2>&1; then
+    cat "$build_log"
+    exit 1
+fi
+
+echo "Checking out commit ${commitId} to ensure tests are run from this commit"
 git checkout $commitId
 
 if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET-}" == "true" ]]; then
     echo "Running zonal e2e tests on installed package...."
-    bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
+    bash ./tools/integration_tests/improved_run_e2e_tests.sh --test-installed-package --zonal
 else
     if [[ -n "${RUN_TESTS_WITH_ZONAL_BUCKET-}" ]]; then
         echo "Warning: RUN_TESTS_WITH_ZONAL_BUCKET is set to '${RUN_TESTS_WITH_ZONAL_BUCKET}', which is not 'true'. Running regional tests."
@@ -44,5 +50,5 @@ else
         echo "RUN_TESTS_WITH_ZONAL_BUCKET is not set. Running regional tests by default."
     fi
     echo "Running regional e2e tests on installed package...."
-    bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package
+    bash ./tools/integration_tests/improved_run_e2e_tests.sh --test-installed-package
 fi
