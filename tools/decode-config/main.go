@@ -53,15 +53,25 @@ func main() {
 	// Clean potential whitespace or trailing characters
 	input = strings.TrimSpace(input)
 
-	decodedBytes, err := base64.StdEncoding.DecodeString(input)
-	if err != nil {
-		// Try URL-safe encoding just in case
-		decodedBytes, err = base64.URLEncoding.DecodeString(input)
-		if err != nil {
-			fmt.Printf("Error: Failed to decode base64 input string: %v\n", err)
-			os.Exit(1)
+	var decodedBytes []byte
+	var decodeErr error
+	decoders := []*base64.Encoding{
+		base64.RawURLEncoding,
+		base64.URLEncoding,
+		base64.RawStdEncoding,
+		base64.StdEncoding,
+	}
+	for _, dec := range decoders {
+		decodedBytes, decodeErr = dec.DecodeString(input)
+		if decodeErr == nil {
+			break
 		}
 	}
+	if decodeErr != nil {
+		fmt.Printf("Error: Failed to decode base64 input string: %v\n", decodeErr)
+		os.Exit(1)
+	}
+
 
 	// Attempt 1: Check if the decoded bytes are valid JSON (older base64 format)
 	var jsonMap map[string]any

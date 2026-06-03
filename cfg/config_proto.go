@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"encoding/base64"
+	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/pb"
 	"google.golang.org/protobuf/proto"
@@ -340,9 +341,29 @@ func toWriteProto(c *WriteConfig) *pb.WriteConfig {
 
 func SerializeConfigToProtoBase64(c *Config) (string, error) {
 	p := ToProto(c)
+	truncateStrings(p)
 	bytes, err := proto.Marshal(p)
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(bytes), nil
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
+}
+
+func truncateStrings(p any) {
+	v := reflect.ValueOf(p)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return
+	}
+
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if f.Kind() == reflect.String && f.CanSet() && f.Len() > 50 {
+			f.SetString(f.String()[:49] + "+")
+		} else if f.Kind() == reflect.Ptr && !f.IsNil() {
+			truncateStrings(f.Interface())
+		}
+	}
 }

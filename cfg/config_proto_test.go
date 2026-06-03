@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/pb"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -71,7 +72,7 @@ func TestSerializeConfigToProtoBase64_Sanitization(t *testing.T) {
 	assert.NotEmpty(t, base64Str)
 
 	// Decode Base64
-	protoBytes, err := base64.StdEncoding.DecodeString(base64Str)
+	protoBytes, err := base64.RawURLEncoding.DecodeString(base64Str)
 	assert.NoError(t, err)
 
 	// Unmarshal Protobuf
@@ -106,3 +107,31 @@ func TestSerializeConfigToProtoBase64_Sanitization(t *testing.T) {
 	assert.Equal(t, int64(33), p.MetadataCache.StatCacheMaxSizeMb)
 	assert.Equal(t, int64(60), p.MetadataCache.TtlSecs)
 }
+
+func TestSerializeConfigToProtoBase64_EncodingAndLimits(t *testing.T) {
+	// 1. Verify truncation of long strings.
+	mountConfig := &Config{
+		AppName: "this-is-a-very-long-app-name-that-definitely-exceeds-fifty-characters", // 69 chars
+	}
+	base64Str, err := SerializeConfigToProtoBase64(mountConfig)
+	assert.NoError(t, err)
+
+	// Check encoding doesn't contain forbidden characters
+	assert.NotContains(t, base64Str, "/")
+	assert.NotContains(t, base64Str, "+")
+	assert.NotContains(t, base64Str, "=")
+
+	// Decode
+	protoBytes, err := base64.RawURLEncoding.DecodeString(base64Str)
+	require.NoError(t, err)
+
+	p := &pb.Config{}
+	err = proto.Unmarshal(protoBytes, p)
+	require.NoError(t, err)
+
+	// AppName should be truncated to 49 chars + "+" (total 50)
+	expectedAppName := "this-is-a-very-long-app-name-that-definitely-exce+"
+	assert.Equal(t, 50, len(p.AppName))
+	assert.Equal(t, expectedAppName, p.AppName)
+}
+
