@@ -219,6 +219,7 @@ func TestReadFile_BufferedReadMetrics(t *testing.T) {
 	require.NoError(t, err, "ReadFile")
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))), int64(len(content)))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(len(content)))
 	metrics.VerifyHistogramMetric(t, ctx, reader, "buffered_read/read_latency", attribute.NewSet(), uint64(1))
 }
 
@@ -597,6 +598,7 @@ func TestReadFile_MrdKernelReaderMetrics(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(1))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(len(content)))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/experimental_read_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(len(content)))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), int64(1))
 	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), uint64(1))
 }
@@ -691,6 +693,9 @@ func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(4))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(30))
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
+		attribute.NewSet(attribute.String("reason", string(metrics.ReasonInitialOffsetNonZeroAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
+		1)
 }
 
 func TestGetInodeAttributes_Metrics(t *testing.T) {
@@ -1381,4 +1386,145 @@ func TestSetInodeAttributes_Metrics(t *testing.T) {
 	attrs := attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReadFile_GCSReaderBackwardSeekTransition(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableNewReader = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content with 30 bytes"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+
+	// First read: offset 0, read 5 bytes.
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, 5),
+	}
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+
+	// Second read: offset 2, read 5 bytes. Backward seek!
+	readOp.Offset = 2
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
+		attribute.NewSet(attribute.String("reason", string(metrics.ReasonBackwardSeekAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
+		1)
+}
+
+func TestReadFile_GCSReaderForwardSeekTransition(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableNewReader = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	// Create a 9MB file to allow forward seek beyond maxReadSize (8MB)
+	fileSize := 9 * 1024 * 1024
+	content := string(make([]byte, fileSize))
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+
+	// First read: offset 0, read 5 bytes.
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, 5),
+	}
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+
+	// Second read: offset 8.5MB (8912896), read 5 bytes. Forward seek!
+	readOp.Offset = 8912896
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
+		attribute.NewSet(attribute.String("reason", string(metrics.ReasonForwardSeekAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
+		1)
+}
+
+func TestReadFile_GCSReaderRandomToSequentialTransition(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableNewReader = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	// Create a 10MB file
+	fileSize := 10 * 1024 * 1024
+	content := string(make([]byte, fileSize))
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+
+	// First read: offset 100 (non-zero). Starts as Random.
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 100,
+		Dst:    make([]byte, 5),
+	}
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+
+	// Contiguous reads: 9 contiguous reads of 1MB each.
+	// This will increment totalReadBytes to 9MB + 5 bytes without triggering seeks.
+	// At the start of the 9th read, averageReadBytes will cross 8MB threshold, triggering transition to Sequential.
+	chunkSize := 1 * 1024 * 1024 // 1MB
+	var nextOffset int64 = 105
+	for i := 0; i < 9; i++ {
+		readOp.Offset = nextOffset
+		readOp.Dst = make([]byte, chunkSize)
+		err = server.ReadFile(ctx, readOp)
+		require.NoError(t, err, "ReadFile")
+		nextOffset += int64(readOp.BytesRead)
+	}
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
+		attribute.NewSet(attribute.String("reason", string(metrics.ReasonInitialOffsetNonZeroAttr)), attribute.String("transition_type", string(metrics.TransitionTypeSequentialToRandomAttr))),
+		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "read/experimental_read_type_transitions_count",
+		attribute.NewSet(attribute.String("reason", string(metrics.ReasonAverageReadSizeLargeEnoughAttr)), attribute.String("transition_type", string(metrics.TransitionTypeRandomToSequentialAttr))),
+		1)
 }

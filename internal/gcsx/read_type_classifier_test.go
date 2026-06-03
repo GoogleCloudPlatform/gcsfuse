@@ -23,7 +23,7 @@ import (
 )
 
 func TestReadTypeClassifier_InitialState(t *testing.T) {
-	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 
 	assert.Equal(t, metrics.ReadTypeSequential, readTypeClassifier.readType.Load())
 	assert.Equal(t, int64(0), readTypeClassifier.expectedOffset.Load())
@@ -107,7 +107,7 @@ func TestReadTypeClassifier_IsSeekNeeded(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 			classifier.readType.Store(tc.readType)
 			classifier.expectedOffset.Store(tc.expectedOffset)
 
@@ -304,7 +304,7 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+			readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 			readTypeClassifier.readType.Store(tc.initialReadType)
 			readTypeClassifier.expectedOffset.Store(tc.initialExpOffset)
 			readTypeClassifier.seeks.Store(tc.initialNumSeeks)
@@ -360,7 +360,7 @@ func TestReadTypeClassifier_RecordRead(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 			classifier.expectedOffset.Store(tc.initialExpectedOffset)
 			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
 
@@ -473,7 +473,7 @@ func TestReadTypeClassifier_ComputeSeqPrefetchWindowAndAdjustType(t *testing.T) 
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(tc.sequentialReadSizeMb, 0)
+			classifier := NewReadTypeClassifier(tc.sequentialReadSizeMb, 0, metrics.NewNoopMetrics())
 			classifier.seeks.Store(tc.initialNumSeeks)
 			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
 			classifier.initialOffset = tc.initialOffset
@@ -510,7 +510,7 @@ func TestReadTypeClassifier_IsSequentialRead(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 			classifier.readType.Store(tc.readType)
 
 			assert.Equal(t, tc.SequentialRead, classifier.IsReadSequential())
@@ -560,7 +560,7 @@ func Test_avgReadBytes(t *testing.T) {
 }
 
 func TestReadTypeClassifier_SequentialReads(t *testing.T) {
-	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+	readTypeClassifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 
 	// Simulate 4 reads of 10MB IO.
 	readSizes := []int64{10 * MB, 10 * MB, 10 * MB, 10 * MB}
@@ -579,7 +579,7 @@ func TestReadTypeClassifier_SequentialReads(t *testing.T) {
 }
 
 func TestReadTypeClassifier_RandomReads(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 
 	// Simulate random reads of 5MB each at different offsets.
 	readSizes := []int64{5 * MB, 5 * MB, 5 * MB, 5 * MB}
@@ -595,7 +595,7 @@ func TestReadTypeClassifier_RandomReads(t *testing.T) {
 }
 
 func TestReadTypeClassifier_RandomToSequentialRead(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 	// Start with random reads.
 	randomReadSizes := []int64{2 * MB, 2 * MB, 2 * MB, 2 * MB, 2 * MB}
 	randomOffsets := []int64{50 * MB, 20 * MB, 10 * MB, 30 * MB, 40 * MB}
@@ -621,7 +621,7 @@ func TestReadTypeClassifier_RandomToSequentialRead(t *testing.T) {
 }
 
 func TestReadTypeClassifier_ConcurrentUpdates(t *testing.T) {
-	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0)
+	classifier := NewReadTypeClassifier(sequentialReadSizeInMb, 0, metrics.NewNoopMetrics())
 	var wg sync.WaitGroup
 	numGoroutines := 10
 	readsPerGoroutine := 100
@@ -648,4 +648,61 @@ func TestReadTypeClassifier_ConcurrentUpdates(t *testing.T) {
 	// Read type could be either sequential or random depending on timing, so just check it's valid.
 	readType := classifier.readType.Load()
 	assert.True(t, readType == metrics.ReadTypeSequential || readType == metrics.ReadTypeRandom)
+}
+
+type mockMetricHandle struct {
+	metrics.MetricHandle
+	transitionsCount int64
+	lastReason       metrics.Reason
+	lastTransition   metrics.TransitionType
+}
+
+func (m *mockMetricHandle) ReadExperimentalReadTypeTransitionsCount(inc int64, reason metrics.Reason, transitionType metrics.TransitionType) {
+	m.transitionsCount += inc
+	m.lastReason = reason
+	m.lastTransition = transitionType
+}
+
+func TestReadTypeClassifier_TransitionMetrics(t *testing.T) {
+	// Test case 1: Initial non-zero offset transitions to Random with ReasonInitialOffsetNonZeroAttr
+	mh1 := &mockMetricHandle{}
+	classifier1 := NewReadTypeClassifier(sequentialReadSizeInMb, 100, mh1)
+	_ = classifier1.GetReadInfo(100, false)
+	assert.Equal(t, int64(1), mh1.transitionsCount)
+	assert.Equal(t, metrics.TransitionTypeSequentialToRandomAttr, mh1.lastTransition)
+	assert.Equal(t, metrics.ReasonInitialOffsetNonZeroAttr, mh1.lastReason)
+
+	// Test case 2: Backward seek transitions to Random with ReasonBackwardSeekAttr
+	mh2 := &mockMetricHandle{}
+	classifier2 := NewReadTypeClassifier(sequentialReadSizeInMb, 0, mh2)
+	_ = classifier2.GetReadInfo(0, false)  // 1st read at 0 -> sequential
+	classifier2.RecordRead(0, 100)         // expectedOffset = 100
+	_ = classifier2.GetReadInfo(50, false) // backward jump to 50
+	assert.Equal(t, int64(1), mh2.transitionsCount)
+	assert.Equal(t, metrics.TransitionTypeSequentialToRandomAttr, mh2.lastTransition)
+	assert.Equal(t, metrics.ReasonBackwardSeekAttr, mh2.lastReason)
+
+	// Test case 3: Forward seek transitions to Random with ReasonForwardSeekAttr
+	mh3 := &mockMetricHandle{}
+	classifier3 := NewReadTypeClassifier(sequentialReadSizeInMb, 0, mh3)
+	_ = classifier3.GetReadInfo(0, false)                   // 1st read at 0 -> sequential
+	classifier3.RecordRead(0, 100)                          // expectedOffset = 100
+	_ = classifier3.GetReadInfo(100+maxReadSize+100, false) // forward seek beyond limit
+	assert.Equal(t, int64(1), mh3.transitionsCount)
+	assert.Equal(t, metrics.TransitionTypeSequentialToRandomAttr, mh3.lastTransition)
+	assert.Equal(t, metrics.ReasonForwardSeekAttr, mh3.lastReason)
+
+	// Test case 4: Transition back to Sequential due to average read size being large enough
+	mh4 := &mockMetricHandle{}
+	classifier4 := NewReadTypeClassifier(sequentialReadSizeInMb, 100, mh4)
+	_ = classifier4.GetReadInfo(100, false) // transitions from Seq to Random due to initial non-zero offset
+	assert.Equal(t, int64(1), mh4.transitionsCount)
+	assert.Equal(t, metrics.TransitionTypeSequentialToRandomAttr, mh4.lastTransition)
+	assert.Equal(t, metrics.ReasonInitialOffsetNonZeroAttr, mh4.lastReason)
+
+	classifier4.RecordRead(100, 9*MB)            // read 9MB of data contiguous (greater than maxReadSize = 8MB)
+	_ = classifier4.GetReadInfo(100+9*MB, false) // evaluate next read. transitions back from Random to Seq!
+	assert.Equal(t, int64(2), mh4.transitionsCount)
+	assert.Equal(t, metrics.TransitionTypeRandomToSequentialAttr, mh4.lastTransition)
+	assert.Equal(t, metrics.ReasonAverageReadSizeLargeEnoughAttr, mh4.lastReason)
 }

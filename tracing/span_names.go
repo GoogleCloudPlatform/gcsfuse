@@ -50,6 +50,8 @@ const (
 	SetInodeAttributes = "fs.inode.set_attributes"
 	// ForgetInode informs the kernel that it no longer needs to track a specific inode.
 	ForgetInode = "fs.inode.forget"
+	// InodeLockAcquisition measures the time spent waiting to acquire an inode lock (e.g. parent lock).
+	InodeLockAcquisition = "fs.inode.lock_acquisition"
 	// BatchForget allows the kernel to release multiple inode references in a single call.
 	BatchForget = "fs.batch_forget"
 

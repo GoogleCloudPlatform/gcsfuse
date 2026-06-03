@@ -11,7 +11,7 @@
 - metric-name: "buffered_read/read_latency"
   description: "The cumulative distribution of latencies for ReadAt calls served by the buffered reader."
   unit: "us"
-  type: "int_histogram"
+  type: "time_histogram"
   boundaries: &microseconds_boundaries
   - 50
   - 100
@@ -63,7 +63,7 @@
 
 - metric-name: "file_cache/read_latencies"
   description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false."
-  type: "int_histogram"
+  type: "time_histogram"
   unit: "us"
   boundaries: *microseconds_boundaries
   attributes:
@@ -132,7 +132,7 @@
 
 - metric-name: "fs/ops_latency"
   description: "The cumulative distribution of file system operation latencies"
-  type: "int_histogram"
+  type: "time_histogram"
   unit: "us"
   boundaries: *microseconds_boundaries
   attributes:
@@ -153,6 +153,63 @@
     - "Random"
     - "Sequential"
 
+- metric-name: "gcs/experimental_read_bytes_count"
+  description: "The cumulative number of bytes read from GCS objects along with type - Sequential/Random"
+  unit: "By"
+  type: "int_counter"
+  attributes:
+  - attribute-name: read_type
+    attribute-type: string
+    values: *read_types_list
+
+
+- metric-name: "gcs/experimental_reader_cancellation_count"
+  description: "The cumulative number of times an in-flight GCS object reader was canceled along with the cancellation reason."
+  type: "int_counter"
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values: &cancellation_reasons_list
+    - "canceled"
+    - "deadline_exceeded"
+    - "explicit_close"
+    - "forced_recreate"
+    - "inactive_timeout"
+    - "normal"
+    - "seek"
+    - "sequential_to_random"
+    - "unknown"
+
+- metric-name: "gcs/experimental_reader_lifespan_bytes"
+  description: "The distribution of bytes read or left unread by an in-flight GCS object reader before it was closed, tracked across preemption triggers and byte states (read vs. unread)."
+  unit: "By"
+  type: "int_histogram"
+  boundaries:
+  - 0 # To detect EOF/0-byte scenarios
+  - 1
+  - 1048576
+  - 4194304
+  - 16777216
+  - 33554432
+  - 52428800
+  - 67108864
+  - 104857600
+  - 134217728
+  - 167772160
+  - 201326592
+  - 268435456
+  - 536870912
+  
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values: *cancellation_reasons_list
+  - attribute-name: state
+    attribute-type: string
+    values:
+    - "read"
+    - "unread"
+
 - metric-name: "gcs/read_bytes_count"
   description: "The cumulative number of bytes read from GCS objects."
   unit: "By"
@@ -165,6 +222,7 @@
   - attribute-name: read_type
     attribute-type: string
     values: *read_types_list
+
 
 - metric-name: "gcs/reader_count"
   description: "The cumulative number of GCS object readers opened or closed."
@@ -205,7 +263,7 @@
 
 - metric-name: "gcs/request_latencies"
   description: "The cumulative distribution of the GCS request latencies."
-  type: "int_histogram"
+  type: "time_histogram"
   unit: "ms"
   boundaries: &millisecond_boundaries
   - 100
@@ -235,6 +293,41 @@
     values:
     - "OTHER_ERRORS"
     - "STALLED_READ_REQUEST"
+
+- metric-name: "metadata_cache/read_count"
+  description: "Total number of read requests to the metadata cache. Use attributes to analyze hit/miss ratios, entry types, and specific lookup outcomes (e.g., expiration vs. total absence)."
+  type: "int_counter"
+  attributes:
+  - attribute-name: cache_hit
+    attribute-type: bool
+  - attribute-name: entry_status
+    attribute-type: string
+    values:
+    - positive
+    - negative
+  - attribute-name: lookup_detail
+    attribute-type: string
+    values:
+    - found
+    - ttl_expired
+    - not_found
+
+- metric-name: "read/experimental_read_type_transitions_count"
+  description: "The cumulative number of read pattern transitions, along with the transition direction (sequential_to_random or random_to_sequential) and the reason: backward_seek, forward_seek, initial_offset_non_zero, or average_read_size_large_enough."
+  type: "int_counter"
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values:
+    - "average_read_size_large_enough"
+    - "backward_seek"
+    - "forward_seek"
+    - "initial_offset_non_zero"
+  - attribute-name: transition_type
+    attribute-type: string
+    values:
+    - "random_to_sequential"
+    - "sequential_to_random"
 
 - metric-name: "test/updown_counter"
   description: "Test metric for updown counters."

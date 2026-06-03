@@ -42,6 +42,8 @@ type ReadInfo struct {
 // It uses heuristics based on the number of seeks and average read size to classify the read pattern.
 // It is safe for concurrent use by multiple goroutines.
 type ReadTypeClassifier struct {
+	metricHandle metrics.MetricHandle
+
 	// ReadType of the reader. Will be sequential by default.
 	readType atomic.Int64
 
@@ -62,8 +64,12 @@ type ReadTypeClassifier struct {
 	initialOffset int64
 }
 
-func NewReadTypeClassifier(sequentialReadSizeMb int64, initialOffset int64) *ReadTypeClassifier {
+func NewReadTypeClassifier(sequentialReadSizeMb int64, initialOffset int64, mh metrics.MetricHandle) *ReadTypeClassifier {
+	if mh == nil {
+		mh = metrics.NewNoopMetrics()
+	}
 	state := &ReadTypeClassifier{
+		metricHandle:         mh,
 		readType:             atomic.Int64{},
 		expectedOffset:       atomic.Int64{},
 		seeks:                atomic.Uint64{},
@@ -124,9 +130,23 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 	numSeeks := rtc.seeks.Load()
 	currentTotalReadBytes := rtc.totalReadBytes.Load()
 
-	if !seekRecorded && rtc.isSeekNeeded(offset) {
-		numSeeks = rtc.seeks.Add(1)
-		seekRecorded = true
+	var reason metrics.Reason
+
+	if offset != expOffset && expOffset != 0 {
+		if offset < expOffset {
+			reason = metrics.ReasonBackwardSeekAttr
+		} else {
+			reason = metrics.ReasonForwardSeekAttr
+		}
+	}
+
+	if rtc.isSeekNeeded(offset) {
+		if !seekRecorded {
+			numSeeks = rtc.seeks.Add(1)
+			seekRecorded = true
+		}
+	} else if numSeeks == 0 && rtc.initialOffset != 0 && previousReadType == metrics.ReadTypeSequential {
+		reason = metrics.ReasonInitialOffsetNonZeroAttr
 	}
 
 	readType := metrics.ReadTypeRandom
@@ -139,15 +159,38 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 		readType = metrics.ReadTypeSequential
 	}
 
-	if readType != previousReadType {
-		rtc.readType.Store(readType)
-	}
+	_ = rtc.transitionTo(previousReadType, readType, reason)
 
 	return ReadInfo{
 		ReadType:       readType,
 		ExpectedOffset: expOffset,
 		SeekRecorded:   seekRecorded,
 	}
+}
+
+func (rtc *ReadTypeClassifier) transitionTo(previousType int64, targetType int64, reason metrics.Reason) bool {
+	if previousType == targetType {
+		return false
+	}
+	if !rtc.readType.CompareAndSwap(previousType, targetType) {
+		return false
+	}
+
+	if previousType == metrics.ReadTypeSequential && targetType == metrics.ReadTypeRandom {
+		if reason == "" && rtc.initialOffset != 0 {
+			reason = metrics.ReasonInitialOffsetNonZeroAttr
+		}
+		if reason != "" {
+			rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeSequentialToRandomAttr)
+		}
+	} else if previousType == metrics.ReadTypeRandom && targetType == metrics.ReadTypeSequential {
+		if reason == "" {
+			reason = metrics.ReasonAverageReadSizeLargeEnoughAttr
+		}
+		rtc.metricHandle.ReadExperimentalReadTypeTransitionsCount(1, reason, metrics.TransitionTypeRandomToSequentialAttr)
+	}
+
+	return true
 }
 
 // ComputeSeqPrefetchWindowAndAdjustType computes the sequential IO size heuristically based on
@@ -170,16 +213,24 @@ func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 			randomReadSize := ((averageReadBytes + MB - 1) / MB) * MB
 			// Clamp to [minReadSize, maxReadSize]
 			randomReadSize = min(max(randomReadSize, minReadSize), maxReadSize)
-			if currentReadType != metrics.ReadTypeRandom {
-				rtc.readType.Store(metrics.ReadTypeRandom)
-			}
+			rtc.adjustToRandom(currentReadType, seeks)
 			return int64(randomReadSize)
 		}
 	}
-	if currentReadType != metrics.ReadTypeSequential {
-		rtc.readType.Store(metrics.ReadTypeSequential)
-	}
+	rtc.adjustToSequential(currentReadType)
 	return rtc.sequentialReadSizeMb * MB
+}
+
+func (rtc *ReadTypeClassifier) adjustToRandom(currentReadType int64, seeks uint64) {
+	var reason metrics.Reason
+	if seeks == 0 && rtc.initialOffset > 0 {
+		reason = metrics.ReasonInitialOffsetNonZeroAttr
+	}
+	_ = rtc.transitionTo(currentReadType, metrics.ReadTypeRandom, reason)
+}
+
+func (rtc *ReadTypeClassifier) adjustToSequential(currentReadType int64) {
+	_ = rtc.transitionTo(currentReadType, metrics.ReadTypeSequential, metrics.ReasonAverageReadSizeLargeEnoughAttr)
 }
 
 // IsReadSequential returns true if the current read pattern is sequential

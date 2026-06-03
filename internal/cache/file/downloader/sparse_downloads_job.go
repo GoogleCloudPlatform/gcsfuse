@@ -203,6 +203,7 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	}
 
 	// Create GCS reader for the specific range
+	ctx = metrics.ContextWithReadType(ctx, metrics.ReadTypeNames[metrics.ReadTypeRandom])
 	newReader, err := job.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{

@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
@@ -295,6 +296,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 
 // Open a reader for the generation of object we care about.
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
+	ctx = metrics.ContextWithReadType(ctx, metrics.ReadTypeSequentialAttr)
 	rc, err := f.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{

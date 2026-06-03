@@ -104,7 +104,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		readers = append(readers, fileCacheReader)
 	}
 
-	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB), config.InitialOffset)
+	readClassifier := gcsx.NewReadTypeClassifier(int64(config.SequentialReadSizeMB), config.InitialOffset, config.MetricHandle)
 
 	// If buffered read is enabled, initialize the buffered reader and add it to the readers.
 	if config.Config.Read.EnableBufferedRead {

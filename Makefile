@@ -53,7 +53,7 @@ vet: fmt
 	go vet ./...
 
 lint: vet
-	golangci-lint run -E=unused --timeout 3m0s --new-from-rev=master
+	golangci-lint run -E=unused --timeout 3m0s --new-from-rev=v3.9.1
 
 build: lint
 	go build ./...

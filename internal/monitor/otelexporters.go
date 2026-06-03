@@ -25,6 +25,7 @@ import (
 	cloudmetric "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	auth "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
@@ -35,6 +36,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -53,7 +55,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	options = append(options, opts...)
 	shutdownFns = append(shutdownFns, promShutdownFn)
 
-	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+	opts = setupCloudMonitoring(ctx, c.Metrics.CloudMetricsExportIntervalSecs, &c.GcsAuth, c.Metrics.ProjectId)
 	options = append(options, opts...)
 
 	res, err := getResource(ctx, mountID)
@@ -86,12 +88,33 @@ func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
 	return s, true
 }
 
-func setupCloudMonitoring(secs int64) []metric.Option {
+func setupCloudMonitoring(ctx context.Context, secs int64, authConfig *cfg.GcsAuthConfig, projectID string) []metric.Option {
 	if secs <= 0 {
 		return nil
 	}
+
+	var clientOpts []option.ClientOption
+	if authConfig != nil {
+		if authConfig.TokenUrl != "" {
+			tokenSrc, err := auth.NewTokenSourceFromURL(ctx, authConfig.TokenUrl, authConfig.ReuseTokenFromUrl)
+			if err != nil {
+				logger.Errorf("Error while creating metrics token source from url:%v", err)
+			} else {
+				clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+			}
+		} else if authConfig.KeyFile != "" {
+			clientOpts = append(clientOpts, option.WithCredentialsFile(string(authConfig.KeyFile)))
+		}
+	}
+
 	options := []cloudmetric.Option{
 		cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
+	}
+	if len(clientOpts) > 0 {
+		options = append(options, cloudmetric.WithMonitoringClientOptions(clientOpts...))
+	}
+	if projectID != "" {
+		options = append(options, cloudmetric.WithProjectID(projectID))
 	}
 	exporter, err := cloudmetric.New(options...)
 	if err != nil {

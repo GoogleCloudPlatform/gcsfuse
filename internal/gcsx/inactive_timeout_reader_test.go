@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -96,7 +97,7 @@ func (s *InactiveTimeoutReaderTestSuite) setupReader() {
 
 	var err error
 	// Use NewInactiveTimeoutReader directly as NewStorageReaderWithInactiveTimeout is deprecated.
-	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, gcs.ByteRange{Start: uint64(0), Limit: s.object.Size}, s.timeout, s.simulatedClock)
+	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, gcs.ByteRange{Start: uint64(0), Limit: s.object.Size}, s.timeout, s.simulatedClock, metrics.NewNoopMetrics())
 	time.Sleep(5 * time.Millisecond) // Allow time to schedule and create a timer.
 	s.Require().Nil(err)
 	s.Require().NotNil(s.reader)
@@ -115,7 +116,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_NewInactiveTimeoutReader_InitialRe
 			req.Range.Limit == 100
 	})).Return(nil, initialErr).Once()
 
-	_, err := NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, []byte{}, gcs.ByteRange{Start: 0, Limit: 100}, s.timeout)
+	_, err := NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, []byte{}, gcs.ByteRange{Start: 0, Limit: 100}, s.timeout, metrics.NewNoopMetrics())
 
 	s.Error(err)
 	s.ErrorIs(err, initialErr) // Should be the exact error from the bucket
@@ -125,7 +126,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_NewInactiveTimeoutReader_ZeroTimeo
 	s.initialData = []byte("zero timeout")
 	s.timeout = 0 // Zero timeout
 
-	_, err := NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, []byte{}, gcs.ByteRange{Start: 0, Limit: 100}, s.timeout)
+	_, err := NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, []byte{}, gcs.ByteRange{Start: 0, Limit: 100}, s.timeout, metrics.NewNoopMetrics())
 
 	s.Error(err)
 	s.ErrorIs(err, ErrZeroInactivityTimeout)
@@ -375,4 +376,59 @@ func (s *InactiveTimeoutReaderTestSuite) TestRaceCondition() {
 	}()
 
 	wg.Wait()
+}
+
+type mockMetricHandleForCancellationTestSuite struct {
+	metrics.MetricHandle
+	mock.Mock
+}
+
+func (m *mockMetricHandleForCancellationTestSuite) GcsExperimentalReaderCancellationCount(inc int64, reason metrics.Reason) {
+	m.Called(inc, reason)
+}
+
+func (m *mockMetricHandleForCancellationTestSuite) GcsExperimentalReaderLifespanBytes(ctx context.Context, value int64, reason metrics.Reason, state metrics.State) {
+	m.Called(ctx, value, reason, state)
+}
+
+func (s *InactiveTimeoutReaderTestSuite) Test_handleTimeout_InactiveCloseRecordsMetric() {
+	s.initialData = []byte("simple close test")
+	s.timeout = 50 * time.Millisecond
+	s.object.Size = uint64(len(s.initialData))
+
+	// Setup expectations for MockBucket
+	readCloser := getReadCloser(s.initialData)
+	s.initialFakeReader = &fake.FakeReader{ReadCloser: readCloser, Handle: s.readHandle}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       s.object.Name,
+		Generation: s.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: s.object.Size,
+		},
+		ReadCompressed: s.object.HasContentEncodingGzip(),
+		ReadHandle:     s.readHandle,
+	}
+	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(s.initialFakeReader, nil).Times(1)
+
+	// Setup mock metrics handle
+	mh := &mockMetricHandleForCancellationTestSuite{}
+	mh.On("GcsExperimentalReaderCancellationCount", int64(1), metrics.ReasonInactiveTimeoutAttr).Return().Once()
+	mh.On("GcsExperimentalReaderLifespanBytes", mock.Anything, int64(17), metrics.ReasonInactiveTimeoutAttr, metrics.StateUnreadAttr).Return().Once()
+	mh.On("GcsExperimentalReaderLifespanBytes", mock.Anything, int64(0), metrics.ReasonInactiveTimeoutAttr, metrics.StateReadAttr).Return().Once()
+
+	// Setup InactiveTimeoutReader
+	var err error
+	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, gcs.ByteRange{Start: uint64(0), Limit: s.object.Size}, s.timeout, s.simulatedClock, mh)
+	s.Require().Nil(err)
+
+	itr := s.reader.(*InactiveTimeoutReader)
+	itr.isActive = false // Simulate inactivity
+
+	// Act
+	itr.handleTimeout()
+
+	// Assert
+	s.Nil(itr.gcsReader)
+	mh.AssertExpectations(s.T())
 }

@@ -80,7 +80,8 @@ var funcMap = template.FuncMap{
 	"joinInts":                    joinInts,
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
 	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
-	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" || m.Type == "time_histogram" },
+	"isTimeHistogram":             func(m Metric) bool { return m.Type == "time_histogram" },
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
 	"getTestFuncArgs":             getTestFuncArgs,
@@ -263,9 +264,9 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 }
 
 func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
-	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
-	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(string(%s))\n", strings.Repeat("\t", level+3), toCamel(attrName)))
-	builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
+	fmt.Fprintf(builder, "%sdefault:\n", strings.Repeat("\t", level+2))
+	fmt.Fprintf(builder, "%supdateUnrecognizedAttribute(string(%s))\n", strings.Repeat("\t", level+3), toCamel(attrName))
+	fmt.Fprintf(builder, "%sreturn\n", strings.Repeat("\t", level+3))
 }
 
 func validateMetric(m Metric) error {
@@ -275,11 +276,11 @@ func validateMetric(m Metric) error {
 	if m.Description == "" {
 		return fmt.Errorf("description is required for metric %q", m.Name)
 	}
-	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "int_up_down_counter" {
-		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', or 'int_up_down_counter', got %q", m.Name, m.Type)
+	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "time_histogram" && m.Type != "int_up_down_counter" {
+		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', 'time_histogram', or 'int_up_down_counter', got %q", m.Name, m.Type)
 	}
 
-	if m.Type == "int_histogram" {
+	if m.Type == "int_histogram" || m.Type == "time_histogram" {
 		if len(m.Boundaries) == 0 {
 			return fmt.Errorf("boundaries are required for histogram metric %q", m.Name)
 		}
@@ -389,18 +390,26 @@ func buildSwitches(metric Metric) string {
 			indent := strings.Repeat("\t", level+1)
 			if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
 				atomicName := getAtomicName(metric.Name, combo)
-				builder.WriteString(fmt.Sprintf("%so.%s.Add(inc)\n", indent, atomicName))
+				fmt.Fprintf(&builder, "%so.%s.Add(inc)\n", indent, atomicName)
 			} else { // histogram
 				varName := getVarName(metric.Name, combo)
 				unitMethod := getUnitMethod(metric.Unit)
-				builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{ctx: ctx,instrument: o.%s, value: latency%s, attributes: %s}\n", indent, toCamel(metric.Name), unitMethod, varName))
+				valVar := "latency"
+				if unitMethod == "" {
+					valVar = "value"
+				}
+				valueStr := fmt.Sprintf("%s%s", valVar, unitMethod)
+				if metric.Unit == "s" {
+					valueStr = fmt.Sprintf("int64(%s)", valueStr)
+				}
+				fmt.Fprintf(&builder, "%srecord = histogramRecord{ctx: ctx, instrument: o.%s, value: %s, attributes: %s}\n", indent, toCamel(metric.Name), valueStr, varName)
 			}
 			return
 		}
 
 		attr := metric.Attributes[level]
 		indent := strings.Repeat("\t", level+1)
-		builder.WriteString(fmt.Sprintf("%sswitch %s {\n", indent, toCamel(attr.Name)))
+		fmt.Fprintf(&builder, "%sswitch %s {\n", indent, toCamel(attr.Name))
 
 		var values []string
 		isBool := attr.Type == "bool"
@@ -415,25 +424,37 @@ func buildSwitches(metric Metric) string {
 			if !isBool {
 				caseVal = getAttrConstName(attr.Type, val)
 			}
-			builder.WriteString(fmt.Sprintf("%scase %s:\n", strings.Repeat("\t", level+2), caseVal))
+			fmt.Fprintf(&builder, "%scase %s:\n", strings.Repeat("\t", level+2), caseVal)
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
 			recorder(level+1, currentCombo)
 		}
 		if !isBool {
 			handleDefaultInSwitchCase(level, attr.Name, &builder)
 		}
-		builder.WriteString(fmt.Sprintf("%s}\n", indent))
+		fmt.Fprintf(&builder, "%s}\n", indent)
 	}
 
 	if len(metric.Attributes) == 0 {
-		if metric.Type == "int_histogram" {
+		switch metric.Type {
+		case "int_histogram", "time_histogram":
 			unitMethod := getUnitMethod(metric.Unit)
-			builder.WriteString(fmt.Sprintf("\trecord = histogramRecord{ctx: ctx, instrument: o.%s, value: latency%s}\n", toCamel(metric.Name), unitMethod))
-		} else if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
+			valVar := "latency"
+			if unitMethod == "" {
+				valVar = "value"
+			}
+			valueStr := fmt.Sprintf("%s%s", valVar, unitMethod)
+			if metric.Unit == "s" {
+				valueStr = fmt.Sprintf("int64(%s)", valueStr)
+			}
+			fmt.Fprintf(&builder, "\trecord := histogramRecord{ctx: ctx, instrument: o.%s, value: %s}\n", toCamel(metric.Name), valueStr)
+		case "int_counter", "int_up_down_counter":
 			atomicName := getAtomicName(metric.Name, AttrCombination{})
-			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", atomicName))
+			fmt.Fprintf(&builder, "\to.%s.Add(inc)\n", atomicName)
 		}
 	} else {
+		if metric.Type == "int_histogram" || metric.Type == "time_histogram" {
+			builder.WriteString("\tvar record histogramRecord\n")
+		}
 		recorder(0, AttrCombination{})
 	}
 
