@@ -38,9 +38,28 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type filteringExporter struct {
+	raw *tracetest.InMemoryExporter
+}
+
+func (f *filteringExporter) Reset() {
+	f.raw.Reset()
+}
+
+func (f *filteringExporter) GetSpans() tracetest.SpanStubs {
+	spans := f.raw.GetSpans()
+	var filtered tracetest.SpanStubs
+	for _, s := range spans {
+		if s.Name != "fs.inode.lock_acquisition" {
+			filtered = append(filtered, s)
+		}
+	}
+	return filtered
+}
+
 type TracingTestSuite struct {
 	suite.Suite
-	globalExporter *tracetest.InMemoryExporter
+	globalExporter *filteringExporter
 }
 
 func (s *TracingTestSuite) SetupSuite() {
@@ -89,10 +108,10 @@ func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInt
 	return bucket, server
 }
 
-func newInMemoryExporter() *tracetest.InMemoryExporter {
+func newInMemoryExporter() *filteringExporter {
 	ex := tracetest.NewInMemoryExporter()
 	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex)))
-	return ex
+	return &filteringExporter{raw: ex}
 }
 
 func (s *TracingTestSuite) TestTraceLookupInode() {
@@ -1356,6 +1375,33 @@ func (s *TracingTestSuite) TestTraceSyncFS() {
 			}
 		})
 	}
+}
+
+func (s *TracingTestSuite) TestTraceLockAcquisition() {
+	s.Run("enabled", func() {
+		ctx := context.Background()
+		t := s.T()
+		bucket, server := createTestFileSystemWithTraces(ctx, t, true)
+		m := wrappers.WithTracing(server, tracing.NewOTELTracer())
+		fileName := "test.txt"
+		content := "test content"
+		createWithContents(ctx, t, bucket, fileName, content)
+		lookUpOp := &fuseops.LookUpInodeOp{
+			Parent: fuseops.RootInodeID,
+			Name:   fileName,
+		}
+
+		err := m.LookUpInode(ctx, lookUpOp)
+		require.NoError(t, err)
+
+		// Bypass the filteringExporter to inspect all spans generated
+		ss := s.globalExporter.raw.GetSpans()
+		require.Len(t, ss, 2)
+		assert.Equal(t, "fs.inode.lock_acquisition", ss[0].Name)
+		assert.Equal(t, trace.SpanKindInternal, ss[0].SpanKind)
+		assert.Equal(t, "fs.inode.lookup", ss[1].Name)
+		assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+	})
 }
 
 func TestTracingTestSuite(t *testing.T) {
