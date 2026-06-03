@@ -35,13 +35,18 @@ export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 # Copy the key file for the TPC service account to use for authentication.
 gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 
-echo "Building and installing gcsfuse..."
 # Get the branch name that was cloned by Kokoro
 branchName=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1)
 # Get the latest commitId. Build gcsfuse and run
 commitId=$(git log -n 1 --pretty=%H)
 echo "Running E2E tests on branch: ${branchName} at commit ID: ${commitId}"
-./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+
+echo "Building and installing gcsfuse from commit ${commitId}..."
+build_log=$(mktemp)
+if ! ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId > "$build_log" 2>&1; then
+    cat "$build_log"
+    exit 1
+fi
 
 echo "Checking out commit ${commitId}."
 git checkout $commitId

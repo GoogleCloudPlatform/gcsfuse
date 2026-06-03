@@ -30,7 +30,7 @@ branchName=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1
 commitId=$(git log -n 1 --pretty=%H)
 echo "Running E2E tests on branch: ${branchName} at commit ID: ${commitId}"
 
-echo "Building and installing gcsfuse..."
+echo "Building and installing gcsfuse from commit ${commitId}..."
 build_log=$(mktemp)
 if ! ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId > "$build_log" 2>&1; then
     cat "$build_log"
