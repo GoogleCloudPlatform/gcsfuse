@@ -94,9 +94,9 @@ def get_coverage_for_dirs(dirs):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--unit-dir", required=True, help="Directory containing raw unit test counters")
-    parser.add_argument("--zonal-dir", required=True, help="Directory containing raw zonal E2E counters")
-    parser.add_argument("--regional-dir", required=True, help="Directory containing raw regional E2E counters")
+    parser.add_argument("--unit-dir", default="", help="Directory containing raw unit test counters")
+    parser.add_argument("--zonal-dir", default="", help="Directory containing raw zonal E2E counters")
+    parser.add_argument("--regional-dir", default="", help="Directory containing raw regional E2E counters")
     
     parser.add_argument("--project", default="", help="BigQuery GCP Project ID")
     parser.add_argument("--dataset", default="gcsfuse_coverage", help="BigQuery Dataset Name")

@@ -168,6 +168,18 @@ then
   fi
 
   bash ./tools/scripts/merge_coverage.sh --input-dirs="$input_dirs" --output-dir=/tmp/zonal_run --gcs-upload-path="${sharing_bucket}/${commit_sha}"
+
+  echo "Injecting coverage metrics into BigQuery..."
+  local regional_dir=""
+  if [[ "$input_dirs" == *non_zonal_run_download* ]]; then
+    regional_dir="/tmp/non_zonal_run_download"
+  fi
+  python3 ./tools/scripts/inject_to_bigquery.py \
+    --unit-dir="/tmp/unit_run" \
+    --zonal-dir="/tmp/zonal_run/e2e_coverage_data" \
+    --regional-dir="$regional_dir" \
+    --dataset="gcsfuse_coverage" \
+    --table="trends"
 fi
 
 # Execute integration tests on non-zonal bucket(s).
