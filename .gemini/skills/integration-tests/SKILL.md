@@ -1,3 +1,8 @@
+---
+name: gcsfuse-integration-testing
+description: Step-by-step runbook for creating, extending, and verifying integration tests in the GCSFuse repository.
+---
+
 # GCSFuse Integration Testing Skill
 
 This skill provides a comprehensive, step-by-step runbook for Antigravity agents to create, extend, structure, and verify integration tests within the GCSFuse repository's [tools/integration_tests](../../../tools/integration_tests) directory. Following this framework ensures that all tests adhere to uniform setup configurations, GKE compatibility paths, safe flag override systems, and clean teardowns.
