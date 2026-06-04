@@ -21,6 +21,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -44,6 +45,16 @@ func logPanic() {
 func main() {
 	// Common configuration for all commands
 	defer logPanic()
+
+	if err := os.Setenv("GOOGLE_SDK_GO_EXPERIMENTAL_METRICS", "true"); err != nil {
+		log.Printf("Error setting GOOGLE_SDK_GO_EXPERIMENTAL_METRICS: %v", err)
+	}
+	if err := os.Setenv("GOOGLE_SDK_GO_EXPERIMENTAL_TRACING", "true"); err != nil {
+		log.Printf("Error setting GOOGLE_SDK_GO_EXPERIMENTAL_TRACING: %v", err)
+	}
+	log.Printf("GOOGLE_SDK_GO_EXPERIMENTAL_METRICS set to: %s", os.Getenv("GOOGLE_SDK_GO_EXPERIMENTAL_METRICS"))
+	log.Printf("GOOGLE_SDK_GO_EXPERIMENTAL_TRACING set to: %s", os.Getenv("GOOGLE_SDK_GO_EXPERIMENTAL_TRACING"))
+
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	// Set up profiling handlers.
