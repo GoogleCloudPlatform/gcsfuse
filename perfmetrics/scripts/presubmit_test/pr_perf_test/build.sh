@@ -143,12 +143,19 @@ then
   go test -cover -covermode=atomic -coverpkg=github.com/googlecloudplatform/gcsfuse/v3/... $PACKAGES -args -test.gocoverdir=/tmp/unit_run
   set -e
 
+  commit_sha=$(git rev-parse HEAD)
+  sharing_bucket="${COVERAGE_SHARING_BUCKET:-gcsfuse-coverage-archive}"
+
+  echo "Uploading raw zonal coverage data to GCS..."
+  gcloud storage cp -r /tmp/zonal_run/e2e_coverage_data/* "gs://${sharing_bucket}/${commit_sha}/e2e_zonal/"
+
+  echo "Uploading raw unit coverage data to GCS..."
+  gcloud storage cp -r /tmp/unit_run/* "gs://${sharing_bucket}/${commit_sha}/unit/"
+
   input_dirs="/tmp/unit_run,/tmp/zonal_run/e2e_coverage_data"
 
   if test -n "${integrationTestsStr}"; then
     echo "Waiting for non-zonal E2E tests to finish and upload coverage..."
-    commit_sha=$(git rev-parse HEAD)
-    sharing_bucket="${COVERAGE_SHARING_BUCKET:-gcsfuse-coverage-archive}"
     gcs_cov_path="gs://${sharing_bucket}/${commit_sha}/e2e_regional"
 
     while ! gcloud storage ls "${gcs_cov_path}/" &>/dev/null; do
@@ -160,7 +167,7 @@ then
     input_dirs="${input_dirs},/tmp/non_zonal_run_download"
   fi
 
-  bash ./tools/scripts/merge_coverage.sh --input-dirs="$input_dirs" --output-dir=/tmp/zonal_run
+  bash ./tools/scripts/merge_coverage.sh --input-dirs="$input_dirs" --output-dir=/tmp/zonal_run --gcs-upload-path="${sharing_bucket}/${commit_sha}"
 fi
 
 # Execute integration tests on non-zonal bucket(s).

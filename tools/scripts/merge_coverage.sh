@@ -22,13 +22,13 @@ usage() {
   echo "Options:"
   echo "  --input-dirs          Comma-separated list of directories containing raw binary covcounters and covmeta files."
   echo "  --output-dir          Output directory for final combined text & HTML reports."
-  echo "  --gcs-upload-bucket   Optional. GCS bucket name to upload the final HTML report."
+  echo "  --gcs-upload-path     Optional. GCS destination path (bucket/prefix) to upload the final HTML reports."
   exit 1
 }
 
 INPUT_DIRS=""
 OUTPUT_DIR=""
-GCS_UPLOAD_BUCKET=""
+GCS_UPLOAD_PATH=""
 CODECOV_TOKEN="${CODECOV_TOKEN:-}"
 
 while [[ $# -gt 0 ]]; do
@@ -41,8 +41,8 @@ while [[ $# -gt 0 ]]; do
       OUTPUT_DIR="${1#*=}"
       shift
       ;;
-    --gcs-upload-bucket=*)
-      GCS_UPLOAD_BUCKET="${1#*=}"
+    --gcs-upload-path=*)
+      GCS_UPLOAD_PATH="${1#*=}"
       shift
       ;;
     *)
@@ -187,11 +187,18 @@ if ${KOKORO_DIR_AVAILABLE}; then
 fi
 
 # 6. Upload HTML dashboard to custom GCS bucket
-if [[ -n "$GCS_UPLOAD_BUCKET" ]]; then
-  echo "Uploading HTML dashboard to Google Cloud Storage..."
-  gcloud storage cp "$coverage_html_path" "gs://${GCS_UPLOAD_BUCKET}/combined-coverage.html"
-  echo "👉 Open Standalone Interactive Coverage served from GCS:"
-  echo "   https://storage.cloud.google.com/${GCS_UPLOAD_BUCKET}/combined-coverage.html"
+if [[ -n "$GCS_UPLOAD_PATH" ]]; then
+  echo "Uploading HTML dashboards to Google Cloud Storage..."
+  if ${full_coverage_generated}; then
+    gcloud storage cp "$coverage_html_path" "gs://${GCS_UPLOAD_PATH}/e2e-coverage.html"
+    echo "👉 Open Standalone Interactive Coverage served from GCS:"
+    echo "   https://storage.cloud.google.com/${GCS_UPLOAD_PATH}/e2e-coverage.html"
+  fi
+  if ${diff_coverage_generated}; then
+    gcloud storage cp "$diff_html_path" "gs://${GCS_UPLOAD_PATH}/e2e-diff-coverage.html"
+    echo "👉 Open Standalone Interactive Diff-Coverage served from GCS:"
+    echo "   https://storage.cloud.google.com/${GCS_UPLOAD_PATH}/e2e-diff-coverage.html"
+  fi
 fi
 
 # 7. Upload to Codecov
