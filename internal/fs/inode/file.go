@@ -1094,7 +1094,7 @@ func (f *FileInode) updateReaders() {
 	}
 
 	// This will be a noop for regional bucket.
-	if !f.bucket.BucketType().Zonal {
+	if !f.bucket.BucketType().IsRapid() {
 		return
 	}
 	if err := f.mrdInstance.SetMinObject(minObj); err != nil {

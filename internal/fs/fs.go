@@ -281,10 +281,10 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
-		// Write post mount kernel settings when kernel reader is enabled in GKE environments for
+		// Write post mount kernel settings for rapid buckets when kernel reader is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
 		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
-		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.IsRapid() && serverCfg.NewConfig.FileSystem.EnableKernelReader {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
@@ -2535,7 +2535,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 	default:
 		return fmt.Errorf("child inode (id %v) is not a file or symlink inode", child.ID())
 	}
-	if fs.enableAtomicRenameObject || child.Bucket().BucketType().Zonal {
+	if fs.enableAtomicRenameObject || child.Bucket().BucketType().IsRapid() {
 		return fs.atomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
 	return fs.nonAtomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)

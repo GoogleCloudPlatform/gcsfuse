@@ -99,6 +99,8 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 		storageLayout.LocationType = "multiregion"
 	}
 
+	// TODO (b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
+	// update this mock to correctly populate the response for Pirlo buckets.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(storageLayout, nil)
 }
 
