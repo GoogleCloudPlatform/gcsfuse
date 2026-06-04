@@ -1036,6 +1036,11 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 		ExpectCall(t.cache, "InsertImplicitDir")(dir, Any())
 	}
 
+	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
+	if !dirHasContents && prefix != "" && ctx.Err() == nil && !isHNS {
+		ExpectCall(t.cache, "AddNegativeEntry")(prefix, Any())
+	}
+
 	// Call
 	gotListing, err := t.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{Prefix: prefix})
 
