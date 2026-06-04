@@ -391,23 +391,20 @@ func (t *SyncerTest) UnfinalizedObjectDoesNotReturnEarlyOnTruncateToZero() {
 	var err error
 	t.fullCreator.o = &gcs.Object{}
 	t.fullCreator.err = nil
-
 	// Simulate an unfinalized object (Finalized time is zero).
 	t.srcObject.Finalized = time.Time{}
 	t.srcObject.Size = 0
-
 	// Set up the content with 10 bytes of initial data.
 	t.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader("1234567890")},
 		"",
 		&t.clock)
 	AssertEq(nil, err)
-
 	// Truncate to 0. This sets size to 0 and dirtyThreshold to 0.
 	err = t.content.Truncate(0)
 	AssertEq(nil, err)
 
-	// Call. Even though sr.Size == 0 (srcSize) and sr.DirtyThreshold == 0 (srcSize),
+	// Even though sr.Size == 0 (srcSize) and sr.DirtyThreshold == 0 (srcSize),
 	// since the object is unfinalized, it should NOT return early but call fullCreator.
 	o, err := t.call()
 
@@ -422,13 +419,12 @@ func (t *SyncerTest) UnfinalizedObjectReturnsEarlyIfUnmodifiedAndNonZeroSize() {
 	// But it has a correct metadata size (e.g. 4 bytes, matching local content).
 	t.srcObject.Size = uint64(len(srcObjectContents))
 
-	// Call. Since sr.Size == 4 (srcSize), sr.DirtyThreshold == 4 (srcSize),
+	// Since sr.Size == 4 (srcSize), sr.DirtyThreshold == 4 (srcSize),
 	// and sr.Size != 0, it should return early (optimization holds).
 	o, err := t.call()
 
 	AssertEq(nil, err)
 	ExpectEq(nil, o)
-
 	// Neither creator should be called.
 	ExpectFalse(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
