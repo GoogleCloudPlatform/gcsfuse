@@ -74,6 +74,12 @@ def get_coverage_for_dirs(dirs):
                 line = line.strip()
                 if not line:
                     continue
+                if "github.com/googlecloudplatform/gcsfuse/v3/tools/" in line or \
+                   "github.com/googlecloudplatform/gcsfuse/v3/perfmetrics/" in line or \
+                   "github.com/googlecloudplatform/gcsfuse/v3/benchmarks/" in line or \
+                   "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake" in line or \
+                   "/mock" in line:
+                    continue
                 parts = line.split()
                 if len(parts) != 3:
                     continue

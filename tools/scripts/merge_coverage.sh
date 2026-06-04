@@ -91,6 +91,7 @@ go tool covdata merge -i="$joined_dirs" -o="$local_merged_dir"
 
 # 2. Convert to text coverprofile format
 go tool covdata textfmt -i="$local_merged_dir" -o="$coverage_txt_path"
+grep -vE 'github.com/googlecloudplatform/gcsfuse/v3/tools/|github.com/googlecloudplatform/gcsfuse/v3/perfmetrics/|github.com/googlecloudplatform/gcsfuse/v3/benchmarks/|github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake|/mock' "$coverage_txt_path" > "${coverage_txt_path}.tmp" && mv "${coverage_txt_path}.tmp" "$coverage_txt_path"
 
 # 3. Print functional summary to stdout
 echo "------------------------------------------"
@@ -169,6 +170,7 @@ for d in "${valid_dirs[@]}"; do
   echo "Generating coverage report for '$report_name'..."
   temp_text_profile=$(mktemp)
   if go tool covdata textfmt -i="$d" -o="$temp_text_profile" 2>/dev/null; then
+    grep -vE 'github.com/googlecloudplatform/gcsfuse/v3/tools/|github.com/googlecloudplatform/gcsfuse/v3/perfmetrics/|github.com/googlecloudplatform/gcsfuse/v3/benchmarks/|github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake|/mock' "$temp_text_profile" > "${temp_text_profile}.tmp" && mv "${temp_text_profile}.tmp" "$temp_text_profile"
     target_html="$reports_dir/${report_name}-coverage.html"
     if command -v go-better-html-coverage &> /dev/null; then
       go-better-html-coverage -n -profile "$temp_text_profile" -o "$target_html" || \
@@ -208,6 +210,7 @@ if [ ${#e2e_dirs[@]} -gt 0 ]; then
 
   if go tool covdata merge -i="$joined_e2e_dirs" -o="$temp_integration_merged_dir" 2>/dev/null && \
      go tool covdata textfmt -i="$temp_integration_merged_dir" -o="$temp_integration_text_profile" 2>/dev/null; then
+    grep -vE 'github.com/googlecloudplatform/gcsfuse/v3/tools/|github.com/googlecloudplatform/gcsfuse/v3/perfmetrics/|github.com/googlecloudplatform/gcsfuse/v3/benchmarks/|github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake|/mock' "$temp_integration_text_profile" > "${temp_integration_text_profile}.tmp" && mv "${temp_integration_text_profile}.tmp" "$temp_integration_text_profile"
     target_html="$reports_dir/integration-coverage.html"
     if command -v go-better-html-coverage &> /dev/null; then
       go-better-html-coverage -n -profile "$temp_integration_text_profile" -o "$target_html" || \
