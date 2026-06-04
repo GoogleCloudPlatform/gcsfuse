@@ -144,7 +144,102 @@ else
   echo "👉 Local Click (Full, Standard): file://$coverage_html_path"
 fi
 
-# 5. Kokoro Artifacts support
+# 5. Generate and upload separate reports for each input directory (Unit, Zonal, Regional)
+e2e_dirs=()
+for d in "${valid_dirs[@]}"; do
+  report_name="dir"
+  if [[ "$d" == *unit* ]]; then
+    report_name="unit"
+  elif [[ "$d" == *zonal* ]]; then
+    report_name="zonal"
+    e2e_dirs+=("$d")
+  elif [[ "$d" == *regional* || "$d" == *non_zonal* ]]; then
+    report_name="regional"
+    e2e_dirs+=("$d")
+  else
+    report_name=$(basename "$d")
+    e2e_dirs+=("$d")
+  fi
+
+  if [ ! -d "$d" ] || [ "$(find "$d" -maxdepth 1 -name "covcounters.*" | wc -l)" -eq 0 ]; then
+    echo "Skipping report generation for '$report_name' (directory '$d' is empty or missing)."
+    continue
+  fi
+
+  echo "Generating coverage report for '$report_name'..."
+  temp_text_profile=$(mktemp)
+  if go tool covdata textfmt -i="$d" -o="$temp_text_profile" 2>/dev/null; then
+    target_html="$reports_dir/${report_name}-coverage.html"
+    if command -v go-better-html-coverage &> /dev/null; then
+      go-better-html-coverage -n -profile "$temp_text_profile" -o "$target_html" || \
+        go tool cover -html="$temp_text_profile" -o "$target_html"
+    else
+      go tool cover -html="$temp_text_profile" -o "$target_html"
+    fi
+    echo "👉 Local Click (${report_name}): file://$target_html"
+
+    # Copy to Kokoro artifacts if available
+    if [[ -n "${KOKORO_ARTIFACTS_DIR-}" ]]; then
+      cp "$target_html" "$KOKORO_ARTIFACTS_DIR/${report_name}-coverage.html"
+      if [[ -n "${KOKORO_BUILD_ID-}" ]]; then
+        echo "👉 Open Interactive ${report_name} Coverage in Fusion UI (Sponge):"
+        echo "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=${report_name}-coverage.html"
+      fi
+    fi
+
+    # Upload to GCS if requested
+    if [[ -n "$GCS_UPLOAD_PATH" ]]; then
+      gcloud storage cp "$target_html" "gs://${GCS_UPLOAD_PATH}/${report_name}-coverage.html"
+      echo "👉 Open Standalone Interactive ${report_name} Coverage served from GCS:"
+      echo "   https://storage.cloud.google.com/${GCS_UPLOAD_PATH}/${report_name}-coverage.html"
+    fi
+  else
+    echo "Warning: Failed to convert binary profiles in '$d' to text format."
+  fi
+  rm -f "$temp_text_profile"
+done
+
+# 6. Generate and upload combined Integration (E2E) report (excluding Unit tests)
+if [ ${#e2e_dirs[@]} -gt 0 ]; then
+  echo "Generating combined integration (E2E) coverage report..."
+  temp_integration_merged_dir=$(mktemp -d)
+  temp_integration_text_profile=$(mktemp)
+  joined_e2e_dirs=$(IFS=,; echo "${e2e_dirs[*]}")
+
+  if go tool covdata merge -i="$joined_e2e_dirs" -o="$temp_integration_merged_dir" 2>/dev/null && \
+     go tool covdata textfmt -i="$temp_integration_merged_dir" -o="$temp_integration_text_profile" 2>/dev/null; then
+    target_html="$reports_dir/integration-coverage.html"
+    if command -v go-better-html-coverage &> /dev/null; then
+      go-better-html-coverage -n -profile "$temp_integration_text_profile" -o "$target_html" || \
+        go tool cover -html="$temp_integration_text_profile" -o "$target_html"
+    else
+      go tool cover -html="$temp_integration_text_profile" -o "$target_html"
+    fi
+    echo "👉 Local Click (Integration): file://$target_html"
+
+    # Copy to Kokoro artifacts if available
+    if [[ -n "${KOKORO_ARTIFACTS_DIR-}" ]]; then
+      cp "$target_html" "$KOKORO_ARTIFACTS_DIR/integration-coverage.html"
+      if [[ -n "${KOKORO_BUILD_ID-}" ]]; then
+        echo "👉 Open Interactive Integration Coverage in Fusion UI (Sponge):"
+        echo "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=integration-coverage.html"
+      fi
+    fi
+
+    # Upload to GCS if requested
+    if [[ -n "$GCS_UPLOAD_PATH" ]]; then
+      gcloud storage cp "$target_html" "gs://${GCS_UPLOAD_PATH}/integration-coverage.html"
+      echo "👉 Open Standalone Interactive Integration Coverage served from GCS:"
+      echo "   https://storage.cloud.google.com/${GCS_UPLOAD_PATH}/integration-coverage.html"
+    fi
+  else
+    echo "Warning: Failed to generate combined integration report."
+  fi
+  rm -rf "$temp_integration_merged_dir" "$temp_integration_text_profile"
+fi
+
+
+# 6. Kokoro Artifacts support for combined reports
 KOKORO_DIR_AVAILABLE=false
 if [[ -n "${KOKORO_ARTIFACTS_DIR-}" ]]; then
   KOKORO_DIR_AVAILABLE=true
@@ -155,13 +250,13 @@ if ${KOKORO_DIR_AVAILABLE}; then
     echo "Kokoro artifacts path detected. Copying coverage dashboard to target artifacts directory..."
     cp "$coverage_html_path" "$KOKORO_ARTIFACTS_DIR/e2e-coverage.html"
     
-    # Route 1: Direct Sponge/Fusion UI dynamic link matching Kokoro Run UUID
+    # Route 1: Direct Sponge/Fusion UI link
     if [[ -n "${KOKORO_BUILD_ID-}" ]]; then
       echo "👉 Open Interactive Coverage in Fusion UI (Sponge):"
       echo "   https://sponge.corp.google.com/target?id=${KOKORO_BUILD_ID}&tab=artifacts&file=e2e-coverage.html"
     fi
 
-    # Route 2: Direct GCS Corp-authenticated static dynamic link
+    # Route 2: Direct GCS link
     if [[ -n "${KOKORO_ARTIFACTS_GCS_PATH-}" ]]; then
       gcs_http_path="${KOKORO_ARTIFACTS_GCS_PATH#gs://}"
       echo "👉 Open Standalone Coverage served from Google Cloud Storage:"
@@ -186,7 +281,7 @@ if ${KOKORO_DIR_AVAILABLE}; then
   fi
 fi
 
-# 6. Upload HTML dashboard to custom GCS bucket
+# 7. Upload HTML combined dashboards to custom GCS bucket
 if [[ -n "$GCS_UPLOAD_PATH" ]]; then
   echo "Uploading HTML dashboards to Google Cloud Storage..."
   if ${full_coverage_generated}; then
@@ -200,6 +295,7 @@ if [[ -n "$GCS_UPLOAD_PATH" ]]; then
     echo "   https://storage.cloud.google.com/${GCS_UPLOAD_PATH}/e2e-diff-coverage.html"
   fi
 fi
+
 
 # 7. Upload to Codecov
 if [[ -n "$CODECOV_TOKEN" ]]; then
