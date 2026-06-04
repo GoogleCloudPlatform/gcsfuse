@@ -686,7 +686,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		// 1. Try Directory FIRST (since it's the preferred return type)
 		var dirResult *Core
 		var err error
-		var dirCacheMiss bool
 		if d.Bucket().BucketType().Hierarchical {
 			dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		} else {
@@ -697,30 +696,19 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		if dirResult != nil {
 			return dirResult, nil
 		}
-		if errors.As(err, &cacheMissErr) {
-			dirCacheMiss = true
-		} else if err != nil {
+		// If we hit a real error (not a cache miss), exit early.
+		if err != nil && !errors.As(err, &cacheMissErr) {
 			return nil, err
 		}
 
 		// 2. Try File ONLY if directory wasn't found
-		var fileCacheMiss bool
 		fileResult, err := findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
-		if fileResult != nil {
-			return fileResult, nil
-		}
-		if errors.As(err, &cacheMissErr) {
-			fileCacheMiss = true
-		} else if err != nil {
+		if err != nil && !errors.As(err, &cacheMissErr) {
 			return nil, err
 		}
 
-		// 3. Short-circuit ONLY on confirmed negative hits (tombstones) for BOTH
-		// directory and file paths. If either lookup resulted in a cache miss,
-		// we cannot short-circuit and must fall back to GCS (fetchCoreEntity)
-		// because the un-cached type might still exist.
-		if !dirCacheMiss && !fileCacheMiss {
-			return nil, nil // Definitive ENOENT
+		if fileResult != nil {
+			return fileResult, nil
 		}
 	}
 
