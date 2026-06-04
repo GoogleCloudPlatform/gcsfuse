@@ -193,9 +193,19 @@ func (os *syncer) SyncObject(
 	}
 
 	// If the content hasn't been dirtied (i.e. it is the same size as the source
-	// object, and no bytes within the source object have been dirtied), we're
-	// done.
-	if sr.Size == srcSize && sr.DirtyThreshold == srcSize {
+	// object, and no bytes within the source object have been dirtied).
+	tempFileIsUnmodifiedAndLocalMatchesGCS := sr.Size == srcSize && sr.DirtyThreshold == srcSize
+
+	// We return early if the file is unmodified.
+	//
+	// We handle this for two different object states:
+	// 1. Finalized objects (Standard buckets): We return early if the file is unmodified.
+	// 2. Unfinalized objects (Zonal/Rapid buckets): Unfinalized objects can report a
+	//    stale metadata size of 0. If the local temp file size is 0 and GCS returns 0,
+	//    we cannot distinguish between a genuinely empty file and a file containing
+	//    data that we want to truncate to 0. Thus, we bypass this optimization when
+	//    the local temp file size is 0 to ensure truncate-to-0 is always uploaded.
+	if (!srcObject.Finalized.IsZero() || sr.Size != 0) && tempFileIsUnmodifiedAndLocalMatchesGCS {
 		return
 	}
 
