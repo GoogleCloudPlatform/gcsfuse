@@ -434,19 +434,16 @@ func (t *SyncerTest) UnfinalizedObjectDoesNotReturnEarlyOnTruncateToStaleMetadat
 	var err error
 	t.appendCreator.o = &gcs.Object{}
 	t.appendCreator.err = nil
-
 	// Simulate an unfinalized object (Finalized time is zero).
 	t.srcObject.Finalized = time.Time{}
 	// GCS metadata reports stale size 4 (but actual size was 10).
 	t.srcObject.Size = 4
-
 	// Set up the content with 10 bytes of initial data.
 	t.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader("1234567890")},
 		"",
 		&t.clock)
 	AssertEq(nil, err)
-
 	// Truncate to 4. This sets size to 4 and dirtyThreshold to 4.
 	// Since we truncated, tf.mtime becomes non-nil.
 	err = t.content.Truncate(4)
