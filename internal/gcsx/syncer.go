@@ -180,10 +180,11 @@ func (os *syncer) SyncObject(
 		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkRetryDeadlineSecs, os.chunkTransferTimeoutSecs, content)
 	}
 
+	// TODO(b/520290147): Remomve unfinalized checks once stat results become consistent on zonal buckets.
 	// Make sure the dirty threshold makes sense.
 	// Note: This check is not needed for unfinalized objects as they are always uploaded in their entirety.
 	srcSize := int64(srcObject.Size)
-	if !srcObject.Finalized.IsZero() && sr.DirtyThreshold > srcSize {
+	if !srcObject.IsUnfinalized() && sr.DirtyThreshold > srcSize {
 		err = fmt.Errorf(
 			"stat returned weird DirtyThreshold field: %d vs. %d",
 			sr.DirtyThreshold,
@@ -201,20 +202,19 @@ func (os *syncer) SyncObject(
 	// We handle this for two different object states:
 	// 1. Finalized objects (Standard buckets): We return early if the file is unmodified.
 	// 2. Unfinalized objects (Zonal/Rapid buckets): Unfinalized objects can report a
-	//    stale metadata size of 0. If the local temp file size is 0 and GCS returns 0,
-	//    we cannot distinguish between a genuinely empty file and a file containing
-	//    data that we want to truncate to 0. Thus, we bypass this optimization when
-	//    the local temp file size is 0 to ensure truncate-to-0 is always uploaded.
-	if (!srcObject.Finalized.IsZero() || sr.Size != 0) && tempFileIsUnmodifiedAndLocalMatchesGCS {
+	//    stale metadata size Y that is less than their actual size X. If we locally
+	//    truncate the file to Y, both the local size and dirty threshold become Y,
+	//    which matches the stale metadata size Y. We cannot distinguish this from an
+	//    unmodified file of size Y. Thus, we bypass this optimization for
+	//    unfinalized objects to prevent truncations from being silently skipped.
+	//
+	// In both cases, if the file was never written to or truncated, sr.Mtime remains
+	// nil. This is a 100% reliable indicator that no local changes were ever made,
+	// allowing us to always return early safely.
+	if sr.Mtime == nil || (!srcObject.IsUnfinalized() && tempFileIsUnmodifiedAndLocalMatchesGCS) {
 		return
 	}
 
-	// Sanity check: the branch above should ensure that by the time we get here,
-	// the stat result's mtime is non-nil.
-	if sr.Mtime == nil {
-		err = fmt.Errorf("wacky stat result: %#v", sr)
-		return
-	}
 
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,

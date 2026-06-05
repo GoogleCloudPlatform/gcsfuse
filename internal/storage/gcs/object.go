@@ -110,6 +110,10 @@ type ExtendedObjectAttributes struct {
 	Acl                []*storagev1.ObjectAccessControl
 }
 
+func (o Object) IsUnfinalized() bool {
+	return o.Finalized.IsZero()
+}
+
 func (mo MinObject) HasContentEncodingGzip() bool {
 	return mo.ContentEncoding == ContentEncodingGzip
 }

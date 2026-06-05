@@ -419,8 +419,8 @@ func (t *SyncerTest) UnfinalizedObjectReturnsEarlyIfUnmodifiedAndNonZeroSize() {
 	// But it has a correct metadata size (e.g. 4 bytes, matching local content).
 	t.srcObject.Size = uint64(len(srcObjectContents))
 
-	// Since sr.Size == 4 (srcSize), sr.DirtyThreshold == 4 (srcSize),
-	// and sr.Size != 0, it should return early (optimization holds).
+	// Since the local temp file is unmodified (sr.Mtime is nil), it should return
+	// early even though the object is unfinalized.
 	o, err := t.call()
 
 	AssertEq(nil, err)
@@ -428,6 +428,39 @@ func (t *SyncerTest) UnfinalizedObjectReturnsEarlyIfUnmodifiedAndNonZeroSize() {
 	// Neither creator should be called.
 	ExpectFalse(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
+}
+
+func (t *SyncerTest) UnfinalizedObjectDoesNotReturnEarlyOnTruncateToStaleMetadataSize() {
+	var err error
+	t.appendCreator.o = &gcs.Object{}
+	t.appendCreator.err = nil
+
+	// Simulate an unfinalized object (Finalized time is zero).
+	t.srcObject.Finalized = time.Time{}
+	// GCS metadata reports stale size 4 (but actual size was 10).
+	t.srcObject.Size = 4
+
+	// Set up the content with 10 bytes of initial data.
+	t.content, err = NewTempFile(
+		dummyReadCloser{strings.NewReader("1234567890")},
+		"",
+		&t.clock)
+	AssertEq(nil, err)
+
+	// Truncate to 4. This sets size to 4 and dirtyThreshold to 4.
+	// Since we truncated, tf.mtime becomes non-nil.
+	err = t.content.Truncate(4)
+	AssertEq(nil, err)
+
+	// Even though local size matches stale GCS size (4 == 4) and dirtyThreshold (4 == 4)
+	// matches GCS size, since tf.mtime is non-nil and the object is unfinalized,
+	// it should bypass early return and call appendCreator.
+	o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(t.appendCreator.o, o)
+	ExpectTrue(t.appendCreator.called)
+	ExpectFalse(t.fullCreator.called)
 }
 
 func (t *SyncerTest) NotDirty() {
