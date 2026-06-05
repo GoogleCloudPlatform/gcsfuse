@@ -968,8 +968,7 @@ params:
   - config-path: "metadata-cache.experimental-enable-optimized-metadata-cache"
     flag-name: "experimental-enable-optimized-metadata-cache"
     type: "bool"
-    usage: >-
-      This flag enables the radix tree based lru cache
+    usage: "this flag enables the radix tree based lru cache"
     default: false
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
