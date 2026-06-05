@@ -215,7 +215,6 @@ func (os *syncer) SyncObject(
 		return
 	}
 
-
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,
 	// then we can make the optimization of not rewriting its contents.
