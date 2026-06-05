@@ -684,6 +684,8 @@ type MetadataCacheConfig struct {
 
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
 
+	ExperimentalEnableOptimizedMetadataCache bool `yaml:"experimental-enable-optimized-metadata-cache"`
+
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
 
 	MetadataPrefetchEntriesLimit int64 `yaml:"metadata-prefetch-entries-limit"`
@@ -1042,6 +1044,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("experimental-enable-optimized-metadata-cache", "", false, "This flag enables the radix tree based lru cache")
 
 	flagSet.BoolP("experimental-enable-pirlo", "", false, "Enables support for pirlo.")
 
@@ -1645,6 +1649,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metadata-cache.experimental-enable-optimized-metadata-cache", flagSet.Lookup("experimental-enable-optimized-metadata-cache")); err != nil {
 		return err
 	}
 

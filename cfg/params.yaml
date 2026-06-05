@@ -965,6 +965,12 @@ params:
       This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.
     default: false
 
+  - config-path: "metadata-cache.experimental-enable-optimized-metadata-cache"
+    flag-name: "experimental-enable-optimized-metadata-cache"
+    type: "bool"
+    usage: "This flag enables the radix tree based lru cache"
+    default: false
+
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
     flag-name: "experimental-metadata-prefetch-on-mount"
     type: "string"
