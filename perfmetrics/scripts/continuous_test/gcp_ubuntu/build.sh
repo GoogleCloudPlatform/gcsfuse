@@ -27,7 +27,9 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Get the branch name that was cloned by Kokoro
 branchName=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1)
-# Get the commitId. Build gcsfuse and run
+# Get the commitId. Build gcsfuse and run.
+# - Automated daily runs (initiated by Kokoro scheduler) will run on the last commit of yesterday on the master branch.
+# - Manual runs (initiated by users) will run on the latest commit of the branch (master or feature branch) provided in the manual trigger.
 if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
   commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 else
