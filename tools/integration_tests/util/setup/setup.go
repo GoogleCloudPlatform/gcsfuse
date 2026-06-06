@@ -645,7 +645,8 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 		// 2. Check if the current test case is compatible with the bucket type.
 		// This is a safe and concise way to check the map.
 		isCompatible, ok := testCase.Compatible[bucketType]
-		if ok && isCompatible && (run == "" || run == testCase.Run) {
+		tpcMatches := (TestOnTPCEndPoint() == testCase.TPCOnly)
+		if ok && isCompatible && tpcMatches && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				flagString = strings.ReplaceAll(flagString, ",", " ")
