@@ -28,6 +28,7 @@ const ArraySize = 3002
 
 var (
 	getFolderLatencies [ArraySize]atomic.Int64
+	shutdownCalled     atomic.Bool
 )
 
 // RecordGetFolderLatency records a duration into the latency array.
@@ -43,9 +44,11 @@ func RecordGetFolderLatency(elapsed time.Duration) {
 	getFolderLatencies[val].Add(1)
 }
 
-// Shutdown prints the final array.
+// Shutdown prints the final array. It is thread-safe and runs exactly once.
 func Shutdown() {
-	logArray("GetFolder latency array (final):")
+	if shutdownCalled.CompareAndSwap(false, true) {
+		logArray("GetFolder latency array (final):")
+	}
 }
 
 func logArray(prefix string) {
@@ -63,6 +66,7 @@ func logArray(prefix string) {
 
 // ResetForTest resets the latency tracker state. Used for unit testing.
 func ResetForTest() {
+	shutdownCalled.Store(false)
 	for i := 0; i < ArraySize; i++ {
 		getFolderLatencies[i].Store(0)
 	}

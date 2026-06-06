@@ -84,6 +84,9 @@ func registerTerminatingSignalHandler(mountPoint string) {
 				sigName = "SIGINT"
 			}
 
+			// Log the final latency array immediately to ensure it is captured.
+			latency.Shutdown()
+
 			//On signal receive wait in background and give 30 second for unmount to finish
 			//and then exit, so application is closed.
 			go func() {
