@@ -864,6 +864,13 @@ params:
     usage: "The maximum size in megabytes that a log file can reach before it is rotated."
     default: "512"
 
+  - config-path: "logging.mount-id-prefix"
+    flag-name: "mount-id-prefix"
+    type: "string"
+    usage: "Prefix/override for the mount instance ID to make it constant across mounts."
+    default: ""
+    hide-flag: true
+
   - config-path: "logging.severity"
     flag-name: "log-severity"
     type: "logSeverity"
@@ -1101,6 +1108,7 @@ params:
     usage: "The number of workers that update histogram metrics concurrently."
     default: "3"
     hide-flag: true
+
 
   - config-path: "mrd.pool-size"
     flag-name: "mrd-pool-size"

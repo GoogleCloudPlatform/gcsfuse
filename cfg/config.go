@@ -629,6 +629,8 @@ type LoggingConfig struct {
 
 	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
 
+	MountIdPrefix string `yaml:"mount-id-prefix"`
+
 	Severity LogSeverity `yaml:"severity"`
 
 	WireLog ResolvedPath `yaml:"wire-log"`
@@ -1211,6 +1213,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("metrics-workers", "", 3, "The number of workers that update histogram metrics concurrently.")
 
 	if err := flagSet.MarkHidden("metrics-workers"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("mount-id-prefix", "", "", "Prefix/override for the mount instance ID to make it constant across mounts.")
+
+	if err := flagSet.MarkHidden("mount-id-prefix"); err != nil {
 		return err
 	}
 
@@ -1822,6 +1830,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.workers", flagSet.Lookup("metrics-workers")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.mount-id-prefix", flagSet.Lookup("mount-id-prefix")); err != nil {
 		return err
 	}
 

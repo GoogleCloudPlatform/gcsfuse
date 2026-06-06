@@ -29,6 +29,7 @@ import (
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/latency"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
@@ -615,6 +616,10 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 }
 
 func (bh *bucketHandle) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (folder *gcs.Folder, err error) {
+	startTime := time.Now()
+	defer func() {
+		latency.RecordGetFolderLatency(time.Since(startTime))
+	}()
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()

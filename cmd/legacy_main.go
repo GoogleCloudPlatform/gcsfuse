@@ -38,6 +38,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/latency"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -89,6 +90,7 @@ func registerTerminatingSignalHandler(mountPoint string) {
 				logger.Warnf("Received %s, waiting for %s to let system gracefully unmount before killing the process", sigName, WaitTimeOnSignalReceive)
 				time.Sleep(WaitTimeOnSignalReceive)
 				logger.Warnf("killing goroutines and exit")
+				latency.Shutdown()
 				//Forcefully exit to 0 so that caller get success on forcefull exit also.
 				os.Exit(0)
 			}()
@@ -380,6 +382,7 @@ func logGCSFuseMountInformation(mountInfo *mountInfo) {
 
 func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	newConfig := mountInfo.config
+	logger.SetMountIdPrefix(newConfig.Logging.MountIdPrefix)
 	// Ideally this call to UpdateDefaultLogger (which internally creates a
 	// new defaultLogger with user provided log-format and custom attribute 'fsName-MountInstanceID')
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
@@ -554,6 +557,8 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	if err = mfs.Join(ctx); err != nil {
 		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
 	}
+
+	latency.Shutdown()
 
 	if shutdownFn != nil {
 		if shutdownErr := shutdownFn(ctx); shutdownErr != nil {

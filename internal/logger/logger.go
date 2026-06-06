@@ -159,11 +159,21 @@ func MountUUID() string {
 	return mountUUID
 }
 
+var mountIdPrefix string
+
+// SetMountIdPrefix sets the prefix/override for the MountInstanceID.
+func SetMountIdPrefix(prefix string) {
+	mountIdPrefix = prefix
+}
+
 // MountInstanceID returns the InstanceID of current gcsfuse mount.
-// This is combination of `fsName` + MountUUID.
+// This is combination of `fsName` + MountUUID (or mountIdPrefix if set).
 // Note: fsName is passed here explicitly, as logger package doesn't know about fsName
 // when MountInstanceID method is invoked.
 func MountInstanceID(fsName string) string {
+	if mountIdPrefix != "" {
+		return fmt.Sprintf("%s-%s", fsName, mountIdPrefix)
+	}
 	return fmt.Sprintf("%s-%s", fsName, MountUUID())
 }
 
