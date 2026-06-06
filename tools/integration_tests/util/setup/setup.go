@@ -411,7 +411,7 @@ func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
 
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
- 
+
 	if TestBucket() == "" && *mountedDirectory == "" {
 		log.Print("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
