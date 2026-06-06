@@ -18,7 +18,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -29,39 +28,10 @@ const ArraySize = 3002
 
 var (
 	getFolderLatencies [ArraySize]atomic.Int64
-	ticker             *time.Ticker
-	stopChan           chan struct{}
-	mu                 sync.Mutex
-	running            bool
 )
-
-// Start begins the periodic 5-minute logging of the latency array.
-func Start() {
-	mu.Lock()
-	defer mu.Unlock()
-	if running {
-		return
-	}
-	running = true
-	ticker = time.NewTicker(5 * time.Minute)
-	stopChan = make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				logArray("GetFolder latency array (periodic):")
-			case <-stopChan:
-				return
-			}
-		}
-	}()
-}
 
 // RecordGetFolderLatency records a duration into the latency array.
 func RecordGetFolderLatency(elapsed time.Duration) {
-	// Ensure periodic logging goroutine is started.
-	Start()
-
 	sec := elapsed.Seconds()
 	val := int(math.Ceil(sec))
 	if val < 0 {
@@ -73,16 +43,8 @@ func RecordGetFolderLatency(elapsed time.Duration) {
 	getFolderLatencies[val].Add(1)
 }
 
-// Shutdown prints the final array and stops the periodic logging.
+// Shutdown prints the final array.
 func Shutdown() {
-	mu.Lock()
-	defer mu.Unlock()
-	if !running {
-		return
-	}
-	running = false
-	ticker.Stop()
-	close(stopChan)
 	logArray("GetFolder latency array (final):")
 }
 
@@ -101,13 +63,6 @@ func logArray(prefix string) {
 
 // ResetForTest resets the latency tracker state. Used for unit testing.
 func ResetForTest() {
-	mu.Lock()
-	defer mu.Unlock()
-	if running {
-		ticker.Stop()
-		close(stopChan)
-		running = false
-	}
 	for i := 0; i < ArraySize; i++ {
 		getFolderLatencies[i].Store(0)
 	}
