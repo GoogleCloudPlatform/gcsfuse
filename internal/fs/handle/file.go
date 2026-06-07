@@ -89,6 +89,10 @@ type FileHandle struct {
 
 	// HandleID is an opaque 64-bit number used to create this File Handle, used for logging.
 	handleID fuseops.HandleID
+
+	// FUSE passthrough support
+	passthroughActive bool
+	backingID         uint32
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
@@ -464,4 +468,15 @@ func (fh *FileHandle) shouldSkipSizeChecks(req *gcsx.ReadRequest) bool {
 	}
 
 	return true
+}
+
+// SetPassthrough sets the FUSE passthrough registration details for this file handle.
+func (fh *FileHandle) SetPassthrough(backingID uint32) {
+	fh.backingID = backingID
+	fh.passthroughActive = true
+}
+
+// PassthroughDetails returns the FUSE passthrough active state and its backing ID.
+func (fh *FileHandle) PassthroughDetails() (active bool, backingID uint32) {
+	return fh.passthroughActive, fh.backingID
 }

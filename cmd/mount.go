@@ -187,6 +187,8 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 		// Enable async reads if enable-kernel-reader flag is set to true.
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
+		// Enable FUSE passthrough.
+		EnablePassthrough: newConfig.FileSystem.ExperimentalEnablePassthrough,
 	}
 
 	if newConfig.Logging.WireLog != "" {

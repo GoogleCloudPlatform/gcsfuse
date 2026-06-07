@@ -53,6 +53,12 @@ type TempFile interface {
 	// Throw away the resources used by the temporary file. The object must not
 	// be used again.
 	Destroy()
+
+	// Return the underlying local *os.File.
+	LocalFile() *os.File
+
+	// Ensure the file is fully downloaded/complete.
+	EnsureComplete() error
 }
 
 // StatResult stores the result of a stat operation.
@@ -224,6 +230,14 @@ func (tf *tempFile) Destroy() {
 	tf.f.Close()
 
 	tf.f = nil
+}
+
+func (tf *tempFile) LocalFile() *os.File {
+	return tf.f
+}
+
+func (tf *tempFile) EnsureComplete() error {
+	return tf.ensureComplete()
 }
 
 func (tf *tempFile) Read(p []byte) (int, error) {

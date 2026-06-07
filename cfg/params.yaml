@@ -418,6 +418,13 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.experimental-enable-passthrough"
+    flag-name: "experimental-enable-passthrough"
+    type: "bool"
+    usage: "Enables FUSE passthrough for read/write operations (experimental, Linux kernel >= 6.9)."
+    default: false
+    hide-flag: true
+
   - config-path: "file-system.experimental-enable-pirlo"
     flag-name: "experimental-enable-pirlo"
     type: "bool"

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"context"
+	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
@@ -391,6 +392,21 @@ func (f *FileInode) Lock() {
 
 func (f *FileInode) Unlock() {
 	f.mu.Unlock()
+}
+
+// PrepareForPassthrough ensures the local file content is fully cached/downloaded
+// and returns the local *os.File.
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) PrepareForPassthrough(ctx context.Context) (*os.File, error) {
+	err := f.ensureContent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = f.content.EnsureComplete()
+	if err != nil {
+		return nil, err
+	}
+	return f.content.LocalFile(), nil
 }
 
 func (f *FileInode) ID() fuseops.InodeID {

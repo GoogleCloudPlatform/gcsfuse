@@ -2249,6 +2249,28 @@ func (fs *fileSystem) CreateFile(
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
+	childFileInode := child.(*inode.FileInode)
+	conn := fuse.GetConnection(ctx)
+	var backingID uint32
+	var passthroughActive bool
+
+	if conn != nil && conn.PassthroughEnabled() {
+		localFile, pErr := childFileInode.PrepareForPassthrough(ctx)
+		if pErr == nil && localFile != nil {
+			id, registerErr := conn.RegisterBackingFile(int(localFile.Fd()))
+			if registerErr == nil {
+				backingID = id
+				passthroughActive = true
+				op.UsePassthrough = true
+				op.BackingID = backingID
+			} else {
+				logger.Warnf("CreateFile: failed to register backing file for passthrough: %v", registerErr)
+			}
+		} else {
+			logger.Warnf("CreateFile: failed to prepare file for passthrough: %v", pErr)
+		}
+	}
+
 	// Allocate a handle.
 	fs.mu.Lock()
 
@@ -2257,8 +2279,8 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(
-		child.(*inode.FileInode),
+	fh := handle.NewFileHandle(
+		childFileInode,
 		fs.fileCacheHandler,
 		fs.sharedChunkCacheManager,
 		fs.cacheFileForRangeRead,
@@ -2270,6 +2292,10 @@ func (fs *fileSystem) CreateFile(
 		fs.globalMaxReadBlocksSem,
 		op.Handle,
 	)
+	if passthroughActive {
+		fh.SetPassthrough(backingID)
+	}
+	fs.handles[op.Handle] = fh
 
 	fs.mu.Unlock()
 
@@ -3054,6 +3080,27 @@ func (fs *fileSystem) OpenFile(
 	in.Lock()
 	defer in.Unlock()
 
+	conn := fuse.GetConnection(ctx)
+	var backingID uint32
+	var passthroughActive bool
+
+	if conn != nil && conn.PassthroughEnabled() {
+		localFile, pErr := in.PrepareForPassthrough(ctx)
+		if pErr == nil && localFile != nil {
+			id, registerErr := conn.RegisterBackingFile(int(localFile.Fd()))
+			if registerErr == nil {
+				backingID = id
+				passthroughActive = true
+				op.UsePassthrough = true
+				op.BackingID = backingID
+			} else {
+				logger.Warnf("OpenFile: failed to register backing file for passthrough: %v", registerErr)
+			}
+		} else {
+			logger.Warnf("OpenFile: failed to prepare file for passthrough: %v", pErr)
+		}
+	}
+
 	// Get the fs lock again.
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -3064,7 +3111,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(
+	fh := handle.NewFileHandle(
 		in,
 		fs.fileCacheHandler,
 		fs.sharedChunkCacheManager,
@@ -3077,6 +3124,10 @@ func (fs *fileSystem) OpenFile(
 		fs.globalMaxReadBlocksSem,
 		op.Handle,
 	)
+	if passthroughActive {
+		fh.SetPassthrough(backingID)
+	}
+	fs.handles[op.Handle] = fh
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
@@ -3286,6 +3337,18 @@ func (fs *fileSystem) ReleaseFileHandle(
 	// Destroy the handle.
 	fileHandle.Lock()
 	defer fileHandle.Unlock()
+
+	active, backingID := fileHandle.PassthroughDetails()
+	if active {
+		conn := fuse.GetConnection(ctx)
+		if conn != nil {
+			uErr := conn.UnregisterBackingFile(backingID)
+			if uErr != nil {
+				logger.Errorf("ReleaseFileHandle: failed to unregister backing file: %v", uErr)
+			}
+		}
+	}
+
 	fileHandle.Destroy()
 
 	return
