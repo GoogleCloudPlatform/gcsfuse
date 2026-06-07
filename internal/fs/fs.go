@@ -50,6 +50,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/latency"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -1911,6 +1912,10 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
+	startTime := time.Now()
+	defer func() {
+		latency.RecordLookUpInodeLatency(time.Since(startTime))
+	}()
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent directory in question.
 	fs.mu.Lock()

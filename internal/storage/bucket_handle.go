@@ -133,7 +133,10 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 
 func (bh *bucketHandle) StatObject(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
-
+	startTime := time.Now()
+	defer func() {
+		latency.RecordStatObjectLatency(time.Since(startTime))
+	}()
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
@@ -540,6 +543,10 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 }
 
 func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	startTime := time.Now()
+	defer func() {
+		latency.RecordDeleteFolderLatency(time.Since(startTime))
+	}()
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
@@ -587,6 +594,10 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 }
 
 func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
+	startTime := time.Now()
+	defer func() {
+		latency.RecordRenameFolderLatency(time.Since(startTime))
+	}()
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
@@ -641,6 +652,10 @@ func (bh *bucketHandle) GetFolder(ctx context.Context, req *gcs.GetFolderRequest
 }
 
 func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+	startTime := time.Now()
+	defer func() {
+		latency.RecordCreateFolderLatency(time.Since(startTime))
+	}()
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()

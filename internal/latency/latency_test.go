@@ -45,7 +45,7 @@ func TestRecordGetFolderLatency(t *testing.T) {
 	for _, tc := range tests {
 		ResetForTest()
 		RecordGetFolderLatency(tc.duration)
-		snap := GetLatenciesForTest()
+		snap, _, _, _, _, _ := GetLatenciesForTest()
 		if snap[tc.expectedIndex] != 1 {
 			t.Errorf("For duration %v, expected count at index %d to be 1, got 0", tc.duration, tc.expectedIndex)
 		}
@@ -78,7 +78,7 @@ func TestConcurrentRecordLatency(t *testing.T) {
 	}
 
 	wg.Wait()
-	snap := GetLatenciesForTest()
+	snap, _, _, _, _, _ := GetLatenciesForTest()
 
 	// Verify total count matches
 	var total int64
