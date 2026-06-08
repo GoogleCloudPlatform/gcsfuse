@@ -247,11 +247,6 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if b.negativeCacheTTL <= 0 {
-		b.cache.Erase(name)
-		return
-	}
-
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntry(name, expiration)
 }
@@ -260,11 +255,6 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
-	if b.negativeCacheTTL <= 0 {
-		b.cache.Erase(name)
-		return
-	}
 
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntryForFolder(name, expiration)
@@ -510,13 +500,21 @@ func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
 	if req.OnlyDeleteFromCache {
-		b.addNegativeEntry(req.Name)
+		if b.negativeCacheTTL > 0 {
+			b.addNegativeEntry(req.Name)
+		} else {
+			b.invalidate(req.Name)
+		}
 		return nil
 	}
 	err = b.wrapped.DeleteObject(ctx, req)
 	// In case of successful delete, add a negative entry to the cache.
 	if err == nil {
-		b.addNegativeEntry(req.Name)
+		if b.negativeCacheTTL > 0 {
+			b.addNegativeEntry(req.Name)
+		} else {
+			b.invalidate(req.Name)
+		}
 		return
 	}
 	// If the delete failed due to a precondition error or not found error,
@@ -554,7 +552,11 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 	if err != nil {
 		b.invalidate(folderName)
 	} else {
-		b.addNegativeEntryForFolder(folderName)
+		if b.negativeCacheTTL > 0 {
+			b.addNegativeEntryForFolder(folderName)
+		} else {
+			b.invalidate(folderName)
+		}
 	}
 	return err
 }
@@ -565,7 +567,11 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
 		if _, ok := err.(*gcs.NotFoundError); ok {
-			b.addNegativeEntry(req.Name)
+			if b.negativeCacheTTL > 0 {
+				b.addNegativeEntry(req.Name)
+			} else {
+				b.invalidate(req.Name)
+			}
 		}
 
 		return
@@ -612,7 +618,11 @@ func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, req *gcs.GetFolde
 
 	// Special case: NotFoundError -> negative entry.
 	if _, ok := err.(*gcs.NotFoundError); ok {
-		b.addNegativeEntryForFolder(req.Name)
+		if b.negativeCacheTTL > 0 {
+			b.addNegativeEntryForFolder(req.Name)
+		} else {
+			b.invalidate(req.Name)
+		}
 	}
 	return nil, err
 }
