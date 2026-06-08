@@ -149,16 +149,7 @@ func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
 func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
 	req *controlpb.RenameFolderRequest,
 	opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
-	if !sccwros.enableRetriesOnFolderAPIs {
-		return sccwros.raw.RenameFolder(ctx, req, opts...)
-	}
-
-	apiCall := func(attemptCtx context.Context) (*control.RenameFolderOperation, error) {
-		return sccwros.raw.RenameFolder(attemptCtx, req, opts...)
-	}
-
-	reqDescription := fmt.Sprintf("%q to %q", req.Name, req.DestinationFolderId)
-	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "RenameFolder", reqDescription, req.RequestId, apiCall)
+	return sccwros.raw.RenameFolder(ctx, req, opts...)
 }
 
 func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,

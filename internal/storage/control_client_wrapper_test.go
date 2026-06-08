@@ -499,47 +499,13 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_AllAttemptsTimeOut() {
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
-func (t *AllApiRetryWrapperTest) TestRenameFolder_SuccessOnFirstAttempt() {
+func (t *AllApiRetryWrapperTest) TestRenameFolder_IsNotRetried() {
 	// Arrange
 	client := t.newHelperRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
-	expectedOp := &control.RenameFolderOperation{}
-	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(expectedOp, nil).Once()
-
-	// Act
-	op, err := client.RenameFolder(t.ctx, req)
-
-	// Assert
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), expectedOp, op)
-	t.mockRawClient.AssertExpectations(t.T())
-}
-
-func (t *AllApiRetryWrapperTest) TestRenameFolder_RetryableErrorThenSuccess() {
-	// Arrange
-	client := t.newHelperRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
-	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
-	expectedOp := &control.RenameFolderOperation{}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	// First call fails, second succeeds.
+	// Mock the raw client to return a retryable error once.
 	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
-	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(expectedOp, nil).Once()
-
-	// Act
-	op, err := client.RenameFolder(t.ctx, req)
-
-	// Assert
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), expectedOp, op)
-	t.mockRawClient.AssertExpectations(t.T())
-}
-
-func (t *AllApiRetryWrapperTest) TestRenameFolder_NonRetryableError() {
-	// Arrange
-	client := t.newHelperRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
-	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
-	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
-	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
 
 	// Act
 	op, err := client.RenameFolder(t.ctx, req)
@@ -547,24 +513,7 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_NonRetryableError() {
 	// Assert
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), op)
-	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
-	assert.Contains(t.T(), err.Error(), nonRetryableErr.Error())
-	t.mockRawClient.AssertExpectations(t.T())
-}
-
-func (t *AllApiRetryWrapperTest) TestRenameFolder_AllAttemptsTimeOut() {
-	// Arrange
-	client := t.newHelperRetryWrapper(t.stallingClient, 1000*time.Microsecond, 10000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
-	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
-	// Set execution time to be longer than the attempt timeout.
-	t.stallDurationForFolderAPIs = 6000 * time.Microsecond
-
-	// Act
-	_, err := client.RenameFolder(t.ctx, req)
-
-	// Assert: The mock should never be called because every attempt will time out.
-	assert.Error(t.T(), err)
-	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
+	assert.Equal(t.T(), retryableErr, err)
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
