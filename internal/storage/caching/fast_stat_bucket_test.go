@@ -645,15 +645,6 @@ func (t *StatObjectTest) CacheHit_Negative() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
-func (t *StatObjectTest) CacheHit_Negative_Disabled_FetchOnly() {
-	t.bucket = caching.NewFastStatBucket(primaryCacheTTL, t.cache, &t.clock, t.wrapped, 0, true, true)
-	const name = "taco"
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).WillOnce(Return(true, nil))
-	req := &gcs.StatObjectRequest{Name: name, FetchOnlyFromCache: true}
-	_, _, err := t.bucket.StatObject(context.Background(), req) //nolint:govet
-	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
-}
-
 func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	const name = "taco"
 
@@ -799,19 +790,8 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 	}
 
 	_, _, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, Error(HasSubstr("burrito")))
-}
-
-func (t *StatObjectTest) WrappedSaysNotFound_NegativeCachingDisabled() {
-	t.bucket = caching.NewFastStatBucket(primaryCacheTTL, t.cache, &t.clock, t.wrapped, 0, true, true)
-	const name = "taco"
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).WillOnce(Return(false, nil))
-	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).WillOnce(Return(nil, nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
-	// Expect Erase call to invalidate any stale entry
-	ExpectCall(t.cache, "Erase")(name)
-	req := &gcs.StatObjectRequest{Name: name}
-	_, _, err := t.bucket.StatObject(context.Background(), req) //nolint:govet
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, Error(HasSubstr("burrito")))
 }
 
 func (t *StatObjectTest) WrappedSucceeds() {
@@ -1017,7 +997,7 @@ func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
 		t.cache,
 		&t.clock,
 		t.wrapped,
-		0,
+		negativeCacheTTL,
 		true,
 		true)
 }
@@ -1034,6 +1014,9 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 	}
 	for _, dir := range expectedImplicitDirs {
 		ExpectCall(t.cache, "InsertImplicitDir")(dir, Any())
+	}
+	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && prefix != "" {
+		ExpectCall(t.cache, "AddNegativeEntry")(prefix, Any())
 	}
 
 	// Call
@@ -1154,7 +1137,7 @@ func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached(
 		t.cache,
 		&t.clock,
 		t.wrapped,
-		0,
+		negativeCacheTTL,
 		true,
 		false)
 	listing := &gcs.Listing{

@@ -243,27 +243,21 @@ func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) invalidateOrAddNegativeEntry(name string) {
-	if b.negativeCacheTTL > 0 {
-		b.mu.Lock()
-		defer b.mu.Unlock()
-		expiration := b.clock.Now().Add(b.negativeCacheTTL)
-		b.cache.AddNegativeEntry(name, expiration)
-	} else {
-		b.invalidate(name)
-	}
+func (b *fastStatBucket) addNegativeEntry(name string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.negativeCacheTTL)
+	b.cache.AddNegativeEntry(name, expiration)
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) invalidateOrAddNegativeEntryForFolder(name string) {
-	if b.negativeCacheTTL > 0 {
-		b.mu.Lock()
-		defer b.mu.Unlock()
-		expiration := b.clock.Now().Add(b.negativeCacheTTL)
-		b.cache.AddNegativeEntryForFolder(name, expiration)
-	} else {
-		b.invalidate(name)
-	}
+func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.negativeCacheTTL)
+	b.cache.AddNegativeEntryForFolder(name, expiration)
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -280,9 +274,6 @@ func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
 	defer b.mu.Unlock()
 
 	hit, m = b.cache.LookUp(name, b.clock.Now())
-	if hit && m == nil && b.negativeCacheTTL <= 0 {
-		return false, nil
-	}
 	return
 }
 
@@ -291,9 +282,6 @@ func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
 	defer b.mu.Unlock()
 
 	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
-	if hit && f == nil && b.negativeCacheTTL <= 0 {
-		return false, nil
-	}
 	return hit, f
 }
 
@@ -506,13 +494,13 @@ func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
 	if req.OnlyDeleteFromCache {
-		b.invalidateOrAddNegativeEntry(req.Name)
+		b.addNegativeEntry(req.Name)
 		return nil
 	}
 	err = b.wrapped.DeleteObject(ctx, req)
 	// In case of successful delete, add a negative entry to the cache.
 	if err == nil {
-		b.invalidateOrAddNegativeEntry(req.Name)
+		b.addNegativeEntry(req.Name)
 		return
 	}
 	// If the delete failed due to a precondition error or not found error,
@@ -550,7 +538,7 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 	if err != nil {
 		b.invalidate(folderName)
 	} else {
-		b.invalidateOrAddNegativeEntryForFolder(folderName)
+		b.addNegativeEntryForFolder(folderName)
 	}
 	return err
 }
@@ -561,7 +549,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
 		if _, ok := err.(*gcs.NotFoundError); ok {
-			b.invalidateOrAddNegativeEntry(req.Name)
+			b.addNegativeEntry(req.Name)
 		}
 
 		return
@@ -608,7 +596,7 @@ func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, req *gcs.GetFolde
 
 	// Special case: NotFoundError -> negative entry.
 	if _, ok := err.(*gcs.NotFoundError); ok {
-		b.invalidateOrAddNegativeEntryForFolder(req.Name)
+		b.addNegativeEntryForFolder(req.Name)
 	}
 	return nil, err
 }
