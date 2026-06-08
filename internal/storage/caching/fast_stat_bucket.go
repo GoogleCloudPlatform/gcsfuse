@@ -136,9 +136,6 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		b.cache.InsertImplicitDir(dirName, expiration)
 	}
 
-	if !dirHasContents && dirName != "" {
-		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
-	}
 
 	// 2. Cache Explicit Objects
 	for _, o := range listing.MinObjects {
