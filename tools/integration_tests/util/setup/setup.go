@@ -124,6 +124,9 @@ func SetIsZonalBucketRun(val bool) {
 }
 
 func TestBucket() string {
+	if *testBucket == "" {
+		*testBucket = os.Getenv("BUCKET_NAME")
+	}
 	return *testBucket
 }
 
@@ -409,7 +412,7 @@ func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
-	if *testBucket == "" && *mountedDirectory == "" {
+	if TestBucket() == "" && *mountedDirectory == "" {
 		log.Print("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
 	}
@@ -654,6 +657,9 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 }
 
 func SetGlobalVars(cfg *test_suite.TestConfig) {
+	if cfg.TestBucket == "" {
+		cfg.TestBucket = TestBucket()
+	}
 	// TODO: clean global variables after test migration to config file completes.
 	testBucket = &cfg.TestBucket
 	logFile = cfg.LogFile
@@ -766,7 +772,7 @@ func UnmountGCSFuseWithConfig(cfg *test_suite.TestConfig) {
 }
 
 func RunTestsOnlyForStaticMount(mountDir string, t *testing.T) {
-	if strings.Contains(mountDir, *testBucket) || OnlyDirMounted() != "" {
+	if TestBucket() == "" || strings.Contains(mountDir, TestBucket()) || OnlyDirMounted() != "" {
 		log.Println("This test will run only for static mounting...")
 		t.SkipNow()
 	}
