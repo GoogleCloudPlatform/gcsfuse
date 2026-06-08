@@ -1036,7 +1036,6 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 		ExpectCall(t.cache, "InsertImplicitDir")(dir, Any())
 	}
 
-
 	// Call
 	gotListing, err := t.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{Prefix: prefix})
 
