@@ -58,6 +58,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
+	"go.opentelemetry.io/otel/trace"
 	"github.com/spf13/viper"
 )
 
@@ -1224,13 +1225,23 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (*inode.Core, error) {
+		var lockSpan trace.Span
+		if fs.isTracingEnabled {
+			_, lockSpan = fs.traceHandle.StartSpan(ctx, tracing.InodeLockAcquisition)
+		}
 		if fs.newConfig.FileSystem.DisableParallelDirops {
 			parent.Lock()
+			if lockSpan != nil {
+				fs.traceHandle.EndSpan(lockSpan)
+			}
 			defer parent.Unlock()
 		} else {
 			// LockForChildLookup takes read-only or exclusive lock based on the
 			// inode when its child is looked up.
 			parent.LockForChildLookup()
+			if lockSpan != nil {
+				fs.traceHandle.EndSpan(lockSpan)
+			}
 			defer parent.UnlockForChildLookup()
 		}
 		return parent.LookUpChild(ctx, childName)

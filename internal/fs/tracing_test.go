@@ -87,9 +87,34 @@ func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInt
 	return bucket, server
 }
 
+type filteringSpanProcessor struct {
+	wrapped sdktrace.SpanProcessor
+}
+
+func (f *filteringSpanProcessor) OnStart(parent context.Context, s sdktrace.ReadWriteSpan) {
+	f.wrapped.OnStart(parent, s)
+}
+
+func (f *filteringSpanProcessor) OnEnd(s sdktrace.ReadOnlySpan) {
+	if s.Name() == "fs.inode.lock_acquisition" || s.Name() == "temp_file.synchronous_download" {
+		return
+	}
+	f.wrapped.OnEnd(s)
+}
+
+func (f *filteringSpanProcessor) Shutdown(ctx context.Context) error {
+	return f.wrapped.Shutdown(ctx)
+}
+
+func (f *filteringSpanProcessor) ForceFlush(ctx context.Context) error {
+	return f.wrapped.ForceFlush(ctx)
+}
+
 func newInMemoryExporter() *tracetest.InMemoryExporter {
 	ex := tracetest.NewInMemoryExporter()
-	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex)))
+	bsp := sdktrace.NewSimpleSpanProcessor(ex)
+	filteringProcessor := &filteringSpanProcessor{wrapped: bsp}
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(filteringProcessor)))
 	return ex
 }
 
@@ -1354,6 +1379,38 @@ func (s *TracingTestSuite) TestTraceSyncFS() {
 			}
 		})
 	}
+}
+
+func (s *TracingTestSuite) TestTraceInodeLockAcquisition() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Temporarily override the global tracer provider to bypass the filtering processor.
+	oldTP := otel.GetTracerProvider()
+	defer otel.SetTracerProvider(oldTP)
+
+	ex := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex))
+	otel.SetTracerProvider(tp)
+
+	bucket, server := createTestFileSystemWithTraces(ctx, t, false)
+	m := wrappers.WithTracing(server, tracing.NewOTELTracer())
+
+	fileName := "test.txt"
+	createWithContents(ctx, t, bucket, fileName, "test")
+
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := m.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+
+	ss := ex.GetSpans()
+	// We expect fs.inode.lock_acquisition to end first, followed by fs.inode.lookup.
+	require.Len(t, ss, 2)
+	assert.Equal(t, "fs.inode.lock_acquisition", ss[0].Name)
+	assert.Equal(t, "fs.inode.lookup", ss[1].Name)
 }
 
 func TestTracingTestSuite(t *testing.T) {

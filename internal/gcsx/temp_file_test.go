@@ -26,6 +26,9 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func TestTempFile(t *testing.T) { RunTests(t) }
@@ -249,3 +252,26 @@ func (t *TempFileTest) SetMtime() {
 	AssertEq(nil, err)
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(mtime)))
 }
+
+func (t *TempFileTest) Stat_IncompleteFileGeneratesTraceSpan() {
+	// Set up local tracer provider.
+	ex := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex))
+
+	// Temporarily override the global tracer provider.
+	oldTP := otel.GetTracerProvider()
+	defer otel.SetTracerProvider(oldTP)
+	otel.SetTracerProvider(tp)
+
+	// Stat the incomplete temp file.
+	ctx := context.Background()
+	sr, err := t.tf.Stat(ctx)
+	AssertEq(nil, err)
+	ExpectEq(initialContentSize, sr.Size)
+
+	// Verify that the temp_file.synchronous_download span was captured.
+	ss := ex.GetSpans()
+	AssertEq(1, len(ss))
+	ExpectEq("temp_file.synchronous_download", ss[0].Name)
+}
+

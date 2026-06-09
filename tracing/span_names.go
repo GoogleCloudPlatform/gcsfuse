@@ -52,6 +52,8 @@ const (
 	ForgetInode = "fs.inode.forget"
 	// BatchForget allows the kernel to release multiple inode references in a single call.
 	BatchForget = "fs.batch_forget"
+	// InodeLockAcquisition tracks the time spent waiting to acquire a directory inode's lock.
+	InodeLockAcquisition = "fs.inode.lock_acquisition"
 
 	// --- Directory Lifecycle ---
 
