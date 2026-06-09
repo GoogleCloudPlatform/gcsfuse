@@ -62,6 +62,10 @@ const (
 	LookUpCreateOrRecoverInode = "fs.inode.lookup.create_or_recover_inode"
 	// LookUpGetAttributes tracks attribute fetching for the lookup response.
 	LookUpGetAttributes = "fs.inode.lookup.get_attributes"
+	// LookUpChildLockAcquisition tracks the time spent waiting to acquire the lock of the child inode.
+	LookUpChildLockAcquisition = "fs.inode.lookup.child_lock_acquisition"
+	// LookUpReacquireGlobalLock tracks the time spent waiting to re-acquire the global filesystem lock.
+	LookUpReacquireGlobalLock = "fs.inode.lookup.reacquire_global_lock"
 
 	// --- Directory Lifecycle ---
 

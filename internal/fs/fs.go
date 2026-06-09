@@ -1040,7 +1040,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode, parInodeCtx context.Context) (inode.Inode, error) {
+func (fs *fileSystem) createDirInode(ctx context.Context, ic inode.Core, inodes map[inode.Name]inode.DirInode, parInodeCtx context.Context) (inode.Inode, error) {
 	if !ic.FullName.IsDir() {
 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
 	}
@@ -1061,8 +1061,22 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 		}
 
 		fs.mu.Unlock()
+		var lockSpan trace.Span
+		if fs.isTracingEnabled {
+			_, lockSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpChildLockAcquisition)
+		}
 		in.Lock()
+		if lockSpan != nil {
+			fs.traceHandle.EndSpan(lockSpan)
+		}
+		var globalLockSpan trace.Span
+		if fs.isTracingEnabled {
+			_, globalLockSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpReacquireGlobalLock)
+		}
 		fs.mu.Lock()
+		if globalLockSpan != nil {
+			fs.traceHandle.EndSpan(globalLockSpan)
+		}
 
 		if (inodes)[ic.FullName] != in {
 			in.Unlock()
@@ -1086,7 +1100,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context, ic inode.Core) (in inode.Inode, err error) {
+func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ctx context.Context, parInodeCtx context.Context, ic inode.Core) (in inode.Inode, err error) {
 
 	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
@@ -1106,12 +1120,12 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
 
 	// Handle Folders in hierarchical bucket.
 	if ic.Folder != nil {
-		return fs.createDirInode(ic, fs.folderInodes, parInodeCtx)
+		return fs.createDirInode(ctx, ic, fs.folderInodes, parInodeCtx)
 	}
 
 	// Handle implicit directories.
 	if ic.MinObject == nil {
-		return fs.createDirInode(ic, fs.implicitDirInodes, parInodeCtx)
+		return fs.createDirInode(ctx, ic, fs.implicitDirInodes, parInodeCtx)
 	}
 
 	oGen := inode.Generation{
@@ -1143,8 +1157,22 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
 		// acquiring the file system lock, so drop it while acquiring the inode's
 		// lock, then reacquire.
 		fs.mu.Unlock()
+		var lockSpan trace.Span
+		if fs.isTracingEnabled {
+			_, lockSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpChildLockAcquisition)
+		}
 		existingInode.Lock()
+		if lockSpan != nil {
+			fs.traceHandle.EndSpan(lockSpan)
+		}
+		var globalLockSpan trace.Span
+		if fs.isTracingEnabled {
+			_, globalLockSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpReacquireGlobalLock)
+		}
 		fs.mu.Lock()
+		if globalLockSpan != nil {
+			fs.traceHandle.EndSpan(globalLockSpan)
+		}
 
 		// Check that the index still points at this inode. If not, it's possible
 		// that the inode is in the process of being destroyed and is unsafe to
@@ -1276,7 +1304,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		if fs.isTracingEnabled {
 			_, createSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpCreateOrRecoverInode)
 		}
-		child, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *core)
+		child, err = fs.lookUpOrCreateInodeIfNotStale(ctx, parent.Context(), *core)
 		if createSpan != nil {
 			fs.traceHandle.EndSpan(createSpan)
 		}
@@ -1724,7 +1752,7 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core, parInodeCtx context.Context) (entryPlus *fuseutil.DirentPlus, err error) {
 	// Look up or create the inode for the core.
-	child, err := fs.lookUpOrCreateInodeIfNotStale(parInodeCtx, core)
+	child, err := fs.lookUpOrCreateInodeIfNotStale(ctx, parInodeCtx, core)
 	if err != nil {
 		return nil, fmt.Errorf("coreToDirentPlus: lookUpOrCreateInodeIfNotStale: %w", err)
 	}
@@ -2104,7 +2132,7 @@ func (fs *fileSystem) MkDir(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child, err := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
+	child, err := fs.lookUpOrCreateInodeIfNotStale(ctx, parent.Context(), *result)
 	if err != nil {
 		return err
 	}
@@ -2194,7 +2222,7 @@ func (fs *fileSystem) createFile(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
+	child, err = fs.lookUpOrCreateInodeIfNotStale(ctx, parent.Context(), *result)
 	if err != nil {
 		return nil, err
 	}
@@ -2356,7 +2384,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child, err := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
+	child, err := fs.lookUpOrCreateInodeIfNotStale(ctx, parent.Context(), *result)
 	if err != nil {
 		return err
 	}
