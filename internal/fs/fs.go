@@ -1244,7 +1244,15 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 			}
 			defer parent.UnlockForChildLookup()
 		}
-		return parent.LookUpChild(ctx, childName)
+		var searchSpan trace.Span
+		if fs.isTracingEnabled {
+			_, searchSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpSearchChild)
+		}
+		res, err := parent.LookUpChild(ctx, childName)
+		if searchSpan != nil {
+			fs.traceHandle.EndSpan(searchSpan)
+		}
+		return res, err
 	}
 
 	// Run a retry loop around lookUpOrCreateInodeIfNotStale.
@@ -1264,7 +1272,14 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		}
 
 		// Attempt to create the inode. Return if successful.
+		var createSpan trace.Span
+		if fs.isTracingEnabled {
+			_, createSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpCreateOrRecoverInode)
+		}
 		child, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *core)
+		if createSpan != nil {
+			fs.traceHandle.EndSpan(createSpan)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1939,7 +1954,14 @@ func (fs *fileSystem) LookUpInode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
+	var attrsSpan trace.Span
+	if fs.isTracingEnabled {
+		_, attrsSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpGetAttributes)
+	}
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	if attrsSpan != nil {
+		fs.traceHandle.EndSpan(attrsSpan)
+	}
 	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 		e.EntryExpiration = e.AttributesExpiration
 	}

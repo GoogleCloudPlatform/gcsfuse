@@ -54,6 +54,12 @@ const (
 	BatchForget = "fs.batch_forget"
 	// InodeLockAcquisition tracks the time spent waiting to acquire a directory inode's lock.
 	InodeLockAcquisition = "fs.inode.lock_acquisition"
+	// LookUpSearchChild tracks GCS queries performed during lookup.
+	LookUpSearchChild = "fs.inode.lookup.search_child"
+	// LookUpCreateOrRecoverInode tracks the creation or recovery of cached inodes.
+	LookUpCreateOrRecoverInode = "fs.inode.lookup.create_or_recover_inode"
+	// LookUpGetAttributes tracks attribute fetching for the lookup response.
+	LookUpGetAttributes = "fs.inode.lookup.get_attributes"
 
 	// --- Directory Lifecycle ---
 

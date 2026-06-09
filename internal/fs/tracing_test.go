@@ -96,7 +96,9 @@ func (f *filteringSpanProcessor) OnStart(parent context.Context, s sdktrace.Read
 }
 
 func (f *filteringSpanProcessor) OnEnd(s sdktrace.ReadOnlySpan) {
-	if s.Name() == "fs.inode.lock_acquisition" || s.Name() == "temp_file.synchronous_download" {
+	if s.Name() == "fs.inode.lock_acquisition" || s.Name() == "temp_file.synchronous_download" ||
+		s.Name() == "fs.inode.lookup.search_child" || s.Name() == "fs.inode.lookup.create_or_recover_inode" ||
+		s.Name() == "fs.inode.lookup.get_attributes" {
 		return
 	}
 	f.wrapped.OnEnd(s)
@@ -1381,7 +1383,7 @@ func (s *TracingTestSuite) TestTraceSyncFS() {
 	}
 }
 
-func (s *TracingTestSuite) TestTraceInodeLockAcquisition() {
+func (s *TracingTestSuite) TestTraceLookUpInodeDecoration() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -1407,10 +1409,12 @@ func (s *TracingTestSuite) TestTraceInodeLockAcquisition() {
 	require.NoError(t, err)
 
 	ss := ex.GetSpans()
-	// We expect fs.inode.lock_acquisition to end first, followed by fs.inode.lookup.
-	require.Len(t, ss, 2)
+	require.Len(t, ss, 5)
 	assert.Equal(t, "fs.inode.lock_acquisition", ss[0].Name)
-	assert.Equal(t, "fs.inode.lookup", ss[1].Name)
+	assert.Equal(t, "fs.inode.lookup.search_child", ss[1].Name)
+	assert.Equal(t, "fs.inode.lookup.create_or_recover_inode", ss[2].Name)
+	assert.Equal(t, "fs.inode.lookup.get_attributes", ss[3].Name)
+	assert.Equal(t, "fs.inode.lookup", ss[4].Name)
 }
 
 func TestTracingTestSuite(t *testing.T) {
