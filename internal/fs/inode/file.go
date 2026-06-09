@@ -1076,6 +1076,13 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) truncateUsingTempFile(ctx context.Context, size int64) error {
+	if size == 0 {
+		if f.content != nil {
+			f.content.Destroy()
+			f.content = nil
+		}
+		return f.CreateEmptyTempFile(ctx)
+	}
 	// Make sure f.content != nil.
 	err := f.ensureContent(ctx)
 	if err != nil {
