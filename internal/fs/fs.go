@@ -1939,7 +1939,14 @@ func (fs *fileSystem) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent directory in question.
+	var globalLockSpan trace.Span
+	if fs.isTracingEnabled {
+		_, globalLockSpan = fs.traceHandle.StartSpan(ctx, tracing.GlobalLockAcquisition)
+	}
 	fs.mu.Lock()
+	if globalLockSpan != nil {
+		fs.traceHandle.EndSpan(globalLockSpan)
+	}
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 

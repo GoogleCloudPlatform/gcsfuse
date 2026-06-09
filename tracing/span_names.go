@@ -54,6 +54,8 @@ const (
 	BatchForget = "fs.batch_forget"
 	// InodeLockAcquisition tracks the time spent waiting to acquire a directory inode's lock.
 	InodeLockAcquisition = "fs.inode.lock_acquisition"
+	// GlobalLockAcquisition tracks the time spent waiting to acquire the global filesystem lock (fs.mu).
+	GlobalLockAcquisition = "fs.global_lock_acquisition"
 	// LookUpSearchChild tracks GCS queries performed during lookup.
 	LookUpSearchChild = "fs.inode.lookup.search_child"
 	// LookUpCreateOrRecoverInode tracks the creation or recovery of cached inodes.
