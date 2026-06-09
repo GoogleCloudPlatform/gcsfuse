@@ -180,7 +180,7 @@ func (os *syncer) SyncObject(
 		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkRetryDeadlineSecs, os.chunkTransferTimeoutSecs, content)
 	}
 
-	// TODO(b/520290147): Remomve unfinalized checks once stat results become consistent on zonal buckets.
+	// TODO(b/520290147): Remove unfinalized checks once stat results become consistent on zonal buckets.
 	// Make sure the dirty threshold makes sense.
 	// Note: This check is not needed for unfinalized objects as they are always uploaded in their entirety.
 	srcSize := int64(srcObject.Size)
@@ -207,7 +207,7 @@ func (os *syncer) SyncObject(
 	// object, and no bytes within the source object have been dirtied).
 	tempFileIsUnmodifiedAndLocalMatchesGCS := sr.Size == srcSize && sr.DirtyThreshold == srcSize
 
-	// TODO(b/520290147): Remomve unfinalized checks once stat results become consistent on zonal buckets.
+	// TODO(b/520290147): Remove unfinalized checks once stat results become consistent on zonal buckets.
 	// This check is specifically for finalized objects (Standard buckets) where GCS metadata
 	// size is fully trustworthy. sr.Mtime == nil alone is not sufficient because a file could
 	// be modified (making sr.Mtime non-nil), but then truncated back to its original size (or
