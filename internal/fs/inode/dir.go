@@ -784,15 +784,51 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 			d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
 		}
 
-		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
-		} else {
-			if d.implicitDirs {
-				group.Go(lookUpImplicitOrExplicitDir)
-			} else {
-				group.Go(lookUpExplicitDir)
+			raceCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			type raceResult struct {
+				core *Core
+				err  error
 			}
+
+			ch := make(chan raceResult, 2)
+
+			go func() {
+				res, err := findExplicitInode(raceCtx, d.Bucket(), NewFileName(d.Name(), name), false)
+				ch <- raceResult{core: res, err: err}
+			}()
+
+			go func() {
+				res, err := findExplicitFolder(raceCtx, d.Bucket(), NewDirName(d.Name(), name), false)
+				ch <- raceResult{core: res, err: err}
+			}()
+
+			var lastErr error
+			for i := 0; i < 2; i++ {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case res := <-ch:
+					if res.err != nil {
+						lastErr = res.err
+						continue
+					}
+					if res.core != nil {
+						cancel()
+						return res.core, nil
+					}
+				}
+			}
+			return nil, lastErr
+		}
+
+		group.Go(lookUpFile)
+		if d.implicitDirs {
+			group.Go(lookUpImplicitOrExplicitDir)
+		} else {
+			group.Go(lookUpExplicitDir)
 		}
 	}
 
