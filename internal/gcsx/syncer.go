@@ -208,9 +208,19 @@ func (os *syncer) SyncObject(
 	//    unmodified file of size Y. Thus, we bypass this optimization for
 	//    unfinalized objects to prevent truncations from being silently skipped.
 	//
-	// In both cases, if the file was never written to or truncated, sr.Mtime remains
-	// nil. This is a 100% reliable indicator that no local changes were ever made,
-	// allowing us to always return early safely.
+	// We use two checks to determine if we can return early:
+	//
+	// - sr.Mtime == nil: If the file was never written to or truncated, sr.Mtime remains
+	//   nil. This is a 100% reliable indicator that no local changes were ever made,
+	//   allowing us to always return early safely for both finalized and unfinalized objects.
+	//
+	// - (!srcObject.IsUnfinalized() && tempFileIsUnmodifiedAndLocalMatchesGCS):
+	//   This check is specifically for finalized objects where GCS metadata size is fully
+	//   trustworthy. sr.Mtime == nil alone is not sufficient because a file could be modified
+	//   (making sr.Mtime non-nil), but then truncated back to its original size (or have its
+	//   changes reverted) such that it matches the source GCS object size/content exactly.
+	//   For finalized objects, this check allows us to still optimize and return early in
+	//   such cases, avoiding a redundant upload.
 	if sr.Mtime == nil || (!srcObject.IsUnfinalized() && tempFileIsUnmodifiedAndLocalMatchesGCS) {
 		return
 	}
