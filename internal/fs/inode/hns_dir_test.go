@@ -36,7 +36,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 )
