@@ -26,6 +26,8 @@ import (
 var gEnableInvariantsCheck bool
 var gEnableDebugMessages bool
 
+const lockHoldingThreshold = 100 * time.Second
+
 // Enable the check for invariants in the locks. Must be set before creating
 // any lockers.
 func EnableInvariantsCheck() {
@@ -90,7 +92,7 @@ func (d *debugger) Lock() {
 	runtime.Stack(buf, false /* all */)
 	d.holder = string(buf)
 
-	d.timer = time.AfterFunc(5*time.Second, func() {
+	d.timer = time.AfterFunc(lockHoldingThreshold, func() {
 		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
 	})
 }
