@@ -1644,7 +1644,7 @@ func (t *FileTest) TestCreateEmptyTempFile() {
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.content)
 	// Validate that file size is 0.
-	sr, err := t.in.content.Stat()
+	sr, err := t.in.content.Stat(t.ctx)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), int64(0), sr.Size)
 }

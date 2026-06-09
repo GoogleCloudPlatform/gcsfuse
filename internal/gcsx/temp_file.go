@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
+	"go.opentelemetry.io/otel"
 )
 
 // TempFile is a temporary file that keeps track of the lowest offset at which
@@ -44,7 +46,7 @@ type TempFile interface {
 
 	// Return information about the current state of the content. May invalidate
 	// the seek position.
-	Stat() (sr StatResult, err error)
+	Stat(ctx context.Context) (sr StatResult, err error)
 
 	// Explicitly set the mtime that will return in stat results. This will stick
 	// until another method that modifies the file is called.
@@ -203,7 +205,7 @@ func (tf *tempFile) CheckInvariants() {
 	}()
 
 	// INVARIANT: Stat().DirtyThreshold <= Stat().Size
-	sr, err := tf.Stat()
+	sr, err := tf.Stat(context.Background())
 	if err != nil {
 		panic(fmt.Errorf("stat: %w", err))
 	}
@@ -227,7 +229,7 @@ func (tf *tempFile) Destroy() {
 }
 
 func (tf *tempFile) Read(p []byte) (int, error) {
-	err := tf.ensureComplete()
+	err := tf.ensureComplete(context.Background())
 	if err != nil {
 		return 0, fmt.Errorf("cannot Read incomplete file: %w", err)
 	}
@@ -235,7 +237,7 @@ func (tf *tempFile) Read(p []byte) (int, error) {
 }
 
 func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
-	err := tf.ensureComplete()
+	err := tf.ensureComplete(context.Background())
 	if err != nil {
 		return 0, fmt.Errorf("cannot Seek incomplete file: %w", err)
 	}
@@ -243,15 +245,15 @@ func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
-	err := tf.ensureComplete()
+	err := tf.ensureComplete(context.Background())
 	if err != nil {
 		return 0, fmt.Errorf("cannot ReadAt incomplete file: %w", err)
 	}
 	return tf.f.ReadAt(p, offset)
 }
 
-func (tf *tempFile) Stat() (sr StatResult, err error) {
-	err = tf.ensureComplete()
+func (tf *tempFile) Stat(ctx context.Context) (sr StatResult, err error) {
+	err = tf.ensureComplete(ctx)
 	if err != nil {
 		err = fmt.Errorf("cannot Stat incomplete file: %w", err)
 		return
@@ -270,7 +272,7 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 }
 
 func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
-	err := tf.ensureComplete()
+	err := tf.ensureComplete(context.Background())
 	if err != nil {
 		return 0, fmt.Errorf("cannot WriteAt incomplete file: %w", err)
 	}
@@ -288,7 +290,7 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 func (tf *tempFile) Truncate(n int64) error {
-	err := tf.ensureComplete()
+	err := tf.ensureComplete(context.Background())
 	if err != nil {
 		return fmt.Errorf("cannot Truncate incomplete file: %w", err)
 	}
@@ -329,7 +331,7 @@ const (
 	minCopyLength = 64 * 1024 * 1024 // 64 MiB
 )
 
-func (tf *tempFile) ensure(limit int64) error {
+func (tf *tempFile) ensure(ctx context.Context, limit int64) error {
 	switch tf.state {
 	case fileIncomplete:
 		size, err := tf.f.Seek(0, 2)
@@ -337,6 +339,11 @@ func (tf *tempFile) ensure(limit int64) error {
 			return nil
 		}
 		n := max(limit-size, minCopyLength)
+
+		tr := otel.GetTracerProvider().Tracer("gcsfuse")
+		_, span := tr.Start(ctx, "temp_file.synchronous_download")
+		defer span.End()
+
 		n, err = io.CopyN(tf.f, tf.source, n)
 		if err == io.EOF {
 			tf.source.Close()
@@ -354,8 +361,8 @@ func (tf *tempFile) ensure(limit int64) error {
 	return nil
 }
 
-func (tf *tempFile) ensureComplete() error {
-	err := tf.ensure(math.MaxInt64)
+func (tf *tempFile) ensureComplete(ctx context.Context) error {
+	err := tf.ensure(ctx, math.MaxInt64)
 	if err != nil {
 		err = fmt.Errorf("load temp file: %w", err)
 	}

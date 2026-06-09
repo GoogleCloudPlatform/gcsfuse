@@ -37,7 +37,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
+	"context"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -559,7 +559,7 @@ func (f *FileInode) Attributes(
 	// If we've got local content, its size and (maybe) mtime take precedence.
 	if f.content != nil {
 		var sr gcsx.StatResult
-		sr, err = f.content.Stat()
+		sr, err = f.content.Stat(ctx)
 		if err != nil {
 			err = fmt.Errorf("stat: %w", err)
 			return
@@ -800,7 +800,7 @@ func (f *FileInode) SetMtime(
 	// If we have a local temp file, stat it.
 	var sr gcsx.StatResult
 	if f.content != nil {
-		sr, err = f.content.Stat()
+		sr, err = f.content.Stat(ctx)
 		if err != nil {
 			err = fmt.Errorf("stat: %w", err)
 			return
@@ -929,12 +929,12 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 }
 
 // get the temp content size when tracing is enabled to set the BYTES_UPLOADED attribute
-func (f *FileInode) getTempContentSizeForSpan() int64 {
+func (f *FileInode) getTempContentSizeForSpan(ctx context.Context) int64 {
 	if !cfg.IsTracingEnabled(f.config) {
 		return -1
 	}
 
-	st, err := f.content.Stat()
+	st, err := f.content.Stat(ctx)
 	if err != nil {
 		logger.Errorf("failed getting content size for staged sync file span: %v", err)
 		return -1
@@ -948,7 +948,7 @@ func (f *FileInode) getTempContentSizeForSpan() int64 {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
-	bytes := f.getTempContentSizeForSpan()
+	bytes := f.getTempContentSizeForSpan(ctx)
 	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.src.Name, &bytes, &err)
 	defer finishSpan()
 	var latestGcsObj *gcs.Object

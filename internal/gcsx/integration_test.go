@@ -370,7 +370,7 @@ func (t *IntegrationTest) Stat_InitialState() {
 	t.create(o)
 
 	// Stat.
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(o.Size, sr.Size)
@@ -395,7 +395,7 @@ func (t *IntegrationTest) Stat_Dirty() {
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat.
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(2, sr.Size)
@@ -431,7 +431,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted() {
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat should see the current state.
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(1, sr.Size)
@@ -477,7 +477,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten() {
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat should see the current state.
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(3, sr.Size)

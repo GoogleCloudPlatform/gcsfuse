@@ -15,6 +15,7 @@
 package gcsx_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -25,7 +26,6 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 func TestTempFile(t *testing.T) { RunTests(t) }
@@ -68,10 +68,10 @@ type checkingTempFile struct {
 	wrapped gcsx.TempFile
 }
 
-func (tf *checkingTempFile) Stat() (gcsx.StatResult, error) {
+func (tf *checkingTempFile) Stat(ctx context.Context) (gcsx.StatResult, error) {
 	tf.wrapped.CheckInvariants()
 	defer tf.wrapped.CheckInvariants()
-	return tf.wrapped.Stat()
+	return tf.wrapped.Stat(ctx)
 }
 
 func (tf *checkingTempFile) Read(b []byte) (int, error) {
@@ -155,7 +155,7 @@ func (t *TempFileTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *TempFileTest) Stat_InitialState() {
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(context.Background())
 
 	AssertEq(nil, err)
 	ExpectEq(initialContentSize, sr.Size)
@@ -181,7 +181,7 @@ func (t *TempFileTest) ReadAt() {
 	)
 
 	// Check Stat.
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(context.Background())
 
 	AssertEq(nil, err)
 	ExpectEq(initialContentSize, sr.Size)
@@ -198,7 +198,7 @@ func (t *TempFileTest) WriteAt() {
 	ExpectEq(nil, err)
 
 	// Check Stat.
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(context.Background())
 
 	AssertEq(nil, err)
 	ExpectEq(initialContentSize, sr.Size)
@@ -221,7 +221,7 @@ func (t *TempFileTest) Truncate() {
 	ExpectEq(nil, err)
 
 	// Check Stat.
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(context.Background())
 
 	AssertEq(nil, err)
 	ExpectEq(2, sr.Size)
@@ -244,7 +244,7 @@ func (t *TempFileTest) SetMtime() {
 	t.tf.SetMtime(mtime)
 
 	// Check.
-	sr, err := t.tf.Stat()
+	sr, err := t.tf.Stat(context.Background())
 
 	AssertEq(nil, err)
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(mtime)))

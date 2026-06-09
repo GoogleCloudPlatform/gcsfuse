@@ -161,7 +161,7 @@ func (os *syncer) SyncObject(
 	srcObject *gcs.Object,
 	content TempFile) (o *gcs.Object, err error) {
 	// Stat the content.
-	sr, err := content.Stat()
+	sr, err := content.Stat(ctx)
 	if err != nil {
 		err = fmt.Errorf("stat: %w", err)
 		return
