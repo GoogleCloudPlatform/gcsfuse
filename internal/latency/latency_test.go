@@ -45,7 +45,7 @@ func TestRecordGetFolderLatency(t *testing.T) {
 	for _, tc := range tests {
 		ResetForTest()
 		RecordGetFolderLatency(tc.duration)
-		snap, _, _, _, _, _ := GetLatenciesForTest()
+		snap, _, _, _, _, _, _, _ := GetLatenciesForTest()
 		if snap[tc.expectedIndex] != 1 {
 			t.Errorf("For duration %v, expected count at index %d to be 1, got 0", tc.duration, tc.expectedIndex)
 		}
@@ -55,6 +55,26 @@ func TestRecordGetFolderLatency(t *testing.T) {
 				t.Errorf("For duration %v, index %d should be 0, got %d", tc.duration, i, val)
 			}
 		}
+	}
+}
+
+func TestRecordRenameFolderLroLatencies(t *testing.T) {
+	ResetForTest()
+	defer ResetForTest()
+
+	durationCreation := 2 * time.Second
+	durationCompletion := 5 * time.Second
+
+	RecordRenameFolderLroCreationLatency(durationCreation)
+	RecordRenameFolderLroCompletionLatency(durationCompletion)
+
+	_, _, _, _, snapCreation, snapCompletion, _, _ := GetLatenciesForTest()
+
+	if snapCreation[2] != 1 {
+		t.Errorf("Expected creation latency at index 2 to be 1, got %d", snapCreation[2])
+	}
+	if snapCompletion[5] != 1 {
+		t.Errorf("Expected completion latency at index 5 to be 1, got %d", snapCompletion[5])
 	}
 }
 
@@ -78,7 +98,7 @@ func TestConcurrentRecordLatency(t *testing.T) {
 	}
 
 	wg.Wait()
-	snap, _, _, _, _, _ := GetLatenciesForTest()
+	snap, _, _, _, _, _, _, _ := GetLatenciesForTest()
 
 	// Verify total count matches
 	var total int64

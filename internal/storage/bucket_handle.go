@@ -30,6 +30,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/latency"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
@@ -608,7 +609,11 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 		DestinationFolderId: destinationFolderId,
 		RequestId:           uuid.NewString(),
 	}
+	logger.Infof("RenameFolder: starting to rename folder %q to %q (request ID: %q)", folderName, destinationFolderId, req.RequestId)
+	creationStartTime := time.Now()
 	resp, err := bh.controlClient.RenameFolder(ctx, req)
+	latency.RecordRenameFolderLroCreationLatency(time.Since(creationStartTime))
+	logger.Infof("RenameFolder: LRO creation took %v (request ID: %q)", time.Since(creationStartTime), req.RequestId)
 	if err != nil {
 		err = fmt.Errorf("error in renaming folder: %w", err)
 		return
@@ -616,13 +621,17 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 
 	// Wait blocks until the long-running operation is completed,
 	// returning the response and any errors encountered.
+	completionStartTime := time.Now()
 	controlFolder, err = resp.Wait(ctx)
+	latency.RecordRenameFolderLroCompletionLatency(time.Since(completionStartTime))
+	logger.Infof("RenameFolder: waiting for LRO completion took %v (request ID: %q)", time.Since(completionStartTime), req.RequestId)
 	if err != nil {
 		err = fmt.Errorf("error in getting result from renaming folder response: %w", err)
 		return
 	}
 
 	folder = gcs.GCSFolder(bh.bucketName, controlFolder)
+	logger.Infof("RenameFolder: renamed folder %q to %q in bucket %q (overall time: %v, request ID: %q)", folderName, destinationFolderId, bh.bucketName, time.Since(startTime), req.RequestId)
 	return
 }
 

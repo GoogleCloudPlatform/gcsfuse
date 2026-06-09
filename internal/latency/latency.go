@@ -30,10 +30,12 @@ var (
 	getFolderLatencies    [ArraySize]atomic.Int64
 	createFolderLatencies [ArraySize]atomic.Int64
 	deleteFolderLatencies [ArraySize]atomic.Int64
-	renameFolderLatencies [ArraySize]atomic.Int64
-	lookUpInodeLatencies  [ArraySize]atomic.Int64
-	statObjectLatencies   [ArraySize]atomic.Int64
-	shutdownCalled        atomic.Bool
+	renameFolderLatencies              [ArraySize]atomic.Int64
+	renameFolderLroCreationLatencies   [ArraySize]atomic.Int64
+	renameFolderLroCompletionLatencies [ArraySize]atomic.Int64
+	lookUpInodeLatencies               [ArraySize]atomic.Int64
+	statObjectLatencies                [ArraySize]atomic.Int64
+	shutdownCalled                     atomic.Bool
 )
 
 func record(elapsed time.Duration, arr *[ArraySize]atomic.Int64) {
@@ -68,6 +70,16 @@ func RecordRenameFolderLatency(elapsed time.Duration) {
 	record(elapsed, &renameFolderLatencies)
 }
 
+// RecordRenameFolderLroCreationLatency records a duration into the RenameFolderLroCreation latency array.
+func RecordRenameFolderLroCreationLatency(elapsed time.Duration) {
+	record(elapsed, &renameFolderLroCreationLatencies)
+}
+
+// RecordRenameFolderLroCompletionLatency records a duration into the RenameFolderLroCompletion latency array.
+func RecordRenameFolderLroCompletionLatency(elapsed time.Duration) {
+	record(elapsed, &renameFolderLroCompletionLatencies)
+}
+
 // RecordLookUpInodeLatency records a duration into the LookUpInode latency array.
 func RecordLookUpInodeLatency(elapsed time.Duration) {
 	record(elapsed, &lookUpInodeLatencies)
@@ -85,6 +97,8 @@ func Shutdown() {
 		logArray("CreateFolder latency array (final):", &createFolderLatencies)
 		logArray("DeleteFolder latency array (final):", &deleteFolderLatencies)
 		logArray("RenameFolder latency array (final):", &renameFolderLatencies)
+		logArray("RenameFolderLroCreation latency array (final):", &renameFolderLroCreationLatencies)
+		logArray("RenameFolderLroCompletion latency array (final):", &renameFolderLroCompletionLatencies)
 		logArray("LookUpInode latency array (final):", &lookUpInodeLatencies)
 		logArray("StatObject latency array (final):", &statObjectLatencies)
 	}
@@ -110,6 +124,8 @@ func ResetForTest() {
 	resetArray(&createFolderLatencies)
 	resetArray(&deleteFolderLatencies)
 	resetArray(&renameFolderLatencies)
+	resetArray(&renameFolderLroCreationLatencies)
+	resetArray(&renameFolderLroCompletionLatencies)
 	resetArray(&lookUpInodeLatencies)
 	resetArray(&statObjectLatencies)
 }
@@ -126,6 +142,8 @@ func GetLatenciesForTest() (
 	createFolder [ArraySize]int64,
 	deleteFolder [ArraySize]int64,
 	renameFolder [ArraySize]int64,
+	renameFolderLroCreation [ArraySize]int64,
+	renameFolderLroCompletion [ArraySize]int64,
 	lookUpInode [ArraySize]int64,
 	statObject [ArraySize]int64,
 ) {
@@ -133,6 +151,8 @@ func GetLatenciesForTest() (
 	createFolder = snapArray(&createFolderLatencies)
 	deleteFolder = snapArray(&deleteFolderLatencies)
 	renameFolder = snapArray(&renameFolderLatencies)
+	renameFolderLroCreation = snapArray(&renameFolderLroCreationLatencies)
+	renameFolderLroCompletion = snapArray(&renameFolderLroCompletionLatencies)
 	lookUpInode = snapArray(&lookUpInodeLatencies)
 	statObject = snapArray(&statObjectLatencies)
 	return
