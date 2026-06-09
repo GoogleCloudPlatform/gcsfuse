@@ -30,6 +30,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
@@ -214,6 +215,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
 		folderInodes:               make(map[inode.Name]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
+		pendingRenames:             make(map[inode.Name]*renameWaitChannel),
 		handles:                    make(map[fuseops.HandleID]any),
 		newConfig:                  serverCfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
@@ -482,6 +484,13 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 // See https://tinyurl.com/4nh4w7u9 for more discussion, including an informal
 // proof that a strict partial order is sufficient.
 
+type renameTxKey struct{}
+
+type renameWaitChannel struct {
+	txID string
+	done chan struct{}
+}
+
 type fileSystem struct {
 	fuseutil.NotImplementedFileSystem
 
@@ -614,6 +623,13 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	localFileInodes map[inode.Name]inode.Inode
+
+	// A map from folder/file name to its active rename transaction wait channel.
+	// Used to block concurrent FUSE calls from interacting with files/folders
+	// undergoing rename.
+	//
+	// GUARDED_BY(mu)
+	pendingRenames map[inode.Name]*renameWaitChannel
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -1977,6 +1993,15 @@ func (fs *fileSystem) LookUpInode(
 	}
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
+	// Verify that parent or child is not undergoing a rename operation.
+	childFileName := inode.NewFileName(parent.Name(), op.Name)
+	if err = fs.waitForPendingRename(ctx, childFileName); err != nil {
+		return err
+	}
+	childDirName := inode.NewDirName(parent.Name(), op.Name)
+	if err = fs.waitForPendingRename(ctx, childDirName); err != nil {
+		return err
+	}
 
 	// Find or create the child inode.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
@@ -2110,6 +2135,11 @@ func (fs *fileSystem) MkDir(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
+	childName := inode.NewDirName(parent.Name(), op.Name)
+	if err = fs.waitForPendingRename(ctx, childName); err != nil {
+		return err
+	}
+
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
@@ -2200,6 +2230,11 @@ func (fs *fileSystem) createFile(
 	parent := fs.dirInodeOrDie(parentID)
 	fs.mu.Unlock()
 
+	childName := inode.NewFileName(parent.Name(), name)
+	if err = fs.waitForPendingRename(ctx, childName); err != nil {
+		return nil, err
+	}
+
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
@@ -2242,6 +2277,14 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
+	fs.mu.Unlock()
+
+	fullName := inode.NewFileName(parent.Name(), name)
+	if err = fs.waitForPendingRename(ctx, fullName); err != nil {
+		return nil, err
+	}
+
+	fs.mu.Lock()
 
 	defer func() {
 		if err != nil {
@@ -2260,8 +2303,6 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 			// Unlock is done by the calling method.
 		}
 	}()
-
-	fullName := inode.NewFileName(parent.Name(), name)
 	child, ok := fs.localFileInodes[fullName]
 
 	if ok && !child.(*inode.FileInode).IsUnlinked() {
@@ -2363,6 +2404,11 @@ func (fs *fileSystem) CreateSymlink(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
+	childName := inode.NewFileName(parent.Name(), op.Name)
+	if err = fs.waitForPendingRename(ctx, childName); err != nil {
+		return err
+	}
+
 	// Create the object in GCS, failing if it already exists.
 	parent.Lock()
 	result, err := parent.CreateChildSymlink(ctx, op.Name, op.Target)
@@ -2429,6 +2475,11 @@ func (fs *fileSystem) RmDir(
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
+
+	childDirName := inode.NewDirName(parent.Name(), op.Name)
+	if err = fs.waitForPendingRename(ctx, childDirName); err != nil {
+		return err
+	}
 
 	// Find or create the child inode, locked.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
@@ -2539,6 +2590,10 @@ func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	txID := uuid.New().String()
+	ctx = context.WithValue(ctx, renameTxKey{}, txID)
+
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
@@ -2588,6 +2643,36 @@ func (fs *fileSystem) Rename(
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child inode.BucketOwnedInode, oldParent, newParent inode.DirInode) error {
+	oldFileName := inode.NewFileName(oldParent.Name(), op.OldName)
+	newFileName := inode.NewFileName(newParent.Name(), op.NewName)
+
+	txIDVal := ctx.Value(renameTxKey{})
+	var txID string
+	if txIDVal != nil {
+		txID = txIDVal.(string)
+	}
+
+	firstPath, secondPath := oldFileName, newFileName
+	if firstPath.LocalName() > secondPath.LocalName() {
+		firstPath, secondPath = secondPath, firstPath
+	}
+
+	fs.mu.Lock()
+	ch1 := &renameWaitChannel{txID: txID, done: make(chan struct{})}
+	fs.pendingRenames[firstPath] = ch1
+	ch2 := &renameWaitChannel{txID: txID, done: make(chan struct{})}
+	fs.pendingRenames[secondPath] = ch2
+	fs.mu.Unlock()
+
+	defer func() {
+		fs.mu.Lock()
+		delete(fs.pendingRenames, firstPath)
+		delete(fs.pendingRenames, secondPath)
+		close(ch1.done)
+		close(ch2.done)
+		fs.mu.Unlock()
+	}()
+
 	var updatedMinObject *gcs.MinObject
 	var err error
 
@@ -2624,26 +2709,37 @@ func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.F
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
-	oldParent.Lock()
-	defer oldParent.Unlock()
-
-	if newParent != oldParent {
-		newParent.Lock()
-		defer newParent.Unlock()
-	}
-
 	newFileName := inode.NewFileName(newParent.Name(), newName)
 
-	if _, err := oldParent.RenameFile(ctx, oldObject, newFileName.GcsObjectName()); err != nil {
-		return fmt.Errorf("renameFile: while renaming file: %w", err)
+	oldParentBktOwned, ok := oldParent.(inode.BucketOwnedInode)
+	if !ok {
+		return fmt.Errorf("oldParent is not bucket owned")
+	}
+	bucket := oldParentBktOwned.Bucket()
+
+	req := &gcs.MoveObjectRequest{
+		SrcName:                       oldObject.Name,
+		DstName:                       newFileName.GcsObjectName(),
+		SrcGeneration:                 oldObject.Generation,
+		SrcMetaGenerationPrecondition: &oldObject.MetaGeneration,
+	}
+
+	if _, err := bucket.MoveObject(ctx, req); err != nil {
+		return fmt.Errorf("MoveObject: while renaming file: %w", err)
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
 		return fmt.Errorf("atomicRename: while invalidating cache for renamed file: %w", err)
 	}
 
-	// Insert new file in type cache.
+	// Brief locks to update local type caches.
+	oldParent.Lock()
+	oldParent.EraseFromTypeCache(oldName)
+	oldParent.Unlock()
+
+	newParent.Lock()
 	newParent.InsertFileIntoTypeCache(newName)
+	newParent.Unlock()
 
 	return nil
 }
@@ -2657,35 +2753,45 @@ func (fs *fileSystem) nonAtomicRename(
 	oldObject *gcs.MinObject,
 	newParent inode.DirInode,
 	newFileName string) error {
-	// Clone into the new location.
-	newParent.Lock()
-	_, err := newParent.CloneToChildFile(ctx, newFileName, oldObject)
-	newParent.Unlock()
 
-	if err != nil {
-		err = fmt.Errorf("CloneToChildFile: %w", err)
-		return err
+	oldParentBktOwned, ok := oldParent.(inode.BucketOwnedInode)
+	if !ok {
+		return fmt.Errorf("oldParent is not bucket owned")
+	}
+	bucket := oldParentBktOwned.Bucket()
+
+	newFileNameFull := inode.NewFileName(newParent.Name(), newFileName)
+
+	reqCopy := &gcs.CopyObjectRequest{
+		SrcName:                       oldObject.Name,
+		SrcGeneration:                 oldObject.Generation,
+		SrcMetaGenerationPrecondition: &oldObject.MetaGeneration,
+		DstName:                       newFileNameFull.GcsObjectName(),
+	}
+	if _, err := bucket.CopyObject(ctx, reqCopy); err != nil {
+		return fmt.Errorf("CopyObject: %w", err)
 	}
 
-	// Delete behind. Make sure to delete exactly the generation we cloned, in
-	// case the referent of the name has changed in the meantime.
-	oldParent.Lock()
-	defer oldParent.Unlock()
+	reqDelete := &gcs.DeleteObjectRequest{
+		Name:                       oldObject.Name,
+		Generation:                 oldObject.Generation,
+		MetaGenerationPrecondition: &oldObject.MetaGeneration,
+	}
+	deleteErr := bucket.DeleteObject(ctx, reqDelete)
 
-	deleteErr := oldParent.DeleteChildFile(
-		ctx,
-		oldName,
-		oldObject.Generation,
-		&oldObject.MetaGeneration)
-
-	// In case the delete is successful or a precondition error is encountered,
-	// then file cache becomes unusable, thus, should be invalidated.
-	// File cache must not be invalidated in case of any other errors encountered
-	// while deletion.
 	if deleteErr == nil {
 		if invErr := fs.invalidateChildFileCacheIfExist(oldParent, oldName); invErr != nil {
 			logger.Warnf("File cache eviction failed after successful delete on GCS: %v", invErr)
 		}
+
+		oldParent.Lock()
+		oldParent.EraseFromTypeCache(oldName)
+		oldParent.Unlock()
+
+		newParent.Lock()
+		newParent.InsertFileIntoTypeCache(newFileName)
+		newParent.Unlock()
+
 		return nil
 	}
 
@@ -2694,7 +2800,18 @@ func (fs *fileSystem) nonAtomicRename(
 		if invErr := fs.invalidateChildFileCacheIfExist(oldParent, oldName); invErr != nil {
 			logger.Warnf("File cache eviction failed after precondition error during delete: %v", invErr)
 		}
+
+		oldParent.Lock()
+		oldParent.EraseFromTypeCache(oldName)
+		oldParent.Unlock()
+
+		newParent.Lock()
+		newParent.InsertFileIntoTypeCache(newFileName)
+		newParent.Unlock()
+
+		return nil
 	}
+
 	return fmt.Errorf("DeleteChildFile: %w", deleteErr)
 }
 
@@ -2763,9 +2880,16 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
 	newDirName := inode.NewDirName(newParent.Name(), newName)
 
-	// If the call for getBucketDirInode fails it means directory does not exist.
-	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
+	txID := renameTxIDFromContext(ctx)
+	ch1, ch2 := fs.registerPendingRename(txID, oldDirName, newDirName)
+	defer fs.unregisterPendingRename(oldDirName, newDirName, ch1, ch2)
+
+	bucket := oldParent.(inode.BucketOwnedInode).Bucket()
+
+	var newDirInode inode.BucketOwnedDirInode
+	newDirInode, err = fs.getBucketDirInode(ctx, newParent, newName)
 	if err == nil {
+		pendingInodes = append(pendingInodes, newDirInode)
 		// If the directory exists, then check if it is empty or not.
 		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
 			return err
@@ -2777,23 +2901,38 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 		newParent.Lock()
 		_ = newParent.DeleteChildDir(ctx, newName, false, newDirInode)
 		newParent.Unlock()
-		pendingInodes = append(pendingInodes, newDirInode)
 	}
 
-	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
+	oldParent.IncrementActiveWriters()
+	defer oldParent.DecrementActiveWriters()
+	newParent.IncrementActiveWriters()
+	defer newParent.DecrementActiveWriters()
+
 	oldParent.Lock()
-	defer oldParent.Unlock()
+	oldParent.CancelCurrDirPrefetcher()
+	oldParent.Unlock()
 
-	if newParent != oldParent {
-		newParent.Lock()
-		defer newParent.Unlock()
+	oldDirInode.Unlink()
+	oldDirInode.CancelSubdirectoryPrefetches()
+	if newDirInode != nil {
+		newDirInode.Unlink()
+		newDirInode.CancelSubdirectoryPrefetches()
 	}
 
-	// Rename old directory to the new directory, keeping both parent directories locked.
-	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName(), oldDirInode)
+	fs.releaseInodes(&pendingInodes)
+
+	_, err = bucket.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
 	if err != nil {
 		return fmt.Errorf("failed to rename folder: %w", err)
 	}
+
+	oldParent.Lock()
+	oldParent.EraseFromTypeCache(oldName)
+	oldParent.Unlock()
+
+	newParent.Lock()
+	newParent.EraseFromTypeCache(newName)
+	newParent.Unlock()
 
 	return
 }
@@ -2822,6 +2961,13 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		return err
 	}
 	pendingInodes = append(pendingInodes, oldDir)
+
+	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
+	newDirName := inode.NewDirName(newParent.Name(), newName)
+
+	txID := renameTxIDFromContext(ctx)
+	ch1, ch2 := fs.registerPendingRename(txID, oldDirName, newDirName)
+	defer fs.unregisterPendingRename(oldDirName, newDirName, ch1, ch2)
 
 	if err = fs.ensureNoLocalFilesInDirectory(oldDir, oldName); err != nil {
 		return err
@@ -2895,6 +3041,8 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		}
 	}
 
+	oldDir.Unlink()
+	oldDir.CancelSubdirectoryPrefetches()
 	fs.releaseInodes(&pendingInodes)
 
 	// Delete the backing object of the old directory.
@@ -2902,7 +3050,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 	_, isImplicitDir := fs.implicitDirInodes[oldDir.Name()]
 	fs.mu.Unlock()
 	oldParent.Lock()
-	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir, oldDir)
+	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir, nil)
 	oldParent.Unlock()
 	if err != nil {
 		return fmt.Errorf("DeleteChildDir: %w", err)
@@ -2918,10 +3066,16 @@ func (fs *fileSystem) Unlink(
 	ctx = fs.getInterruptlessContext(ctx)
 
 	fs.mu.Lock()
-
 	// Find the parent and file name.
 	parent := fs.dirInodeOrDie(op.Parent)
+	fs.mu.Unlock()
+
 	fileName := inode.NewFileName(parent.Name(), op.Name)
+	if err = fs.waitForPendingRename(ctx, fileName); err != nil {
+		return err
+	}
+
+	fs.mu.Lock()
 
 	// Get the inode for the given file.
 	// Files must have an associated inode, which can be found in either:
@@ -3379,4 +3533,47 @@ func (fs *fileSystem) SyncFS(
 	ctx context.Context,
 	op *fuseops.SyncFSOp) error {
 	return syscall.ENOSYS
+}
+
+// waitForPendingRename checks if the given name or any parent directory in its path
+// is currently undergoing a rename operation. If so, it blocks until that rename completes.
+// It bypasses blocking if the incoming context is part of the same rename transaction.
+func (fs *fileSystem) waitForPendingRename(ctx context.Context, name inode.Name) error {
+	for {
+		fs.mu.Lock()
+		var waitChan chan struct{}
+		txIDVal := ctx.Value(renameTxKey{})
+
+		curr := name
+		for {
+			if rw, ok := fs.pendingRenames[curr]; ok {
+				if txIDVal != nil && txIDVal.(string) == rw.txID {
+					break // Belongs to same transaction; do not block.
+				}
+				waitChan = rw.done
+				break
+			}
+			if curr.IsBucketRoot() {
+				break
+			}
+			var err error
+			curr, err = curr.ParentName()
+			if err != nil {
+				break
+			}
+		}
+		fs.mu.Unlock()
+
+		if waitChan == nil {
+			return nil
+		}
+
+		// Block until the rename completes or context is cancelled.
+		select {
+		case <-waitChan:
+			continue // Check again in case another rename started immediately.
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
