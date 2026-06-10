@@ -718,10 +718,6 @@ type MetricsConfig struct {
 }
 
 type MrdConfig struct {
-	MaxConnections int64 `yaml:"max-connections"`
-
-	MinConnections int64 `yaml:"min-connections"`
-
 	PoolSize int64 `yaml:"pool-size"`
 
 	TargetPendingBytes int64 `yaml:"target-pending-bytes"`
@@ -1275,31 +1271,19 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("mrd-max-connections", "", 0, "The maximum number of concurrent TCP connections allowed for Multi-Range Downloader.")
-
-	if err := flagSet.MarkHidden("mrd-max-connections"); err != nil {
-		return err
-	}
-
-	flagSet.IntP("mrd-min-connections", "", 0, "The minimum number of concurrent TCP connections allowed for Multi-Range Downloader.")
-
-	if err := flagSet.MarkHidden("mrd-min-connections"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("mrd-pool-size", "", 4, "Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("mrd-pool-size"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("mrd-target-pending-bytes", "", 0, "The target threshold for pending bytes to trigger Multi-Range Downloader autoscaling.")
+	flagSet.IntP("mrd-target-pending-bytes", "", 10485760, "The target threshold for pending bytes to trigger Multi-Range Downloader autoscaling.")
 
 	if err := flagSet.MarkHidden("mrd-target-pending-bytes"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("mrd-target-pending-ranges", "", 0, "The target threshold for pending ranges to trigger Multi-Range Downloader autoscaling.")
+	flagSet.IntP("mrd-target-pending-ranges", "", 20, "The target threshold for pending ranges to trigger Multi-Range Downloader autoscaling.")
 
 	if err := flagSet.MarkHidden("mrd-target-pending-ranges"); err != nil {
 		return err
@@ -1913,14 +1897,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.workers", flagSet.Lookup("metrics-workers")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("mrd.max-connections", flagSet.Lookup("mrd-max-connections")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("mrd.min-connections", flagSet.Lookup("mrd-min-connections")); err != nil {
 		return err
 	}
 

@@ -300,18 +300,6 @@ func isValidMRDConfig(mrdConfig *MrdConfig) error {
 	if mrdConfig.PoolSize < 1 {
 		return fmt.Errorf("invalid value of mrd-pool-size: %d; should be >=1", mrdConfig.PoolSize)
 	}
-	if mrdConfig.MinConnections < 0 {
-		return fmt.Errorf("invalid value of min-connections: %d; should be >=0", mrdConfig.MinConnections)
-	}
-	if mrdConfig.MaxConnections < 0 {
-		return fmt.Errorf("invalid value of max-connections: %d; should be >=0", mrdConfig.MaxConnections)
-	}
-	if mrdConfig.MinConnections > 0 && mrdConfig.MaxConnections == 0 {
-		return fmt.Errorf("max-connections must be specified when min-connections (%d) is set", mrdConfig.MinConnections)
-	}
-	if mrdConfig.MinConnections > 0 && mrdConfig.MaxConnections > 0 && mrdConfig.MinConnections > mrdConfig.MaxConnections {
-		return fmt.Errorf("min-connections (%d) cannot be greater than max-connections (%d)", mrdConfig.MinConnections, mrdConfig.MaxConnections)
-	}
 	if mrdConfig.TargetPendingRanges < 0 {
 		return fmt.Errorf("invalid value of target-pending-ranges: %d; should be >=0", mrdConfig.TargetPendingRanges)
 	}
