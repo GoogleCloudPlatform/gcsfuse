@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 	client_util "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -148,6 +149,18 @@ func TestMain(m *testing.M) {
 
 	// Creating a common storage client for the test
 	ctx = context.Background()
+
+	// Skip tests if not running on GCE or if project is not whitelisted.
+	projectID, err := metadata.ProjectIDWithContext(ctx)
+	if err != nil {
+		log.Println("Skipping tests as we are not running on GCE.")
+		os.Exit(0)
+	}
+	if projectID != "gcs-fuse-test" {
+		log.Printf("Skipping tests as project %q is not whitelisted for gRPC validation tests.", projectID)
+		os.Exit(0)
+	}
+
 	if client, err = client_util.CreateStorageClient(ctx); err != nil {
 		log.Fatalf("Creation of storage client failed with error : %v", err)
 	}
