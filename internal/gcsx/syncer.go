@@ -180,9 +180,11 @@ func (os *syncer) SyncObject(
 		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkRetryDeadlineSecs, os.chunkTransferTimeoutSecs, content)
 	}
 
+	// TODO(b/520290147): Remove unfinalized checks once stat results become consistent on zonal buckets.
 	// Make sure the dirty threshold makes sense.
+	// Note: This check is not needed for unfinalized objects as they are always uploaded in their entirety.
 	srcSize := int64(srcObject.Size)
-	if sr.DirtyThreshold > srcSize {
+	if !srcObject.IsUnfinalized() && sr.DirtyThreshold > srcSize {
 		err = fmt.Errorf(
 			"stat returned weird DirtyThreshold field: %d vs. %d",
 			sr.DirtyThreshold,
@@ -191,17 +193,35 @@ func (os *syncer) SyncObject(
 		return
 	}
 
-	// If the content hasn't been dirtied (i.e. it is the same size as the source
-	// object, and no bytes within the source object have been dirtied), we're
-	// done.
-	if sr.Size == srcSize && sr.DirtyThreshold == srcSize {
+	// We return early if the file is unmodified or content in unchanged.
+	//
+	// Scenario 1: If the local staged file was never written to or truncated, sr.Mtime
+	// remains nil. This is a 100% reliable indicator that no local changes were ever
+	// made, allowing us to always return early safely for both finalized and unfinalized objects.
+	if sr.Mtime == nil {
 		return
 	}
 
-	// Sanity check: the branch above should ensure that by the time we get here,
-	// the stat result's mtime is non-nil.
-	if sr.Mtime == nil {
-		err = fmt.Errorf("wacky stat result: %#v", sr)
+	// Scenario 2: Size and dirty threshold comparison.
+	// If the content hasn't been dirtied (i.e. it is the same size as the source
+	// object, and no bytes within the source object have been dirtied).
+	tempFileIsUnmodifiedAndLocalMatchesGCS := sr.Size == srcSize && sr.DirtyThreshold == srcSize
+
+	// TODO(b/520290147): Remove unfinalized checks once stat results become consistent on zonal buckets.
+	// This check is specifically for finalized objects (Standard buckets) where GCS metadata
+	// size is fully trustworthy. sr.Mtime == nil alone is not sufficient because a file could
+	// be modified (making sr.Mtime non-nil), but then truncated back to its original size (or
+	// have its changes reverted) such that it matches the source GCS object size/content exactly.
+	// For finalized objects, this check allows us to still optimize and return early in
+	// such cases, avoiding a redundant upload.
+	//
+	// We bypass this check for unfinalized objects (Zonal/Rapid buckets) because unfinalized
+	// objects can report a stale metadata size Y that is less than their actual size X. If we
+	// locally truncate the file to Y, both the local size and dirty threshold become Y, which
+	// matches the stale metadata size Y. We cannot distinguish this from an unmodified file
+	// of size Y. Thus, we bypass this check for unfinalized objects to prevent truncations
+	// from being silently skipped.
+	if !srcObject.IsUnfinalized() && tempFileIsUnmodifiedAndLocalMatchesGCS {
 		return
 	}
 

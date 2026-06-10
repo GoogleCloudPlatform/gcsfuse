@@ -65,3 +65,15 @@ func (t *ObjectTest) IsNotFinalized() {
 
 	AssertTrue(mo.IsUnfinalized())
 }
+
+func (t *ObjectTest) ObjectIsFinalized() {
+	o := Object{Finalized: time.Date(2025, time.June, 19, 18, 23, 30, 0, time.UTC)}
+
+	AssertFalse(o.IsUnfinalized())
+}
+
+func (t *ObjectTest) ObjectIsNotFinalized() {
+	o := Object{}
+
+	AssertTrue(o.IsUnfinalized())
+}
