@@ -116,10 +116,10 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 			expectedLogSubstrings: []string{"DirectPath verification succeeded, continuing with DirectPath."},
 		},
 		{
-			name:                  "SingleRegion_Failure_FallbackStrategy",
-			bucketName:            g.singleRegionBucketForGRPCFailure,
-			grpcPathStrategy:      "direct-path-with-fallback",
-			expectedSuccess:       true,
+			name:             "SingleRegion_Failure_FallbackStrategy",
+			bucketName:       g.singleRegionBucketForGRPCFailure,
+			grpcPathStrategy: "direct-path-with-fallback",
+			expectedSuccess:  true,
 			expectedLogSubstrings: []string{
 				"DirectPath verification failed",
 				"Grpc dp is not available and falling back to Http.",
@@ -133,10 +133,10 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 			expectedLogSubstrings: []string{"DirectPath verification succeeded, continuing with DirectPath."},
 		},
 		{
-			name:                  "SingleRegion_Failure_DirectPathOnlyStrategy",
-			bucketName:            g.singleRegionBucketForGRPCFailure,
-			grpcPathStrategy:      "direct-path-only",
-			expectedSuccess:       false,
+			name:             "SingleRegion_Failure_DirectPathOnlyStrategy",
+			bucketName:       g.singleRegionBucketForGRPCFailure,
+			grpcPathStrategy: "direct-path-only",
+			expectedSuccess:  false,
 			expectedLogSubstrings: []string{
 				"DirectPath verification failed",
 				"Grpc dp is not available and not falling back to Http as gRPC path strategy is set to DirectPathOnly",
@@ -150,10 +150,10 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 			expectedLogSubstrings: []string{"DirectPath verification succeeded, continuing with DirectPath."},
 		},
 		{
-			name:                  "MultiRegion_Failure_FallbackStrategy",
-			bucketName:            g.multiRegionBucketForGRPCFailure,
-			grpcPathStrategy:      "direct-path-with-fallback",
-			expectedSuccess:       true,
+			name:             "MultiRegion_Failure_FallbackStrategy",
+			bucketName:       g.multiRegionBucketForGRPCFailure,
+			grpcPathStrategy: "direct-path-with-fallback",
+			expectedSuccess:  true,
 			expectedLogSubstrings: []string{
 				"DirectPath verification failed",
 				"Grpc dp is not available and falling back to Http.",
@@ -167,10 +167,10 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 			expectedLogSubstrings: []string{"DirectPath verification succeeded, continuing with DirectPath."},
 		},
 		{
-			name:                  "MultiRegion_Failure_DirectPathOnlyStrategy",
-			bucketName:            g.multiRegionBucketForGRPCFailure,
-			grpcPathStrategy:      "direct-path-only",
-			expectedSuccess:       false,
+			name:             "MultiRegion_Failure_DirectPathOnlyStrategy",
+			bucketName:       g.multiRegionBucketForGRPCFailure,
+			grpcPathStrategy: "direct-path-only",
+			expectedSuccess:  false,
 			expectedLogSubstrings: []string{
 				"DirectPath verification failed",
 				"Grpc dp is not available and not falling back to Http as gRPC path strategy is set to DirectPathOnly",
