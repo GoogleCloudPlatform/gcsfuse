@@ -102,61 +102,123 @@ func TestGRPCValidationSuite(t *testing.T) {
 
 func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 	testCases := []struct {
-		name                 string
-		bucketName           string
-		expectedSuccess      bool
-		expectedLogSubstring string
+		name                  string
+		bucketName            string
+		grpcPathStrategy      string
+		expectedSuccess       bool
+		expectedLogSubstrings []string
 	}{
 		{
-			name:                 "SingleRegion_Success",
-			bucketName:           g.singleRegionBucketForGRPCSuccess,
-			expectedLogSubstring: fmt.Sprintf("Successfully connected over gRPC DirectPath for %s", g.singleRegionBucketForGRPCSuccess),
+			name:                  "SingleRegion_Success_FallbackStrategy",
+			bucketName:            g.singleRegionBucketForGRPCSuccess,
+			grpcPathStrategy:      "direct-path-with-fallback",
+			expectedSuccess:       true,
+			expectedLogSubstrings: []string{"DirectPath verification succeeded, continuing with DirectPath."},
 		},
 		{
-			name:                 "SingleRegion_Failure",
-			bucketName:           g.singleRegionBucketForGRPCFailure,
-			expectedLogSubstring: fmt.Sprintf("Direct path connectivity unavailable for %s, reason:", g.singleRegionBucketForGRPCFailure),
+			name:                  "SingleRegion_Failure_FallbackStrategy",
+			bucketName:            g.singleRegionBucketForGRPCFailure,
+			grpcPathStrategy:      "direct-path-with-fallback",
+			expectedSuccess:       true,
+			expectedLogSubstrings: []string{
+				"DirectPath verification failed",
+				"Grpc dp is not available and falling back to Http.",
+			},
 		},
 		{
-			name:                 "MultiRegion_Success",
-			bucketName:           g.multiRegionBucketForGRPCSuccess,
-			expectedLogSubstring: fmt.Sprintf("Successfully connected over gRPC DirectPath for %s", g.multiRegionBucketForGRPCSuccess),
+			name:                  "SingleRegion_Success_DirectPathOnlyStrategy",
+			bucketName:            g.singleRegionBucketForGRPCSuccess,
+			grpcPathStrategy:      "direct-path-only",
+			expectedSuccess:       true,
+			expectedLogSubstrings: []string{"DirectPath verification succeeded, continuing with DirectPath."},
 		},
 		{
-			name:                 "MultiRegion_Failure",
-			bucketName:           g.multiRegionBucketForGRPCFailure,
-			expectedLogSubstring: fmt.Sprintf("Direct path connectivity unavailable for %s, reason: ", g.multiRegionBucketForGRPCFailure),
+			name:                  "SingleRegion_Failure_DirectPathOnlyStrategy",
+			bucketName:            g.singleRegionBucketForGRPCFailure,
+			grpcPathStrategy:      "direct-path-only",
+			expectedSuccess:       false,
+			expectedLogSubstrings: []string{
+				"DirectPath verification failed",
+				"Grpc dp is not available and not falling back to Http as gRPC path strategy is set to DirectPathOnly",
+			},
+		},
+		{
+			name:                  "MultiRegion_Success_FallbackStrategy",
+			bucketName:            g.multiRegionBucketForGRPCSuccess,
+			grpcPathStrategy:      "direct-path-with-fallback",
+			expectedSuccess:       true,
+			expectedLogSubstrings: []string{"DirectPath verification succeeded, continuing with DirectPath."},
+		},
+		{
+			name:                  "MultiRegion_Failure_FallbackStrategy",
+			bucketName:            g.multiRegionBucketForGRPCFailure,
+			grpcPathStrategy:      "direct-path-with-fallback",
+			expectedSuccess:       true,
+			expectedLogSubstrings: []string{
+				"DirectPath verification failed",
+				"Grpc dp is not available and falling back to Http.",
+			},
+		},
+		{
+			name:                  "MultiRegion_Success_DirectPathOnlyStrategy",
+			bucketName:            g.multiRegionBucketForGRPCSuccess,
+			grpcPathStrategy:      "direct-path-only",
+			expectedSuccess:       true,
+			expectedLogSubstrings: []string{"DirectPath verification succeeded, continuing with DirectPath."},
+		},
+		{
+			name:                  "MultiRegion_Failure_DirectPathOnlyStrategy",
+			bucketName:            g.multiRegionBucketForGRPCFailure,
+			grpcPathStrategy:      "direct-path-only",
+			expectedSuccess:       false,
+			expectedLogSubstrings: []string{
+				"DirectPath verification failed",
+				"Grpc dp is not available and not falling back to Http as gRPC path strategy is set to DirectPathOnly",
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		g.T().Run(tc.name, func(t *testing.T) {
+
 			mountPoint, err := os.MkdirTemp("", "grpc_validation_test")
 			assert.NoError(t, err)
 			logFile := fmt.Sprintf("/tmp/grpc_%s_%d.txt", tc.name, time.Now().UnixNano())
-			args := []string{"--client-protocol=grpc", "--log-severity=TRACE", fmt.Sprintf("--log-file=%s", logFile), tc.bucketName, mountPoint}
+
+			defer func() {
+				_ = util.Unmount(mountPoint)
+				_ = os.Remove(mountPoint)
+				// Only remove the log file if the test succeeded
+				if t.Failed() {
+					t.Logf("Test failed, log file '%s' will not be deleted for inspection.", logFile)
+				} else {
+					_ = os.Remove(logFile)
+				}
+			}()
+
+			args := []string{
+				"--client-protocol=grpc",
+				"--grpc-path-strategy=" + tc.grpcPathStrategy,
+				"--log-severity=TRACE",
+				fmt.Sprintf("--log-file=%s", logFile),
+				tc.bucketName,
+				mountPoint,
+			}
 			err = mounting.MountGcsfuse(setup.BinFile(), args)
 			if err != nil {
 				if tc.expectedSuccess {
 					t.Errorf("Unexpected mount failure: %v", err)
 				}
-				return
+			} else {
+				if !tc.expectedSuccess {
+					t.Errorf("Expected mount failure but mount succeeded")
+				}
 			}
 
-			defer func() {
-				if err := util.Unmount(mountPoint); err != nil {
-					t.Logf("Warning: unmount failed: %v", err)
-				}
-				os.Remove(mountPoint)
-				// Only remove the log file if the test succeeded
-				if t.Failed() {
-					t.Logf("Test failed, log file '%s' will not be deleted for inspection.", logFile)
-				} else {
-					os.Remove(logFile)
-				}
-			}()
-			success := operations.CheckLogFileForMessage(g.T(), tc.expectedLogSubstring, logFile)
-			require.Equal(t, true, success)
+			for _, logSubstring := range tc.expectedLogSubstrings {
+				success := operations.CheckLogFileForMessage(g.T(), logSubstring, logFile)
+				require.Equal(t, true, success, "Expected message %q not found in log file %s", logSubstring, logFile)
+			}
 		})
 	}
 }
