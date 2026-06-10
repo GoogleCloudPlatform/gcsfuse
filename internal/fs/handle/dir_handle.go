@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -39,6 +40,10 @@ type DirEntry interface {
 
 type dirent fuseutil.Dirent
 type direntPlus fuseutil.DirentPlus
+
+type largeDirWarningThresholdProvider interface {
+	LargeDirWarningThreshold() int64
+}
 
 // For Dirent
 func (d *dirent) EntryName() string                  { return d.Name }
@@ -154,6 +159,23 @@ func (dh *DirHandle) checkInvariants() {
 // by name.
 func compareEntriesByName[T DirEntry](a, b T) int {
 	return cmp.Compare(a.EntryName(), b.EntryName())
+}
+
+func maybeLogLargeDirWarning(in inode.DirInode, entryCount int) {
+	provider, ok := in.(largeDirWarningThresholdProvider)
+	if !ok {
+		return
+	}
+	threshold := provider.LargeDirWarningThreshold()
+	if threshold <= 0 || int64(entryCount) < threshold {
+		return
+	}
+
+	logger.Warnf(
+		"Directory %q contains %d entries, meeting experimental large directory warning threshold %d.",
+		in.Name().GcsObjectName(),
+		entryCount,
+		threshold)
 }
 
 // Resolve name conflicts between file objects and directory objects (e.g. the
@@ -297,6 +319,7 @@ func readAllEntries(
 	if err != nil {
 		return nil, err
 	}
+	maybeLogLargeDirWarning(in, len(entries))
 
 	// Return a bogus inode ID for each entry, but not the root inode ID.
 	//
@@ -458,6 +481,7 @@ func (dh *DirHandle) ReadDirPlus(op *fuseops.ReadDirPlusOp, entries []fuseutil.D
 		if err != nil {
 			return
 		}
+		maybeLogLargeDirWarning(dh.in, len(entries))
 		// Update state.
 		dh.entriesPlus = entries
 		dh.entriesPlusValid = true

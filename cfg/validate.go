@@ -132,6 +132,13 @@ func isValidKernelListCacheTTL(TTLSecs int64) error {
 	return nil
 }
 
+func isValidLargeDirWarningThreshold(threshold int64) error {
+	if threshold < 0 {
+		return fmt.Errorf("experimental-large-dir-warning-threshold should be >= 0")
+	}
+	return nil
+}
+
 func isValidMetadataCache(v *viper.Viper, c *MetadataCacheConfig) error {
 	// Validate ttl-secs.
 	if v.IsSet(MetadataCacheTTLConfigKey) {
@@ -348,6 +355,10 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 
 	if err = isValidKernelListCacheTTL(config.FileSystem.KernelListCacheTtlSecs); err != nil {
 		return fmt.Errorf("error parsing kernel-list-cache-ttl-secs config: %w", err)
+	}
+
+	if err = isValidLargeDirWarningThreshold(config.FileSystem.ExperimentalLargeDirWarningThreshold); err != nil {
+		return fmt.Errorf("error parsing experimental-large-dir-warning-threshold config: %w", err)
 	}
 
 	if err = isValidMetadataCache(v, &config.MetadataCache); err != nil {
