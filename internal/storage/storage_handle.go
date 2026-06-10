@@ -85,7 +85,7 @@ type storageClient struct {
 }
 
 // Return clientOpts for both gRPC client and control client.
-func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
+func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, userAgent string, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
 	// Add custom endpoint if provided.
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
@@ -138,7 +138,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	}
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
-	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+	clientOpts = append(clientOpts, option.WithUserAgent(userAgent))
 
 	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
 		// Pass the OpenTelemetry MeterProvider to the Go storage client,
@@ -190,7 +190,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	defer unSetDirectPathEnvVariable()
 
 	var clientOpts []option.ClientOption
-	clientOpts, err := createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
+	clientOpts, err := createClientOptionForGRPCClient(ctx, clientConfig, clientConfig.UserAgent, enableBidiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
@@ -392,7 +392,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "localhost") {
 		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
 		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
-		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
+		userAgent := clientConfig.UserAgent
+		if clientConfig.ConfigUserAgent != "" {
+			userAgent = clientConfig.ConfigUserAgent
+		}
+		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, userAgent, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}

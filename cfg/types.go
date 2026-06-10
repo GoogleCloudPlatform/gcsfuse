@@ -27,6 +27,10 @@ import (
 type Octal int
 
 func (o *Octal) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		*o = 0
+		return nil
+	}
 	v, err := strconv.ParseInt(string(text) /*base=*/, 8 /*bitSize=*/, 32)
 	if err != nil {
 		return err
@@ -50,6 +54,10 @@ const (
 
 func (p *Protocol) UnmarshalText(text []byte) error {
 	txtStr := string(text)
+	if txtStr == "" {
+		*p = ""
+		return nil
+	}
 	protocol := strings.ToLower(txtStr)
 	v := []string{"http1", "http2", "grpc"}
 	if !slices.Contains(v, protocol) {
@@ -70,7 +78,12 @@ const (
 )
 
 func (d *DirectPathStrategy) UnmarshalText(text []byte) error {
-	strategy := DirectPathStrategy(strings.ToLower(string(text)))
+	txtStr := string(text)
+	if txtStr == "" {
+		*d = ""
+		return nil
+	}
+	strategy := DirectPathStrategy(strings.ToLower(txtStr))
 	switch strategy {
 	case DirectPathOnly, DirectPathWithFallback:
 		*d = strategy
@@ -106,7 +119,12 @@ var severityRanking = map[LogSeverity]int{
 }
 
 func (l *LogSeverity) UnmarshalText(text []byte) error {
-	level := LogSeverity(strings.ToUpper(string(text)))
+	txtStr := string(text)
+	if txtStr == "" {
+		*l = ""
+		return nil
+	}
+	level := LogSeverity(strings.ToUpper(txtStr))
 	if _, ok := severityRanking[level]; !ok {
 		return fmt.Errorf("invalid log severity level: %s. Must be one of [TRACE, DEBUG, INFO, WARNING, ERROR, OFF]", text)
 	}

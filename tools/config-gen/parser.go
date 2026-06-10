@@ -47,6 +47,7 @@ type Param struct {
 	HideFlag           bool                      `yaml:"hide-flag"`
 	HideShorthand      bool                      `yaml:"hide-shorthand"`
 	Optimizations      *shared.OptimizationRules `yaml:"optimizations,omitempty"`
+	Sensitive          *bool                     `yaml:"sensitive"`
 }
 
 // ParamsYAML mirrors the params.yaml file itself.
@@ -93,6 +94,9 @@ func checkFlagName(name string) error {
 }
 
 func validateParam(param Param) error {
+	if param.Sensitive == nil {
+		return fmt.Errorf("sensitive is empty/unset for flag-name: %s (must be explicitly set to true or false)", param.FlagName)
+	}
 	if err := checkFlagName(param.FlagName); err != nil {
 		return err
 	}

@@ -408,7 +408,7 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	testSuite.clientConfig.LocalSocketAddress = "127.0.0.1"
 	testSuite.clientConfig.AnonymousAccess = true
 	ctx := context.Background()
-	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, false)
+	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, testSuite.clientConfig.UserAgent, false)
 	require.NoError(testSuite.T(), err)
 	controlClient, err := storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
 	require.NoError(testSuite.T(), err)
@@ -439,7 +439,7 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithInvalidSocketAddress
 	ctx := context.Background()
 
 	// Attempt to create client options, which should fail.
-	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, false)
+	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, testSuite.clientConfig.UserAgent, false)
 
 	assert.Error(testSuite.T(), err)
 	assert.Nil(testSuite.T(), clientOpts)
@@ -702,7 +702,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndEna
 func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 
-	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, sc.UserAgent, false)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), clientOption)
@@ -712,7 +712,7 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_Without
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.EnableGoogleLibAuth = false
 
-	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, sc.UserAgent, false)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), clientOption)
@@ -732,7 +732,7 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.TracingEnabled = true
 
-	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, sc.UserAgent, false)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), clientOption)
@@ -741,12 +741,12 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTracingAddsOneOption() {
 	scWithoutTracing := storageutil.GetDefaultStorageClientConfig(keyFile)
 	scWithoutTracing.TracingEnabled = false
-	optsWithoutTracing, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutTracing, false)
+	optsWithoutTracing, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutTracing, scWithoutTracing.UserAgent, false)
 	assert.Nil(testSuite.T(), err)
 	scWithTracing := storageutil.GetDefaultStorageClientConfig(keyFile)
 	scWithTracing.TracingEnabled = true
 
-	optsWithTracing, err := createClientOptionForGRPCClient(context.TODO(), &scWithTracing, false)
+	optsWithTracing, err := createClientOptionForGRPCClient(context.TODO(), &scWithTracing, scWithTracing.UserAgent, false)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithTracing)
@@ -764,14 +764,14 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrp
 	scWithMetrics.ClientProtocol = cfg.GRPC
 	scWithMetrics.EnableGrpcMetrics = true
 
-	optsWithMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithMetrics, false)
+	optsWithMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithMetrics, scWithMetrics.UserAgent, false)
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithMetrics)
 
 	scWithoutMetrics := storageutil.GetDefaultStorageClientConfig(keyFile)
 	scWithoutMetrics.ClientProtocol = cfg.GRPC
 	scWithoutMetrics.EnableGrpcMetrics = false
-	optsWithoutMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutMetrics, false)
+	optsWithoutMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutMetrics, scWithoutMetrics.UserAgent, false)
 	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithoutMetrics)
 }
@@ -821,7 +821,7 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFai
 			sc.ClientProtocol = cfg.GRPC
 			tt.modifyConfig(&sc)
 
-			clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+			clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, sc.UserAgent, false)
 
 			assert.Error(t, err)
 			assert.Nil(t, clientOption)

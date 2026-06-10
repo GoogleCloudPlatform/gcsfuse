@@ -412,379 +412,379 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 }
 
 type CloudProfilerConfig struct {
-	AllocatedHeap bool `yaml:"allocated-heap"`
+	AllocatedHeap bool `yaml:"allocated-heap" json:"allocated-heap"`
 
-	Cpu bool `yaml:"cpu"`
+	Cpu bool `yaml:"cpu" json:"cpu"`
 
-	Enabled bool `yaml:"enabled"`
+	Enabled bool `yaml:"enabled" json:"enabled"`
 
-	Goroutines bool `yaml:"goroutines"`
+	Goroutines bool `yaml:"goroutines" json:"goroutines"`
 
-	Heap bool `yaml:"heap"`
+	Heap bool `yaml:"heap" json:"heap"`
 
-	Label string `yaml:"label"`
+	Label string `yaml:"label" json:"label"`
 
-	Mutex bool `yaml:"mutex"`
+	Mutex bool `yaml:"mutex" json:"mutex"`
 
-	ServiceName string `yaml:"service-name"`
+	ServiceName string `yaml:"service-name" json:"service-name"`
 }
 
 type Config struct {
-	AppName string `yaml:"app-name"`
+	AppName string `yaml:"app-name" json:"app-name"`
 
-	CacheDir ResolvedPath `yaml:"cache-dir"`
+	CacheDir ResolvedPath `yaml:"cache-dir" json:"cache-dir"`
 
-	CloudProfiler CloudProfilerConfig `yaml:"cloud-profiler"`
+	CloudProfiler CloudProfilerConfig `yaml:"cloud-profiler" json:"cloud-profiler"`
 
-	Debug DebugConfig `yaml:"debug"`
+	Debug DebugConfig `yaml:"debug" json:"debug"`
 
-	DisableAutoconfig bool `yaml:"disable-autoconfig"`
+	DisableAutoconfig bool `yaml:"disable-autoconfig" json:"disable-autoconfig"`
 
-	DummyIo DummyIoConfig `yaml:"dummy-io"`
+	DummyIo DummyIoConfig `yaml:"dummy-io" json:"dummy-io"`
 
-	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
+	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object" json:"enable-atomic-rename-object"`
 
-	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
+	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth" json:"enable-google-lib-auth"`
 
-	EnableHns bool `yaml:"enable-hns"`
+	EnableHns bool `yaml:"enable-hns" json:"enable-hns"`
 
-	EnableNewReader bool `yaml:"enable-new-reader"`
+	EnableNewReader bool `yaml:"enable-new-reader" json:"enable-new-reader"`
 
-	EnableStandardSymlinks bool `yaml:"enable-standard-symlinks"`
+	EnableStandardSymlinks bool `yaml:"enable-standard-symlinks" json:"enable-standard-symlinks"`
 
-	EnableTypeCacheDeprecation bool `yaml:"enable-type-cache-deprecation"`
+	EnableTypeCacheDeprecation bool `yaml:"enable-type-cache-deprecation" json:"enable-type-cache-deprecation"`
 
-	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
+	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support" json:"enable-unsupported-path-support"`
 
-	FileCache FileCacheConfig `yaml:"file-cache"`
+	FileCache FileCacheConfig `yaml:"file-cache" json:"file-cache"`
 
-	FileSystem FileSystemConfig `yaml:"file-system"`
+	FileSystem FileSystemConfig `yaml:"file-system" json:"file-system"`
 
-	Foreground bool `yaml:"foreground"`
+	Foreground bool `yaml:"foreground" json:"foreground"`
 
-	GcsAuth GcsAuthConfig `yaml:"gcs-auth"`
+	GcsAuth GcsAuthConfig `yaml:"gcs-auth" json:"gcs-auth"`
 
-	GcsConnection GcsConnectionConfig `yaml:"gcs-connection"`
+	GcsConnection GcsConnectionConfig `yaml:"gcs-connection" json:"gcs-connection"`
 
-	GcsRetries GcsRetriesConfig `yaml:"gcs-retries"`
+	GcsRetries GcsRetriesConfig `yaml:"gcs-retries" json:"gcs-retries"`
 
-	ImplicitDirs bool `yaml:"implicit-dirs"`
+	ImplicitDirs bool `yaml:"implicit-dirs" json:"implicit-dirs"`
 
-	List ListConfig `yaml:"list"`
+	List ListConfig `yaml:"list" json:"list"`
 
-	Logging LoggingConfig `yaml:"logging"`
+	Logging LoggingConfig `yaml:"logging" json:"logging"`
 
-	MachineType string `yaml:"machine-type"`
+	MachineType string `yaml:"machine-type" json:"machine-type"`
 
-	MetadataCache MetadataCacheConfig `yaml:"metadata-cache"`
+	MetadataCache MetadataCacheConfig `yaml:"metadata-cache" json:"metadata-cache"`
 
-	Metrics MetricsConfig `yaml:"metrics"`
+	Metrics MetricsConfig `yaml:"metrics" json:"metrics"`
 
-	Mrd MrdConfig `yaml:"mrd"`
+	Mrd MrdConfig `yaml:"mrd" json:"mrd"`
 
-	OnlyDir string `yaml:"only-dir"`
+	OnlyDir string `yaml:"only-dir" json:"only-dir"`
 
-	Profile string `yaml:"profile"`
+	Profile string `yaml:"profile" json:"profile"`
 
-	Read ReadConfig `yaml:"read"`
+	Read ReadConfig `yaml:"read" json:"read"`
 
-	Trace TraceConfig `yaml:"trace"`
+	Trace TraceConfig `yaml:"trace" json:"trace"`
 
-	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight"`
+	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight" json:"workload-insight"`
 
-	Write WriteConfig `yaml:"write"`
+	Write WriteConfig `yaml:"write" json:"write"`
 }
 
 type DebugConfig struct {
-	ExitOnInvariantViolation bool `yaml:"exit-on-invariant-violation"`
+	ExitOnInvariantViolation bool `yaml:"exit-on-invariant-violation" json:"exit-on-invariant-violation"`
 
-	Fuse bool `yaml:"fuse"`
+	Fuse bool `yaml:"fuse" json:"fuse"`
 
-	Gcs bool `yaml:"gcs"`
+	Gcs bool `yaml:"gcs" json:"gcs"`
 
-	LogMutex bool `yaml:"log-mutex"`
+	LogMutex bool `yaml:"log-mutex" json:"log-mutex"`
 }
 
 type DummyIoConfig struct {
-	Enable bool `yaml:"enable"`
+	Enable bool `yaml:"enable" json:"enable"`
 
-	PerMbLatency time.Duration `yaml:"per-mb-latency"`
+	PerMbLatency time.Duration `yaml:"per-mb-latency" json:"per-mb-latency"`
 
-	ReaderLatency time.Duration `yaml:"reader-latency"`
+	ReaderLatency time.Duration `yaml:"reader-latency" json:"reader-latency"`
 }
 
 type FileCacheConfig struct {
-	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read"`
+	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read" json:"cache-file-for-range-read"`
 
-	DownloadChunkSizeMb int64 `yaml:"download-chunk-size-mb"`
+	DownloadChunkSizeMb int64 `yaml:"download-chunk-size-mb" json:"download-chunk-size-mb"`
 
-	EnableCrc bool `yaml:"enable-crc"`
+	EnableCrc bool `yaml:"enable-crc" json:"enable-crc"`
 
-	EnableExperimentalSharedChunkCache bool `yaml:"enable-experimental-shared-chunk-cache"`
+	EnableExperimentalSharedChunkCache bool `yaml:"enable-experimental-shared-chunk-cache" json:"enable-experimental-shared-chunk-cache"`
 
-	EnableODirect bool `yaml:"enable-o-direct"`
+	EnableODirect bool `yaml:"enable-o-direct" json:"enable-o-direct"`
 
-	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
+	EnableParallelDownloads bool `yaml:"enable-parallel-downloads" json:"enable-parallel-downloads"`
 
-	ExcludeRegex string `yaml:"exclude-regex"`
+	ExcludeRegex string `yaml:"exclude-regex" json:"exclude-regex"`
 
-	ExperimentalDisableSizeCalculationFix bool `yaml:"experimental-disable-size-calculation-fix"`
+	ExperimentalDisableSizeCalculationFix bool `yaml:"experimental-disable-size-calculation-fix" json:"experimental-disable-size-calculation-fix"`
 
-	ExperimentalEnableChunkCache bool `yaml:"experimental-enable-chunk-cache"`
+	ExperimentalEnableChunkCache bool `yaml:"experimental-enable-chunk-cache" json:"experimental-enable-chunk-cache"`
 
-	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
+	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on" json:"experimental-parallel-downloads-default-on"`
 
-	IncludeRegex string `yaml:"include-regex"`
+	IncludeRegex string `yaml:"include-regex" json:"include-regex"`
 
-	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
+	MaxParallelDownloads int64 `yaml:"max-parallel-downloads" json:"max-parallel-downloads"`
 
-	MaxSizeMb int64 `yaml:"max-size-mb"`
+	MaxSizeMb int64 `yaml:"max-size-mb" json:"max-size-mb"`
 
-	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file"`
+	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file" json:"parallel-downloads-per-file"`
 
-	SharedCacheChunkSizeMb int64 `yaml:"shared-cache-chunk-size-mb"`
+	SharedCacheChunkSizeMb int64 `yaml:"shared-cache-chunk-size-mb" json:"shared-cache-chunk-size-mb"`
 
-	WriteBufferSize int64 `yaml:"write-buffer-size"`
+	WriteBufferSize int64 `yaml:"write-buffer-size" json:"write-buffer-size"`
 }
 
 type FileSystemConfig struct {
-	CongestionThreshold int64 `yaml:"congestion-threshold"`
+	CongestionThreshold int64 `yaml:"congestion-threshold" json:"congestion-threshold"`
 
-	DirMode Octal `yaml:"dir-mode"`
+	DirMode Octal `yaml:"dir-mode" json:"dir-mode"`
 
-	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
+	DisableParallelDirops bool `yaml:"disable-parallel-dirops" json:"disable-parallel-dirops"`
 
-	EnableKernelReader bool `yaml:"enable-kernel-reader"`
+	EnableKernelReader bool `yaml:"enable-kernel-reader" json:"enable-kernel-reader"`
 
-	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
+	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache" json:"experimental-enable-dentry-cache"`
 
-	ExperimentalEnablePirlo bool `yaml:"experimental-enable-pirlo"`
+	ExperimentalEnablePirlo bool `yaml:"experimental-enable-pirlo" json:"experimental-enable-pirlo"`
 
-	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
+	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus" json:"experimental-enable-readdirplus"`
 
-	ExperimentalODirect bool `yaml:"experimental-o-direct"`
+	ExperimentalODirect bool `yaml:"experimental-o-direct" json:"experimental-o-direct"`
 
-	FileMode Octal `yaml:"file-mode"`
+	FileMode Octal `yaml:"file-mode" json:"file-mode"`
 
-	FuseMaxPagesLimit int64 `yaml:"fuse-max-pages-limit"`
+	FuseMaxPagesLimit int64 `yaml:"fuse-max-pages-limit" json:"fuse-max-pages-limit"`
 
-	FuseOptions []string `yaml:"fuse-options"`
+	FuseOptions []string `yaml:"fuse-options" json:"fuse-options"`
 
-	Gid int64 `yaml:"gid"`
+	Gid int64 `yaml:"gid" json:"gid"`
 
-	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
+	IgnoreInterrupts bool `yaml:"ignore-interrupts" json:"ignore-interrupts"`
 
-	InactiveMrdCacheSize int64 `yaml:"inactive-mrd-cache-size"`
+	InactiveMrdCacheSize int64 `yaml:"inactive-mrd-cache-size" json:"inactive-mrd-cache-size"`
 
-	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
+	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs" json:"kernel-list-cache-ttl-secs"`
 
-	KernelParamsFile ResolvedPath `yaml:"kernel-params-file"`
+	KernelParamsFile ResolvedPath `yaml:"kernel-params-file" json:"kernel-params-file"`
 
-	MaxBackground int64 `yaml:"max-background"`
+	MaxBackground int64 `yaml:"max-background" json:"max-background"`
 
-	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
+	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb" json:"max-read-ahead-kb"`
 
-	RenameDirLimit int64 `yaml:"rename-dir-limit"`
+	RenameDirLimit int64 `yaml:"rename-dir-limit" json:"rename-dir-limit"`
 
-	TempDir ResolvedPath `yaml:"temp-dir"`
+	TempDir ResolvedPath `yaml:"temp-dir" json:"temp-dir"`
 
-	Uid int64 `yaml:"uid"`
+	Uid int64 `yaml:"uid" json:"uid"`
 }
 
 type GcsAuthConfig struct {
-	AnonymousAccess bool `yaml:"anonymous-access"`
+	AnonymousAccess bool `yaml:"anonymous-access" json:"anonymous-access"`
 
-	KeyFile ResolvedPath `yaml:"key-file"`
+	KeyFile ResolvedPath `yaml:"key-file" json:"key-file"`
 
-	ReuseTokenFromUrl bool `yaml:"reuse-token-from-url"`
+	ReuseTokenFromUrl bool `yaml:"reuse-token-from-url" json:"reuse-token-from-url"`
 
-	TokenUrl string `yaml:"token-url"`
+	TokenUrl string `yaml:"token-url" json:"token-url"`
 }
 
 type GcsConnectionConfig struct {
-	BillingProject string `yaml:"billing-project"`
+	BillingProject string `yaml:"billing-project" json:"billing-project"`
 
-	ClientProtocol Protocol `yaml:"client-protocol"`
+	ClientProtocol Protocol `yaml:"client-protocol" json:"client-protocol"`
 
-	CustomEndpoint string `yaml:"custom-endpoint"`
+	CustomEndpoint string `yaml:"custom-endpoint" json:"custom-endpoint"`
 
-	EnableHttpDnsCache bool `yaml:"enable-http-dns-cache"`
+	EnableHttpDnsCache bool `yaml:"enable-http-dns-cache" json:"enable-http-dns-cache"`
 
-	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
+	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read" json:"experimental-enable-json-read"`
 
-	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address"`
+	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address" json:"experimental-local-socket-address"`
 
-	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
+	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size" json:"grpc-conn-pool-size"`
 
-	GrpcPathStrategy DirectPathStrategy `yaml:"grpc-path-strategy"`
+	GrpcPathStrategy DirectPathStrategy `yaml:"grpc-path-strategy" json:"grpc-path-strategy"`
 
-	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
+	HttpClientTimeout time.Duration `yaml:"http-client-timeout" json:"http-client-timeout"`
 
-	LimitBytesPerSec float64 `yaml:"limit-bytes-per-sec"`
+	LimitBytesPerSec float64 `yaml:"limit-bytes-per-sec" json:"limit-bytes-per-sec"`
 
-	LimitOpsPerSec float64 `yaml:"limit-ops-per-sec"`
+	LimitOpsPerSec float64 `yaml:"limit-ops-per-sec" json:"limit-ops-per-sec"`
 
-	MaxConnsPerHost int64 `yaml:"max-conns-per-host"`
+	MaxConnsPerHost int64 `yaml:"max-conns-per-host" json:"max-conns-per-host"`
 
-	MaxIdleConnsPerHost int64 `yaml:"max-idle-conns-per-host"`
+	MaxIdleConnsPerHost int64 `yaml:"max-idle-conns-per-host" json:"max-idle-conns-per-host"`
 
-	SequentialReadSizeMb int64 `yaml:"sequential-read-size-mb"`
+	SequentialReadSizeMb int64 `yaml:"sequential-read-size-mb" json:"sequential-read-size-mb"`
 }
 
 type GcsRetriesConfig struct {
-	ChunkRetryDeadlineSecs int64 `yaml:"chunk-retry-deadline-secs"`
+	ChunkRetryDeadlineSecs int64 `yaml:"chunk-retry-deadline-secs" json:"chunk-retry-deadline-secs"`
 
-	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
+	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs" json:"chunk-transfer-timeout-secs"`
 
-	EnableMountRetries bool `yaml:"enable-mount-retries"`
+	EnableMountRetries bool `yaml:"enable-mount-retries" json:"enable-mount-retries"`
 
-	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
+	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry" json:"experimental-nonrapid-folder-api-stall-retry"`
 
-	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
+	MaxRetryAttempts int64 `yaml:"max-retry-attempts" json:"max-retry-attempts"`
 
-	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
+	MaxRetrySleep time.Duration `yaml:"max-retry-sleep" json:"max-retry-sleep"`
 
-	Multiplier float64 `yaml:"multiplier"`
+	Multiplier float64 `yaml:"multiplier" json:"multiplier"`
 
-	ReadStall ReadStallGcsRetriesConfig `yaml:"read-stall"`
+	ReadStall ReadStallGcsRetriesConfig `yaml:"read-stall" json:"read-stall"`
 }
 
 type ListConfig struct {
-	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
+	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders" json:"enable-empty-managed-folders"`
 }
 
 type LogRotateLoggingConfig struct {
-	BackupFileCount int64 `yaml:"backup-file-count"`
+	BackupFileCount int64 `yaml:"backup-file-count" json:"backup-file-count"`
 
-	Compress bool `yaml:"compress"`
+	Compress bool `yaml:"compress" json:"compress"`
 
-	MaxFileSizeMb int64 `yaml:"max-file-size-mb"`
+	MaxFileSizeMb int64 `yaml:"max-file-size-mb" json:"max-file-size-mb"`
 }
 
 type LoggingConfig struct {
-	FilePath ResolvedPath `yaml:"file-path"`
+	FilePath ResolvedPath `yaml:"file-path" json:"file-path"`
 
-	Format string `yaml:"format"`
+	Format string `yaml:"format" json:"format"`
 
-	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
+	LogRotate LogRotateLoggingConfig `yaml:"log-rotate" json:"log-rotate"`
 
-	Severity LogSeverity `yaml:"severity"`
+	Severity LogSeverity `yaml:"severity" json:"severity"`
 
-	WireLog ResolvedPath `yaml:"wire-log"`
+	WireLog ResolvedPath `yaml:"wire-log" json:"wire-log"`
 }
 
 type MetadataCacheConfig struct {
-	DeprecatedStatCacheCapacity int64 `yaml:"deprecated-stat-cache-capacity"`
+	DeprecatedStatCacheCapacity int64 `yaml:"deprecated-stat-cache-capacity" json:"deprecated-stat-cache-capacity"`
 
-	DeprecatedStatCacheTtl time.Duration `yaml:"deprecated-stat-cache-ttl"`
+	DeprecatedStatCacheTtl time.Duration `yaml:"deprecated-stat-cache-ttl" json:"deprecated-stat-cache-ttl"`
 
-	DeprecatedTypeCacheTtl time.Duration `yaml:"deprecated-type-cache-ttl"`
+	DeprecatedTypeCacheTtl time.Duration `yaml:"deprecated-type-cache-ttl" json:"deprecated-type-cache-ttl"`
 
-	EnableMetadataPrefetch bool `yaml:"enable-metadata-prefetch"`
+	EnableMetadataPrefetch bool `yaml:"enable-metadata-prefetch" json:"enable-metadata-prefetch"`
 
-	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
+	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache" json:"enable-nonexistent-type-cache"`
 
-	ExperimentalEnableOptimizedMetadataCache bool `yaml:"experimental-enable-optimized-metadata-cache"`
+	ExperimentalEnableOptimizedMetadataCache bool `yaml:"experimental-enable-optimized-metadata-cache" json:"experimental-enable-optimized-metadata-cache"`
 
-	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
+	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount" json:"experimental-metadata-prefetch-on-mount"`
 
-	MetadataPrefetchEntriesLimit int64 `yaml:"metadata-prefetch-entries-limit"`
+	MetadataPrefetchEntriesLimit int64 `yaml:"metadata-prefetch-entries-limit" json:"metadata-prefetch-entries-limit"`
 
-	MetadataPrefetchMaxWorkers int64 `yaml:"metadata-prefetch-max-workers"`
+	MetadataPrefetchMaxWorkers int64 `yaml:"metadata-prefetch-max-workers" json:"metadata-prefetch-max-workers"`
 
-	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
+	NegativeTtlSecs int64 `yaml:"negative-ttl-secs" json:"negative-ttl-secs"`
 
-	StatCacheMaxSizeMb int64 `yaml:"stat-cache-max-size-mb"`
+	StatCacheMaxSizeMb int64 `yaml:"stat-cache-max-size-mb" json:"stat-cache-max-size-mb"`
 
-	TtlSecs int64 `yaml:"ttl-secs"`
+	TtlSecs int64 `yaml:"ttl-secs" json:"ttl-secs"`
 
-	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb"`
+	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb" json:"type-cache-max-size-mb"`
 }
 
 type MetricsConfig struct {
-	BufferSize int64 `yaml:"buffer-size"`
+	BufferSize int64 `yaml:"buffer-size" json:"buffer-size"`
 
-	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
+	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs" json:"cloud-metrics-export-interval-secs"`
 
-	ExperimentalEnableGrpcMetrics bool `yaml:"experimental-enable-grpc-metrics"`
+	ExperimentalEnableGrpcMetrics bool `yaml:"experimental-enable-grpc-metrics" json:"experimental-enable-grpc-metrics"`
 
-	PrometheusPort int64 `yaml:"prometheus-port"`
+	PrometheusPort int64 `yaml:"prometheus-port" json:"prometheus-port"`
 
-	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
+	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval" json:"stackdriver-export-interval"`
 
-	UseNewNames bool `yaml:"use-new-names"`
+	UseNewNames bool `yaml:"use-new-names" json:"use-new-names"`
 
-	Workers int64 `yaml:"workers"`
+	Workers int64 `yaml:"workers" json:"workers"`
 }
 
 type MrdConfig struct {
-	PoolSize int64 `yaml:"pool-size"`
+	PoolSize int64 `yaml:"pool-size" json:"pool-size"`
 }
 
 type ReadConfig struct {
-	BlockSizeMb int64 `yaml:"block-size-mb"`
+	BlockSizeMb int64 `yaml:"block-size-mb" json:"block-size-mb"`
 
-	EnableBufferedRead bool `yaml:"enable-buffered-read"`
+	EnableBufferedRead bool `yaml:"enable-buffered-read" json:"enable-buffered-read"`
 
-	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
+	GlobalMaxBlocks int64 `yaml:"global-max-blocks" json:"global-max-blocks"`
 
-	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
+	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout" json:"inactive-stream-timeout"`
 
-	MaxBlocksPerHandle int64 `yaml:"max-blocks-per-handle"`
+	MaxBlocksPerHandle int64 `yaml:"max-blocks-per-handle" json:"max-blocks-per-handle"`
 
-	MinBlocksPerHandle int64 `yaml:"min-blocks-per-handle"`
+	MinBlocksPerHandle int64 `yaml:"min-blocks-per-handle" json:"min-blocks-per-handle"`
 
-	RandomSeekThreshold int64 `yaml:"random-seek-threshold"`
+	RandomSeekThreshold int64 `yaml:"random-seek-threshold" json:"random-seek-threshold"`
 
-	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
+	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle" json:"start-blocks-per-handle"`
 }
 
 type ReadStallGcsRetriesConfig struct {
-	Enable bool `yaml:"enable"`
+	Enable bool `yaml:"enable" json:"enable"`
 
-	InitialReqTimeout time.Duration `yaml:"initial-req-timeout"`
+	InitialReqTimeout time.Duration `yaml:"initial-req-timeout" json:"initial-req-timeout"`
 
-	MaxReqTimeout time.Duration `yaml:"max-req-timeout"`
+	MaxReqTimeout time.Duration `yaml:"max-req-timeout" json:"max-req-timeout"`
 
-	MinReqTimeout time.Duration `yaml:"min-req-timeout"`
+	MinReqTimeout time.Duration `yaml:"min-req-timeout" json:"min-req-timeout"`
 
-	ReqIncreaseRate float64 `yaml:"req-increase-rate"`
+	ReqIncreaseRate float64 `yaml:"req-increase-rate" json:"req-increase-rate"`
 
-	ReqTargetPercentile float64 `yaml:"req-target-percentile"`
+	ReqTargetPercentile float64 `yaml:"req-target-percentile" json:"req-target-percentile"`
 }
 
 type TraceConfig struct {
-	Exporters []string `yaml:"exporters"`
+	Exporters []string `yaml:"exporters" json:"exporters"`
 
-	ProjectId string `yaml:"project-id"`
+	ProjectId string `yaml:"project-id" json:"project-id"`
 
-	SamplingRatio float64 `yaml:"sampling-ratio"`
+	SamplingRatio float64 `yaml:"sampling-ratio" json:"sampling-ratio"`
 }
 
 type WorkloadInsightConfig struct {
-	ForwardMergeThresholdMb int64 `yaml:"forward-merge-threshold-mb"`
+	ForwardMergeThresholdMb int64 `yaml:"forward-merge-threshold-mb" json:"forward-merge-threshold-mb"`
 
-	OutputFile string `yaml:"output-file"`
+	OutputFile string `yaml:"output-file" json:"output-file"`
 
-	Visualize bool `yaml:"visualize"`
+	Visualize bool `yaml:"visualize" json:"visualize"`
 }
 
 type WriteConfig struct {
-	BlockSizeMb int64 `yaml:"block-size-mb"`
+	BlockSizeMb int64 `yaml:"block-size-mb" json:"block-size-mb"`
 
-	CreateEmptyFile bool `yaml:"create-empty-file"`
+	CreateEmptyFile bool `yaml:"create-empty-file" json:"create-empty-file"`
 
-	EnableRapidAppends bool `yaml:"enable-rapid-appends"`
+	EnableRapidAppends bool `yaml:"enable-rapid-appends" json:"enable-rapid-appends"`
 
-	EnableRapidWrites bool `yaml:"enable-rapid-writes"`
+	EnableRapidWrites bool `yaml:"enable-rapid-writes" json:"enable-rapid-writes"`
 
-	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
+	EnableStreamingWrites bool `yaml:"enable-streaming-writes" json:"enable-streaming-writes"`
 
-	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
+	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid" json:"finalize-file-for-rapid"`
 
-	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
+	GlobalMaxBlocks int64 `yaml:"global-max-blocks" json:"global-max-blocks"`
 
-	MaxBlocksPerFile int64 `yaml:"max-blocks-per-file"`
+	MaxBlocksPerFile int64 `yaml:"max-blocks-per-file" json:"max-blocks-per-file"`
 }
 
 func BuildFlagSet(flagSet *pflag.FlagSet) error {

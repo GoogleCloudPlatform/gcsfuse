@@ -48,7 +48,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +60,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -72,7 +72,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), true)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -276,6 +276,26 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig), "testFS-123")
 
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentWithConfig_SanitizationAndSerialization() {
+	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
+	mountConfig := &cfg.Config{}
+
+	userAgent := getUserAgentWithConfig("AppName", getConfigForUserAgent(mountConfig), mountConfig, "testFS-123")
+
+	expectedConfigJson, _ := cfg.SerializeConfigToGzippedJSONBase64(mountConfig)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (CfgJson:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigJson))
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentWithConfig_NilConfig() {
+	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
+
+	userAgent := getUserAgentWithConfig("AppName", "0:0:0:0:0:0", nil, "testFS-123")
+
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (CfgJson:) (mount-id:testFS-123)", common.GetVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 

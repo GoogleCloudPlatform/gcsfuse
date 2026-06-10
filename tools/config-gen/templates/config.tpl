@@ -114,7 +114,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 {{range .TypeTemplateData}}
 type {{ .TypeName}} struct {
   {{- range $idx, $fld := .Fields}}
-  {{ $fld.FieldName}} {{ $fld.DataType}} {{$bt}}yaml:"{{$fld.ConfigPath}}"{{$bt}}
+  {{ $fld.FieldName}} {{ $fld.DataType}} {{$bt}}yaml:"{{$fld.ConfigPath}}" json:"{{$fld.ConfigPath}}"{{$bt}}
 {{end}}
 }
 {{end}}
