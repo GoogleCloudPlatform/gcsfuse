@@ -167,13 +167,6 @@ params:
     default: false
     hide-flag: true
 
-  - config-path: "disable-list-access-check"
-    flag-name: "disable-list-access-check"
-    type: "bool"
-    usage: "Disables the list object based access check during mount operation"
-    default: true
-    hide-flag: true
-
   - config-path: "dummy-io.enable"
     flag-name: "enable-dummy-io"
     type: "bool"
@@ -453,6 +446,17 @@ params:
     type: "octal"
     usage: "Permissions bits for files, in octal."
     default: "0644"
+
+  - config-path: "file-system.fuse-max-pages-limit"
+    flag-name: "fuse-max-pages-limit"
+    type: "int"
+    usage: >-
+      Sets the limit for the maximum number of pages that fuse can process in a
+      single request. This is a global, machine-level configuration that applies across all mounts.
+      To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if
+      the specified value is greater than the current system limit.
+    default: "DefaultFuseMaxPagesLimit()"
+    hide-flag: true
 
   - config-path: "file-system.fuse-options"
     flag-name: "o"
@@ -945,7 +949,7 @@ params:
     usage: >-
       Enables background prefetching of object metadata when a directory is first opened. 
       This reduces latency for subsequent file lookups by pre-filling the metadata cache.
-    default: false
+    default: true
     deprecated: false
     hide-flag: false
 
@@ -959,6 +963,12 @@ params:
       is set, then if we create the same file/node in the meantime using the same
       mount, since we are not refreshing the cache, it will still return nil.
       This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.
+    default: false
+
+  - config-path: "metadata-cache.experimental-enable-optimized-metadata-cache"
+    flag-name: "experimental-enable-optimized-metadata-cache"
+    type: "bool"
+    usage: "This flag enables the radix tree based lru cache"
     default: false
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
@@ -1287,8 +1297,8 @@ params:
     usage: "Enables streaming uploads during write file operation."
     default: true
 
-  - config-path: "write.finalize-file-on-close"
-    flag-name: "finalize-file-on-close"
+  - config-path: "write.finalize-file-for-rapid"
+    flag-name: "finalize-file-for-rapid"
     type: "bool"
     usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
     default: false

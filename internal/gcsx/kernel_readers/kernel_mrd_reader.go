@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package kernel_readers
 
 import (
 	"context"
@@ -20,25 +20,26 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// MrdKernelReader is a reader that uses an MRD Instance to read data from a GCS object.
+// KernelMRDReader is a reader that uses an MRD Instance to read data from a GCS object.
 // This reader is kernel-optimized compared to the GCSReader as it doesn't have complex logic
 // to switch between sequential and random read strategies.
-type MrdKernelReader struct {
+type KernelMRDReader struct {
 	mrdInstanceInUse atomic.Bool
-	mrdInstance      *MrdInstance
+	mrdInstance      *gcsx.MrdInstance
 	metrics          metrics.MetricHandle
 }
 
-// NewMrdKernelReader creates a new MrdKernelReader that uses the provided
+// NewKernelMRDReader creates a new KernelMRDReader that uses the provided
 // MrdInstance to manage MRD connections.
-func NewMrdKernelReader(mrdInstance *MrdInstance, metricsHandle metrics.MetricHandle) *MrdKernelReader {
-	return &MrdKernelReader{
+func NewKernelMRDReader(mrdInstance *gcsx.MrdInstance, metricsHandle metrics.MetricHandle) *KernelMRDReader {
+	return &KernelMRDReader{
 		mrdInstance: mrdInstance,
 		metrics:     metricsHandle,
 	}
@@ -66,57 +67,66 @@ func isShortRead(bytesRead int, bufferSize int, err error) bool {
 	return false
 }
 
+// ReaderName returns the name of the reader.
+func (kmr *KernelMRDReader) ReaderName() string {
+	return "KernelMRDReader"
+}
+
+// CheckInvariants performs internal consistency checks on the reader state.
+func (kmr *KernelMRDReader) CheckInvariants() {
+}
+
 // ReadAt reads data into the provided request buffer starting at the specified
 // offset. It retrieves an available MRD entry and uses it to download the
 // requested byte range.
-func (mkr *MrdKernelReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
+func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	// If the destination buffer is empty, there's nothing to read.
 	if len(req.Buffer) == 0 {
-		return ReadResponse{}, nil
+		return gcsx.ReadResponse{}, nil
 	}
 
 	// mrdInstance is set to nil in Destroy which will be called only after all active Read operations
 	// have finished. Hence, not taking RLock to access it.
-	if mkr.mrdInstance == nil {
-		return ReadResponse{}, fmt.Errorf("MrdKernelReader: mrdInstance is nil")
+	if kmr.mrdInstance == nil {
+		return gcsx.ReadResponse{}, fmt.Errorf("KernelMRDReader: mrdInstance is nil")
 	}
 
-	if mkr.mrdInstanceInUse.CompareAndSwap(false, true) {
-		mkr.mrdInstance.IncrementRefCount()
+	if kmr.mrdInstanceInUse.CompareAndSwap(false, true) {
+		kmr.mrdInstance.IncrementRefCount()
 	}
 
 	var bytesRead int
 	defer func() {
-		metrics.CaptureGCSReadMetrics(mkr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
-		mkr.metrics.GcsReadBytesCount(int64(bytesRead))
+		metrics.CaptureGCSReadMetrics(kmr.metrics, metrics.ReadTypeParallelAttr, int64(bytesRead))
+		kmr.metrics.GcsReadBytesCount(int64(bytesRead))
 	}()
 
 	var err error
-	bytesRead, err = mkr.mrdInstance.Read(ctx, req.Buffer, req.Offset, mkr.metrics)
+	bytesRead, err = kmr.mrdInstance.Read(ctx, req.Buffer, req.Offset, kmr.metrics)
 	if isShortRead(bytesRead, len(req.Buffer), err) {
 		logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, len(req.Buffer))
-		if err = mkr.mrdInstance.RecreateMRD(); err != nil {
+		if err = kmr.mrdInstance.RecreateMRD(); err != nil {
 			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
 		}
 		retryOffset := req.Offset + int64(bytesRead)
 		retryBuffer := req.Buffer[bytesRead:]
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = mkr.mrdInstance.Read(ctx, retryBuffer, retryOffset, mkr.metrics)
+		bytesReadOnRetry, err = kmr.mrdInstance.Read(ctx, retryBuffer, retryOffset, kmr.metrics)
 		bytesRead += bytesReadOnRetry
 	}
-	return ReadResponse{Size: bytesRead}, err
+	return gcsx.ReadResponse{Size: bytesRead}, err
 }
 
 // Destroy cleans up the resources used by the reader, primarily by destroying
 // the associated MrdInstance. This should be called when the reader is no
 // longer needed.
-func (mkr *MrdKernelReader) Destroy() {
+func (kmr *KernelMRDReader) Destroy() {
 	// No need to take lock as Destroy will only be called when file handle is being released
 	// and there will be no read calls at that point.
-	if mkr.mrdInstance != nil {
-		if mkr.mrdInstanceInUse.CompareAndSwap(true, false) {
-			mkr.mrdInstance.DecrementRefCount()
+	if kmr.mrdInstance != nil {
+		if kmr.mrdInstanceInUse.CompareAndSwap(true, false) {
+			kmr.mrdInstance.DecrementRefCount()
 		}
-		mkr.mrdInstance = nil
+		kmr.mrdInstance = nil
 	}
 }

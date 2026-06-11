@@ -283,7 +283,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedWriteGlobalMaxBlocks  int64
 		expectedWriteMaxBlocksPerFile int64
 		expectedEnableRapidWrites     bool
-		expectedFinalizeFileOnClose   bool
+		expectedFinalizeFileForRapid  bool
 	}{
 		{
 			name:                          "Test create-empty-file flag true works when streaming writes are explicitly disabled.",
@@ -434,8 +434,8 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
-			name:                          "Test enable-rapid-writes and finalize-file-on-close flags.",
-			args:                          []string{"gcsfuse", "--enable-rapid-writes=true", "--finalize-file-on-close=true", "abc", "pqr"},
+			name:                          "Test enable-rapid-writes and finalize-file-for-rapid flags.",
+			args:                          []string{"gcsfuse", "--enable-rapid-writes=true", "--finalize-file-for-rapid=true", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
@@ -443,7 +443,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 			expectedEnableRapidWrites:     true,
-			expectedFinalizeFileOnClose:   true,
+			expectedFinalizeFileForRapid:  true,
 		},
 	}
 
@@ -466,7 +466,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 				assert.Equal(t, tc.expectedEnableRapidAppends, wc.EnableRapidAppends)
 				assert.Equal(t, tc.expectedEnableRapidWrites, wc.EnableRapidWrites)
-				assert.Equal(t, tc.expectedFinalizeFileOnClose, wc.FinalizeFileOnClose)
+				assert.Equal(t, tc.expectedFinalizeFileForRapid, wc.FinalizeFileForRapid)
 			}
 		})
 	}
@@ -955,6 +955,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		ExperimentalEnableDentryCache: false,
 		ExperimentalEnableReaddirplus: false,
 		FileMode:                      0644,
+		FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
 		FuseOptions:                   []string{},
 		Gid:                           -1,
 		IgnoreInterrupts:              true,
@@ -982,6 +983,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--experimental-enable-dentry-cache", "--experimental-enable-readdirplus", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                       0777,
 					DisableParallelDirops:         true,
 					ExperimentalEnableDentryCache: true,
@@ -1004,6 +1006,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1026,6 +1029,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1050,6 +1054,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1074,6 +1079,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--rename-dir-limit=15000", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1153,6 +1159,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--experimental-o-direct", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1169,6 +1176,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--experimental-enable-pirlo", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:       int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                 0755,
 					FileMode:                0644,
 					FuseOptions:             []string{},
@@ -1185,6 +1193,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--max-read-ahead-kb=1024", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1202,6 +1211,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1218,6 +1228,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--max-background=512", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1235,6 +1246,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1252,6 +1264,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--congestion-threshold=256", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1269,6 +1282,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1286,6 +1300,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--enable-kernel-reader", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1303,6 +1318,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1320,6 +1336,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--kernel-params-file=/tmp/params", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1337,6 +1354,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  kernel-params-file: /tmp/config_params"), "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1703,43 +1721,6 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	}
 }
 
-func TestArgsParsing_DisableListAccessCheckFlag(t *testing.T) {
-	tests := []struct {
-		name                           string
-		args                           []string
-		expectedDisableListAccessCheck bool
-	}{
-		{
-			name:                           "default",
-			args:                           []string{"gcsfuse", "abc", "pqr"},
-			expectedDisableListAccessCheck: true,
-		},
-		{
-			name:                           "normal",
-			args:                           []string{"gcsfuse", "--disable-list-access-check=false", "abc", "pqr"},
-			expectedDisableListAccessCheck: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var gotDisableListAccessCheck bool
-			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
-				gotDisableListAccessCheck = mountInfo.config.DisableListAccessCheck
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedDisableListAccessCheck, gotDisableListAccessCheck)
-			}
-		})
-	}
-}
-
 func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 	tests := []struct {
 		name                    string
@@ -1980,7 +1961,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
@@ -2000,7 +1981,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
@@ -2020,7 +2001,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  1024,
 					TtlSecs:                             9223372036,
@@ -2060,7 +2041,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          true,
 					ExperimentalMetadataPrefetchOnMount: "async",
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					MetadataPrefetchEntriesLimit:        5000,
 					StatCacheMaxSizeMb:                  4,
 					TtlSecs:                             120,

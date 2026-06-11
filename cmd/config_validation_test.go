@@ -588,6 +588,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:      int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -608,6 +609,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/file_system_config/unset_file_system_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:      int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -628,6 +630,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxPagesLimit:      int64(cfg.DefaultFuseMaxPagesLimit()),
 					DirMode:                0777,
 					DisableParallelDirops:  true,
 					FileMode:               0666,
@@ -727,40 +730,6 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 	}
 }
 
-func TestValidateConfigFile_DisableListAccessCheckSuccessful(t *testing.T) {
-	testCases := []struct {
-		name           string
-		configFile     string
-		expectedConfig *cfg.Config
-	}{
-		{
-			// Test default values.
-			name:       "empty_config_file",
-			configFile: "testdata/empty_file.yaml",
-			expectedConfig: &cfg.Config{
-				DisableListAccessCheck: true,
-			},
-		},
-		{
-			name:       "valid_config_file",
-			configFile: "testdata/valid_config.yaml",
-			expectedConfig: &cfg.Config{
-				DisableListAccessCheck: false,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
-
-			if assert.NoError(t, err) {
-				assert.EqualValues(t, tc.expectedConfig.DisableListAccessCheck, gotConfig.DisableListAccessCheck)
-			}
-		})
-	}
-}
-
 func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -779,7 +748,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					MetadataPrefetchEntriesLimit:        5000,
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
@@ -797,7 +766,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					DeprecatedStatCacheTtl:              30 * time.Second,
 					DeprecatedTypeCacheTtl:              20 * time.Second,
 					EnableNonexistentTypeCache:          true,
-					EnableMetadataPrefetch:              true,
+					EnableMetadataPrefetch:              false,
 					MetadataPrefetchMaxWorkers:          5,
 					MetadataPrefetchEntriesLimit:        50,
 					ExperimentalMetadataPrefetchOnMount: "sync",

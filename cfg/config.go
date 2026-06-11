@@ -58,7 +58,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
-}, "write.finalize-file-on-close": {
+}, "write.finalize-file-for-rapid": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
 			BucketType: "zonal",
@@ -288,14 +288,14 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
-	if !v.IsSet("write.finalize-file-on-close") {
-		rules := AllFlagOptimizationRules["write.finalize-file-on-close"]
-		result := getOptimizedValue(&rules, c.Write.FinalizeFileOnClose, profileName, machineType, input, machineTypeToGroupMap)
+	if !v.IsSet("write.finalize-file-for-rapid") {
+		rules := AllFlagOptimizationRules["write.finalize-file-for-rapid"]
+		result := getOptimizedValue(&rules, c.Write.FinalizeFileForRapid, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
-				if c.Write.FinalizeFileOnClose != val {
-					c.Write.FinalizeFileOnClose = val
-					optimizedFlags["write.finalize-file-on-close"] = result
+				if c.Write.FinalizeFileForRapid != val {
+					c.Write.FinalizeFileForRapid = val
+					optimizedFlags["write.finalize-file-for-rapid"] = result
 				}
 			}
 		}
@@ -440,8 +440,6 @@ type Config struct {
 
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
-	DisableListAccessCheck bool `yaml:"disable-list-access-check"`
-
 	DummyIo DummyIoConfig `yaml:"dummy-io"`
 
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
@@ -568,6 +566,8 @@ type FileSystemConfig struct {
 
 	FileMode Octal `yaml:"file-mode"`
 
+	FuseMaxPagesLimit int64 `yaml:"fuse-max-pages-limit"`
+
 	FuseOptions []string `yaml:"fuse-options"`
 
 	Gid int64 `yaml:"gid"`
@@ -684,6 +684,8 @@ type MetadataCacheConfig struct {
 
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
 
+	ExperimentalEnableOptimizedMetadataCache bool `yaml:"experimental-enable-optimized-metadata-cache"`
+
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
 
 	MetadataPrefetchEntriesLimit int64 `yaml:"metadata-prefetch-entries-limit"`
@@ -778,7 +780,7 @@ type WriteConfig struct {
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
-	FinalizeFileOnClose bool `yaml:"finalize-file-on-close"`
+	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -909,12 +911,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("disable-list-access-check", "", true, "Disables the list object based access check during mount operation")
-
-	if err := flagSet.MarkHidden("disable-list-access-check"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
@@ -985,7 +981,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+	flagSet.BoolP("enable-metadata-prefetch", "", true, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
 	flagSet.BoolP("enable-mount-retries", "", false, "If true, enables retry logic in GCSFuse during the mount sequence  for additional errors (such as metadata server readiness delays, IAM propagation  delays, and temporary bucket non-existence). Intended specifically for the  GKE GCSFuse CSI Driver.")
 
@@ -1048,6 +1044,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("experimental-enable-optimized-metadata-cache", "", false, "This flag enables the radix tree based lru cache")
 
 	flagSet.BoolP("experimental-enable-pirlo", "", false, "Enables support for pirlo.")
 
@@ -1151,13 +1149,19 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
-	flagSet.BoolP("finalize-file-on-close", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
+	flagSet.BoolP("finalize-file-for-rapid", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
 
-	if err := flagSet.MarkHidden("finalize-file-on-close"); err != nil {
+	if err := flagSet.MarkHidden("finalize-file-for-rapid"); err != nil {
 		return err
 	}
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
+
+	flagSet.IntP("fuse-max-pages-limit", "", DefaultFuseMaxPagesLimit(), "Sets the limit for the maximum number of pages that fuse can process in a single request. This is a global, machine-level configuration that applies across all mounts. To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if the specified value is greater than the current system limit.")
+
+	if err := flagSet.MarkHidden("fuse-max-pages-limit"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
@@ -1540,10 +1544,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("disable-list-access-check", flagSet.Lookup("disable-list-access-check")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
 		return err
 	}
@@ -1652,6 +1652,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("metadata-cache.experimental-enable-optimized-metadata-cache", flagSet.Lookup("experimental-enable-optimized-metadata-cache")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.experimental-enable-pirlo", flagSet.Lookup("experimental-enable-pirlo")); err != nil {
 		return err
 	}
@@ -1744,11 +1748,15 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("write.finalize-file-on-close", flagSet.Lookup("finalize-file-on-close")); err != nil {
+	if err := v.BindPFlag("write.finalize-file-for-rapid", flagSet.Lookup("finalize-file-for-rapid")); err != nil {
 		return err
 	}
 
 	if err := v.BindPFlag("foreground", flagSet.Lookup("foreground")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-max-pages-limit", flagSet.Lookup("fuse-max-pages-limit")); err != nil {
 		return err
 	}
 

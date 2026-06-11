@@ -188,8 +188,8 @@ func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool, openMode ut
 
 func (t *FileTest) validateMrdInstanceMinObject() {
 	t.T().Helper()
-	// Validate only for zonal buckets
-	if t.in.bucket.BucketType().Zonal {
+	// Validate only for rapid buckets
+	if t.in.bucket.BucketType().IsRapid() {
 		// Validate MinObject in inode and MRDInstance points to different copy of MinObject.
 		assert.NotSame(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
 		// Validate MinObject in MRDInstance is equal to the MinObject in inode.
@@ -199,8 +199,8 @@ func (t *FileTest) validateMrdInstanceMinObject() {
 
 func (t *FileTest) validateMrdWrapperMinObject() {
 	t.T().Helper()
-	// Validate only for zonal buckets
-	if t.in.bucket.BucketType().Zonal {
+	// Validate only for rapid buckets
+	if t.in.bucket.BucketType().IsRapid() {
 		// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
 		assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
 		// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
@@ -599,7 +599,7 @@ func (t *FileTest) TestTruncateNegative() {
 }
 
 func (t *FileTest) TestDestroy_MrdInstanceDestroyed() {
-	if !t.in.bucket.BucketType().Zonal {
+	if !t.in.bucket.BucketType().IsRapid() {
 		return
 	}
 	// Manually initialize MRD pool since FileInode.Read doesn't use it directly.

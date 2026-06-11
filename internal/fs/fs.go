@@ -281,10 +281,10 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
-		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
+		// Write post mount kernel settings for rapid buckets when kernel reader is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
 		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
-		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.IsRapid() && serverCfg.NewConfig.FileSystem.EnableKernelReader {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
@@ -2535,7 +2535,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 	default:
 		return fmt.Errorf("child inode (id %v) is not a file or symlink inode", child.ID())
 	}
-	if fs.enableAtomicRenameObject || child.Bucket().BucketType().Zonal {
+	if fs.enableAtomicRenameObject || child.Bucket().BucketType().IsRapid() {
 		return fs.atomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
 	return fs.nonAtomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
@@ -3103,9 +3103,9 @@ func (fs *fileSystem) ReadFile(
 		// Flush/Sync Pending streaming writes and issue read within same inode lock.
 		// With rapid buckets, we can read from unfinalized objects as well.
 		// Hence, there is no need to finalize the object from here for rapid buckets.
-		// Hence, if FinalizeFileOnClose is set, then we will call syncFile otherwise
-		// we can call flushFile (as it will not finalize when FinalizeFileOnClose is false) itself.
-		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileOnClose {
+		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
+		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
+		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileForRapid {
 			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())
@@ -3124,7 +3124,7 @@ func (fs *fileSystem) ReadFile(
 			Buffer: op.Dst,
 			Offset: op.Offset,
 		}
-		resp, err = fh.ReadWithMrdKernelReader(ctx, req)
+		resp, err = fh.ReadWithKernelReader(ctx, req)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback

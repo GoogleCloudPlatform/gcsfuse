@@ -70,9 +70,6 @@ type BucketConfig struct {
 	ChunkTransferTimeoutSecs int64
 	TmpObjectPrefix          string
 
-	// Disable Initial ListObject API check during the mount operation.
-	DisableListAccessCheck bool
-
 	// Enable dummy I/O mode for testing purposes, simulated read without
 	// any data read from GCS.
 	// All the metadata operations like object listing and stats are real.
@@ -264,16 +261,6 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Fetch bucket type from storage layout api and set bucket type.
 	b.BucketType()
-
-	// TODO(b/471129209): Cleanup this code after confirming the GetStorageLayout is sufficient for bucket access checks.
-	if !bm.config.DisableListAccessCheck {
-		// Check whether this bucket works, giving the user a warning early if there
-		// is some problem.
-		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1, IncludeFoldersAsPrefixes: true, Delimiter: "/"})
-		if err != nil {
-			return
-		}
-	}
 
 	// Periodically garbage collect temporary objects
 	go garbageCollect(bm.gcCtx, bm.config.TmpObjectPrefix, sb)

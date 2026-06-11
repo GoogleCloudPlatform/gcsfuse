@@ -101,7 +101,8 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 	assert.Equal(g.T(), 3, strings.Count(logStr, "/google.storage.v2.Storage/GetObject"), "Expected 3 GetObject calls (1 for each operation)")
 	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/BidiWriteObject"), "Expected 1 BidiWriteObject call for writing the file")
 	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/ReadObject"), "Expected 1 ReadObject call for reading the file")
-	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/ListObjects"), "Expected 1 ListObjects call for listing the directory")
+	// Expected at least 1 ListObjects call - for listing the directory and potentially 1 extra due to async metadata prefetch
+	assert.GreaterOrEqual(g.T(), strings.Count(logStr, "/google.storage.v2.Storage/ListObjects"), 1, "Expected at least 1 ListObjects call - for listing the directory and potentially 1 extra due to async metadata prefetch")
 }
 
 func TestGRPCHeaderValidation(t *testing.T) {

@@ -44,6 +44,8 @@ func storageControlClientRetryOptions() []gax.CallOption {
 				codes.DeadlineExceeded,
 				codes.Internal,
 				codes.Unknown,
+				// TODO(b/518674297): Please incorporate the correct fix post resolution of oauth2 issue.
+				codes.Unauthenticated,
 			}, gax.Backoff{
 				Max:        30 * time.Second,
 				Multiplier: 2,

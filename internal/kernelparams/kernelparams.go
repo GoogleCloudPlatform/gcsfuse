@@ -31,6 +31,18 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+var readMaxPagesLimitFunc = func() (int, error) {
+	data, err := os.ReadFile("/proc/sys/fs/fuse/max_pages_limit")
+	if err != nil {
+		return 0, err
+	}
+	val, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse max_pages_limit: %w", err)
+	}
+	return val, nil
+}
+
 // KernelParamsManager wraps KernelParamsConfig with a mutex to ensure thread safety.
 type KernelParamsManager struct {
 	*KernelParamsConfig
@@ -108,7 +120,7 @@ func PathForParam(name ParamName, major, minor uint32) (string, error) {
 		return fmt.Sprintf("/sys/fs/fuse/connections/%d/congestion_threshold", minor), nil
 
 	case MaxPagesLimit:
-		return "/sys/module/fuse/parameters/max_pages_limit", nil
+		return "/proc/sys/fs/fuse/max_pages_limit", nil
 
 	case TransparentHugePages:
 		return "/sys/kernel/mm/transparent_hugepage/enabled", nil
@@ -189,6 +201,29 @@ func (m *KernelParamsManager) addParam(name ParamName, value string) {
 		Name:  name,
 		Value: value,
 	})
+}
+
+// ShouldUpdateMaxPagesLimit checks whether the FUSE max_pages_limit should be updated
+// to the requested limit based on the current host max_pages_limit value.
+func ShouldUpdateMaxPagesLimit(limit int) bool {
+	if limit <= 0 {
+		return false
+	}
+
+	currentLimit, err := readMaxPagesLimitFunc()
+	if err != nil {
+		// Since max_pages_limit is a shared machine level setting, we must only increase it.
+		// If we fail to read the current limit, we cannot safely verify if the requested
+		// limit is higher. To prevent lowering the shared machine level limit, we log a
+		// warning if we fail to read it, unless the failure is because the parameter
+		// is not supported or present on the host kernel.
+		if !os.IsNotExist(err) {
+			logger.Warnf("Failed to read current host max_pages_limit: %v. Should not configure max_pages_limit to avoid potentially lowering the shared machine level limit.", err)
+		}
+		return false
+	}
+
+	return limit > currentLimit
 }
 
 // SetMaxPagesLimit adds the max_pages_limit parameter to the config.

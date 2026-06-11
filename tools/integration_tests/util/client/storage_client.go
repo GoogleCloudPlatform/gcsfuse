@@ -745,3 +745,17 @@ func ListDirectory(ctx context.Context, client *storage.Client, bucketName, pref
 
 	return uniqueEntries, nil
 }
+
+// CheckBucketAccess checks if the given bucket is accessible using the provided storage client.
+func CheckBucketAccess(ctx context.Context, client *storage.Client, bucketName string) bool {
+	if bucketName == "" {
+		return false
+	}
+	bucket := getBucketHandle(client, bucketName)
+	_, err := bucket.Attrs(ctx)
+	if err != nil {
+		log.Printf("CheckBucketAccess: bucket %q not accessible: %v", bucketName, err)
+		return false
+	}
+	return true
+}

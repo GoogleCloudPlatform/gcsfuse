@@ -119,8 +119,9 @@ func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetry
 // It performs time-bound, exponential backoff retries for a given API call.
 // It is expected that the given apiCall returns a structure, and not an HTTP response,
 // so that it does not leave behind any trace of a pending operation on server.
-// It also has an option to control the log level of the logs during retry
-// and accepts a custom shouldRetry predicate function.
+// It also has an option to control the log level of the initial attempt log,
+// while subsequent retries are always logged at Warning level.
+// It also accepts a custom shouldRetry predicate function.
 func ExecuteWithCustomShouldRetryAtLogLevel[T any](
 	ctx context.Context,
 	config *RetryConfig,
@@ -128,7 +129,7 @@ func ExecuteWithCustomShouldRetryAtLogLevel[T any](
 	reqDescription string,
 	apiCall func(attemptCtx context.Context) (T, error),
 	shouldRetry func(err error) bool,
-	logLevel slog.Level, // Used to log the retry logs at the supplied log level
+	logLevel slog.Level, // Used to log the initial attempt at the supplied log level. Subsequent retries are logged at Warning level.
 ) (T, error) {
 	var zero T
 	// If the context is already cancelled, return immediately.
@@ -141,16 +142,18 @@ func ExecuteWithCustomShouldRetryAtLogLevel[T any](
 
 	// Create a new backoff controller specific to this api call.
 	backoff := newExponentialBackoff(&config.BackoffConfig)
+	var lastErr error
 	for i := 0; ; i++ {
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
 
 		if i == 0 {
 			logger.GetLogFHandler(logLevel)("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
 		} else {
-			logger.GetLogFHandler(logLevel)("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+			logger.GetLogFHandler(logger.LevelWarn)("Retrying %s for %q with deadline=%v (error: %v) ...", operationName, reqDescription, config.RetryDeadline, lastErr)
 		}
 
 		result, err := apiCall(attemptCtx)
+		lastErr = err
 		// Cancel attemptCtx after it is no longer needed, to free up its resources.
 		attemptCancel()
 
@@ -180,7 +183,7 @@ func ExecuteWithCustomShouldRetryAtLogLevel[T any](
 	}
 }
 
-// ExecuteWithCustomShouldRetry retries a given operation using a custom shouldRetry predicate, but logs all logs at trace level.
+// ExecuteWithCustomShouldRetry retries a given operation using a custom shouldRetry predicate, logging the initial attempt at trace level.
 func ExecuteWithCustomShouldRetry[T any](
 	ctx context.Context,
 	config *RetryConfig,
@@ -196,19 +199,20 @@ func ExecuteWithCustomShouldRetry[T any](
 // It performs time-bound, exponential backoff retries for a given API call.
 // It is expected that the given apiCall returns a structure, and not an HTTP response,
 // so that it does not leave behind any trace of a pending operation on server.
-// It also has an option to control the log level of the logs during retry
+// It also has an option to control the log level of the initial attempt log,
+// while subsequent retries are always logged at Warning level.
 func ExecuteWithRetryAtLogLevel[T any](
 	ctx context.Context,
 	config *RetryConfig,
 	operationName string,
 	reqDescription string,
 	apiCall func(attemptCtx context.Context) (T, error),
-	logLevel slog.Level, // Used to log the retry logs at the supplied log level
+	logLevel slog.Level, // Used to log the initial attempt at the supplied log level. Subsequent retries are logged at Warning level.
 ) (T, error) {
-	return ExecuteWithCustomShouldRetryAtLogLevel(ctx, config, operationName, reqDescription, apiCall, ShouldRetry, logLevel)
+	return ExecuteWithCustomShouldRetryAtLogLevel(ctx, config, operationName, reqDescription, apiCall, ShouldRetryWithoutLogging, logLevel)
 }
 
-// ExecuteWithRetry retries a given operation but logs all logs at trace level
+// ExecuteWithRetry retries a given operation, logging the initial attempt at trace level.
 func ExecuteWithRetry[T any](
 	ctx context.Context,
 	config *RetryConfig,
@@ -216,5 +220,5 @@ func ExecuteWithRetry[T any](
 	reqDescription string,
 	apiCall func(attemptCtx context.Context) (T, error),
 ) (T, error) {
-	return ExecuteWithCustomShouldRetry(ctx, config, operationName, reqDescription, apiCall, ShouldRetry)
+	return ExecuteWithCustomShouldRetry(ctx, config, operationName, reqDescription, apiCall, ShouldRetryWithoutLogging)
 }

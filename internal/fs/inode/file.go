@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/kernel_readers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -129,9 +130,10 @@ type FileInode struct {
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
-	mrdInstance  *gcsx.MrdInstance
-	metricHandle metrics.MetricHandle
-	traceHandle  tracing.TraceHandle
+	mrdInstance               *gcsx.MrdInstance
+	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
+	metricHandle              metrics.MetricHandle
+	traceHandle               tracing.TraceHandle
 }
 
 var _ Inode = &FileInode{}
@@ -188,6 +190,8 @@ func NewFileInode(
 		if err != nil {
 			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 		}
+	} else {
+		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
 	f.lc.Init(id)
@@ -435,6 +439,11 @@ func (f *FileInode) GetMRDInstance() *gcsx.MrdInstance {
 	return f.mrdInstance
 }
 
+// Returns KernelRangeReaderInstance for this inode.
+func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeReaderInstance {
+	return f.kernelRangeReaderInstance
+}
+
 // If true, it is safe to serve reads directly from the object given by
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
@@ -511,13 +520,13 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 // LOCKS_REQUIRED(f.mu)
 // UpdateSize updates the size of the backing GCS object. It also calls
-// updateMRD to ensure that the multi-range downloader (which is used
-// for random reads) is aware of the new size. This prevents the downloader
-// from operating on stale object information.
+// updateReaders to ensure that the multi-range downloader and kernel range
+// readers are aware of the new size. This prevents the downloader/readers from
+// operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
 	f.attrs.Size = size
-	f.updateMRD()
+	f.updateReaders()
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -875,7 +884,7 @@ func (f *FileInode) SetMtime(
 			minObj = *minObjPtr
 		}
 		f.src = minObj
-		f.updateMRD()
+		f.updateReaders()
 		return
 	}
 
@@ -1064,7 +1073,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
 		// Update MRDWrapper
-		f.updateMRD()
+		f.updateReaders()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -1078,17 +1087,21 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 
 // Updates the min object stored in MRDWrapper & MRDInstance corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
-func (f *FileInode) updateMRD() {
-	// updateMRD will be a noop for regional bucket.
-	if !f.bucket.BucketType().Zonal {
+func (f *FileInode) updateReaders() {
+	minObj := f.Source()
+	if f.kernelRangeReaderInstance != nil {
+		f.kernelRangeReaderInstance.SetMinObject(minObj)
+	}
+
+	// This will be a noop for regional bucket.
+	if !f.bucket.BucketType().IsRapid() {
 		return
 	}
-	minObj := f.Source()
 	if err := f.mrdInstance.SetMinObject(minObj); err != nil {
-		logger.Errorf("FileInode::updateMRD Error in setting minObject for MrdInstance %v", err)
+		logger.Errorf("FileInode::updateReaders Error in setting minObject for MrdInstance %v", err)
 	}
 	if err := f.MRDWrapper.SetMinObject(minObj); err != nil {
-		logger.Errorf("FileInode::updateMRD Error in setting minObject for MRDWrapper %v", err)
+		logger.Errorf("FileInode::updateReaders Error in setting minObject for MRDWrapper %v", err)
 	}
 }
 

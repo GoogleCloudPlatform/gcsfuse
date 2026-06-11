@@ -105,6 +105,10 @@ func (t *IntegrationTest) TearDown() {
 }
 
 func (t *IntegrationTest) create(o *gcs.Object) {
+	if o.Finalized.IsZero() {
+		o.Finalized = t.clock.Now()
+	}
+
 	// Set up a reader.
 	rc, err := t.bucket.NewReaderWithReadHandle(
 		t.ctx,
