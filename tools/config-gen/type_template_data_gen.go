@@ -36,6 +36,7 @@ type fieldInfo struct {
 	FieldName  string
 	DataType   string
 	ConfigPath string
+	Sensitive  bool
 }
 
 type typeTemplateData struct {
@@ -99,9 +100,13 @@ func computeFields(param Param) ([]fieldInfo, error) {
 		}
 
 		var dt string
+		var sensitive bool
 		if idx == len(segments)-1 {
 			// Dealing with leaf field here.
 			dt = getGoDataType(param.Type)
+			if param.Sensitive != nil {
+				sensitive = *param.Sensitive
+			}
 		} else {
 			// Not a leaf field.
 			tn, err := capitalizeIdentifier(s)
@@ -116,6 +121,7 @@ func computeFields(param Param) ([]fieldInfo, error) {
 			FieldName:  fld,
 			DataType:   dt,
 			ConfigPath: s,
+			Sensitive:  sensitive,
 		})
 		typeName = dt
 	}

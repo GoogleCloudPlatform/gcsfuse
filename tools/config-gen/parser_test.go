@@ -188,11 +188,13 @@ params:
     type: "string"
     default: "gcsfuse"
     "usage": "Application name"
+    sensitive: false
   - config-path: "file-system.enable-kernel-reader"
     flag-name: "enable-kernel-reader"
     type: "bool"
     default: false
     "usage": "Whether to enable kernel-based reader"
+    sensitive: false
     optimizations:
       bucket-type-optimization:
         - bucket-type: zonal
@@ -208,6 +210,7 @@ params:
     type: "int"
     default: "128"
     "usage": "Maximum read ahead in KB"
+    sensitive: false
     optimizations:
       bucket-type-optimization:
         - bucket-type: zonal
@@ -229,6 +232,7 @@ params:
     type: "bool"
     default: false
     "usage": "Whether or not to enable implicit directories"
+    sensitive: false
     optimizations:
       machine-based-optimization:
         - group: high-performance
@@ -238,6 +242,7 @@ params:
     type: "int"
     default: "60"
     "usage": "Metadata cache TTL in seconds"
+    sensitive: false
     optimizations:
       machine-based-optimization:
         - group: high-performance
@@ -360,8 +365,14 @@ params:
 params:
   - flag-name: "my-flag"
     config-path: "a"
+    type: "string"
+    usage: "test"
+    sensitive: false
   - flag-name: "my-flag"
     config-path: "b"
+    type: "string"
+    usage: "test"
+    sensitive: false
 `,
 			expectedErrorSubstring: "duplicate",
 		},
@@ -411,6 +422,7 @@ params:
     type: "bool"
     default: false
     usage: "Test flag for bucket type validation"
+    sensitive: false
     optimizations:
       bucket-type-optimization:
         - bucket-type: "invalid-bucket-type"
