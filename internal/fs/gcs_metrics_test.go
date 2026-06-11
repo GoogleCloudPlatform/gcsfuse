@@ -470,11 +470,12 @@ func TestGCSMetrics_RetryCount(t *testing.T) {
 }
 
 type fakeBucketManagerForShortCircuit struct {
-	bucket gcs.Bucket
+	bucket  gcs.Bucket
+	tempDir string
 }
 
 func (bm *fakeBucketManagerForShortCircuit) SetUpBucket(ctx context.Context, name string, _ bool, _ metrics.MetricHandle) (gcsx.SyncerBucket, error) {
-	return gcsx.NewSyncerBucket(0, 120, 10, ".gcsfuse_tmp/", gcsx.NewContentTypeBucket(bm.bucket)), nil
+	return gcsx.NewSyncerBucket(0, 120, 10, bm.tempDir, gcsx.NewContentTypeBucket(bm.bucket)), nil
 }
 func (bm *fakeBucketManagerForShortCircuit) ShutDown() {}
 
@@ -513,7 +514,8 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 		CacheClock:   &timeutil.SimulatedClock{},
 		BucketName:   bucketName,
 		BucketManager: &fakeBucketManagerForShortCircuit{
-			bucket: cachedOuterBucket,
+			bucket:  cachedOuterBucket,
+			tempDir: t.TempDir(),
 		},
 	}
 	server, err := fs.NewFileSystem(ctx, serverCfg)
