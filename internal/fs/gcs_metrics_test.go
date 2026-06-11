@@ -517,6 +517,7 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 			bucket:  cachedOuterBucket,
 			tempDir: t.TempDir(),
 		},
+		ImplicitDirectories: true,
 	}
 	server, err := fs.NewFileSystem(ctx, serverCfg)
 	require.NoError(t, err, "NewFileSystem")
@@ -530,18 +531,24 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 	waitForMetricsProcessing()
 
 	// Assert
-	// Probing a missing file checks dir then file -> 2 actual backend network calls.
+	// Probing a missing file checks file (StatObject) and then implicit dir (ListObjects)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		2)
+		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "ListObjects")),
+		1)
 
 	// Act (Second Lookup - Negative Cache Hit)
 	_ = server.LookUpInode(ctx, lookupOp)
 	waitForMetricsProcessing()
 
 	// Assert
-	// Verify backend request count remains exactly 2 (zero new network requests emitted)
+	// StatObject is short-circuited (remains 1), but ListObjects is still called (becomes 2)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
+		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "ListObjects")),
 		2)
 }
