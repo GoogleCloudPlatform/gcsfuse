@@ -481,20 +481,17 @@ func (bm *fakeBucketManagerForShortCircuit) ShutDown() {}
 // TestGCSMetrics_RequestCount_NegativeCachingShortCircuit validates that when negative entry caching is enabled,
 // repeated lookups for non-existent files short-circuit in memory and do not emit redundant backend GCS requests.
 func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
+	// Arrange
 	ctx := context.Background()
 	origProvider := otel.GetMeterProvider()
 	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
 	reader := metric.NewManualReader()
 	provider := metric.NewMeterProvider(metric.WithReader(reader))
 	otel.SetMeterProvider(provider)
-
 	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
 	require.NoError(t, err, "metrics.NewOTelMetrics")
-
 	bucketName := "test-bucket"
 	rawBucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
-
-	// Enforce production wrapping order: Caching layer MUST wrap Monitoring layer.
 	monitoringInnerBucket := monitor.NewMonitoringBucket(rawBucket, mh)
 	lruCache := lru.NewCache(1024 * 1024)
 	statCacheView := metadata.NewStatCacheBucketView(lruCache, "")
@@ -507,7 +504,6 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 		true, // isTypeCacheDeprecated
 		true, // implicitDir
 	)
-
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{
 			EnableNewReader: true,
@@ -520,28 +516,28 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 			bucket: cachedOuterBucket,
 		},
 	}
-
 	server, err := fs.NewFileSystem(ctx, serverCfg)
 	require.NoError(t, err, "NewFileSystem")
-
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   "missing_file",
 	}
 
-	// 1. First Lookup (Cache Miss) -> Emits backend probes through monitoring layer
+	// Act (First Lookup - Cache Miss)
 	_ = server.LookUpInode(ctx, lookupOp)
 	waitForMetricsProcessing()
 
+	// Assert
 	// Probing a missing file checks dir then file -> 2 actual backend network calls.
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
 		2)
 
-	// 2. Second Lookup (Negative Cache Hit) -> Intercepted by outer cache layer
+	// Act (Second Lookup - Negative Cache Hit)
 	_ = server.LookUpInode(ctx, lookupOp)
 	waitForMetricsProcessing()
 
+	// Assert
 	// Verify backend request count remains exactly 2 (zero new network requests emitted)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
