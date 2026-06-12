@@ -482,7 +482,6 @@ func (bm *fakeBucketManagerForShortCircuit) ShutDown() {}
 // TestGCSMetrics_RequestCount_NegativeCachingShortCircuit validates that when negative entry caching is enabled,
 // repeated lookups for non-existent files short-circuit in memory and do not emit redundant backend GCS requests.
 func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
-	// Arrange
 	ctx := context.Background()
 	origProvider := otel.GetMeterProvider()
 	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
@@ -526,11 +525,10 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 		Name:   "missing_file",
 	}
 
-	// Act (First Lookup - Cache Miss)
+	// First Lookup - Cache Miss
 	_ = server.LookUpInode(ctx, lookupOp)
 	waitForMetricsProcessing()
 
-	// Assert
 	// Probing a missing file checks file (StatObject) and then implicit dir (ListObjects)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
@@ -539,11 +537,10 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 		attribute.NewSet(attribute.String("gcs_method", "ListObjects")),
 		1)
 
-	// Act (Second Lookup - Negative Cache Hit)
+	// Second Lookup - Negative Cache Hit
 	_ = server.LookUpInode(ctx, lookupOp)
 	waitForMetricsProcessing()
 
-	// Assert
 	// StatObject is short-circuited (remains 1), but ListObjects is still called (becomes 2)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
