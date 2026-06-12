@@ -1965,6 +1965,15 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
+	startTime := time.Now()
+	var parentName string
+	defer func() {
+		duration := time.Since(startTime)
+		if duration > time.Second {
+			logger.Infof("LookUpInode slow: parent: %d (%s), child: %s, duration: %v, err: %v", op.Parent, parentName, op.Name, duration, err)
+		}
+	}()
+
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent directory in question.
 	var globalLockSpan trace.Span
@@ -1976,6 +1985,7 @@ func (fs *fileSystem) LookUpInode(
 		fs.traceHandle.EndSpan(globalLockSpan)
 	}
 	parent := fs.dirInodeOrDie(op.Parent)
+	parentName = parent.Name().String()
 	fs.mu.Unlock()
 
 	// Find or create the child inode.
@@ -2744,6 +2754,15 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+	renameStartTime := time.Now()
+	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
+	newDirName := inode.NewDirName(newParent.Name(), newName)
+
+	logger.Infof("renameHierarchicalDir start: %s -> %s", oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+	defer func() {
+		logger.Infof("renameHierarchicalDir end: %s -> %s, err: %v, duration: %v", oldDirName.GcsObjectName(), newDirName.GcsObjectName(), err, time.Since(renameStartTime))
+	}()
+
 	var renameSpan trace.Span
 	if fs.isTracingEnabled {
 		ctx, renameSpan = fs.traceHandle.StartSpan(ctx, tracing.RenameHierarchicalDir)
@@ -2770,9 +2789,6 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	if err = fs.ensureNoLocalFilesInDirectory(oldDirInode, oldName); err != nil {
 		return err
 	}
-
-	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
-	newDirName := inode.NewDirName(newParent.Name(), newName)
 
 	if renameSpan != nil {
 		fs.traceHandle.SetRenameHierarchicalDirAttributes(renameSpan, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
