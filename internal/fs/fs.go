@@ -2009,7 +2009,7 @@ func (fs *fileSystem) LookUpInode(
 	var parentName string
 	defer func() {
 		duration := time.Since(startTime)
-		if duration > time.Second {
+		if duration > 5*time.Second {
 			logger.Infof("LookUpInode slow: parent: %d (%s), child: %s, duration: %v, err: %v", op.Parent, parentName, op.Name, duration, err)
 		}
 	}()
