@@ -16,6 +16,7 @@ package tracing
 
 import (
 	"context"
+	"os"
 
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -46,6 +47,10 @@ func (o *noopTracer) SetUploadAttributes(span trace.Span, bytesUploaded int64, o
 func (*noopTracer) TraceUpload(ctx context.Context, name string, objName string, bytes *int64, err *error) (context.Context, func()) {
 	return ctx, emptyFinisher
 }
+
+func (o *noopTracer) SetLookUpAttributes(span trace.Span, inodeName string, inodeMode os.FileMode) {}
+
+func (o *noopTracer) SetRenameHierarchicalDirAttributes(span trace.Span, sourceDir string, targetDir string) {}
 
 // Return the new context as it is as this is a no-op implementation
 func (*noopTracer) PropagateTraceContext(newCtx context.Context, _ context.Context) context.Context {

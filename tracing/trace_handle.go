@@ -16,6 +16,7 @@ package tracing
 
 import (
 	"context"
+	"os"
 
 	"go.opentelemetry.io/otel/trace"
 )
@@ -48,6 +49,12 @@ type TraceHandle interface {
 
 	// TraceUpload starts a span and returns a finisher function that can set upload attributes, record error and end span
 	TraceUpload(ctx context.Context, name string, objName string, bytes *int64, err *error) (context.Context, func())
+
+	// A handle interface method to set attributes for lookup
+	SetLookUpAttributes(span trace.Span, inodeName string, inodeMode os.FileMode)
+
+	// A handle interface method to set attributes for renameHierarchicalDir
+	SetRenameHierarchicalDirAttributes(span trace.Span, sourceDir string, targetDir string)
 
 	// A handle interface method to retain relevant span data in new context from the older context
 	PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context

@@ -35,6 +35,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type TracingTestSuite struct {
@@ -66,12 +67,16 @@ func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInt
 			EnableNewReader: true,
 			FileSystem: cfg.FileSystemConfig{
 				IgnoreInterrupts: ignoreInterrupts,
+				FileMode:         0644,
+				DirMode:          0755,
 			},
 			Trace: cfg.TraceConfig{
 				Exporters:     []string{"stdout"},
 				SamplingRatio: 1.0,
 			},
 		},
+		FilePerms:  0644,
+		DirPerms:   0755,
 		CacheClock: &timeutil.SimulatedClock{},
 		BucketName: bucketName,
 		BucketManager: &fakeBucketManager{
@@ -1425,6 +1430,91 @@ func (s *TracingTestSuite) TestTraceLookUpInodeDecoration() {
 	assert.Equal(t, "fs.inode.lookup.create_or_recover_inode", ss[5].Name)
 	assert.Equal(t, "fs.inode.lookup.get_attributes", ss[6].Name)
 	assert.Equal(t, "fs.inode.lookup", ss[7].Name)
+	assert.Contains(t, ss[7].Attributes, attribute.String("inode.name", fileName))
+	assert.Contains(t, ss[7].Attributes, attribute.String("inode.mode", "-rw-r--r--"))
+}
+
+func createTestFileSystemWithHNSAndTraces(ctx context.Context, t *testing.T) (gcs.Bucket, fuseutil.FileSystem) {
+	t.Helper()
+
+	bucketName := "test-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: true})
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			Write: cfg.WriteConfig{
+				GlobalMaxBlocks: 1,
+			},
+			Read: cfg.ReadConfig{
+				EnableBufferedRead: false,
+			},
+			EnableNewReader: true,
+			FileSystem: cfg.FileSystemConfig{
+				IgnoreInterrupts: false,
+				FileMode:         0644,
+				DirMode:          0755,
+			},
+			Trace: cfg.TraceConfig{
+				Exporters:     []string{"stdout"},
+				SamplingRatio: 1.0,
+			},
+			EnableHns:                true,
+			EnableAtomicRenameObject: true,
+		},
+		FilePerms:  0644,
+		DirPerms:   0755,
+		CacheClock: &timeutil.SimulatedClock{},
+		BucketName: bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
+		},
+		SequentialReadSizeMb: 200,
+		TraceHandle:          tracing.NewOTELTracer(),
+	}
+	server, err := fs.NewFileSystem(ctx, serverCfg)
+	require.NoError(t, err, "NewFileSystem")
+	return bucket, server
+}
+
+func (s *TracingTestSuite) TestTraceRenameHierarchicalDir() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Temporarily override the global tracer provider to bypass the filtering processor.
+	oldTP := otel.GetTracerProvider()
+	defer otel.SetTracerProvider(oldTP)
+
+	ex := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex))
+	otel.SetTracerProvider(tp)
+
+	bucket, server := createTestFileSystemWithHNSAndTraces(ctx, t)
+	m := wrappers.WithTracing(server, tracing.NewOTELTracer())
+
+	_, err := bucket.CreateFolder(ctx, "foo/")
+	require.NoError(t, err)
+
+	op := &fuseops.RenameOp{
+		OldParent: fuseops.RootInodeID,
+		OldName:   "foo",
+		NewParent: fuseops.RootInodeID,
+		NewName:   "bar",
+	}
+
+	err = m.Rename(ctx, op)
+	require.NoError(t, err)
+
+	ss := ex.GetSpans()
+	foundRenameHierarchicalDir := false
+	for _, span := range ss {
+		if span.Name == "fs.rename.hierarchical_dir" {
+			foundRenameHierarchicalDir = true
+			assert.Contains(t, span.Attributes, attribute.String("rename.source_dir", "foo/"))
+			assert.Contains(t, span.Attributes, attribute.String("rename.target_dir", "bar/"))
+		}
+	}
+	assert.True(t, foundRenameHierarchicalDir, "fs.rename.hierarchical_dir span not found")
 }
 
 func TestTracingTestSuite(t *testing.T) {

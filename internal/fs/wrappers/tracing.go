@@ -58,7 +58,17 @@ func (fs *tracedFS) StatFS(ctx context.Context, op *fuseops.StatFSOp) error {
 }
 
 func (fs *tracedFS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) error {
-	return fs.invokeWrapped(ctx, tracing.LookUpInode, func(ctx context.Context) error { return fs.wrapped.LookUpInode(ctx, op) })
+	ctx, span := fs.traceHandle.StartServerSpan(ctx, tracing.LookUpInode)
+	defer fs.traceHandle.EndSpan(span)
+	err := fs.wrapped.LookUpInode(ctx, op)
+
+	if err != nil {
+		fs.traceHandle.RecordError(span, err)
+	} else {
+		fs.traceHandle.SetLookUpAttributes(span, op.Name, op.Entry.Attributes.Mode)
+	}
+
+	return err
 }
 
 func (fs *tracedFS) GetInodeAttributes(ctx context.Context, op *fuseops.GetInodeAttributesOp) error {

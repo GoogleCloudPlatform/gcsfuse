@@ -17,6 +17,7 @@ package tracing
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -139,4 +140,44 @@ func TestOtelTracer_PropagateTraceContext(t *testing.T) {
 	assert.Equal(t, oldSpan, newSpan)
 	spans := recorder.Ended()
 	assert.Len(t, spans, 1)
+}
+
+func TestOtelTracer_SetLookUpAttributes(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	otel.SetTracerProvider(provider)
+	tracer := NewOTELTracer()
+	spanName := "test-lookup-span"
+	inodeName := "test-inode"
+	inodeMode := os.FileMode(0644)
+
+	_, span := tracer.StartSpan(context.Background(), spanName)
+	tracer.SetLookUpAttributes(span, inodeName, inodeMode)
+	tracer.EndSpan(span)
+
+	spans := recorder.Ended()
+	assert.Len(t, spans, 1)
+	assert.Len(t, spans[0].Attributes(), 2)
+	assert.Contains(t, spans[0].Attributes(), attribute.String(INODE_NAME, inodeName))
+	assert.Contains(t, spans[0].Attributes(), attribute.String(INODE_MODE, inodeMode.String()))
+}
+
+func TestOtelTracer_SetRenameHierarchicalDirAttributes(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	otel.SetTracerProvider(provider)
+	tracer := NewOTELTracer()
+	spanName := "test-rename-span"
+	sourceDir := "src/dir"
+	targetDir := "tgt/dir"
+
+	_, span := tracer.StartSpan(context.Background(), spanName)
+	tracer.SetRenameHierarchicalDirAttributes(span, sourceDir, targetDir)
+	tracer.EndSpan(span)
+
+	spans := recorder.Ended()
+	assert.Len(t, spans, 1)
+	assert.Len(t, spans[0].Attributes(), 2)
+	assert.Contains(t, spans[0].Attributes(), attribute.String(RENAME_SOURCE_DIR, sourceDir))
+	assert.Contains(t, spans[0].Attributes(), attribute.String(RENAME_TARGET_DIR, targetDir))
 }

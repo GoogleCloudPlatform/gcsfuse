@@ -19,4 +19,8 @@ const (
 	BYTES_READ     = "read.size"         // Indicates the number of bytes read from the given reader
 	BYTES_UPLOADED = "write.chunk.size"  // Indicates the number of bytes uploaded
 	OBJECT_NAME    = "write.object_name" // Indicates the object name uploaded
+	INODE_NAME        = "inode.name"        // Indicates the name of the inode looked up
+	INODE_MODE        = "inode.mode"        // Indicates the mode/type of the inode looked up
+	RENAME_SOURCE_DIR = "rename.source_dir" // Indicates the source directory GCS path for rename
+	RENAME_TARGET_DIR = "rename.target_dir" // Indicates the target directory GCS path for rename
 )

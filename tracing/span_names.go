@@ -109,6 +109,8 @@ const (
 	ReadSymlink = "fs.symlink.read"
 	// Rename changes the name or location of a file or directory.
 	Rename = "fs.rename"
+	// RenameHierarchicalDir tracks the folder rename operation in hierarchical namespace buckets.
+	RenameHierarchicalDir = "fs.rename.hierarchical_dir"
 	// Unlink removes a name from the filesystem; if it was the last link, the file is deleted.
 	Unlink = "fs.unlink"
 	// GetXattr retrieves the value of an extended attribute.

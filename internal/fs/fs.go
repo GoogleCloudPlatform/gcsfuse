@@ -2744,6 +2744,17 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+	var renameSpan trace.Span
+	if fs.isTracingEnabled {
+		ctx, renameSpan = fs.traceHandle.StartSpan(ctx, tracing.RenameHierarchicalDir)
+		defer func() {
+			if err != nil {
+				fs.traceHandle.RecordError(renameSpan, err)
+			}
+			fs.traceHandle.EndSpan(renameSpan)
+		}()
+	}
+
 	// Set up a function that throws away the lookup count increment from
 	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
 	// the kernel) and unlocks the pending inodes, but only once.
@@ -2762,6 +2773,10 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
 	newDirName := inode.NewDirName(newParent.Name(), newName)
+
+	if renameSpan != nil {
+		fs.traceHandle.SetRenameHierarchicalDirAttributes(renameSpan, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+	}
 
 	// If the call for getBucketDirInode fails it means directory does not exist.
 	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)

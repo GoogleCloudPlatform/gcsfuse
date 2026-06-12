@@ -16,6 +16,7 @@ package tracing
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"go.opentelemetry.io/otel"
@@ -33,7 +34,11 @@ var (
 	bytesReadKey     = attribute.Key(BYTES_READ)
 	bytesUploadedKey = attribute.Key(BYTES_UPLOADED)
 	objectNameKey    = attribute.Key(OBJECT_NAME)
-	cacheHit         = attribute.Bool(IS_CACHE_HIT, true)
+	inodeNameKey       = attribute.Key(INODE_NAME)
+	inodeModeKey       = attribute.Key(INODE_MODE)
+	renameSourceDirKey = attribute.Key(RENAME_SOURCE_DIR)
+	renameTargetDirKey = attribute.Key(RENAME_TARGET_DIR)
+	cacheHit           = attribute.Bool(IS_CACHE_HIT, true)
 	cacheMiss        = attribute.Bool(IS_CACHE_HIT, false)
 )
 
@@ -93,6 +98,24 @@ func (o *otelTracer) TraceUpload(ctx context.Context, name string, objName strin
 func (o *otelTracer) PropagateTraceContext(newCtx context.Context, oldCtx context.Context) context.Context {
 	span := trace.SpanFromContext(oldCtx)
 	return trace.ContextWithSpan(newCtx, span)
+}
+
+func (o *otelTracer) SetLookUpAttributes(span trace.Span, inodeName string, inodeMode os.FileMode) {
+	attrSetPtr := o.slicePool.Get().(*[]attribute.KeyValue)
+	attrSet := *attrSetPtr
+	defer o.slicePool.Put(attrSetPtr)
+	attrSet[0] = inodeNameKey.String(inodeName)
+	attrSet[1] = inodeModeKey.String(inodeMode.String())
+	span.SetAttributes(attrSet...)
+}
+
+func (o *otelTracer) SetRenameHierarchicalDirAttributes(span trace.Span, sourceDir string, targetDir string) {
+	attrSetPtr := o.slicePool.Get().(*[]attribute.KeyValue)
+	attrSet := *attrSetPtr
+	defer o.slicePool.Put(attrSetPtr)
+	attrSet[0] = renameSourceDirKey.String(sourceDir)
+	attrSet[1] = renameTargetDirKey.String(targetDir)
+	span.SetAttributes(attrSet...)
 }
 
 func NewOTELTracer() TraceHandle {
