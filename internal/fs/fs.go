@@ -1041,6 +1041,19 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) createDirInode(ctx context.Context, ic inode.Core, inodes map[inode.Name]inode.DirInode, parInodeCtx context.Context) (inode.Inode, error) {
+	startTime := time.Now()
+	var childLockWaitTotal time.Duration
+	var globalRelockWaitTotal time.Duration
+	var retries int
+
+	defer func() {
+		duration := time.Since(startTime)
+		if duration > 100*time.Millisecond {
+			logger.Infof("createDirInode slow: name: %s, duration: %v, childLockWaitTotal: %v, globalRelockWaitTotal: %v, retries: %d",
+				ic.FullName, duration, childLockWaitTotal, globalRelockWaitTotal, retries)
+		}
+	}()
+
 	if !ic.FullName.IsDir() {
 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
 	}
@@ -1065,7 +1078,9 @@ func (fs *fileSystem) createDirInode(ctx context.Context, ic inode.Core, inodes 
 		if fs.isTracingEnabled {
 			_, lockSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpChildLockAcquisition)
 		}
+		childLockStart := time.Now()
 		in.Lock()
+		childLockWaitTotal += time.Since(childLockStart)
 		if lockSpan != nil {
 			fs.traceHandle.EndSpan(lockSpan)
 		}
@@ -1073,10 +1088,14 @@ func (fs *fileSystem) createDirInode(ctx context.Context, ic inode.Core, inodes 
 		if fs.isTracingEnabled {
 			_, globalLockSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpReacquireGlobalLock)
 		}
+		globalRelockStart := time.Now()
 		fs.mu.Lock()
+		globalRelockWaitTotal += time.Since(globalRelockStart)
 		if globalLockSpan != nil {
 			fs.traceHandle.EndSpan(globalLockSpan)
 		}
+
+		retries++
 
 		if (inodes)[ic.FullName] != in {
 			in.Unlock()
@@ -1101,6 +1120,19 @@ func (fs *fileSystem) createDirInode(ctx context.Context, ic inode.Core, inodes 
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ctx context.Context, parInodeCtx context.Context, ic inode.Core) (in inode.Inode, err error) {
+	startTime := time.Now()
+	var initialLockWait time.Duration
+	var childLockWaitTotal time.Duration
+	var globalRelockWaitTotal time.Duration
+	var retries int
+
+	defer func() {
+		duration := time.Since(startTime)
+		if duration > 100*time.Millisecond {
+			logger.Infof("lookUpOrCreateInodeIfNotStale slow: name: %s, duration: %v, initialLockWait: %v, childLockWaitTotal: %v, globalRelockWaitTotal: %v, retries: %d",
+				ic.FullName, duration, initialLockWait, childLockWaitTotal, globalRelockWaitTotal, retries)
+		}
+	}()
 
 	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
@@ -1116,7 +1148,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ctx context.Context, parInod
 		fs.mu.Unlock()
 	}()
 
+	initialLockStart := time.Now()
 	fs.mu.Lock()
+	initialLockWait = time.Since(initialLockStart)
 
 	// Handle Folders in hierarchical bucket.
 	if ic.Folder != nil {
@@ -1161,7 +1195,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ctx context.Context, parInod
 		if fs.isTracingEnabled {
 			_, lockSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpChildLockAcquisition)
 		}
+		childLockStart := time.Now()
 		existingInode.Lock()
+		childLockWaitTotal += time.Since(childLockStart)
 		if lockSpan != nil {
 			fs.traceHandle.EndSpan(lockSpan)
 		}
@@ -1169,10 +1205,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ctx context.Context, parInod
 		if fs.isTracingEnabled {
 			_, globalLockSpan = fs.traceHandle.StartSpan(ctx, tracing.LookUpReacquireGlobalLock)
 		}
+		globalRelockStart := time.Now()
 		fs.mu.Lock()
+		globalRelockWaitTotal += time.Since(globalRelockStart)
 		if globalLockSpan != nil {
 			fs.traceHandle.EndSpan(globalLockSpan)
 		}
+
+		retries++
 
 		// Check that the index still points at this inode. If not, it's possible
 		// that the inode is in the process of being destroyed and is unsafe to
