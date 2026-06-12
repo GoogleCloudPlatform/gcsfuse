@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -259,6 +260,10 @@ type wrappedCall func(ctx context.Context) error
 func (fs *monitoring) invokeWrapped(ctx context.Context, opName metrics.FsOp, w wrappedCall) error {
 	startTime := time.Now()
 	err := w(ctx)
+	duration := time.Since(startTime)
+	if duration > 4*time.Second {
+		logger.Infof("FS operation slow: %s, duration: %v, err: %v", opName, duration, err)
+	}
 	recordOp(ctx, fs.metricHandle, opName, startTime, err)
 	return err
 }
