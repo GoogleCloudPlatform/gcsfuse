@@ -204,10 +204,8 @@ func (bm *bucketManager) SetUpBucket(
 	// Enable monitoring.
 	b = monitor.NewMonitoringBucket(b, metricHandle)
 
-	if bm.config.LogSeverity == cfg.TraceLogSeverity {
-		// Enable gcs logs.
-		b = storage.NewDebugBucket(b)
-	}
+	// Enable gcs logs.
+	b = storage.NewDebugBucket(b)
 
 	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {

@@ -81,7 +81,11 @@ func (b *debugBucket) finishRequest(
 		errDesc = (*err).Error()
 	}
 
-	b.requestLogf(id, "-> %s (%v): %s", desc, duration, errDesc)
+	if duration > 4*time.Second {
+		logger.Infof("gcs slow call: Req %#16x: -> %s (%v): %s", id, desc, duration, errDesc)
+	} else {
+		b.requestLogf(id, "-> %s (%v): %s", desc, duration, errDesc)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////

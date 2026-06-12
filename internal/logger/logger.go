@@ -173,6 +173,11 @@ func UpdateDefaultLogger(format, fsName string) {
 	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName)
 }
 
+// IsTraceEnabled returns true if the current log level is set to TRACE or lower.
+func IsTraceEnabled() bool {
+	return LevelTrace >= programLevel.Level()
+}
+
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...any) {
 	if LevelTrace >= programLevel.Level() {
