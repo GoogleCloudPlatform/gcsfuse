@@ -17,6 +17,7 @@ package grpc_validation
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -117,7 +118,7 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 		},
 		{
 			name:             "SingleRegion_Failure_FallbackStrategy",
-			bucketName:       g.singleRegionBucketForGRPCFailure,
+			bucketName:       g.singleRegionBucketForGRPCSuccess,
 			grpcPathStrategy: "direct-path-with-fallback",
 			expectedSuccess:  true,
 			expectedLogSubstrings: []string{
@@ -134,7 +135,7 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 		},
 		{
 			name:             "SingleRegion_Failure_DirectPathOnlyStrategy",
-			bucketName:       g.singleRegionBucketForGRPCFailure,
+			bucketName:       g.singleRegionBucketForGRPCSuccess,
 			grpcPathStrategy: "direct-path-only",
 			expectedSuccess:  false,
 			expectedLogSubstrings: []string{
@@ -151,7 +152,7 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 		},
 		{
 			name:             "MultiRegion_Failure_FallbackStrategy",
-			bucketName:       g.multiRegionBucketForGRPCFailure,
+			bucketName:       g.multiRegionBucketForGRPCSuccess,
 			grpcPathStrategy: "direct-path-with-fallback",
 			expectedSuccess:  true,
 			expectedLogSubstrings: []string{
@@ -168,7 +169,7 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 		},
 		{
 			name:             "MultiRegion_Failure_DirectPathOnlyStrategy",
-			bucketName:       g.multiRegionBucketForGRPCFailure,
+			bucketName:       g.multiRegionBucketForGRPCSuccess,
 			grpcPathStrategy: "direct-path-only",
 			expectedSuccess:  false,
 			expectedLogSubstrings: []string{
@@ -180,6 +181,11 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 
 	for _, tc := range testCases {
 		g.T().Run(tc.name, func(t *testing.T) {
+			if strings.Contains(tc.name, "Failure") {
+				t.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "true")
+			} else {
+				t.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "false")
+			}
 
 			mountPoint, err := os.MkdirTemp("", "grpc_validation_test")
 			assert.NoError(t, err)
