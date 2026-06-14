@@ -190,6 +190,11 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableVectoredWrites: true,
 	}
 
+	if newConfig.FileSystem.FuseMaxPagesLimit != 0 {
+		// Todo: Set MaxMessageSize to this value
+		mountCfg.MaxMessageSize = uint32(int(newConfig.FileSystem.FuseMaxPagesLimit) * os.Getpagesize())
+	}
+
 	if newConfig.Logging.WireLog != "" {
 		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
 		if err == nil {
