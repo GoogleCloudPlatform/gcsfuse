@@ -188,6 +188,18 @@ func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Crea
 	return
 }
 
+func (b *debugBucket) CreateMPUObjectWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
+	id, desc, start := b.startRequest("CreateMPUObjectWriter(%q)", req.Name)
+	defer b.finishRequest(id, desc, start, &err)
+	if callBack == nil {
+		callBack = func(bytesUploadedSoFar int64) {
+			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", id, req.Name, bytesUploadedSoFar)
+		}
+	}
+	wc, err = b.wrapped.CreateMPUObjectWriter(ctx, req, chunkSize, callBack)
+	return
+}
+
 func (b *debugBucket) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, err error) {
 	id, desc, start := b.startRequest("CreateAppendableObjectWriter(%q, %d)", req.Name, req.Offset)

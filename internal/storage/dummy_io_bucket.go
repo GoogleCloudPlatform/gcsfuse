@@ -113,6 +113,15 @@ func (d *dummyIOBucket) CreateObjectChunkWriter(
 	return d.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 }
 
+// CreateMPUObjectWriter initializes a multi-part upload stream to GCS.
+func (d *dummyIOBucket) CreateMPUObjectWriter(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	chunkSize int,
+	callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	return d.wrapped.CreateMPUObjectWriter(ctx, req, chunkSize, callBack)
+}
+
 // CreateAppendableObjectWriter creates a writer to append to an existing object.
 // TODO: Add custom logic for Write path if needed
 func (d *dummyIOBucket) CreateAppendableObjectWriter(

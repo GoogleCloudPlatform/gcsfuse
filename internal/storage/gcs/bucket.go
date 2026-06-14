@@ -127,6 +127,9 @@ type Bucket interface {
 	// object is available for reading immediately.
 	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
 
+	// CreateMPUObjectWriter initializes a multi-part upload stream to GCS.
+	CreateMPUObjectWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
+
 	// CreateAppendableObjectWriter creates a Writer for "Takeover"
 	// operations. It allows appending to an existing, unfinalized object by
 	// leveraging its specific generation number. Unlike a standard new object upload,

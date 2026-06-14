@@ -100,6 +100,7 @@ type CreateBWHandlerRequest struct {
 	GlobalMaxBlocksSem       *semaphore.Weighted
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
+	EnableMpu                bool
 	TraceHandle              tracing.TraceHandle
 }
 
@@ -126,6 +127,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			BlockSize:                req.BlockSize,
 			ChunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+			EnableMpu:                req.EnableMpu,
 			TraceHandle:              req.TraceHandle,
 		}),
 		totalSize:     size,

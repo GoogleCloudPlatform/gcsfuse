@@ -1497,13 +1497,17 @@ func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.
 		return err
 	}
 	if initialized {
-		// Calling syncFile is safe here as we have file inode lock and BWH is initialized.
-		// Thus sync method of BWH will be invoked.
-		// 1. In case of zonal bucket it creates unfinalized new generation object.
-		// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
-		err = fs.syncFile(ctx, f)
-		if err != nil {
-			return err
+		// If MPU is enabled, we delay writer creation until the first chunk is filled.
+		// If MPU is disabled, we sync immediately to ensure immediate visibility for Zonal buckets.
+		if !fs.newConfig.Write.EnableMpu {
+			// Calling syncFile is safe here as we have file inode lock and BWH is initialized.
+			// Thus sync method of BWH will be invoked.
+			// 1. In case of zonal bucket it creates unfinalized new generation object.
+			// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
+			err = fs.syncFile(ctx, f)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

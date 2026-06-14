@@ -776,6 +776,8 @@ type WriteConfig struct {
 
 	EnableRapidWrites bool `yaml:"enable-rapid-writes"`
 
+	EnableMpu bool `yaml:"enable-mpu"`
+
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
 	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`

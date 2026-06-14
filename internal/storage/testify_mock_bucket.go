@@ -60,6 +60,14 @@ func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 	return args.Get(0).(gcs.Writer), nil
 }
 
+func (m *TestifyMockBucket) CreateMPUObjectWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
+	args := m.Called(ctx, req)
+	if args.Get(1) != nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(gcs.Writer), nil
+}
+
 func (m *TestifyMockBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, err error) {
 	args := m.Called(ctx, req)
 	if args.Get(1) != nil {

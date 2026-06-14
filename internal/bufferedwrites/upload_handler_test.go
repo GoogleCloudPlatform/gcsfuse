@@ -98,7 +98,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterC
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
-	_ = t.uh.createObjectWriter(context.Background())
+	_ = t.uh.createObjectWriter(context.Background(), false)
 
 	t.mockBucket.AssertCalled(t.T(), "CreateAppendableObjectWriter", mock.Anything, mock.Anything)
 }
@@ -132,7 +132,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_Pirlo() {
 				t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 			}
 
-			_ = t.uh.createObjectWriter(context.Background())
+			_ = t.uh.createObjectWriter(context.Background(), false)
 
 			if tc.expectedMethod == "CreateAppendableObjectWriter" {
 				t.mockBucket.AssertCalled(t.T(), "CreateAppendableObjectWriter", mock.Anything, mock.Anything)
@@ -148,7 +148,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
-	_ = t.uh.createObjectWriter(context.Background())
+	_ = t.uh.createObjectWriter(context.Background(), false)
 
 	t.mockBucket.AssertCalled(t.T(), "CreateObjectChunkWriter", mock.Anything, mock.Anything)
 }
@@ -157,7 +157,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
-	_ = t.uh.createObjectWriter(context.Background())
+	_ = t.uh.createObjectWriter(context.Background(), false)
 
 	t.mockBucket.AssertCalled(t.T(), "CreateObjectChunkWriter", mock.Anything, mock.Anything)
 }
@@ -168,7 +168,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterIsSuccessful(
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
-	err := t.uh.createObjectWriter(context.Background())
+	err := t.uh.createObjectWriter(context.Background(), false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.uh.writer)
@@ -179,7 +179,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterReturnsError(
 	expectedErr := fmt.Errorf("createAppendableObjectWriter failed")
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	err := t.uh.ensureWriter(context.Background())
+	err := t.uh.ensureWriter(context.Background(), false)
 
 	assert.NotNil(t.T(), err)
 	assert.Nil(t.T(), t.uh.writer)
@@ -191,7 +191,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterIsSuccessful
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
-	err := t.uh.ensureWriter(context.Background())
+	err := t.uh.ensureWriter(context.Background(), false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.uh.writer)
@@ -202,7 +202,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterReturnsError
 	expectedErr := fmt.Errorf("createObjectChunkWriter failed")
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	err := t.uh.ensureWriter(context.Background())
+	err := t.uh.ensureWriter(context.Background(), false)
 
 	assert.NotNil(t.T(), err)
 	assert.Nil(t.T(), t.uh.writer)

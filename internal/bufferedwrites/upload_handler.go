@@ -59,6 +59,7 @@ type UploadHandler struct {
 	chunkRetryDeadline   int64
 	chunkTransferTimeout int64
 	blockSize            int64
+	enableMpu            bool
 
 	traceHandle tracing.TraceHandle
 }
@@ -72,6 +73,7 @@ type CreateUploadHandlerRequest struct {
 	BlockSize                int64
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
+	EnableMpu                bool
 	TraceHandle              tracing.TraceHandle
 }
 
@@ -87,6 +89,7 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		blockSize:            req.BlockSize,
 		chunkRetryDeadline:   req.ChunkRetryDeadlineSecs,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
+		enableMpu:            req.EnableMpu,
 		traceHandle:          req.TraceHandle,
 	}
 	return uh
@@ -96,7 +99,7 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) error {
 	uh.wg.Add(1)
 
-	err := uh.ensureWriter(ctx)
+	err := uh.ensureWriter(ctx, block.Size() == uh.blockSize)
 	if err != nil {
 		return fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
@@ -109,12 +112,14 @@ func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) error {
 }
 
 // createObjectWriter creates a GCS object writer.
-func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
+func (uh *UploadHandler) createObjectWriter(ctx context.Context, useMpu bool) (err error) {
 	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkRetryDeadline, uh.chunkTransferTimeout)
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	ctx, uh.cancelFunc = context.WithCancel(uh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	if uh.bucket.BucketType().RapidWritesEnabled() && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
+	if uh.enableMpu && useMpu {
+		uh.writer, err = uh.bucket.CreateMPUObjectWriter(ctx, req, int(uh.blockSize), nil)
+	} else if uh.bucket.BucketType().RapidWritesEnabled() && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: *req,
 			ChunkSize:           int(uh.blockSize),
@@ -201,7 +206,7 @@ func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err 
 
 	// Writer may not have been created for empty file creation flow or for very
 	// small writes of size less than 1 block.
-	err = uh.ensureWriter(ctx)
+	err = uh.ensureWriter(ctx, false)
 	if err != nil {
 		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
@@ -219,9 +224,9 @@ func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err 
 	return obj, nil
 }
 
-func (uh *UploadHandler) ensureWriter(ctx context.Context) error {
+func (uh *UploadHandler) ensureWriter(ctx context.Context, isBlockFull bool) error {
 	if uh.writer == nil {
-		if err := uh.createObjectWriter(ctx); err != nil {
+		if err := uh.createObjectWriter(ctx, isBlockFull); err != nil {
 			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 	}
@@ -237,7 +242,7 @@ func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObje
 
 	// Writer may not have been created for empty file creation flow or for very
 	// small writes of size less than 1 block.
-	err = uh.ensureWriter(ctx)
+	err = uh.ensureWriter(ctx, false)
 	if err != nil {
 		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}

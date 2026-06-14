@@ -256,6 +256,24 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	return wc, nil
 }
 
+// CreateMPUObjectWriter initializes a multi-part upload stream to GCS.
+func (bh *bucketHandle) CreateMPUObjectWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	obj := bh.getObjectHandleWithPreconditionsSet(req)
+
+	wc := &ObjectWriter{obj.NewWriter(ctx)}
+	wc.ChunkSize = chunkSize
+	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
+	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
+	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
+	wc.ProgressFunc = callBack
+	wc.EnableParallelUpload = true
+	wc.ParallelUploadConfig = storage.ParallelUploadConfig{
+		PartSize: chunkSize,
+		MaxConcurrency: 8,
+	}
+	return wc, nil
+}
+
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
 	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
