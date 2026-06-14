@@ -3211,7 +3211,13 @@ func (fs *fileSystem) WriteFile(
 		return err
 	}
 	// Serve the request.
-	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode())
+	var dataBlocks [][]byte
+	if len(op.Data) > 0 {
+		dataBlocks = [][]byte{op.Data}
+	} else {
+		dataBlocks = op.DataBlocks
+	}
+	gcsSynced, err = in.Write(ctx, dataBlocks, op.Offset, fh.OpenMode())
 	if err != nil {
 		return
 	}

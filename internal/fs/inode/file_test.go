@@ -319,7 +319,7 @@ func (t *FileTest) TestInitialSourceGeneration() {
 }
 
 func (t *FileTest) TestSourceGenerationSizeAfterWriteDoesNotChange() {
-	gcsSynced, err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0, WriteMode)
+	gcsSynced, err := t.in.Write(context.Background(), [][]byte{[]byte(setup.GenerateRandomString(5))}, 0, WriteMode)
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -335,7 +335,7 @@ func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsTrue() {
 }
 
 func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
-	gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("taco")}, 0, WriteMode)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -346,7 +346,7 @@ func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreaming
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.initialContents, string(contents))
-	gcsSynced, err := t.in.Write(t.ctx, []byte("bar"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("bar")}, 0, WriteMode)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -520,7 +520,7 @@ func (t *FileTest) TestWrite() {
 	assert.Equal(t.T(), "taco", t.initialContents)
 
 	// Overwite a byte.
-	gcsSynced, err := t.in.Write(t.ctx, []byte("p"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("p")}, 0, WriteMode)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -528,7 +528,7 @@ func (t *FileTest) TestWrite() {
 	t.clock.AdvanceTime(time.Second)
 	writeTime := t.clock.Now()
 
-	gcsSynced, err = t.in.Write(t.ctx, []byte("burrito"), 4, WriteMode)
+	gcsSynced, err = t.in.Write(t.ctx, [][]byte{[]byte("burrito")}, 4, WriteMode)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -646,7 +646,7 @@ func (t *FileTest) TestWriteThenSync() {
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
 
-			gcsSynced, err := t.in.Write(t.ctx, []byte("p"), 0, WriteMode)
+			gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("p")}, 0, WriteMode)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 
@@ -724,7 +724,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 			// Write some content to temp file.
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
-			gcsSynced, err := t.in.Write(t.ctx, []byte("tacos"), 0, WriteMode)
+			gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("tacos")}, 0, WriteMode)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 			t.clock.AdvanceTime(time.Second)
@@ -858,7 +858,7 @@ func (t *FileTest) TestAppendThenSync() {
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
 
-			gcsSynced, err := t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")), AppendMode)
+			gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("burrito")}, int64(len("taco")), AppendMode)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 
@@ -928,7 +928,7 @@ func (t *FileTest) TestAppendToUnfinalizedObjInZB() {
 	t.createBufferedWriteHandler(true, AppendMode)
 	assert.NotNil(t.T(), t.in.bwh)
 
-	gcsSynced, err := t.in.Write(t.ctx, []byte("juice"), int64(len(t.initialContents)), AppendMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("juice")}, int64(len(t.initialContents)), AppendMode)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -1118,7 +1118,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	err = t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	// Write some data to the local file.
-	gcsSynced, err := t.in.Write(t.ctx, []byte("burrito"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("burrito")}, 0, WriteMode)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	// Validate the new data is written correctly.
@@ -1167,7 +1167,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled()
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(true, WriteMode)
-				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+				gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("hi")}, 0, WriteMode)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
@@ -1221,7 +1221,7 @@ func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnable
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(true, WriteMode)
-				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+				gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("hi")}, 0, WriteMode)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
@@ -1291,7 +1291,7 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
 			t.createBufferedWriteHandler(true, WriteMode)
-			gcsSynced, err := t.in.Write(t.ctx, []byte("hihello"), 0, WriteMode)
+			gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("hihello")}, 0, WriteMode)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 			assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
@@ -1457,7 +1457,7 @@ func (t *FileTest) TestSetMtime_ContentDirty() {
 	var attrs fuseops.InodeAttributes
 
 	// Dirty the content.
-	gcsSynced, err := t.in.Write(t.ctx, []byte("a"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("a")}, 0, WriteMode)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -1771,7 +1771,7 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(tc.fileType != LocalFile, WriteMode)
-				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+				gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("hi")}, 0, WriteMode)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
@@ -1824,7 +1824,7 @@ func (t *FileTest) TestWriteToLocalFileWhenStreamingWritesAreEnabled() {
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true, WriteMode)
 
-	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("hi")}, 0, WriteMode)
 
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -1840,13 +1840,13 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true, WriteMode)
 
-	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("hi")}, 0, WriteMode)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	assert.NotNil(t.T(), t.in.bwh)
 	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 
-	gcsSynced, err = t.in.Write(t.ctx, []byte("hello"), 2, WriteMode)
+	gcsSynced, err = t.in.Write(t.ctx, [][]byte{[]byte("hello")}, 2, WriteMode)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
@@ -1863,7 +1863,7 @@ func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	createTime := t.in.mtimeClock.Now()
 	t.createBufferedWriteHandler(true, WriteMode)
 
-	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("hi")}, 0, WriteMode)
 
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -1894,7 +1894,7 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEn
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true, WriteMode)
 	// Initiate write call.
-	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, [][]byte{[]byte("hi")}, 0, WriteMode)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	assert.NotNil(t.T(), t.in.bwh)
