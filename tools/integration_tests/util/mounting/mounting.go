@@ -23,7 +23,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -99,8 +98,8 @@ func ConfigureReadAhead(mountDir string, readAheadKB int) error {
 		return nil
 	}
 
-	var stat syscall.Stat_t
-	if err := syscall.Stat(mountDir, &stat); err != nil {
+	var stat unix.Stat_t
+	if err := unix.Stat(mountDir, &stat); err != nil {
 		return fmt.Errorf("failed to stat mount directory %s: %w", mountDir, err)
 	}
 
@@ -117,7 +116,7 @@ func ConfigureReadAhead(mountDir string, readAheadKB int) error {
 
 	// If direct write fails (e.g., due to permission error on /sys/class/bdi/ when run as non-root),
 	// fallback to sudo tee.
-	cmd := exec.Command("sudo", "tee", bdiPath)
+	cmd := exec.Command("sudo", "-n", "tee", bdiPath)
 	cmd.Stdin = strings.NewReader(valStr)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("sudo tee failed to write to %s: %w (output: %s)", bdiPath, err, string(output))
@@ -131,8 +130,8 @@ func VerifyReadAhead(mountDir string, expectedKB int) error {
 		return nil
 	}
 
-	var stat syscall.Stat_t
-	if err := syscall.Stat(mountDir, &stat); err != nil {
+	var stat unix.Stat_t
+	if err := unix.Stat(mountDir, &stat); err != nil {
 		return fmt.Errorf("failed to stat mount directory %s: %w", mountDir, err)
 	}
 

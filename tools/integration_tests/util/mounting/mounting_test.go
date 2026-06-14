@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -112,8 +111,8 @@ func TestConfigureAndVerifyReadAheadMock(t *testing.T) {
 	defer os.RemoveAll(tempMountDir)
 
 	// Stat mount directory to get major and minor numbers
-	var stat syscall.Stat_t
-	err = syscall.Stat(tempMountDir, &stat)
+	var stat unix.Stat_t
+	err = unix.Stat(tempMountDir, &stat)
 	assert.NoError(t, err)
 
 	major := unix.Major(stat.Dev)
