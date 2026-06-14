@@ -27,11 +27,11 @@ import (
 func TestGetMountDir(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "mounting_test_dir")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	tempBucketDir, err := os.MkdirTemp("", "bucket_mock_dir")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tempBucketDir)
+	defer func() { _ = os.RemoveAll(tempBucketDir) }()
 
 	testCases := []struct {
 		name     string
@@ -104,11 +104,11 @@ func TestConfigureAndVerifyReadAheadMock(t *testing.T) {
 	// Create temp directories
 	tempBdiPrefix, err := os.MkdirTemp("", "mock_sysfs_bdi")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tempBdiPrefix)
+	defer func() { _ = os.RemoveAll(tempBdiPrefix) }()
 
 	tempMountDir, err := os.MkdirTemp("", "mock_mount_dir")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tempMountDir)
+	defer func() { _ = os.RemoveAll(tempMountDir) }()
 
 	// Stat mount directory to get major and minor numbers
 	var stat unix.Stat_t
