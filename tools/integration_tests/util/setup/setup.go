@@ -50,6 +50,7 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
+var readAheadKB = flag.Int("read-ahead-kb", -1, "The read-ahead size in KB to set on the FUSE mount point. Values <= 0 will bypass configuration.")
 
 const (
 	FilePermission_0600               = 0600
@@ -140,6 +141,10 @@ func TestOnTPCEndPoint() bool {
 
 func MountedDirectory() string {
 	return *mountedDirectory
+}
+
+func ReadAheadKB() int {
+	return *readAheadKB
 }
 
 func SetLogFile(logFileValue string) {
