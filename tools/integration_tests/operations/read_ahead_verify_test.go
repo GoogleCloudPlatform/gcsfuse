@@ -23,10 +23,12 @@ import (
 
 func TestVerifyReadAheadKB(t *testing.T) {
 	expectedKB := setup.ReadAheadKB()
-	if expectedKB > 0 {
-		err := mounting.VerifyReadAhead(setup.MntDir(), expectedKB)
-		if err != nil {
-			t.Errorf("read-ahead verification failed: %v", err)
-		}
+	if expectedKB <= 0 {
+		t.Skip("Skipping read-ahead verification as read-ahead-kb is not configured.")
+	}
+
+	err := mounting.VerifyReadAhead(setup.MntDir(), expectedKB)
+	if err != nil {
+		t.Errorf("read-ahead verification failed: %v", err)
 	}
 }

@@ -64,13 +64,16 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 
 	readAheadKB := setup.ReadAheadKB()
 	if readAheadKB > 0 {
-		mountDir := getMountDir(flags)
+		mountDir := setup.MntDir()
+		if mountDir == "" {
+			mountDir = getMountDir(flags)
+		}
 		if mountDir != "" {
 			if err := ConfigureReadAhead(mountDir, readAheadKB); err != nil {
 				return fmt.Errorf("failed to configure read-ahead: %w", err)
 			}
 		} else {
-			log.Printf("Warning: read-ahead-kb specified but mount directory could not be resolved from flags: %v", flags)
+			log.Printf("Warning: read-ahead-kb specified but mount directory could not be resolved: %v", flags)
 		}
 	}
 
