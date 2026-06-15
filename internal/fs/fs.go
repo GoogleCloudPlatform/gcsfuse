@@ -164,7 +164,7 @@ func shouldEnableKernelReaderForNonRapidBuckets(serverCfg *ServerConfig, bucketT
 	// or if kernel does not support increasing max pages limit beyond 1MiB.
 	isFileCacheSet := serverCfg.ViperConfig.IsSet("cache-dir")
 	isBufferedReadSet := serverCfg.ViperConfig.IsSet("read.enable-buffered-read")
-	return serverCfg.NewConfig.Profile == "aiml-serving" && !isFileCacheSet && !isBufferedReadSet && kernelparams.SupportsFuseMaxPagesLimit()
+	return /*serverCfg.NewConfig.Profile == "aiml-serving" &&*/ !isFileCacheSet && !isBufferedReadSet && kernelparams.SupportsFuseMaxPagesLimit()
 }
 
 // Create a fuse file system server according to the supplied configuration.
