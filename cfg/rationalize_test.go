@@ -197,7 +197,7 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 			debugFuse:  false,
 			debugGCS:   false,
 			debugMutex: true,
-			expected:   "TRACE",
+			expected:   "INFO",
 		},
 		{
 			name:       "multiple debug flags true",

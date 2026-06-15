@@ -142,7 +142,7 @@ func resolveReadConfig(r *ReadConfig) {
 }
 
 func resolveLoggingConfig(config *Config) {
-	if config.Debug.Fuse || config.Debug.Gcs || config.Debug.LogMutex {
+	if config.Debug.Fuse || config.Debug.Gcs {
 		config.Logging.Severity = "TRACE"
 	}
 
