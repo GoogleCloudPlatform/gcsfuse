@@ -470,7 +470,6 @@ func TestGCSMetrics_RetryCount(t *testing.T) {
 }
 
 type fakeBucketManagerForShortCircuit struct {
-type fakeBucketManagerForShortCircuit struct {
 	bucket  gcs.Bucket
 	tempDir string
 }
