@@ -22,8 +22,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -1658,4 +1662,146 @@ func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 	waitForMetricsProcessing()
 	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "concurrency_limit_breached"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
+}
+
+type fakeBucketManagerForStatCache struct {
+	bucket    gcs.Bucket
+	statCache metadata.StatCache
+}
+
+func (bm *fakeBucketManagerForStatCache) SetUpBucket(
+	ctx context.Context,
+	name string,
+	isMultibucketMount bool,
+	mh metrics.MetricHandle) (sb gcsx.SyncerBucket, err error) {
+
+	fastBucket := caching.NewFastStatBucket(
+		10*time.Minute,
+		bm.statCache,
+		timeutil.RealClock(),
+		bm.bucket,
+		1*time.Minute,
+		true,  // IsTypeCacheDeprecated
+		false, // isImplicitDir
+	)
+
+	sb = gcsx.NewSyncerBucket(
+		0,
+		10,
+		10,
+		".gcsfuse_tmp/",
+		gcsx.NewContentTypeBucket(fastBucket),
+	)
+	return sb, nil
+}
+
+func (bm *fakeBucketManagerForStatCache) ShutDown() {}
+
+func TestMetadataCache_ReadCount_Integration(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	origProvider := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
+	reader := metric.NewManualReader()
+	provider := metric.NewMeterProvider(metric.WithReader(reader))
+	otel.SetMeterProvider(provider)
+
+	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
+	require.NoError(t, err)
+
+	bucketName := "test-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{})
+
+	lruCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(lruCache, bucketName, mh)
+
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			Write:           cfg.WriteConfig{GlobalMaxBlocks: 1},
+			Read:            cfg.ReadConfig{GlobalMaxBlocks: 1},
+			EnableNewReader: true,
+			MetadataCache: cfg.MetadataCacheConfig{
+				TtlSecs: 60,
+			},
+		},
+		MetricHandle: mh,
+		TraceHandle:  tracing.NewNoopTracer(),
+		CacheClock:   &timeutil.SimulatedClock{},
+		BucketName:   bucketName,
+		BucketManager: &fakeBucketManagerForStatCache{
+			bucket:    bucket,
+			statCache: statCache,
+		},
+	}
+
+	server, err := fs.NewFileSystem(ctx, serverCfg)
+	require.NoError(t, err)
+	server = wrappers.WithMonitoring(server, mh)
+
+	// --- Step 1: Lookup nonexistent file (Miss: NotFound) ---
+	lookupOp1 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "nonexistent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp1)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+
+	attrsMissNotFound := attribute.NewSet(
+		attribute.Bool("cache_hit", false),
+		attribute.String("lookup_detail", "not_found"),
+	)
+	// Expect 2 lookups: one for "nonexistent.txt/", one for "nonexistent.txt"
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 2)
+
+	// --- Step 2: Lookup nonexistent file again (Hit: Negative Found) ---
+	lookupOp2 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "nonexistent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp2)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+
+	attrsHitNegative := attribute.NewSet(
+		attribute.Bool("cache_hit", true),
+		attribute.String("entry_status", "negative"),
+		attribute.String("lookup_detail", "found"),
+	)
+	// Expect 2 lookups: one for "nonexistent.txt/", one for "nonexistent.txt"
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 2)
+
+	// --- Step 3: Lookup existent file first time (Miss: NotFound) ---
+	createWithContents(ctx, t, bucket, "existent.txt", "hello")
+	lookupOp3 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "existent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp3)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Expect 4 lookups total: 2 from nonexistent lookup, 2 from existent lookup
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 4)
+
+	// --- Step 4: Lookup existent file again (Hit: Positive Found) ---
+	lookupOp4 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "existent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp4)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	attrsHitPositive := attribute.NewSet(
+		attribute.Bool("cache_hit", true),
+		attribute.String("entry_status", "positive"),
+		attribute.String("lookup_detail", "found"),
+	)
+	// Expect 3 lookups total: LookUpInode checks both the directory form and file form,
+	// and may refresh attributes.
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 3)
+
+	// Verifying that negative hit also got incremented by 1 (due to checking "existent.txt/")
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 3)
 }

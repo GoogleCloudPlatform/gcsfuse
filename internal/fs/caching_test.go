@@ -60,7 +60,7 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{})
 	lruCache := newLruCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
-	statCache := metadata.NewStatCacheBucketView(lruCache, "")
+	statCache := metadata.NewStatCacheBucketView(lruCache, "", metrics.NewNoopMetrics())
 	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,
@@ -470,7 +470,7 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 	// for the purposes of the file system.
 	for _, bucketName := range []string{bucket1Name, bucket2Name} {
 		uncachedBuckets[bucketName] = fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{})
-		statCache := metadata.NewStatCacheBucketView(sharedCache, bucketName)
+		statCache := metadata.NewStatCacheBucketView(sharedCache, bucketName, metrics.NewNoopMetrics())
 		buckets[bucketName] = caching.NewFastStatBucket(
 			ttl,
 			statCache,

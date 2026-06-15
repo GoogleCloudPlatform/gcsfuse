@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // A cache mapping from name to most recent known record for the object of that
@@ -86,10 +87,11 @@ type StatCache interface {
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
-func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
+func NewStatCacheBucketView(sc *lru.Cache, bn string, metricHandle metrics.MetricHandle) StatCache {
 	return &statCacheBucketView{
-		sharedCache: sc,
-		bucketName:  bn,
+		sharedCache:  sc,
+		bucketName:   bn,
+		metricHandle: metricHandle,
 	}
 }
 
@@ -105,7 +107,8 @@ type statCacheBucketView struct {
 	// statCache object among all statCache objects
 	// using the same shared lru.Cache object.
 	// It can be empty ("").
-	bucketName string
+	bucketName   string
+	metricHandle metrics.MetricHandle
 }
 
 // An entry in the cache, pairing an object with the expiration time for the
@@ -309,17 +312,31 @@ func (sc *statCacheBucketView) LookUpFolder(
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
 	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
+		sc.metricHandle.MetadataCacheReadCount(1, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
 		return false, nil
 	}
 
 	e := value.(entry)
 
+	// An entry in statCache is positive if it holds either a GCS MinObject (e.m),
+	// a GCS Folder (e.f), or is an implicit directory (e.implicitDir).
+	// If all are nil/false, the entry represents a negative cache entry (i.e. we
+	// explicitly cached that the object/folder does not exist).
+	var entryStatus metrics.EntryStatus
+	if e.m != nil || e.f != nil || e.implicitDir {
+		entryStatus = metrics.EntryStatusPositiveAttr
+	} else {
+		entryStatus = metrics.EntryStatusNegativeAttr
+	}
+
 	// Has this entry expired?
 	if e.expiration.Before(now) {
 		sc.Erase(key)
+		sc.metricHandle.MetadataCacheReadCount(1, false, entryStatus, metrics.LookupDetailTtlExpiredAttr)
 		return false, nil
 	}
 
+	sc.metricHandle.MetadataCacheReadCount(1, true, entryStatus, metrics.LookupDetailFoundAttr)
 	return true, &e
 }
 
