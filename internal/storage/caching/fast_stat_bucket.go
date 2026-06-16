@@ -564,7 +564,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 			// Do not add negative cache for directories if implicitDir is enabled,
 			// because they might be implicit directories (which are verified via ListObjects).
 			// We only negatively cache directories after ListObjects confirms they have no children.
-			if !(b.implicitDir && strings.HasSuffix(req.Name, "/")) {
+			if !b.implicitDir || !strings.HasSuffix(req.Name, "/") {
 				b.addNegativeEntry(req.Name)
 			}
 		}
