@@ -15,6 +15,7 @@
 package block
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -93,31 +94,38 @@ func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, reservedBlock
 	}, nil
 }
 
-// Get returns a block. It returns an existing block if it's ready for reuse or
-// creates a new one if required.
-// Not thread-safe, calling from multiple goroutines may lead memory leaks because
-// of race conditions.
 func (bp *GenBlockPool[T]) Get() (T, error) {
-	for {
-		select {
-		case b := <-bp.freeBlocksCh:
-			// Reset the block for reuse.
-			b.Reuse()
-			return b, nil
-
-		default:
-			if bp.canAllocateBlock() {
-				b, err := bp.createBlockFunc(bp.blockSize)
-				if err != nil {
-					var zero T
-					return zero, err
-				}
-
-				bp.totalBlocks++
-				return b, nil
-			}
-		}
+	// Try to get a block immediately (non-blocking).
+	b, err := bp.TryGet()
+	if err == nil {
+		return b, nil
 	}
+	if !errors.Is(err, CantAllocateAnyBlockError) {
+		return b, err
+	}
+
+	// If we already have blocks allocated to this pool, we must wait for one of them
+	// to be released back to the pool.
+	if bp.totalBlocks > 0 {
+		b := <-bp.freeBlocksCh
+		b.Reuse()
+		return b, nil
+	}
+
+	// Otherwise, this pool has 0 blocks. We are blocked by the global semaphore.
+	// Block until a global permit is available to create our first block.
+	if err := bp.globalMaxBlocksSem.Acquire(context.Background(), 1); err != nil {
+		var zero T
+		return zero, err
+	}
+	b, err = bp.createBlockFunc(bp.blockSize)
+	if err != nil {
+		bp.globalMaxBlocksSem.Release(1)
+		var zero T
+		return zero, err
+	}
+	bp.totalBlocks++
+	return b, nil
 }
 
 // TryGet returns a block if available, or an error if no blocks can be allocated.
