@@ -69,9 +69,6 @@ type FileInode struct {
 	name         Name
 	attrs        fuseops.InodeAttributes
 	contentCache *contentcache.ContentCache
-	// TODO (#640) remove bool flag and refactor contentCache to support two implementations:
-	// one implementation with original functionality and one with new persistent disk content cache
-	localFileCache bool
 
 	/////////////////////////
 	// Mutable state
@@ -95,17 +92,6 @@ type FileInode struct {
 	// authoritative.
 	content gcsx.TempFile
 
-	// Has Destroy been called?
-	//
-	// GUARDED_BY(mu)
-	destroyed bool
-
-	// Represents a local file which is not yet synced to GCS.
-	local bool
-
-	// Represents if local file has been unlinked.
-	unlinked bool
-
 	// Wrapper object for multi range downloader. Needed as we will create the MRD in
 	// random reader and we can't pass fileInode object to random reader as it
 	// creates a cyclic dependency.
@@ -116,15 +102,6 @@ type FileInode struct {
 	bwh    bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
 
-	// Once write is started on the file i.e, bwh is initialized, any fileHandles
-	// opened in write mode before or after this and not yet closed are considered
-	// as writing to the file even though they are not writing.
-	// In case of successful flush, we will set bwh to nil. But in case of error,
-	// we will keep returning that error to all the fileHandles open during that time
-	// and set bwh to nil after all fileHandlers are closed.
-	// writeHandleCount tracks the count of open fileHandles in write mode.
-	writeHandleCount int32
-
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
@@ -134,6 +111,30 @@ type FileInode struct {
 	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
 	metricHandle              metrics.MetricHandle
 	traceHandle               tracing.TraceHandle
+
+	// Once write is started on the file i.e, bwh is initialized, any fileHandles
+	// opened in write mode before or after this and not yet closed are considered
+	// as writing to the file even though they are not writing.
+	// In case of successful flush, we will set bwh to nil. But in case of error,
+	// we will keep returning that error to all the fileHandles open during that time
+	// and set bwh to nil after all fileHandlers are closed.
+	// writeHandleCount tracks the count of open fileHandles in write mode.
+	writeHandleCount int32
+
+	// TODO (#640) remove bool flag and refactor contentCache to support two implementations:
+	// one implementation with original functionality and one with new persistent disk content cache
+	localFileCache bool
+
+	// Has Destroy been called?
+	//
+	// GUARDED_BY(mu)
+	destroyed bool
+
+	// Represents a local file which is not yet synced to GCS.
+	local bool
+
+	// Represents if local file has been unlinked.
+	unlinked bool
 }
 
 var _ Inode = &FileInode{}
