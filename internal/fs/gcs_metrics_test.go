@@ -541,11 +541,11 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 	_ = server.LookUpInode(ctx, lookupOp)
 	waitForMetricsProcessing()
 
-	// StatObject is short-circuited (remains 1), but ListObjects is still called (becomes 2)
+	// StatObject is short-circuited (remains 1), and ListObjects is also short-circuited (remains 1)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
 		1)
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "ListObjects")),
-		2)
+		1)
 }

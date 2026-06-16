@@ -1008,7 +1008,9 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 		WillOnce(Return(gcs.BucketType{Hierarchical: isHNS}))
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(listing, nil))
-	// Register expectations.
+	if prefix != "" {
+		ExpectCall(t.cache, "LookUp")(prefix, Any()).WillRepeatedly(Return(false, nil))
+	}
 	for _, obj := range expectedInserts {
 		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
 	}

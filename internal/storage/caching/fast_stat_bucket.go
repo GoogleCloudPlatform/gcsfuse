@@ -452,6 +452,16 @@ func (b *fastStatBucket) StatObject(
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	// If implicitDirs is enabled, a ListObjects call with a specific prefix
+	// is used to verify the existence of an implicit directory. If this prefix
+	// has a negative cache entry (meaning it doesn't exist and has no descendants),
+	// we can safely short-circuit the network call and return an empty listing.
+	if b.implicitDir && req.Prefix != "" {
+		if hit, entry := b.lookUp(req.Prefix); hit && entry == nil {
+			return &gcs.Listing{}, nil
+		}
+	}
+
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
