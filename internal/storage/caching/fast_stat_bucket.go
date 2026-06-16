@@ -132,10 +132,12 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// implicit directory.
 	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
 	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
-	if b.implicitDir && dirHasContents && !isDirInListing {
+	isDirPath := strings.HasSuffix(dirName, "/")
+
+	if b.implicitDir && isDirPath && dirHasContents && !isDirInListing {
 		b.cache.InsertImplicitDir(dirName, expiration)
 	}
-	if b.implicitDir && !dirHasContents && dirName != "" && b.negativeCacheTTL > 0 {
+	if b.implicitDir && isDirPath && !dirHasContents && dirName != "" && b.negativeCacheTTL > 0 {
 		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 
@@ -456,7 +458,7 @@ func (b *fastStatBucket) ListObjects(
 	// is used to verify the existence of an implicit directory. If this prefix
 	// has a negative cache entry (meaning it doesn't exist and has no descendants),
 	// we can safely short-circuit the network call and return an empty listing.
-	if b.implicitDir && req.Prefix != "" {
+	if b.implicitDir && req.Prefix != "" && strings.HasSuffix(req.Prefix, "/") {
 		if hit, entry := b.lookUp(req.Prefix); hit && entry == nil {
 			return &gcs.Listing{}, nil
 		}
@@ -559,7 +561,12 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
 		if _, ok := err.(*gcs.NotFoundError); ok {
-			b.addNegativeEntry(req.Name)
+			// Do not add negative cache for directories if implicitDir is enabled,
+			// because they might be implicit directories (which are verified via ListObjects).
+			// We only negatively cache directories after ListObjects confirms they have no children.
+			if !(b.implicitDir && strings.HasSuffix(req.Name, "/")) {
+				b.addNegativeEntry(req.Name)
+			}
 		}
 
 		return
