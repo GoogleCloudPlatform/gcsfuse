@@ -134,13 +134,11 @@ func (bp *GenBlockPool[T]) waitAndGetFirstBlock() (T, error) {
 		var zero T
 		return zero, err
 	}
-	b, err := bp.createBlockFunc(bp.blockSize)
+	b, err := bp.allocateNewBlock()
 	if err != nil {
 		bp.globalMaxBlocksSem.Release(1)
-		var zero T
-		return zero, err
+		return b, err
 	}
-	bp.totalBlocks++
 	return b, nil
 }
 
@@ -194,13 +192,11 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 			return b, nil
 		default:
 			// No local block available. Proceed with allocating a new one.
-			b, err := bp.createBlockFunc(bp.blockSize)
+			b, err := bp.allocateNewBlock()
 			if err != nil {
 				bp.globalMaxBlocksSem.Release(1)
-				var zero T
-				return zero, err
+				return b, err
 			}
-			bp.totalBlocks++
 			return b, nil
 		}
 	}
@@ -219,14 +215,7 @@ func (bp *GenBlockPool[T]) TryGet() (T, error) {
 
 	default:
 		if bp.canAllocateBlock() {
-			b, err := bp.createBlockFunc(bp.blockSize)
-			if err != nil {
-				var zero T
-				return zero, err
-			}
-
-			bp.totalBlocks++
-			return b, nil
+			return bp.allocateNewBlock()
 		}
 		var zero T
 		return zero, CantAllocateAnyBlockError
@@ -248,6 +237,17 @@ func (bp *GenBlockPool[T]) canAllocateBlock() bool {
 	// Otherwise, check if we can acquire a semaphore.
 	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
 	return semAcquired
+}
+
+// allocateNewBlock handles the physical allocation of a new block, tracking totalBlocks and returning any system error.
+func (bp *GenBlockPool[T]) allocateNewBlock() (T, error) {
+	b, err := bp.createBlockFunc(bp.blockSize)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	bp.totalBlocks++
+	return b, nil
 }
 
 // Release puts the block back into the free blocks channel for reuse.
