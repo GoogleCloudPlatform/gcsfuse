@@ -15,8 +15,10 @@
 package block
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -93,30 +95,111 @@ func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, reservedBlock
 	}, nil
 }
 
-// Get returns a block. It returns an existing block if it's ready for reuse or
-// creates a new one if required.
-// Not thread-safe, calling from multiple goroutines may lead memory leaks because
-// of race conditions.
 func (bp *GenBlockPool[T]) Get() (T, error) {
-	for {
-		select {
-		case b := <-bp.freeBlocksCh:
-			// Reset the block for reuse.
+	// Try to get a block immediately (non-blocking).
+	b, err := bp.TryGet()
+	if err == nil {
+		return b, nil
+	}
+	if !errors.Is(err, CantAllocateAnyBlockError) {
+		return b, err
+	}
+
+	// 1. At local pool limit: wait exclusively for a local block to be released.
+	if bp.totalBlocks >= bp.maxBlocks {
+		return bp.waitAndGetFromLocalPool()
+	}
+
+	// 2. At 0 blocks: wait exclusively for a global permit to allocate our first block.
+	if bp.totalBlocks == 0 {
+		return bp.waitAndGetFirstBlock()
+	}
+
+	// 3. Between 0 and local limit: wait for EITHER local release OR global permit.
+	return bp.waitAndGetConcurrent()
+}
+
+func (bp *GenBlockPool[T]) waitAndGetFromLocalPool() (T, error) {
+	b := <-bp.freeBlocksCh
+	b.Reuse()
+	return b, nil
+}
+
+func (bp *GenBlockPool[T]) waitAndGetFirstBlock() (T, error) {
+	if err := bp.globalMaxBlocksSem.Acquire(context.Background(), 1); err != nil {
+		var zero T
+		return zero, err
+	}
+	b, err := bp.createBlockFunc(bp.blockSize)
+	if err != nil {
+		bp.globalMaxBlocksSem.Release(1)
+		var zero T
+		return zero, err
+	}
+	bp.totalBlocks++
+	return b, nil
+}
+
+func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var winner int32 // 0 = undecided, 1 = local block won, 2 = global permit won
+	acquiredCh := make(chan bool, 1)
+
+	go func() {
+		err := bp.globalMaxBlocksSem.Acquire(ctx, 1)
+		if err == nil {
+			if atomic.CompareAndSwapInt32(&winner, 0, 2) {
+				acquiredCh <- true
+			} else {
+				// The local block won the race, so we must release this global permit.
+				bp.globalMaxBlocksSem.Release(1)
+			}
+		} else {
+			acquiredCh <- false
+		}
+	}()
+
+	select {
+	case b := <-bp.freeBlocksCh:
+		if atomic.CompareAndSwapInt32(&winner, 0, 1) {
+			cancel() // Cancel the Acquire() in the helper goroutine.
 			b.Reuse()
 			return b, nil
+		}
+		// The global permit won the race, but we already have a local block in hand!
+		// It is much more efficient to reuse the local block and release the global permit.
+		// This avoids an expensive syscall.Mmap call via createBlockFunc.
+		<-acquiredCh                     // Drain the channel.
+		bp.globalMaxBlocksSem.Release(1) // Release the won global permit.
+		b.Reuse()
+		return b, nil
 
-		default:
-			if bp.canAllocateBlock() {
+	case acquired := <-acquiredCh:
+		if acquired {
+			// Non-blocking check: can we reuse a local block instead of allocating?
+			select {
+			case b := <-bp.freeBlocksCh:
+				// We found a local block! Release the global permit and reuse the local block.
+				bp.globalMaxBlocksSem.Release(1)
+				b.Reuse()
+				return b, nil
+			default:
+				// No local block available. Proceed with allocating a new one.
 				b, err := bp.createBlockFunc(bp.blockSize)
 				if err != nil {
+					bp.globalMaxBlocksSem.Release(1)
 					var zero T
 					return zero, err
 				}
-
 				bp.totalBlocks++
 				return b, nil
 			}
 		}
+		// Fallback: if we failed to acquire the global permit, return error.
+		var zero T
+		return zero, CantAllocateAnyBlockError
 	}
 }
 
