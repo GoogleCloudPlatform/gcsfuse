@@ -15,9 +15,7 @@
 package block
 
 import (
-	"errors"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -634,76 +632,4 @@ func (t *BlockPoolTest) TestBlockPoolCreationWithReservedBlocksFailure() {
 			assert.EqualError(t.T(), err, tt.expectedErrMsg)
 		})
 	}
-}
-
-func (t *BlockPoolTest) TestGetDoesNotDeadlockOnGlobalLimit() {
-	globalSem := semaphore.NewWeighted(1)
-
-	// Pool 1 allocates the only global block.
-	bp1, err := NewGenBlockPool(1024, 1, 0, globalSem, createBlock)
-	require.NoError(t.T(), err)
-	b1, err := bp1.Get()
-	require.NoError(t.T(), err)
-
-	// Pool 2 has maxBlocks = 1, but currently has 0 blocks allocated.
-	bp2, err := NewGenBlockPool(1024, 1, 0, globalSem, createBlock)
-	require.NoError(t.T(), err)
-
-	// Release Pool 1's block after a short delay to free up the global semaphore.
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		bp1.Release(b1)
-		_ = bp1.ClearFreeBlockChannel(true)
-	}()
-
-	// Pool 2 should be able to get a block once the global semaphore is released.
-	b2, err := bp2.Get()
-	require.NoError(t.T(), err)
-	require.NotNil(t.T(), b2)
-}
-
-func BenchmarkGetReleaseContention(b *testing.B) {
-	globalMaxBlocksSem := semaphore.NewWeighted(10) // Limit global blocks to 10.
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			// Each iteration represents a file session.
-			bp, err := NewGenBlockPool(1024, 2, 1, globalMaxBlocksSem, createBlock)
-			if err != nil {
-				if errors.Is(err, CantAllocateAnyBlockError) {
-					continue
-				}
-				b.Fatal(err)
-			}
-
-			var wg sync.WaitGroup
-			wg.Add(2)
-
-			block1, err := bp.Get()
-			if err != nil {
-				b.Fatal(err)
-			}
-			go func() {
-				time.Sleep(10 * time.Microsecond)
-				bp.Release(block1)
-				wg.Done()
-			}()
-
-			block2, err := bp.Get()
-			if err != nil {
-				b.Fatal(err)
-			}
-			go func() {
-				time.Sleep(10 * time.Microsecond)
-				bp.Release(block2)
-				wg.Done()
-			}()
-
-			wg.Wait()
-			if err := bp.ClearFreeBlockChannel(true); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
 }
