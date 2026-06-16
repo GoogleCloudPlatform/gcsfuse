@@ -26,7 +26,7 @@ import (
 var gEnableInvariantsCheck bool
 var gEnableDebugMessages bool
 
-const lockHoldingThreshold = 7 * time.Second
+const lockHoldingThreshold = 1 * time.Second
 
 // Enable the check for invariants in the locks. Must be set before creating
 // any lockers.
