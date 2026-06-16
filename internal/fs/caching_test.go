@@ -338,6 +338,9 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 
 	AssertEq(nil, err)
 
+	// Advance time so that any negative cache for "foo" from previous tests expires.
+	cacheClock.AdvanceTime(negativeCacheTTL + time.Millisecond)
+
 	// The directory should appear to exist.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
@@ -358,6 +361,9 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 		[]byte(""))
 
 	AssertEq(nil, err)
+
+	// Advance time so that any negative cache for "foo" from previous tests expires.
+	cacheClock.AdvanceTime(negativeCacheTTL + time.Millisecond)
 
 	// The directory should appear to exist.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
