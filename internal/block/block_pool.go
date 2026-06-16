@@ -134,12 +134,7 @@ func (bp *GenBlockPool[T]) waitAndGetFirstBlock() (T, error) {
 		var zero T
 		return zero, err
 	}
-	b, err := bp.allocateNewBlock()
-	if err != nil {
-		bp.globalMaxBlocksSem.Release(1)
-		return b, err
-	}
-	return b, nil
+	return bp.allocateNewBlock(true)
 }
 
 const (
@@ -152,13 +147,13 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var winner int32 // stateUndecided, stateLocalWon, or stateGlobalWon
+	var winner atomic.Int32 // stateUndecided, stateLocalWon, or stateGlobalWon
 	acquiredCh := make(chan struct{}, 1)
 
 	go func() {
 		err := bp.globalMaxBlocksSem.Acquire(ctx, 1)
 		if err == nil {
-			if atomic.CompareAndSwapInt32(&winner, stateUndecided, stateGlobalWon) {
+			if winner.CompareAndSwap(stateUndecided, stateGlobalWon) {
 				acquiredCh <- struct{}{}
 			} else {
 				// The local block won the race, so we must release this global permit.
@@ -169,7 +164,7 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 
 	select {
 	case b := <-bp.freeBlocksCh:
-		if atomic.CompareAndSwapInt32(&winner, stateUndecided, stateLocalWon) {
+		if winner.CompareAndSwap(stateUndecided, stateLocalWon) {
 			cancel() // Cancel the Acquire() in the helper goroutine.
 			b.Reuse()
 			return b, nil
@@ -192,12 +187,7 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 			return b, nil
 		default:
 			// No local block available. Proceed with allocating a new one.
-			b, err := bp.allocateNewBlock()
-			if err != nil {
-				bp.globalMaxBlocksSem.Release(1)
-				return b, err
-			}
-			return b, nil
+			return bp.allocateNewBlock(true)
 		}
 	}
 }
@@ -215,7 +205,7 @@ func (bp *GenBlockPool[T]) TryGet() (T, error) {
 
 	default:
 		if bp.canAllocateBlock() {
-			return bp.allocateNewBlock()
+			return bp.allocateNewBlock(bp.totalBlocks >= bp.reservedBlocks)
 		}
 		var zero T
 		return zero, CantAllocateAnyBlockError
@@ -240,9 +230,13 @@ func (bp *GenBlockPool[T]) canAllocateBlock() bool {
 }
 
 // allocateNewBlock handles the physical allocation of a new block, tracking totalBlocks and returning any system error.
-func (bp *GenBlockPool[T]) allocateNewBlock() (T, error) {
+// If wasPermitAcquired is true, it releases the global semaphore permit on allocation failure.
+func (bp *GenBlockPool[T]) allocateNewBlock(wasPermitAcquired bool) (T, error) {
 	b, err := bp.createBlockFunc(bp.blockSize)
 	if err != nil {
+		if wasPermitAcquired {
+			bp.globalMaxBlocksSem.Release(1)
+		}
 		var zero T
 		return zero, err
 	}
