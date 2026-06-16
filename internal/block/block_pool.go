@@ -95,6 +95,10 @@ func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, reservedBlock
 	}, nil
 }
 
+// Get returns a block. It returns an existing block if it's ready for reuse or
+// creates a new one if required.
+// Not thread-safe, calling from multiple goroutines may lead to memory leaks because
+// of race conditions.
 func (bp *GenBlockPool[T]) Get() (T, error) {
 	// Try to get a block immediately (non-blocking).
 	b, err := bp.TryGet()
@@ -140,30 +144,34 @@ func (bp *GenBlockPool[T]) waitAndGetFirstBlock() (T, error) {
 	return b, nil
 }
 
+const (
+	stateUndecided int32 = iota
+	stateLocalWon
+	stateGlobalWon
+)
+
 func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var winner int32 // 0 = undecided, 1 = local block won, 2 = global permit won
-	acquiredCh := make(chan bool, 1)
+	var winner int32 // stateUndecided, stateLocalWon, or stateGlobalWon
+	acquiredCh := make(chan struct{}, 1)
 
 	go func() {
 		err := bp.globalMaxBlocksSem.Acquire(ctx, 1)
 		if err == nil {
-			if atomic.CompareAndSwapInt32(&winner, 0, 2) {
-				acquiredCh <- true
+			if atomic.CompareAndSwapInt32(&winner, stateUndecided, stateGlobalWon) {
+				acquiredCh <- struct{}{}
 			} else {
 				// The local block won the race, so we must release this global permit.
 				bp.globalMaxBlocksSem.Release(1)
 			}
-		} else {
-			acquiredCh <- false
 		}
 	}()
 
 	select {
 	case b := <-bp.freeBlocksCh:
-		if atomic.CompareAndSwapInt32(&winner, 0, 1) {
+		if atomic.CompareAndSwapInt32(&winner, stateUndecided, stateLocalWon) {
 			cancel() // Cancel the Acquire() in the helper goroutine.
 			b.Reuse()
 			return b, nil
@@ -176,30 +184,25 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 		b.Reuse()
 		return b, nil
 
-	case acquired := <-acquiredCh:
-		if acquired {
-			// Non-blocking check: can we reuse a local block instead of allocating?
-			select {
-			case b := <-bp.freeBlocksCh:
-				// We found a local block! Release the global permit and reuse the local block.
+	case <-acquiredCh:
+		// Non-blocking check: can we reuse a local block instead of allocating?
+		select {
+		case b := <-bp.freeBlocksCh:
+			// We found a local block! Release the global permit and reuse the local block.
+			bp.globalMaxBlocksSem.Release(1)
+			b.Reuse()
+			return b, nil
+		default:
+			// No local block available. Proceed with allocating a new one.
+			b, err := bp.createBlockFunc(bp.blockSize)
+			if err != nil {
 				bp.globalMaxBlocksSem.Release(1)
-				b.Reuse()
-				return b, nil
-			default:
-				// No local block available. Proceed with allocating a new one.
-				b, err := bp.createBlockFunc(bp.blockSize)
-				if err != nil {
-					bp.globalMaxBlocksSem.Release(1)
-					var zero T
-					return zero, err
-				}
-				bp.totalBlocks++
-				return b, nil
+				var zero T
+				return zero, err
 			}
+			bp.totalBlocks++
+			return b, nil
 		}
-		// Fallback: if we failed to acquire the global permit, return error.
-		var zero T
-		return zero, CantAllocateAnyBlockError
 	}
 }
 
