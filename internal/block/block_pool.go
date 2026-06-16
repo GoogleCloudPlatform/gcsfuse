@@ -168,17 +168,12 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 			b.Reuse()
 			return b, nil
 		}
-		// The global permit won the race. Put the local block back (guaranteed non-blocking).
-		bp.freeBlocksCh <- b
-		<-acquiredCh // Drain the channel.
-
-		b, err := bp.createBlockFunc(bp.blockSize)
-		if err != nil {
-			bp.globalMaxBlocksSem.Release(1)
-			var zero T
-			return zero, err
-		}
-		bp.totalBlocks++
+		// The global permit won the race, but we already have a local block in hand!
+		// It is much more efficient to reuse the local block and release the global permit.
+		// This avoids an expensive syscall.Mmap call via createBlockFunc.
+		<-acquiredCh                     // Drain the channel.
+		bp.globalMaxBlocksSem.Release(1) // Release the won global permit.
+		b.Reuse()
 		return b, nil
 
 	case acquired := <-acquiredCh:
