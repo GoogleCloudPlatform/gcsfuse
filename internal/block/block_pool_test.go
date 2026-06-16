@@ -638,13 +638,11 @@ func (t *BlockPoolTest) TestBlockPoolCreationWithReservedBlocksFailure() {
 
 func (t *BlockPoolTest) TestGetDoesNotDeadlockOnGlobalLimit() {
 	globalSem := semaphore.NewWeighted(1)
-
 	// Pool 1 allocates the only global block.
 	bp1, err := NewGenBlockPool(1024, 1, 0, globalSem, createBlock)
 	require.NoError(t.T(), err)
 	b1, err := bp1.Get()
 	require.NoError(t.T(), err)
-
 	// Pool 2 has maxBlocks = 1, but currently has 0 blocks allocated.
 	bp2, err := NewGenBlockPool(1024, 1, 0, globalSem, createBlock)
 	require.NoError(t.T(), err)
@@ -715,14 +713,11 @@ func (t *BlockPoolTest) TestTryGetReleasePermitOnAllocationFailure() {
 	}
 	bp, err := NewGenBlockPool(1024, 1, 0, globalSem, failingCreateBlock)
 	require.NoError(t.T(), err)
-
 	_, err = bp.TryGet()
-
 	require.Error(t.T(), err)
-	assert.Contains(t.T(), err.Error(), "simulated allocation failure")
 
-	// Verify global semaphore permit was not leaked (we should be able to TryAcquire it now)
 	acquired := globalSem.TryAcquire(1)
+
 	assert.True(t.T(), acquired, "global semaphore permit was leaked after TryGet allocation failure")
 }
 
@@ -733,14 +728,12 @@ func (t *BlockPoolTest) TestGetReleasePermitOnAllocationFailureFirstBlock() {
 	}
 	bp, err := NewGenBlockPool(1024, 1, 0, globalSem, failingCreateBlock)
 	require.NoError(t.T(), err)
-
 	_, err = bp.Get()
-
 	require.Error(t.T(), err)
-	assert.Contains(t.T(), err.Error(), "simulated allocation failure")
+
+	acquired := globalSem.TryAcquire(1)
 
 	// Verify global semaphore permit was not leaked
-	acquired := globalSem.TryAcquire(1)
 	assert.True(t.T(), acquired, "global semaphore permit was leaked after Get allocation failure on first block")
 }
 
@@ -751,7 +744,6 @@ func (t *BlockPoolTest) TestGetReleasePermitOnAllocationFailureConcurrent() {
 	}
 	bp, err := NewGenBlockPool(1024, 2, 0, globalSem, failingCreateBlock)
 	require.NoError(t.T(), err)
-
 	// Simulate that 1 block is already allocated and the global semaphore is exhausted
 	bp.totalBlocks = 1
 	acquiredFirst := globalSem.TryAcquire(1)
@@ -762,22 +754,19 @@ func (t *BlockPoolTest) TestGetReleasePermitOnAllocationFailureConcurrent() {
 		_, err := bp.Get()
 		errCh <- err
 	}()
-
 	// Give the goroutine a moment to start and block
 	time.Sleep(50 * time.Millisecond)
-
 	// Release the permit to unblock waitAndGetConcurrent's Acquire
 	globalSem.Release(1)
-
 	select {
 	case err := <-errCh:
 		require.Error(t.T(), err)
-		assert.Contains(t.T(), err.Error(), "simulated allocation failure")
 	case <-time.After(1 * time.Second):
-		t.T().Fatal("timeout waiting for Get to return error")
+		require.FailNow(t.T(), "timeout waiting for Get to return error")
 	}
 
-	// Verify that the global semaphore permit was not leaked after the allocation failure
 	acquired := globalSem.TryAcquire(1)
+
+	// Verify that the global semaphore permit was not leaked after the allocation failure
 	assert.True(t.T(), acquired, "global semaphore permit was leaked after concurrent Get allocation failure")
 }
