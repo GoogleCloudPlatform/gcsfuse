@@ -238,11 +238,7 @@ type dirInode struct {
 	// Constant data
 	/////////////////////////
 
-	id                       fuseops.InodeID
-	implicitDirs             bool
-	includeFoldersAsPrefixes bool
-
-	enableNonexistentTypeCache bool
+	id fuseops.InodeID
 
 	// INVARIANT: name.IsDir()
 	name Name
@@ -270,23 +266,25 @@ type dirInode struct {
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
 	prevDirListingTimeStamp time.Time
-	isHNSEnabled            bool
-
-	isStandardSymlinkRepresentationEnabled bool
-
-	isUnsupportedPathSupportEnabled bool
-
-	isEnableTypeCacheDeprecation bool
-
-	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
-	// non-hierarchical bucket.
-	unlinked bool
 
 	metadataCacheTtlSecs int64
+
+	implicitDirs               bool
+	includeFoldersAsPrefixes   bool
+	enableNonexistentTypeCache bool
+	isHNSEnabled               bool
 
 	// activeWriters tracks the number of ongoing write operations in this directory.
 	// It is used to prevent metadata prefetching while writes are in progress.
 	activeWriters atomic.Int32
+
+	isStandardSymlinkRepresentationEnabled bool
+	isUnsupportedPathSupportEnabled        bool
+	isEnableTypeCacheDeprecation           bool
+
+	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
+	// non-hierarchical bucket.
+	unlinked bool
 }
 
 var _ DirInode = &dirInode{}
