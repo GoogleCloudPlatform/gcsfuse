@@ -25,6 +25,7 @@ import (
 	"sync"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
@@ -49,9 +50,9 @@ func TestShouldRetryReturnsTrueWithGoogleApiError(t *testing.T) {
 		Body: "API rate limit exceeded",
 	}
 
-	assert.Equal(t, true, ShouldRetry(&err401))
-	assert.Equal(t, true, ShouldRetry(&err502))
-	assert.Equal(t, true, ShouldRetry(&err429))
+	assert.Equal(t, true, ShouldRetry(context.Background(), &err401))
+	assert.Equal(t, true, ShouldRetry(context.Background(), &err502))
+	assert.Equal(t, true, ShouldRetry(context.Background(), &err429))
 }
 
 func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
@@ -60,15 +61,15 @@ func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
 		Code: 400,
 	}
 
-	assert.Equal(t, false, ShouldRetry(&err400))
+	assert.Equal(t, false, ShouldRetry(context.Background(), &err400))
 }
 
 func TestShouldRetryReturnsTrueWithUnexpectedEOFError(t *testing.T) {
-	assert.Equal(t, true, ShouldRetry(io.ErrUnexpectedEOF))
+	assert.Equal(t, true, ShouldRetry(context.Background(), io.ErrUnexpectedEOF))
 }
 
 func TestShouldRetryReturnsTrueWithNetworkError(t *testing.T) {
-	assert.Equal(t, true, ShouldRetry(net.ErrClosed))
+	assert.Equal(t, true, ShouldRetry(context.Background(), net.ErrClosed))
 }
 
 func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) {
@@ -121,7 +122,7 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualResult := ShouldRetry(tc.err)
+			actualResult := ShouldRetry(context.Background(), tc.err)
 			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
@@ -147,7 +148,7 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualResult := ShouldRetry(tc.err)
+			actualResult := ShouldRetry(context.Background(), tc.err)
 			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
@@ -281,12 +282,49 @@ func TestShouldRetryLogsWarning(t *testing.T) {
 	}
 
 	// Act
-	retry := ShouldRetry(err401)
+	retry := ShouldRetry(context.Background(), err401)
 
 	// Assert
 	assert.True(t, retry)
 	assert.Contains(t, buf.String(), "WARNING")
 	assert.Contains(t, buf.String(), "Retrying for error-code 401")
+}
+
+func TestShouldRetryLogsWarningWithSDKRetryContext(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	var err401 = &googleapi.Error{
+		Code:    401,
+		Message: "Invalid Credential",
+	}
+
+	// Create SDK RetryContext
+	retryCtx := &storage.RetryContext{
+		Attempt:      3,
+		InvocationID: "mock-invocation-id-123",
+		Operation:    "GetObject",
+		Bucket:       "my-test-bucket",
+		Object:       "some/file.txt",
+	}
+
+	// Act
+	retry := ShouldRetryWithContext(context.Background(), err401, retryCtx)
+
+	// Assert
+	assert.True(t, retry)
+	logMsg := buf.String()
+	t.Logf("Captured Log Message:\n%s", logMsg)
+	assert.Contains(t, logMsg, "WARNING")
+	assert.Contains(t, logMsg, "Retrying for error-code 401")
+	assert.Contains(t, logMsg, "[HTTP Code: 401, Message: ")
+	assert.Contains(t, logMsg, "Invalid Credential")
+	assert.Contains(t, logMsg, "[Op: GetObject, Bucket: ")
+	assert.Contains(t, logMsg, "my-test-bucket")
+	assert.Contains(t, logMsg, "some/file.txt")
+	assert.Contains(t, logMsg, "Attempt: 3")
+	assert.Contains(t, logMsg, "InvocationID: mock-invocation-id-123")
 }
 
 type fakeMetricHandle struct {

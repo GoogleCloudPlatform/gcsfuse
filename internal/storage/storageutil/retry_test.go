@@ -561,7 +561,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_Composition
 	}
 	// Wrap default ShouldRetry and also allow customErr
 	customShouldRetry := func(err error) bool {
-		return ShouldRetry(err) || errors.Is(err, customErr)
+		return ShouldRetry(context.Background(), err) || errors.Is(err, customErr)
 	}
 
 	// Act

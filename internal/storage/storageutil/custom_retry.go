@@ -17,6 +17,7 @@ package storageutil
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -76,18 +77,25 @@ func ShouldRetryWithoutLogging(err error) bool {
 }
 
 // ShouldRetry checks if the given error is transient and should be retried.
-// It logs a warning message with the error details for any retryable error.
+// It logs a warning message with the error details and execution context (TraceID, remaining budget) for any retryable error.
 // Returns true if the error is retryable, false otherwise.
-func ShouldRetry(err error) bool {
+func ShouldRetry(ctx context.Context, err error) bool {
+	return ShouldRetryWithContext(ctx, err, nil)
+}
+
+// ShouldRetryWithContext checks if the given error is transient and should be retried,
+// logging the retry warning with rich context from both the execution context (TraceID, remaining budget)
+// and the Go Storage SDK's experimental RetryContext (operation, bucket, object, attempt, invocation ID).
+func ShouldRetryWithContext(ctx context.Context, err error, retryCtx *storage.RetryContext) bool {
 	switch determineRetryAction(err) {
 	case retryTransient:
-		logger.Warnf("Retrying for the error: %v", err)
+		logRetryWithContext("Retrying for transient error", err, retryCtx)
 		return true
 	case retry401:
-		logger.Warnf("Retrying for error-code 401: %v", err)
+		logRetryWithContext("Retrying for error-code 401", err, retryCtx)
 		return true
 	case retryUnauthenticated:
-		logger.Warnf("Retrying for UNAUTHENTICATED error: %v", err)
+		logRetryWithContext("Retrying for UNAUTHENTICATED error", err, retryCtx)
 		return true
 	default:
 		return false
@@ -95,11 +103,20 @@ func ShouldRetry(err error) bool {
 }
 
 func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metrics.MetricHandle) bool {
+	return ShouldRetryWithMonitoringAndContext(ctx, err, nil, metricHandle)
+}
+
+func ShouldRetryWithMonitoringAndContext(
+	ctx context.Context,
+	err error,
+	retryCtx *storage.RetryContext,
+	metricHandle metrics.MetricHandle,
+) bool {
 	if err == nil {
 		return false
 	}
 
-	retry := ShouldRetry(err)
+	retry := ShouldRetryWithContext(ctx, err, retryCtx)
 	if !retry {
 		return false
 	}
@@ -111,4 +128,21 @@ func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metr
 
 	metricHandle.GcsRetryCount(1, val)
 	return retry
+}
+
+func logRetryWithContext(prefix string, err error, retryCtx *storage.RetryContext) {
+	var errorDetails string
+	if typed, ok := err.(*googleapi.Error); ok {
+		errorDetails = fmt.Sprintf(" [HTTP Code: %d, Message: %q]", typed.Code, typed.Message)
+	} else if st, ok := status.FromError(err); ok {
+		errorDetails = fmt.Sprintf(" [gRPC Code: %s, Message: %q]", st.Code().String(), st.Message())
+	}
+
+	var sdkRetryInfo string
+	if retryCtx != nil {
+		sdkRetryInfo = fmt.Sprintf(" [Op: %s, Bucket: %q, Object: %q, Attempt: %d, InvocationID: %s]",
+			retryCtx.Operation, retryCtx.Bucket, retryCtx.Object, retryCtx.Attempt, retryCtx.InvocationID)
+	}
+
+	logger.Warnf("%s: %v%s%s", prefix, err, errorDetails, sdkRetryInfo)
 }

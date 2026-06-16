@@ -175,8 +175,8 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 		storage.WithPolicy(storage.RetryAlways),
 		storage.WithMaxAttempts(clientConfig.MaxRetryAttempts),
 		storage.WithMaxRetryDuration(0),
-		storage.WithErrorFunc(func(err error) bool {
-			return storageutil.ShouldRetryWithMonitoring(ctx, err, clientConfig.MetricHandle)
+		storage.WithErrorFuncWithContext(func(err error, retryCtx *storage.RetryContext) bool {
+			return storageutil.ShouldRetryWithMonitoringAndContext(ctx, err, retryCtx, clientConfig.MetricHandle)
 		})}
 
 	sc.SetRetry(retryOpts...)
