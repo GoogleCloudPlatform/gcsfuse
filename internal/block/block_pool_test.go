@@ -754,7 +754,7 @@ func (t *BlockPoolTest) TestGetReleasePermitOnAllocationFailureFirstBlock() {
 
 func (t *BlockPoolTest) TestGetReleasePermitOnAllocationFailureConcurrent() {
 	globalSem := semaphore.NewWeighted(1)
-	
+
 	var callCount int32
 	failingCreateBlock := func(blockSize int64) (Block, error) {
 		if atomic.AddInt32(&callCount, 1) == 1 {
