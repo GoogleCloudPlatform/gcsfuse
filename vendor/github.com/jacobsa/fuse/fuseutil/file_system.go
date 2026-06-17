@@ -110,7 +110,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		s.fs.Destroy()
 	}()
 
-	workerCount := 200
+	workerCount := 768
 	/*if workerCount < 16 {
 		workerCount = 16
 	}*/
