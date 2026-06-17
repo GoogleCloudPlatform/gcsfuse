@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync/atomic"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -147,35 +146,24 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var winner atomic.Int32 // stateUndecided, stateLocalWon, or stateGlobalWon
-	acquiredCh := make(chan struct{}, 1)
+	acquiredCh := make(chan struct{}) // Unbuffered channel
 
 	go func() {
-		if err := bp.globalMaxBlocksSem.Acquire(ctx, 1); err != nil {
-			return
+		err := bp.globalMaxBlocksSem.Acquire(ctx, 1)
+		if err == nil {
+			select {
+			case acquiredCh <- struct{}{}:
+				// Main thread successfully read the permit signal!
+			case <-ctx.Done():
+				// Main thread took the local block and returned.
+				// We must release the acquired global permit!
+				bp.globalMaxBlocksSem.Release(1)
+			}
 		}
-
-		if winner.CompareAndSwap(stateUndecided, stateGlobalWon) {
-			acquiredCh <- struct{}{}
-			return
-		}
-		// The local block won the race, so we must release this global permit.
-		bp.globalMaxBlocksSem.Release(1)
-
 	}()
 
 	select {
 	case b := <-bp.freeBlocksCh:
-		if winner.CompareAndSwap(stateUndecided, stateLocalWon) {
-			cancel() // Cancel the Acquire() in the helper goroutine.
-			b.Reuse()
-			return b, nil
-		}
-		// The global permit won the race, but we already have a local block in hand!
-		// It is much more efficient to reuse the local block and release the global permit.
-		// This avoids an expensive syscall.Mmap call via createBlockFunc.
-		<-acquiredCh                     // Drain the channel.
-		bp.globalMaxBlocksSem.Release(1) // Release the won global permit.
 		b.Reuse()
 		return b, nil
 
@@ -183,12 +171,10 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 		// Non-blocking check: can we reuse a local block instead of allocating?
 		select {
 		case b := <-bp.freeBlocksCh:
-			// We found a local block! Release the global permit and reuse the local block.
 			bp.globalMaxBlocksSem.Release(1)
 			b.Reuse()
 			return b, nil
 		default:
-			// No local block available. Proceed with allocating a new one.
 			return bp.allocateNewBlock(true)
 		}
 	}
