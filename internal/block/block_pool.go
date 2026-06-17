@@ -136,7 +136,6 @@ func (bp *GenBlockPool[T]) waitAndGetFirstBlock() (T, error) {
 	return bp.allocateNewBlock(true)
 }
 
-
 func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
