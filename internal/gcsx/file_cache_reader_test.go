@@ -110,9 +110,15 @@ func (t *fileCacheReaderTest) SetupTest() {
 }
 
 func (t *fileCacheReaderTest) TearDownTest() {
-	t.reader.Destroy()
-	t.reader_unfinalized_object.Destroy()
-	t.jobManager.Destroy()
+	if t.reader != nil {
+		t.reader.Destroy()
+	}
+	if t.reader_unfinalized_object != nil {
+		t.reader_unfinalized_object.Destroy()
+	}
+	if t.jobManager != nil {
+		t.jobManager.Destroy()
+	}
 	err := os.RemoveAll(t.cacheDir)
 	if err != nil {
 		t.T().Logf("Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
