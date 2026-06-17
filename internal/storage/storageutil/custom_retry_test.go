@@ -317,7 +317,7 @@ func TestShouldRetryLogsWarningWithRetryContext(t *testing.T) {
 	assert.Contains(t, logMsg, "WARNING")
 	assert.Contains(t, logMsg, "Retrying for error-code 401")
 	assert.Contains(t, logMsg, "Invalid Credential")
-	assert.Contains(t, logMsg, "[Op: GetObject, Object: ")
+	assert.Contains(t, logMsg, "Op: GetObject, Object: ")
 	assert.Contains(t, logMsg, "some/file.txt")
 	assert.Contains(t, logMsg, "Attempt: 3")
 	assert.Contains(t, logMsg, "InvocationID: mock-invocation-id-123")
