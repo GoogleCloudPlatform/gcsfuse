@@ -346,7 +346,6 @@ func TestShouldRetryLogsWarningWithNilRetryContext(t *testing.T) {
 	assert.NotContains(t, logMsg, "InvocationID:")
 }
 
-
 type fakeMetricHandle struct {
 	metrics.MetricHandle
 
