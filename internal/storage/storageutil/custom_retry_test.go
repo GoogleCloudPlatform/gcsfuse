@@ -313,7 +313,6 @@ func TestShouldRetryLogsWarningWithRetryContext(t *testing.T) {
 	// Assert
 	assert.True(t, retry)
 	logMsg := buf.String()
-	t.Logf("Captured Log Message:\n%s", logMsg)
 	assert.Contains(t, logMsg, "WARNING")
 	assert.Contains(t, logMsg, "Retrying for error-code 401")
 	assert.Contains(t, logMsg, "Invalid Credential")
@@ -322,6 +321,31 @@ func TestShouldRetryLogsWarningWithRetryContext(t *testing.T) {
 	assert.Contains(t, logMsg, "Attempt: 3")
 	assert.Contains(t, logMsg, "InvocationID: mock-invocation-id-123")
 }
+
+func TestShouldRetryLogsWarningWithNilRetryContext(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	var err401 = &googleapi.Error{
+		Code:    401,
+		Message: "Invalid Credential",
+	}
+
+	// Act
+	retry := ShouldRetryWithRetryContext(err401, nil)
+
+	// Assert
+	assert.True(t, retry)
+	logMsg := buf.String()
+	assert.Contains(t, logMsg, "WARNING")
+	assert.Contains(t, logMsg, "Retrying for error-code 401: googleapi: Error 401: Invalid Credential")
+	assert.NotContains(t, logMsg, "Op:")
+	assert.NotContains(t, logMsg, "Object:")
+	assert.NotContains(t, logMsg, "Attempt:")
+	assert.NotContains(t, logMsg, "InvocationID:")
+}
+
 
 type fakeMetricHandle struct {
 	metrics.MetricHandle
