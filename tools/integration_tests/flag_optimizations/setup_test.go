@@ -34,7 +34,6 @@ import (
 const (
 	testDirName    = "FlagOptimizationsTests"
 	onlyDirMounted = "OnlyDirMountFlagOptimizations"
-	GKETempDir     = "/gcsfuse-tmp"
 )
 
 // To prevent global variable pollution, enhance code clarity,
@@ -90,86 +89,7 @@ func TestMain(m *testing.M) {
 	// Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.FlagOptimizations) == 0 {
-		log.Println("No configuration found for flag_optimizations tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.FlagOptimizations = make([]test_suite.TestConfig, 1)
-		cfg.FlagOptimizations[0].TestBucket = setup.TestBucket()
-		cfg.FlagOptimizations[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.FlagOptimizations[0].LogFile = setup.LogFile()
-		// Initialize the slice to hold 12 specific test configurations
-		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 12)
-		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountFails"
-		cfg.FlagOptimizations[0].Configs[0].Flags = []string{"--profile=unknown-profile"}
-		cfg.FlagOptimizations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[0].RunOnGKE = false
-		cfg.FlagOptimizations[0].Configs[1].Run = "TestImplicitDirsNotEnabled"
-		cfg.FlagOptimizations[0].Configs[1].Flags = []string{"--machine-type=low-end-machine"}
-		cfg.FlagOptimizations[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.FlagOptimizations[0].Configs[1].RunOnGKE = true
-		cfg.FlagOptimizations[0].Configs[2].Run = "TestRenameDirLimitNotSet"
-		cfg.FlagOptimizations[0].Configs[2].Flags = []string{"--machine-type=low-end-machine", "--profile=aiml-training", "--profile=aiml-serving"}
-		cfg.FlagOptimizations[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.FlagOptimizations[0].Configs[2].RunOnGKE = true
-		cfg.FlagOptimizations[0].Configs[3].Run = "TestImplicitDirsEnabled"
-		cfg.FlagOptimizations[0].Configs[3].Flags = []string{
-			"--machine-type=a3-highgpu-8g",
-			"--profile=aiml-training",
-			"--profile=aiml-serving",
-			"--profile=aiml-checkpointing",
-			"--machine-type=low-end-machine --profile=aiml-training",
-			"--machine-type=low-end-machine --profile=aiml-serving",
-			"--machine-type=low-end-machine --profile=aiml-checkpointing",
-		}
-		cfg.FlagOptimizations[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.FlagOptimizations[0].Configs[3].RunOnGKE = true
-		cfg.FlagOptimizations[0].Configs[4].Run = "TestRenameDirLimitSet"
-		cfg.FlagOptimizations[0].Configs[4].Flags = []string{
-			"--machine-type=a3-highgpu-8g",
-			"--profile=aiml-checkpointing",
-			"--machine-type=low-end-machine --profile=aiml-checkpointing",
-		}
-		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.FlagOptimizations[0].Configs[4].RunOnGKE = true
-
-		cfg.FlagOptimizations[0].Configs[5].Run = "TestZonalBucketOptimizations"
-		cfg.FlagOptimizations[0].Configs[5].Flags = []string{"--log-severity=trace"}
-		cfg.FlagOptimizations[0].Configs[5].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[5].RunOnGKE = false
-
-		cfg.FlagOptimizations[0].Configs[6].Run = "TestZonalBucketOptimizations_ExplicitOverrides"
-		cfg.FlagOptimizations[0].Configs[6].Flags = []string{"--implicit-dirs --max-read-ahead-kb=2048 --max-background=50 --congestion-threshold=30 --log-severity=trace"}
-		cfg.FlagOptimizations[0].Configs[6].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[6].RunOnGKE = false
-
-		cfg.FlagOptimizations[0].Configs[7].Run = "TestZonalBucketOptimizations_Dynamic"
-		cfg.FlagOptimizations[0].Configs[7].Flags = []string{"--log-severity=trace"}
-		cfg.FlagOptimizations[0].Configs[7].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[7].RunOnGKE = false
-
-		cfg.FlagOptimizations[0].Configs[8].Run = "TestKernelReader_DefaultAndPrecedence"
-		cfg.FlagOptimizations[0].Configs[8].Flags = []string{
-			"--implicit-dirs --log-severity=trace",
-			"--implicit-dirs --log-severity=trace --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache",
-			"--implicit-dirs --log-severity=trace --enable-buffered-read=true",
-			"--implicit-dirs --log-severity=trace --enable-buffered-read=true --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both",
-		}
-		cfg.FlagOptimizations[0].Configs[8].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[8].RunOnGKE = false
-
-		cfg.FlagOptimizations[0].Configs[9].Run = "TestFileCache_KernelReaderDisabled"
-		cfg.FlagOptimizations[0].Configs[9].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"}
-		cfg.FlagOptimizations[0].Configs[9].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[9].RunOnGKE = false
-
-		cfg.FlagOptimizations[0].Configs[10].Run = "TestBufferedReader_KernelReaderDisabled"
-		cfg.FlagOptimizations[0].Configs[10].Flags = []string{"--implicit-dirs --log-severity=trace --enable-kernel-reader=false --enable-buffered-read"}
-		cfg.FlagOptimizations[0].Configs[10].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[10].RunOnGKE = false
-
-		cfg.FlagOptimizations[0].Configs[11].Run = "TestKernelReader_Dynamic"
-		cfg.FlagOptimizations[0].Configs[11].Flags = []string{"--implicit-dirs --log-severity=trace"}
-		cfg.FlagOptimizations[0].Configs[11].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[11].RunOnGKE = false
+		log.Fatal("No configuration found for FlagOptimizations in config file.")
 	}
 
 	testEnv.ctx = context.Background()

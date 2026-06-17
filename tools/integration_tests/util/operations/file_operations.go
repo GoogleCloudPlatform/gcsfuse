@@ -27,17 +27,14 @@ import (
 	"log"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -454,42 +451,6 @@ func AreFilesIdentical(filepath1, filepath2 string) (bool, error) {
 	return true, nil
 }
 
-// Returns size of a give GCS object with path (without 'gs://').
-// Fails if the object doesn't exist or permission to read object's metadata is not
-// available.
-func GetGcsObjectSize(gcsObjPath string) (int, error) {
-	stdout, err := ExecuteGcloudCommandf("storage du -s gs://%s", gcsObjPath)
-	if err != nil {
-		return 0, err
-	}
-
-	// The above gcloud command returns output in the following format:
-	// <size> <gcs-object-path>
-	// So, we need to pick out only the first string before ' '.
-	gcsObjectSize, err := strconv.Atoi(strings.TrimSpace(strings.Split(string(stdout), " ")[0]))
-	if err != nil {
-		return gcsObjectSize, err
-	}
-
-	return gcsObjectSize, nil
-}
-
-// Deletes a given GCS object (with path without 'gs://').
-// Fails if the object doesn't exist or permission to delete object is not
-// available.
-func DeleteGcsObject(gcsObjPath string) error {
-	_, err := ExecuteGcloudCommandf("rm gs://%s", gcsObjPath)
-	return err
-}
-
-// Clears cache-control attributes on given GCS object (with path without 'gs://').
-// Fails if the file doesn't exist or permission to modify object's metadata is not
-// available.
-func ClearCacheControlOnGcsObject(gcsObjPath string) error {
-	_, err := ExecuteGcloudCommandf("storage objects update --cache-control='' gs://%s", gcsObjPath)
-	return err
-}
-
 func CreateFile(filePath string, filePerms os.FileMode, t testing.TB) (f *os.File) {
 	t.Helper()
 	// Creating a file shouldn't create file on GCS.
@@ -690,17 +651,6 @@ func CalculateFileCRC32(filePath string) (uint32, error) {
 	return CalculateCRC32(file)
 }
 
-// SizeOfFile returns the size of the given file by path.
-// by invoking a stat call on it.
-func SizeOfFile(filepath string) (size int64, err error) {
-	fstat, err := StatFile(filepath)
-	if err != nil {
-		return 0, err
-	}
-
-	return (*fstat).Size(), nil
-}
-
 func writeGzipToFile(f *os.File, filepath, content string, contentSize int) (string, error) {
 	w := gzip.NewWriter(f)
 	if w == nil {
@@ -780,25 +730,6 @@ func ReadAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk s
 	if !bytes.Equal(mountContents, diskContents) {
 		t.Fatalf("data mismatch between mounted directory and local disk")
 	}
-}
-
-func CreateLocalFile(ctx context.Context, t *testing.T, mntDir string, bucket gcs.Bucket, fileName string) (filePath string, f *os.File) {
-	t.Helper()
-	// Creating a file shouldn't create file on GCS.
-	filePath = path.Join(mntDir, fileName)
-
-	f, err := os.Create(filePath)
-
-	assert.Equal(t, nil, err)
-	ValidateObjectNotFoundErr(ctx, t, bucket, fileName)
-	return
-}
-
-func CloseLocalFile(t *testing.T, f **os.File) error {
-	t.Helper()
-	err := (*f).Close()
-	*f = nil
-	return err
 }
 
 func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {

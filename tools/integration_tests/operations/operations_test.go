@@ -147,19 +147,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if len(cfg.Operations) == 0 {
-		log.Println("No configuration found for operations tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.Operations = make([]test_suite.TestConfig, 1)
-		cfg.Operations[0].TestBucket = setup.TestBucket()
-		cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.Operations[0].Configs[0].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true --enable-metadata-prefetch",
-			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
-			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true --enable-metadata-prefetch",
-		}
-		cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for Operations in config file.")
 	}
 
 	ctx = context.Background()

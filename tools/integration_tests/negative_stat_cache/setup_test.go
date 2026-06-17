@@ -66,23 +66,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.NegativeStatCache) == 0 {
-		log.Println("No configuration found for negative_stat_cache tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.NegativeStatCache = make([]test_suite.TestConfig, 1)
-		cfg.NegativeStatCache[0].TestBucket = setup.TestBucket()
-		cfg.NegativeStatCache[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.NegativeStatCache[0].LogFile = setup.LogFile()
-		// Initialize the slice to hold specific test configurations
-		cfg.NegativeStatCache[0].Configs = make([]test_suite.ConfigItem, 3)
-		cfg.NegativeStatCache[0].Configs[0].Flags = []string{"--metadata-cache-negative-ttl-secs=0"}
-		cfg.NegativeStatCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.NegativeStatCache[0].Configs[0].Run = "TestDisabledNegativeStatCacheTest"
-		cfg.NegativeStatCache[0].Configs[1].Flags = []string{"--metadata-cache-negative-ttl-secs=5"}
-		cfg.NegativeStatCache[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.NegativeStatCache[0].Configs[1].Run = "TestFiniteNegativeStatCacheTest"
-		cfg.NegativeStatCache[0].Configs[2].Flags = []string{"--metadata-cache-negative-ttl-secs=-1"}
-		cfg.NegativeStatCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.NegativeStatCache[0].Configs[2].Run = "TestInfiniteNegativeStatCacheTest"
+		log.Fatal("No configuration found for NegativeStatCache in config file.")
 	}
 
 	testEnv.ctx = context.Background()

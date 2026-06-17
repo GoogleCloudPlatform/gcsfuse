@@ -132,26 +132,7 @@ func TestMain(m *testing.M) {
 	// 1. read config file
 	configFile := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(configFile.InactiveStreamTimeout) == 0 {
-		log.Println("No configuration found for inactive_stream_timeout tests in config. Using default flags.")
-		configFile.InactiveStreamTimeout = make([]test_suite.TestConfig, 1)
-		testEnv.cfg = &configFile.InactiveStreamTimeout[0]
-		testEnv.cfg.TestBucket = setup.TestBucket()
-		testEnv.cfg.LogFile = setup.LogFile()
-		testEnv.cfg.GKEMountedDirectory = setup.MountedDirectory()
-
-		testEnv.cfg.Configs = make([]test_suite.ConfigItem, 2)
-		testEnv.cfg.Configs[0].Flags = []string{
-			"--read-inactive-stream-timeout=1s --client-protocol=http1 --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log",
-			"--read-inactive-stream-timeout=1s --client-protocol=grpc --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log",
-		}
-		testEnv.cfg.Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		testEnv.cfg.Configs[0].Run = "TestTimeoutEnabledSuite"
-
-		testEnv.cfg.Configs[1].Flags = []string{
-			"--read-inactive-stream-timeout=0s --client-protocol=http1 --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutDisabledSuite.log",
-		}
-		testEnv.cfg.Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		testEnv.cfg.Configs[1].Run = "TestTimeoutDisabledSuite"
+		log.Fatal("No configuration found for InactiveStreamTimeout in config file.")
 	}
 	testEnv.cfg = &configFile.InactiveStreamTimeout[0]
 	testEnv.ctx = context.Background()

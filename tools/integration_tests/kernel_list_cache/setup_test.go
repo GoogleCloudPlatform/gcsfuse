@@ -34,7 +34,6 @@ import (
 const (
 	testDirName    = "KernelListCacheTest"
 	onlyDirMounted = "OnlyDirMountKernelListCache"
-	GKETempDir     = "/gcsfuse-tmp"
 )
 
 var (
@@ -65,29 +64,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.KernelListCache) == 0 {
-		log.Println("No configuration found for kernel_list_cache tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.KernelListCache = make([]test_suite.TestConfig, 1)
-		cfg.KernelListCache[0].TestBucket = setup.TestBucket()
-		cfg.KernelListCache[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.KernelListCache[0].LogFile = setup.LogFile()
-		// Initialize the slice to hold 15 specific test configurations
-		cfg.KernelListCache[0].Configs = make([]test_suite.ConfigItem, 4)
-		cfg.KernelListCache[0].Configs[0].Flags = []string{"--kernel-list-cache-ttl-secs=-1"}
-		cfg.KernelListCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.KernelListCache[0].Configs[0].Run = "TestInfiniteKernelListCacheTest"
-		// Note: metadata cache is disabled to avoid cache consistency issue between
-		// gcsfuse cache and kernel cache. As gcsfuse cache might hold the entry which
-		// already became stale due to delete operation.
-		cfg.KernelListCache[0].Configs[1].Flags = []string{"--kernel-list-cache-ttl-secs=-1 --metadata-cache-ttl-secs=0 --metadata-cache-negative-ttl-secs=0"}
-		cfg.KernelListCache[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.KernelListCache[0].Configs[1].Run = "TestInfiniteKernelListCacheDeleteDirTest"
-		cfg.KernelListCache[0].Configs[2].Flags = []string{"--kernel-list-cache-ttl-secs=5 --rename-dir-limit=10"}
-		cfg.KernelListCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.KernelListCache[0].Configs[2].Run = "TestFiniteKernelListCacheTest"
-		cfg.KernelListCache[0].Configs[3].Flags = []string{"--kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10"}
-		cfg.KernelListCache[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.KernelListCache[0].Configs[3].Run = "TestDisabledKernelListCacheTest"
+		log.Fatal("No configuration found for KernelListCache in config file.")
 	}
 
 	testEnv.ctx = context.Background()

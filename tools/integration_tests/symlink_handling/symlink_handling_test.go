@@ -49,23 +49,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.SymlinkHandling) == 0 {
-		log.Println("No configuration found for symlink handling tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.SymlinkHandling = make([]test_suite.TestConfig, 1)
-		cfg.SymlinkHandling[0].TestBucket = setup.TestBucket()
-		cfg.SymlinkHandling[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.SymlinkHandling[0].LogFile = setup.LogFile()
-		cfg.SymlinkHandling[0].Configs = make([]test_suite.ConfigItem, 2)
-
-		// 1. TestStandardSymlinksTestSuite
-		cfg.SymlinkHandling[0].Configs[0].Flags = []string{"--enable-standard-symlinks=true"}
-		cfg.SymlinkHandling[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.SymlinkHandling[0].Configs[0].Run = "TestStandardSymlinksTestSuite"
-
-		// 2. TestLegacySymlinksTestSuite
-		cfg.SymlinkHandling[0].Configs[1].Flags = []string{"--enable-standard-symlinks=false"}
-		cfg.SymlinkHandling[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.SymlinkHandling[0].Configs[1].Run = "TestLegacySymlinksTestSuite"
+		log.Fatal("No configuration found for SymlinkHandling in config file.")
 	}
 
 	testEnv.ctx = context.Background()

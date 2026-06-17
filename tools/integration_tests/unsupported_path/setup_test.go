@@ -40,28 +40,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.UnsupportedPath) == 0 {
-		log.Println("No configuration found for unsupported path tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.UnsupportedPath = []test_suite.TestConfig{
-			{
-				TestBucket:          setup.TestBucket(),
-				GKEMountedDirectory: setup.MountedDirectory(),
-				Configs: []test_suite.ConfigItem{
-					{
-						Flags: []string{
-							"--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0",
-						},
-						Compatible: map[string]bool{"flat": true, "hns": true, "zonal": false},
-					},
-					{
-						Flags: []string{
-							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0",
-						},
-						Compatible: map[string]bool{"flat": true, "hns": true, "zonal": true},
-					},
-				},
-			},
-		}
+		log.Fatal("No configuration found for UnsupportedPath in config file.")
 	}
 
 	ctx = context.Background()
