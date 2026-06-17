@@ -290,7 +290,7 @@ func TestShouldRetryLogsWarning(t *testing.T) {
 	assert.Contains(t, buf.String(), "Retrying for error-code 401")
 }
 
-func TestShouldRetryLogsWarningWithSDKRetryContext(t *testing.T) {
+func TestShouldRetryLogsWarningWithRetryContext(t *testing.T) {
 	// Arrange
 	var buf logBuffer
 	logger.SetOutput(&buf)
@@ -299,8 +299,6 @@ func TestShouldRetryLogsWarningWithSDKRetryContext(t *testing.T) {
 		Code:    401,
 		Message: "Invalid Credential",
 	}
-
-	// Create SDK RetryContext
 	retryCtx := &storage.RetryContext{
 		Attempt:      3,
 		InvocationID: "mock-invocation-id-123",
@@ -360,7 +358,7 @@ func TestShouldRetryWithMonitoringForNonRetryableErrors(t *testing.T) {
 				MetricHandle: metrics.NewNoopMetrics(),
 			}
 
-			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
+			shouldRetry := ShouldRetryWithMonitoringAndRetryContext(context.Background(), tc.err, nil, fakeMetrics)
 
 			assert.False(t, shouldRetry)
 			assert.False(t, fakeMetrics.gcsRetryCountCalled)
@@ -394,7 +392,7 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 				MetricHandle: metrics.NewNoopMetrics(),
 			}
 
-			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
+			shouldRetry := ShouldRetryWithMonitoringAndRetryContext(context.Background(), tc.err, nil, fakeMetrics)
 
 			assert.True(t, shouldRetry)
 			assert.True(t, fakeMetrics.gcsRetryCountCalled)

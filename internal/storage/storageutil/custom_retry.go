@@ -77,26 +77,22 @@ func ShouldRetryWithoutLogging(err error) bool {
 }
 
 // ShouldRetryWithRetryContext checks if the given error is transient and should be retried,
-// logging the retry warning with rich context from both the execution context (TraceID, remaining budget)
-// and the Go Storage SDK's experimental RetryContext (operation, bucket, object, attempt, invocation ID).
+// logging the retry warning with RetryContext (operation, bucket, object, attempt, invocation ID).
+// Returns true if the error is retryable, false otherwise.
 func ShouldRetryWithRetryContext(err error, retryCtx *storage.RetryContext) bool {
 	switch determineRetryAction(err) {
 	case retryTransient:
-		logRetryWithContext("Retrying for transient error", err, retryCtx)
+		logWithRetryContext("Retrying for transient error", err, retryCtx)
 		return true
 	case retry401:
-		logRetryWithContext("Retrying for error-code 401", err, retryCtx)
+		logWithRetryContext("Retrying for error-code 401", err, retryCtx)
 		return true
 	case retryUnauthenticated:
-		logRetryWithContext("Retrying for UNAUTHENTICATED error", err, retryCtx)
+		logWithRetryContext("Retrying for UNAUTHENTICATED error", err, retryCtx)
 		return true
 	default:
 		return false
 	}
-}
-
-func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metrics.MetricHandle) bool {
-	return ShouldRetryWithMonitoringAndRetryContext(ctx, err, nil, metricHandle)
 }
 
 func ShouldRetryWithMonitoringAndRetryContext(
@@ -123,12 +119,12 @@ func ShouldRetryWithMonitoringAndRetryContext(
 	return retry
 }
 
-func logRetryWithContext(prefix string, err error, retryCtx *storage.RetryContext) {
-	var sdkRetryInfo string
+func logWithRetryContext(prefix string, err error, retryCtx *storage.RetryContext) {
+	var retryInfo string
 	if retryCtx != nil {
-		sdkRetryInfo = fmt.Sprintf(" [Op: %s, Object: %q, Attempt: %d, InvocationID: %s]",
+		retryInfo = fmt.Sprintf(" [Op: %s, Object: %q, Attempt: %d, InvocationID: %s]",
 			retryCtx.Operation, retryCtx.Object, retryCtx.Attempt, retryCtx.InvocationID)
 	}
 
-	logger.Warnf("%s: %v%s", prefix, err, sdkRetryInfo)
+	logger.Warnf("%s: %v%s", prefix, err, retryInfo)
 }
