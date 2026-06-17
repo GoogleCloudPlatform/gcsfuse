@@ -51,7 +51,7 @@ const maxStorageClientRetryAttempts = 10
 const networkUnreachableError = "network is unreachable"
 
 func ShouldRetryForTest(err error) (b bool) {
-	b = storageutil.ShouldRetry(err)
+	b = storageutil.ShouldRetryWithRetryContext(err, nil)
 	if b {
 		log.Printf("Retrying for the error: %v", err)
 		return

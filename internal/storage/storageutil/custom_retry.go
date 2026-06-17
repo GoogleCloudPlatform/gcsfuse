@@ -76,17 +76,10 @@ func ShouldRetryWithoutLogging(err error) bool {
 	return determineRetryAction(err) != noRetry
 }
 
-// ShouldRetry checks if the given error is transient and should be retried.
-// It logs a warning message with the error details and execution context (TraceID, remaining budget) for any retryable error.
-// Returns true if the error is retryable, false otherwise.
-func ShouldRetry(ctx context.Context, err error) bool {
-	return ShouldRetryWithContext(ctx, err, nil)
-}
-
-// ShouldRetryWithContext checks if the given error is transient and should be retried,
+// ShouldRetryWithRetryContext checks if the given error is transient and should be retried,
 // logging the retry warning with rich context from both the execution context (TraceID, remaining budget)
 // and the Go Storage SDK's experimental RetryContext (operation, bucket, object, attempt, invocation ID).
-func ShouldRetryWithContext(ctx context.Context, err error, retryCtx *storage.RetryContext) bool {
+func ShouldRetryWithRetryContext(err error, retryCtx *storage.RetryContext) bool {
 	switch determineRetryAction(err) {
 	case retryTransient:
 		logRetryWithContext("Retrying for transient error", err, retryCtx)
@@ -103,10 +96,10 @@ func ShouldRetryWithContext(ctx context.Context, err error, retryCtx *storage.Re
 }
 
 func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metrics.MetricHandle) bool {
-	return ShouldRetryWithMonitoringAndContext(ctx, err, nil, metricHandle)
+	return ShouldRetryWithMonitoringAndRetryContext(ctx, err, nil, metricHandle)
 }
 
-func ShouldRetryWithMonitoringAndContext(
+func ShouldRetryWithMonitoringAndRetryContext(
 	ctx context.Context,
 	err error,
 	retryCtx *storage.RetryContext,
@@ -116,7 +109,7 @@ func ShouldRetryWithMonitoringAndContext(
 		return false
 	}
 
-	retry := ShouldRetryWithContext(ctx, err, retryCtx)
+	retry := ShouldRetryWithRetryContext(err, retryCtx)
 	if !retry {
 		return false
 	}
@@ -131,18 +124,11 @@ func ShouldRetryWithMonitoringAndContext(
 }
 
 func logRetryWithContext(prefix string, err error, retryCtx *storage.RetryContext) {
-	var errorDetails string
-	if typed, ok := err.(*googleapi.Error); ok {
-		errorDetails = fmt.Sprintf(" [HTTP Code: %d, Message: %q]", typed.Code, typed.Message)
-	} else if st, ok := status.FromError(err); ok {
-		errorDetails = fmt.Sprintf(" [gRPC Code: %s, Message: %q]", st.Code().String(), st.Message())
-	}
-
 	var sdkRetryInfo string
 	if retryCtx != nil {
-		sdkRetryInfo = fmt.Sprintf(" [Op: %s, Bucket: %q, Object: %q, Attempt: %d, InvocationID: %s]",
-			retryCtx.Operation, retryCtx.Bucket, retryCtx.Object, retryCtx.Attempt, retryCtx.InvocationID)
+		sdkRetryInfo = fmt.Sprintf(" [Op: %s, Object: %q, Attempt: %d, InvocationID: %s]",
+			retryCtx.Operation, retryCtx.Object, retryCtx.Attempt, retryCtx.InvocationID)
 	}
 
-	logger.Warnf("%s: %v%s%s", prefix, err, errorDetails, sdkRetryInfo)
+	logger.Warnf("%s: %v%s", prefix, err, sdkRetryInfo)
 }

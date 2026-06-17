@@ -50,9 +50,9 @@ func TestShouldRetryReturnsTrueWithGoogleApiError(t *testing.T) {
 		Body: "API rate limit exceeded",
 	}
 
-	assert.Equal(t, true, ShouldRetry(context.Background(), &err401))
-	assert.Equal(t, true, ShouldRetry(context.Background(), &err502))
-	assert.Equal(t, true, ShouldRetry(context.Background(), &err429))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err401, nil))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err502, nil))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err429, nil))
 }
 
 func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
@@ -61,15 +61,15 @@ func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
 		Code: 400,
 	}
 
-	assert.Equal(t, false, ShouldRetry(context.Background(), &err400))
+	assert.Equal(t, false, ShouldRetryWithRetryContext(&err400, nil))
 }
 
 func TestShouldRetryReturnsTrueWithUnexpectedEOFError(t *testing.T) {
-	assert.Equal(t, true, ShouldRetry(context.Background(), io.ErrUnexpectedEOF))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(io.ErrUnexpectedEOF, nil))
 }
 
 func TestShouldRetryReturnsTrueWithNetworkError(t *testing.T) {
-	assert.Equal(t, true, ShouldRetry(context.Background(), net.ErrClosed))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(net.ErrClosed, nil))
 }
 
 func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) {
@@ -122,7 +122,7 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualResult := ShouldRetry(context.Background(), tc.err)
+			actualResult := ShouldRetryWithRetryContext(tc.err, nil)
 			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
@@ -148,7 +148,7 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualResult := ShouldRetry(context.Background(), tc.err)
+			actualResult := ShouldRetryWithRetryContext(tc.err, nil)
 			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
@@ -282,7 +282,7 @@ func TestShouldRetryLogsWarning(t *testing.T) {
 	}
 
 	// Act
-	retry := ShouldRetry(context.Background(), err401)
+	retry := ShouldRetryWithRetryContext(err401, nil)
 
 	// Assert
 	assert.True(t, retry)
@@ -310,7 +310,7 @@ func TestShouldRetryLogsWarningWithSDKRetryContext(t *testing.T) {
 	}
 
 	// Act
-	retry := ShouldRetryWithContext(context.Background(), err401, retryCtx)
+	retry := ShouldRetryWithRetryContext(err401, retryCtx)
 
 	// Assert
 	assert.True(t, retry)
@@ -318,10 +318,8 @@ func TestShouldRetryLogsWarningWithSDKRetryContext(t *testing.T) {
 	t.Logf("Captured Log Message:\n%s", logMsg)
 	assert.Contains(t, logMsg, "WARNING")
 	assert.Contains(t, logMsg, "Retrying for error-code 401")
-	assert.Contains(t, logMsg, "[HTTP Code: 401, Message: ")
 	assert.Contains(t, logMsg, "Invalid Credential")
-	assert.Contains(t, logMsg, "[Op: GetObject, Bucket: ")
-	assert.Contains(t, logMsg, "my-test-bucket")
+	assert.Contains(t, logMsg, "[Op: GetObject, Object: ")
 	assert.Contains(t, logMsg, "some/file.txt")
 	assert.Contains(t, logMsg, "Attempt: 3")
 	assert.Contains(t, logMsg, "InvocationID: mock-invocation-id-123")
