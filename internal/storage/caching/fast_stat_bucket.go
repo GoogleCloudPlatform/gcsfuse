@@ -459,8 +459,14 @@ func (b *fastStatBucket) ListObjects(
 	// has a negative cache entry (meaning it doesn't exist and has no descendants),
 	// we can safely short-circuit the network call and return an empty listing.
 	if b.implicitDir && req.Prefix != "" && strings.HasSuffix(req.Prefix, "/") {
-		if hit, entry := b.lookUp(req.Prefix); hit && entry == nil {
-			return &gcs.Listing{}, nil
+		if hit, m := b.lookUp(req.Prefix); hit && m == nil {
+			if b.BucketType().Hierarchical {
+				if folderHit, f := b.lookUpFolder(req.Prefix); folderHit && f == nil {
+					return &gcs.Listing{}, nil
+				}
+			} else {
+				return &gcs.Listing{}, nil
+			}
 		}
 	}
 
