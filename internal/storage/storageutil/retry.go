@@ -26,7 +26,7 @@ import (
 
 const (
 	// Default retry parameters.
-	DefaultRetryDeadline    = 30 * time.Second
+	DefaultRetryDeadline    = 60 * time.Second
 	DefaultTotalRetryBudget = 5 * time.Minute
 	DefaultInitialBackoff   = 1 * time.Second
 )
