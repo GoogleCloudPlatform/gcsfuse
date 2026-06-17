@@ -25,6 +25,7 @@ import (
 	"sync"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
@@ -49,9 +50,9 @@ func TestShouldRetryReturnsTrueWithGoogleApiError(t *testing.T) {
 		Body: "API rate limit exceeded",
 	}
 
-	assert.Equal(t, true, ShouldRetry(&err401))
-	assert.Equal(t, true, ShouldRetry(&err502))
-	assert.Equal(t, true, ShouldRetry(&err429))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err401, nil))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err502, nil))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err429, nil))
 }
 
 func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
@@ -60,15 +61,15 @@ func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
 		Code: 400,
 	}
 
-	assert.Equal(t, false, ShouldRetry(&err400))
+	assert.Equal(t, false, ShouldRetryWithRetryContext(&err400, nil))
 }
 
 func TestShouldRetryReturnsTrueWithUnexpectedEOFError(t *testing.T) {
-	assert.Equal(t, true, ShouldRetry(io.ErrUnexpectedEOF))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(io.ErrUnexpectedEOF, nil))
 }
 
 func TestShouldRetryReturnsTrueWithNetworkError(t *testing.T) {
-	assert.Equal(t, true, ShouldRetry(net.ErrClosed))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(net.ErrClosed, nil))
 }
 
 func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) {
@@ -121,7 +122,7 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualResult := ShouldRetry(tc.err)
+			actualResult := ShouldRetryWithRetryContext(tc.err, nil)
 			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
@@ -147,7 +148,7 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualResult := ShouldRetry(tc.err)
+			actualResult := ShouldRetryWithRetryContext(tc.err, nil)
 			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
@@ -281,12 +282,68 @@ func TestShouldRetryLogsWarning(t *testing.T) {
 	}
 
 	// Act
-	retry := ShouldRetry(err401)
+	retry := ShouldRetryWithRetryContext(err401, nil)
 
 	// Assert
 	assert.True(t, retry)
 	assert.Contains(t, buf.String(), "WARNING")
 	assert.Contains(t, buf.String(), "Retrying for error-code 401")
+}
+
+func TestShouldRetryLogsWarningWithRetryContext(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	var err401 = &googleapi.Error{
+		Code:    401,
+		Message: "Invalid Credential",
+	}
+	retryCtx := &storage.RetryContext{
+		Attempt:      3,
+		InvocationID: "mock-invocation-id-123",
+		Operation:    "GetObject",
+		Bucket:       "my-test-bucket",
+		Object:       "some/file.txt",
+	}
+
+	// Act
+	retry := ShouldRetryWithRetryContext(err401, retryCtx)
+
+	// Assert
+	assert.True(t, retry)
+	logMsg := buf.String()
+	assert.Contains(t, logMsg, "WARNING")
+	assert.Contains(t, logMsg, "Retrying for error-code 401")
+	assert.Contains(t, logMsg, "Invalid Credential")
+	assert.Contains(t, logMsg, "Op: GetObject, Object: ")
+	assert.Contains(t, logMsg, "some/file.txt")
+	assert.Contains(t, logMsg, "Attempt: 3")
+	assert.Contains(t, logMsg, "InvocationID: mock-invocation-id-123")
+}
+
+func TestShouldRetryLogsWarningWithNilRetryContext(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	var err401 = &googleapi.Error{
+		Code:    401,
+		Message: "Invalid Credential",
+	}
+
+	// Act
+	retry := ShouldRetryWithRetryContext(err401, nil)
+
+	// Assert
+	assert.True(t, retry)
+	logMsg := buf.String()
+	assert.Contains(t, logMsg, "WARNING")
+	assert.Contains(t, logMsg, "Retrying for error-code 401: googleapi: Error 401: Invalid Credential")
+	assert.NotContains(t, logMsg, "Op:")
+	assert.NotContains(t, logMsg, "Object:")
+	assert.NotContains(t, logMsg, "Attempt:")
+	assert.NotContains(t, logMsg, "InvocationID:")
 }
 
 type fakeMetricHandle struct {
@@ -324,7 +381,7 @@ func TestShouldRetryWithMonitoringForNonRetryableErrors(t *testing.T) {
 				MetricHandle: metrics.NewNoopMetrics(),
 			}
 
-			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
+			shouldRetry := ShouldRetryWithMonitoringAndRetryContext(context.Background(), tc.err, nil, fakeMetrics)
 
 			assert.False(t, shouldRetry)
 			assert.False(t, fakeMetrics.gcsRetryCountCalled)
@@ -358,7 +415,7 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 				MetricHandle: metrics.NewNoopMetrics(),
 			}
 
-			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
+			shouldRetry := ShouldRetryWithMonitoringAndRetryContext(context.Background(), tc.err, nil, fakeMetrics)
 
 			assert.True(t, shouldRetry)
 			assert.True(t, fakeMetrics.gcsRetryCountCalled)

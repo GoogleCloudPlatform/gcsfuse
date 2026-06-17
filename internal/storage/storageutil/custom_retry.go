@@ -75,31 +75,42 @@ func ShouldRetryWithoutLogging(err error) bool {
 	return determineRetryAction(err) != noRetry
 }
 
-// ShouldRetry checks if the given error is transient and should be retried.
-// It logs a warning message with the error details for any retryable error.
+// ShouldRetryWithRetryContext checks if the given error is transient and should be retried,
+// logging the retry warning with RetryContext (operation, bucket, object, attempt, invocation ID).
 // Returns true if the error is retryable, false otherwise.
-func ShouldRetry(err error) bool {
+func ShouldRetryWithRetryContext(err error, retryCtx *storage.RetryContext) bool {
+	var prefix string
 	switch determineRetryAction(err) {
 	case retryTransient:
-		logger.Warnf("Retrying for the error: %v", err)
-		return true
+		prefix = "Retrying for transient error"
 	case retry401:
-		logger.Warnf("Retrying for error-code 401: %v", err)
-		return true
+		prefix = "Retrying for error-code 401"
 	case retryUnauthenticated:
-		logger.Warnf("Retrying for UNAUTHENTICATED error: %v", err)
-		return true
+		prefix = "Retrying for UNAUTHENTICATED error"
 	default:
 		return false
 	}
+
+	if retryCtx != nil {
+		logger.Warnf("%s: %v, InvocationID: %s, Attempt: %d, Op: %s, Object: %q",
+			prefix, err, retryCtx.InvocationID, retryCtx.Attempt, retryCtx.Operation, retryCtx.Object)
+	} else {
+		logger.Warnf("%s: %v", prefix, err)
+	}
+	return true
 }
 
-func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metrics.MetricHandle) bool {
+func ShouldRetryWithMonitoringAndRetryContext(
+	ctx context.Context,
+	err error,
+	retryCtx *storage.RetryContext,
+	metricHandle metrics.MetricHandle,
+) bool {
 	if err == nil {
 		return false
 	}
 
-	retry := ShouldRetry(err)
+	retry := ShouldRetryWithRetryContext(err, retryCtx)
 	if !retry {
 		return false
 	}
