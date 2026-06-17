@@ -29,6 +29,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
+	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -77,9 +78,9 @@ type storageClient struct {
 	grpcClientWithBidiConfig *storage.Client
 	clientConfig             storageutil.StorageClientConfig
 	// rawStorageControlClientWithoutGaxRetries is without any retries.
-	rawStorageControlClientWithoutGaxRetries *control.StorageControlClient
+	rawStorageControlClientWithoutGaxRetries StorageControlClient
 	// rawStorageControlClientWithGaxRetries is with retry for Folder APIs.
-	rawStorageControlClientWithGaxRetries *control.StorageControlClient
+	rawStorageControlClientWithGaxRetries StorageControlClient
 	// storageControlClient is with retry for GetStorageLayout and with handling for billing project.
 	storageControlClient StorageControlClient
 }
@@ -370,7 +371,7 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
 		Prefix:    "",
-		RequestId: "",
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 
 	return stoargeLayout, err
@@ -410,17 +411,23 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 			return nil, fmt.Errorf("could not add custom gax retries to StorageControl Client: %w", err)
 		}
 		// special handling for mounts created with custom billing projects.
-		controlClientWithBillingProject := withBillingProject(rawStorageControlClientWithoutGaxRetries, billingProject)
-		// Wrap the control client with retry-on-stall logic.
-		// This will retry on only on GetStorageLayout call for all buckets.
-		controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)
+		wrappedRawWithoutGaxRetries := newRawStorageControlClientWrapper(rawStorageControlClientWithoutGaxRetries)
+		controlClientWithBillingProject := withBillingProject(wrappedRawWithoutGaxRetries, billingProject)
+		// Wrap the control client with retry-on-stall logic or retrospective hedging.
+		if clientConfig.ExperimentalEnableRetrospectiveHedging {
+			hedgedClient := withRetrospectiveHedging(controlClientWithBillingProject)
+			controlClient = withRetryOnStorageLayout(hedgedClient, &clientConfig)
+		} else {
+			// This will retry on only on GetStorageLayout call for all buckets.
+			controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)
+		}
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
-		rawStorageControlClientWithoutGaxRetries: rawStorageControlClientWithoutGaxRetries,
-		rawStorageControlClientWithGaxRetries:    rawStorageControlClientWithGaxRetries,
+		rawStorageControlClientWithoutGaxRetries: newRawStorageControlClientWrapper(rawStorageControlClientWithoutGaxRetries),
+		rawStorageControlClientWithGaxRetries:    newRawStorageControlClientWrapper(rawStorageControlClientWithGaxRetries),
 		storageControlClient:                     controlClient,
 		clientConfig:                             clientConfig,
 	}
@@ -486,7 +493,10 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 	}
 
 	var controlClientWithoutBillingProject StorageControlClient
-	if bucketType.Zonal || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
+	if sh.clientConfig.ExperimentalEnableRetrospectiveHedging && !bucketType.Zonal {
+		hedgedClient := withRetrospectiveHedging(sh.rawStorageControlClientWithoutGaxRetries)
+		controlClientWithoutBillingProject = withRetryOnAllAPIs(hedgedClient, &sh.clientConfig)
+	} else if bucketType.Zonal || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
 		// sh.storageControlClient already contains handling for billing project,
 		// and enhanced retries for GetStorageLayout API call. Extending it here for
 		// retries for folder APIs.
@@ -529,6 +539,11 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		bucketType:           bucketType,
 		finalizeFileForRapid: finalizeFileForRapid,
 		billingProject:       billingProject,
+	}
+
+	if sh.clientConfig.ExperimentalEnableRetrospectiveHedging {
+		bh.hedgingEngine = newRetrospectiveHedgingEngine([]string{"StatObject", "DeleteObject"})
+		registerHedgedClient(bh)
 	}
 
 	return

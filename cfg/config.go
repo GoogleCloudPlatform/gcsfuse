@@ -599,6 +599,8 @@ type GcsRetriesConfig struct {
 
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
+	ExperimentalEnableRetrospectiveHedging bool `yaml:"experimental-enable-retrospective-hedging"`
+
 	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
@@ -1009,6 +1011,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Enables ReadDirPlus capability")
 
 	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-retrospective-hedging", "", false, "Enables retrospective hedging for storage control client.")
+
+	if err := flagSet.MarkHidden("experimental-enable-retrospective-hedging"); err != nil {
 		return err
 	}
 
@@ -1606,6 +1614,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-enable-readdirplus", flagSet.Lookup("experimental-enable-readdirplus")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.experimental-enable-retrospective-hedging", flagSet.Lookup("experimental-enable-retrospective-hedging")); err != nil {
 		return err
 	}
 

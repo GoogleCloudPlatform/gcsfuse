@@ -125,6 +125,7 @@ func ExecuteWithRetryAtLogLevel[T any](
 	config *RetryConfig,
 	operationName string,
 	reqDescription string,
+	requestID string,
 	apiCall func(attemptCtx context.Context) (T, error),
 	logLevel slog.Level, // Used to log the retry logs at the supplied log level
 ) (T, error) {
@@ -139,13 +140,14 @@ func ExecuteWithRetryAtLogLevel[T any](
 
 	// Create a new backoff controller specific to this api call.
 	backoff := newExponentialBackoff(&config.BackoffConfig)
+	var lastErr error
 	for i := 0; ; i++ {
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
 
 		if i == 0 {
-			logger.GetLogFHandler(logLevel)("Calling %s request for %q with deadline=%v", operationName, reqDescription, config.RetryDeadline)
+			logger.GetLogFHandler(logLevel)("Calling %s request for %q (request_id=%s) with deadline=%v", operationName, reqDescription, requestID, config.RetryDeadline)
 		} else {
-			logger.GetLogFHandler(logLevel)("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+			logger.GetLogFHandler(logger.LevelWarn)("Retrying %s for %q (attempt %d) (request_id=%s) with deadline=%v (got error: %v) ...", operationName, reqDescription, i+1, requestID, config.RetryDeadline, lastErr)
 		}
 
 		result, err := apiCall(attemptCtx)
@@ -156,20 +158,22 @@ func ExecuteWithRetryAtLogLevel[T any](
 			return result, nil
 		}
 
+		lastErr = err
+
 		// If the error is not retryable, return it immediately.
 		if !ShouldRetry(err) {
-			return zero, fmt.Errorf("%s for %q failed with a non-retryable error: %w", operationName, reqDescription, err)
+			return zero, fmt.Errorf("%s for %q (request_id=%s) failed with a non-retryable error after %d attempts: %w", operationName, reqDescription, requestID, i+1, err)
 		}
 
 		// If the parent context is cancelled/timed-out, we should stop retrying.
 		if parentCtx.Err() != nil {
-			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
+			return zero, fmt.Errorf("%s for %q (request_id=%s) failed after %d attempts (last server/client error = %v): %w", operationName, reqDescription, requestID, i+1, err, parentCtx.Err())
 		}
 
 		// Do a jittery backoff after each retry.
 		parentCtxErr := backoff.waitWithJitter(parentCtx)
 		if parentCtxErr != nil {
-			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
+			return zero, fmt.Errorf("%s for %q (request_id=%s) failed after %d attempts (last server/client error = %v): %w", operationName, reqDescription, requestID, i+1, err, parentCtxErr)
 		}
 	}
 }
@@ -180,7 +184,8 @@ func ExecuteWithRetry[T any](
 	config *RetryConfig,
 	operationName string,
 	reqDescription string,
+	requestID string,
 	apiCall func(attemptCtx context.Context) (T, error),
 ) (T, error) {
-	return ExecuteWithRetryAtLogLevel(ctx, config, operationName, reqDescription, apiCall, logger.LevelTrace)
+	return ExecuteWithRetryAtLogLevel(ctx, config, operationName, reqDescription, requestID, apiCall, logger.LevelTrace)
 }

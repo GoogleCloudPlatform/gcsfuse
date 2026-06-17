@@ -42,6 +42,45 @@ type StorageControlClient interface {
 	RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error)
 
 	CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error)
+
+	PollRenameFolder(ctx context.Context, op *control.RenameFolderOperation, requestID string) (*controlpb.Folder, error)
+}
+
+// rawStorageControlClientWrapper wraps the official *control.StorageControlClient
+// to satisfy our StorageControlClient interface.
+type rawStorageControlClientWrapper struct {
+	raw *control.StorageControlClient
+}
+
+func (w *rawStorageControlClientWrapper) GetStorageLayout(ctx context.Context, req *controlpb.GetStorageLayoutRequest, opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
+	return w.raw.GetStorageLayout(ctx, req, opts...)
+}
+
+func (w *rawStorageControlClientWrapper) DeleteFolder(ctx context.Context, req *controlpb.DeleteFolderRequest, opts ...gax.CallOption) error {
+	return w.raw.DeleteFolder(ctx, req, opts...)
+}
+
+func (w *rawStorageControlClientWrapper) GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+	return w.raw.GetFolder(ctx, req, opts...)
+}
+
+func (w *rawStorageControlClientWrapper) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
+	return w.raw.RenameFolder(ctx, req, opts...)
+}
+
+func (w *rawStorageControlClientWrapper) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+	return w.raw.CreateFolder(ctx, req, opts...)
+}
+
+func (w *rawStorageControlClientWrapper) PollRenameFolder(ctx context.Context, op *control.RenameFolderOperation, requestID string) (*controlpb.Folder, error) {
+	return op.Poll(ctx)
+}
+
+func newRawStorageControlClientWrapper(raw *control.StorageControlClient) StorageControlClient {
+	if raw == nil {
+		return nil
+	}
+	return &rawStorageControlClientWrapper{raw: raw}
 }
 
 // storageControlClientWithBillingProject is a wrapper for an existing
@@ -81,6 +120,11 @@ func (sccwbp *storageControlClientWithBillingProject) CreateFolder(ctx context.C
 	return sccwbp.raw.CreateFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
 }
 
+func (sccwbp *storageControlClientWithBillingProject) PollRenameFolder(ctx context.Context, op *control.RenameFolderOperation, requestID string) (*controlpb.Folder, error) {
+	// Don't pass billing-project for LROs as it's not supported.
+	return sccwbp.raw.PollRenameFolder(ctx, op, requestID)
+}
+
 func withBillingProject(controlClient StorageControlClient, billingProject string) StorageControlClient {
 	if billingProject != "" {
 		controlClient = &storageControlClientWithBillingProject{raw: controlClient, billingProject: billingProject}
@@ -105,6 +149,11 @@ type storageControlClientWithRetry struct {
 func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Context,
 	req *controlpb.GetStorageLayoutRequest,
 	opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
+	startTime := time.Now()
+	defer func() {
+		RecordRetryLatency("GetStorageLayout", time.Since(startTime))
+	}()
+
 	if !sccwros.enableRetriesOnStorageLayoutAPI {
 		return sccwros.raw.GetStorageLayout(ctx, req, opts...)
 	}
@@ -113,12 +162,17 @@ func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Conte
 		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
 
-	return storageutil.ExecuteWithRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, apiCall, logger.LevelInfo)
+	return storageutil.ExecuteWithRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, logger.LevelInfo)
 }
 
 func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
 	req *controlpb.DeleteFolderRequest,
 	opts ...gax.CallOption) error {
+	startTime := time.Now()
+	defer func() {
+		RecordRetryLatency("DeleteFolder", time.Since(startTime))
+	}()
+
 	if !sccwros.enableRetriesOnFolderAPIs {
 		return sccwros.raw.DeleteFolder(ctx, req, opts...)
 	}
@@ -128,13 +182,18 @@ func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
 		return struct{}{}, err
 	}
 
-	_, err := storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "DeleteFolder", req.Name, apiCall)
+	_, err := storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "DeleteFolder", req.Name, req.RequestId, apiCall)
 	return err
 }
 
 func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
 	req *controlpb.GetFolderRequest,
 	opts ...gax.CallOption) (*controlpb.Folder, error) {
+	startTime := time.Now()
+	defer func() {
+		RecordRetryLatency("GetFolder", time.Since(startTime))
+	}()
+
 	if !sccwros.enableRetriesOnFolderAPIs {
 		return sccwros.raw.GetFolder(ctx, req, opts...)
 	}
@@ -143,12 +202,17 @@ func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
 		return sccwros.raw.GetFolder(attemptCtx, req, opts...)
 	}
 
-	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "GetFolder", req.Name, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "GetFolder", req.Name, req.RequestId, apiCall)
 }
 
 func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
 	req *controlpb.RenameFolderRequest,
 	opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
+	startTime := time.Now()
+	defer func() {
+		RecordRetryLatency("RenameFolder", time.Since(startTime))
+	}()
+
 	if !sccwros.enableRetriesOnFolderAPIs {
 		return sccwros.raw.RenameFolder(ctx, req, opts...)
 	}
@@ -158,12 +222,17 @@ func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
 	}
 
 	reqDescription := fmt.Sprintf("%q to %q", req.Name, req.DestinationFolderId)
-	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "RenameFolder", reqDescription, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "RenameFolder", reqDescription, req.RequestId, apiCall)
 }
 
 func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 	req *controlpb.CreateFolderRequest,
 	opts ...gax.CallOption) (*controlpb.Folder, error) {
+	startTime := time.Now()
+	defer func() {
+		RecordRetryLatency("CreateFolder", time.Since(startTime))
+	}()
+
 	if !sccwros.enableRetriesOnFolderAPIs {
 		return sccwros.raw.CreateFolder(ctx, req, opts...)
 	}
@@ -173,7 +242,24 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 	}
 
 	reqDescription := fmt.Sprintf("%q in %q", req.FolderId, req.Parent)
-	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "CreateFolder", reqDescription, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "CreateFolder", reqDescription, req.RequestId, apiCall)
+}
+
+func (sccwros *storageControlClientWithRetry) PollRenameFolder(ctx context.Context, op *control.RenameFolderOperation, requestID string) (*controlpb.Folder, error) {
+	startTime := time.Now()
+	defer func() {
+		RecordRetryLatency("PollRenameFolder", time.Since(startTime))
+	}()
+
+	if !sccwros.enableRetriesOnFolderAPIs {
+		return sccwros.raw.PollRenameFolder(ctx, op, requestID)
+	}
+
+	apiCall := func(attemptCtx context.Context) (*controlpb.Folder, error) {
+		return sccwros.raw.PollRenameFolder(attemptCtx, op, requestID)
+	}
+
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "PollRenameFolder", op.Name(), requestID, apiCall)
 }
 
 // newRetryWrapper creates a new StorageControlClient with retry capabilities.

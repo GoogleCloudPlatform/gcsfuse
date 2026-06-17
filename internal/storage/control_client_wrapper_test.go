@@ -95,6 +95,17 @@ func (s *stallingStorageControlClient) CreateFolder(ctx context.Context, req *co
 	return s.wrapped.CreateFolder(ctx, req, opts...)
 }
 
+func (s *stallingStorageControlClient) PollRenameFolder(ctx context.Context, op *control.RenameFolderOperation, requestID string) (*controlpb.Folder, error) {
+	if s.stallDurationForFolderAPIs != nil {
+		select {
+		case <-time.After(*s.stallDurationForFolderAPIs):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return s.wrapped.PollRenameFolder(ctx, op, requestID)
+}
+
 type ControlClientRetryWrapperTest struct {
 	suite.Suite
 	// The raw mock client for setting expectations on return values.

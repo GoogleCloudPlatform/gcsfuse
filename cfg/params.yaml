@@ -723,6 +723,13 @@ params:
     default: "10"
     hide-flag: true
 
+  - config-path: "gcs-retries.experimental-enable-retrospective-hedging"
+    flag-name: "experimental-enable-retrospective-hedging"
+    type: "bool"
+    usage: "Enables retrospective hedging for storage control client."
+    default: false
+    hide-flag: true
+
   - config-path: "gcs-retries.experimental-nonrapid-folder-api-stall-retry"
     flag-name: "experimental-nonrapid-folder-api-stall-retry"
     type: "bool"

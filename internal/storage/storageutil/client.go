@@ -59,6 +59,7 @@ type StorageClientConfig struct {
 	TokenUrl                                string
 	ReuseTokenFromUrl                       bool
 	ExperimentalNonrapidFolderApiStallRetry bool
+	ExperimentalEnableRetrospectiveHedging  bool
 	MaxRetrySleep                           time.Duration
 	RetryMultiplier                         float64
 	LocalSocketAddress                      string

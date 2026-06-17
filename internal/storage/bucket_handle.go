@@ -27,6 +27,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -45,6 +46,14 @@ type bucketHandle struct {
 	controlClient        StorageControlClient
 	finalizeFileForRapid bool
 	billingProject       string
+
+	hedgingEngine *retrospectiveHedgingEngine
+}
+
+func (bh *bucketHandle) logStats() {
+	if bh.hedgingEngine != nil {
+		bh.hedgingEngine.logStats()
+	}
 }
 
 func (bh *bucketHandle) Name() string {
@@ -122,9 +131,21 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
 
-	err = obj.Delete(ctx)
-	if err != nil {
-		err = fmt.Errorf("error in deleting object: %w", err)
+	if bh.hedgingEngine != nil {
+		call := func(attemptCtx context.Context) (any, error) {
+			errCall := obj.Delete(attemptCtx)
+			return struct{}{}, errCall
+		}
+		requestID := uuid.NewString()
+		_, errCall := bh.hedgingEngine.executeHedgedCall(ctx, "DeleteObject", req.Name, requestID, call)
+		if errCall != nil {
+			err = fmt.Errorf("error in deleting object: %w", errCall)
+		}
+	} else {
+		err = obj.Delete(ctx)
+		if err != nil {
+			err = fmt.Errorf("error in deleting object: %w", err)
+		}
 	}
 	return
 }
@@ -138,10 +159,23 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
-	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
-	if err != nil {
-		err = fmt.Errorf("error in fetching object attributes: %w", err)
-		return
+	if bh.hedgingEngine != nil {
+		call := func(attemptCtx context.Context) (any, error) {
+			return bh.bucket.Object(req.Name).Attrs(attemptCtx)
+		}
+		requestID := uuid.NewString()
+		val, errCall := bh.hedgingEngine.executeHedgedCall(ctx, "StatObject", req.Name, requestID, call)
+		if errCall != nil {
+			err = fmt.Errorf("error in fetching object attributes: %w", errCall)
+			return
+		}
+		attrs = val.(*storage.ObjectAttrs)
+	} else {
+		attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
+		if err != nil {
+			err = fmt.Errorf("error in fetching object attributes: %w", err)
+			return
+		}
 	}
 
 	// Converting attrs to type *Object
@@ -545,7 +579,8 @@ func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (er
 	var callOptions []gax.CallOption
 
 	err = bh.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
+		Name:      fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 	return
 }
@@ -584,6 +619,10 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 }
 
 func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
+	startTime := time.Now()
+	defer func() {
+		RecordRetryLatency("CompleteRenameFolder", time.Since(startTime))
+	}()
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
@@ -592,6 +631,7 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	req := &controlpb.RenameFolderRequest{
 		Name:                fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
 		DestinationFolderId: destinationFolderId,
+		RequestId:           uuid.NewString(),
 	}
 	resp, err := bh.controlClient.RenameFolder(ctx, req)
 	if err != nil {
@@ -599,12 +639,33 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 		return
 	}
 
-	// Wait blocks until the long-running operation is completed,
-	// returning the response and any errors encountered.
-	controlFolder, err = resp.Wait(ctx)
-	if err != nil {
-		err = fmt.Errorf("error in getting result from renaming folder response: %w", err)
-		return
+	// Poll until the operation is complete.
+	pollInterval := 1 * time.Second
+	pollCount := 0
+	for {
+		controlFolder, err = bh.controlClient.PollRenameFolder(ctx, resp, req.RequestId)
+		if err != nil {
+			err = fmt.Errorf("error in getting result from renaming folder response: %w", err)
+			return
+		}
+		if resp.Done() {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		case <-time.After(pollInterval):
+		}
+		pollCount++
+		if pollCount >= 30 {
+			pollInterval = time.Duration(float64(pollInterval) * 1.5)
+			if pollInterval > 30*time.Second {
+				pollInterval = 30 * time.Second
+			}
+		} else {
+			pollInterval = 1 * time.Second
+		}
 	}
 
 	folder = gcs.GCSFolder(bh.bucketName, controlFolder)
@@ -619,7 +680,8 @@ func (bh *bucketHandle) GetFolder(ctx context.Context, req *gcs.GetFolderRequest
 	var callOptions []gax.CallOption
 	var clientFolder *controlpb.Folder
 	clientFolder, err = bh.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, req.Name),
+		Name:      fmt.Sprintf(FullFolderPathHNS, bh.bucketName, req.Name),
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 
 	if err != nil {
@@ -640,6 +702,7 @@ func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (fo
 		Parent:    fmt.Sprintf(FullBucketPathHNS, bh.bucketName),
 		FolderId:  folderName,
 		Recursive: true,
+		RequestId: uuid.NewString(),
 	}
 
 	clientFolder, err := bh.controlClient.CreateFolder(ctx, req)

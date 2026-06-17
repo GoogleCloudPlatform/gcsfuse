@@ -83,12 +83,18 @@ func registerTerminatingSignalHandler(mountPoint string) {
 				sigName = "SIGINT"
 			}
 
+			// Log the final latency array immediately to ensure it is captured.
+			storage.LogHedgingLatencyStats()
+			storage.LogRetryLatencyStats()
+
 			//On signal receive wait in background and give 30 second for unmount to finish
 			//and then exit, so application is closed.
 			go func() {
 				logger.Warnf("Received %s, waiting for %s to let system gracefully unmount before killing the process", sigName, WaitTimeOnSignalReceive)
 				time.Sleep(WaitTimeOnSignalReceive)
 				logger.Warnf("killing goroutines and exit")
+				storage.LogHedgingLatencyStats()
+				storage.LogRetryLatencyStats()
 				//Forcefully exit to 0 so that caller get success on forcefull exit also.
 				os.Exit(0)
 			}()
@@ -158,6 +164,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		TokenUrl:                                newConfig.GcsAuth.TokenUrl,
 		ReuseTokenFromUrl:                       newConfig.GcsAuth.ReuseTokenFromUrl,
 		ExperimentalNonrapidFolderApiStallRetry: newConfig.GcsRetries.ExperimentalNonrapidFolderApiStallRetry,
+		ExperimentalEnableRetrospectiveHedging:  newConfig.GcsRetries.ExperimentalEnableRetrospectiveHedging,
 		ExperimentalEnableJsonRead:              newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:                        int(newConfig.GcsConnection.GrpcConnPoolSize),
 		GrpcPathStrategy:                        newConfig.GcsConnection.GrpcPathStrategy,
@@ -560,6 +567,9 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			logger.Errorf("Error while shutting down dependencies: %v", shutdownErr)
 		}
 	}
+
+	storage.LogHedgingLatencyStats()
+	storage.LogRetryLatencyStats()
 
 	return err
 }

@@ -84,3 +84,13 @@ func (m *MockStorageControlClient) RenameFolder(ctx context.Context, req *contro
 
 	return nil, args.Error(1)
 }
+
+func (m *MockStorageControlClient) PollRenameFolder(ctx context.Context, op *control.RenameFolderOperation, requestID string) (*controlpb.Folder, error) {
+	args := m.Called(ctx, op, requestID)
+
+	if folder, ok := args.Get(0).(*controlpb.Folder); ok {
+		return folder, nil
+	}
+
+	return nil, args.Error(1)
+}
