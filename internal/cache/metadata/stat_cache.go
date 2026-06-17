@@ -53,6 +53,10 @@ type StatCache interface {
 	// entry, or the entry has expired according to the supplied current time.
 	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
 
+	// IsNegativeEntry returns true if the entry is explicitly a fully negative cache entry
+	// (meaning both the object and the folder do not exist, and it is not an implicit dir).
+	IsNegativeEntry(name string, now time.Time) bool
+
 	// Insert an entry for the given folder resource.
 	//
 	// In order to help cope with caching of arbitrarily out of date (i.e.
@@ -194,6 +198,11 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		expiration: expiration,
 	}
 
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
+		old := existing.(entry)
+		e.f = old.f
+	}
+
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
@@ -230,6 +239,11 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 		expiration:  expiration,
 	}
 
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
+		old := existing.(entry)
+		e.f = old.f
+	}
+
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		logger.Errorf("Failed to insert implicit dir stat cache entry for %q: %v", name, err)
 	}
@@ -244,6 +258,12 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 		expiration: expiration,
 	}
 
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
+		old := existing.(entry)
+		e.f = old.f
+		e.implicitDir = old.implicitDir
+	}
+
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
@@ -256,6 +276,12 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	e := entry{
 		f:          nil,
 		expiration: expiration,
+	}
+
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
+		old := existing.(entry)
+		e.m = old.m
+		e.implicitDir = old.implicitDir
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -281,6 +307,16 @@ func (sc *statCacheBucketView) LookUp(
 	}
 
 	return false, nil
+}
+
+func (sc *statCacheBucketView) IsNegativeEntry(
+	objectName string,
+	now time.Time) bool {
+	hit, entry := sc.sharedCacheLookup(objectName, now)
+	if hit {
+		return entry.m == nil && entry.f == nil && !entry.implicitDir
+	}
+	return false
 }
 
 func (sc *statCacheBucketView) LookUpFolder(
@@ -319,6 +355,11 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 	e := entry{
 		f:          f,
 		expiration: expiration,
+	}
+
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
+		old := existing.(entry)
+		e.m = old.m
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {

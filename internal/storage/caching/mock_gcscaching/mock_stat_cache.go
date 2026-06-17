@@ -141,6 +141,30 @@ func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObj
 	return
 }
 
+func (m *mockStatCache) IsNegativeEntry(p0 string, p1 time.Time) (o0 bool) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"IsNegativeEntry",
+		file,
+		line,
+		[]any{p0, p1})
+
+	if len(retVals) != 1 {
+		panic(fmt.Sprintf("mockStatCache.IsNegativeEntry: invalid return values: %v", retVals))
+	}
+
+	// o0 bool
+	if retVals[0] != nil {
+		o0 = retVals[0].(bool)
+	}
+
+	return
+}
+
 func (m *mockStatCache) InsertFolder(p0 *gcs.Folder, p1 time.Time) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
