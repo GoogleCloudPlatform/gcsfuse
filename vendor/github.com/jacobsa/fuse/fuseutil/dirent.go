@@ -15,11 +15,10 @@
 package fuseutil
 
 import (
-	"syscall"
-	"unsafe"
-
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/internal/fusekernel"
+	"syscall"
+	"unsafe"
 
 	"github.com/jacobsa/fuse/fuseops"
 )

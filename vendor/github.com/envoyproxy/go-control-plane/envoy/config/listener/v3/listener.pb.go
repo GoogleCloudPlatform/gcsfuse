@@ -7,10 +7,6 @@
 package listenerv3
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	_ "github.com/cncf/xds/go/udpa/annotations"
 	v31 "github.com/cncf/xds/go/xds/core/v3"
 	v32 "github.com/cncf/xds/go/xds/type/matcher/v3"
@@ -22,6 +18,9 @@ import (
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (

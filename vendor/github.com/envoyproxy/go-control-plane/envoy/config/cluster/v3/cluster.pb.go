@@ -7,10 +7,6 @@
 package clusterv3
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	_ "github.com/cncf/xds/go/udpa/annotations"
 	v3 "github.com/cncf/xds/go/xds/core/v3"
 	v31 "github.com/cncf/xds/go/xds/type/matcher/v3"
@@ -26,6 +22,9 @@ import (
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (

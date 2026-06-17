@@ -115,23 +115,22 @@ func (c *cache) put(req string, res string) {
 	}
 
 	// do some cache evition
-	var tested, evicted int
+	var tested int
 	for k, e := range c.entries {
 		if time.Until(e.deadline) <= 0 {
 			// delete expired entry
 			delete(c.entries, k)
-			evicted++
 		}
-		tested++
-
-		if tested < 8 {
+		// test at least 8 entries
+		if tested++; tested < 8 {
 			continue
 		}
-		if evicted == 0 && c.maxEntries > 0 && len(c.entries) >= c.maxEntries {
-			// delete at least one entry
-			delete(c.entries, k)
+		// any slots available?
+		if c.maxEntries < 0 || len(c.entries) < c.maxEntries {
+			break
 		}
-		break
+		// delete this entry
+		delete(c.entries, k)
 	}
 
 	// remove message IDs
