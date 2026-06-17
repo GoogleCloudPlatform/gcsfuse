@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -302,6 +303,10 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
+
+	fs.stopLatencyReporting = make(chan struct{})
+	go fs.periodicallyLogLookupLatency()
+
 	return fs, nil
 }
 
@@ -676,6 +681,10 @@ type fileSystem struct {
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
+
+	// Latency histogram for LookUpInode operations.
+	lookupLatencyHistogram [500]atomic.Int64
+	stopLatencyReporting   chan struct{}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1863,12 +1872,47 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Destroy() {
+	if fs.stopLatencyReporting != nil {
+		close(fs.stopLatencyReporting)
+	}
 	fs.bucketManager.ShutDown()
 	if fs.fileCacheHandler != nil {
 		_ = fs.fileCacheHandler.Destroy()
 	}
 	if fs.bufferedReadWorkerPool != nil {
 		fs.bufferedReadWorkerPool.Stop()
+	}
+}
+
+func (fs *fileSystem) periodicallyLogLookupLatency() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-fs.stopLatencyReporting:
+			return
+		case <-ticker.C:
+			var sb strings.Builder
+			sb.WriteString("LookupInode latency histogram (seconds):")
+			hasEntries := false
+			for i := 0; i < 500; i++ {
+				count := fs.lookupLatencyHistogram[i].Load()
+				if count > 0 {
+					if i == 499 {
+						fmt.Fprintf(&sb, " [499, inf): %d", count)
+					} else {
+						fmt.Fprintf(&sb, " [%d, %d): %d", i, i+1, count)
+					}
+					hasEntries = true
+				}
+			}
+			if hasEntries {
+				logger.Info(sb.String())
+			} else {
+				logger.Info("LookupInode latency histogram (seconds): no operations recorded")
+			}
+		}
 	}
 }
 
@@ -1912,6 +1956,19 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
+	startTime := time.Now()
+	defer func() {
+		d := time.Since(startTime)
+		secs := int(d.Seconds())
+		if secs < 0 {
+			secs = 0
+		}
+		if secs > 499 {
+			secs = 499
+		}
+		fs.lookupLatencyHistogram[secs].Add(1)
+	}()
+
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent directory in question.
 	fs.mu.Lock()
