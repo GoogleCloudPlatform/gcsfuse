@@ -136,11 +136,6 @@ func (bp *GenBlockPool[T]) waitAndGetFirstBlock() (T, error) {
 	return bp.allocateNewBlock(true)
 }
 
-const (
-	stateUndecided int32 = iota
-	stateLocalWon
-	stateGlobalWon
-)
 
 func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 	ctx, cancel := context.WithCancel(context.Background())
