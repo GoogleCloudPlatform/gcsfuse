@@ -151,15 +151,17 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 	acquiredCh := make(chan struct{}, 1)
 
 	go func() {
-		err := bp.globalMaxBlocksSem.Acquire(ctx, 1)
-		if err == nil {
-			if winner.CompareAndSwap(stateUndecided, stateGlobalWon) {
-				acquiredCh <- struct{}{}
-			} else {
-				// The local block won the race, so we must release this global permit.
-				bp.globalMaxBlocksSem.Release(1)
-			}
+		if err := bp.globalMaxBlocksSem.Acquire(ctx, 1); err != nil {
+			return
 		}
+
+		if winner.CompareAndSwap(stateUndecided, stateGlobalWon) {
+			acquiredCh <- struct{}{}
+			return
+		}
+		// The local block won the race, so we must release this global permit.
+		bp.globalMaxBlocksSem.Release(1)
+
 	}()
 
 	select {
