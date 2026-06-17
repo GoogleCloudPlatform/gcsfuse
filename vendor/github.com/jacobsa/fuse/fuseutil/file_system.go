@@ -17,6 +17,7 @@ package fuseutil
 import (
 	"context"
 	"io"
+	"runtime"
 	"sync"
 
 	"github.com/jacobsa/fuse"
@@ -91,6 +92,11 @@ func NewFileSystemServer(fs FileSystem) fuse.Server {
 	}
 }
 
+type fuseOpTask struct {
+	ctx context.Context
+	op  interface{}
+}
+
 type fileSystemServer struct {
 	fs          FileSystem
 	opsInFlight sync.WaitGroup
@@ -103,6 +109,20 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		s.opsInFlight.Wait()
 		s.fs.Destroy()
 	}()
+
+	workerCount := runtime.GOMAXPROCS(0) * 4
+	if workerCount < 16 {
+		workerCount = 16
+	}
+	tasks := make(chan fuseOpTask, 1024)
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			for task := range tasks {
+				s.handleOp(c, task.ctx, task.op)
+			}
+		}()
+	}
+	defer close(tasks)
 
 	for {
 		ctx, op, err := c.ReadOp()
@@ -122,15 +142,20 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 			// cheap for the file system to handle
 			s.handleOp(c, ctx, op)
 		} else {
-			go s.handleOp(c, ctx, op)
+			select {
+			case tasks <- fuseOpTask{ctx: ctx, op: op}:
+			default:
+				// Fall back to spawning a new goroutine if the worker pool and buffer are fully saturated
+				go s.handleOp(c, ctx, op)
+			}
 		}
 	}
 }
 
 func (s *fileSystemServer) handleOp(
-	c *fuse.Connection,
-	ctx context.Context,
-	op interface{}) {
+		c *fuse.Connection,
+		ctx context.Context,
+		op interface{}) {
 	defer s.opsInFlight.Done()
 
 	// Dispatch to the appropriate method.
