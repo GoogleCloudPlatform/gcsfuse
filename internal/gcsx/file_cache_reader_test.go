@@ -110,11 +110,13 @@ func (t *fileCacheReaderTest) SetupTest() {
 }
 
 func (t *fileCacheReaderTest) TearDownTest() {
+	t.reader.Destroy()
+	t.reader_unfinalized_object.Destroy()
+	t.jobManager.Destroy()
 	err := os.RemoveAll(t.cacheDir)
 	if err != nil {
 		t.T().Logf("Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
 	}
-	t.reader.Destroy()
 }
 
 func (t *fileCacheReaderTest) mockNewReaderWithHandleCallForTestBucket(limit uint64, rd gcs.StorageReader) {
