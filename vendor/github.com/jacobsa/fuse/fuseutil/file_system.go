@@ -142,12 +142,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 			// cheap for the file system to handle
 			s.handleOp(c, ctx, op)
 		} else {
-			select {
-			case tasks <- fuseOpTask{ctx: ctx, op: op}:
-			default:
-				// Fall back to spawning a new goroutine if the worker pool and buffer are fully saturated
-				go s.handleOp(c, ctx, op)
-			}
+			tasks <- fuseOpTask{ctx: ctx, op: op}
 		}
 	}
 }
