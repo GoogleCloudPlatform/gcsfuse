@@ -284,6 +284,26 @@ func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen() {
 	assert.Equal(t.T(), m1, t.cache.LookUpOrNil("taco", someTime))
 }
 
+func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen_SmallerSize() {
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5, Size: 10}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5, Size: 8}
+
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
+
+	assert.Equal(t.T(), m0, t.cache.LookUpOrNil("taco", someTime))
+}
+
+func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen_LargerSize() {
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5, Size: 10}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5, Size: 12}
+
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
+
+	assert.Equal(t.T(), m1, t.cache.LookUpOrNil("taco", someTime))
+}
+
 func (t *StatCacheTest) Test_Overwrite_SameGeneration_OlderMetadataGen() {
 	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
 	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 3}

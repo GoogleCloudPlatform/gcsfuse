@@ -446,7 +446,7 @@ func TestGCSMetrics_RetryCount(t *testing.T) {
 
 	// Simulate a retryable error (e.g. 429)
 	var err error = &googleapi.Error{Code: 429}
-	shouldRetry := storageutil.ShouldRetryWithMonitoring(ctx, err, mh)
+	shouldRetry := storageutil.ShouldRetryWithMonitoringAndRetryContext(ctx, err, nil, mh)
 	require.True(t, shouldRetry)
 
 	waitForMetricsProcessing()
@@ -458,7 +458,7 @@ func TestGCSMetrics_RetryCount(t *testing.T) {
 
 	// Simulate a DeadlineExceeded error (Stalled Read)
 	err = context.DeadlineExceeded
-	shouldRetry = storageutil.ShouldRetryWithMonitoring(ctx, err, mh)
+	shouldRetry = storageutil.ShouldRetryWithMonitoringAndRetryContext(ctx, err, nil, mh)
 	require.True(t, shouldRetry)
 
 	waitForMetricsProcessing()

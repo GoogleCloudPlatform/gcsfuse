@@ -163,6 +163,16 @@ func shouldReplace(m *gcs.MinObject, existing entry) bool {
 		return m.MetaGeneration > existing.m.MetaGeneration
 	}
 
+	// Break ties on object size.
+	// Because objects in zonal buckets can be appended without altering their
+	// generation or metageneration, the following case applies exclusively to
+	// zonal buckets.
+	if m.Size < existing.m.Size {
+		// We ignore m.Size < existing.m.Size case as little staleness is expected
+		// on the GCS object's size.
+		return false
+	}
+
 	// Break ties by preferring fresher entries.
 	return true
 }
