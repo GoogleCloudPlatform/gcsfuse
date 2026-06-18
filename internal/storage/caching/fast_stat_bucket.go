@@ -138,7 +138,6 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		b.cache.InsertImplicitDir(dirName, expiration)
 	}
 
-
 	// 2. Cache Explicit Objects
 	for _, o := range listing.MinObjects {
 		b.cache.Insert(o, expiration)
@@ -150,7 +149,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	}
 
 	if isDirPath && !dirHasContents && dirName != "" && b.negativeCacheTTL > 0 {
-		hit, m := b.cache.LookUp(dirName)
+		hit, m := b.cache.LookUp(dirName, b.clock.Now())
 		if !hit || m == nil {
 			b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 		}
