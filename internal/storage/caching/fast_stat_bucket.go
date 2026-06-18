@@ -137,12 +137,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	if b.implicitDir && isDirPath && dirHasContents && !isDirInListing {
 		b.cache.InsertImplicitDir(dirName, expiration)
 	}
-	if b.implicitDir && isDirPath && !dirHasContents && dirName != "" && b.negativeCacheTTL > 0 {
-		hit, m := b.lookUp(dirName)
-		if !hit || m == nil {
-			b.addNegativeEntry(dirName)
-		}
-	}
+
 
 	// 2. Cache Explicit Objects
 	for _, o := range listing.MinObjects {
@@ -152,6 +147,13 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// Do not cache implicit directories if the flag is not passed.
 	if !b.implicitDir {
 		return
+	}
+
+	if isDirPath && !dirHasContents && dirName != "" && b.negativeCacheTTL > 0 {
+		hit, m := b.cache.LookUp(dirName)
+		if !hit || m == nil {
+			b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
+		}
 	}
 
 	// 3. Cache Sub-directories (Collapsed Runs)
