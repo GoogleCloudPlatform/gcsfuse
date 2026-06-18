@@ -23,6 +23,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,22 +40,47 @@ import (
 const NameOfServiceAccount = "creds-integration-tests"
 const CredentialsSecretName = "gcsfuse-integration-tests"
 
-var WhitelistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
+var AllowlistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
+
+var (
+	cachedProjectID string
+	projectIDOnce   sync.Once
+)
+
+func getCachedProjectID(ctx context.Context) (string, error) {
+	var err error
+	projectIDOnce.Do(func() {
+		cachedProjectID, err = metadata.ProjectIDWithContext(ctx)
+	})
+	return cachedProjectID, err
+}
+
+func IsAllowlistedProject(ctx context.Context) bool {
+	id, err := getCachedProjectID(ctx)
+	if err != nil {
+		log.Printf("Error in fetching project id: %v", err)
+		return false
+	}
+	if strings.Contains(id, "cloudtop") {
+		return true
+	}
+	return slices.Contains(AllowlistedGcpProjects, id)
+}
 
 func projectID(ctx context.Context) string {
 	// Fetching project-id to get service account id.
-	id, err := metadata.ProjectIDWithContext(ctx)
+	id, err := getCachedProjectID(ctx)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in fetching project id: %v", err))
 	}
 	if strings.Contains(id, "cloudtop") {
-		// In cloudtop environments, well known path is used for auth. So explicitly set the project as whitelisted.
-		id = WhitelistedGcpProjects[0]
+		// In cloudtop environments, well known path is used for auth. So explicitly set the project as allowlisted.
+		id = AllowlistedGcpProjects[0]
 	}
 
-	// return if active GCP project is not in whitelisted gcp projects
-	if !slices.Contains(WhitelistedGcpProjects, id) {
-		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(WhitelistedGcpProjects, ", "))
+	// return if active GCP project is not in allowlisted gcp projects
+	if !slices.Contains(AllowlistedGcpProjects, id) {
+		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(AllowlistedGcpProjects, ", "))
 	}
 	return id
 }
@@ -161,6 +187,10 @@ func RevokeCustomRoleFromServiceAccountOnBucket(ctx context.Context, storageClie
 }
 
 func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
+	if !IsAllowlistedProject(ctx) {
+		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(AllowlistedGcpProjects, ", "))
+		return 0
+	}
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
 	defer func() {
 		if err := os.Remove(localKeyFilePath); err != nil {

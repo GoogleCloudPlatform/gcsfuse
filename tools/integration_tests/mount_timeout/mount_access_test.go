@@ -82,6 +82,9 @@ func (testSuite *MountAccessTest) mountWithKeyFile(bucketName, keyFile string) (
 }
 
 func (testSuite *MountAccessTest) TestMountingWithMinimalAccessSucceeds() {
+	if !creds_tests.IsAllowlistedProject(gCtx) {
+		testSuite.T().Skip("Skipping credentials test on non-allowlisted project.")
+	}
 	if !client.CheckBucketAccess(gCtx, gStorageClient, testBucket) {
 		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", testBucket)
 	}
