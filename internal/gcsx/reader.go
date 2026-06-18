@@ -17,6 +17,7 @@ package gcsx
 import (
 	"context"
 	"errors"
+	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
@@ -31,11 +32,18 @@ type ReadRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
 	Buffer []byte
 
+	// Buffers is a slice of slices of bytes that should be filled sequentially with data.
+	// If Buffers is non-empty, readers should populate Buffers instead of Buffer.
+	Buffers [][]byte
+
 	// Offset specifies the starting position in the object from where data should be read.
 	// Note: This value should not be modified by any reader. It is used by the
 	// read manager to fall back to the next reader and to record the read operation
 	// correctly.
 	Offset int64
+
+	// Size specifies the number of bytes requested to read (corresponding to op.Size).
+	Size int64
 
 	// SkipSizeChecks, when true, instructs the reader to bypass validation of the
 	// read request against the object's cached size. This is necessary for
@@ -117,4 +125,40 @@ type GCSReader interface {
 	// starting from the specified offset and ending at the specified end offset.
 	// It returns a `ReadResponse` indicating the number of bytes successfully read and any error encountered.
 	ReadAt(ctx context.Context, req *GCSReaderRequest) (ReadResponse, error)
+}
+
+// BuffersWriter implements io.Writer and writes data sequentially into a slice of byte slices.
+type BuffersWriter struct {
+	buffers [][]byte
+	offset  int
+	index   int
+}
+
+func NewBuffersWriter(buffers [][]byte) *BuffersWriter {
+	return &BuffersWriter{
+		buffers: buffers,
+	}
+}
+
+func (w *BuffersWriter) Write(p []byte) (n int, err error) {
+	for n < len(p) {
+		if w.index >= len(w.buffers) {
+			return n, io.ErrShortWrite
+		}
+		buf := w.buffers[w.index]
+		avail := len(buf) - w.offset
+		if avail <= 0 {
+			w.index++
+			w.offset = 0
+			continue
+		}
+		toCopy := len(p) - n
+		if toCopy > avail {
+			toCopy = avail
+		}
+		copy(buf[w.offset:w.offset+toCopy], p[n:n+toCopy])
+		w.offset += toCopy
+		n += toCopy
+	}
+	return n, nil
 }

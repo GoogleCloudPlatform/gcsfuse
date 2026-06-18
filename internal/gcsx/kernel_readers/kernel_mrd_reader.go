@@ -80,11 +80,6 @@ func (kmr *KernelMRDReader) CheckInvariants() {
 // offset. It retrieves an available MRD entry and uses it to download the
 // requested byte range.
 func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
-	// If the destination buffer is empty, there's nothing to read.
-	if len(req.Buffer) == 0 {
-		return gcsx.ReadResponse{}, nil
-	}
-
 	// mrdInstance is set to nil in Destroy which will be called only after all active Read operations
 	// have finished. Hence, not taking RLock to access it.
 	if kmr.mrdInstance == nil {
@@ -101,20 +96,69 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 		kmr.metrics.GcsReadBytesCount(int64(bytesRead))
 	}()
 
-	var err error
-	bytesRead, err = kmr.mrdInstance.Read(ctx, req.Buffer, req.Offset, kmr.metrics)
-	if isShortRead(bytesRead, len(req.Buffer), err) {
-		logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, len(req.Buffer))
-		if err = kmr.mrdInstance.RecreateMRD(); err != nil {
-			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
+	var totalCapacity int64
+	if len(req.Buffers) > 0 {
+		for _, b := range req.Buffers {
+			totalCapacity += int64(len(b))
 		}
-		retryOffset := req.Offset + int64(bytesRead)
-		retryBuffer := req.Buffer[bytesRead:]
-		var bytesReadOnRetry int
-		bytesReadOnRetry, err = kmr.mrdInstance.Read(ctx, retryBuffer, retryOffset, kmr.metrics)
-		bytesRead += bytesReadOnRetry
+	} else {
+		totalCapacity = int64(len(req.Buffer))
+	}
+
+	sizeToRead := req.Size
+	if sizeToRead <= 0 || sizeToRead > totalCapacity {
+		sizeToRead = totalCapacity
+	}
+
+	var err error
+	if len(req.Buffers) > 0 {
+		writer := gcsx.NewBuffersWriter(req.Buffers)
+		bytesRead, err = kmr.mrdInstance.ReadToWriter(ctx, writer, req.Offset, sizeToRead, kmr.metrics)
+		if isShortRead(bytesRead, int(sizeToRead), err) {
+			logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, sizeToRead)
+			if err = kmr.mrdInstance.RecreateMRD(); err != nil {
+				logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
+			}
+			retryOffset := req.Offset + int64(bytesRead)
+			remainingBuffers := sliceBuffers(req.Buffers, bytesRead)
+			retryWriter := gcsx.NewBuffersWriter(remainingBuffers)
+			var bytesReadOnRetry int
+			bytesReadOnRetry, err = kmr.mrdInstance.ReadToWriter(ctx, retryWriter, retryOffset, sizeToRead-int64(bytesRead), kmr.metrics)
+			bytesRead += bytesReadOnRetry
+		}
+	} else {
+		bytesRead, err = kmr.mrdInstance.Read(ctx, req.Buffer[:sizeToRead], req.Offset, kmr.metrics)
+		if isShortRead(bytesRead, int(sizeToRead), err) {
+			logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, sizeToRead)
+			if err = kmr.mrdInstance.RecreateMRD(); err != nil {
+				logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
+			}
+			retryOffset := req.Offset + int64(bytesRead)
+			retryBuffer := req.Buffer[bytesRead:sizeToRead]
+			var bytesReadOnRetry int
+			bytesReadOnRetry, err = kmr.mrdInstance.Read(ctx, retryBuffer, retryOffset, kmr.metrics)
+			bytesRead += bytesReadOnRetry
+		}
 	}
 	return gcsx.ReadResponse{Size: bytesRead}, err
+}
+
+func sliceBuffers(buffers [][]byte, offset int) [][]byte {
+	var result [][]byte
+	var currentOffset int
+	for _, b := range buffers {
+		if currentOffset+len(b) <= offset {
+			currentOffset += len(b)
+			continue
+		}
+		start := offset - currentOffset
+		if start < 0 {
+			start = 0
+		}
+		result = append(result, b[start:])
+		currentOffset += len(b)
+	}
+	return result
 }
 
 // Destroy cleans up the resources used by the reader, primarily by destroying

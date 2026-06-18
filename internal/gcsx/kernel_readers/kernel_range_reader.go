@@ -65,7 +65,21 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 		return resp, io.EOF
 	}
 
-	endOffset := req.Offset + int64(len(req.Buffer))
+	var totalCapacity int64
+	if len(req.Buffers) > 0 {
+		for _, b := range req.Buffers {
+			totalCapacity += int64(len(b))
+		}
+	} else {
+		totalCapacity = int64(len(req.Buffer))
+	}
+
+	sizeToRead := req.Size
+	if sizeToRead <= 0 || sizeToRead > totalCapacity {
+		sizeToRead = totalCapacity
+	}
+
+	endOffset := req.Offset + sizeToRead
 	if endOffset > int64(obj.Size) {
 		endOffset = int64(obj.Size)
 	}
@@ -90,7 +104,27 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 		}
 	}()
 
-	n, err := io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
+	var n int
+	if len(req.Buffers) > 0 {
+		for _, b := range req.Buffers {
+			remaining := (endOffset - req.Offset) - int64(n)
+			if remaining <= 0 {
+				break
+			}
+			bufToRead := b
+			if int64(len(bufToRead)) > remaining {
+				bufToRead = bufToRead[:remaining]
+			}
+			var bytesRead int
+			bytesRead, err = io.ReadFull(reader, bufToRead)
+			n += bytesRead
+			if err != nil {
+				break
+			}
+		}
+	} else {
+		n, err = io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
+	}
 	resp.Size = n
 
 	if krr.metrics != nil {

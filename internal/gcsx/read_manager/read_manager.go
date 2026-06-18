@@ -182,7 +182,7 @@ func (rr *ReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.
 	}
 
 	// empty read
-	if len(req.Buffer) == 0 {
+	if len(req.Buffer) == 0 && len(req.Buffers) == 0 {
 		return readResponse, nil
 	}
 

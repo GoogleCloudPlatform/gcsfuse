@@ -209,6 +209,17 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoratative
 		defer fh.inode.Unlock()
+		if len(req.Buffers) > 0 {
+			var n int
+			for _, b := range req.Buffers {
+				bytesRead, err := fh.inode.Read(ctx, b, req.Offset+int64(n))
+				n += bytesRead
+				if err != nil {
+					return gcsx.ReadResponse{Size: n}, err
+				}
+			}
+			return gcsx.ReadResponse{Size: n}, nil
+		}
 		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
 		return gcsx.ReadResponse{Size: n}, err
 	}
@@ -289,6 +300,17 @@ func (fh *FileHandle) ReadWithKernelReader(ctx context.Context, req *gcsx.ReadRe
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
+		if len(req.Buffers) > 0 {
+			var n int
+			for _, b := range req.Buffers {
+				bytesRead, err := fh.inode.Read(ctx, b, req.Offset+int64(n))
+				n += bytesRead
+				if err != nil {
+					return gcsx.ReadResponse{Size: n}, err
+				}
+			}
+			return gcsx.ReadResponse{Size: n}, nil
+		}
 		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
 		return gcsx.ReadResponse{Size: n}, err
 	}
