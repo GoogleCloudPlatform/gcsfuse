@@ -88,10 +88,6 @@ func ShouldRetryWithRetryContext(err error, retryCtx *storage.RetryContext) bool
 		}
 		return true
 	}
-	if retryCtx != nil {
-		logger.Errorf("%s for %q failed: InvocationID: %s, Attempt: %d, with error: %v",
-			retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt, err)
-	}
 	return false
 }
 
