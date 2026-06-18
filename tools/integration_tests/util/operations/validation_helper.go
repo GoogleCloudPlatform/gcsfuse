@@ -52,14 +52,25 @@ func ValidateESTALEError(t *testing.T, err error) {
 	t.Helper()
 
 	require.Error(t, err)
-	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
+	require.Contains(t, err.Error(), syscall.ESTALE.Error())
+}
+
+func ValidateESTALEOrEIOError(t *testing.T, err error) {
+	t.Helper()
+
+	require.Error(t, err)
+	// FUSE kernel driver can translate ESTALE to EIO (input/output error) on some operations/kernels.
+	// So we accept both "stale file handle" (ESTALE) and "input/output error" (EIO).
+	errStr := err.Error()
+	require.True(t, strings.Contains(errStr, syscall.ESTALE.Error()) || strings.Contains(errStr, syscall.EIO.Error()),
+		"Expected error to contain %q (ESTALE) or %q (EIO). Got: %v", syscall.ESTALE.Error(), syscall.EIO.Error(), err)
 }
 
 func ValidateEIOError(t *testing.T, err error) {
 	t.Helper()
 
 	require.Error(t, err)
-	assert.Regexp(t, syscall.EIO.Error(), err.Error())
+	require.Contains(t, err.Error(), syscall.EIO.Error())
 }
 
 func CheckErrorForReadOnlyFileSystem(t *testing.T, err error) {
