@@ -986,17 +986,15 @@ func (t *HNSDirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *HNSDirTest) TestLookUpChild_HNS_RaceSelector_SlowerCancel() {
+func (t *HNSDirTest) TestLookUpChild_HNS_RaceSelector_SlowerCancel_FolderWins() {
 	const name = "race_slower_cancel"
 	dirName := path.Join(dirInodeName, name) + "/"
 	folder := &gcs.Folder{
 		Name: dirName,
 	}
-
 	statStarted := make(chan struct{})
 	statFinished := make(chan struct{})
 	var statObjectCanceled bool
-
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			close(statStarted)
@@ -1005,14 +1003,12 @@ func (t *HNSDirTest) TestLookUpChild_HNS_RaceSelector_SlowerCancel() {
 			statObjectCanceled = true
 			close(statFinished)
 		}).Return(nil, nil, &gcs.NotFoundError{Err: errors.New("not found")}).Maybe()
-
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			<-statStarted
 		}).Return(folder, nil)
 
 	result, err := t.in.LookUpChild(t.ctx, name)
-
 	<-statFinished
 
 	t.mockBucket.AssertExpectations(t.T())
@@ -1035,11 +1031,9 @@ func (t *HNSDirTest) TestLookUpChild_HNS_RaceSelector_SlowerCancel_FileWins() {
 		ContentType:  "plain/text",
 		StorageClass: "DEFAULT",
 	}
-
 	folderStarted := make(chan struct{})
 	folderFinished := make(chan struct{})
 	var folderCanceled bool
-
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			close(folderStarted)
@@ -1048,14 +1042,12 @@ func (t *HNSDirTest) TestLookUpChild_HNS_RaceSelector_SlowerCancel_FileWins() {
 			folderCanceled = true
 			close(folderFinished)
 		}).Return(nil, &gcs.NotFoundError{Err: errors.New("not found")}).Maybe()
-
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			<-folderStarted
 		}).Return(minObject, attrs, nil)
 
 	result, err := t.in.LookUpChild(t.ctx, name)
-
 	<-folderFinished
 
 	t.mockBucket.AssertExpectations(t.T())
@@ -1070,7 +1062,6 @@ func (t *HNSDirTest) TestLookUpChild_HNS_RaceSelector_ErrorPropagation() {
 	const name = "race_error_prop"
 	err1 := errors.New("API error 1")
 	err2 := errors.New("API error 2")
-
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, err1)
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(nil, err2)
 
@@ -1088,15 +1079,12 @@ func (t *HNSDirTest) TestLookUpChild_HNS_RaceSelector_ErrorOnOneSuccessOnOther()
 	folder := &gcs.Folder{
 		Name: dirName,
 	}
-
 	statStarted := make(chan struct{})
 	apiErr := errors.New("connection reset")
-
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			close(statStarted)
 		}).Return(nil, nil, apiErr)
-
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			<-statStarted
