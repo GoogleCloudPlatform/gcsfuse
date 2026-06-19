@@ -76,27 +76,18 @@ func ShouldRetryWithoutLogging(err error) bool {
 }
 
 // ShouldRetryWithRetryContext checks if the given error is transient and should be retried,
-// logging the retry warning with RetryContext (operation, bucket, object, attempt, invocation ID).
+// logging the retry warning with RetryContext (operation, object, attempt, invocation ID).
 // Returns true if the error is retryable, false otherwise.
 func ShouldRetryWithRetryContext(err error, retryCtx *storage.RetryContext) bool {
-	var prefix string
-	switch determineRetryAction(err) {
-	case retryTransient:
-		prefix = "Retrying for transient error"
-	case retry401:
-		prefix = "Retrying for error-code 401"
-	case retryUnauthenticated:
-		prefix = "Retrying for UNAUTHENTICATED error"
-	default:
+	if !ShouldRetryWithoutLogging(err) {
 		return false
 	}
-
-	if retryCtx != nil {
-		logger.Warnf("%s: %v, InvocationID: %s, Attempt: %d, Op: %s, Object: %q",
-			prefix, err, retryCtx.InvocationID, retryCtx.Attempt, retryCtx.Operation, retryCtx.Object)
-	} else {
-		logger.Warnf("%s: %v", prefix, err)
+	if retryCtx == nil {
+		logger.Warnf("Retrying for error: %v", err)
+		return true
 	}
+	logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+		retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
 	return true
 }
 

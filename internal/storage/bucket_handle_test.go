@@ -1609,7 +1609,9 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchical
 	})
 	ctx := context.Background()
 	deleteFolderReq := controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)}
-	testSuite.mockClient.On("DeleteFolder", ctx, &deleteFolderReq, mock.Anything).Return(nil)
+	testSuite.mockClient.On("DeleteFolder", ctx, mock.MatchedBy(func(req *controlpb.DeleteFolderRequest) bool {
+		return req.Name == deleteFolderReq.Name
+	}), mock.Anything).Return(nil)
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	err := testSuite.bucketHandle.DeleteFolder(ctx, TestFolderName)
@@ -1624,7 +1626,9 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarch
 		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 	})
 	deleteFolderReq := controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)}
-	testSuite.mockClient.On("DeleteFolder", mock.Anything, &deleteFolderReq, mock.Anything).Return(errors.New("mock error"))
+	testSuite.mockClient.On("DeleteFolder", mock.Anything, mock.MatchedBy(func(req *controlpb.DeleteFolderRequest) bool {
+		return req.Name == deleteFolderReq.Name
+	}), mock.Anything).Return(errors.New("mock error"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	err := testSuite.bucketHandle.DeleteFolder(ctx, missingFolderName)
@@ -1643,7 +1647,9 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 	mockFolder := controlpb.Folder{
 		Name: folderPath,
 	}
-	testSuite.mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).Return(&mockFolder, nil)
+	testSuite.mockClient.On("GetFolder", ctx, mock.MatchedBy(func(req *controlpb.GetFolderRequest) bool {
+		return req.Name == getFolderReq.Name
+	}), mock.Anything).Return(&mockFolder, nil)
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	result, err := testSuite.bucketHandle.GetFolder(ctx, &gcs.GetFolderRequest{Name: TestFolderName})
@@ -1660,7 +1666,9 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 	})
 	folderPath := fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)
 	getFolderReq := controlpb.GetFolderRequest{Name: folderPath}
-	testSuite.mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).Return(nil, status.Error(codes.NotFound, "folder not found"))
+	testSuite.mockClient.On("GetFolder", ctx, mock.MatchedBy(func(req *controlpb.GetFolderRequest) bool {
+		return req.Name == getFolderReq.Name
+	}), mock.Anything).Return(nil, status.Error(codes.NotFound, "folder not found"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	result, err := testSuite.bucketHandle.GetFolder(ctx, &gcs.GetFolderRequest{Name: missingFolderName})
@@ -1676,7 +1684,9 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 	})
 	renameFolderReq := controlpb.RenameFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName), DestinationFolderId: TestRenameFolder}
-	testSuite.mockClient.On("RenameFolder", mock.Anything, &renameFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
+	testSuite.mockClient.On("RenameFolder", mock.Anything, mock.MatchedBy(func(req *controlpb.RenameFolderRequest) bool {
+		return req.Name == renameFolderReq.Name && req.DestinationFolderId == renameFolderReq.DestinationFolderId
+	}), mock.Anything).Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	_, err := testSuite.bucketHandle.RenameFolder(ctx, TestFolderName, TestRenameFolder)
@@ -1690,7 +1700,9 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 	})
 	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName, Recursive: true}
-	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
+	testSuite.mockClient.On("CreateFolder", context.Background(), mock.MatchedBy(func(req *controlpb.CreateFolderRequest) bool {
+		return req.Parent == createFolderReq.Parent && req.FolderId == createFolderReq.FolderId
+	}), mock.Anything).Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	folder, err := testSuite.bucketHandle.CreateFolder(context.Background(), TestFolderName)
@@ -1708,7 +1720,9 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 		Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName),
 	}
 	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName, Recursive: true}
-	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(&mockFolder, nil)
+	testSuite.mockClient.On("CreateFolder", context.Background(), mock.MatchedBy(func(req *controlpb.CreateFolderRequest) bool {
+		return req.Parent == createFolderReq.Parent && req.FolderId == createFolderReq.FolderId
+	}), mock.Anything).Return(&mockFolder, nil)
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	folder, err := testSuite.bucketHandle.CreateFolder(context.Background(), TestFolderName)
