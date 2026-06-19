@@ -148,7 +148,6 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		return
 	}
 
-
 	// 3. Cache Sub-directories (Collapsed Runs)
 	// These represent folders discovered via prefixes in the ListObjects response.
 	for _, p := range listing.CollapsedRuns {
