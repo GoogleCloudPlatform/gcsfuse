@@ -35,7 +35,7 @@ func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
 	ctx := context.Background()
 	var clock timeutil.SimulatedClock
 	clock.SetTime(time.Date(2026, 6, 18, 12, 0, 0, 0, time.Local))
-	bucket := fake.NewFakeBucket(&clock, "some_bucket", gcs.BucketType{})
+	bucket := fake.NewFakeBucket(&clock, "some_bucket", gcs.BucketType{Hierarchical: true})
 	syncerBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		chunkRetryDeadlineSecs,
@@ -46,7 +46,7 @@ func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
 	config := &cfg.Config{
 		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},
 		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
-		EnableHns:                    false,
+		EnableHns:                    true,
 		EnableUnsupportedPathSupport: true,
 		EnableTypeCacheDeprecation:   false,
 	}
