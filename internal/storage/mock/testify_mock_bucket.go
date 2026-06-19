@@ -89,6 +89,9 @@ func (m *TestifyMockBucket) ComposeObjects(ctx context.Context, req *gcs.Compose
 }
 
 func (m *TestifyMockBucket) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	args := m.Called(ctx, req)
 	if args.Get(2) != nil {
 		return nil, nil, args.Error(2)
@@ -125,6 +128,9 @@ func (m *TestifyMockBucket) DeleteFolder(ctx context.Context, folderName string)
 }
 
 func (m *TestifyMockBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	args := m.Called(ctx, req)
 	if args.Get(0) != nil {
 		return args.Get(0).(*gcs.Folder), nil
