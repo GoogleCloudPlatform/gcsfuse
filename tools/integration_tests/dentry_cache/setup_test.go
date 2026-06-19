@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 		cfg.DentryCache[0].LogFile = setup.LogFile()
 		cfg.DentryCache[0].Configs = make([]test_suite.ConfigItem, 3)
 		cfg.DentryCache[0].Configs[0].Flags = []string{
-			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2",
+			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2 --metadata-cache-negative-ttl-secs=2",
 		}
 		cfg.DentryCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.DentryCache[0].Configs[0].Run = "TestStatWithDentryCacheEnabledTest"
