@@ -55,7 +55,7 @@ func (s *notifierTest) SetupSuite() {
 }
 
 func (s *notifierTest) TestWriteFileWithDentryCacheEnabled() {
-	testFileName := s.T().Name()
+	testFileName := "TestWriteFileWithDentryCacheEnabled"
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(testEnv.testDirPath, testFileName)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
@@ -81,7 +81,7 @@ func (s *notifierTest) TestWriteFileWithDentryCacheEnabled() {
 }
 
 func (s *notifierTest) TestReadFileWithDentryCacheEnabled() {
-	testFileName := s.T().Name()
+	testFileName := "TestReadFileWithDentryCacheEnabled"
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(testEnv.testDirPath, testFileName)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
@@ -106,7 +106,7 @@ func (s *notifierTest) TestReadFileWithDentryCacheEnabled() {
 }
 
 func (s *notifierTest) TestDeleteFileWithDentryCacheEnabled() {
-	testFileName := s.T().Name()
+	testFileName := "TestDeleteFileWithDentryCacheEnabled"
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(testEnv.testDirPath, testFileName)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
