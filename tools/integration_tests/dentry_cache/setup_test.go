@@ -77,12 +77,12 @@ func TestMain(m *testing.M) {
 		cfg.DentryCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.DentryCache[0].Configs[0].Run = "TestStatWithDentryCacheEnabledTest"
 		cfg.DentryCache[0].Configs[1].Flags = []string{
-			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000",
+			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000 --metadata-cache-negative-ttl-secs=1000",
 		}
 		cfg.DentryCache[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.DentryCache[0].Configs[1].Run = "TestDeleteOperationTest"
 		cfg.DentryCache[0].Configs[2].Flags = []string{
-			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000",
+			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000 --metadata-cache-negative-ttl-secs=1000",
 		}
 		cfg.DentryCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.DentryCache[0].Configs[2].Run = "TestNotifierTest"

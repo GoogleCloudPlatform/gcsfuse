@@ -465,7 +465,13 @@ func (b *fastStatBucket) ListObjects(
 	if b.implicitDir && req.Prefix != "" && strings.HasSuffix(req.Prefix, "/") {
 		hit, m := b.lookUp(req.Prefix)
 		if hit && m == nil {
-			return &gcs.Listing{}, nil
+			if !b.BucketType().Hierarchical {
+				return &gcs.Listing{}, nil
+			}
+			folderHit, f := b.lookUpFolder(req.Prefix)
+			if folderHit && f == nil {
+				return &gcs.Listing{}, nil
+			}
 		}
 	}
 
