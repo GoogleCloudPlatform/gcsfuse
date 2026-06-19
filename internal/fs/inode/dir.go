@@ -759,49 +759,54 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 		return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 
 	case metadata.UnknownType:
-		// Entry not present in cache.
-		// Trigger prefetcher
-		if d.prefetcher != nil {
-			d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
-		}
-
-		if d.isBucketHierarchical() {
-			return d.lookUpHNSRace(ctx, name)
-		}
-
-		group, ctx := errgroup.WithContext(ctx)
-
-		var fileResult *Core
-		var dirResult *Core
-
-		group.Go(func() (err error) {
-			fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
-			return
-		})
-
-		if d.implicitDirs {
-			group.Go(func() (err error) {
-				dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
-				return
-			})
-		} else {
-			group.Go(func() (err error) {
-				dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
-				return
-			})
-		}
-
-		if err := group.Wait(); err != nil {
-			return nil, err
-		}
-
-		if dirResult != nil {
-			return dirResult, nil
-		}
-		return fileResult, nil
+		return d.lookUpUnknownType(ctx, name)
 	}
 
 	return nil, nil
+}
+
+// lookUpUnknownType handles the lookup of a child entity when its type is unknown.
+func (d *dirInode) lookUpUnknownType(ctx context.Context, name string) (*Core, error) {
+	// Entry not present in cache.
+	// Trigger prefetcher
+	if d.prefetcher != nil {
+		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
+	}
+
+	if d.isBucketHierarchical() {
+		return d.lookUpHNSRace(ctx, name)
+	}
+
+	group, ctx := errgroup.WithContext(ctx)
+
+	var fileResult *Core
+	var dirResult *Core
+
+	group.Go(func() (err error) {
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
+		return err
+	})
+
+	if d.implicitDirs {
+		group.Go(func() (err error) {
+			dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+			return err
+		})
+	} else {
+		group.Go(func() (err error) {
+			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
+			return err
+		})
+	}
+
+	if err := group.Wait(); err != nil {
+		return nil, err
+	}
+
+	if dirResult != nil {
+		return dirResult, nil
+	}
+	return fileResult, nil
 }
 
 func (d *dirInode) lookUpHNSRace(ctx context.Context, name string) (*Core, error) {
