@@ -27,81 +27,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 )
-
-// fetchCoreEntityOld contains the old, unoptimized implementation of fetchCoreEntity.
-func (d *dirInode) fetchCoreEntityOld(ctx context.Context, name string, cachedType metadata.Type) (*Core, error) {
-	group, ctx := errgroup.WithContext(ctx)
-
-	var fileResult *Core
-	var dirResult *Core
-	var err error
-
-	lookUpFile := func() (err error) {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
-		return
-	}
-	lookUpExplicitDir := func() (err error) {
-		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
-		return
-	}
-	lookUpImplicitOrExplicitDir := func() (err error) {
-		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
-		return
-	}
-	lookUpHNSDir := func() (err error) {
-		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
-		return
-	}
-
-	switch cachedType {
-	case metadata.ImplicitDirType:
-		return &Core{
-			Bucket:    d.Bucket(),
-			FullName:  NewDirName(d.Name(), name),
-			MinObject: nil,
-		}, nil
-	case metadata.ExplicitDirType:
-		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
-		} else {
-			group.Go(lookUpExplicitDir)
-		}
-	case metadata.RegularFileType, metadata.SymlinkType:
-		group.Go(lookUpFile)
-
-	case metadata.NonexistentType:
-		return nil, nil
-	case metadata.UnknownType:
-		// Entry not present in cache.
-		// Trigger prefetcher
-		if d.prefetcher != nil {
-			d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
-		}
-
-		if d.isBucketHierarchical() {
-			return d.lookUpHNSRace(ctx, name)
-		}
-
-		group.Go(lookUpFile)
-		if d.implicitDirs {
-			group.Go(lookUpImplicitOrExplicitDir)
-		} else {
-			group.Go(lookUpExplicitDir)
-		}
-	}
-
-	if err = group.Wait(); err != nil {
-		return nil, err
-	}
-
-	if dirResult != nil {
-		return dirResult, nil
-	}
-	return fileResult, nil
-}
 
 func newBenchmarkDirInode(tb testing.TB, implicitDirs bool) *dirInode {
 	ctx := context.Background()
@@ -145,7 +72,7 @@ func newBenchmarkDirInode(tb testing.TB, implicitDirs bool) *dirInode {
 	return in.(*dirInode)
 }
 
-func runBenchmark(b *testing.B, cachedType metadata.Type, name string, useOld bool, setupBucket func(d *dirInode)) {
+func runBenchmark(b *testing.B, cachedType metadata.Type, name string, setupBucket func(d *dirInode)) {
 	d := newBenchmarkDirInode(b, true)
 	if setupBucket != nil {
 		setupBucket(d)
@@ -154,70 +81,36 @@ func runBenchmark(b *testing.B, cachedType metadata.Type, name string, useOld bo
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if useOld {
-			_, _ = d.fetchCoreEntityOld(ctx, name, cachedType)
-		} else {
-			_, _ = d.fetchCoreEntity(ctx, name, cachedType)
-		}
+		_, _ = d.fetchCoreEntity(ctx, name, cachedType)
 	}
 }
 
-func Benchmark_ImplicitDirType_Old(b *testing.B) {
-	runBenchmark(b, metadata.ImplicitDirType, "subdir", true, nil)
+func Benchmark_ImplicitDirType(b *testing.B) {
+	runBenchmark(b, metadata.ImplicitDirType, "subdir", nil)
 }
 
-func Benchmark_ImplicitDirType_New(b *testing.B) {
-	runBenchmark(b, metadata.ImplicitDirType, "subdir", false, nil)
+func Benchmark_NonexistentType(b *testing.B) {
+	runBenchmark(b, metadata.NonexistentType, "absent", nil)
 }
 
-func Benchmark_NonexistentType_Old(b *testing.B) {
-	runBenchmark(b, metadata.NonexistentType, "absent", true, nil)
-}
-
-func Benchmark_NonexistentType_New(b *testing.B) {
-	runBenchmark(b, metadata.NonexistentType, "absent", false, nil)
-}
-
-func Benchmark_ExplicitDirType_Old(b *testing.B) {
-	runBenchmark(b, metadata.ExplicitDirType, "subdir", true, func(d *dirInode) {
+func Benchmark_ExplicitDirType(b *testing.B) {
+	runBenchmark(b, metadata.ExplicitDirType, "subdir", func(d *dirInode) {
 		_, _ = storageutil.CreateObject(context.Background(), d.Bucket(), NewDirName(d.Name(), "subdir").GcsObjectName(), []byte(""))
 	})
 }
 
-func Benchmark_ExplicitDirType_New(b *testing.B) {
-	runBenchmark(b, metadata.ExplicitDirType, "subdir", false, func(d *dirInode) {
-		_, _ = storageutil.CreateObject(context.Background(), d.Bucket(), NewDirName(d.Name(), "subdir").GcsObjectName(), []byte(""))
-	})
-}
-
-func Benchmark_RegularFileType_Old(b *testing.B) {
-	runBenchmark(b, metadata.RegularFileType, "file", true, func(d *dirInode) {
+func Benchmark_RegularFileType(b *testing.B) {
+	runBenchmark(b, metadata.RegularFileType, "file", func(d *dirInode) {
 		_, _ = storageutil.CreateObject(context.Background(), d.Bucket(), NewFileName(d.Name(), "file").GcsObjectName(), []byte("taco"))
 	})
 }
 
-func Benchmark_RegularFileType_New(b *testing.B) {
-	runBenchmark(b, metadata.RegularFileType, "file", false, func(d *dirInode) {
-		_, _ = storageutil.CreateObject(context.Background(), d.Bucket(), NewFileName(d.Name(), "file").GcsObjectName(), []byte("taco"))
-	})
+func Benchmark_UnknownType_Nonexistent(b *testing.B) {
+	runBenchmark(b, metadata.UnknownType, "absent", nil)
 }
 
-func Benchmark_UnknownType_Nonexistent_Old(b *testing.B) {
-	runBenchmark(b, metadata.UnknownType, "absent", true, nil)
-}
-
-func Benchmark_UnknownType_Nonexistent_New(b *testing.B) {
-	runBenchmark(b, metadata.UnknownType, "absent", false, nil)
-}
-
-func Benchmark_UnknownType_ExistingFile_Old(b *testing.B) {
-	runBenchmark(b, metadata.UnknownType, "file", true, func(d *dirInode) {
-		_, _ = storageutil.CreateObject(context.Background(), d.Bucket(), NewFileName(d.Name(), "file").GcsObjectName(), []byte("taco"))
-	})
-}
-
-func Benchmark_UnknownType_ExistingFile_New(b *testing.B) {
-	runBenchmark(b, metadata.UnknownType, "file", false, func(d *dirInode) {
+func Benchmark_UnknownType_ExistingFile(b *testing.B) {
+	runBenchmark(b, metadata.UnknownType, "file", func(d *dirInode) {
 		_, _ = storageutil.CreateObject(context.Background(), d.Bucket(), NewFileName(d.Name(), "file").GcsObjectName(), []byte("taco"))
 	})
 }
