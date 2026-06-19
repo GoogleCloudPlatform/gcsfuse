@@ -576,7 +576,7 @@ dentry_cache:
         run: TestStatWithDentryCacheEnabledTest
         run_on_gke: true
       - flags:
-          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000"
+          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000,--metadata-cache-negative-ttl-secs=1000"
         compatible:
           flat: true
           hns: true
@@ -584,7 +584,7 @@ dentry_cache:
         run: TestDeleteOperationTest
         run_on_gke: true
       - flags:
-          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000"
+          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000,--metadata-cache-negative-ttl-secs=1000"
         compatible:
           flat: true
           hns: true
