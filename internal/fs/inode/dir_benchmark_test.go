@@ -30,10 +30,11 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-func newBenchmarkDirInode(tb testing.TB, implicitDirs bool) *dirInode {
+func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
+	b.Helper()
 	ctx := context.Background()
 	var clock timeutil.SimulatedClock
-	clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	clock.SetTime(time.Date(2026, 6, 18, 12, 0, 0, 0, time.Local))
 	bucket := fake.NewFakeBucket(&clock, "some_bucket", gcs.BucketType{})
 	syncerBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
@@ -73,6 +74,7 @@ func newBenchmarkDirInode(tb testing.TB, implicitDirs bool) *dirInode {
 }
 
 func runBenchmark(b *testing.B, cachedType metadata.Type, name string, setupBucket func(d *dirInode)) {
+	b.Helper()
 	d := newBenchmarkDirInode(b, true)
 	if setupBucket != nil {
 		setupBucket(d)
@@ -80,7 +82,7 @@ func runBenchmark(b *testing.B, cachedType metadata.Type, name string, setupBuck
 	ctx := context.Background()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = d.fetchCoreEntity(ctx, name, cachedType)
 	}
 }
