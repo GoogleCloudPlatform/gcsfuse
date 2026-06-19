@@ -48,7 +48,7 @@ func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
 		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
 		EnableHns:                    true,
 		EnableUnsupportedPathSupport: true,
-		EnableTypeCacheDeprecation:   false,
+		EnableTypeCacheDeprecation:   true,
 	}
 
 	in := NewDirInode(
