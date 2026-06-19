@@ -27,6 +27,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -557,7 +558,8 @@ func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (er
 	var callOptions []gax.CallOption
 
 	err = bh.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
+		Name:      fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 	return
 }
@@ -604,6 +606,7 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	req := &controlpb.RenameFolderRequest{
 		Name:                fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
 		DestinationFolderId: destinationFolderId,
+		RequestId:           uuid.NewString(),
 	}
 	resp, err := bh.controlClient.RenameFolder(ctx, req)
 	if err != nil {
@@ -631,7 +634,8 @@ func (bh *bucketHandle) GetFolder(ctx context.Context, req *gcs.GetFolderRequest
 	var callOptions []gax.CallOption
 	var clientFolder *controlpb.Folder
 	clientFolder, err = bh.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, req.Name),
+		Name:      fmt.Sprintf(FullFolderPathHNS, bh.bucketName, req.Name),
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 
 	if err != nil {
@@ -652,6 +656,7 @@ func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (fo
 		Parent:    fmt.Sprintf(FullBucketPathHNS, bh.bucketName),
 		FolderId:  folderName,
 		Recursive: true,
+		RequestId: uuid.NewString(),
 	}
 
 	clientFolder, err := bh.controlClient.CreateFolder(ctx, req)
