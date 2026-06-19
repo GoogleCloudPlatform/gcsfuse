@@ -55,7 +55,7 @@ func (s *deleteOperationTest) SetupSuite() {
 }
 
 func (s *deleteOperationTest) TestDeleteFileWhenFileIsClobbered() {
-	testFileName := "TestDeleteFileWhenFileIsClobbered"
+	testFileName := s.T().Name()
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(testEnv.testDirPath, testFileName)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
