@@ -82,12 +82,12 @@ func ShouldRetryWithRetryContext(err error, retryCtx *storage.RetryContext) bool
 	if !ShouldRetryWithoutLogging(err) {
 		return false
 	}
-	if retryCtx != nil {
-		logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
-			retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
-	} else {
+	if retryCtx == nil {
 		logger.Warnf("Retrying for error: %v", err)
+		return true
 	}
+	logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+		retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
 	return true
 }
 
