@@ -79,16 +79,16 @@ func ShouldRetryWithoutLogging(err error) bool {
 // logging the retry warning with RetryContext (operation, object, attempt, invocation ID).
 // Returns true if the error is retryable, false otherwise.
 func ShouldRetryWithRetryContext(err error, retryCtx *storage.RetryContext) bool {
-	if ShouldRetryWithoutLogging(err) {
-		if retryCtx != nil {
-			logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
-				retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
-		} else {
-			logger.Warnf("Retrying for error: %v", err)
-		}
-		return true
+	if !ShouldRetryWithoutLogging(err) {
+		return false
 	}
-	return false
+	if retryCtx != nil {
+		logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+			retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
+	} else {
+		logger.Warnf("Retrying for error: %v", err)
+	}
+	return true
 }
 
 func ShouldRetryWithMonitoringAndRetryContext(
