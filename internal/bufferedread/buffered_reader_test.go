@@ -1083,6 +1083,13 @@ func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
 	assert.Equal(t.T(), int64(2), reader.randomSeekCount, "Second read should be counted as random.")
 	assert.Equal(t.T(), 2, reader.blockQueue.Len(), "Queue should contain newly prefetched blocks.")
 	assertReadResponseContent(t.T(), resp, 0)
+	// Wait for the async prefetch tasks to complete to verify the mock calls.
+	bqe1 := reader.blockQueue.Pop()
+	bqe2 := reader.blockQueue.Pop()
+	_, err = bqe1.block.AwaitReady(t.ctx)
+	require.NoError(t.T(), err, "AwaitReady for block 1 failed")
+	_, err = bqe2.block.AwaitReady(t.ctx)
+	require.NoError(t.T(), err, "AwaitReady for block 2 failed")
 	t.bucket.AssertExpectations(t.T())
 }
 
