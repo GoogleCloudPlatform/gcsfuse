@@ -87,5 +87,3 @@ func getMountDir(flags []string) string {
 	}
 	return ""
 }
-
-
