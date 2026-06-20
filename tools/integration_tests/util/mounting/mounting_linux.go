@@ -32,6 +32,9 @@ func ConfigureReadAhead(mountDir string, readAheadKB int) error {
 	if readAheadKB <= 0 {
 		return nil
 	}
+	if mountDir == "" {
+		return fmt.Errorf("mount directory cannot be empty")
+	}
 
 	var stat unix.Stat_t
 	if err := unix.Stat(mountDir, &stat); err != nil {
@@ -61,6 +64,10 @@ func ConfigureReadAhead(mountDir string, readAheadKB int) error {
 }
 
 func VerifyReadAhead(mountDir string, expectedKB int) error {
+	if mountDir == "" {
+		return fmt.Errorf("mount directory cannot be empty")
+	}
+
 	var stat unix.Stat_t
 	if err := unix.Stat(mountDir, &stat); err != nil {
 		return fmt.Errorf("failed to stat mount directory %s: %w", mountDir, err)
