@@ -15,7 +15,7 @@
 
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 # Note: We handle command failures manually for the main test runs to ensure both run.
-set -uo pipefail
+set -euo pipefail
 
 # Logging Helpers
 log_info() {

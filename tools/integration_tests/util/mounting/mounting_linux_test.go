@@ -19,7 +19,6 @@ package mounting
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,27 +32,9 @@ func TestConfigureReadAheadBypass(t *testing.T) {
 
 	err = ConfigureReadAhead("/non-existent-dir", 0)
 	assert.NoError(t, err)
-
-	// If runtime is not Linux, should return nil immediately.
-	if runtime.GOOS != "linux" {
-		err = ConfigureReadAhead("/non-existent-dir", 128)
-		assert.NoError(t, err)
-	}
-}
-
-func TestVerifyReadAheadBypass(t *testing.T) {
-	// If runtime is not Linux, should return nil immediately.
-	if runtime.GOOS != "linux" {
-		err := VerifyReadAhead("/non-existent-dir", 128)
-		assert.NoError(t, err)
-	}
 }
 
 func TestConfigureAndVerifyReadAheadMock(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Skipping test on non-Linux OS")
-	}
-
 	// Create temp directories
 	tempBdiPrefix, err := os.MkdirTemp("", "mock_sysfs_bdi")
 	assert.NoError(t, err)

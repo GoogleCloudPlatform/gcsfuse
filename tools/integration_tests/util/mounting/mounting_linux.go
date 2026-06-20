@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -30,9 +29,6 @@ import (
 var sysfsBdiPrefix = "/sys/class/bdi"
 
 func ConfigureReadAhead(mountDir string, readAheadKB int) error {
-	if runtime.GOOS != "linux" {
-		return nil
-	}
 	if readAheadKB <= 0 {
 		return nil
 	}
@@ -65,10 +61,6 @@ func ConfigureReadAhead(mountDir string, readAheadKB int) error {
 }
 
 func VerifyReadAhead(mountDir string, expectedKB int) error {
-	if runtime.GOOS != "linux" {
-		return nil
-	}
-
 	var stat unix.Stat_t
 	if err := unix.Stat(mountDir, &stat); err != nil {
 		return fmt.Errorf("failed to stat mount directory %s: %w", mountDir, err)
