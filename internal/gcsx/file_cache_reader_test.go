@@ -113,9 +113,7 @@ func (t *fileCacheReaderTest) TearDownTest() {
 	if t.reader != nil {
 		t.reader.Destroy()
 	}
-	if t.reader_unfinalized_object != nil {
-		t.reader_unfinalized_object.Destroy()
-	}
+
 	if t.jobManager != nil {
 		t.jobManager.Destroy()
 	}
