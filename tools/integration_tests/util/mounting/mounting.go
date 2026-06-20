@@ -64,9 +64,9 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 
 	readAheadKB := setup.ReadAheadKB()
 	if readAheadKB > 0 {
-		mountDir := setup.MntDir()
+		mountDir := getMountDir(flags)
 		if mountDir == "" {
-			mountDir = getMountDir(flags)
+			mountDir = setup.MntDir()
 		}
 		if mountDir != "" {
 			if err := ConfigureReadAhead(mountDir, readAheadKB); err != nil {
