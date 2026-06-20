@@ -31,7 +31,6 @@ LOCAL_RUN=false
 RELEASE_PACKAGE_BUCKET=""
 RELEASE_VERSION=""
 RUN_TESTS_WITH_ZONAL_BUCKET=false
-READ_AHEAD_KB=128
 PROJECT_ID=""
 BUCKET_LOCATION=""
 
@@ -54,7 +53,7 @@ usage() {
 }
 
 # Define options for getopt
-LONG=local-run,zonal,release-package-bucket:,release-version:,read-ahead-kb:,project-id:,bucket-location:,output-dir:,help
+LONG=local-run,zonal,release-package-bucket:,release-version:,project-id:,bucket-location:,output-dir:,help
 
 # Parse the options using getopt
 if ! PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@"); then
@@ -86,10 +85,7 @@ while (( $# >= 1 )); do
             RUN_TESTS_WITH_ZONAL_BUCKET=true
             shift
             ;;
-        --read-ahead-kb)
-            READ_AHEAD_KB="$2"
-            shift 2
-            ;;
+
         --project-id)
             PROJECT_ID="$2"
             shift 2
@@ -202,34 +198,12 @@ ARGS+=(
 )
 
 
-# Track overall success
-exit_code=0
-
-# 1. Run WITHOUT read-ahead
 log_info "=========================================================================="
-log_info "🚀 [1/2] Running NPI Conformance Suite WITHOUT Read-Ahead..."
+log_info "🚀 Running NPI Conformance Suite..."
 log_info "=========================================================================="
-if ! bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}" --read-ahead-kb=-1; then
-    log_error "NPI Conformance Suite WITHOUT Read-Ahead failed."
-    exit_code=1
-else
-    log_info "NPI Conformance Suite WITHOUT Read-Ahead succeeded."
-fi
-
-# 2. Run WITH read-ahead
-log_info "=========================================================================="
-log_info "🚀 [2/2] Running NPI Conformance Suite WITH Read-Ahead (${READ_AHEAD_KB} KB)..."
-log_info "=========================================================================="
-if ! bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}" --read-ahead-kb="${READ_AHEAD_KB}"; then
-    log_error "NPI Conformance Suite WITH Read-Ahead failed."
-    exit_code=1
-else
-    log_info "NPI Conformance Suite WITH Read-Ahead succeeded."
-fi
-
-if [[ $exit_code -ne 0 ]]; then
+if ! bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"; then
     log_error "NPI Conformance Suite failed."
-    exit $exit_code
+    exit 1
+else
+    log_info "NPI Conformance Suite completed successfully!"
 fi
-
-log_info "NPI Conformance Suite completed successfully!"

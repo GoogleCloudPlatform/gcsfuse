@@ -16,7 +16,6 @@ CSI_VERSION ?= main
 GCSFUSE_VERSION ?= $(shell HASH=$$(git rev-parse --short=6 HEAD 2>/dev/null); if [ -z "$$HASH" ]; then echo "unknown"; else if [ -n "$$(git status --porcelain)" ]; then echo "$$HASH-dirty"; else echo "$$HASH"; fi; fi)
 GOLANG_VERSION := $(shell cat .go-version)
 BUILD_ARM ?= true
-READ_AHEAD_KB ?= 128
 
 # The following section is to set the value of STAGINGVERSION to be used in build-csi target.
 # Define the mandatory prefix, needed to allow passing machine-type from gke csi driver to gcsfuse,
@@ -95,5 +94,5 @@ npi-conformance: fmt
 	@echo "Running NPI Conformance Suite via tools/cd_scripts/npi_conformance.sh..."
 	ZONE=$$(curl -s -H "Metadata-Flavor: Google" metadata.google.internal/computeMetadata/v1/instance/zone 2>/dev/null | awk -F'/' '{print $$NF}'); \
 	REGION=$${BUCKET_LOCATION:-$$(echo $$ZONE | sed 's/-[a-z]$$//')}; \
-	tools/cd_scripts/npi_conformance.sh --local-run $$(if [ -n "$$REGION" ]; then echo "--bucket-location $$REGION"; fi) $(if $(PROJECT),--project-id $(PROJECT)) --read-ahead-kb $(READ_AHEAD_KB)
+	tools/cd_scripts/npi_conformance.sh --local-run $$(if [ -n "$$REGION" ]; then echo "--bucket-location $$REGION"; fi) $(if $(PROJECT),--project-id $(PROJECT))
 
