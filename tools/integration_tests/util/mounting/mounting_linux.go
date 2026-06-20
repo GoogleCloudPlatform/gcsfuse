@@ -28,12 +28,28 @@ import (
 
 var sysfsBdiPrefix = "/sys/class/bdi"
 
+var checkFuseFs = func(mountDir string) error {
+	var statfs unix.Statfs_t
+	if err := unix.Statfs(mountDir, &statfs); err != nil {
+		return fmt.Errorf("failed to statfs mount directory %s: %w", mountDir, err)
+	}
+	// FUSE_SUPER_MAGIC magic number is 0x65735546.
+	if statfs.Type != 0x65735546 {
+		return fmt.Errorf("mount directory %s is not a FUSE filesystem (type: 0x%x)", mountDir, statfs.Type)
+	}
+	return nil
+}
+
 func ConfigureReadAhead(mountDir string, readAheadKB int) error {
 	if readAheadKB <= 0 {
 		return nil
 	}
 	if mountDir == "" {
 		return fmt.Errorf("mount directory cannot be empty")
+	}
+
+	if err := checkFuseFs(mountDir); err != nil {
+		return err
 	}
 
 	var stat unix.Stat_t
@@ -66,6 +82,10 @@ func ConfigureReadAhead(mountDir string, readAheadKB int) error {
 func VerifyReadAhead(mountDir string, expectedKB int) error {
 	if mountDir == "" {
 		return fmt.Errorf("mount directory cannot be empty")
+	}
+
+	if err := checkFuseFs(mountDir); err != nil {
+		return err
 	}
 
 	var stat unix.Stat_t

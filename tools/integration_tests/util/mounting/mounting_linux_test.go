@@ -35,6 +35,13 @@ func TestConfigureReadAheadBypass(t *testing.T) {
 }
 
 func TestConfigureAndVerifyReadAheadMock(t *testing.T) {
+	// Override checkFuseFs to bypass filesystem check in unit tests
+	oldCheck := checkFuseFs
+	checkFuseFs = func(mountDir string) error {
+		return nil
+	}
+	defer func() { checkFuseFs = oldCheck }()
+
 	// Create temp directories
 	tempBdiPrefix, err := os.MkdirTemp("", "mock_sysfs_bdi")
 	assert.NoError(t, err)
