@@ -89,3 +89,35 @@ e2e-test:
 	REGION=$$(echo $$ZONE | sed 's/-[a-z]$$//'); \
 	echo $$REGION; \
 	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION $(if $(PROJECT),--project-id $(PROJECT))
+
+npi-conformance: fmt
+ifndef BUCKET
+	$(error BUCKET is undefined. Please run: make npi-conformance BUCKET=<your-bucket-name> [READ_AHEAD_KB=128])
+endif
+	$(eval READ_AHEAD_KB ?= 128)
+	@echo "=========================================================================="
+	@echo "🚀 [1/2] Running NPI Conformance Suite WITHOUT Read-Ahead..."
+	@echo "=========================================================================="
+	CGO_ENABLED=0 go test -p 1 -v \
+		./tools/integration_tests/concurrent_operations/... \
+		./tools/integration_tests/kernel_list_cache/... \
+		./tools/integration_tests/list_large_dir/... \
+		./tools/integration_tests/dentry_cache/... \
+		./tools/integration_tests/read_cache/... \
+		./tools/integration_tests/local_file/... \
+		./tools/integration_tests/operations/... \
+		--integrationTest --testbucket=$(BUCKET) -timeout=60m
+
+	@echo "=========================================================================="
+	@echo "🚀 [2/2] Running NPI Conformance Suite WITH Read-Ahead ($(READ_AHEAD_KB) KB)..."
+	@echo "=========================================================================="
+	CGO_ENABLED=0 go test -p 1 -v \
+		./tools/integration_tests/concurrent_operations/... \
+		./tools/integration_tests/kernel_list_cache/... \
+		./tools/integration_tests/list_large_dir/... \
+		./tools/integration_tests/dentry_cache/... \
+		./tools/integration_tests/read_cache/... \
+		./tools/integration_tests/local_file/... \
+		./tools/integration_tests/operations/... \
+		--integrationTest --testbucket=$(BUCKET) --read-ahead-kb=$(READ_AHEAD_KB) -timeout=60m
+
