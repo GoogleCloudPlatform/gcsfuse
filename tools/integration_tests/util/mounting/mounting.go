@@ -58,7 +58,7 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 
 	readAheadKB := setup.ReadAheadKB()
 	if readAheadKB > 0 {
-		if err := ConfigureReadAhead(setup.MntDir(), readAheadKB); err != nil {
+		if err := ConfigureReadAhead(setup.RootMntDir(), readAheadKB); err != nil {
 			return fmt.Errorf("failed to configure read-ahead: %w", err)
 		}
 	}

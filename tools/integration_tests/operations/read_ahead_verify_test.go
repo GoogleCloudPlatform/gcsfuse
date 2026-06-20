@@ -27,7 +27,7 @@ func TestVerifyReadAheadKB(t *testing.T) {
 		t.Skip("Skipping read-ahead verification as read-ahead-kb is not configured.")
 	}
 
-	err := mounting.VerifyReadAhead(setup.MntDir(), expectedKB)
+	err := mounting.VerifyReadAhead(setup.RootMntDir(), expectedKB)
 	if err != nil {
 		t.Errorf("read-ahead verification failed: %v", err)
 	}

@@ -69,6 +69,7 @@ var (
 	logFile              string
 	testDir              string
 	mntDir               string
+	rootMntDir           string
 	sbinFile             string
 	onlyDirMounted       string
 	dynamicBucketMounted string
@@ -172,6 +173,17 @@ func SetMntDir(mntDirValue string) {
 }
 
 func MntDir() string {
+	return mntDir
+}
+
+func SetRootMntDir(dir string) {
+	rootMntDir = dir
+}
+
+func RootMntDir() string {
+	if rootMntDir != "" {
+		return rootMntDir
+	}
 	return mntDir
 }
 
@@ -473,6 +485,7 @@ func SetUpTestDirForTestBucket(cfg *test_suite.TestConfig) {
 	}
 
 	cfg.GCSFuseMountedDirectory = path.Join(testDirPath, "mnt")
+	SetRootMntDir(cfg.GCSFuseMountedDirectory)
 	cfg.LogFile = path.Join(TestDir(), "gcsfuse.log")
 	// TODO: clean up this global variable up after migration is complete.
 	SetLogFile(cfg.LogFile)
