@@ -31,6 +31,7 @@ LOCAL_RUN=false
 RELEASE_PACKAGE_BUCKET=""
 RELEASE_VERSION=""
 RUN_TESTS_WITH_ZONAL_BUCKET=false
+READ_AHEAD_KB=""
 PROJECT_ID=""
 BUCKET_LOCATION=""
 
@@ -53,7 +54,7 @@ usage() {
 }
 
 # Define options for getopt
-LONG=local-run,zonal,release-package-bucket:,release-version:,project-id:,bucket-location:,output-dir:,help
+LONG=local-run,zonal,release-package-bucket:,release-version:,read-ahead-kb:,project-id:,bucket-location:,output-dir:,help
 
 # Parse the options using getopt
 if ! PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@"); then
@@ -86,6 +87,10 @@ while (( $# >= 1 )); do
             shift
             ;;
 
+        --read-ahead-kb)
+            READ_AHEAD_KB="$2"
+            shift 2
+            ;;
         --project-id)
             PROJECT_ID="$2"
             shift 2
@@ -189,6 +194,11 @@ fi
 # Pass bucket-location if provided
 if [[ -n "$BUCKET_LOCATION" ]]; then
     ARGS+=("--bucket-location=$BUCKET_LOCATION")
+fi
+
+# Pass read-ahead-kb if explicitly provided, otherwise default to kernel default
+if [[ -n "$READ_AHEAD_KB" ]]; then
+    ARGS+=("--read-ahead-kb=$READ_AHEAD_KB")
 fi
 
 # Configure NPI packages to run
