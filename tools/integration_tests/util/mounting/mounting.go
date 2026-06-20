@@ -20,7 +20,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -59,31 +58,10 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 
 	readAheadKB := setup.ReadAheadKB()
 	if readAheadKB > 0 {
-		mountDir := getMountDir(flags)
-		if mountDir == "" {
-			mountDir = setup.MntDir()
-		}
-		if mountDir != "" {
-			if err := ConfigureReadAhead(mountDir, readAheadKB); err != nil {
-				return fmt.Errorf("failed to configure read-ahead: %w", err)
-			}
-		} else {
-			log.Printf("Warning: read-ahead-kb specified but mount directory could not be resolved: %v", flags)
+		if err := ConfigureReadAhead(setup.MntDir(), readAheadKB); err != nil {
+			return fmt.Errorf("failed to configure read-ahead: %w", err)
 		}
 	}
 
 	return nil
-}
-
-func getMountDir(flags []string) string {
-	for i := len(flags) - 1; i >= 0; i-- {
-		arg := flags[i]
-		if strings.HasPrefix(arg, "-") {
-			continue
-		}
-		if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
-			return arg
-		}
-	}
-	return ""
 }
