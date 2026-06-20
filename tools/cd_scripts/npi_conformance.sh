@@ -196,7 +196,11 @@ if [[ -n "$BUCKET_LOCATION" ]]; then
 fi
 
 # Configure NPI packages to run
-ARGS+=("--run-package=concurrent_operations|kernel_list_cache|list_large_dir|dentry_cache|read_cache|local_file|operations")
+ARGS+=(
+    "--skip-emulator"
+    "--run-package=concurrent_operations|kernel_list_cache|list_large_dir|dentry_cache|read_cache|local_file|operations"
+)
+
 
 # Track overall success
 exit_code=0
