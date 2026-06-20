@@ -763,8 +763,8 @@ func UnmountGCSFuse(rootDir string) {
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 		}
+		SetMntDir("") // Reset global mount directory to prevent stale state pollution
 	}
-	SetMntDir("") // Reset global mount directory to prevent stale state pollution
 }
 
 func UnmountGCSFuseWithConfig(cfg *test_suite.TestConfig) {
@@ -774,10 +774,9 @@ func UnmountGCSFuseWithConfig(cfg *test_suite.TestConfig) {
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 		}
+		SetMntDir("") // Reset global mount directory to prevent stale state pollution
 	}
-	SetMntDir("") // Reset global mount directory to prevent stale state pollution
 }
-
 
 func RunTestsOnlyForStaticMount(mountDir string, t *testing.T) {
 	if TestBucket() == "" || strings.Contains(mountDir, TestBucket()) || OnlyDirMounted() != "" {
