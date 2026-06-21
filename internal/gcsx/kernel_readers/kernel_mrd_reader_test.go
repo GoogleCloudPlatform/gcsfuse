@@ -360,3 +360,75 @@ func (t *KernelMRDReaderTest) TestReadAt_ContextCanceled() {
 	assert.ErrorIs(t.T(), err, context.Canceled)
 	assert.Equal(t.T(), 0, resp.Size)
 }
+
+func TestSliceBuffers(t *testing.T) {
+	testCases := []struct {
+		name     string
+		buffers  [][]byte
+		offset   int
+		expected [][]byte
+	}{
+		{
+			name:     "empty buffers",
+			buffers:  [][]byte{},
+			offset:   0,
+			expected: nil,
+		},
+		{
+			name:     "empty buffers negative offset",
+			buffers:  [][]byte{},
+			offset:   -5,
+			expected: nil,
+		},
+		{
+			name:     "offset 0",
+			buffers:  [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
+			offset:   0,
+			expected: [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
+		},
+		{
+			name:     "negative offset",
+			buffers:  [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
+			offset:   -3,
+			expected: [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
+		},
+		{
+			name:     "offset exactly on boundary",
+			buffers:  [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
+			offset:   3,
+			expected: [][]byte{[]byte("def"), []byte("ghi")},
+		},
+		{
+			name:     "offset in middle of buffer",
+			buffers:  [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
+			offset:   4,
+			expected: [][]byte{[]byte("ef"), []byte("ghi")},
+		},
+		{
+			name:     "offset at the end",
+			buffers:  [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
+			offset:   9,
+			expected: nil,
+		},
+		{
+			name:     "offset past the end",
+			buffers:  [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
+			offset:   15,
+			expected: nil,
+		},
+		{
+			name:     "with empty buffers inside",
+			buffers:  [][]byte{[]byte(""), []byte("abc"), []byte(""), []byte("def")},
+			offset:   2,
+			expected: [][]byte{[]byte("c"), []byte(""), []byte("def")},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := sliceBuffers(tc.buffers, tc.offset)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+

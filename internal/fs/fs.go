@@ -3185,11 +3185,15 @@ func (fs *fileSystem) ReadFile(
 		}
 	}
 	// Serve the read.
+	if op.DstBufs != nil && !fs.newConfig.FileSystem.EnableKernelReader {
+		err = fmt.Errorf("Vectored read is not supported when kernel reader is disabled: %w", syscall.ENOTSUP)
+		return
+	}
 
 	var req *gcsx.ReadRequest
-	if op.Dst == nil {
+	if op.DstBufs != nil {
 		req = &gcsx.ReadRequest{
-			Buffers: op.Data,
+			Buffers: op.DstBufs,
 			Offset:  op.Offset,
 			Size:    op.Size,
 		}
@@ -3205,29 +3209,16 @@ func (fs *fileSystem) ReadFile(
 		var resp gcsx.ReadResponse
 		resp, err = fh.ReadWithKernelReader(ctx, req)
 		op.BytesRead = resp.Size
-		if len(resp.Data) > 0 {
-			op.Data = resp.Data
-		}
+		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
 		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
 		op.BytesRead = resp.Size
-		if len(resp.Data) > 0 {
-			op.Data = resp.Data
-		}
+		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else {
-		if op.Dst == nil {
-			tempBuf := make([]byte, op.Size)
-			var output []byte
-			output, op.BytesRead, err = fh.Read(ctx, tempBuf, op.Offset, fs.sequentialReadSizeMb)
-			if err == nil && op.BytesRead > 0 {
-				copyToBuffers(op.Data, output[:op.BytesRead])
-			}
-		} else {
-			op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
-		}
+		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}
 
 	// A FileClobberedError indicates the underlying GCS object has changed,
@@ -3401,19 +3392,4 @@ func (fs *fileSystem) SyncFS(
 	ctx context.Context,
 	op *fuseops.SyncFSOp) error {
 	return syscall.ENOSYS
-}
-
-func copyToBuffers(buffers [][]byte, data []byte) {
-	var current int
-	for _, b := range buffers {
-		if current >= len(data) {
-			break
-		}
-		toCopy := len(b)
-		if current+toCopy > len(data) {
-			toCopy = len(data) - current
-		}
-		copy(b, data[current:current+toCopy])
-		current += toCopy
-	}
 }

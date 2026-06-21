@@ -188,6 +188,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// Enable async reads if enable-kernel-reader flag is set to true.
 		EnableAsyncReads:     newConfig.FileSystem.EnableKernelReader,
 		EnableVectoredWrites: true,
+		EnableVectoredReads:  newConfig.FileSystem.EnableKernelReader,
 	}
 
 	if newConfig.FileSystem.FuseMaxPagesLimit != 0 {

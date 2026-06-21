@@ -15,7 +15,6 @@
 package gcsx
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -151,20 +150,8 @@ func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
 	return entry, nil
 }
 
-// Read downloads data from the GCS object into the provided buffer starting at the offset.
-// It handles the details of selecting a valid MRD entry, locking it, and waiting for the async download to complete.
-func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics metrics.MetricHandle) (int, error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
-
-	buffer := bytes.NewBuffer(p)
-	buffer.Reset()
-	return mi.ReadToWriter(ctx, buffer, offset, int64(len(p)), metrics)
-}
-
-// ReadToWriter downloads data from the GCS object into the provided io.Writer starting at the offset.
-func (mi *MrdInstance) ReadToWriter(ctx context.Context, w io.Writer, offset int64, length int64, metrics metrics.MetricHandle) (int, error) {
+// Read downloads data from the GCS object into the provided io.Writer starting at the offset.
+func (mi *MrdInstance) Read(ctx context.Context, w io.Writer, offset int64, length int64, metrics metrics.MetricHandle) (int, error) {
 	if length == 0 {
 		return 0, nil
 	}
@@ -180,7 +167,7 @@ func (mi *MrdInstance) ReadToWriter(ctx context.Context, w io.Writer, offset int
 	entry.mu.RLock()
 	if entry.mrd == nil {
 		entry.mu.RUnlock()
-		return 0, fmt.Errorf("MrdInstance::ReadToWriter: mrd is nil")
+		return 0, fmt.Errorf("MrdInstance::Read: mrd is nil")
 	}
 
 	start := time.Now()
