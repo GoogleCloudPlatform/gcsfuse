@@ -1917,8 +1917,18 @@ func (fs *fileSystem) LookUpInode(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
+	var child inode.Inode
+	logger.Warnf("FUSE_LOOKUP_START: Parent %d (%s), Name %q", op.Parent, parent.Name(), op.Name)
+	defer func() {
+		childID := fuseops.InodeID(0)
+		if child != nil {
+			childID = child.ID()
+		}
+		logger.Warnf("FUSE_LOOKUP_FINISH: Name %q -> Child %d, err: %v", op.Name, childID, err)
+	}()
+
 	// Find or create the child inode.
-	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
+	child, err = fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
 		return err
 	}
@@ -2477,6 +2487,8 @@ func (fs *fileSystem) Rename(
 	newParent := fs.dirInodeOrDie(op.NewParent)
 	fs.mu.Unlock()
 
+
+
 	if oldParentInode, ok := oldParent.(inode.BucketOwnedInode); !ok {
 		// The old parent is not owned by any bucket, which means it's the base
 		// directory that holds all the buckets' root directories. So, this op
@@ -2497,6 +2509,12 @@ func (fs *fileSystem) Rename(
 	if child == nil {
 		return fuse.ENOENT
 	}
+
+	logger.Warnf("FUSE_RENAME_START: Child Inode %d (isDir: %v), OldParent %d (%s), OldName %q -> NewParent %d (%s), NewName %q", child.ID(), child.Name().IsDir(), op.OldParent, oldParent.Name(), op.OldName, op.NewParent, newParent.Name(), op.NewName)
+	defer func() {
+		logger.Warnf("FUSE_RENAME_FINISH: Child Inode %d, OldName %q -> NewName %q, err: %v", child.ID(), op.OldName, op.NewName, err)
+	}()
+
 	child.DecrementLookupCount(1)
 	child.Unlock()
 

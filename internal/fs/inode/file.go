@@ -377,11 +377,19 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func (f *FileInode) Lock() {
+	id := f.id
+	name := f.name
+	logger.Warnf("LOCK_REQ_FILE: Inode %d (%s)", id, name)
+	start := time.Now()
 	f.mu.Lock()
+	logger.Warnf("LOCK_ACQ_FILE: Inode %d (%s) after waiting %v", id, name, time.Since(start))
 }
 
 func (f *FileInode) Unlock() {
+	id := f.id
+	name := f.name
 	f.mu.Unlock()
+	logger.Warnf("LOCK_REL_FILE: Inode %d (%s)", id, name)
 }
 
 func (f *FileInode) ID() fuseops.InodeID {

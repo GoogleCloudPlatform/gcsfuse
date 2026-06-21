@@ -440,7 +440,14 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
-func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool) (*Core, error) {
+func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool) (core *Core, err error) {
+	logger.Warnf("GCS_STAT_START: %s (cacheOnly: %v)", name.GcsObjectName(), fetchOnlyFromCache)
+	start := time.Now()
+	defer func() {
+		found := core != nil
+		logger.Warnf("GCS_STAT_FINISH: %s, duration: %v, found: %v, err: %v", name.GcsObjectName(), time.Since(start), found, err)
+	}()
+
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
 		Name:               name.GcsObjectName(),
@@ -474,7 +481,14 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
-func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool) (*Core, error) {
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool) (core *Core, err error) {
+	logger.Warnf("GCS_GET_FOLDER_START: %s (cacheOnly: %v)", name.GcsObjectName(), fetchOnlyFromCache)
+	start := time.Now()
+	defer func() {
+		found := core != nil
+		logger.Warnf("GCS_GET_FOLDER_FINISH: %s, duration: %v, found: %v, err: %v", name.GcsObjectName(), time.Since(start), found, err)
+	}()
+
 	// Call the bucket.
 	req := &gcs.GetFolderRequest{
 		Name:               name.GcsObjectName(),
@@ -502,7 +516,14 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
-func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (core *Core, err error) {
+	logger.Warnf("GCS_LIST_START: %s", name.GcsObjectName())
+	start := time.Now()
+	defer func() {
+		found := core != nil
+		logger.Warnf("GCS_LIST_FINISH: %s, duration: %v, found: %v, err: %v", name.GcsObjectName(), time.Since(start), found, err)
+	}()
+
 	if !name.IsDir() {
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
@@ -559,11 +580,19 @@ func (d *dirInode) createNewObject(
 ////////////////////////////////////////////////////////////////////////
 
 func (d *dirInode) Lock() {
+	id := d.id
+	name := d.name
+	logger.Warnf("LOCK_REQ_WRITE: Inode %d (%s)", id, name)
+	start := time.Now()
 	d.mu.Lock()
+	logger.Warnf("LOCK_ACQ_WRITE: Inode %d (%s) after waiting %v", id, name, time.Since(start))
 }
 
 func (d *dirInode) Unlock() {
+	id := d.id
+	name := d.name
 	d.mu.Unlock()
+	logger.Warnf("LOCK_REL_WRITE: Inode %d (%s)", id, name)
 }
 
 func (d *dirInode) RLock() {
@@ -580,11 +609,19 @@ func (d *dirInode) RUnlock() {
 // as GCS is not changed remotely, lookup will be consistent (b) all the other
 // directory level operations (read or write type) take exclusive locks.
 func (d *dirInode) LockForChildLookup() {
+	id := d.id
+	name := d.name
+	logger.Warnf("LOCK_REQ_READ: Inode %d (%s)", id, name)
+	start := time.Now()
 	d.mu.RLock()
+	logger.Warnf("LOCK_ACQ_READ: Inode %d (%s) after waiting %v", id, name, time.Since(start))
 }
 
 func (d *dirInode) UnlockForChildLookup() {
+	id := d.id
+	name := d.name
 	d.mu.RUnlock()
+	logger.Warnf("LOCK_REL_READ: Inode %d (%s)", id, name)
 }
 
 func (d *dirInode) ID() fuseops.InodeID {
