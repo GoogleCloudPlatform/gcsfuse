@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 		cfg.NegativeStatCache[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.NegativeStatCache[0].LogFile = setup.LogFile()
 		// Initialize the slice to hold specific test configurations
-		cfg.NegativeStatCache[0].Configs = make([]test_suite.ConfigItem, 3)
+		cfg.NegativeStatCache[0].Configs = make([]test_suite.ConfigItem, 4)
 		cfg.NegativeStatCache[0].Configs[0].Flags = []string{"--metadata-cache-negative-ttl-secs=0"}
 		cfg.NegativeStatCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.NegativeStatCache[0].Configs[0].Run = "TestDisabledNegativeStatCacheTest"
@@ -83,6 +83,9 @@ func TestMain(m *testing.M) {
 		cfg.NegativeStatCache[0].Configs[2].Flags = []string{"--metadata-cache-negative-ttl-secs=-1"}
 		cfg.NegativeStatCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.NegativeStatCache[0].Configs[2].Run = "TestInfiniteNegativeStatCacheTest"
+		cfg.NegativeStatCache[0].Configs[3].Flags = []string{"--metadata-cache-negative-ttl-secs=5", "--implicit-dirs"}
+		cfg.NegativeStatCache[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": true}
+		cfg.NegativeStatCache[0].Configs[3].Run = "TestImplicitDirFiniteNegativeStatCacheTest"
 	}
 
 	testEnv.ctx = context.Background()
