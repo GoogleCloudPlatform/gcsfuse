@@ -63,21 +63,13 @@ func (s *managedFoldersAdminPermission) TearDownSuite() {
 func (s *managedFoldersAdminPermission) SetupTest() {
 	testEnv.testDirPath = setup.SetupTestDirectory(TestDirForManagedFolderTest)
 	createDirectoryStructureForNonEmptyManagedFolders(testEnv.ctx, testEnv.storageClient, testEnv.controlClient, s.T())
-	if s.managedFoldersPermission != "nil" {
-		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
-		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
-		// Waiting for 60 seconds for policy changes to propagate. This values we kept based on our experiments.
-		time.Sleep(60 * time.Second)
-	}
 }
 
 func (s *managedFoldersAdminPermission) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	// Due to bucket view permissions, it prevents cleaning resources outside managed folders. So we are cleaning managed folders resources only.
 	if s.bucketPermission == ViewPermission {
-		revokePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
 		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1))
-		revokePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
 		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2))
 		return
 	}
@@ -223,7 +215,21 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 				creds_tests.ApplyPermissionToServiceAccount(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, ViewPermission, setup.TestBucket())
 			}
 			ts.managedFoldersPermission = permissions[i][1]
+
+			if ts.managedFoldersPermission != "nil" {
+				providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, ts.managedFoldersPermission, t)
+				providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, ts.managedFoldersPermission, t)
+				// Wait for 60 seconds for policy changes to propagate if we modified Managed Folder OR Bucket permissions.
+				time.Sleep(60 * time.Second)
+			}
+
 			suite.Run(t, ts)
+
+			if ts.managedFoldersPermission != "nil" {
+				revokePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, ts.managedFoldersPermission, t)
+				revokePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, ts.managedFoldersPermission, t)
+			}
+
 			if ts.bucketPermission == ViewPermission {
 				creds_tests.RevokePermission(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, ViewPermission, setup.TestBucket())
 			}
