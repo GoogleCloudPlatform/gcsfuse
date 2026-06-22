@@ -47,6 +47,7 @@ const (
 type managedFoldersAdminPermission struct {
 	bucketPermission         string
 	managedFoldersPermission string
+	refreshManagedFolderIAM  bool
 	flags                    []string
 	suite.Suite
 }
@@ -62,7 +63,15 @@ func (s *managedFoldersAdminPermission) TearDownSuite() {
 
 func (s *managedFoldersAdminPermission) SetupTest() {
 	testEnv.testDirPath = setup.SetupTestDirectory(TestDirForManagedFolderTest)
-	createDirectoryStructureForNonEmptyManagedFolders(testEnv.ctx, testEnv.storageClient, testEnv.controlClient, s.T())
+	managedFolderRecreated := createDirectoryStructureForNonEmptyManagedFolders(testEnv.ctx, testEnv.storageClient, testEnv.controlClient, s.T())
+
+	if s.managedFoldersPermission != "nil" && (s.refreshManagedFolderIAM || managedFolderRecreated) {
+		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
+		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
+		// Wait for policy propagation only when IAM was (re)applied.
+		time.Sleep(60 * time.Second)
+		s.refreshManagedFolderIAM = false
+	}
 }
 
 func (s *managedFoldersAdminPermission) TearDownTest() {
@@ -215,13 +224,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 				creds_tests.ApplyPermissionToServiceAccount(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, ViewPermission, setup.TestBucket())
 			}
 			ts.managedFoldersPermission = permissions[i][1]
-
-			if ts.managedFoldersPermission != "nil" {
-				providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, ts.managedFoldersPermission, t)
-				providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, ts.managedFoldersPermission, t)
-				// Wait for 60 seconds for policy changes to propagate if we modified Managed Folder OR Bucket permissions.
-				time.Sleep(60 * time.Second)
-			}
+			ts.refreshManagedFolderIAM = ts.managedFoldersPermission != "nil"
 
 			suite.Run(t, ts)
 

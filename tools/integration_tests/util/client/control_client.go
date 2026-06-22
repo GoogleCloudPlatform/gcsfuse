@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func storageControlClientRetryOptions() []gax.CallOption {
@@ -96,16 +97,20 @@ func DeleteManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 	}
 }
 
-func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageControlClient, managedFolderPath, bucket string) {
+func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageControlClient, managedFolderPath, bucket string) bool {
 	mf := &controlpb.ManagedFolder{}
 	req := &controlpb.CreateManagedFolderRequest{
 		Parent:          fmt.Sprintf("projects/_/buckets/%v", bucket),
 		ManagedFolder:   mf,
 		ManagedFolderId: managedFolderPath,
 	}
-	if _, err := client.CreateManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The specified managed folder already exists") {
+	if _, err := client.CreateManagedFolder(ctx, req); err != nil {
+		if status.Code(err) == codes.AlreadyExists || strings.Contains(err.Error(), "The specified managed folder already exists") {
+			return false
+		}
 		log.Fatalf("Error while creating managed folder: %v", err)
 	}
+	return true
 }
 
 func CreateFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) (*controlpb.Folder, error) {
