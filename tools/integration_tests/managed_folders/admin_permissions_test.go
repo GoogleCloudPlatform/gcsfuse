@@ -47,7 +47,6 @@ const (
 type managedFoldersAdminPermission struct {
 	bucketPermission         string
 	managedFoldersPermission string
-	refreshManagedFolderIAM  bool
 	flags                    []string
 	suite.Suite
 }
@@ -55,6 +54,7 @@ type managedFoldersAdminPermission struct {
 func (s *managedFoldersAdminPermission) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, testEnv.mountFunc)
 	setup.SetMntDir(testEnv.mountDir)
+	testEnv.testDirPath = setup.SetupTestDirectory(TestDirForManagedFolderTest)
 }
 
 func (s *managedFoldersAdminPermission) TearDownSuite() {
@@ -62,27 +62,18 @@ func (s *managedFoldersAdminPermission) TearDownSuite() {
 }
 
 func (s *managedFoldersAdminPermission) SetupTest() {
-	testEnv.testDirPath = setup.SetupTestDirectory(TestDirForManagedFolderTest)
 	managedFolderRecreated := createDirectoryStructureForNonEmptyManagedFolders(testEnv.ctx, testEnv.storageClient, testEnv.controlClient, s.T())
 
-	if s.managedFoldersPermission != "nil" && (s.refreshManagedFolderIAM || managedFolderRecreated) {
+	if s.managedFoldersPermission != "nil" && managedFolderRecreated {
 		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
 		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
-		// Wait for policy propagation only when IAM was (re)applied.
+		// Wait for policy propagation only when folders were recreated and IAM was reapplied.
 		time.Sleep(60 * time.Second)
-		s.refreshManagedFolderIAM = false
 	}
 }
 
 func (s *managedFoldersAdminPermission) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-	// Due to bucket view permissions, it prevents cleaning resources outside managed folders. So we are cleaning managed folders resources only.
-	if s.bucketPermission == ViewPermission {
-		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1))
-		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2))
-		return
-	}
-	setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -129,6 +120,11 @@ func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder() {
 	testDirPath := path.Join(testEnv.testDirPath, ManagedFolder1)
 	srcCopyFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
 	destCopyFile := path.Join(testDirPath, DestFile)
+	defer func() {
+		if err := os.RemoveAll(destCopyFile); err != nil {
+			log.Printf("failed to remove scratch copy file: %v", err)
+		}
+	}()
 
 	err := operations.CopyFile(srcCopyFile, destCopyFile)
 	if err != nil {
@@ -144,6 +140,11 @@ func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder() {
 func (s *managedFoldersAdminPermission) TestCopyManagedFolder() {
 	srcDirPath := path.Join(testEnv.testDirPath, ManagedFolder1)
 	destDirPath := path.Join(testEnv.testDirPath, DestFolder)
+	defer func() {
+		if err := os.RemoveAll(destDirPath); err != nil {
+			log.Printf("failed to remove scratch copy folder: %v", err)
+		}
+	}()
 
 	err := operations.CopyDir(srcDirPath, destDirPath)
 
@@ -161,6 +162,11 @@ func (s *managedFoldersAdminPermission) TestMoveObjectWithInManagedFolder() {
 	testDirPath := path.Join(testEnv.testDirPath, ManagedFolder1)
 	srcMoveFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
 	destMoveFile := path.Join(testDirPath, DestFile)
+	defer func() {
+		if err := os.RemoveAll(destMoveFile); err != nil {
+			log.Printf("failed to remove scratch move file: %v", err)
+		}
+	}()
 
 	err := operations.Move(srcMoveFile, destMoveFile)
 	if err != nil {
@@ -180,6 +186,11 @@ func (s *managedFoldersAdminPermission) TestMoveObjectWithInManagedFolder() {
 func (s *managedFoldersAdminPermission) TestMoveManagedFolder() {
 	srcDirPath := path.Join(testEnv.testDirPath, ManagedFolder1)
 	destDirPath := path.Join(testEnv.testDirPath, DestFolder)
+	defer func() {
+		if err := os.RemoveAll(destDirPath); err != nil {
+			log.Printf("failed to remove scratch move folder: %v", err)
+		}
+	}()
 
 	err := operations.Move(srcDirPath, destDirPath)
 
@@ -224,7 +235,13 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 				creds_tests.ApplyPermissionToServiceAccount(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, ViewPermission, setup.TestBucket())
 			}
 			ts.managedFoldersPermission = permissions[i][1]
-			ts.refreshManagedFolderIAM = ts.managedFoldersPermission != "nil"
+
+			if ts.managedFoldersPermission != "nil" {
+				providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, ts.managedFoldersPermission, t)
+				providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, ts.managedFoldersPermission, t)
+				// Wait once per permission scenario for initial policy propagation.
+				time.Sleep(60 * time.Second)
+			}
 
 			suite.Run(t, ts)
 
