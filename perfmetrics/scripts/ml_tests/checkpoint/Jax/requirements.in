@@ -10,7 +10,7 @@ jaxlib==0.5.1
 markdown-it-py==3.0.0
 mdurl==0.1.2
 ml_dtypes==0.5.1
-msgpack==1.1.0
+msgpack==1.2.1
 nest-asyncio==1.6.0
 numpy==2.2.3
 opt_einsum==3.4.0
