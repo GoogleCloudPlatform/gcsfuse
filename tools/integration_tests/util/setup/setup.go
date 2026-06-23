@@ -43,6 +43,7 @@ import (
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
+var isPirloBucketRun = flag.Bool("pirlo", false, "Boolean flag to indicate if test-run is for a Pirlo bucket.")
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
@@ -121,6 +122,14 @@ func IsZonalBucketRun() bool {
 
 func SetIsZonalBucketRun(val bool) {
 	*isZonalBucketRun = val
+}
+
+func IsPirloBucketRun() bool {
+	return *isPirloBucketRun
+}
+
+func SetIsPirloBucketRun(val bool) {
+	*isPirloBucketRun = val
 }
 
 func TestBucket() string {
@@ -588,6 +597,8 @@ func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 const FlatBucket = "flat"
 const HNSBucket = "hns"
 const ZonalBucket = "zonal"
+const FlatPirloBucket = "flat_pirlo"
+const HNSPirloBucket = "hns_pirlo"
 
 func BucketType(ctx context.Context, testBucket string) (bucketType string, err error) {
 	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
@@ -618,14 +629,22 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	if attrs.LocationType == "zone" {
 		return ZonalBucket, nil
 	}
+	// TODO(b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
+	// update this logic to use the response instead of inferring from IsPirloBucketRun().
 	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
+		if IsPirloBucketRun() {
+			return HNSPirloBucket, nil
+		}
 		return HNSBucket, nil
+	}
+	if IsPirloBucketRun() {
+		return FlatPirloBucket, nil
 	}
 	return FlatBucket, nil
 }
 
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
-// bucketType should be "flat", "hns", or "zonal".
+// bucketType should be "flat", "hns", "zonal", "flat_pirlo", or "hns_pirlo".
 // The run parameter filters flag sets based on the 'Run' field in the test
 // configuration, which typically corresponds to a specific test name. If run is
 // an empty string, all flag sets for the package are returned.
@@ -643,9 +662,22 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
 	for _, testCase := range cfg.Configs {
 		// 2. Check if the current test case is compatible with the bucket type.
-		// This is a safe and concise way to check the map.
-		isCompatible, ok := testCase.Compatible[bucketType]
-		if ok && isCompatible && (run == "" || run == testCase.Run) {
+		// For Pirlo runs, evaluate the RunOnPirlo struct. Otherwise, check the standard Compatible map.
+		isCompatible := false
+		switch bucketType {
+		case FlatPirloBucket:
+			isCompatible = testCase.RunOnPirlo.Flat.SameZone || testCase.RunOnPirlo.Flat.DifferentZone
+		case HNSPirloBucket:
+			isCompatible = testCase.RunOnPirlo.Hns.SameZone || testCase.RunOnPirlo.Hns.DifferentZone
+		default:
+			var ok bool
+			isCompatible, ok = testCase.Compatible[bucketType]
+			if !ok {
+				isCompatible = false
+			}
+		}
+
+		if isCompatible && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				flagString = strings.ReplaceAll(flagString, ",", " ")
