@@ -88,10 +88,12 @@ write_large_files:
     configs:
       - flags:
           - "--enable-streaming-writes=false"
+          - "--enable-streaming-writes=false,--client-protocol=grpc"
           # write-global-max-blocks=5 is for checking multiple file writes in parallel.
           # concurrent_write_files_test.go- we are writing 3 files in parallel.
           # with this config, we are giving 2 blocks to 2 files and 1 block to other file.
           - "--write-max-blocks-per-file=2,--write-global-max-blocks=5"
+          - "--write-max-blocks-per-file=2,--write-global-max-blocks=5,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -493,6 +495,7 @@ readdirplus:
     configs:
       - flags:
           - "--implicit-dirs,--experimental-enable-readdirplus,--experimental-enable-dentry-cache,--log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log,--log-severity=TRACE"
+          - "--implicit-dirs,--experimental-enable-readdirplus,--experimental-enable-dentry-cache,--log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -501,6 +504,7 @@ readdirplus:
         run_on_gke: true
       - flags:
           - "--implicit-dirs,--experimental-enable-readdirplus,--log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log,--log-severity=TRACE"
+          - "--implicit-dirs,--experimental-enable-readdirplus,--log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log,--log-severity=TRACE,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -569,6 +573,7 @@ dentry_cache:
     configs:
       - flags:
           - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2"
+          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -577,6 +582,7 @@ dentry_cache:
         run_on_gke: true
       - flags:
           - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000"
+          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -585,6 +591,7 @@ dentry_cache:
         run_on_gke: true
       - flags:
           - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000"
+          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -599,6 +606,7 @@ read_gcs_algo:
       - flags:
           # Do not enable fileCache as we want to test gcs read flow.
           - "--implicit-dirs"
+          - "--implicit-dirs,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -678,7 +686,9 @@ readonly_creds:
   configs:
     - flags:
       - "--implicit-dirs=true"
+      - "--implicit-dirs=true,--client-protocol=grpc"
       - "--implicit-dirs=false"
+      - "--implicit-dirs=false,--client-protocol=grpc"
       compatible:
         flat: true
         hns: true
@@ -864,6 +874,7 @@ kernel_list_cache:
     configs:
       - flags:
           - "--kernel-list-cache-ttl-secs=-1"
+          - "--kernel-list-cache-ttl-secs=-1,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -874,6 +885,7 @@ kernel_list_cache:
           # Note: metadata cache is disabled to avoid cache consistency issue between gcsfuse cache and kernel cache. As
           # gcsfuse cache might hold the entry which already became stale due to delete operation.
           - "--kernel-list-cache-ttl-secs=-1,--metadata-cache-ttl-secs=0,--metadata-cache-negative-ttl-secs=0"
+          - "--kernel-list-cache-ttl-secs=-1,--metadata-cache-ttl-secs=0,--metadata-cache-negative-ttl-secs=0,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -882,6 +894,7 @@ kernel_list_cache:
         run_on_gke: true
       - flags:
           - "--kernel-list-cache-ttl-secs=5,--rename-dir-limit=10"
+          - "--kernel-list-cache-ttl-secs=5,--rename-dir-limit=10,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -890,6 +903,7 @@ kernel_list_cache:
         run_on_gke: true
       - flags:
           - "--kernel-list-cache-ttl-secs=0,--stat-cache-ttl=0,--rename-dir-limit=10"
+          - "--kernel-list-cache-ttl-secs=0,--stat-cache-ttl=0,--rename-dir-limit=10,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1036,6 +1050,7 @@ symlink_handling:
       - run: TestStandardSymlinksTestSuite
         flags:
           - "--enable-standard-symlinks=true"
+          - "--enable-standard-symlinks=true,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1044,6 +1059,7 @@ symlink_handling:
       - run: TestLegacySymlinksTestSuite
         flags:
           - "--enable-standard-symlinks=false"
+          - "--enable-standard-symlinks=false,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1089,6 +1105,7 @@ negative_stat_cache:
     configs:
       - flags:
           - "--metadata-cache-negative-ttl-secs=0"
+          - "--metadata-cache-negative-ttl-secs=0,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1097,6 +1114,7 @@ negative_stat_cache:
         run_on_gke: true
       - flags:
           - "--metadata-cache-negative-ttl-secs=5"
+          - "--metadata-cache-negative-ttl-secs=5,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1105,6 +1123,7 @@ negative_stat_cache:
         run_on_gke: true
       - flags:
           - "--metadata-cache-negative-ttl-secs=-1"
+          - "--metadata-cache-negative-ttl-secs=-1,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
