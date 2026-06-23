@@ -857,6 +857,13 @@ params:
     usage: "The format of the log file: 'text' or 'json'."
     default: "json"
 
+  - config-path: "logging.gke-gcsfuse-error-file"
+    flag-name: "gke-gcsfuse-error-file"
+    type: "resolvedPath"
+    usage: "File path to write GCSFuse error logs during mount retries in GKE environment."
+    default: ""
+    hide-flag: true
+
   - config-path: "logging.log-rotate.backup-file-count"
     flag-name: "log-rotate-backup-file-count"
     type: "int"

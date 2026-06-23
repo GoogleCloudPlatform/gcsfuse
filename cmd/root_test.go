@@ -2890,3 +2890,92 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 		})
 	}
 }
+
+func TestArgsParsing_LoggingFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				Logging: cfg.LoggingConfig{
+					FilePath:            "",
+					Format:              "json",
+					GkeGcsFuseErrorFile: "",
+					Severity:            "INFO",
+					WireLog:             "",
+				},
+			},
+		},
+		{
+			name: "normal",
+			args: []string{
+				"gcsfuse",
+				"--log-file=/path/to/log.txt",
+				"--log-format=text",
+				"--log-severity=debug",
+				"--gke-gcsfuse-error-file=/path/to/error.json",
+				"pqr",
+			},
+			expectedConfig: &cfg.Config{
+				Logging: cfg.LoggingConfig{
+					FilePath:            "/path/to/log.txt",
+					Format:              "text",
+					GkeGcsFuseErrorFile: "/path/to/error.json",
+					Severity:            "DEBUG",
+					WireLog:             "",
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedConfig.Logging.FilePath, gotConfig.Logging.FilePath)
+			assert.Equal(t, tc.expectedConfig.Logging.Format, gotConfig.Logging.Format)
+			assert.Equal(t, tc.expectedConfig.Logging.GkeGcsFuseErrorFile, gotConfig.Logging.GkeGcsFuseErrorFile)
+			assert.Equal(t, tc.expectedConfig.Logging.Severity, gotConfig.Logging.Severity)
+		})
+	}
+}
+
+func TestArgsParsing_LoggingConfigFile(t *testing.T) {
+	content := `
+logging:
+  file-path: /path/to/log.txt
+  format: text
+  severity: debug
+  gke-gcsfuse-error-file: /path/to/error.json
+`
+	tempFile := createTempConfigFile(t, content)
+	defer os.Remove(tempFile)
+
+	var gotConfig *cfg.Config
+	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+		gotConfig = mountInfo.config
+		return nil
+	})
+	require.Nil(t, err)
+	cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=%s", tempFile), "abc", "pqr"}, cmd))
+
+	err = cmd.Execute()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "/path/to/log.txt", string(gotConfig.Logging.FilePath))
+	assert.Equal(t, "text", gotConfig.Logging.Format)
+	assert.Equal(t, "/path/to/error.json", string(gotConfig.Logging.GkeGcsFuseErrorFile))
+	assert.Equal(t, "DEBUG", string(gotConfig.Logging.Severity))
+}
