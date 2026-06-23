@@ -1050,7 +1050,7 @@ symlink_handling:
       - run: TestStandardSymlinksTestSuite
         flags:
           - "--enable-standard-symlinks=true"
-          - "--enable-standard-symlinks=true,--client-protocol=grpc"
+          - "--enable-standard-symlinks=true --client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1059,7 +1059,7 @@ symlink_handling:
       - run: TestLegacySymlinksTestSuite
         flags:
           - "--enable-standard-symlinks=false"
-          - "--enable-standard-symlinks=false,--client-protocol=grpc"
+          - "--enable-standard-symlinks=false --client-protocol=grpc"
         compatible:
           flat: true
           hns: true
