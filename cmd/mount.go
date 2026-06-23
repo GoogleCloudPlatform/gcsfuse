@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -145,6 +146,15 @@ be interacting with the file system.`)
 	}
 
 	fsName := fsName(bucketName)
+
+	// Apply pre mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
+	if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
+		kernelparamsManager := kernelparams.NewKernelParamsManager()
+		if kernelparams.ShouldUpdateMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit)) {
+			kernelparamsManager.SetMaxPagesLimit(int(newConfig.FileSystem.FuseMaxPagesLimit))
+			kernelparamsManager.ApplyNonGKE(mountPoint)
+		}
+	}
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
