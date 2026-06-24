@@ -503,6 +503,8 @@ params:
       profiles:
         - name: "aiml-serving"
           value: -1
+        - name: "aiml-training"
+          value: -1
 
   - config-path: "file-system.kernel-params-file"
     flag-name: "kernel-params-file"

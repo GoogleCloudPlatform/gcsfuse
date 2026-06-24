@@ -96,6 +96,10 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Name:  "aiml-serving",
 			Value: int64(-1),
 		},
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
 	},
 }, "file-system.max-background": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{

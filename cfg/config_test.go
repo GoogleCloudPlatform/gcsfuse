@@ -491,6 +491,14 @@ func TestApplyOptimizations(t *testing.T) {
 				expectOptimized: true,
 				expectedValue:   -1,
 			},
+			{
+				name:            "profile_aiml-training",
+				config:          Config{Profile: "aiml-training"},
+				userSetFlags:    map[string]any{},
+				input:           nil,
+				expectOptimized: true,
+				expectedValue:   -1,
+			},
 		}
 
 		for _, tc := range testCases {
