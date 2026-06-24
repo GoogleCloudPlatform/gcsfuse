@@ -64,6 +64,9 @@ type Inode interface {
 
 	// Unlink operation marks the inode as unlinked/deleted.
 	Unlink()
+
+	// Return true if the inode has been unlinked.
+	IsUnlinked() bool
 }
 
 // An inode owned by a gcs bucket.

@@ -73,6 +73,9 @@ type SymlinkInode struct {
 
 	// GUARDED_BY(mu)
 	lc lookupCount
+
+	// GUARDED_BY(mu)
+	unlinked bool
 }
 
 var _ Inode = &SymlinkInode{}
@@ -250,6 +253,15 @@ func (s *SymlinkInode) Target() (target string) {
 }
 
 func (s *SymlinkInode) Unlink() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.unlinked = true
+}
+
+func (s *SymlinkInode) IsUnlinked() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.unlinked
 }
 
 // Bucket returns the bucket that owns this inode.

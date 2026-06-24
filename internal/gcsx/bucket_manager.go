@@ -22,18 +22,13 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/jacobsa/timeutil"
 )
 
 type BucketConfig struct {
@@ -91,9 +86,8 @@ type BucketManager interface {
 }
 
 type bucketManager struct {
-	config          BucketConfig
-	storageHandle   storage.StorageHandle
-	sharedStatCache *lru.Cache
+	config        BucketConfig
+	storageHandle storage.StorageHandle
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -101,15 +95,9 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
-	var c *lru.Cache
-	if config.StatCacheMaxSizeMB > 0 {
-		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
-	}
-
 	bm := &bucketManager{
-		config:          config,
-		storageHandle:   storageHandle,
-		sharedStatCache: c,
+		config:        config,
+		storageHandle: storageHandle,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -224,25 +212,7 @@ func (bm *bucketManager) SetUpBucket(
 		return
 	}
 
-	// Enable cached StatObject results based on stat cache config.
-	// Disabling stat cache with below config also disables negative stat cache.
-	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
-		var statCache metadata.StatCache
-		if isMultibucketMount {
-			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name)
-		} else {
-			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, "")
-		}
 
-		b = caching.NewFastStatBucket(
-			bm.config.StatCacheTTL,
-			statCache,
-			timeutil.RealClock(),
-			b,
-			bm.config.NegativeStatCacheTTL,
-			bm.config.IsTypeCacheDeprecated,
-			bm.config.ImplicitDir)
-	}
 
 	// Enable content type awareness
 	b = NewContentTypeBucket(b)

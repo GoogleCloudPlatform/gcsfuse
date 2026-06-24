@@ -168,7 +168,7 @@ func (t *DirHandleTest) EnsureEntriesWithLocalAndGCSFiles() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.callReadDir(localFileEntries)
 
 	// Validations
 	AssertEq(nil, err)
@@ -191,7 +191,7 @@ func (t *DirHandleTest) EnsureEntriesWithOnlyGCSFiles() {
 	var localFileEntries map[string]fuseutil.Dirent
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.callReadDir(localFileEntries)
 
 	// Validations
 	AssertEq(nil, err)
@@ -211,7 +211,7 @@ func (t *DirHandleTest) EnsureEntriesWithOnlyLocalFiles() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.callReadDir(localFileEntries)
 
 	// Validations
 	AssertEq(nil, err)
@@ -233,7 +233,7 @@ func (t *DirHandleTest) EnsureEntriesWithSameNameLocalAndGCSFile() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.callReadDir(localFileEntries)
 
 	// Validations
 	AssertEq(nil, err)
@@ -254,7 +254,7 @@ func (t *DirHandleTest) EnsureEntriesWithSameNameLocalFileAndGCSDirectory() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.callReadDir(localFileEntries)
 
 	// Validations
 	AssertEq(nil, err)
@@ -268,7 +268,7 @@ func (t *DirHandleTest) EnsureEntriesWithNoFiles() {
 	localFileEntries := map[string]fuseutil.Dirent{}
 
 	// Ensure entries.
-	err := t.dh.ensureEntries(t.ctx, localFileEntries)
+	err := t.callReadDir(localFileEntries)
 
 	// Validations
 	AssertEq(nil, err)
@@ -285,7 +285,7 @@ func (t *DirHandleTest) EnsureEntriesWithOneGCSFile() {
 	var localFileEntries map[string]fuseutil.Dirent
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.callReadDir(localFileEntries)
 
 	// Validations
 	AssertEq(nil, err)
@@ -302,7 +302,7 @@ func (t *DirHandleTest) EnsureEntriesWithOneLocalFile() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.callReadDir(localFileEntries)
 
 	// Validations
 	AssertEq(nil, err)
@@ -346,7 +346,7 @@ func (t *DirHandleTest) FetchEntryCoresFetchesCores() {
 	}
 	t.dh.entriesPlusValid = false
 
-	cores, err := t.dh.FetchEntryCores(t.ctx, op)
+	cores, err := t.dh.FetchEntryCores(t.ctx, int64(op.Offset))
 
 	AssertEq(nil, err)
 	AssertEq(1, len(cores))
@@ -362,7 +362,7 @@ func (t *DirHandleTest) FetchEntryCoresNonZeroOffsetNoFetchIfCacheValid() {
 		ReadDirOp: fuseops.ReadDirOp{Offset: 1},
 	}
 
-	cores, err := t.dh.FetchEntryCores(t.ctx, op)
+	cores, err := t.dh.FetchEntryCores(t.ctx, int64(op.Offset))
 
 	AssertEq(nil, err)
 	AssertEq(nil, cores)
@@ -377,7 +377,7 @@ func (t *DirHandleTest) FetchEntryCoresNonZeroOffsetFetchesIfCacheInvalid() {
 		ReadDirOp: fuseops.ReadDirOp{Offset: 1},
 	}
 
-	cores, err := t.dh.FetchEntryCores(t.ctx, op)
+	cores, err := t.dh.FetchEntryCores(t.ctx, int64(op.Offset))
 
 	AssertEq(nil, err)
 	AssertEq(1, len(cores))
@@ -433,4 +433,32 @@ func (t *DirHandleTest) ReadDirPlusSameNameLocalFileAndGCSDirectory() {
 	t.validateEntryPlus(t.dh.entriesPlus[0], testDirentName, fuseutil.DT_Directory, 1001)
 	t.validateEntryPlus(t.dh.entriesPlus[1], testDirentName+inode.ConflictingFileNameSuffix, fuseutil.DT_File, 2001)
 	AssertEq(t.dh.entriesPlus[1].Dirent.Offset, t.dh.entriesPlus[0].Dirent.Offset+1)
+}
+
+func (t *DirHandleTest) callReadDir(localFileEntries map[string]fuseutil.Dirent) error {
+	cores, err := t.dh.FetchEntryCoresForReadDir(t.ctx, 0)
+	if err != nil {
+		return err
+	}
+	var entries []fuseutil.Dirent
+	for fullName, core := range cores {
+		entry := fuseutil.Dirent{
+			Name: path.Base(fullName.LocalName()),
+			Type: fuseutil.DT_Unknown,
+		}
+		switch core.Type() {
+		case metadata.SymlinkType:
+			entry.Type = fuseutil.DT_Link
+		case metadata.RegularFileType:
+			entry.Type = fuseutil.DT_File
+		case metadata.ImplicitDirType, metadata.ExplicitDirType:
+			entry.Type = fuseutil.DT_Directory
+		}
+		entries = append(entries, entry)
+	}
+	op := &fuseops.ReadDirOp{
+		Offset: 0,
+		Dst:    make([]byte, 4096),
+	}
+	return t.dh.ReadDir(op, entries, localFileEntries)
 }

@@ -262,61 +262,7 @@ func sortAndResolveEntries[Entry any, WrappedEntry DirEntry](entries []Entry, lo
 	return finalEntries, nil
 }
 
-// Read all entries for the directory, fix up conflicting names, and fill in
-// offset fields.
-//
-// LOCKS_REQUIRED(in)
-func readAllEntries(
-	ctx context.Context,
-	in inode.DirInode,
-	localEntries map[string]fuseutil.Dirent) (entries []fuseutil.Dirent, err error) {
-	// Read entries from GCS.
-	// Read one batch at a time.
-	var tok string
-	for {
-		// Read a batch.
-		var batch []fuseutil.Dirent
 
-		batch, _, tok, err = in.ReadEntries(ctx, tok)
-		if err != nil {
-			err = fmt.Errorf("ReadEntries: %w", err)
-			return
-		}
-
-		// Accumulate.
-		entries = append(entries, batch...)
-
-		// Are we done?
-		if tok == "" {
-			break
-		}
-	}
-
-	// Sort, resolve conflicts, and set offsets.
-	entries, err = sortAndResolveEntries(entries, localEntries, func(e fuseutil.Dirent) *dirent { d := dirent(e); return &d }, func(w *dirent) fuseutil.Dirent { return fuseutil.Dirent(*w) })
-	if err != nil {
-		return nil, err
-	}
-
-	// Return a bogus inode ID for each entry, but not the root inode ID.
-	//
-	// NOTE: As far as I can tell this is harmless. Minting and
-	// returning a real inode ID is difficult because fuse does not count
-	// readdir as an operation that increases the inode ID's lookup count, and
-	// we therefore don't get a forget for it later, but we would like to not
-	// have to remember every inode ID that we've ever minted for readdir.
-	//
-	// If it turns out this is not harmless, we'll need to switch to something
-	// like inode IDs based on (object name, generation) hashes. But then what
-	// about the birthday problem? And more importantly, what about our
-	// semantic of not minting a new inode ID when the generation changes due
-	// to a local action?
-	for i := range entries {
-		entries[i].Inode = fuseops.RootInodeID + 1
-	}
-
-	return
-}
 
 // readAllEntryCores retrieves all directory entry cores for the given inode,
 // handling pagination and accumulating the results.
@@ -345,31 +291,6 @@ func readAllEntryCores(ctx context.Context, in inode.DirInode) (cores map[inode.
 	return
 }
 
-// LOCKS_REQUIRED(dh.Mu)
-// LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[string]fuseutil.Dirent) (err error) {
-	dh.in.Lock()
-	defer dh.in.Unlock()
-
-	// Read entries.
-	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in, localFileEntries)
-	if err != nil {
-		err = fmt.Errorf("readAllEntries: %w", err)
-		return
-	}
-
-	// Update state.
-	dh.entries = entries
-	dh.entriesValid = true
-
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// Public interface
-////////////////////////////////////////////////////////////////////////
-
 // ReadDir handles a request to read from the directory, without responding.
 //
 // Special case: we assume that a zero offset indicates that rewinddir has been
@@ -377,11 +298,10 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[str
 // start the listing process over again.
 //
 // LOCKS_REQUIRED(dh.Mu)
-// LOCKS_EXCLUDED(du.in)
 func (dh *DirHandle) ReadDir(
-	ctx context.Context,
 	op *fuseops.ReadDirOp,
-	localFileEntries map[string]fuseutil.Dirent) (err error) {
+	entries []fuseutil.Dirent,
+	localEntries map[string]fuseutil.Dirent) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
@@ -389,12 +309,16 @@ func (dh *DirHandle) ReadDir(
 		dh.entriesValid = false
 	}
 
-	// Do we need to read entries from GCS?
+	// If entries has not been populated yet, populate it.
 	if !dh.entriesValid {
-		err = dh.ensureEntries(ctx, localFileEntries)
+		// Sort, resolve conflicts, and set offsets.
+		entries, err = sortAndResolveEntries(entries, localEntries, func(e fuseutil.Dirent) *dirent { d := dirent(e); return &d }, func(w *dirent) fuseutil.Dirent { return fuseutil.Dirent(*w) })
 		if err != nil {
 			return
 		}
+		// Update state.
+		dh.entries = entries
+		dh.entriesValid = true
 	}
 
 	// Is the offset past the end of what we have buffered? If so, this must be
@@ -419,22 +343,53 @@ func (dh *DirHandle) ReadDir(
 }
 
 // FetchEntryCores retrieves the core inode data for all entries within the directory from GCS.
+// Used for ReadDirPlus.
 //
 // Special case: If the request offset is zero, it assumes the directory is being read from the
 // beginning and resets the cached list of entries.
 //
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) FetchEntryCores(ctx context.Context, op *fuseops.ReadDirPlusOp) (cores map[inode.Name]*inode.Core, err error) {
+func (dh *DirHandle) FetchEntryCores(ctx context.Context, offset int64) (cores map[inode.Name]*inode.Core, err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
-	if op.Offset == 0 {
+	if offset == 0 {
 		dh.entriesPlus = nil
 		dh.entriesPlusValid = false
 	}
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesPlusValid {
+		dh.in.Lock()
+		cores, err = readAllEntryCores(ctx, dh.in)
+		if err != nil {
+			dh.in.Unlock()
+			return
+		}
+		dh.in.Unlock()
+	}
+
+	return
+}
+
+// FetchEntryCoresForReadDir retrieves the core inode data for all entries within the directory from GCS.
+// Used for ReadDir.
+//
+// Special case: If the request offset is zero, it assumes the directory is being read from the
+// beginning and resets the cached list of entries.
+//
+// LOCKS_REQUIRED(dh.Mu)
+// LOCKS_EXCLUDED(dh.in)
+func (dh *DirHandle) FetchEntryCoresForReadDir(ctx context.Context, offset int64) (cores map[inode.Name]*inode.Core, err error) {
+	// If the request is for offset zero, we assume that either this is the first
+	// call or rewinddir has been called. Reset state.
+	if offset == 0 {
+		dh.entries = nil
+		dh.entriesValid = false
+	}
+
+	// Do we need to read entries from GCS?
+	if !dh.entriesValid {
 		dh.in.Lock()
 		cores, err = readAllEntryCores(ctx, dh.in)
 		if err != nil {

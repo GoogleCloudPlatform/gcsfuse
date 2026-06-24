@@ -233,6 +233,18 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		logger.Infof("MRD cache (LRU-based) enabled with maxSize=%d (pools closed-file MRDs)", serverCfg.NewConfig.FileSystem.InactiveMrdCacheSize)
 	}
 
+	// Initialize inode cache if enabled (StatCacheMaxSizeMb != 0)
+	if serverCfg.NewConfig.MetadataCache.StatCacheMaxSizeMb == -1 {
+		fs.inodeCache = lru.NewCache(^uint64(0))
+		logger.Infof("Inode cache (LRU-based) enabled with unlimited size")
+	} else if serverCfg.NewConfig.MetadataCache.StatCacheMaxSizeMb > 0 {
+		capacity := uint64(serverCfg.NewConfig.MetadataCache.StatCacheMaxSizeMb*1024*1024) / 2048
+		if capacity > 0 {
+			fs.inodeCache = lru.NewCache(capacity)
+			logger.Infof("Inode cache (LRU-based) enabled with capacity %d (estimated from %d MB stat cache size)", capacity, serverCfg.NewConfig.MetadataCache.StatCacheMaxSizeMb)
+		}
+	}
+
 	if serverCfg.Notifier != nil {
 		fs.notifier = serverCfg.Notifier
 	}
@@ -676,6 +688,17 @@ type fileSystem struct {
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
+
+	// inodeCache manages the cache of inactive inodes (lookup count == 0).
+	inodeCache *lru.Cache
+}
+
+type cachedInode struct {
+	in inode.Inode
+}
+
+func (ci cachedInode) Size() uint64 {
+	return 1
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1093,10 +1116,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
 	}
 
 	// Ensure that no matter which inode we return, we increase its lookup count
-	// on the way out and then release the file system lock.
+	// on the way out, remove it from the idle inode cache, and then release the
+	// file system lock.
 	defer func() {
 		if in != nil {
 			in.IncrementLookupCount()
+			if fs.inodeCache != nil {
+				fs.inodeCache.Erase(in.Name().LocalName())
+			}
 		}
 
 		fs.mu.Unlock()
@@ -1287,6 +1314,9 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 	defer func() {
 		if child != nil {
 			child.IncrementLookupCount()
+			if fs.inodeCache != nil {
+				fs.inodeCache.Erase(child.Name().LocalName())
+			}
 		}
 		fs.mu.Unlock()
 	}()
@@ -1525,33 +1555,69 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 	// Decrement the lookup count.
 	shouldDestroy := in.DecrementLookupCount(N)
 
-	// Update file system state, orphaning the inode if we're going to destroy it
-	// below.
+	var evicted []inode.Inode
+
 	if shouldDestroy {
 		fs.mu.Lock()
-		delete(fs.inodes, in.ID())
 
-		// Update indexes if necessary.
-		if fs.generationBackedInodes[name] == in {
-			delete(fs.generationBackedInodes, name)
+		// If the inode has been unlinked (deleted) or if the cache is disabled,
+		// we must destroy it immediately and not cache it.
+		if in.IsUnlinked() || fs.inodeCache == nil {
+			evicted = append(evicted, in)
+		} else {
+			// Insert the idle inode into the LRU cache.
+			evictedValues, err := fs.inodeCache.Insert(name.LocalName(), cachedInode{in})
+			if err != nil {
+				logger.Errorf("Failed to insert inode %q into cache: %v", name, err)
+				// Fallback: destroy immediately if cache insert fails
+				evicted = append(evicted, in)
+			} else {
+				for _, ev := range evictedValues {
+					evIn := ev.(cachedInode).in
+					evicted = append(evicted, evIn)
+				}
+			}
 		}
-		if fs.implicitDirInodes[name] == in {
-			delete(fs.implicitDirInodes, name)
+
+		// Remove all evicted inodes from our maps.
+		for _, ev := range evicted {
+			delete(fs.inodes, ev.ID())
+			evName := ev.Name()
+			if fs.generationBackedInodes[evName] == ev {
+				delete(fs.generationBackedInodes, evName)
+			}
+			if fs.implicitDirInodes[evName] == ev {
+				delete(fs.implicitDirInodes, evName)
+			}
+			if fs.localFileInodes[evName] == ev {
+				delete(fs.localFileInodes, evName)
+			}
+			if fs.folderInodes[evName] == ev {
+				delete(fs.folderInodes, evName)
+			}
 		}
-		if fs.localFileInodes[name] == in {
-			delete(fs.localFileInodes, name)
-		}
-		if fs.folderInodes[name] == in {
-			delete(fs.folderInodes, name)
-		}
+
 		fs.mu.Unlock()
 	}
 
-	// Now we can destroy the inode if necessary.
-	if shouldDestroy {
-		destroyErr := in.Destroy()
-		if destroyErr != nil {
-			logger.Infof("Error destroying inode %q: %v", name, destroyErr)
+	// Destroy all evicted inodes.
+	// Note: 'in' is already locked by the caller of this function.
+	// Other evicted inodes are NOT locked.
+	for _, ev := range evicted {
+		if ev == in {
+			// 'in' is already locked, destroy it directly.
+			destroyErr := ev.Destroy()
+			if destroyErr != nil {
+				logger.Infof("Error destroying inode %q: %v", ev.Name(), destroyErr)
+			}
+		} else {
+			// Lock, destroy, and unlock other evicted inodes.
+			ev.Lock()
+			destroyErr := ev.Destroy()
+			if destroyErr != nil {
+				logger.Infof("Error destroying evicted inode %q: %v", ev.Name(), destroyErr)
+			}
+			ev.Unlock()
 		}
 	}
 
@@ -2961,8 +3027,42 @@ func (fs *fileSystem) ReadDir(
 
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()
+
+	// Fetch cores
+	var cores map[inode.Name]*inode.Core
+	cores, err = dh.FetchEntryCoresForReadDir(ctx, int64(op.Offset))
+	if err != nil {
+		return fmt.Errorf("FetchEntryCoresForReadDir: %w", err)
+	}
+
+	// Populate the inode cache if we just fetched the cores
+	for _, core := range cores {
+		child, err := fs.lookUpOrCreateInodeIfNotStale(in.Context(), *core)
+		if err == nil && child != nil {
+			fs.unlockAndDecrementLookupCount(child, 1)
+		}
+	}
+
+	// Convert cores to fuseutil.Dirent
+	var entries []fuseutil.Dirent
+	for fullName, core := range cores {
+		entry := fuseutil.Dirent{
+			Name: path.Base(fullName.LocalName()),
+			Type: fuseutil.DT_Unknown,
+		}
+		switch core.Type() {
+		case metadata.SymlinkType:
+			entry.Type = fuseutil.DT_Link
+		case metadata.RegularFileType:
+			entry.Type = fuseutil.DT_File
+		case metadata.ImplicitDirType, metadata.ExplicitDirType:
+			entry.Type = fuseutil.DT_Directory
+		}
+		entries = append(entries, entry)
+	}
+
 	// Serve the request.
-	if err := dh.ReadDir(ctx, op, localFileEntries); err != nil {
+	if err := dh.ReadDir(op, entries, localFileEntries); err != nil {
 		return err
 	}
 
@@ -2991,7 +3091,7 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 	defer dh.Mu.Unlock()
 	// Serve the request.
 	var cores map[inode.Name]*inode.Core
-	cores, err = dh.FetchEntryCores(ctx, op)
+	cores, err = dh.FetchEntryCores(ctx, int64(op.Offset))
 	if err != nil {
 		return fmt.Errorf("FetchDirCores: %w", err)
 	}
