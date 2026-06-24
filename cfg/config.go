@@ -640,6 +640,8 @@ type GcsRetriesConfig struct {
 
 	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
+	GkeMountRetriesErrorFile ResolvedPath `yaml:"gke-mount-retries-error-file"`
+
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
 	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
@@ -665,8 +667,6 @@ type LoggingConfig struct {
 	FilePath ResolvedPath `yaml:"file-path"`
 
 	Format string `yaml:"format"`
-
-	GkeGcsFuseErrorFile ResolvedPath `yaml:"gke-gcsfuse-error-file"`
 
 	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
 
@@ -1167,9 +1167,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
-	flagSet.StringP("gke-gcsfuse-error-file", "", "", "File path to write GCSFuse error logs during mount retries in GKE environment.")
+	flagSet.StringP("gke-mount-retries-error-file", "", "", "File path to write GCSFuse mounting errors during mount retries in GKE environment when enable-mount-retries is set.")
 
-	if err := flagSet.MarkHidden("gke-gcsfuse-error-file"); err != nil {
+	if err := flagSet.MarkHidden("gke-mount-retries-error-file"); err != nil {
 		return err
 	}
 
@@ -1772,7 +1772,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("logging.gke-gcsfuse-error-file", flagSet.Lookup("gke-gcsfuse-error-file")); err != nil {
+	if err := v.BindPFlag("gcs-retries.gke-mount-retries-error-file", flagSet.Lookup("gke-mount-retries-error-file")); err != nil {
 		return err
 	}
 

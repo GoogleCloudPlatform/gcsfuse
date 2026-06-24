@@ -2166,6 +2166,29 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Test with gke-mount-retries-error-file",
+			args: []string{"gcsfuse", "--gke-mount-retries-error-file=/path/to/error.json", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   120,
+					ChunkTransferTimeoutSecs: 10,
+					EnableMountRetries:       false,
+					GkeMountRetriesErrorFile: "/path/to/error.json",
+					MaxRetryAttempts:         math.MaxInt,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
+						MinReqTimeout:       1500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2891,78 +2914,13 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 	}
 }
 
-func TestArgsParsing_LoggingFlags(t *testing.T) {
-	tests := []struct {
-		name           string
-		args           []string
-		expectedConfig *cfg.Config
-	}{
-		{
-			name: "default",
-			args: []string{"gcsfuse", "abc", "pqr"},
-			expectedConfig: &cfg.Config{
-				Logging: cfg.LoggingConfig{
-					FilePath:            "",
-					Format:              "json",
-					GkeGcsFuseErrorFile: "",
-					Severity:            "INFO",
-					WireLog:             "",
-				},
-			},
-		},
-		{
-			name: "normal",
-			args: []string{
-				"gcsfuse",
-				"--log-file=/path/to/log.txt",
-				"--log-format=text",
-				"--log-severity=debug",
-				"--gke-gcsfuse-error-file=/path/to/error.json",
-				"pqr",
-			},
-			expectedConfig: &cfg.Config{
-				Logging: cfg.LoggingConfig{
-					FilePath:            "/path/to/log.txt",
-					Format:              "text",
-					GkeGcsFuseErrorFile: "/path/to/error.json",
-					Severity:            "DEBUG",
-					WireLog:             "",
-				},
-			},
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
-				gotConfig = mountInfo.config
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
-			require.NoError(t, err)
-			assert.Equal(t, tc.expectedConfig.Logging.FilePath, gotConfig.Logging.FilePath)
-			assert.Equal(t, tc.expectedConfig.Logging.Format, gotConfig.Logging.Format)
-			assert.Equal(t, tc.expectedConfig.Logging.GkeGcsFuseErrorFile, gotConfig.Logging.GkeGcsFuseErrorFile)
-			assert.Equal(t, tc.expectedConfig.Logging.Severity, gotConfig.Logging.Severity)
-		})
-	}
-}
-
-func TestArgsParsing_LoggingConfigFile(t *testing.T) {
+func TestArgsParsing_GcsRetriesConfigFile(t *testing.T) {
 	content := `
-logging:
-  file-path: /path/to/log.txt
-  format: text
-  severity: debug
-  gke-gcsfuse-error-file: /path/to/error.json
+gcs-retries:
+  gke-mount-retries-error-file: /path/to/error.json
 `
 	tempFile := createTempConfigFile(t, content)
 	defer func() { _ = os.Remove(tempFile) }()
-
 	var gotConfig *cfg.Config
 	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 		gotConfig = mountInfo.config
@@ -2974,8 +2932,5 @@ logging:
 	err = cmd.Execute()
 
 	require.NoError(t, err)
-	assert.Equal(t, "/path/to/log.txt", string(gotConfig.Logging.FilePath))
-	assert.Equal(t, "text", gotConfig.Logging.Format)
-	assert.Equal(t, "/path/to/error.json", string(gotConfig.Logging.GkeGcsFuseErrorFile))
-	assert.Equal(t, "DEBUG", string(gotConfig.Logging.Severity))
+	assert.Equal(t, "/path/to/error.json", string(gotConfig.GcsRetries.GkeMountRetriesErrorFile))
 }
