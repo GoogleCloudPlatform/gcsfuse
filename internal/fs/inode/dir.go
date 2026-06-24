@@ -736,29 +736,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 // fetchCoreEntity contains all the existing logic for looking up children
 // without worrying about the isTypeCacheDeprecated flag.
 func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType metadata.Type) (*Core, error) {
-	group, ctx := errgroup.WithContext(ctx)
-
-	var fileResult *Core
-	var dirResult *Core
-	var err error
-
-	lookUpFile := func() (err error) {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
-		return
-	}
-	lookUpExplicitDir := func() (err error) {
-		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
-		return
-	}
-	lookUpImplicitOrExplicitDir := func() (err error) {
-		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
-		return
-	}
-	lookUpHNSDir := func() (err error) {
-		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
-		return
-	}
-
 	switch cachedType {
 	case metadata.ImplicitDirType:
 		return &Core{
@@ -766,37 +743,61 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 			FullName:  NewDirName(d.Name(), name),
 			MinObject: nil,
 		}, nil
-	case metadata.ExplicitDirType:
-		if d.isBucketHierarchical() {
-			group.Go(lookUpHNSDir)
-		} else {
-			group.Go(lookUpExplicitDir)
-		}
-	case metadata.RegularFileType, metadata.SymlinkType:
-		group.Go(lookUpFile)
 
 	case metadata.NonexistentType:
 		return nil, nil
-	case metadata.UnknownType:
-		// Entry not present in cache.
-		// Trigger prefetcher
-		if d.prefetcher != nil {
-			d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
-		}
 
+	case metadata.ExplicitDirType:
 		if d.isBucketHierarchical() {
-			return d.lookUpHNSRace(ctx, name)
+			return findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 		}
+		return findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 
-		group.Go(lookUpFile)
-		if d.implicitDirs {
-			group.Go(lookUpImplicitOrExplicitDir)
-		} else {
-			group.Go(lookUpExplicitDir)
-		}
+	case metadata.RegularFileType, metadata.SymlinkType:
+		return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
+
+	case metadata.UnknownType:
+		return d.lookUpUnknownType(ctx, name)
 	}
 
-	if err = group.Wait(); err != nil {
+	return nil, nil
+}
+
+// lookUpUnknownType handles the lookup of a child entity when its type is unknown.
+func (d *dirInode) lookUpUnknownType(ctx context.Context, name string) (*Core, error) {
+	// Entry not present in cache.
+	// Trigger prefetcher
+	if d.prefetcher != nil {
+		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
+	}
+
+	if d.isBucketHierarchical() {
+		return d.lookUpHNSRace(ctx, name)
+	}
+
+	group, ctx := errgroup.WithContext(ctx)
+
+	var fileResult *Core
+	var dirResult *Core
+
+	group.Go(func() (err error) {
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
+		return err
+	})
+
+	if d.implicitDirs {
+		group.Go(func() (err error) {
+			dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+			return err
+		})
+	} else {
+		group.Go(func() (err error) {
+			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
+			return err
+		})
+	}
+
+	if err := group.Wait(); err != nil {
 		return nil, err
 	}
 
