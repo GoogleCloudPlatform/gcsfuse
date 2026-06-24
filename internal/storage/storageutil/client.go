@@ -91,6 +91,7 @@ type StorageClientConfig struct {
 	EnableHTTPDNSCache bool
 
 	EnableGrpcMetrics bool
+	EnableGrpcBufferPool bool
 
 	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
 	IsGKE bool

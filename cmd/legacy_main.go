@@ -170,6 +170,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		EnableHTTPDNSCache:                      newConfig.GcsConnection.EnableHttpDnsCache,
 		LocalSocketAddress:                      newConfig.GcsConnection.ExperimentalLocalSocketAddress,
 		EnableGrpcMetrics:                       newConfig.Metrics.ExperimentalEnableGrpcMetrics,
+		EnableGrpcBufferPool:                    newConfig.GcsConnection.ExperimentalEnableGrpcBufferPool,
 		IsGKE:                                   isGKE,
 		WriteConfig:                             &newConfig.Write,
 	}

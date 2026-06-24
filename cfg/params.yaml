@@ -630,6 +630,13 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "gcs-connection.experimental-enable-grpc-buffer-pool"
+    flag-name: "experimental-enable-grpc-buffer-pool"
+    type: "bool"
+    usage: "Enable the experimental gRPC shared buffer pool using gomem block-pool."
+    default: false
+    hide-flag: true
+
   - config-path: "gcs-connection.experimental-enable-json-read"
     flag-name: "experimental-enable-json-read"
     type: "bool"

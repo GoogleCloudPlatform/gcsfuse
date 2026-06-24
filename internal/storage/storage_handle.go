@@ -41,6 +41,7 @@ import (
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	grpcexperimental "google.golang.org/grpc/experimental"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -135,6 +136,11 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 
 	if clientConfig.TracingEnabled {
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
+	}
+
+	if clientConfig.EnableGrpcBufferPool {
+		pool := newGomemBufferPool(8 * 1024 * 1024) // 8MB initial size
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpcexperimental.WithBufferPool(pool)))
 	}
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
