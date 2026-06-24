@@ -2961,7 +2961,7 @@ logging:
   gke-gcsfuse-error-file: /path/to/error.json
 `
 	tempFile := createTempConfigFile(t, content)
-	defer os.Remove(tempFile)
+	defer func() { _ = os.Remove(tempFile) }()
 
 	var gotConfig *cfg.Config
 	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
