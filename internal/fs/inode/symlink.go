@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -76,6 +77,9 @@ type SymlinkInode struct {
 
 	// GUARDED_BY(mu)
 	unlinked bool
+
+	// GUARDED_BY(mu)
+	lastFetched time.Time
 }
 
 var _ Inode = &SymlinkInode{}
@@ -110,6 +114,7 @@ func NewSymlinkInode(
 			Mtime: m.Updated,
 		},
 		metadata: m.Metadata,
+		lastFetched: time.Now(),
 	}
 
 	// Set up lookup counting.
@@ -262,6 +267,12 @@ func (s *SymlinkInode) IsUnlinked() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.unlinked
+}
+
+func (s *SymlinkInode) LastFetched() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastFetched
 }
 
 // Bucket returns the bucket that owns this inode.

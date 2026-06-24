@@ -65,6 +65,9 @@ type baseDirInode struct {
 	metricHandle metrics.MetricHandle
 
 	isEnableTypeCacheDeprecation bool
+
+	// The time when the inode's metadata was last fetched.
+	lastFetched time.Time
 }
 
 // NewBaseDirInode returns a baseDirInode that acts as the directory of
@@ -84,6 +87,7 @@ func NewBaseDirInode(
 		buckets:                      make(map[string]gcsx.SyncerBucket),
 		metricHandle:                 metricHandle,
 		isEnableTypeCacheDeprecation: isEnableTypeCacheDeprecation,
+		lastFetched:                  time.Now(),
 	}
 	typed.lc.Init(id)
 	typed.mu = locker.NewRW("BaseDirInode"+name.GcsObjectName(), func() {})
@@ -291,6 +295,10 @@ func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, dest
 // This operation is not supported on base_dir.
 func (d *baseDirInode) IsUnlinked() bool {
 	return false
+}
+
+func (d *baseDirInode) LastFetched() time.Time {
+	return d.lastFetched
 }
 
 func (d *baseDirInode) Unlink() {

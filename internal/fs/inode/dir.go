@@ -285,6 +285,9 @@ type dirInode struct {
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
+
+	// The time when the inode's metadata was last fetched from GCS.
+	lastFetched time.Time
 }
 
 var _ DirInode = &dirInode{}
@@ -352,6 +355,7 @@ func NewDirInode(
 		ctx:                                    ctx,
 		cancel:                                 cancel,
 		metadataCacheTtlSecs:                   cfg.MetadataCache.TtlSecs,
+		lastFetched:                            cacheClock.Now(),
 	}
 
 	// Init Prefetcher only if it is enabled, stat cache ttl != 0 and stat cache size != 0.
@@ -808,6 +812,10 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 
 func (d *dirInode) IsUnlinked() bool {
 	return d.unlinked
+}
+
+func (d *dirInode) LastFetched() time.Time {
+	return d.lastFetched
 }
 
 func (d *dirInode) Unlink() {

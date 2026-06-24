@@ -16,6 +16,7 @@ package inode
 
 import (
 	"sync"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -67,6 +68,9 @@ type Inode interface {
 
 	// Return true if the inode has been unlinked.
 	IsUnlinked() bool
+
+	// Return the time when the inode's metadata was last fetched from GCS.
+	LastFetched() time.Time
 }
 
 // An inode owned by a gcs bucket.

@@ -1246,7 +1246,35 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		return
 	}
 
-	// If the requested child is not a localFileInode, continue with the existing
+	// Check if the child already exists in our in-memory maps and is fresh.
+	fileName := inode.NewFileName(parent.Name(), childName)
+	dirName := inode.NewDirName(parent.Name(), childName)
+
+	fs.mu.Lock()
+	var existing inode.Inode
+	if fileInode, ok := fs.generationBackedInodes[fileName]; ok {
+		existing = fileInode
+	} else if dirInode, ok := fs.implicitDirInodes[dirName]; ok {
+		existing = dirInode
+	} else if folderInode, ok := fs.folderInodes[dirName]; ok {
+		existing = folderInode
+	}
+
+	if existing != nil {
+		metadataAge := fs.cacheClock.Now().Sub(existing.LastFetched())
+		if metadataAge < fs.inodeAttributeCacheTTL {
+			// CACHE HIT & FRESH: Reactivate the inode immediately!
+			existing.IncrementLookupCount()
+			if fs.inodeCache != nil {
+				fs.inodeCache.Erase(existing.Name().LocalName())
+			}
+			fs.mu.Unlock()
+			return existing, nil
+		}
+	}
+	fs.mu.Unlock()
+
+	// If the requested child is not a localFileInode and not in cache, continue with the existing
 	// flow of checking GCS for file/directory.
 
 	// Set up a function that will find a lookup result for the child with the

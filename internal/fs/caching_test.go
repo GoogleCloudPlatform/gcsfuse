@@ -21,10 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -47,29 +44,23 @@ var (
 	uncachedBucket gcs.Bucket
 )
 
-func newLruCache(capacity uint64) *lru.Cache {
-	return lru.NewCache(capacity)
-}
+
 
 type cachingTestCommon struct {
 	fsTest
 }
 
 func (t *cachingTestCommon) SetUpTestSuite() {
-	// Wrap the bucket in a stat caching layer for the purposes of the file
-	// system.
+	// Use the uncached bucket directly. Caching is now handled at the inode layer.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{})
-	lruCache := newLruCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
-	statCache := metadata.NewStatCacheBucketView(lruCache, "")
-	bucket = caching.NewFastStatBucket(
-		ttl,
-		statCache,
-		&cacheClock,
-		uncachedBucket,
-		negativeCacheTTL,
-		IsTypeCacheDeprecated,
-		isImplicitDir,
-	)
+	bucket = uncachedBucket
+
+	// Enable and configure the inode cache.
+	if t.serverCfg.NewConfig == nil {
+		t.serverCfg.NewConfig = &cfg.Config{}
+	}
+	t.serverCfg.NewConfig.MetadataCache.StatCacheMaxSizeMb = 32
+	t.serverCfg.NewConfig.MetadataCache.TtlSecs = int64(ttl.Seconds())
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl
@@ -462,25 +453,21 @@ func getMultiMountBucketDir(bucketName string) string {
 }
 
 func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
-	sharedCache := newLruCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
 	uncachedBuckets = make(map[string]gcs.Bucket)
 	buckets = make(map[string]gcs.Bucket)
 
-	// Create uncached buckets and wrap them in stat caching layer
-	// for the purposes of the file system.
+	// Create uncached buckets directly. Caching is now handled at the inode layer.
 	for _, bucketName := range []string{bucket1Name, bucket2Name} {
 		uncachedBuckets[bucketName] = fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{})
-		statCache := metadata.NewStatCacheBucketView(sharedCache, bucketName)
-		buckets[bucketName] = caching.NewFastStatBucket(
-			ttl,
-			statCache,
-			&cacheClock,
-			uncachedBuckets[bucketName],
-			negativeCacheTTL,
-			IsTypeCacheDeprecated,
-			isImplicitDir,
-		)
+		buckets[bucketName] = uncachedBuckets[bucketName]
 	}
+
+	// Enable and configure the inode cache.
+	if t.serverCfg.NewConfig == nil {
+		t.serverCfg.NewConfig = &cfg.Config{}
+	}
+	t.serverCfg.NewConfig.MetadataCache.StatCacheMaxSizeMb = 32
+	t.serverCfg.NewConfig.MetadataCache.TtlSecs = int64(ttl.Seconds())
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl

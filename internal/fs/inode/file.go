@@ -135,6 +135,9 @@ type FileInode struct {
 
 	// Represents if local file has been unlinked.
 	unlinked bool
+
+	// The time when the inode's metadata was last fetched from GCS.
+	lastFetched time.Time
 }
 
 var _ Inode = &FileInode{}
@@ -182,6 +185,7 @@ func NewFileInode(
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 		traceHandle:             traceHandle,
 		metricHandle:            metricHandle,
+		lastFetched:             mtimeClock.Now(),
 	}
 
 	if f.bucket.BucketType().IsRapid() {
@@ -410,6 +414,10 @@ func (f *FileInode) IsUnlinked() bool {
 	return f.unlinked
 }
 
+func (f *FileInode) LastFetched() time.Time {
+	return f.lastFetched
+}
+
 func (f *FileInode) Unlink() {
 	f.unlinked = true
 
@@ -527,6 +535,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
 	f.attrs.Size = size
+	f.lastFetched = f.mtimeClock.Now()
 	f.updateReaders()
 }
 
