@@ -71,8 +71,9 @@ func MakeFakeBucket(ctx context.Context) (b gcs.Bucket) {
 		_, err := b.CreateObject(
 			ctx,
 			&gcs.CreateObjectRequest{
-				Name:     k,
-				Contents: strings.NewReader(v),
+				Name:        k,
+				Contents:    strings.NewReader(v),
+				IsDirectory: strings.HasSuffix(k, "/"),
 			})
 
 		if err != nil {

@@ -77,6 +77,10 @@ type CreateObjectRequest struct {
 	// NOTE: This is not supported in gRPC (e.g. CreateAppendableObjectWriter).
 	ChunkTransferTimeoutSecs int64
 
+	// IsDirectory indicates whether this object represents a directory.
+	// When true, it bypasses the appendable upload API.
+	IsDirectory bool
+
 	// A reader from which to obtain the contents of the object. Must be non-nil.
 	Contents io.Reader
 

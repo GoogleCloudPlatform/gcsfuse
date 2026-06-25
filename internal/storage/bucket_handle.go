@@ -207,7 +207,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
 	// to false, which allows further appends, but if they keep it unfinalized
 	// it never becomes regionally durable.
-	wc.Append = bh.BucketType().RapidWritesEnabled()
+	wc.Append = bh.BucketType().RapidWritesEnabled() && !req.IsDirectory
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
 	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
@@ -248,7 +248,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
 	// to false, which allows further appends, but if they keep it unfinalized
 	// it never becomes regionally durable.
-	wc.Append = bh.BucketType().RapidWritesEnabled()
+	wc.Append = bh.BucketType().RapidWritesEnabled() && !req.IsDirectory
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
 	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.

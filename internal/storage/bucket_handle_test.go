@@ -599,6 +599,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 		name                 string
 		bucketType           gcs.BucketType
 		finalizeFileForRapid bool
+		isDirectory          bool
 		expectedAppend       bool
 	}{
 		{
@@ -625,6 +626,13 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 			finalizeFileForRapid: false,
 			expectedAppend:       false,
 		},
+		{
+			name:                 "PirloBucket_RapidEnabled_Directory",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			finalizeFileForRapid: true,
+			isDirectory:          true,
+			expectedAppend:       false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -633,13 +641,14 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 			testSuite.bucketHandle.bucketType = &tt.bucketType
 			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{FinalizeFileForRapid: tt.finalizeFileForRapid}
 
-			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object"}, 1024, nil)
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object", IsDirectory: tt.isDirectory}, 1024, nil)
 
 			require.NoError(t, err)
 			objWr, ok := w.(*ObjectWriter)
 			require.True(t, ok)
 			assert.Equal(t, tt.expectedAppend, objWr.Append)
 			assert.Equal(t, tt.finalizeFileForRapid, objWr.FinalizeOnClose)
+			assert.Equal(t, 1024, objWr.ChunkSize)
 		})
 	}
 }

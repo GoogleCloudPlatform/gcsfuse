@@ -656,7 +656,7 @@ func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
 	const name = "folder"
 	var preCond int64
 	dirName := path.Join(dirInodeName, name) + "/"
-	createObjectReq := gcs.CreateObjectRequest{Name: dirName, Contents: strings.NewReader(""), GenerationPrecondition: &preCond}
+	createObjectReq := gcs.CreateObjectRequest{Name: dirName, Contents: strings.NewReader(""), GenerationPrecondition: &preCond, IsDirectory: true}
 	t.mockBucket.On("CreateObject", t.ctx, &createObjectReq).Return(nil, fmt.Errorf("mock error"))
 
 	result, err := t.in.CreateChildDir(t.ctx, name)
@@ -673,7 +673,7 @@ func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
 	var preCond int64
-	createObjectReq := gcs.CreateObjectRequest{Name: dirName, Contents: strings.NewReader(""), GenerationPrecondition: &preCond}
+	createObjectReq := gcs.CreateObjectRequest{Name: dirName, Contents: strings.NewReader(""), GenerationPrecondition: &preCond, IsDirectory: true}
 	object := gcs.Object{Name: dirName}
 	t.mockBucket.On("CreateObject", t.ctx, &createObjectReq).Return(&object, nil)
 

@@ -533,7 +533,8 @@ func (d *dirInode) createNewObject(
 	ctx context.Context,
 	name Name,
 	metadata map[string]string,
-	content string) (o *gcs.Object, err error) {
+	content string,
+	isDirectory bool) (o *gcs.Object, err error) {
 	// Create a backing object for the child, failing if it already
 	// exists.
 	var precond int64
@@ -542,6 +543,7 @@ func (d *dirInode) createNewObject(
 		Contents:               strings.NewReader(content),
 		GenerationPrecondition: &precond,
 		Metadata:               metadata,
+		IsDirectory:            isDirectory,
 	}
 
 	o, err = d.bucket.CreateObject(ctx, createReq)
@@ -1117,7 +1119,7 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}
 	fullName := NewFileName(d.Name(), name)
 
-	o, err := d.createNewObject(ctx, fullName, childMetadata, "")
+	o, err := d.createNewObject(ctx, fullName, childMetadata, "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -1215,7 +1217,7 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 		}
 	}
 
-	o, err := d.createNewObject(ctx, fullName, childMetadata, content)
+	o, err := d.createNewObject(ctx, fullName, childMetadata, content, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1251,7 +1253,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	} else {
 		var o *gcs.Object
 		// For non-hierarchical buckets, create a new object.
-		o, err = d.createNewObject(ctx, fullName, nil, "")
+		o, err = d.createNewObject(ctx, fullName, nil, "", true)
 		if err != nil {
 			return nil, err
 		}
