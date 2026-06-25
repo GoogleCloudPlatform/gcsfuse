@@ -97,6 +97,7 @@ func DeleteManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 	}
 }
 
+// CreateManagedFoldersInBucket creates a managed folder in the specified bucket. It returns true if the managed folder was created successfully, and false if it already exists.
 func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageControlClient, managedFolderPath, bucket string) bool {
 	mf := &controlpb.ManagedFolder{}
 	req := &controlpb.CreateManagedFolderRequest{
@@ -104,12 +105,14 @@ func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 		ManagedFolder:   mf,
 		ManagedFolderId: managedFolderPath,
 	}
-	if _, err := client.CreateManagedFolder(ctx, req); err != nil {
-		if status.Code(err) == codes.AlreadyExists || strings.Contains(err.Error(), "The specified managed folder already exists") {
-			return false
-		}
-		log.Fatalf("Error while creating managed folder: %v", err)
+	_, err := client.CreateManagedFolder(ctx, req)
+	if err == nil {
+		return true
 	}
+	if status.Code(err) == codes.AlreadyExists || strings.Contains(err.Error(), "The specified managed folder already exists") {
+		return false
+	}
+	log.Fatalf("Error while creating managed folder: %v", err)
 	return true
 }
 

@@ -63,13 +63,14 @@ func (s *managedFoldersAdminPermission) TearDownSuite() {
 
 func (s *managedFoldersAdminPermission) SetupTest() {
 	managedFolderRecreated := createDirectoryStructureForNonEmptyManagedFolders(testEnv.ctx, testEnv.storageClient, testEnv.controlClient, s.T())
-
-	if s.managedFoldersPermission != "nil" && managedFolderRecreated {
-		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
-		providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
-		// Wait for policy propagation only when folders were recreated and IAM was reapplied.
-		time.Sleep(60 * time.Second)
+	if s.managedFoldersPermission == "nil" || !managedFolderRecreated {
+		return
 	}
+
+	providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder1), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
+	providePermissionToManagedFolder(testEnv.bucket, path.Join(testEnv.testDir, ManagedFolder2), testEnv.serviceAccount, s.managedFoldersPermission, s.T())
+	// Wait for policy propagation only when folders were recreated and IAM was reapplied.
+	time.Sleep(60 * time.Second)
 }
 
 func (s *managedFoldersAdminPermission) TearDownTest() {
