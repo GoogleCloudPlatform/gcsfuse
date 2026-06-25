@@ -462,9 +462,9 @@ func (b *fastStatBucket) ListObjects(
 	// is used to verify the existence of an implicit directory. If this prefix
 	// has a negative cache entry (meaning it doesn't exist and has no descendants),
 	// we can safely short-circuit the network call and return an empty listing.
-	if b.implicitDir && b.negativeCacheTTL > 0 && req.Prefix != "" && strings.HasSuffix(req.Prefix, "/") && !b.BucketType().Hierarchical {
+	if b.implicitDir && b.negativeCacheTTL > 0 && req.Prefix != "" && strings.HasSuffix(req.Prefix, "/") {
 		hit, m := b.lookUp(req.Prefix)
-		if hit && m == nil {
+		if hit && m == nil && !b.BucketType().Hierarchical {
 			return &gcs.Listing{}, nil
 		}
 	}
