@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -354,9 +355,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			kernelParamsManager.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParamsManager.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
 			kernelParamsManager.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
-			if kernelparams.ShouldUpdateMaxPagesLimit(int(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit)) {
-				kernelParamsManager.SetMaxPagesLimit(int(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit))
-			}
 			kernelParamsManager.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
 		}
 		root = makeRootForBucket(fs, syncerBucket)
@@ -548,6 +546,11 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 //
 // See https://tinyurl.com/4nh4w7u9 for more discussion, including an informal
 // proof that a strict partial order is sufficient.
+
+var (
+	maxObservedReadSize  uint64
+	maxObservedWriteSize uint64
+)
 
 type fileSystem struct {
 	fuseutil.NotImplementedFileSystem
@@ -3159,6 +3162,15 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+	// Track and log max read request size observed
+	requestedSize := uint64(op.Size)
+	oldMax := atomic.LoadUint64(&maxObservedReadSize)
+	if requestedSize > oldMax {
+		if atomic.CompareAndSwapUint64(&maxObservedReadSize, oldMax, requestedSize) {
+			logger.Infof("FUSE active connection: observed new maximum READ request size: %d bytes (%d KB)", requestedSize, requestedSize/1024)
+		}
+	}
+
 	ctx = fs.getInterruptlessContext(ctx)
 
 	// Find the handle and lock it.
@@ -3263,6 +3275,15 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
+	// Track and log max write request size observed
+	requestedSize := uint64(len(op.Data))
+	oldMax := atomic.LoadUint64(&maxObservedWriteSize)
+	if requestedSize > oldMax {
+		if atomic.CompareAndSwapUint64(&maxObservedWriteSize, oldMax, requestedSize) {
+			logger.Infof("FUSE active connection: observed new maximum WRITE request size: %d bytes (%d KB)", requestedSize, requestedSize/1024)
+		}
+	}
+
 	ctx = fs.getInterruptlessContext(ctx)
 
 	// Find the inode( and file handle in case of appends).

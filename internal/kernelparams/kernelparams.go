@@ -47,7 +47,9 @@ var readMaxPagesLimitFunc = func() (int, error) {
 // the FUSE max_pages_limit attribute by reading the procfs entry.
 func SupportsFuseMaxPagesLimit() bool {
 	_, err := readMaxPagesLimitFunc()
-	return err == nil
+	supported := err == nil
+	logger.Infof("FUSE max_pages_limit update supported on host: %t", supported)
+	return supported
 }
 
 // KernelParamsManager wraps KernelParamsConfig with a mutex to ensure thread safety.
@@ -230,7 +232,9 @@ func ShouldUpdateMaxPagesLimit(limit int) bool {
 		return false
 	}
 
-	return limit > currentLimit
+	shouldUpdate := limit > currentLimit
+	logger.Infof("FUSE max_pages_limit update check: requested_limit=%d, current_system_limit=%d, should_update=%t", limit, currentLimit, shouldUpdate)
+	return shouldUpdate
 }
 
 // SetMaxPagesLimit adds the max_pages_limit parameter to the config.
@@ -300,3 +304,4 @@ func (m *KernelParamsManager) ApplyNonGKE(mountPoint string) {
 	logger.Info("Applying kernel parameters directly for non-GKE environment", "mountPoint", mountPoint, "kernel config", m.KernelParamsConfig)
 	m.applyDirectly(mountPoint)
 }
+

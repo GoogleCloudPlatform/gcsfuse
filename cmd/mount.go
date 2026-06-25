@@ -15,8 +15,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -166,6 +169,8 @@ be interacting with the file system.`)
 		return
 	}
 
+	logActualNegotiatedLimit(mountPoint)
+
 	return
 }
 
@@ -204,6 +209,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	if newConfig.FileSystem.FuseMaxPagesLimit != 0 {
 		// Todo: Set MaxMessageSize to this value
 		mountCfg.MaxMessageSize = uint32(int(newConfig.FileSystem.FuseMaxPagesLimit) * os.Getpagesize())
+		// Explicitly pass max_read in the mount options so that the kernel registers it
+		// and exposes it dynamically in /proc/self/mounts
+		mountCfg.Options["max_read"] = strconv.FormatUint(uint64(mountCfg.MaxMessageSize), 10)
 	}
 
 	if newConfig.Logging.WireLog != "" {
@@ -229,4 +237,33 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", fsName)
 	}
 	return mountCfg
+}
+
+func logActualNegotiatedLimit(mountPoint string) {
+	file, err := os.Open("/proc/self/mounts")
+	if err != nil {
+		logger.Warnf("Unable to open /proc/self/mounts: %v. Cannot verify actual negotiated limit.", err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) >= 4 && fields[1] == mountPoint {
+			options := strings.Split(fields[3], ",")
+			for _, opt := range options {
+				if strings.HasPrefix(opt, "max_read=") {
+					valStr := strings.TrimPrefix(opt, "max_read=")
+					if bytes, err := strconv.ParseInt(valStr, 10, 64); err == nil {
+						logger.Infof("FUSE active connection verified: Kernel-enforced Negotiated MaxRead is %d bytes (%d KB / %d MiB)", 
+							bytes, bytes/1024, bytes/(1024*1024))
+						return
+					}
+				}
+			}
+		}
+	}
+	logger.Warnf("FUSE active connection: mount options for %q do not specify max_read. Running at kernel defaults.", mountPoint)
 }
