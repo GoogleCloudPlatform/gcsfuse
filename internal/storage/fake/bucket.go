@@ -893,7 +893,23 @@ func (b *bucket) ComposeObjects(
 	// composite objects.
 	metadata.MD5 = nil
 
-	o = copyObject(metadata)
+	// Handle DeleteSourceObjects.
+	if req.DeleteSourceObjects {
+		for _, src := range req.Sources {
+			// Do not delete if the source is the destination object we just created.
+			if src.Name == req.DstName {
+				continue
+			}
+			index := b.objects.find(src.Name)
+			if index < len(b.objects) {
+				b.objects = append(b.objects[:index], b.objects[index+1:]...)
+			}
+		}
+	}
+
+	// Re-find the destination object since the slice might have shifted.
+	dstIndex = b.objects.find(req.DstName)
+	o = copyObject(&b.objects[dstIndex].metadata)
 	return
 }
 

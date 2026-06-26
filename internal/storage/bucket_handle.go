@@ -539,7 +539,9 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 	}
 
 	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
-	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
+	composer := dstObj.ComposerFrom(srcObjList...)
+	composer.DeleteSourceObjects = req.DeleteSourceObjects
+	attrs, err := composer.Run(ctx)
 	if err != nil {
 		err = fmt.Errorf("error in composing object: %w", err)
 		return
