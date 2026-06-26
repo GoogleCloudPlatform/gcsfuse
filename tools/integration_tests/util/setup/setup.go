@@ -606,7 +606,13 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 		}
 		opts = append(opts, option.WithAuthCredentials(cred))
 	}
-	storageClient, err := storage.NewGRPCClient(ctx, opts...)
+	var storageClient *storage.Client
+	if TestOnTPCEndPoint() {
+		storageClient, err = storage.NewClient(ctx, opts...)
+	} else {
+		storageClient, err = storage.NewGRPCClient(ctx, opts...)
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
