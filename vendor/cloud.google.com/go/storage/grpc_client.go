@@ -411,7 +411,7 @@ func (c *grpcStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 		res, err := c.raw.GetBucket(ctx, req, s.gax...)
 		battrs = newBucketFromProto(res)
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, withOperation("GetBucket"), withBucket(bucket))
 
 	return battrs, formatBucketError(err)
 }
@@ -578,11 +578,15 @@ func (c *grpcStorageClient) ListObjects(ctx context.Context, bucket string, q *Q
 		defer func() { endSpan(ctx, err) }()
 		var objects []*storagepb.Object
 		var gitr *gapic.ObjectIterator
+		objName := it.query.Prefix
+		if objName == "" {
+			objName = "/"
+		}
 		err = run(it.ctx, func(ctx context.Context) error {
 			gitr = c.raw.ListObjects(ctx, req, s.gax...)
 			objects, token, err = gitr.InternalFetch(pageSize, pageToken)
 			return err
-		}, s.retry, s.idempotent)
+		}, s.retry, s.idempotent, withOperation("ListObjects"), withBucket(bucket), withObject(objName))
 		if err != nil {
 			return "", formatBucketError(err)
 		}

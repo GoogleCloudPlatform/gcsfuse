@@ -287,7 +287,7 @@ func (c *httpStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 	err = run(ctx, func(ctx context.Context) error {
 		resp, err = req.Context(ctx).Do()
 		return err
-	}, s.retry, s.idempotent)
+	}, s.retry, s.idempotent, withOperation("GetBucket"), withBucket(bucket))
 
 	if err != nil {
 		return nil, formatBucketError(err)
@@ -385,10 +385,14 @@ func (c *httpStorageClient) ListObjects(ctx context.Context, bucket string, q *Q
 			req.MaxResults(int64(pageSize))
 		}
 		var resp *raw.Objects
+		objName := it.query.Prefix
+		if objName == "" {
+			objName = "/"
+		}
 		err = run(it.ctx, func(ctx context.Context) error {
 			resp, err = req.Context(ctx).Do()
 			return err
-		}, s.retry, s.idempotent, withOperation("ListObjects"), withObject(it.query.Prefix), withBucket(bucket))
+		}, s.retry, s.idempotent, withOperation("ListObjects"), withBucket(bucket), withObject(objName))
 		if err != nil {
 			return "", formatBucketError(err)
 		}
