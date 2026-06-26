@@ -44,20 +44,20 @@ func generatePaths(workload string, count int) []string {
 			paths = append(paths, fmt.Sprintf("file_%d.txt", i))
 		}
 	case "nested":
-		// e.g. 1000 dirs, 1000 files each
-		for d := 0; d < 1000; d++ {
-			for f := 0; f < 1000; f++ {
-				paths = append(paths, fmt.Sprintf("dir_%04d/file_%04d.txt", d, f))
-			}
+		filesPerDir := 1000
+		for i := 0; i < count; i++ {
+			d := i / filesPerDir
+			f := i % filesPerDir
+			paths = append(paths, fmt.Sprintf("dir_%04d/file_%04d.txt", d, f))
 		}
 	case "deeply_nested":
-		// e.g. 50 classes, 100 batches, 200 images = 1,000,000 keys
-		for c := 0; c < 50; c++ {
-			for b := 0; b < 100; b++ {
-				for i := 0; i < 200; i++ {
-					paths = append(paths, fmt.Sprintf("projects/ai-vision/training/class_%04d/batch_%04d/img_%06d.jpg", c, b, i))
-				}
-			}
+		batches := 100
+		images := 200
+		for i := 0; i < count; i++ {
+			c := i / (batches * images)
+			b := (i / images) % batches
+			img := i % images
+			paths = append(paths, fmt.Sprintf("projects/ai-vision/training/class_%04d/batch_%04d/img_%06d.jpg", c, b, img))
 		}
 	}
 
