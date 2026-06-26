@@ -24,20 +24,22 @@ import (
 
 func generateKeys(prefixCount, itemsPerPrefix, depth int) []string {
 	var keys []string
-	for p := 0; p < prefixCount; p++ {
+	for p := range prefixCount {
 		prefix := ""
 		if depth == 0 {
 			prefix = fmt.Sprintf("prefix%d-", p)
 		} else {
-			for d := 0; d < depth; d++ {
+			for d := range depth {
 				prefix += fmt.Sprintf("dir%d/", p*depth+d)
 			}
 		}
-		for i := 0; i < itemsPerPrefix; i++ {
+		for i := range itemsPerPrefix {
 			keys = append(keys, fmt.Sprintf("%sfile%d", prefix, i))
 		}
 	}
-	// Shuffle to simulate random access
+
+	//shuffle the paths to simulate a realistic, unpredictable workload
+	//inserting keys in perfectly sorted lexicographical order can benefit or penalize certain tree/map data structures
 	rand.Shuffle(len(keys), func(i, j int) {
 		keys[i], keys[j] = keys[j], keys[i]
 	})
@@ -47,9 +49,12 @@ func generateKeys(prefixCount, itemsPerPrefix, depth int) []string {
 func benchmarkInsert(b *testing.B, cache *lru.Cache, keys []string) {
 	data := testData{Value: 1, DataSize: 10}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	i := 0
+	for b.Loop() {
 		key := keys[i%len(keys)]
 		_, _ = cache.Insert(key, data)
+		i++
 	}
 }
 
@@ -59,9 +64,12 @@ func benchmarkLookup(b *testing.B, cache *lru.Cache, keys []string) {
 		_, _ = cache.Insert(key, data)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	i := 0
+	for b.Loop() {
 		key := keys[i%len(keys)]
 		_ = cache.LookUp(key)
+		i++
 	}
 }
 
@@ -75,7 +83,9 @@ func benchmarkErasePrefix(b *testing.B, cache *lru.Cache, prefixMap map[string][
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	i := 0
+	for b.Loop() {
 		prefix := prefixes[i%len(prefixes)]
 
 		b.StartTimer()
@@ -88,6 +98,8 @@ func benchmarkErasePrefix(b *testing.B, cache *lru.Cache, prefixMap map[string][
 		for _, key := range keysToRestore {
 			_, _ = cache.Insert(key, data)
 		}
+
+		i++
 	}
 }
 
@@ -101,19 +113,19 @@ func runBenchmarks(b *testing.B, name string, depth int) {
 	var prefixes []string
 	prefixMap := make(map[string][]string)
 
-	for p := 0; p < prefixCount; p++ {
+	for p := range prefixCount {
 		prefix := ""
 		if depth == 0 {
 			prefix = fmt.Sprintf("prefix%d-", p)
 		} else {
-			for d := 0; d < depth; d++ {
+			for d := range depth {
 				prefix += fmt.Sprintf("dir%d/", p*depth+d)
 			}
 		}
 		prefixes = append(prefixes, prefix)
 
 		var keysForPrefix []string
-		for i := 0; i < itemsPerPrefix; i++ {
+		for i := range itemsPerPrefix {
 			keysForPrefix = append(keysForPrefix, fmt.Sprintf("%sfile%d", prefix, i))
 		}
 		prefixMap[prefix] = keysForPrefix

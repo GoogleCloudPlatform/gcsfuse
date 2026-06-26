@@ -40,12 +40,12 @@ func generatePaths(workload string, count int) []string {
 
 	switch workload {
 	case "flat":
-		for i := 0; i < count; i++ {
+		for i := range count {
 			paths = append(paths, fmt.Sprintf("file_%d.txt", i))
 		}
 	case "nested":
 		filesPerDir := 1000
-		for i := 0; i < count; i++ {
+		for i := range count {
 			d := i / filesPerDir
 			f := i % filesPerDir
 			paths = append(paths, fmt.Sprintf("dir_%04d/file_%04d.txt", d, f))
@@ -53,7 +53,7 @@ func generatePaths(workload string, count int) []string {
 	case "deeply_nested":
 		batches := 100
 		images := 200
-		for i := 0; i < count; i++ {
+		for i := range count {
 			c := i / (batches * images)
 			b := (i / images) % batches
 			img := i % images
@@ -61,6 +61,8 @@ func generatePaths(workload string, count int) []string {
 		}
 	}
 
+	//shuffle the generated file paths to simulate a realistic, unpredictable workload
+	//inserting keys in perfectly sorted lexicographical order can benefit or penalize certain tree/map data structures
 	rand.Shuffle(len(paths), func(i, j int) {
 		paths[i], paths[j] = paths[j], paths[i]
 	})
