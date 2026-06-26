@@ -17,6 +17,7 @@ package storageutil
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -39,6 +40,8 @@ const (
 	// retryUnauthenticated indicates a gRPC Unauthenticated error which requires a retry due to credentials refresh.
 	retryUnauthenticated
 )
+
+const errStrBucketNotExist = "bucket does not exist"
 
 func determineRetryAction(err error) retryAction {
 	if storage.ShouldRetry(err) {
@@ -105,6 +108,76 @@ func ShouldRetryWithMonitoringAndRetryContext(
 	if !retry {
 		return false
 	}
+	// Record metrics
+	val := metrics.RetryErrorCategoryOTHERERRORSAttr
+	if errors.Is(err, context.DeadlineExceeded) {
+		val = metrics.RetryErrorCategorySTALLEDREADREQUESTAttr
+	}
+
+	metricHandle.GcsRetryCount(1, val)
+	return retry
+}
+
+// ShouldRetryOnMount checks if the error is retryable during mount initialization.
+// In addition to standard transient errors, it retries HTTP 403/404 and gRPC PermissionDenied/NotFound errors.
+func ShouldRetryOnMount(err error) bool {
+	if err == nil {
+		return false
+	}
+	if ShouldRetryWithoutLogging(err) {
+		return true
+	}
+
+	var apiErr *googleapi.Error
+	if errors.As(err, &apiErr) {
+		if apiErr.Code == 403 ||
+			(apiErr.Code == 404 && strings.Contains(strings.ToLower(apiErr.Message), errStrBucketNotExist)) {
+			return true
+		}
+	}
+
+	if st, ok := status.FromError(err); ok {
+		if st.Code() == codes.PermissionDenied ||
+			(st.Code() == codes.NotFound && strings.Contains(strings.ToLower(st.Message()), errStrBucketNotExist)) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ShouldRetryOnMountWithRetryContext checks if the error is retryable during mount initialization,
+// logging the retry error with RetryContext.
+func ShouldRetryOnMountWithRetryContext(err error, retryCtx *storage.RetryContext) bool {
+	if !ShouldRetryOnMount(err) {
+		return false
+	}
+	if retryCtx == nil {
+		logger.Errorf("Retrying for error: %v", err)
+		return true
+	}
+	logger.Errorf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+		retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
+	return true
+}
+
+// ShouldRetryOnMountWithMonitoringAndRetryContext checks if the error is retryable during mount initialization,
+// recording metrics and logging with RetryContext.
+func ShouldRetryOnMountWithMonitoringAndRetryContext(
+	ctx context.Context,
+	err error,
+	retryCtx *storage.RetryContext,
+	metricHandle metrics.MetricHandle,
+) bool {
+	if err == nil {
+		return false
+	}
+
+	retry := ShouldRetryOnMountWithRetryContext(err, retryCtx)
+	if !retry {
+		return false
+	}
+
 	// Record metrics
 	val := metrics.RetryErrorCategoryOTHERERRORSAttr
 	if errors.Is(err, context.DeadlineExceeded) {
