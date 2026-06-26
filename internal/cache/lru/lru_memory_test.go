@@ -93,9 +93,8 @@ func TestMapCacheWorkloads(t *testing.T) {
 		alloc := getMemStats()
 		pureMem := alloc - baseMem
 		runtime.KeepAlive(pureCache)
-		pureCache = nil
+		runtime.KeepAlive(paths)
 
-		t.Logf("%-20s Heap Used: %10.2f MB", "Pure MapLRU", float64(pureMem)/(1024*1024))
-		t.Logf("")
+		t.Logf("%-20s Heap Used: %10.2f MB\n", "MapLRU", float64(pureMem)/(1024*1024))
 	}
 }

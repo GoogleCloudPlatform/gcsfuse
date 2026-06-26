@@ -22,8 +22,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 )
 
-func generateKeys(prefixCount, itemsPerPrefix, depth int) []string {
-	var keys []string
+func generateKeys(prefixCount, itemsPerPrefix, depth int) (keys []string, prefixMap map[string][]string, prefixes []string) {
+	prefixMap = make(map[string][]string)
+
 	for p := range prefixCount {
 		prefix := ""
 		if depth == 0 {
@@ -33,9 +34,15 @@ func generateKeys(prefixCount, itemsPerPrefix, depth int) []string {
 				prefix += fmt.Sprintf("dir%d/", p*depth+d)
 			}
 		}
+		prefixes = append(prefixes, prefix)
+
+		var keysForPrefix []string
 		for i := range itemsPerPrefix {
-			keys = append(keys, fmt.Sprintf("%sfile%d", prefix, i))
+			key := fmt.Sprintf("%sfile%d", prefix, i)
+			keysForPrefix = append(keysForPrefix, key)
+			keys = append(keys, key)
 		}
+		prefixMap[prefix] = keysForPrefix
 	}
 
 	//shuffle the paths to simulate a realistic, unpredictable workload
@@ -43,12 +50,11 @@ func generateKeys(prefixCount, itemsPerPrefix, depth int) []string {
 	rand.Shuffle(len(keys), func(i, j int) {
 		keys[i], keys[j] = keys[j], keys[i]
 	})
-	return keys
+	return keys, prefixMap, prefixes
 }
 
 func benchmarkInsert(b *testing.B, cache *lru.Cache, keys []string) {
 	data := testData{Value: 1, DataSize: 10}
-	b.ResetTimer()
 
 	i := 0
 	for b.Loop() {
@@ -63,7 +69,6 @@ func benchmarkLookup(b *testing.B, cache *lru.Cache, keys []string) {
 	for _, key := range keys {
 		_, _ = cache.Insert(key, data)
 	}
-	b.ResetTimer()
 
 	i := 0
 	for b.Loop() {
@@ -81,8 +86,6 @@ func benchmarkErasePrefix(b *testing.B, cache *lru.Cache, prefixMap map[string][
 			_, _ = cache.Insert(key, data)
 		}
 	}
-
-	b.ResetTimer()
 
 	i := 0
 	for b.Loop() {
@@ -106,30 +109,7 @@ func benchmarkErasePrefix(b *testing.B, cache *lru.Cache, prefixMap map[string][
 func runBenchmarks(b *testing.B, name string, depth int) {
 	prefixCount := 1000
 	itemsPerPrefix := 1000
-	keys := generateKeys(prefixCount, itemsPerPrefix, depth)
-
-	// Pre-calculate which keys belong to which prefix so we can
-	// quickly repair the cache in benchmarkErasePrefix
-	var prefixes []string
-	prefixMap := make(map[string][]string)
-
-	for p := range prefixCount {
-		prefix := ""
-		if depth == 0 {
-			prefix = fmt.Sprintf("prefix%d-", p)
-		} else {
-			for d := range depth {
-				prefix += fmt.Sprintf("dir%d/", p*depth+d)
-			}
-		}
-		prefixes = append(prefixes, prefix)
-
-		var keysForPrefix []string
-		for i := range itemsPerPrefix {
-			keysForPrefix = append(keysForPrefix, fmt.Sprintf("%sfile%d", prefix, i))
-		}
-		prefixMap[prefix] = keysForPrefix
-	}
+	keys, prefixMap, prefixes := generateKeys(prefixCount, itemsPerPrefix, depth)
 
 	capacity := uint64(len(keys) * 100)
 
