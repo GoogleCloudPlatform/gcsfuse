@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -3155,6 +3156,12 @@ func (fs *fileSystem) OpenFile(
 	return
 }
 
+var readBufferPool = sync.Pool{
+	New: func() interface{} {
+		return nil
+	},
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
@@ -3185,24 +3192,29 @@ func (fs *fileSystem) ReadFile(
 		}
 	}
 	// Serve the read.
-	if op.DstBufs != nil && !fs.newConfig.FileSystem.EnableKernelReader {
-		err = fmt.Errorf("Vectored read is not supported when kernel reader is disabled: %w", syscall.ENOTSUP)
-		return
+	var buf []byte
+	var isAllocated bool
+
+	if op.Dst == nil || cap(op.Dst) < int(op.Size) {
+		// New larger read path: allocate or retrieve a buffer.
+		if val := readBufferPool.Get(); val != nil {
+			buf = val.([]byte)
+		}
+		if cap(buf) < int(op.Size) {
+			buf = make([]byte, op.Size)
+		} else {
+			buf = buf[:op.Size]
+		}
+		isAllocated = true
+	} else {
+		// Traditional path: use op.Dst.
+		buf = op.Dst[:op.Size]
 	}
 
-	var req *gcsx.ReadRequest
-	if op.DstBufs != nil {
-		req = &gcsx.ReadRequest{
-			Buffers: op.DstBufs,
-			Offset:  op.Offset,
-			Size:    op.Size,
-		}
-	} else {
-		req = &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-			Size:   op.Size,
-		}
+	req := &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: op.Offset,
+		Size:   op.Size,
 	}
 
 	if fs.newConfig.FileSystem.EnableKernelReader {
@@ -3218,7 +3230,23 @@ func (fs *fileSystem) ReadFile(
 		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else {
-		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		var bytesRead int
+		buf, bytesRead, err = fh.Read(ctx, buf, op.Offset, fs.sequentialReadSizeMb)
+		op.BytesRead = bytesRead
+		op.Dst = buf
+	}
+
+	if isAllocated {
+		if len(op.Data) == 0 {
+			op.Data = [][]byte{buf[:op.BytesRead]}
+		}
+		oldCallback := op.Callback
+		op.Callback = func() {
+			if oldCallback != nil {
+				oldCallback()
+			}
+			readBufferPool.Put(buf)
+		}
 	}
 
 	// A FileClobberedError indicates the underlying GCS object has changed,
@@ -3290,13 +3318,7 @@ func (fs *fileSystem) WriteFile(
 		return err
 	}
 	// Serve the request.
-	var dataBlocks [][]byte
-	if len(op.Data) > 0 {
-		dataBlocks = [][]byte{op.Data}
-	} else {
-		dataBlocks = op.DataBlocks
-	}
-	gcsSynced, err = in.Write(ctx, dataBlocks, op.Offset, fh.OpenMode())
+	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode())
 	if err != nil {
 		return
 	}

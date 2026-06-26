@@ -69,9 +69,6 @@ type FileInode struct {
 	name         Name
 	attrs        fuseops.InodeAttributes
 	contentCache *contentcache.ContentCache
-	// TODO (#640) remove bool flag and refactor contentCache to support two implementations:
-	// one implementation with original functionality and one with new persistent disk content cache
-	localFileCache bool
 
 	/////////////////////////
 	// Mutable state
@@ -95,17 +92,6 @@ type FileInode struct {
 	// authoritative.
 	content gcsx.TempFile
 
-	// Has Destroy been called?
-	//
-	// GUARDED_BY(mu)
-	destroyed bool
-
-	// Represents a local file which is not yet synced to GCS.
-	local bool
-
-	// Represents if local file has been unlinked.
-	unlinked bool
-
 	// Wrapper object for multi range downloader. Needed as we will create the MRD in
 	// random reader and we can't pass fileInode object to random reader as it
 	// creates a cyclic dependency.
@@ -116,15 +102,6 @@ type FileInode struct {
 	bwh    bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
 
-	// Once write is started on the file i.e, bwh is initialized, any fileHandles
-	// opened in write mode before or after this and not yet closed are considered
-	// as writing to the file even though they are not writing.
-	// In case of successful flush, we will set bwh to nil. But in case of error,
-	// we will keep returning that error to all the fileHandles open during that time
-	// and set bwh to nil after all fileHandlers are closed.
-	// writeHandleCount tracks the count of open fileHandles in write mode.
-	writeHandleCount int32
-
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
@@ -134,6 +111,30 @@ type FileInode struct {
 	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
 	metricHandle              metrics.MetricHandle
 	traceHandle               tracing.TraceHandle
+
+	// Once write is started on the file i.e, bwh is initialized, any fileHandles
+	// opened in write mode before or after this and not yet closed are considered
+	// as writing to the file even though they are not writing.
+	// In case of successful flush, we will set bwh to nil. But in case of error,
+	// we will keep returning that error to all the fileHandles open during that time
+	// and set bwh to nil after all fileHandlers are closed.
+	// writeHandleCount tracks the count of open fileHandles in write mode.
+	writeHandleCount int32
+
+	// TODO (#640) remove bool flag and refactor contentCache to support two implementations:
+	// one implementation with original functionality and one with new persistent disk content cache
+	localFileCache bool
+
+	// Has Destroy been called?
+	//
+	// GUARDED_BY(mu)
+	destroyed bool
+
+	// Represents a local file which is not yet synced to GCS.
+	local bool
+
+	// Represents if local file has been unlinked.
+	unlinked bool
 }
 
 var _ Inode = &FileInode{}
@@ -706,24 +707,21 @@ func recordStreamingWriteFallbackMetric(mh metrics.MetricHandle, openMode util.O
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
 	ctx context.Context,
-	dataBlocks [][]byte,
+	data []byte,
 	offset int64,
 	openMode util.OpenMode) (bool, error) {
 	if f.bwh != nil {
-		return f.writeUsingBufferedWrites(ctx, dataBlocks, offset, openMode)
+		return f.writeUsingBufferedWrites(ctx, data, offset, openMode)
 	}
 
-	return false, f.writeUsingTempFile(ctx, dataBlocks, offset)
+	return false, f.writeUsingTempFile(ctx, data, offset)
 }
 
 // Helper function to serve write for file using temp file.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingTempFile(ctx context.Context, dataBlocks [][]byte, offset int64) (err error) {
-	var bytes int64
-	for _, block := range dataBlocks {
-		bytes += int64(len(block))
-	}
+func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
+	bytes := int64(len(data))
 	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.src.Name, &bytes, &err)
 	defer finishSpan()
 	// Make sure f.content != nil.
@@ -735,14 +733,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, dataBlocks [][]byte,
 
 	// Write to the mutable content. Note that io.WriterAt guarantees it returns
 	// an error for short writes.
-	currentOffset := offset
-	for _, block := range dataBlocks {
-		_, err = f.content.WriteAt(block, currentOffset)
-		if err != nil {
-			return
-		}
-		currentOffset += int64(len(block))
-	}
+	_, err = f.content.WriteAt(data, offset)
 
 	return
 }
@@ -750,22 +741,11 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, dataBlocks [][]byte,
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, dataBlocks [][]byte, offset int64, openMode util.OpenMode) (_ bool, err error) {
-	var bytes int64
-	for _, block := range dataBlocks {
-		bytes += int64(len(block))
-	}
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64, openMode util.OpenMode) (_ bool, err error) {
+	bytes := int64(len(data))
 	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
 	defer finishSpan()
-
-	currentOffset := offset
-	for _, block := range dataBlocks {
-		err = f.bwh.Write(ctx, block, currentOffset)
-		if err != nil {
-			break
-		}
-		currentOffset += int64(len(block))
-	}
+	err = f.bwh.Write(ctx, data, offset)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return false, &gcsfuse_errors.FileClobberedError{
@@ -782,7 +762,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, dataBlocks [][
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
 		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
-		return true, f.writeUsingTempFile(ctx, dataBlocks, offset)
+		return true, f.writeUsingTempFile(ctx, data, offset)
 	}
 	if err != nil {
 		return false, fmt.Errorf("write to buffered write handler failed: %w", err)

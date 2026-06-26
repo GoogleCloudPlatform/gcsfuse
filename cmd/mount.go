@@ -197,13 +197,10 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 		// Enable async reads if enable-kernel-reader flag is set to true.
 		EnableAsyncReads:     newConfig.FileSystem.EnableKernelReader,
-		EnableVectoredWrites: true,
-		EnableVectoredReads:  newConfig.FileSystem.EnableKernelReader,
 	}
 
 	if newConfig.FileSystem.FuseMaxPagesLimit != 0 {
-		// Todo: Set MaxMessageSize to this value
-		mountCfg.MaxMessageSize = uint32(int(newConfig.FileSystem.FuseMaxPagesLimit) * os.Getpagesize())
+		mountCfg.MaxPages = uint16(newConfig.FileSystem.FuseMaxPagesLimit)
 	}
 
 	if newConfig.Logging.WireLog != "" {

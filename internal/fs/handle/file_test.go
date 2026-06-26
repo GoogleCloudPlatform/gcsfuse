@@ -580,7 +580,7 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 
 	// Now, update the object in GCS, which changes its generation.
 	in.Lock()
-	gcsSynced, err := in.Write(t.ctx, [][]byte{content2}, 0, writeMode)
+	gcsSynced, err := in.Write(t.ctx, content2, 0, writeMode)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	gcsSynced, err = in.Sync(t.ctx)
@@ -623,7 +623,7 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 
 	// Now, update the object in GCS, which changes its generation.
 	in.Lock()
-	gcsSynced, err := in.Write(t.ctx, [][]byte{content2}, 0, writeMode)
+	gcsSynced, err := in.Write(t.ctx, content2, 0, writeMode)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	gcsSynced, err = in.Sync(t.ctx)
@@ -745,7 +745,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative() {
 			in := createFileInode(t.T(), &bucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
 			// Perform a local write to mark the inode as dirty (not authoritative).
 			in.Lock()
-			_, err := in.Write(t.ctx, [][]byte{[]byte("dirty")}, 0, writeMode)
+			_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode)
 			in.Unlock()
 			require.NoError(t.T(), err)
 			expectedReadData := "dirtydata"
@@ -800,7 +800,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative_ReadError() {
 			in := createFileInode(t.T(), &bucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
 			// Perform a local write to mark the inode as dirty (not authoritative).
 			in.Lock()
-			_, err := in.Write(t.ctx, [][]byte{[]byte("dirty")}, 0, writeMode)
+			_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode)
 			in.Unlock()
 			require.NoError(t.T(), err)
 			// Create file handle with kernel reader enabled.

@@ -179,7 +179,7 @@ func (t *FileMockBucketTest) TestFlushLocalFileDoesNotForceFetchObjectFromGCS() 
 func (t *FileMockBucketTest) TestFlushLocalFile_SizeMismatch_ReturnsError() {
 	assert.True(t.T(), t.in.IsLocal())
 	// Write some data so that the local temp file size becomes 4
-	_, err := t.in.Write(t.ctx, [][]byte{[]byte("data")}, 0, util.NewOpenMode(util.WriteOnly, 0))
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
 	require.NoError(t.T(), err)
 	// Mock CreateObject to return an object with a mismatched size
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
@@ -217,7 +217,7 @@ func (t *FileMockBucketTest) TestSync_RemoteAppendClobber() {
 	t.createLockedInode(fileName, emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
 	// Dirty the file.
-	_, err := t.in.Write(t.ctx, [][]byte{[]byte("data")}, 0, util.NewOpenMode(util.WriteOnly, 0))
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
 	require.NoError(t.T(), err)
 	// Mock StatObject to return same generation but larger size (remote append).
 	// Current size is 0 (emptyGCSFile).
@@ -245,7 +245,7 @@ func (t *FileMockBucketTest) TestSync_GenerationMismatchClobber() {
 	t.createLockedInode(fileName, emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
 	// Dirty the file.
-	_, err := t.in.Write(t.ctx, [][]byte{[]byte("data")}, 0, util.NewOpenMode(util.WriteOnly, 0))
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
 	require.NoError(t.T(), err)
 	// Mock StatObject to return different generation.
 	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
