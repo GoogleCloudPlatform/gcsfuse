@@ -96,7 +96,7 @@ func runBenchmarks(b *testing.B, name string, depth int) {
 	itemsPerPrefix := 1000
 	keys := generateKeys(prefixCount, itemsPerPrefix, depth)
 
-	// pre-calculate which keys belong to which prefix so we can
+	// Pre-calculate which keys belong to which prefix so we can
 	// quickly repair the cache in benchmarkErasePrefix
 	var prefixes []string
 	prefixMap := make(map[string][]string)

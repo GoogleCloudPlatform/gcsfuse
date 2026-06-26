@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,9 +81,9 @@ func TestMapCacheWorkloads(t *testing.T) {
 		t.Logf("=== WORKLOAD: %s (%d files) ===", w, count)
 
 		// 1. Pure MapLRU
+		paths := generatePaths(w, count)
 		baseMem := getMemStats()
 
-		paths := generatePaths(w, count)
 		pureCache := lru.NewCache(capacity)
 		for _, p := range paths {
 			pureCache.Insert(p, dummyValue{})
