@@ -287,7 +287,7 @@ func (c *httpStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 	err = run(ctx, func(ctx context.Context) error {
 		resp, err = req.Context(ctx).Do()
 		return err
-	}, s.retry, s.idempotent, withOperation("GetBucket"), withBucket(bucket))
+	}, s.retry, s.idempotent, withOperation("GetBucket"), withBucket(bucket), withObject(bucket))
 
 	if err != nil {
 		return nil, formatBucketError(err)
@@ -1539,7 +1539,7 @@ func readerReopen(ctx context.Context, header http.Header, params *newRangeReade
 				params.gen = gen64
 			}
 			return nil
-		}, s.retry, s.idempotent)
+		}, s.retry, s.idempotent, withOperation("ReadObject"), withBucket(params.bucket), withObject(params.object))
 		if err != nil {
 			return nil, err
 		}
