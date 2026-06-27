@@ -77,7 +77,7 @@ func TestReadWriteMetadataCheckpointFile(t *testing.T) {
 		MetaGeneration:      testMetaGeneration,
 	}
 	// Write the checkpoint file to the temp directory instead of the working directory
-	metadataFileName, err := contentCache.WriteMetadataCheckpointFile(path.Join(tempDir, objectMetadata.ObjectName), &objectMetadata)
+	metadataFileName, err := contentCache.WriteMetadataCheckpointFile(filepath.Join(tempDir, objectMetadata.ObjectName), &objectMetadata)
 	require.NoError(t, err)
 	newObjectMetadata := contentcache.CacheFileObjectMetadata{}
 	contents, err := os.ReadFile(metadataFileName)
