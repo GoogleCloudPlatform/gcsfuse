@@ -48,7 +48,15 @@ type utilTest struct {
 const FileDir = "/some/dir/"
 const FileName = "foo.txt"
 
-func init() { RegisterTestSuite(&utilTest{}) }
+var systemUmask os.FileMode
+
+func init() {
+	RegisterTestSuite(&utilTest{})
+
+	oldMask := syscall.Umask(0777)
+	syscall.Umask(oldMask)
+	systemUmask = os.FileMode(oldMask)
+}
 
 func (ut *utilTest) SetUp(*TestInfo) {
 	operations.RemoveDir(FileDir)
@@ -73,17 +81,20 @@ func (ut *utilTest) TearDown() {
 func (ut *utilTest) assertFileAndDirCreationWithGivenDirPerm(file *os.File, err error, dirPerm os.FileMode) {
 	ExpectEq(nil, err)
 
+	expectedDirPerm := dirPerm &^ systemUmask
+	expectedFilePerm := ut.fileSpec.FilePerm &^ systemUmask
+
 	dirStat, dirErr := os.Stat(path.Dir(file.Name()))
 	ExpectEq(false, os.IsNotExist(dirErr))
 	ExpectEq(path.Dir(ut.fileSpec.Path), path.Dir(file.Name()))
-	ExpectEq(dirPerm, dirStat.Mode().Perm())
+	ExpectEq(expectedDirPerm, dirStat.Mode().Perm())
 	ExpectEq(ut.uid, dirStat.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(ut.gid, dirStat.Sys().(*syscall.Stat_t).Gid)
 
 	fileStat, fileErr := os.Stat(file.Name())
 	ExpectEq(false, os.IsNotExist(fileErr))
 	ExpectEq(ut.fileSpec.Path, file.Name())
-	ExpectEq(ut.fileSpec.FilePerm, fileStat.Mode())
+	ExpectEq(expectedFilePerm, fileStat.Mode().Perm())
 	ExpectEq(ut.uid, fileStat.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(ut.gid, fileStat.Sys().(*syscall.Stat_t).Gid)
 }
@@ -378,7 +389,8 @@ func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirector
 	AssertEq(nil, err)
 	fileInfo, err := os.Stat(dirPath)
 	AssertEq(nil, err)
-	AssertEq(0755, fileInfo.Mode().Perm())
+	expectedPerm := os.FileMode(0755) &^ systemUmask
+	AssertEq(expectedPerm, fileInfo.Mode().Perm())
 }
 
 func Test_CreateCacheDirectoryIfNotPresentAt_ShouldReturnErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
