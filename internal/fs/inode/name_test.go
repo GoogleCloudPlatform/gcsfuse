@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestName(t *testing.T) {
@@ -30,64 +30,64 @@ func TestName(t *testing.T) {
 		}
 
 		root := inode.NewRootName(bucketName) // ""
-		ExpectTrue(root.IsBucketRoot())
-		ExpectTrue(root.IsDir())
-		ExpectFalse(root.IsFile())
-		ExpectEq("", root.GcsObjectName())
-		ExpectEq(mountPoint+"", root.LocalName())
-		ExpectFalse(root.IsDirectChildOf(root))
+		assert.True(t, root.IsBucketRoot())
+		assert.True(t, root.IsDir())
+		assert.False(t, root.IsFile())
+		assert.Equal(t, "", root.GcsObjectName())
+		assert.Equal(t, mountPoint+"", root.LocalName())
+		assert.False(t, root.IsDirectChildOf(root))
 
 		anotherRoot := inode.NewRootName("bucket-y") // ""
-		ExpectFalse(root.IsDirectChildOf(anotherRoot))
-		ExpectFalse(anotherRoot.IsDirectChildOf(root))
+		assert.False(t, root.IsDirectChildOf(anotherRoot))
+		assert.False(t, anotherRoot.IsDirectChildOf(root))
 
 		foo := inode.NewDirName(root, "foo") // "foo"
-		ExpectFalse(foo.IsBucketRoot())
-		ExpectTrue(foo.IsDir())
-		ExpectFalse(foo.IsFile())
-		ExpectEq("foo/", foo.GcsObjectName())
-		ExpectEq(mountPoint+"foo/", foo.LocalName())
-		ExpectFalse(foo.IsDirectChildOf(foo))
-		ExpectFalse(foo.IsDirectChildOf(anotherRoot))
-		ExpectTrue(foo.IsDirectChildOf(root))
+		assert.False(t, foo.IsBucketRoot())
+		assert.True(t, foo.IsDir())
+		assert.False(t, foo.IsFile())
+		assert.Equal(t, "foo/", foo.GcsObjectName())
+		assert.Equal(t, mountPoint+"foo/", foo.LocalName())
+		assert.False(t, foo.IsDirectChildOf(foo))
+		assert.False(t, foo.IsDirectChildOf(anotherRoot))
+		assert.True(t, foo.IsDirectChildOf(root))
 
 		bar := inode.NewDirName(foo, "bar") // "foo/bar"
-		ExpectFalse(bar.IsBucketRoot())
-		ExpectTrue(bar.IsDir())
-		ExpectFalse(bar.IsFile())
-		ExpectEq("foo/bar/", bar.GcsObjectName())
-		ExpectEq(mountPoint+"foo/bar/", bar.LocalName())
-		ExpectFalse(bar.IsDirectChildOf(bar))
-		ExpectFalse(bar.IsDirectChildOf(root))
-		ExpectTrue(bar.IsDirectChildOf(foo))
-		ExpectFalse(foo.IsDirectChildOf(bar))
+		assert.False(t, bar.IsBucketRoot())
+		assert.True(t, bar.IsDir())
+		assert.False(t, bar.IsFile())
+		assert.Equal(t, "foo/bar/", bar.GcsObjectName())
+		assert.Equal(t, mountPoint+"foo/bar/", bar.LocalName())
+		assert.False(t, bar.IsDirectChildOf(bar))
+		assert.False(t, bar.IsDirectChildOf(root))
+		assert.True(t, bar.IsDirectChildOf(foo))
+		assert.False(t, foo.IsDirectChildOf(bar))
 
 		baz := inode.NewFileName(root, "baz") // "baz"
-		ExpectFalse(baz.IsBucketRoot())
-		ExpectFalse(baz.IsDir())
-		ExpectTrue(baz.IsFile())
-		ExpectEq("baz", baz.GcsObjectName())
-		ExpectEq(mountPoint+"baz", baz.LocalName())
-		ExpectFalse(baz.IsDirectChildOf(foo))
-		ExpectFalse(baz.IsDirectChildOf(bar))
-		ExpectTrue(baz.IsDirectChildOf(root))
+		assert.False(t, baz.IsBucketRoot())
+		assert.False(t, baz.IsDir())
+		assert.True(t, baz.IsFile())
+		assert.Equal(t, "baz", baz.GcsObjectName())
+		assert.Equal(t, mountPoint+"baz", baz.LocalName())
+		assert.False(t, baz.IsDirectChildOf(foo))
+		assert.False(t, baz.IsDirectChildOf(bar))
+		assert.True(t, baz.IsDirectChildOf(root))
 
 		qux := inode.NewFileName(bar, "qux") // "foo/bar/qux"
-		ExpectFalse(qux.IsBucketRoot())
-		ExpectFalse(qux.IsDir())
-		ExpectTrue(qux.IsFile())
-		ExpectEq("foo/bar/qux", qux.GcsObjectName())
-		ExpectEq(mountPoint+"foo/bar/qux", qux.LocalName())
-		ExpectFalse(qux.IsDirectChildOf(root))
-		ExpectFalse(baz.IsDirectChildOf(baz))
-		ExpectTrue(qux.IsDirectChildOf(bar))
+		assert.False(t, qux.IsBucketRoot())
+		assert.False(t, qux.IsDir())
+		assert.True(t, qux.IsFile())
+		assert.Equal(t, "foo/bar/qux", qux.GcsObjectName())
+		assert.Equal(t, mountPoint+"foo/bar/qux", qux.LocalName())
+		assert.False(t, qux.IsDirectChildOf(root))
+		assert.False(t, baz.IsDirectChildOf(baz))
+		assert.True(t, qux.IsDirectChildOf(bar))
 
 		qux = inode.NewDescendantName(foo, "foo/bar/qux") // "foo/bar/qux"
-		ExpectFalse(qux.IsBucketRoot())
-		ExpectFalse(qux.IsDir())
-		ExpectTrue(qux.IsFile())
-		ExpectEq("foo/bar/qux", qux.GcsObjectName())
-		ExpectEq(mountPoint+"foo/bar/qux", qux.LocalName())
+		assert.False(t, qux.IsBucketRoot())
+		assert.False(t, qux.IsDir())
+		assert.True(t, qux.IsFile())
+		assert.Equal(t, "foo/bar/qux", qux.GcsObjectName())
+		assert.Equal(t, mountPoint+"foo/bar/qux", qux.LocalName())
 	}
 }
 
@@ -102,10 +102,10 @@ func TestNameAsMapKey(t *testing.T) {
 	count[foo]++
 	count[foo2]++
 
-	ExpectEq(1, count[root])
-	ExpectEq(2, count[foo])
+	assert.Equal(t, 1, count[root])
+	assert.Equal(t, 2, count[foo])
 	_, ok := count[bar]
-	ExpectFalse(ok)
+	assert.False(t, ok)
 }
 
 func TestParentName(t *testing.T) {
@@ -130,9 +130,9 @@ func TestParentName(t *testing.T) {
 		for _, tc := range testCases {
 			parent, err := tc.name.ParentName()
 
-			ExpectEq(nil, err)
-			ExpectEq(tc.expectedParentName.GcsObjectName(), parent.GcsObjectName())
-			ExpectEq(tc.expectedParentName.LocalName(), parent.LocalName())
+			assert.Nil(t, err)
+			assert.Equal(t, tc.expectedParentName.GcsObjectName(), parent.GcsObjectName())
+			assert.Equal(t, tc.expectedParentName.LocalName(), parent.LocalName())
 		}
 	}
 }
@@ -146,7 +146,7 @@ func TestParentNameReturnsErrorOnBucketRoot(t *testing.T) {
 		_, err := root.ParentName()
 
 		// Expect an error
-		ExpectNe(nil, err)
-		ExpectThat(err, Error(HasSubstr("root has no parent")))
+		require.NotNil(t, err)
+		assert.ErrorContains(t, err, "root has no parent")
 	}
 }
