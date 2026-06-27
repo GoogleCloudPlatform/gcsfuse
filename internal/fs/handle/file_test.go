@@ -1441,6 +1441,10 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 				Offset: offset,
 			}, int32(readSize))
 
+			if resp.Callback != nil {
+				defer resp.Callback()
+			}
+
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, resp.Size)
 			results[index] = util.ConvertReadResponseToBytes(resp.Data, resp.Size)
