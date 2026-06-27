@@ -62,4 +62,3 @@ func TestObjectIsNotFinalized(t *testing.T) {
 
 	assert.True(t, o.IsUnfinalized())
 }
-
