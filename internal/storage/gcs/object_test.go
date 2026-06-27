@@ -18,62 +18,48 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestObject(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type ObjectTest struct {
-}
-
-func init() { RegisterTestSuite(&ObjectTest{}) }
-
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func (t *ObjectTest) HasContentEncodingGzipPositive() {
+func TestHasContentEncodingGzipPositive(t *testing.T) {
 	mo := MinObject{}
 	mo.ContentEncoding = "gzip"
 
-	AssertTrue(mo.HasContentEncodingGzip())
+	assert.True(t, mo.HasContentEncodingGzip())
 }
 
-func (t *ObjectTest) HasContentEncodingGzipNegative() {
+func TestHasContentEncodingGzipNegative(t *testing.T) {
 	encodings := []string{"", "GZIP", "xzip", "zip"}
 
 	for _, encoding := range encodings {
 		mo := MinObject{}
 		mo.ContentEncoding = encoding
 
-		AssertFalse(mo.HasContentEncodingGzip())
+		assert.False(t, mo.HasContentEncodingGzip())
 	}
 }
 
-func (t *ObjectTest) IsFinalized() {
+func TestIsFinalized(t *testing.T) {
 	mo := MinObject{Finalized: time.Date(2025, time.June, 19, 18, 23, 30, 0, time.UTC)}
 
-	AssertFalse(mo.IsUnfinalized())
+	assert.False(t, mo.IsUnfinalized())
 }
 
-func (t *ObjectTest) IsNotFinalized() {
+func TestIsNotFinalized(t *testing.T) {
 	mo := MinObject{}
 
-	AssertTrue(mo.IsUnfinalized())
+	assert.True(t, mo.IsUnfinalized())
 }
 
-func (t *ObjectTest) ObjectIsFinalized() {
+func TestObjectIsFinalized(t *testing.T) {
 	o := Object{Finalized: time.Date(2025, time.June, 19, 18, 23, 30, 0, time.UTC)}
 
-	AssertFalse(o.IsUnfinalized())
+	assert.False(t, o.IsUnfinalized())
 }
 
-func (t *ObjectTest) ObjectIsNotFinalized() {
+func TestObjectIsNotFinalized(t *testing.T) {
 	o := Object{}
 
-	AssertTrue(o.IsUnfinalized())
+	assert.True(t, o.IsUnfinalized())
 }
+
