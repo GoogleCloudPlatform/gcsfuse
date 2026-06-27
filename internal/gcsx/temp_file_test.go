@@ -15,6 +15,7 @@
 package gcsx_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -22,13 +23,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-func TestTempFile(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -123,129 +121,134 @@ const initialContent = "tacoburrito"
 
 const initialContentSize = len(initialContent)
 
-type TempFileTest struct {
-	ctx   context.Context
-	clock timeutil.SimulatedClock
-
-	tf checkingTempFile
-}
-
-func init() { RegisterTestSuite(&TempFileTest{}) }
-
-var _ SetUpInterface = &TempFileTest{}
-
-func (t *TempFileTest) SetUp(ti *TestInfo) {
-	var err error
-	t.ctx = ti.Ctx
+func setupTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, checkingTempFile) {
+	ctx := context.Background()
 
 	// Set up the clock.
-	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+	clock := &timeutil.SimulatedClock{}
+	clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
 	// And the temp file.
-	t.tf.wrapped, err = gcsx.NewTempFile(
+	var tf checkingTempFile
+	var err error
+	tf.wrapped, err = gcsx.NewTempFile(
 		dummyReadCloser{strings.NewReader(initialContent)},
 		"",
-		&t.clock)
+		clock)
 
-	AssertEq(nil, err)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		tf.Destroy()
+	})
+
+	return ctx, clock, tf
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *TempFileTest) Stat_InitialState() {
-	sr, err := t.tf.Stat()
+func TestStat_InitialState(t *testing.T) {
+	_, _, tf := setupTest(t)
+	sr, err := tf.Stat()
 
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize, sr.Size)
-	ExpectEq(initialContentSize, sr.DirtyThreshold)
-	ExpectEq(nil, sr.Mtime)
+	require.NoError(t, err)
+	assert.Equal(t, int64(initialContentSize), sr.Size)
+	assert.Equal(t, int64(initialContentSize), sr.DirtyThreshold)
+	assert.Nil(t, sr.Mtime)
 }
 
-func (t *TempFileTest) ReadAt() {
+func TestReadAt(t *testing.T) {
+	_, _, tf := setupTest(t)
 	// Call
 	var buf [2]byte
-	n, err := t.tf.ReadAt(buf[:], 1)
+	n, err := tf.ReadAt(buf[:], 1)
 
-	ExpectEq(2, n)
-	ExpectEq(nil, err)
-	ExpectEq(initialContent[1:3], string(buf[:]))
+	assert.Equal(t, 2, n)
+	assert.NoError(t, err)
+	assert.Equal(t, initialContent[1:3], string(buf[:]))
 
-	n, err = t.tf.ReadAt(buf[:], int64(initialContentSize)-1)
-	ExpectEq(1, n)
-	ExpectEq(io.EOF, err)
-	ExpectEq(
+	n, err = tf.ReadAt(buf[:], int64(initialContentSize)-1)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, io.EOF, err)
+	assert.Equal(t,
 		initialContent[initialContentSize-1:initialContentSize],
 		string(buf[0:n]),
 	)
 
 	// Check Stat.
-	sr, err := t.tf.Stat()
+	sr, err := tf.Stat()
 
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize, sr.Size)
-	ExpectEq(initialContentSize, sr.DirtyThreshold)
-	ExpectEq(nil, sr.Mtime)
+	require.NoError(t, err)
+	assert.Equal(t, int64(initialContentSize), sr.Size)
+	assert.Equal(t, int64(initialContentSize), sr.DirtyThreshold)
+	assert.Nil(t, sr.Mtime)
 }
 
-func (t *TempFileTest) WriteAt() {
+func TestWriteAt(t *testing.T) {
+	_, clock, tf := setupTest(t)
 	// Call
 	p := []byte("fo")
-	n, err := t.tf.WriteAt(p, 1)
+	n, err := tf.WriteAt(p, 1)
 
-	ExpectEq(2, n)
-	ExpectEq(nil, err)
+	assert.Equal(t, 2, n)
+	assert.NoError(t, err)
 
 	// Check Stat.
-	sr, err := t.tf.Stat()
+	sr, err := tf.Stat()
 
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize, sr.Size)
-	ExpectEq(1, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
+	require.NoError(t, err)
+	assert.Equal(t, int64(initialContentSize), sr.Size)
+	assert.Equal(t, int64(1), sr.DirtyThreshold)
+	require.NotNil(t, sr.Mtime)
+	assert.Equal(t, clock.Now(), *sr.Mtime)
 
 	// Read back.
 	expected := []byte(initialContent)
 	expected[1] = 'f'
 	expected[2] = 'o'
 
-	actual, err := readAll(&t.tf)
-	AssertEq(nil, err)
-	ExpectEq(string(expected), string(actual))
+	actual, err := readAll(&tf)
+	require.NoError(t, err)
+	assert.Equal(t, string(expected), string(actual))
 }
 
-func (t *TempFileTest) Truncate() {
+func TestTruncate(t *testing.T) {
+	_, clock, tf := setupTest(t)
 	// Call
-	err := t.tf.Truncate(2)
-	ExpectEq(nil, err)
+	err := tf.Truncate(2)
+	assert.NoError(t, err)
 
 	// Check Stat.
-	sr, err := t.tf.Stat()
+	sr, err := tf.Stat()
 
-	AssertEq(nil, err)
-	ExpectEq(2, sr.Size)
-	ExpectEq(2, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), sr.Size)
+	assert.Equal(t, int64(2), sr.DirtyThreshold)
+	require.NotNil(t, sr.Mtime)
+	assert.Equal(t, clock.Now(), *sr.Mtime)
 
 	// Read back.
 	expected := initialContent[0:2]
 
-	actual, err := readAll(&t.tf)
-	AssertEq(nil, err)
-	ExpectEq(expected, string(actual))
+	actual, err := readAll(&tf)
+	require.NoError(t, err)
+	assert.Equal(t, expected, string(actual))
 }
 
-func (t *TempFileTest) SetMtime() {
+func TestSetMtime(t *testing.T) {
+	_, clock, tf := setupTest(t)
 	mtime := time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local)
-	AssertThat(mtime, Not(timeutil.TimeEq(t.clock.Now())))
+	assert.NotEqual(t, clock.Now(), mtime)
 
 	// Set.
-	t.tf.SetMtime(mtime)
+	tf.SetMtime(mtime)
 
 	// Check.
-	sr, err := t.tf.Stat()
+	sr, err := tf.Stat()
 
-	AssertEq(nil, err)
-	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(mtime)))
+	require.NoError(t, err)
+	require.NotNil(t, sr.Mtime)
+	assert.Equal(t, mtime, *sr.Mtime)
 }

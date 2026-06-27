@@ -25,57 +25,44 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func TestBucketManager(t *testing.T) { RunTests(t) }
-
 const TestBucketName string = "gcsfuse-default-bucket"
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
+func setupTest(t *testing.T) (gcs.Bucket, storage.StorageHandle, *storage.MockStorageControlClient) {
+	mockClient := new(storage.MockStorageControlClient)
+	fakeStorage := storage.NewFakeStorageWithMockClient(mockClient, cfg.HTTP2)
+	storageHandle := fakeStorage.CreateStorageHandle()
 
-type BucketManagerTest struct {
-	bucket        gcs.Bucket
-	storageHandle storage.StorageHandle
-	fakeStorage   storage.FakeStorage
-	mockClient    *storage.MockStorageControlClient
-}
-
-var _ SetUpInterface = &BucketManagerTest{}
-var _ TearDownInterface = &BucketManagerTest{}
-
-func init() { RegisterTestSuite(&BucketManagerTest{}) }
-
-func (t *BucketManagerTest) SetUp(_ *TestInfo) {
-	var err error
-	t.mockClient = new(storage.MockStorageControlClient)
-	t.fakeStorage = storage.NewFakeStorageWithMockClient(t.mockClient, cfg.HTTP2)
-	t.storageHandle = t.fakeStorage.CreateStorageHandle()
-	t.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
+	mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
 		return strings.Contains(req.Name, TestBucketName)
 	}), mock.Anything).
 		Return(&controlpb.StorageLayout{
 			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 			LocationType:          "zone",
 		}, nil)
+
 	ctx := context.Background()
-	t.bucket, err = t.storageHandle.BucketHandle(ctx, TestBucketName, "")
+	bucket, err := storageHandle.BucketHandle(ctx, TestBucketName, "")
 
-	AssertNe(nil, t.bucket)
-	AssertEq(nil, err)
+	require.NotNil(t, bucket)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		fakeStorage.ShutDown()
+	})
+
+	return bucket, storageHandle, mockClient
 }
 
-func (t *BucketManagerTest) TearDown() {
-	t.fakeStorage.ShutDown()
-}
-
-func (t *BucketManagerTest) TestNewBucketManagerMethod() {
+func TestNewBucketManager(t *testing.T) {
+	_, storageHandle, _ := setupTest(t)
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
 		OnlyDir:                            "OnlyDir",
@@ -88,12 +75,13 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 	}
 
-	bm := NewBucketManager(bucketConfig, t.storageHandle)
+	bm := NewBucketManager(bucketConfig, storageHandle)
 
-	ExpectNe(nil, bm)
+	assert.NotNil(t, bm)
 }
 
-func (t *BucketManagerTest) TestSetUpBucketMethod() {
+func TestSetUpBucket(t *testing.T) {
+	_, storageHandle, _ := setupTest(t)
 	var bm bucketManager
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
@@ -106,18 +94,20 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 	}
-	ctx := context.Background()
-	bm.storageHandle = t.storageHandle
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	bm.storageHandle = storageHandle
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, false, metrics.NewNoopMetrics())
+	bucket, err := bm.SetUpBucket(ctx, TestBucketName, false, metrics.NewNoopMetrics())
 
-	ExpectNe(nil, bucket.Syncer)
-	ExpectEq(nil, err)
+	require.NoError(t, err)
+	assert.NotNil(t, bucket.Syncer)
 }
 
-func (t *BucketManagerTest) TestSetUpBucketMethod_IsMultiBucketMountTrue() {
+func TestSetUpBucket_IsMultiBucketMountTrue(t *testing.T) {
+	_, storageHandle, _ := setupTest(t)
 	var bm bucketManager
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
@@ -130,18 +120,20 @@ func (t *BucketManagerTest) TestSetUpBucketMethod_IsMultiBucketMountTrue() {
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 	}
-	ctx := context.Background()
-	bm.storageHandle = t.storageHandle
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	bm.storageHandle = storageHandle
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, true, metrics.NewNoopMetrics())
+	bucket, err := bm.SetUpBucket(ctx, TestBucketName, true, metrics.NewNoopMetrics())
 
-	ExpectNe(nil, bucket.Syncer)
-	ExpectEq(nil, err)
+	require.NoError(t, err)
+	assert.NotNil(t, bucket.Syncer)
 }
 
-func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
+func TestSetUpBucketWhenBucketDoesNotExist(t *testing.T) {
+	_, storageHandle, mockClient := setupTest(t)
 	var bm bucketManager
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
@@ -154,53 +146,56 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 	}
-	ctx := context.Background()
-	bm.storageHandle = t.storageHandle
-	bm.config = bucketConfig
-	bm.gcCtx = ctx
-
-	// Configure mock to return NotFound error for invalidBucketName layout check
-	t.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return strings.Contains(req.Name, invalidBucketName)
-	}), mock.Anything).
-		Return(nil, status.Errorf(codes.NotFound, "The specified bucket does not exist."))
-
-	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, false, metrics.NewNoopMetrics())
-
-	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), "storageLayout call failed:"))
-	ExpectTrue(strings.Contains(err.Error(), "code = NotFound desc = The specified bucket does not exist."))
-	ExpectEq(nil, bucket.Syncer)
-}
-
-func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist_IsMultiBucketMountTrue() {
-	var bm bucketManager
-	bucketConfig := BucketConfig{
-		BillingProject:                     "BillingProject",
-		OnlyDir:                            "OnlyDir",
-		EgressBandwidthLimitBytesPerSecond: 7,
-		OpRateLimitHz:                      11,
-		StatCacheMaxSizeMB:                 1,
-		StatCacheTTL:                       20 * time.Second,
-		EnableMonitoring:                   true,
-		AppendThreshold:                    2,
-		TmpObjectPrefix:                    "TmpObjectPrefix",
-	}
-	ctx := context.Background()
-	bm.storageHandle = t.storageHandle
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	bm.storageHandle = storageHandle
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
 	// Configure mock to return NotFound error for invalidBucketName layout check
-	t.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
+	mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
 		return strings.Contains(req.Name, invalidBucketName)
 	}), mock.Anything).
 		Return(nil, status.Errorf(codes.NotFound, "The specified bucket does not exist."))
 
-	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, true, metrics.NewNoopMetrics())
+	bucket, err := bm.SetUpBucket(ctx, invalidBucketName, false, metrics.NewNoopMetrics())
 
-	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), "storageLayout call failed:"))
-	ExpectTrue(strings.Contains(err.Error(), "code = NotFound desc = The specified bucket does not exist."))
-	ExpectEq(nil, bucket.Syncer)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "storageLayout call failed:")
+	assert.Contains(t, err.Error(), "code = NotFound desc = The specified bucket does not exist.")
+	assert.Nil(t, bucket.Syncer)
+}
+
+func TestSetUpBucketWhenBucketDoesNotExist_IsMultiBucketMountTrue(t *testing.T) {
+	_, storageHandle, mockClient := setupTest(t)
+	var bm bucketManager
+	bucketConfig := BucketConfig{
+		BillingProject:                     "BillingProject",
+		OnlyDir:                            "OnlyDir",
+		EgressBandwidthLimitBytesPerSecond: 7,
+		OpRateLimitHz:                      11,
+		StatCacheMaxSizeMB:                 1,
+		StatCacheTTL:                       20 * time.Second,
+		EnableMonitoring:                   true,
+		AppendThreshold:                    2,
+		TmpObjectPrefix:                    "TmpObjectPrefix",
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	bm.storageHandle = storageHandle
+	bm.config = bucketConfig
+	bm.gcCtx = ctx
+
+	// Configure mock to return NotFound error for invalidBucketName layout check
+	mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
+		return strings.Contains(req.Name, invalidBucketName)
+	}), mock.Anything).
+		Return(nil, status.Errorf(codes.NotFound, "The specified bucket does not exist."))
+
+	bucket, err := bm.SetUpBucket(ctx, invalidBucketName, true, metrics.NewNoopMetrics())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "storageLayout call failed:")
+	assert.Contains(t, err.Error(), "code = NotFound desc = The specified bucket does not exist.")
+	assert.Nil(t, bucket.Syncer)
 }
