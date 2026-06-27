@@ -146,7 +146,6 @@ func TestParentNameReturnsErrorOnBucketRoot(t *testing.T) {
 		_, err := root.ParentName()
 
 		// Expect an error
-		require.NotNil(t, err)
-		assert.ErrorContains(t, err, "root has no parent")
+		require.ErrorContains(t, err, "root has no parent")
 	}
 }
