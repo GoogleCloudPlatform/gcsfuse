@@ -67,7 +67,7 @@ func TestReadWriteMetadataCheckpointFile(t *testing.T) {
 	contentCache := contentcache.New(tempDir, mtimeClock)
 	f, err := fsutil.AnonymousFile(tempDir)
 	require.NoError(t, err)
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	objectMetadata := contentcache.CacheFileObjectMetadata{
 		CacheFileNameOnDisk: f.Name(),
