@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	gcsstorage "cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
@@ -118,4 +119,22 @@ func CreateFolderInBucket(ctx context.Context, client *control.StorageControlCli
 	f, err := client.CreateFolder(ctx, req)
 
 	return f, err
+}
+
+func DeleteFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) error {
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	req := &controlpb.DeleteFolderRequest{
+		Name: fmt.Sprintf("projects/_/buckets/%s/folders/%s", bucket, path.Join(rootFolder, folderPath)),
+	}
+	return client.DeleteFolder(ctx, req)
+}
+
+func DeleteDirOnGCS(ctx context.Context, storageClient *gcsstorage.Client, relativeDirPath string) {
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	gcsObjName := path.Join(rootFolder, relativeDirPath) + "/"
+	_ = getBucketHandle(storageClient, bucket).Object(gcsObjName).Delete(ctx)
+	if controlClient, err := CreateControlClient(ctx); err == nil && controlClient != nil {
+		_ = DeleteFolderInBucket(ctx, controlClient, relativeDirPath)
+		controlClient.Close()
+	}
 }
