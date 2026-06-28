@@ -22,21 +22,15 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
 const TestBucketName string = "gcsfuse-default-bucket"
 const TestObjectName string = "gcsfuse/default.txt"
 
-func TestObjectAttrs(t *testing.T) { RunTests(t) }
-
-type objectAttrsTest struct {
-}
-
-func init() { RegisterTestSuite(&objectAttrsTest{}) }
-
-func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethod() {
+func TestConvertACLRuleToObjectAccessControlMethod(t *testing.T) {
 	var attrs = storage.ACLRule{
 		Entity:   "allUsers",
 		EntityID: "123",
@@ -51,26 +45,26 @@ func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethod() {
 
 	objectAccessControl := convertACLRuleToObjectAccessControl(attrs)
 
-	ExpectEq(objectAccessControl.Entity, string(attrs.Entity))
-	ExpectEq(objectAccessControl.EntityId, attrs.EntityID)
-	ExpectEq(objectAccessControl.Role, string(attrs.Role))
-	ExpectEq(objectAccessControl.Domain, attrs.Domain)
-	ExpectEq(objectAccessControl.Email, attrs.Email)
-	ExpectEq(objectAccessControl.ProjectTeam.ProjectNumber, attrs.ProjectTeam.ProjectNumber)
-	ExpectEq(objectAccessControl.ProjectTeam.Team, attrs.ProjectTeam.Team)
+	assert.Equal(t, string(attrs.Entity), objectAccessControl.Entity)
+	assert.Equal(t, attrs.EntityID, objectAccessControl.EntityId)
+	assert.Equal(t, string(attrs.Role), objectAccessControl.Role)
+	assert.Equal(t, attrs.Domain, objectAccessControl.Domain)
+	assert.Equal(t, attrs.Email, objectAccessControl.Email)
+	assert.Equal(t, attrs.ProjectTeam.ProjectNumber, objectAccessControl.ProjectTeam.ProjectNumber)
+	assert.Equal(t, attrs.ProjectTeam.Team, objectAccessControl.ProjectTeam.Team)
 }
 
-func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethodWhenProjectTeamEqualsNil() {
+func TestConvertACLRuleToObjectAccessControlMethodWhenProjectTeamEqualsNil(t *testing.T) {
 	var attrs = storage.ACLRule{
 		ProjectTeam: nil,
 	}
 
 	objectAccessControl := convertACLRuleToObjectAccessControl(attrs)
 
-	ExpectEq(nil, objectAccessControl.ProjectTeam)
+	assert.Nil(t, objectAccessControl.ProjectTeam)
 }
 
-func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
+func TestObjectAttrsToBucketObjectMethod(t *testing.T) {
 	var attrMd5 []byte
 	timeAttr := time.Now()
 	attrs := storage.ObjectAttrs{
@@ -118,32 +112,32 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 
 	object := ObjectAttrsToBucketObject(&attrs)
 
-	ExpectEq(object.Name, attrs.Name)
-	ExpectEq(object.ContentType, attrs.ContentType)
-	ExpectEq(object.ContentLanguage, attrs.ContentLanguage)
-	ExpectEq(object.CacheControl, attrs.CacheControl)
-	ExpectEq(object.Owner, attrs.Owner)
-	ExpectEq(object.Size, attrs.Size)
-	ExpectEq(object.ContentEncoding, attrs.ContentEncoding)
-	ExpectEq(len(object.MD5), len(&md5Expected))
-	ExpectEq(cap(object.MD5), cap(&md5Expected))
-	ExpectEq(*object.CRC32C, attrs.CRC32C)
-	ExpectEq(object.MediaLink, attrs.MediaLink)
-	ExpectEq(object.Metadata, attrs.Metadata)
-	ExpectEq(object.Generation, attrs.Generation)
-	ExpectEq(object.MetaGeneration, attrs.Metageneration)
-	ExpectEq(object.StorageClass, attrs.StorageClass)
-	ExpectEq(object.Updated.String(), attrs.Updated.String())
-	ExpectEq(object.Finalized.String(), attrs.Finalized.String())
-	ExpectEq(object.Deleted.String(), attrs.Deleted.String())
-	ExpectEq(object.ContentDisposition, attrs.ContentDisposition)
-	ExpectEq(object.CustomTime, customeTimeExpected)
-	ExpectEq(object.EventBasedHold, attrs.EventBasedHold)
-	ExpectEq(object.Acl, acl)
-	ExpectEq(object.ComponentCount, attrs.ComponentCount)
+	assert.Equal(t, attrs.Name, object.Name)
+	assert.Equal(t, attrs.ContentType, object.ContentType)
+	assert.Equal(t, attrs.ContentLanguage, object.ContentLanguage)
+	assert.Equal(t, attrs.CacheControl, object.CacheControl)
+	assert.Equal(t, attrs.Owner, object.Owner)
+	assert.Equal(t, uint64(attrs.Size), object.Size)
+	assert.Equal(t, attrs.ContentEncoding, object.ContentEncoding)
+	assert.Equal(t, len(&md5Expected), len(object.MD5))
+	assert.Equal(t, cap(&md5Expected), cap(object.MD5))
+	assert.Equal(t, attrs.CRC32C, *object.CRC32C)
+	assert.Equal(t, attrs.MediaLink, object.MediaLink)
+	assert.Equal(t, attrs.Metadata, object.Metadata)
+	assert.Equal(t, attrs.Generation, object.Generation)
+	assert.Equal(t, attrs.Metageneration, object.MetaGeneration)
+	assert.Equal(t, attrs.StorageClass, object.StorageClass)
+	assert.Equal(t, attrs.Updated.String(), object.Updated.String())
+	assert.Equal(t, attrs.Finalized.String(), object.Finalized.String())
+	assert.Equal(t, attrs.Deleted.String(), object.Deleted.String())
+	assert.Equal(t, attrs.ContentDisposition, object.ContentDisposition)
+	assert.Equal(t, customeTimeExpected, object.CustomTime)
+	assert.Equal(t, attrs.EventBasedHold, object.EventBasedHold)
+	assert.Equal(t, acl, object.Acl)
+	assert.Equal(t, attrs.ComponentCount, object.ComponentCount)
 }
 
-func (t objectAttrsTest) TestConvertObjectAccessControlToACLRuleMethod() {
+func TestConvertObjectAccessControlToACLRuleMethod(t *testing.T) {
 	objectAccessControl := &storagev1.ObjectAccessControl{
 		Entity:   "test_entity",
 		EntityId: "test_entity_id",
@@ -158,26 +152,26 @@ func (t objectAttrsTest) TestConvertObjectAccessControlToACLRuleMethod() {
 
 	aclRule := convertObjectAccessControlToACLRule(objectAccessControl)
 
-	ExpectEq(aclRule.Entity, objectAccessControl.Entity)
-	ExpectEq(aclRule.EntityID, objectAccessControl.EntityId)
-	ExpectEq(aclRule.Role, objectAccessControl.Role)
-	ExpectEq(aclRule.Domain, objectAccessControl.Domain)
-	ExpectEq(aclRule.Email, objectAccessControl.Email)
-	ExpectEq(aclRule.ProjectTeam.ProjectNumber, objectAccessControl.ProjectTeam.ProjectNumber)
-	ExpectEq(aclRule.ProjectTeam.Team, objectAccessControl.ProjectTeam.Team)
+	assert.Equal(t, storage.ACLEntity(objectAccessControl.Entity), aclRule.Entity)
+	assert.Equal(t, objectAccessControl.EntityId, aclRule.EntityID)
+	assert.Equal(t, storage.ACLRole(objectAccessControl.Role), aclRule.Role)
+	assert.Equal(t, objectAccessControl.Domain, aclRule.Domain)
+	assert.Equal(t, objectAccessControl.Email, aclRule.Email)
+	assert.Equal(t, objectAccessControl.ProjectTeam.ProjectNumber, aclRule.ProjectTeam.ProjectNumber)
+	assert.Equal(t, objectAccessControl.ProjectTeam.Team, aclRule.ProjectTeam.Team)
 }
 
-func (t objectAttrsTest) TestConvertObjectAccessControlToACLRuleMethodWhenProjectTeamEqualsNil() {
+func TestConvertObjectAccessControlToACLRuleMethodWhenProjectTeamEqualsNil(t *testing.T) {
 	objectAccessControl := &storagev1.ObjectAccessControl{
 		ProjectTeam: nil,
 	}
 
 	aclRule := convertObjectAccessControlToACLRule(objectAccessControl)
 
-	ExpectEq(nil, aclRule.ProjectTeam)
+	assert.Nil(t, aclRule.ProjectTeam)
 }
 
-func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
+func TestSetAttrsInWriterMethod(t *testing.T) {
 	var crc32c uint32 = 45
 	var generationPrecondition int64 = 3
 	var metaGenerationPrecondition int64 = 33
@@ -204,31 +198,31 @@ func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
 
 	writer = SetAttrsInWriter(writer, &createObjectRequest)
 
-	ExpectEq(writer.Name, createObjectRequest.Name)
-	ExpectEq(writer.ContentType, createObjectRequest.ContentType)
-	ExpectEq(writer.ContentLanguage, createObjectRequest.ContentLanguage)
-	ExpectEq(writer.ContentEncoding, createObjectRequest.ContentEncoding)
-	ExpectEq(writer.CacheControl, createObjectRequest.CacheControl)
-	ExpectEq(writer.Metadata, createObjectRequest.Metadata)
-	ExpectEq(writer.ContentDisposition, createObjectRequest.ContentDisposition)
+	assert.Equal(t, createObjectRequest.Name, writer.Name)
+	assert.Equal(t, createObjectRequest.ContentType, writer.ContentType)
+	assert.Equal(t, createObjectRequest.ContentLanguage, writer.ContentLanguage)
+	assert.Equal(t, createObjectRequest.ContentEncoding, writer.ContentEncoding)
+	assert.Equal(t, createObjectRequest.CacheControl, writer.CacheControl)
+	assert.Equal(t, createObjectRequest.Metadata, writer.Metadata)
+	assert.Equal(t, createObjectRequest.ContentDisposition, writer.ContentDisposition)
 	parsedTime, _ := time.Parse(time.RFC3339, createObjectRequest.CustomTime)
-	ExpectTrue(parsedTime.Equal(writer.CustomTime))
-	ExpectEq(writer.EventBasedHold, createObjectRequest.EventBasedHold)
-	ExpectEq(writer.StorageClass, createObjectRequest.StorageClass)
-	ExpectEq(writer.CRC32C, *createObjectRequest.CRC32C)
-	ExpectTrue(writer.SendCRC32C)
-	ExpectEq(string(writer.MD5[:]), string(createObjectRequest.MD5[:]))
+	assert.True(t, parsedTime.Equal(writer.CustomTime))
+	assert.Equal(t, createObjectRequest.EventBasedHold, writer.EventBasedHold)
+	assert.Equal(t, createObjectRequest.StorageClass, writer.StorageClass)
+	assert.Equal(t, *createObjectRequest.CRC32C, writer.CRC32C)
+	assert.True(t, writer.SendCRC32C)
+	assert.Equal(t, string(createObjectRequest.MD5[:]), string(writer.MD5[:]))
 }
 
-func (t objectAttrsTest) Test_ConvertObjToMinObject_WithNilObject() {
+func Test_ConvertObjToMinObject_WithNilObject(t *testing.T) {
 	var gcsObject *gcs.Object
 
 	gcsMinObject := ConvertObjToMinObject(gcsObject)
 
-	ExpectEq(nil, gcsMinObject)
+	assert.Nil(t, gcsMinObject)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
+func Test_ConvertObjToMinObject_WithValidObject(t *testing.T) {
 	name := "test"
 	size := uint64(36)
 	generation := int64(444)
@@ -251,27 +245,27 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 
 	gcsMinObject := ConvertObjToMinObject(&gcsObject)
 
-	AssertNe(nil, gcsMinObject)
-	ExpectEq(name, gcsMinObject.Name)
-	ExpectEq(size, gcsMinObject.Size)
-	ExpectEq(generation, gcsMinObject.Generation)
-	ExpectEq(metaGeneration, gcsMinObject.MetaGeneration)
-	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
-	ExpectTrue(currentTime.Equal(gcsMinObject.Finalized))
-	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
-	ExpectEq(metadata, gcsMinObject.Metadata)
-	ExpectEq(crc32C, *gcsMinObject.CRC32C)
+	require.NotNil(t, gcsMinObject)
+	assert.Equal(t, name, gcsMinObject.Name)
+	assert.Equal(t, size, gcsMinObject.Size)
+	assert.Equal(t, generation, gcsMinObject.Generation)
+	assert.Equal(t, metaGeneration, gcsMinObject.MetaGeneration)
+	assert.True(t, currentTime.Equal(gcsMinObject.Updated))
+	assert.True(t, currentTime.Equal(gcsMinObject.Finalized))
+	assert.Equal(t, contentEncode, gcsMinObject.ContentEncoding)
+	assert.Equal(t, metadata, gcsMinObject.Metadata)
+	assert.Equal(t, crc32C, *gcsMinObject.CRC32C)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilObject() {
+func Test_ConvertObjToExtendedObjectAttributes_WithNilObject(t *testing.T) {
 	var gcsObject *gcs.Object
 
 	extendedObjAttr := ConvertObjToExtendedObjectAttributes(gcsObject)
 
-	ExpectEq(nil, extendedObjAttr)
+	assert.Nil(t, extendedObjAttr)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObject() {
+func Test_ConvertObjToExtendedObjectAttributes_WithValidObject(t *testing.T) {
 	var attrMd5 *[16]byte
 	timeAttr := time.Now()
 	gcsObject := gcs.Object{
@@ -292,32 +286,32 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObje
 
 	extendedObjAttr := ConvertObjToExtendedObjectAttributes(&gcsObject)
 
-	AssertNe(nil, extendedObjAttr)
-	ExpectEq(gcsObject.ContentType, extendedObjAttr.ContentType)
-	ExpectEq(gcsObject.ContentLanguage, extendedObjAttr.ContentLanguage)
-	ExpectEq(gcsObject.CacheControl, extendedObjAttr.CacheControl)
-	ExpectEq(gcsObject.Owner, extendedObjAttr.Owner)
-	ExpectEq(gcsObject.MD5, extendedObjAttr.MD5)
-	ExpectEq(gcsObject.MediaLink, extendedObjAttr.MediaLink)
-	ExpectEq(gcsObject.StorageClass, extendedObjAttr.StorageClass)
-	ExpectEq(0, gcsObject.Deleted.Compare(extendedObjAttr.Deleted))
-	ExpectEq(gcsObject.ComponentCount, extendedObjAttr.ComponentCount)
-	ExpectEq(gcsObject.ContentDisposition, extendedObjAttr.ContentDisposition)
-	ExpectEq(gcsObject.CustomTime, extendedObjAttr.CustomTime)
-	ExpectEq(gcsObject.EventBasedHold, extendedObjAttr.EventBasedHold)
-	ExpectEq(gcsObject.Acl, extendedObjAttr.Acl)
+	require.NotNil(t, extendedObjAttr)
+	assert.Equal(t, gcsObject.ContentType, extendedObjAttr.ContentType)
+	assert.Equal(t, gcsObject.ContentLanguage, extendedObjAttr.ContentLanguage)
+	assert.Equal(t, gcsObject.CacheControl, extendedObjAttr.CacheControl)
+	assert.Equal(t, gcsObject.Owner, extendedObjAttr.Owner)
+	assert.Equal(t, gcsObject.MD5, extendedObjAttr.MD5)
+	assert.Equal(t, gcsObject.MediaLink, extendedObjAttr.MediaLink)
+	assert.Equal(t, gcsObject.StorageClass, extendedObjAttr.StorageClass)
+	assert.Equal(t, 0, gcsObject.Deleted.Compare(extendedObjAttr.Deleted))
+	assert.Equal(t, gcsObject.ComponentCount, extendedObjAttr.ComponentCount)
+	assert.Equal(t, gcsObject.ContentDisposition, extendedObjAttr.ContentDisposition)
+	assert.Equal(t, gcsObject.CustomTime, extendedObjAttr.CustomTime)
+	assert.Equal(t, gcsObject.EventBasedHold, extendedObjAttr.EventBasedHold)
+	assert.Equal(t, gcsObject.Acl, extendedObjAttr.Acl)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilMinObjectAndNilAttributes() {
+func Test_ConvertObjToExtendedObjectAttributes_WithNilMinObjectAndNilAttributes(t *testing.T) {
 	var minObject *gcs.MinObject
 	var extendedObjectAttr *gcs.ExtendedObjectAttributes
 
 	object := ConvertMinObjectAndExtendedObjectAttributesToObject(minObject, extendedObjectAttr)
 
-	ExpectEq(nil, object)
+	assert.Nil(t, object)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilMinObjectAndNonNilAttributes() {
+func Test_ConvertObjToExtendedObjectAttributes_WithNilMinObjectAndNonNilAttributes(t *testing.T) {
 	var minObject *gcs.MinObject
 	extendedObjectAttr := &gcs.ExtendedObjectAttributes{
 		ContentType: "ContentType",
@@ -325,10 +319,10 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilMinObj
 
 	object := ConvertMinObjectAndExtendedObjectAttributesToObject(minObject, extendedObjectAttr)
 
-	ExpectEq(nil, object)
+	assert.Nil(t, object)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNilAttributes() {
+func Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNilAttributes(t *testing.T) {
 	name := "test"
 	minObject := &gcs.MinObject{
 		Name: name,
@@ -337,10 +331,10 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 
 	object := ConvertMinObjectAndExtendedObjectAttributesToObject(minObject, extendedObjectAttr)
 
-	ExpectEq(nil, object)
+	assert.Nil(t, object)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNonNilAttributes() {
+func Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNonNilAttributes(t *testing.T) {
 	var attrMd5 *[16]byte
 	timeAttr := time.Now()
 	minObject := &gcs.MinObject{
@@ -371,39 +365,39 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 
 	gcsObject := ConvertMinObjectAndExtendedObjectAttributesToObject(minObject, extendedObjAttr)
 
-	AssertNe(nil, gcsObject)
-	ExpectEq(gcsObject.Name, minObject.Name)
-	ExpectEq(gcsObject.Size, minObject.Size)
-	ExpectEq(gcsObject.Generation, minObject.Generation)
-	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
-	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
-	ExpectEq(0, gcsObject.Finalized.Compare(minObject.Finalized))
-	ExpectEq(gcsObject.Metadata, minObject.Metadata)
-	ExpectEq(gcsObject.ContentEncoding, minObject.ContentEncoding)
-	ExpectEq(gcsObject.ContentType, extendedObjAttr.ContentType)
-	ExpectEq(gcsObject.ContentLanguage, extendedObjAttr.ContentLanguage)
-	ExpectEq(gcsObject.CacheControl, extendedObjAttr.CacheControl)
-	ExpectEq(gcsObject.Owner, extendedObjAttr.Owner)
-	ExpectEq(gcsObject.MD5, extendedObjAttr.MD5)
-	ExpectEq(gcsObject.MediaLink, extendedObjAttr.MediaLink)
-	ExpectEq(gcsObject.StorageClass, extendedObjAttr.StorageClass)
-	ExpectEq(0, gcsObject.Deleted.Compare(extendedObjAttr.Deleted))
-	ExpectEq(gcsObject.ComponentCount, extendedObjAttr.ComponentCount)
-	ExpectEq(gcsObject.ContentDisposition, extendedObjAttr.ContentDisposition)
-	ExpectEq(gcsObject.CustomTime, extendedObjAttr.CustomTime)
-	ExpectEq(gcsObject.EventBasedHold, extendedObjAttr.EventBasedHold)
-	ExpectEq(gcsObject.Acl, extendedObjAttr.Acl)
+	require.NotNil(t, gcsObject)
+	assert.Equal(t, minObject.Name, gcsObject.Name)
+	assert.Equal(t, minObject.Size, gcsObject.Size)
+	assert.Equal(t, minObject.Generation, gcsObject.Generation)
+	assert.Equal(t, minObject.MetaGeneration, gcsObject.MetaGeneration)
+	assert.Equal(t, 0, gcsObject.Updated.Compare(minObject.Updated))
+	assert.Equal(t, 0, gcsObject.Finalized.Compare(minObject.Finalized))
+	assert.Equal(t, minObject.Metadata, gcsObject.Metadata)
+	assert.Equal(t, minObject.ContentEncoding, gcsObject.ContentEncoding)
+	assert.Equal(t, extendedObjAttr.ContentType, gcsObject.ContentType)
+	assert.Equal(t, extendedObjAttr.ContentLanguage, gcsObject.ContentLanguage)
+	assert.Equal(t, extendedObjAttr.CacheControl, gcsObject.CacheControl)
+	assert.Equal(t, extendedObjAttr.Owner, gcsObject.Owner)
+	assert.Equal(t, extendedObjAttr.MD5, gcsObject.MD5)
+	assert.Equal(t, extendedObjAttr.MediaLink, gcsObject.MediaLink)
+	assert.Equal(t, extendedObjAttr.StorageClass, gcsObject.StorageClass)
+	assert.Equal(t, 0, gcsObject.Deleted.Compare(extendedObjAttr.Deleted))
+	assert.Equal(t, extendedObjAttr.ComponentCount, gcsObject.ComponentCount)
+	assert.Equal(t, extendedObjAttr.ContentDisposition, gcsObject.ContentDisposition)
+	assert.Equal(t, extendedObjAttr.CustomTime, gcsObject.CustomTime)
+	assert.Equal(t, extendedObjAttr.EventBasedHold, gcsObject.EventBasedHold)
+	assert.Equal(t, extendedObjAttr.Acl, gcsObject.Acl)
 }
 
-func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNilMinObject() {
+func Test_ConvertMinObjectToObject_WithNilMinObject(t *testing.T) {
 	var minObject *gcs.MinObject
 
 	object := ConvertMinObjectToObject(minObject)
 
-	ExpectEq(nil, object)
+	assert.Nil(t, object)
 }
 
-func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
+func Test_ConvertMinObjectToObject_WithNonNilMinObject(t *testing.T) {
 	var attrMd5 *[16]byte
 	var crc32C uint32 = 1234
 	timeAttr := time.Now()
@@ -421,27 +415,27 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 
 	gcsObject := ConvertMinObjectToObject(minObject)
 
-	AssertNe(nil, gcsObject)
-	ExpectEq(gcsObject.Name, minObject.Name)
-	ExpectEq(gcsObject.Size, minObject.Size)
-	ExpectEq(gcsObject.Generation, minObject.Generation)
-	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
-	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
-	ExpectEq(0, gcsObject.Finalized.Compare(minObject.Finalized))
-	ExpectEq(gcsObject.Metadata, minObject.Metadata)
-	ExpectEq(gcsObject.ContentEncoding, minObject.ContentEncoding)
-	ExpectEq(gcsObject.ContentType, "")
-	ExpectEq(gcsObject.ContentLanguage, "")
-	ExpectEq(gcsObject.CacheControl, "")
-	ExpectEq(gcsObject.Owner, "")
-	ExpectEq(gcsObject.MD5, attrMd5)
-	ExpectEq(*gcsObject.CRC32C, crc32C)
-	ExpectEq(gcsObject.MediaLink, "")
-	ExpectEq(gcsObject.StorageClass, "")
-	ExpectEq(0, gcsObject.Deleted.Compare(time.Time{}))
-	ExpectEq(gcsObject.ComponentCount, 0)
-	ExpectEq(gcsObject.ContentDisposition, "")
-	ExpectEq(gcsObject.CustomTime, "")
-	ExpectEq(gcsObject.EventBasedHold, false)
-	ExpectEq(gcsObject.Acl, []*storagev1.ObjectAccessControl(nil))
+	require.NotNil(t, gcsObject)
+	assert.Equal(t, minObject.Name, gcsObject.Name)
+	assert.Equal(t, minObject.Size, gcsObject.Size)
+	assert.Equal(t, minObject.Generation, gcsObject.Generation)
+	assert.Equal(t, minObject.MetaGeneration, gcsObject.MetaGeneration)
+	assert.Equal(t, 0, gcsObject.Updated.Compare(minObject.Updated))
+	assert.Equal(t, 0, gcsObject.Finalized.Compare(minObject.Finalized))
+	assert.Equal(t, minObject.Metadata, gcsObject.Metadata)
+	assert.Equal(t, minObject.ContentEncoding, gcsObject.ContentEncoding)
+	assert.Equal(t, "", gcsObject.ContentType)
+	assert.Equal(t, "", gcsObject.ContentLanguage)
+	assert.Equal(t, "", gcsObject.CacheControl)
+	assert.Equal(t, "", gcsObject.Owner)
+	assert.Equal(t, attrMd5, gcsObject.MD5)
+	assert.Equal(t, crc32C, *gcsObject.CRC32C)
+	assert.Equal(t, "", gcsObject.MediaLink)
+	assert.Equal(t, "", gcsObject.StorageClass)
+	assert.Equal(t, 0, gcsObject.Deleted.Compare(time.Time{}))
+	assert.Equal(t, int64(0), gcsObject.ComponentCount)
+	assert.Equal(t, "", gcsObject.ContentDisposition)
+	assert.Equal(t, "", gcsObject.CustomTime)
+	assert.Equal(t, false, gcsObject.EventBasedHold)
+	assert.Equal(t, []*storagev1.ObjectAccessControl(nil), gcsObject.Acl)
 }
