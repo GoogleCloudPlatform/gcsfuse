@@ -133,3 +133,84 @@ func TestLargeRead_NilOrSmallDst(t *testing.T) {
 	assert.Equal(t, len(fileContent), readOp3.BytesRead)
 	assert.Equal(t, []byte(fileContent), readOp3.Dst[:readOp3.BytesRead])
 }
+
+func TestLargeRead_MultiBuffer(t *testing.T) {
+	ctx := context.Background()
+	bucketName := "test-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
+
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			Write: cfg.WriteConfig{
+				GlobalMaxBlocks: 1,
+			},
+			Read: cfg.ReadConfig{
+				EnableBufferedRead: false,
+			},
+			EnableNewReader: true,
+			FileSystem: cfg.FileSystemConfig{
+				IgnoreInterrupts:   true,
+				EnableKernelReader: true,
+			},
+		},
+		CacheClock: &timeutil.SimulatedClock{},
+		BucketName: bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
+		},
+		SequentialReadSizeMb: 200,
+		TraceHandle:          tracing.NewOTELTracer(),
+		MetricHandle:         metrics.NewNoopMetrics(),
+	}
+
+	server, err := fs.NewFileSystem(ctx, serverCfg)
+	require.NoError(t, err)
+
+	fileSize := 2*1024*1024 + 500*1024 // 2.5MB
+	fileContentBytes := make([]byte, fileSize)
+	for i := range fileContentBytes {
+		fileContentBytes[i] = byte(i % 256)
+	}
+	fileName := "multi-buffer-file"
+	createWithContents(ctx, t, bucket, fileName, string(fileContentBytes))
+
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err = server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookUpOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Size:   int64(fileSize),
+		Dst:    nil,
+	}
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err)
+	assert.Equal(t, fileSize, readOp.BytesRead)
+
+	require.Len(t, readOp.Data, 3)
+	assert.Len(t, readOp.Data[0], 1024*1024)
+	assert.Len(t, readOp.Data[1], 1024*1024)
+	assert.Len(t, readOp.Data[2], 500*1024)
+
+	reconstructed := make([]byte, 0, fileSize)
+	for _, chunk := range readOp.Data {
+		reconstructed = append(reconstructed, chunk...)
+	}
+	assert.Equal(t, fileContentBytes, reconstructed)
+
+	require.NotNil(t, readOp.Callback)
+	readOp.Callback()
+}
