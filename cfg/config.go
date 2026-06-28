@@ -562,6 +562,10 @@ type FileSystemConfig struct {
 
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
+	ExperimentalMaxFileCount int64 `yaml:"experimental-max-file-count"`
+
+	ExperimentalMaxSizeMb int64 `yaml:"experimental-max-size-mb"`
+
 	ExperimentalODirect bool `yaml:"experimental-o-direct"`
 
 	FileMode Octal `yaml:"file-mode"`
@@ -1068,6 +1072,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
 
 	if err := flagSet.MarkHidden("experimental-local-socket-address"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("experimental-max-file-count", "", 0, "Experimental: best-effort maximum count of logical files allowed in this mount process. 0 disables the limit. Initialized from existing object metadata at mount time and then maintained only for operations through this process.")
+
+	if err := flagSet.MarkHidden("experimental-max-file-count"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("experimental-max-size-mb", "", 0, "Experimental: best-effort maximum logical size, in MiB, allowed in this mount process. 0 disables the limit. Initialized from existing object metadata at mount time and then maintained only for operations through this process.")
+
+	if err := flagSet.MarkHidden("experimental-max-size-mb"); err != nil {
 		return err
 	}
 
@@ -1669,6 +1685,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.experimental-local-socket-address", flagSet.Lookup("experimental-local-socket-address")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-max-file-count", flagSet.Lookup("experimental-max-file-count")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-max-size-mb", flagSet.Lookup("experimental-max-size-mb")); err != nil {
 		return err
 	}
 

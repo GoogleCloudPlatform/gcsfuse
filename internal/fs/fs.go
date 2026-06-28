@@ -190,6 +190,11 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	}
 
 	// Set up the basic struct.
+	logicalQuota, err := newLogicalQuotaForServerConfig(serverCfg)
+	if err != nil {
+		return nil, err
+	}
+
 	fs := &fileSystem{
 		mtimeClock:                 mtimeClock,
 		cacheClock:                 serverCfg.CacheClock,
@@ -225,6 +230,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
+		quota:                      logicalQuota,
 	}
 
 	// Initialize MRD cache if enabled
@@ -290,6 +296,11 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
 			kernelParams.SetMaxBackgroundRequests(int(serverCfg.NewConfig.FileSystem.MaxBackground))
 			kernelParams.ApplyGKE(string(serverCfg.NewConfig.FileSystem.KernelParamsFile))
+		}
+		if fs.quota != nil {
+			if err := fs.quota.initialize(ctx, syncerBucket, inode.NewRootName("")); err != nil {
+				return nil, err
+			}
 		}
 		root = makeRootForBucket(fs, syncerBucket)
 	}
@@ -502,6 +513,7 @@ type fileSystem struct {
 	enableNonexistentTypeCache bool
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
+	quota                      *logicalQuota
 
 	// kernelListCacheTTL specifies the duration to keep the readdir response cached
 	// in kernel. After ttl, gcsfuse, (filesystem) on next opendir call (just before as part
@@ -1890,6 +1902,9 @@ func (fs *fileSystem) StatFS(
 	// Prefer large transfers. This is the largest value that OS X will
 	// faithfully pass on, according to fuseops/ops.go.
 	op.IoSize = 1 << 20
+	if fs.quota != nil {
+		op.Blocks, op.BlocksFree, op.BlocksAvailable, op.Inodes, op.InodesFree = fs.quota.statFS(uint64(op.BlockSize))
+	}
 
 	return
 }
@@ -1993,6 +2008,24 @@ func (fs *fileSystem) SetInodeAttributes(
 		if err != nil {
 			return
 		}
+		commitQuota := func() {}
+		rollbackQuota := func() {}
+		var oldSize uint64
+		newSize := uint64(*op.Size)
+		if fs.quota != nil {
+			attrs, attrErr := file.Attributes(ctx, false)
+			if attrErr != nil {
+				err = fmt.Errorf("Attributes: %w", attrErr)
+				return err
+			}
+			oldSize = fs.quota.sizeForName(file.Name(), attrs.Size)
+			if newSize > oldSize {
+				commitQuota, rollbackQuota, err = fs.quota.tryReserveGrowth(file.Name(), oldSize, newSize)
+				if err != nil {
+					return err
+				}
+			}
+		}
 		gcsSynced, err := file.Truncate(ctx, int64(*op.Size))
 		// Sync the inode if finalize during truncate is successful
 		// even if the truncate operation later resulted error.
@@ -2000,8 +2033,13 @@ func (fs *fileSystem) SetInodeAttributes(
 			fs.promoteToGenerationBacked(file)
 		}
 		if err != nil {
+			rollbackQuota()
 			err = fmt.Errorf("truncate: %w", err)
 			return err
+		}
+		commitQuota()
+		if fs.quota != nil && newSize < oldSize {
+			fs.quota.applyShrink(file.Name(), newSize)
 		}
 	}
 
@@ -2234,6 +2272,26 @@ func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	fs.mu.Lock()
+	parent := fs.dirInodeOrDie(op.Parent)
+	fullName := inode.NewFileName(parent.Name(), op.Name)
+	fs.mu.Unlock()
+
+	rollbackQuota := func() {}
+	if fs.quota != nil {
+		rollbackQuota, err = fs.quota.tryReserveFile(fullName)
+		if err != nil {
+			return err
+		}
+	}
+	quotaCommitted := false
+	defer func() {
+		if err != nil && !quotaCommitted {
+			rollbackQuota()
+		}
+	}()
+
 	// Create the child.
 	var child inode.Inode
 	openMode := util.FileOpenMode(op.OpenFlags)
@@ -2246,6 +2304,7 @@ func (fs *fileSystem) CreateFile(
 	if err != nil {
 		return err
 	}
+	quotaCommitted = true
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
@@ -2294,7 +2353,32 @@ func (fs *fileSystem) CreateSymlink(
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
+	fullName := inode.NewFileName(parent.Name(), op.Name)
 	fs.mu.Unlock()
+
+	rollbackFileQuota := func() {}
+	commitSizeQuota := func() {}
+	rollbackSizeQuota := func() {}
+	if fs.quota != nil {
+		rollbackFileQuota, err = fs.quota.tryReserveFile(fullName)
+		if err != nil {
+			return err
+		}
+	}
+	if fs.quota != nil && fs.newConfig.EnableStandardSymlinks {
+		commitSizeQuota, rollbackSizeQuota, err = fs.quota.tryReserveGrowth(fullName, 0, uint64(len(op.Target)))
+		if err != nil {
+			rollbackFileQuota()
+			return err
+		}
+	}
+	quotaCommitted := false
+	defer func() {
+		if err != nil && !quotaCommitted {
+			rollbackSizeQuota()
+			rollbackFileQuota()
+		}
+	}()
 
 	// Create the object in GCS, failing if it already exists.
 	parent.Lock()
@@ -2325,6 +2409,8 @@ func (fs *fileSystem) CreateSymlink(
 		err = fmt.Errorf("newly-created record is already stale")
 		return err
 	}
+	commitSizeQuota()
+	quotaCommitted = true
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
@@ -2535,10 +2621,20 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 	default:
 		return fmt.Errorf("child inode (id %v) is not a file or symlink inode", child.ID())
 	}
+	oldName := inode.NewFileName(oldParent.Name(), op.OldName)
+	newName := inode.NewFileName(newParent.Name(), op.NewName)
 	if fs.enableAtomicRenameObject || child.Bucket().BucketType().IsRapid() {
-		return fs.atomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+		err = fs.atomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	} else {
+		err = fs.nonAtomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
-	return fs.nonAtomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	if err != nil {
+		return err
+	}
+	if fs.quota != nil {
+		fs.quota.applyRename(oldName, newName, updatedMinObject.Size)
+	}
+	return nil
 }
 
 // LOCKS_EXCLUDED(fileInode)
@@ -2883,6 +2979,9 @@ func (fs *fileSystem) Unlink(
 	// If the inode represents a local file, we don't need to delete
 	// the backing object on GCS, so return early.
 	if isLocalFile {
+		if fs.quota != nil {
+			fs.quota.releaseName(fileName)
+		}
 		return
 	}
 
@@ -2901,6 +3000,9 @@ func (fs *fileSystem) Unlink(
 	// which is not precondition error.
 	if err != nil && !errors.As(err, &preconditionErr) {
 		return fmt.Errorf("DeleteChildFile: %w", err)
+	}
+	if fs.quota != nil {
+		fs.quota.releaseName(fileName)
 	}
 
 	// In case of successful delete or precondition error, we should invalidate
@@ -3210,11 +3312,41 @@ func (fs *fileSystem) WriteFile(
 		}
 		return err
 	}
+
+	if op.Offset < 0 {
+		return syscall.EINVAL
+	}
+	commitQuota := func() {}
+	rollbackQuota := func() {}
+	if fs.quota != nil {
+		attrs, attrErr := in.Attributes(ctx, false)
+		if attrErr != nil {
+			return fmt.Errorf("Attributes: %w", attrErr)
+		}
+		oldSize := fs.quota.sizeForName(in.Name(), attrs.Size)
+		newSize := oldSize
+		dataLen := uint64(len(op.Data))
+		if fh.OpenMode().IsAppend() {
+			if dataLen > math.MaxUint64-oldSize {
+				return syscall.EFBIG
+			}
+			newSize = oldSize + dataLen
+		} else if endOffset := uint64(op.Offset) + dataLen; endOffset > newSize {
+			newSize = endOffset
+		}
+		commitQuota, rollbackQuota, err = fs.quota.tryReserveGrowth(in.Name(), oldSize, newSize)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Serve the request.
 	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode())
 	if err != nil {
+		rollbackQuota()
 		return
 	}
+	commitQuota()
 	// Sync the inode if finalize during write is successful
 	// even if the write operation later resulted in error.
 	if gcsSynced {

@@ -432,6 +432,28 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.experimental-max-file-count"
+    flag-name: "experimental-max-file-count"
+    type: "int"
+    usage: >-
+      Experimental: best-effort maximum count of logical files allowed in this
+      mount process. 0 disables the limit. Initialized from existing object
+      metadata at mount time and then maintained only for operations through this
+      process.
+    default: 0
+    hide-flag: true
+
+  - config-path: "file-system.experimental-max-size-mb"
+    flag-name: "experimental-max-size-mb"
+    type: "int"
+    usage: >-
+      Experimental: best-effort maximum logical size, in MiB, allowed in this
+      mount process. 0 disables the limit. Initialized from existing object
+      metadata at mount time and then maintained only for operations through this
+      process.
+    default: 0
+    hide-flag: true
+
   - config-path: "file-system.experimental-o-direct"
     flag-name: "experimental-o-direct"
     type: "bool"

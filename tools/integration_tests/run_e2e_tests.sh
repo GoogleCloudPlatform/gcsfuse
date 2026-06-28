@@ -125,6 +125,7 @@ TEST_DIR_PARALLEL=(
   "flag_optimizations"
   "unsupported_path"
   "symlink_handling"
+  "logical_quota"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -166,6 +167,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "flag_optimizations"
   "unsupported_path"
   "symlink_handling"
+  "logical_quota"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,

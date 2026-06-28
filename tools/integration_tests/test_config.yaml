@@ -1066,6 +1066,29 @@ symlink_handling:
           zonal: true
         run_on_gke: true
 
+logical_quota:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - run: TestSizeQuota
+        flags:
+          - "--only-dir=LogicalQuotaSizeTest --experimental-max-size-mb=5"
+          - "--only-dir=LogicalQuotaSizeTest --experimental-max-size-mb=5 --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: false
+      - run: TestFileCountQuota
+        flags:
+          - "--only-dir=LogicalQuotaFileCountTest --experimental-max-file-count=2"
+          - "--only-dir=LogicalQuotaFileCountTest --experimental-max-file-count=2 --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: false
+
 buffered_read:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
