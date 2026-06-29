@@ -107,11 +107,11 @@ func GetWirelog(ctx context.Context) *WireLogRecord {
 //
 // The loggers may be nil.
 func newConnection(
-		cfg MountConfig,
-		debugLogger *log.Logger,
-		errorLogger *log.Logger,
-		wireLogger io.Writer,
-		dev *os.File) (*Connection, error) {
+	cfg MountConfig,
+	debugLogger *log.Logger,
+	errorLogger *log.Logger,
+	wireLogger io.Writer,
+	dev *os.File) (*Connection, error) {
 	c := &Connection{
 		cfg:         cfg,
 		debugLogger: debugLogger,
@@ -172,7 +172,7 @@ func (c *Connection) Init() error {
 	// Respond to the init op.
 	initOp.Library = c.protocol
 	initOp.MaxReadahead = maxReadahead
-	initOp.MaxWrite = 524288
+	initOp.MaxWrite = buffer.MaxWriteSize
 
 	initOp.Flags = 0
 
@@ -241,10 +241,10 @@ func (c *Connection) Init() error {
 // Log information for an operation with the given ID. calldepth is the depth
 // to use when recovering file:line information with runtime.Caller.
 func (c *Connection) debugLog(
-		fuseID uint64,
-		calldepth int,
-		format string,
-		v ...interface{}) {
+	fuseID uint64,
+	calldepth int,
+	format string,
+	v ...interface{}) {
 	if c.debugLogger == nil {
 		return
 	}
@@ -274,8 +274,8 @@ func (c *Connection) debugLog(
 
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) recordCancelFunc(
-		fuseID uint64,
-		f func()) {
+	fuseID uint64,
+	f func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -293,8 +293,8 @@ func (c *Connection) recordCancelFunc(
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) beginOp(
-		opCode uint32,
-		fuseID uint64) context.Context {
+	opCode uint32,
+	fuseID uint64) context.Context {
 	// Start with the parent context.
 	ctx := c.cfg.OpContext
 
@@ -322,8 +322,8 @@ func (c *Connection) beginOp(
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) finishOp(
-		opCode uint32,
-		fuseID uint64) {
+	opCode uint32,
+	fuseID uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -495,8 +495,8 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 
 // Skip errors that happen as a matter of course, since they spook users.
 func (c *Connection) shouldLogError(
-		op interface{},
-		err error) bool {
+	op interface{},
+	err error) bool {
 	// We don't log non-errors.
 	if err == nil {
 		return false
