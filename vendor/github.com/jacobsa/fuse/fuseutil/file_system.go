@@ -107,6 +107,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	for {
 		ctx, op, err := c.ReadOp()
 		if err == io.EOF {
+			fmt.Println("EOF error")
 			break
 		}
 
@@ -128,9 +129,9 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 }
 
 func (s *fileSystemServer) handleOp(
-	c *fuse.Connection,
-	ctx context.Context,
-	op interface{}) {
+		c *fuse.Connection,
+		ctx context.Context,
+		op interface{}) {
 	defer s.opsInFlight.Done()
 
 	// Dispatch to the appropriate method.
