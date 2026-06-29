@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rapid_appends
+package rapid
 
 import (
 	"log"
@@ -43,7 +43,7 @@ const (
 type mountPoint struct {
 	rootDir     string // Root directory of the test folder, which contains mnt and gcsfuse.log.
 	mntDir      string // Directory where the GCS bucket is mounted. This is 'mnt' inside rootDir.
-	testDirPath string // Path to the 'RapidAppendsTest' directory inside mntDir.
+	testDirPath string // Path to the 'RapidTest' directory inside mntDir.
 	logFilePath string // Path to the GCSFuse log file. This is gcsfuse.log inside rootDir.
 }
 
@@ -70,6 +70,15 @@ type SingleMountAppendsTestSuite struct{ BaseSuite }
 
 // DualMountAppendsTestSuite groups general dual-mount tests for append behavior.
 type DualMountAppendsTestSuite struct{ BaseSuite }
+
+// FinalizeRapidWritesTestSuite groups tests for verifying transition to finalized state.
+type FinalizeRapidWritesTestSuite struct {
+	BaseSuite
+	isFinalizeEnabled bool
+}
+
+// StatAndListTestSuite groups tests for checking new file discovery.
+type StatAndListTestSuite struct{ BaseSuite }
 
 ////////////////////////////////////////////////////////////////////////
 // Common Suite Logic

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rapid_appends
+package rapid
 
 import (
 	"context"
@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	testDirName           = "RapidAppendsTest"
-	fileNamePrefix        = "rapid-append-file-"
+	testDirName           = "RapidTest"
+	fileNamePrefix        = "rapid-file-"
 	contentSizeForBW      = 3
 	blockSize             = operations.OneMiB
 	numAppends            = 2
@@ -57,28 +57,28 @@ func TestMain(m *testing.M) {
 
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
-	if len(cfg.RapidAppends) == 0 {
-		log.Println("No configuration found for rapid_appends tests in config. Using flags instead.")
+	if len(cfg.Rapid) == 0 {
+		log.Println("No configuration found for rapid tests in config. Using flags instead.")
 		// Populate the config manually.
-		cfg.RapidAppends = make([]test_suite.TestConfig, 1)
-		cfg.RapidAppends[0].TestBucket = setup.TestBucket()
-		cfg.RapidAppends[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.RapidAppends[0].LogFile = setup.LogFile()
-		cfg.RapidAppends[0].Configs = make([]test_suite.ConfigItem, 5)
+		cfg.Rapid = make([]test_suite.TestConfig, 1)
+		cfg.Rapid[0].TestBucket = setup.TestBucket()
+		cfg.Rapid[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.Rapid[0].LogFile = setup.LogFile()
+		cfg.Rapid[0].Configs = make([]test_suite.ConfigItem, 7)
 
 		// 1. TestSingleMountAppendsTestSuite
-		cfg.RapidAppends[0].Configs[0].Flags = []string{"--write-block-size-mb=1"}
-		cfg.RapidAppends[0].Configs[0].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[0].Run = "TestSingleMountAppendsTestSuite"
+		cfg.Rapid[0].Configs[0].Flags = []string{"--write-block-size-mb=1"}
+		cfg.Rapid[0].Configs[0].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.Rapid[0].Configs[0].Run = "TestSingleMountAppendsTestSuite"
 
 		// 2. TestDualMountAppendsTestSuite
-		cfg.RapidAppends[0].Configs[1].Flags = []string{"--write-block-size-mb=1"}
-		cfg.RapidAppends[0].Configs[1].SecondaryFlags = []string{"--write-block-size-mb=1"}
-		cfg.RapidAppends[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[1].Run = "TestDualMountAppendsTestSuite"
+		cfg.Rapid[0].Configs[1].Flags = []string{"--write-block-size-mb=1"}
+		cfg.Rapid[0].Configs[1].SecondaryFlags = []string{"--write-block-size-mb=1"}
+		cfg.Rapid[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.Rapid[0].Configs[1].Run = "TestDualMountAppendsTestSuite"
 
 		// 3. TestSingleMountReadsTestSuite
-		cfg.RapidAppends[0].Configs[2].Flags = []string{
+		cfg.Rapid[0].Configs[2].Flags = []string{
 			"--metadata-cache-ttl-secs=0",  // NoCache
 			"--metadata-cache-ttl-secs=70", // MetadataCache
 			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0",                               // FileCache
@@ -88,44 +88,59 @@ func TestMain(m *testing.M) {
 			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --metadata-cache-ttl-secs=0 --enable-kernel-reader=false",  // FileCacheWithoutKernelReader
 			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache --enable-kernel-reader=false", // MetadataAndFileCacheWithoutKernelReader
 		}
-		cfg.RapidAppends[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[2].Run = "TestSingleMountReadsTestSuite"
+		cfg.Rapid[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.Rapid[0].Configs[2].Run = "TestSingleMountReadsTestSuite"
 
 		// 4. TestDualMountReadsTestSuiteWithMetadataCache
-		cfg.RapidAppends[0].Configs[3].Flags = []string{
+		cfg.Rapid[0].Configs[3].Flags = []string{
 			"--metadata-cache-ttl-secs=70",
 			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary",
 			"--metadata-cache-ttl-secs=70 --enable-kernel-reader=false",
 			"--metadata-cache-ttl-secs=70 --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --enable-kernel-reader=false",
 		}
-		cfg.RapidAppends[0].Configs[3].SecondaryFlags = []string{
+		cfg.Rapid[0].Configs[3].SecondaryFlags = []string{
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 		}
-		cfg.RapidAppends[0].Configs[3].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[3].Run = "TestDualMountReadsTestSuiteWithMetadataCache"
+		cfg.Rapid[0].Configs[3].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.Rapid[0].Configs[3].Run = "TestDualMountReadsTestSuiteWithMetadataCache"
 
 		// 5. TestDualMountReadsTestSuiteWithoutMetadataCache
-		cfg.RapidAppends[0].Configs[4].Flags = []string{
+		cfg.Rapid[0].Configs[4].Flags = []string{
 			"--metadata-cache-ttl-secs=0",
 			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0",
 			"--metadata-cache-ttl-secs=0 --enable-kernel-reader=false",
 			"--file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/cache-primary --metadata-cache-ttl-secs=0 --enable-kernel-reader=false",
 		}
-		cfg.RapidAppends[0].Configs[4].SecondaryFlags = []string{
+		cfg.Rapid[0].Configs[4].SecondaryFlags = []string{
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 			"--write-block-size-mb=1",
 		}
-		cfg.RapidAppends[0].Configs[4].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.RapidAppends[0].Configs[4].Run = "TestDualMountReadsTestSuiteWithoutMetadataCache"
+		cfg.Rapid[0].Configs[4].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.Rapid[0].Configs[4].Run = "TestDualMountReadsTestSuiteWithoutMetadataCache"
+
+		// 6. TestFinalizeRapidWritesTestSuite
+		cfg.Rapid[0].Configs[5].Flags = []string{
+			"--finalize-file-for-rapid=true",
+			"--finalize-file-for-rapid=false",
+		}
+		cfg.Rapid[0].Configs[5].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.Rapid[0].Configs[5].Run = "TestFinalizeRapidWritesTestSuite"
+
+		// 7. TestStatAndListTestSuite
+		cfg.Rapid[0].Configs[6].Flags = []string{
+			"--metadata-cache-ttl-secs=0",
+		}
+		cfg.Rapid[0].Configs[6].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		cfg.Rapid[0].Configs[6].Run = "TestStatAndListTestSuite"
 	}
 
 	testEnv.ctx = context.Background()
-	testEnv.cfg = &cfg.RapidAppends[0]
+	testEnv.cfg = &cfg.Rapid[0]
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 	if !setup.IsZonalBucketRun() && !setup.IsPirloBucketRun() {
 		log.Fatalf("This test package is only compatible for zonal and pirlo bucket runs")
@@ -161,7 +176,7 @@ func TestMain(m *testing.M) {
 	}
 	testEnv.cfg.GCSFuseMountedDirectorySecondary = secondaryDir
 
-	log.Println("Running static mounting tests for rapid appends...")
+	log.Println("Running static mounting tests for rapid...")
 	successCode := m.Run()
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))

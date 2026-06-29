@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rapid_appends
+package rapid
 
 import (
 	"math/rand/v2"
 	"os"
 	"path"
-	"syscall"
 	"testing"
 	"time"
 
@@ -85,7 +84,7 @@ func (t *SingleMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerif
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), fileOpenModeAppend)
 	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 
 	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
@@ -120,7 +119,7 @@ func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyF
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.getAppendPath(), t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.getAppendPath(), t.fileName), fileOpenModeAppend)
 	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 
 	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
