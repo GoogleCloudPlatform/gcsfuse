@@ -149,10 +149,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	}
 
 	if isDirPath && !dirHasContents && dirName != "" && b.negativeCacheTTL > 0 {
-		hit, m := b.cache.LookUp(dirName, b.clock.Now())
-		if !hit || m == nil {
-			b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
-		}
+		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 
 	// 3. Cache Sub-directories (Collapsed Runs)
@@ -458,17 +455,6 @@ func (b *fastStatBucket) StatObject(
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
-	// If implicitDirs is enabled, a ListObjects call with a specific prefix
-	// is used to verify the existence of an implicit directory. If this prefix
-	// has a negative cache entry (meaning it doesn't exist and has no descendants),
-	// we can safely short-circuit the network call and return an empty listing.
-	if b.implicitDir && b.negativeCacheTTL > 0 && req.Prefix != "" && strings.HasSuffix(req.Prefix, "/") {
-		hit, m := b.lookUp(req.Prefix)
-		if hit && m == nil && !b.BucketType().Hierarchical {
-			return &gcs.Listing{}, nil
-		}
-	}
-
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
