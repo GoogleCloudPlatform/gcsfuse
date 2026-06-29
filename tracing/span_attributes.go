@@ -17,6 +17,7 @@ package tracing
 const (
 	IS_CACHE_HIT   = "cache.hit"         // Indicates if the response was served from cache or not.
 	BYTES_READ     = "read.size"         // Indicates the number of bytes read from the given reader
+	READ_OFFSET    = "read.offset"       // Indicates the file offset for the read operation
 	BYTES_UPLOADED = "write.chunk.size"  // Indicates the number of bytes uploaded
 	OBJECT_NAME    = "write.object_name" // Indicates the object name uploaded
 )

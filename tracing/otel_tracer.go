@@ -31,6 +31,7 @@ type otelTracer struct {
 
 var (
 	bytesReadKey     = attribute.Key(BYTES_READ)
+	readOffsetKey    = attribute.Key(READ_OFFSET)
 	bytesUploadedKey = attribute.Key(BYTES_UPLOADED)
 	objectNameKey    = attribute.Key(OBJECT_NAME)
 	cacheHit         = attribute.Bool(IS_CACHE_HIT, true)
@@ -64,6 +65,15 @@ func (o *otelTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, by
 	} else {
 		attrSet[1] = cacheMiss
 	}
+	span.SetAttributes(attrSet...)
+}
+
+func (o *otelTracer) SetReadFileAttributes(span trace.Span, bytesRead int, offset int64) {
+	attrSetPtr := o.slicePool.Get().(*[]attribute.KeyValue)
+	attrSet := *attrSetPtr
+	defer o.slicePool.Put(attrSetPtr)
+	attrSet[0] = bytesReadKey.Int(bytesRead)
+	attrSet[1] = readOffsetKey.Int64(offset)
 	span.SetAttributes(attrSet...)
 }
 
