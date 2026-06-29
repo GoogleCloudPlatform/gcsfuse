@@ -207,24 +207,36 @@ func (ut *utilTest) Test_getObjectPath() {
 
 	results := [5]string{}
 	for i := range 5 {
-		results[i] = GetDownloadPath(inputs[i][0], inputs[i][1])
+		results[i] = GetObjectPath(inputs[i][0], inputs[i][1])
 	}
 
 	ExpectTrue(reflect.DeepEqual(expectedOutPuts, results))
 }
 
 func (ut *utilTest) Test_getDownloadPath() {
-	inputs := []string{"/", "a/b", "a/b/c/d", "/a", "a/"}
+	inputs := []string{"a/b", "a/b/c/d", "/a", "a/"}
 	cacheDir := "/test/dir"
-	expectedOutputs := [5]string{cacheDir, cacheDir + "/a/b",
+	expectedOutputs := [4]string{cacheDir + "/a/b",
 		cacheDir + "/a/b/c/d", cacheDir + "/a", cacheDir + "/a"}
 
-	results := [5]string{}
-	for i := range 5 {
-		results[i] = GetDownloadPath(cacheDir, inputs[i])
+	results := [4]string{}
+	for i := range 4 {
+		path, err := GetDownloadPath(cacheDir, inputs[i])
+		ExpectEq(nil, err)
+		results[i] = path
 	}
 
 	ExpectTrue(reflect.DeepEqual(expectedOutputs, results))
+}
+
+func (ut *utilTest) Test_getDownloadPath_EscapingPath() {
+	cacheDir := "/test/dir"
+	badInputs := []string{"/", "../etc", "a/../../etc", "../../etc/cron.d/pwn"}
+
+	for _, input := range badInputs {
+		_, err := GetDownloadPath(cacheDir, input)
+		ExpectNe(nil, err)
+	}
 }
 
 func (ut *utilTest) Test_IsCacheHandleValid_True() {

@@ -271,7 +271,8 @@ func (t *fileCacheReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCa
 	})
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
 	assert.Zero(t.T(), readResponse.Size)
-	job := t.jobManager.CreateJobIfNotExists(t.object, t.mockBucket)
+	job, err := t.jobManager.CreateJobIfNotExists(t.object, t.mockBucket)
+	assert.Nil(t.T(), err)
 	jobStatus := job.GetStatus()
 	assert.True(t.T(), jobStatus.Name == downloader.NotStarted)
 
@@ -523,7 +524,8 @@ func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	assert.NoError(t.T(), err)
 	t.reader.fileCacheHandle = nil
 	// Delete the local cache file.
-	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	filePath, err := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	assert.NoError(t.T(), err)
 	err = os.Remove(filePath)
 	assert.NoError(t.T(), err)
 
@@ -551,9 +553,10 @@ func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleO
 	assert.Equal(t.T(), testContent, buf[:readResponse.Size])
 	assert.NotNil(t.T(), t.reader.fileCacheHandle)
 	// Delete the local cache file.
-	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	filePath, err := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	assert.NoError(t.T(), err)
 	err = os.Remove(filePath)
-	assert.NoError(nil, err)
+	assert.NoError(t.T(), err)
 	clear(buf)
 
 	// Read via cache only, as we have old fileHandle open and linux
