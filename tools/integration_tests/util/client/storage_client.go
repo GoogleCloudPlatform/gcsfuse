@@ -277,6 +277,24 @@ func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, obj
 	return nil
 }
 
+// CreateObjectWithAPI creates an object on GCS with the given content, allowing the choice of whether to use the appendable API.
+func CreateObjectWithAPI(ctx context.Context, client *storage.Client, object string, content []byte, useAppendableAPI bool) error {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	o := getBucketHandle(client, bucket).Object(object)
+
+	wc := o.NewWriter(ctx)
+	wc.Append = useAppendableAPI
+	wc.FinalizeOnClose = true
+
+	if _, err := wc.Write(content); err != nil {
+		return fmt.Errorf("wc.Write failed for object %q: %w", object, err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("wc.Close failed for object %q: %w", object, err)
+	}
+	return nil
+}
+
 // CreateStorageClientWithCancel creates a new storage client with a cancelable context and returns a function that can be used to cancel the client's operations
 func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage.Client) func() error {
 	var err error
