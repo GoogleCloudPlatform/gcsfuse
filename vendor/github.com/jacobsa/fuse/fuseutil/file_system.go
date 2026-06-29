@@ -16,6 +16,7 @@ package fuseutil
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 
