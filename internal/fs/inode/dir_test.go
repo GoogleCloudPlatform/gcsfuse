@@ -348,6 +348,54 @@ func (t *DirTest) TestLookUpChild_NonExistent() {
 	}
 }
 
+type mockNegativeCacheBucket struct {
+	gcs.Bucket
+}
+
+func (m *mockNegativeCacheBucket) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
+	return nil, nil, &gcs.NotFoundError{Err: errors.New("negative cache")}
+}
+
+func (m *mockNegativeCacheBucket) BucketType() gcs.BucketType {
+	return gcs.BucketType{}
+}
+
+func (t *DirTest) TestLookUpChild_NegativeCacheHit() {
+	const name = "qux"
+
+	mockBucket := &mockNegativeCacheBucket{}
+	syncerBucket := gcsx.NewSyncerBucket(
+		1,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
+		".gcsfuse_tmp/",
+		mockBucket)
+
+	config := &cfg.Config{
+		EnableTypeCacheDeprecation: true,
+	}
+
+	in := NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		context.Background(),
+		fuseops.InodeAttributes{},
+		false,
+		false,
+		time.Second, // non-zero TTL to enable the caching logic
+		&syncerBucket,
+		&t.clock,
+		&t.clock,
+		semaphore.NewWeighted(10),
+		config,
+	)
+
+	result, err := in.LookUpChild(t.ctx, name)
+
+	require.NoError(t.T(), err)
+	require.Nil(t.T(), result)
+}
+
 func (t *DirTest) TestLookUpChild_FileOnly() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)
