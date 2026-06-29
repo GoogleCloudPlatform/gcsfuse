@@ -15,81 +15,29 @@
 package inode
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"golang.org/x/net/context"
-
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
 	chunkRetryDeadlineSecs   = 120
 	chunkTransferTimeoutSecs = 10
 )
-
-func TestBaseDir(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type BaseDirTest struct {
-	ctx   context.Context
-	clock timeutil.SimulatedClock
-	bm    *fakeBucketManager
-	in    DirInode
-}
-
-var _ SetUpInterface = &BaseDirTest{}
-var _ TearDownInterface = &BaseDirTest{}
-
-func init() { RegisterTestSuite(&BaseDirTest{}) }
-
-func (t *BaseDirTest) SetUp(ti *TestInfo) {
-	t.ctx = ti.Ctx
-	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-
-	// Create a bucket manager for 2 buckets: bucketA and bucketB
-	t.bm = &fakeBucketManager{
-		buckets: make(map[string]gcsx.SyncerBucket),
-	}
-	t.bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
-		/*appendThreshold=*/ 1,
-		chunkRetryDeadlineSecs,
-		chunkTransferTimeoutSecs,
-		".gcsfuse_tmp/",
-		fake.NewFakeBucket(&t.clock, "bucketA", gcs.BucketType{}),
-	)
-	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
-		/*appendThreshold=*/ 1,
-		chunkRetryDeadlineSecs,
-		chunkTransferTimeoutSecs,
-		".gcsfuse_tmp/",
-		fake.NewFakeBucket(&t.clock, "bucketB", gcs.BucketType{}),
-	)
-
-	// Create the inode. No implicit dirs by default.
-	t.resetInode()
-}
-
-func (t *BaseDirTest) TearDown() {
-	t.in.Unlock()
-}
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
 
 type fakeBucketManager struct {
 	buckets    map[string]gcsx.SyncerBucket
@@ -116,137 +64,192 @@ func (bm *fakeBucketManager) SetUpTimes() int {
 	return bm.setupTimes
 }
 
-func (t *BaseDirTest) resetInode() {
-	if t.in != nil {
-		t.in.Unlock()
+func setupBaseDirTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, *fakeBucketManager, DirInode) {
+	ctx := context.Background()
+	clock := &timeutil.SimulatedClock{}
+	clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+
+	bm := &fakeBucketManager{
+		buckets: make(map[string]gcsx.SyncerBucket),
+	}
+	bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
+		1,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
+		".gcsfuse_tmp/",
+		fake.NewFakeBucket(clock, "bucketA", gcs.BucketType{}),
+	)
+	bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
+		1,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
+		".gcsfuse_tmp/",
+		fake.NewFakeBucket(clock, "bucketB", gcs.BucketType{}),
+	)
+
+	in := NewBaseDirInode(
+		dirInodeID,
+		NewRootName(""),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		bm,
+		metrics.NewNoopMetrics(),
+		isTypeCacheDeprecationEnabled,
+	)
+
+	// Cast to sync.Locker to satisfy the linter which struggles with interface embedding.
+	if locker, ok := in.(sync.Locker); ok {
+		locker.Lock()
+	} else {
+		t.Fatal("DirInode does not implement sync.Locker")
 	}
 
-	t.in = NewBaseDirInode(
-		dirInodeID,
-		NewRootName(""),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
-		t.bm,
-		metrics.NewNoopMetrics(),
-		isTypeCacheDeprecationEnabled)
-
-	t.in.Lock()
+	return ctx, clock, bm, in
 }
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func (t *BaseDirTest) ID() {
-	ExpectEq(dirInodeID, t.in.ID())
+func runWithBaseDirInode(t *testing.T, testFunc func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode)) {
+	ctx, clock, bm, in := setupBaseDirTest(t)
+	defer func() {
+		if locker, ok := in.(sync.Locker); ok {
+			locker.Unlock()
+		}
+	}()
+	testFunc(ctx, clock, bm, in)
 }
 
-func (t *BaseDirTest) Name() {
-	ExpectEq("", t.in.Name().LocalName())
+func TestBaseDir_ID(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		assert.Equal(t, fuseops.InodeID(dirInodeID), in.ID())
+	})
 }
 
-func (t *BaseDirTest) LookupCount() {
-	// Increment thrice. The count should now be three.
-	t.in.IncrementLookupCount()
-	t.in.IncrementLookupCount()
-	t.in.IncrementLookupCount()
-
-	// Decrementing twice shouldn't cause destruction. But one more should.
-	AssertFalse(t.in.DecrementLookupCount(2))
-	ExpectTrue(t.in.DecrementLookupCount(1))
+func TestBaseDir_Name(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		assert.Equal(t, "", in.Name().LocalName())
+	})
 }
 
-func (t *BaseDirTest) Attributes_ClobberedCheckTrue() {
-	attrs, err := t.in.Attributes(t.ctx, true)
+func TestBaseDir_LookupCount(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		// Increment thrice. The count should now be three.
+		in.IncrementLookupCount()
+		in.IncrementLookupCount()
+		in.IncrementLookupCount()
 
-	AssertEq(nil, err)
-	ExpectEq(uid, attrs.Uid)
-	ExpectEq(gid, attrs.Gid)
-	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
+		// Decrementing twice shouldn't cause destruction. But one more should.
+		require.False(t, in.DecrementLookupCount(2))
+		assert.True(t, in.DecrementLookupCount(1))
+	})
 }
 
-func (t *BaseDirTest) Attributes_ClobberedCheckFalse() {
-	attrs, err := t.in.Attributes(t.ctx, false)
+func TestBaseDir_Attributes_ClobberedCheckTrue(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		attrs, err := in.Attributes(ctx, true)
 
-	AssertEq(nil, err)
-	ExpectEq(uid, attrs.Uid)
-	ExpectEq(gid, attrs.Gid)
-	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
+		require.NoError(t, err)
+		assert.Equal(t, uint32(uid), attrs.Uid)
+		assert.Equal(t, uint32(gid), attrs.Gid)
+		assert.Equal(t, dirMode|os.ModeDir, attrs.Mode)
+	})
 }
 
-func (t *BaseDirTest) LookUpChild_NonExistent() {
-	result, err := t.in.LookUpChild(t.ctx, "missing_bucket")
+func TestBaseDir_Attributes_ClobberedCheckFalse(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		attrs, err := in.Attributes(ctx, false)
 
-	ExpectNe(nil, err)
-	ExpectEq(nil, result)
-	ExpectEq(1, t.bm.SetUpTimes())
+		require.NoError(t, err)
+		assert.Equal(t, uint32(uid), attrs.Uid)
+		assert.Equal(t, uint32(gid), attrs.Gid)
+		assert.Equal(t, dirMode|os.ModeDir, attrs.Mode)
+	})
 }
 
-func (t *BaseDirTest) LookUpChild_BucketFound() {
-	result, err := t.in.LookUpChild(t.ctx, "bucketA")
+func TestBaseDir_LookUpChild_NonExistent(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		result, err := in.LookUpChild(ctx, "missing_bucket")
 
-	AssertEq(nil, err)
-	AssertNe(nil, result)
-
-	ExpectEq("bucketA", result.Bucket.Name())
-	ExpectTrue(result.FullName.IsBucketRoot())
-	ExpectEq("bucketA/", result.FullName.LocalName())
-	ExpectEq("", result.FullName.GcsObjectName())
-	ExpectEq(nil, result.MinObject)
-	ExpectEq(metadata.ImplicitDirType, result.Type())
-
-	result, err = t.in.LookUpChild(t.ctx, "bucketB")
-
-	AssertEq(nil, err)
-	AssertNe(nil, result)
-
-	ExpectEq("bucketB", result.Bucket.Name())
-	ExpectTrue(result.FullName.IsBucketRoot())
-	ExpectEq("bucketB/", result.FullName.LocalName())
-	ExpectEq("", result.FullName.GcsObjectName())
-	ExpectEq(nil, result.MinObject)
-	ExpectEq(metadata.ImplicitDirType, result.Type())
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, 1, bm.SetUpTimes())
+	})
 }
 
-func (t *BaseDirTest) LookUpChild_BucketCached() {
-	_, _ = t.in.LookUpChild(t.ctx, "bucketA")
-	ExpectEq(1, t.bm.SetUpTimes())
-	_, _ = t.in.LookUpChild(t.ctx, "bucketA")
-	ExpectEq(1, t.bm.SetUpTimes())
-	_, _ = t.in.LookUpChild(t.ctx, "bucketB")
-	ExpectEq(2, t.bm.SetUpTimes())
-	_, _ = t.in.LookUpChild(t.ctx, "bucketB")
-	ExpectEq(2, t.bm.SetUpTimes())
-	_, _ = t.in.LookUpChild(t.ctx, "missing_bucket")
-	ExpectEq(3, t.bm.SetUpTimes())
+func TestBaseDir_LookUpChild_BucketFound(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		result, err := in.LookUpChild(ctx, "bucketA")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		assert.Equal(t, "bucketA", result.Bucket.Name())
+		assert.True(t, result.FullName.IsBucketRoot())
+		assert.Equal(t, "bucketA/", result.FullName.LocalName())
+		assert.Equal(t, "", result.FullName.GcsObjectName())
+		assert.Nil(t, result.MinObject)
+		assert.Equal(t, metadata.ImplicitDirType, result.Type())
+
+		result, err = in.LookUpChild(ctx, "bucketB")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		assert.Equal(t, "bucketB", result.Bucket.Name())
+		assert.True(t, result.FullName.IsBucketRoot())
+		assert.Equal(t, "bucketB/", result.FullName.LocalName())
+		assert.Equal(t, "", result.FullName.GcsObjectName())
+		assert.Nil(t, result.MinObject)
+		assert.Equal(t, metadata.ImplicitDirType, result.Type())
+	})
 }
 
-func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache() {
-	ttl := time.Second
-	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+func TestBaseDir_LookUpChild_BucketCached(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		_, _ = in.LookUpChild(ctx, "bucketA")
+		assert.Equal(t, 1, bm.SetUpTimes())
+		_, _ = in.LookUpChild(ctx, "bucketA")
+		assert.Equal(t, 1, bm.SetUpTimes())
+		_, _ = in.LookUpChild(ctx, "bucketB")
+		assert.Equal(t, 2, bm.SetUpTimes())
+		_, _ = in.LookUpChild(ctx, "bucketB")
+		assert.Equal(t, 2, bm.SetUpTimes())
+		_, _ = in.LookUpChild(ctx, "missing_bucket")
+		assert.Equal(t, 3, bm.SetUpTimes())
+	})
 }
 
-func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
-	ttl := time.Second
-	t.clock.AdvanceTime(10 * time.Second)
-
-	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+func TestBaseDir_ShouldInvalidateKernelListCache(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		ttl := time.Second
+		assert.True(t, in.ShouldInvalidateKernelListCache(ttl))
+	})
 }
 
-func (t *BaseDirTest) TestReadEntryCores() {
-	cores, unsupportedPaths, newTok, err := t.in.ReadEntryCores(t.ctx, "")
+func TestBaseDir_ShouldInvalidateKernelListCache_TtlExpired(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		ttl := time.Second
+		clock.AdvanceTime(10 * time.Second)
 
-	// Should return ENOTSUP because listing is unsupported.
-	ExpectEq(nil, cores)
-	ExpectEq(nil, unsupportedPaths)
-	ExpectEq("", newTok)
-	ExpectEq(syscall.ENOTSUP, err)
+		assert.True(t, in.ShouldInvalidateKernelListCache(ttl))
+	})
 }
 
-func (t *BaseDirTest) Test_IsTypeCacheDeprecated_false() {
+func TestBaseDir_ReadEntryCores(t *testing.T) {
+	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
+		cores, unsupportedPaths, newTok, err := in.ReadEntryCores(ctx, "")
+
+		// Should return ENOTSUP because listing is unsupported.
+		assert.Nil(t, cores)
+		assert.Nil(t, unsupportedPaths)
+		assert.Equal(t, "", newTok)
+		assert.Equal(t, syscall.ENOTSUP, err)
+	})
+}
+
+func TestBaseDir_IsTypeCacheDeprecated_false(t *testing.T) {
+	bm := &fakeBucketManager{}
 	dInode := NewBaseDirInode(
 		dirInodeID,
 		NewRootName(""),
@@ -255,14 +258,16 @@ func (t *BaseDirTest) Test_IsTypeCacheDeprecated_false() {
 			Gid:  gid,
 			Mode: dirMode,
 		},
-		t.bm,
+		bm,
 		metrics.NewNoopMetrics(),
-		false)
+		false,
+	)
 
-	AssertFalse(dInode.IsTypeCacheDeprecated())
+	assert.False(t, dInode.IsTypeCacheDeprecated())
 }
 
-func (t *BaseDirTest) Test_IsTypeCacheDeprecated_true() {
+func TestBaseDir_IsTypeCacheDeprecated_true(t *testing.T) {
+	bm := &fakeBucketManager{}
 	dInode := NewBaseDirInode(
 		dirInodeID,
 		NewRootName(""),
@@ -271,9 +276,10 @@ func (t *BaseDirTest) Test_IsTypeCacheDeprecated_true() {
 			Gid:  gid,
 			Mode: dirMode,
 		},
-		t.bm,
+		bm,
 		metrics.NewNoopMetrics(),
-		true)
+		true,
+	)
 
-	AssertTrue(dInode.IsTypeCacheDeprecated())
+	assert.True(t, dInode.IsTypeCacheDeprecated())
 }
