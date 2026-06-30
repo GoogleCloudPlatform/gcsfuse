@@ -39,7 +39,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/net/context"
+	"context"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
