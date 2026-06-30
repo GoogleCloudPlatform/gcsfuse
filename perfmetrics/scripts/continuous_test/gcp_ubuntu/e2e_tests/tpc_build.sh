@@ -62,6 +62,7 @@ echo "Running TPC e2e tests on installed package...."
 gcloud config configurations create prptst
 gcloud config configurations activate prptst
 gcloud config set universe_domain apis-tpczero.goog
+export GOOGLE_CLOUD_UNIVERSE_DOMAIN="apis-tpczero.goog"
 gcloud config set api_endpoint_overrides/compute https://compute.apis-tpczero.goog/compute/v1/
 gcloud auth activate-service-account --key-file=/tmp/sa.key.json
 gcloud config set project $PROJECT_ID

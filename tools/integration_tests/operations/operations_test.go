@@ -19,8 +19,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"path"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -95,72 +93,11 @@ var (
 	ctx           context.Context
 )
 
-func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
-	for _, flags := range t.Configs {
-		for i := range flags.Flags {
-			// Iterate over the indices of the flags slice
-			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
-		}
-	}
-}
-
-func RunTestOnTPCEndPoint(cfg test_suite.Config, m *testing.M) int {
-	ctx = context.Background()
-	var err error
-	if storageClient, err = client.CreateStorageClient(ctx); err != nil {
-		log.Fatalf("Error creating storage client: %v\n", err)
-	}
-	cfg.Operations = make([]test_suite.TestConfig, 1)
-	cfg.Operations[0].TestBucket = setup.TestBucket()
-	cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
-	cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
-	cfg.Operations[0].Configs[0].Flags = []string{
-		"--enable-atomic-rename-object=true",
-		"--experimental-enable-json-read=true",
-		"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-		"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
-	}
-	cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-	var flags [][]string
-
-	// Iterate over the original flags and split each string by spaces
-	for _, flagSet := range cfg.Operations[0].Configs[0].Flags {
-		splitFlags := strings.Fields(flagSet)
-		flags = append(flags, splitFlags)
-	}
-	setup.SetUpTestDirForTestBucket(&cfg.Operations[0])
-	successCodeTPC := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
-	return successCodeTPC
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
-
-	// TODO: b/469970353 : Update tpc_build.sh to run using test_config.yaml file.
-	if setup.TestOnTPCEndPoint() {
-		log.Println("Running TPC tests without config file.")
-		successCodeTPC := RunTestOnTPCEndPoint(cfg, m)
-		os.Exit(successCodeTPC)
-	}
-
-	if len(cfg.Operations) == 0 {
-		log.Println("No configuration found for operations tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.Operations = make([]test_suite.TestConfig, 1)
-		cfg.Operations[0].TestBucket = setup.TestBucket()
-		cfg.Operations[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.Operations[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.Operations[0].Configs[0].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true --enable-metadata-prefetch",
-			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
-			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true --enable-metadata-prefetch",
-		}
-		cfg.Operations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-	}
 
 	ctx = context.Background()
 	bucketType := setup.TestEnvironment(ctx, &cfg.Operations[0])
@@ -180,12 +117,16 @@ func TestMain(m *testing.M) {
 	}
 
 	// 4. Override GKE specific paths with GCSFuse paths if running in GCE environment.
-	overrideFilePathsInFlagSet(&cfg.Operations[0], setup.TestDir())
+	setup.OverrideFilePathsInFlagSet(&cfg.Operations[0], setup.TestDir())
 
 	// Run tests for testBucket
 	// 5. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.Operations[0], bucketType, "")
 	setup.SetUpTestDirForTestBucket(&cfg.Operations[0])
+
+	if setup.TestOnTPCEndPoint() {
+		os.Exit(static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m))
+	}
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 

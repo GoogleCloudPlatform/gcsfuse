@@ -124,9 +124,6 @@ func SetIsZonalBucketRun(val bool) {
 }
 
 func TestBucket() string {
-	if *testBucket == "" {
-		*testBucket = os.Getenv("BUCKET_NAME")
-	}
 	return *testBucket
 }
 
@@ -412,7 +409,7 @@ func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
-	if TestBucket() == "" && *mountedDirectory == "" {
+	if *testBucket == "" && *mountedDirectory == "" {
 		log.Print("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
 	}
@@ -596,14 +593,26 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	defer cancel()
 	var opts []option.ClientOption
 	opts = append(opts, experimental.WithGRPCBidiReads())
-	if keyFile != "" {
+	if TestOnTPCEndPoint() {
+		cred, err := auth2.GetCredentials("/tmp/sa.key.json")
+		if err != nil {
+			return "", fmt.Errorf("failed to get credentials for TPC: %w", err)
+		}
+		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred))
+	} else if keyFile != "" {
 		cred, err := auth2.GetCredentials(keyFile)
 		if err != nil {
 			return "", fmt.Errorf("failed to get credentials: %w", err)
 		}
 		opts = append(opts, option.WithAuthCredentials(cred))
 	}
-	storageClient, err := storage.NewGRPCClient(ctx, opts...)
+	var storageClient *storage.Client
+	if TestOnTPCEndPoint() {
+		storageClient, err = storage.NewClient(ctx, opts...)
+	} else {
+		storageClient, err = storage.NewGRPCClient(ctx, opts...)
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
@@ -645,7 +654,8 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 		// 2. Check if the current test case is compatible with the bucket type.
 		// This is a safe and concise way to check the map.
 		isCompatible, ok := testCase.Compatible[bucketType]
-		if ok && isCompatible && (run == "" || run == testCase.Run) {
+		tpcMatches := (TestOnTPCEndPoint() == testCase.TPC)
+		if ok && isCompatible && tpcMatches && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				flagString = strings.ReplaceAll(flagString, ",", " ")
@@ -657,9 +667,6 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 }
 
 func SetGlobalVars(cfg *test_suite.TestConfig) {
-	if cfg.TestBucket == "" {
-		cfg.TestBucket = TestBucket()
-	}
 	// TODO: clean global variables after test migration to config file completes.
 	testBucket = &cfg.TestBucket
 	logFile = cfg.LogFile
@@ -772,7 +779,7 @@ func UnmountGCSFuseWithConfig(cfg *test_suite.TestConfig) {
 }
 
 func RunTestsOnlyForStaticMount(mountDir string, t *testing.T) {
-	if TestBucket() == "" || strings.Contains(mountDir, TestBucket()) || OnlyDirMounted() != "" {
+	if strings.Contains(mountDir, *testBucket) || OnlyDirMounted() != "" {
 		log.Println("This test will run only for static mounting...")
 		t.SkipNow()
 	}

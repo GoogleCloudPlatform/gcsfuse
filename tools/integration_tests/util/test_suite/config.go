@@ -47,6 +47,7 @@ type ConfigItem struct {
 	Compatible     map[string]bool `yaml:"compatible"`
 	Run            string          `yaml:"run,omitempty"`
 	RunOnGKE       bool            `yaml:"run_on_gke"`
+	TPC            bool            `yaml:"tpc,omitempty"`
 }
 
 // Config holds all test configurations parsed from the YAML file.
