@@ -2182,7 +2182,7 @@ func (t *composeTest) DeleteSourceObjects() {
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
 		&gcs.ComposeObjectsRequest{
-			DstName: "foo",
+			DstName:             "foo",
 			DeleteSourceObjects: true,
 			Sources: []gcs.ComposeSource{
 				gcs.ComposeSource{
