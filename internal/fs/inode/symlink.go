@@ -18,7 +18,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -61,7 +63,10 @@ type SymlinkInode struct {
 	name             Name
 	bucket           *gcsx.SyncerBucket
 	sourceGeneration Generation
-	attrs            fuseops.InodeAttributes
+	mode             os.FileMode
+	uid              uint32
+	gid              uint32
+	mtime            int64 // Unix nanoseconds
 	target           string
 	metadata         map[string]string
 
@@ -97,15 +102,10 @@ func NewSymlinkInode(
 			Metadata: m.MetaGeneration,
 			Size:     m.Size,
 		},
-		attrs: fuseops.InodeAttributes{
-			Nlink: 1,
-			Uid:   attrs.Uid,
-			Gid:   attrs.Gid,
-			Mode:  attrs.Mode,
-			Atime: m.Updated,
-			Ctime: m.Updated,
-			Mtime: m.Updated,
-		},
+		mode:     attrs.Mode,
+		uid:      attrs.Uid,
+		gid:      attrs.Gid,
+		mtime:    m.Updated.UnixNano(),
 		metadata: m.Metadata,
 	}
 
@@ -239,7 +239,13 @@ func (s *SymlinkInode) Destroy() (err error) {
 
 func (s *SymlinkInode) Attributes(
 	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
-	attrs = s.attrs
+	attrs.Mode = s.mode
+	attrs.Uid = s.uid
+	attrs.Gid = s.gid
+	attrs.Mtime = time.Unix(0, s.mtime)
+	attrs.Atime = attrs.Mtime
+	attrs.Ctime = attrs.Mtime
+	attrs.Nlink = 1
 	return
 }
 
@@ -265,6 +271,6 @@ func (s *SymlinkInode) Source() *gcs.MinObject {
 		MetaGeneration: s.sourceGeneration.Metadata,
 		Size:           s.sourceGeneration.Size,
 		Metadata:       s.metadata,
-		Updated:        s.attrs.Mtime,
+		Updated:        time.Unix(0, s.mtime),
 	}
 }

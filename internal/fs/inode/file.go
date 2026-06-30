@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -67,7 +68,9 @@ type FileInode struct {
 
 	id           fuseops.InodeID
 	name         Name
-	attrs        fuseops.InodeAttributes
+	mode         os.FileMode
+	uid          uint32
+	gid          uint32
 	contentCache *contentcache.ContentCache
 
 	/////////////////////////
@@ -172,7 +175,9 @@ func NewFileInode(
 		mtimeClock:              mtimeClock,
 		id:                      id,
 		name:                    name,
-		attrs:                   attrs,
+		mode:                    attrs.Mode,
+		uid:                     attrs.Uid,
+		gid:                     attrs.Gid,
 		localFileCache:          localFileCache,
 		contentCache:            contentCache,
 		src:                     minObj,
@@ -526,7 +531,6 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 // operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
-	f.attrs.Size = size
 	f.updateReaders()
 }
 
@@ -546,9 +550,12 @@ func (f *FileInode) Destroy() (err error) {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Attributes(
-	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
-	attrs = f.attrs
+// attributes returns the attributes of the file without performing clobbered checks.
+func (f *FileInode) attributes() (attrs fuseops.InodeAttributes, err error) {
+	attrs.Mode = f.mode
+	attrs.Uid = f.uid
+	attrs.Gid = f.gid
+
 	// Obtain default information from the source object.
 	attrs.Mtime = f.src.Updated
 	attrs.Size = f.src.Size
@@ -595,6 +602,23 @@ func (f *FileInode) Attributes(
 	// We require only that atime and ctime be "reasonable".
 	attrs.Atime = attrs.Mtime
 	attrs.Ctime = attrs.Mtime
+	attrs.Nlink = 1
+
+	// For local files, also checking if file is unlinked locally.
+	if f.IsLocal() && f.IsUnlinked() {
+		attrs.Nlink = 0
+	}
+
+	return
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) Attributes(
+	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
+	attrs, err = f.attributes()
+	if err != nil {
+		return
+	}
 
 	if clobberedCheck {
 		// If the object has been clobbered, we reflect that as the inode being
@@ -612,23 +636,14 @@ func (f *FileInode) Attributes(
 			// the inode attributes to reflect latest size.
 			if o != nil {
 				f.UpdateSize(o.Size)
-				attrs = f.attrs
-				attrs.Nlink = 1
+				attrs, err = f.attributes()
 				return
-
 			}
 			// If the minObj is nil, it means that file has been clobbered genuinely due to generation
 			// or metageneration changes.
 			attrs.Nlink = 0
 			return
 		}
-	}
-
-	attrs.Nlink = 1
-
-	// For local files, also checking if file is unlinked locally.
-	if f.IsLocal() && f.IsUnlinked() {
-		attrs.Nlink = 0
 	}
 
 	return

@@ -307,7 +307,6 @@ func (t *FileMockBucketTest) TestAttributes_SizeIncreasedSameGeneration() {
 	assert.Equal(t.T(), newSize, attrs2.Size)
 	// Check that internal state is updated.
 	assert.Equal(t.T(), newSize, f.Source().Size)
-	assert.Equal(t.T(), newSize, f.attrs.Size)
 	// Assert that all mock expectations were met.
 	t.bucket.AssertExpectations(t.T())
 }
