@@ -15,215 +15,232 @@
 package gcsx
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strings"
 	"testing"
 	"time"
 
-	"context"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/oglemock"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
-
-func TestSyncer(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate for FullObjectCreatorTests
 ////////////////////////////////////////////////////////////////////////
 
-type FullObjectCreatorTest struct {
-	ctx     context.Context
-	bucket  storage.MockBucket
-	creator objectCreator
-
+type fullObjectCreatorHelper struct {
+	t           *testing.T
+	assert      *assert.Assertions
+	require     *require.Assertions
+	ctx         context.Context
+	bucket      *storage.TestifyMockBucket
+	creator     objectCreator
 	srcObject   gcs.Object
 	srcContents string
 	mtime       time.Time
 }
 
-func init() { RegisterTestSuite(&FullObjectCreatorTest{}) }
-
-func (t *FullObjectCreatorTest) SetUp(ti *TestInfo) {
-	t.ctx = ti.Ctx
-
-	// Create the bucket.
-	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
-
-	// Create the creator.
-	t.creator = &fullObjectCreator{
-		bucket: t.bucket,
+func newFullObjectCreatorHelper(t *testing.T) *fullObjectCreatorHelper {
+	h := &fullObjectCreatorHelper{
+		t:       t,
+		assert:  assert.New(t),
+		require: require.New(t),
+		ctx:     context.Background(),
 	}
-}
-
-func (t *FullObjectCreatorTest) call() (o *gcs.Object, err error) {
-	o, err = t.creator.Create(
-		t.ctx,
-		t.srcObject.Name,
-		&t.srcObject,
-		&t.mtime,
-		chunkRetryDeadlineSecs,
-		chunkTransferTimeoutSecs,
-		strings.NewReader(t.srcContents))
-
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func (t *FullObjectCreatorTest) CallsCreateObject() {
-	t.srcContents = "taco"
-
-	// CreateObject
-	var req *gcs.CreateObjectRequest
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
-
-	// Call
-	t.call()
-
-	AssertNe(nil, req)
-	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
-
-	b, err := io.ReadAll(req.Contents)
-	AssertEq(nil, err)
-	ExpectEq(t.srcContents, string(b))
-}
-
-func (t *FullObjectCreatorTest) CreateObjectFails() {
-	var err error
-
-	// CreateObject
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
-
-	// Call
-	_, err = t.call()
-
-	ExpectThat(err, Error(HasSubstr("CreateObject")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *FullObjectCreatorTest) CreateObjectReturnsPreconditionError() {
-	var err error
-
-	// CreateObject
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
-
-	// Call
-	_, err = t.call()
-
-	var preconditionErr *gcs.PreconditionError
-	ExpectTrue(errors.As(err, &preconditionErr))
-	ExpectThat(err, Error(HasSubstr("CreateObject")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
-	t.srcObject.Name = "foo"
-	t.srcObject.Generation = 17
-	t.srcObject.MetaGeneration = 23
-	t.srcObject.CacheControl = "testCacheControl"
-	t.srcObject.ContentDisposition = "inline"
-	t.srcObject.ContentEncoding = "gzip"
-	t.srcObject.ContentType = "text/plain"
-	t.srcObject.CustomTime = "2022-04-02T00:30:00Z"
-	t.srcObject.EventBasedHold = true
-	t.srcObject.StorageClass = "STANDARD"
-	t.srcObject.Metadata = map[string]string{
-		"test_key": "test_value",
+	h.bucket = new(storage.TestifyMockBucket)
+	h.creator = &fullObjectCreator{
+		bucket: h.bucket,
 	}
-	t.mtime = time.Now().Add(123 * time.Second).UTC()
-
-	var req *gcs.CreateObjectRequest
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
-
-	// Call
-	t.call()
-
-	AssertNe(nil, req)
-	ExpectEq(t.srcObject.Name, req.Name)
-	ExpectEq(t.srcObject.CacheControl, req.CacheControl)
-	ExpectEq(t.srcObject.ContentDisposition, req.ContentDisposition)
-	ExpectEq(t.srcObject.ContentEncoding, req.ContentEncoding)
-	ExpectEq(t.srcObject.ContentType, req.ContentType)
-	ExpectEq(t.srcObject.CustomTime, req.CustomTime)
-	ExpectEq(t.srcObject.EventBasedHold, req.EventBasedHold)
-
-	ExpectEq(2, len(req.Metadata))
-	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
-	ExpectEq("test_value", req.Metadata["test_key"])
+	return h
 }
 
-func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectIsNil() {
-	t.srcContents = "taco"
-	// CreateObject
-	var req *gcs.CreateObjectRequest
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
-
-	// Call
-	_, _ = t.creator.Create(
-		t.ctx,
-		t.srcObject.Name,
-		nil,
-		&t.mtime,
+func (h *fullObjectCreatorHelper) call() (*gcs.Object, error) {
+	return h.creator.Create(
+		h.ctx,
+		h.srcObject.Name,
+		&h.srcObject,
+		&h.mtime,
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
-		strings.NewReader(t.srcContents))
-
-	t.validateEmptyProperties(req)
-	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+		strings.NewReader(h.srcContents))
 }
 
-func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectAndMtimeAreNil() {
-	t.srcContents = "taco"
-	// CreateObject
-	var req *gcs.CreateObjectRequest
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
-
-	// Call
-	_, _ = t.creator.Create(
-		t.ctx,
-		t.srcObject.Name,
-		nil,
-		nil,
-		chunkRetryDeadlineSecs,
-		chunkTransferTimeoutSecs,
-		strings.NewReader(t.srcContents))
-
-	t.validateEmptyProperties(req)
-	_, ok := req.Metadata["gcsfuse_mtime"]
-	AssertFalse(ok)
-}
-
-func (t *FullObjectCreatorTest) validateEmptyProperties(req *gcs.CreateObjectRequest) {
-	AssertNe(nil, req)
-	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
+func (h *fullObjectCreatorHelper) validateEmptyProperties(req *gcs.CreateObjectRequest) {
+	h.require.NotNil(req)
+	if h.assert.NotNil(req.GenerationPrecondition) {
+		h.assert.Equal(int64(0), *req.GenerationPrecondition)
+	}
 	// All the properties should be empty/nil.
-	AssertEq(nil, req.MetaGenerationPrecondition)
-	AssertEq("", req.CacheControl)
-	AssertEq("", req.ContentDisposition)
-	AssertEq("", req.ContentEncoding)
-	AssertEq("", req.ContentType)
-	AssertEq("", req.CustomTime)
-	AssertEq(false, req.EventBasedHold)
-	AssertEq("", req.StorageClass)
+	h.assert.Nil(req.MetaGenerationPrecondition)
+	h.assert.Equal("", req.CacheControl)
+	h.assert.Equal("", req.ContentDisposition)
+	h.assert.Equal("", req.ContentEncoding)
+	h.assert.Equal("", req.ContentType)
+	h.assert.Equal("", req.CustomTime)
+	h.assert.Equal(false, req.EventBasedHold)
+	h.assert.Equal("", req.StorageClass)
 	// Validate the object contents.
 	b, err := io.ReadAll(req.Contents)
-	AssertEq(nil, err)
-	ExpectEq(t.srcContents, string(b))
+	h.require.NoError(err)
+	h.assert.Equal(h.srcContents, string(b))
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests for FullObjectCreator
+////////////////////////////////////////////////////////////////////////
+
+func TestFullObjectCreator_CallsCreateObject(t *testing.T) {
+	h := newFullObjectCreatorHelper(t)
+	h.srcContents = "taco"
+
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("")).
+		Run(func(args mock.Arguments) {
+			req = args.Get(1).(*gcs.CreateObjectRequest)
+		})
+
+	// Call
+	_, _ = h.call()
+
+	h.require.NotNil(req)
+	if h.assert.NotNil(req.GenerationPrecondition) {
+		h.assert.Equal(int64(0), *req.GenerationPrecondition)
+	}
+
+	b, err := io.ReadAll(req.Contents)
+	h.require.NoError(err)
+	h.assert.Equal(h.srcContents, string(b))
+}
+
+func TestFullObjectCreator_CreateObjectFails(t *testing.T) {
+	h := newFullObjectCreatorHelper(t)
+
+	// CreateObject
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("taco"))
+
+	// Call
+	_, err := h.call()
+
+	h.assert.ErrorContains(err, "CreateObject")
+	h.assert.ErrorContains(err, "taco")
+}
+
+func TestFullObjectCreator_CreateObjectReturnsPreconditionError(t *testing.T) {
+	h := newFullObjectCreatorHelper(t)
+
+	// CreateObject
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), &gcs.PreconditionError{Err: errors.New("taco")})
+
+	// Call
+	_, err := h.call()
+
+	var preconditionErr *gcs.PreconditionError
+	h.assert.ErrorAs(err, &preconditionErr)
+	h.assert.ErrorContains(err, "CreateObject")
+	h.assert.ErrorContains(err, "taco")
+}
+
+func TestFullObjectCreator_CallsCreateObjectsWithObjectProperties(t *testing.T) {
+	h := newFullObjectCreatorHelper(t)
+	h.srcObject.Name = "foo"
+	h.srcObject.Generation = 17
+	h.srcObject.MetaGeneration = 23
+	h.srcObject.CacheControl = "testCacheControl"
+	h.srcObject.ContentDisposition = "inline"
+	h.srcObject.ContentEncoding = "gzip"
+	h.srcObject.ContentType = "text/plain"
+	h.srcObject.CustomTime = "2022-04-02T00:30:00Z"
+	h.srcObject.EventBasedHold = true
+	h.srcObject.StorageClass = "STANDARD"
+	h.srcObject.Metadata = map[string]string{
+		"test_key": "test_value",
+	}
+	h.mtime = time.Now().Add(123 * time.Second).UTC()
+
+	var req *gcs.CreateObjectRequest
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("")).
+		Run(func(args mock.Arguments) {
+			req = args.Get(1).(*gcs.CreateObjectRequest)
+		})
+
+	// Call
+	_, _ = h.call()
+
+	h.require.NotNil(req)
+	h.assert.Equal(h.srcObject.Name, req.Name)
+	h.assert.Equal(h.srcObject.CacheControl, req.CacheControl)
+	h.assert.Equal(h.srcObject.ContentDisposition, req.ContentDisposition)
+	h.assert.Equal(h.srcObject.ContentEncoding, req.ContentEncoding)
+	h.assert.Equal(h.srcObject.ContentType, req.ContentType)
+	h.assert.Equal(h.srcObject.CustomTime, req.CustomTime)
+	h.assert.Equal(h.srcObject.EventBasedHold, req.EventBasedHold)
+
+	h.assert.Equal(2, len(req.Metadata))
+	h.assert.Equal(h.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+	h.assert.Equal("test_value", req.Metadata["test_key"])
+}
+
+func TestFullObjectCreator_CallsCreateObjectWhenSrcObjectIsNil(t *testing.T) {
+	h := newFullObjectCreatorHelper(t)
+	h.srcContents = "taco"
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("")).
+		Run(func(args mock.Arguments) {
+			req = args.Get(1).(*gcs.CreateObjectRequest)
+		})
+
+	// Call
+	_, _ = h.creator.Create(
+		h.ctx,
+		h.srcObject.Name,
+		nil,
+		&h.mtime,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
+		strings.NewReader(h.srcContents))
+
+	h.validateEmptyProperties(req)
+	h.assert.Equal(h.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+}
+
+func TestFullObjectCreator_CallsCreateObjectWhenSrcObjectAndMtimeAreNil(t *testing.T) {
+	h := newFullObjectCreatorHelper(t)
+	h.srcContents = "taco"
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("")).
+		Run(func(args mock.Arguments) {
+			req = args.Get(1).(*gcs.CreateObjectRequest)
+		})
+
+	// Call
+	_, _ = h.creator.Create(
+		h.ctx,
+		h.srcObject.Name,
+		nil,
+		nil,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
+		strings.NewReader(h.srcContents))
+
+	h.validateEmptyProperties(req)
+	_, ok := req.Metadata["gcsfuse_mtime"]
+	h.assert.False(ok)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -233,6 +250,8 @@ func (t *FullObjectCreatorTest) validateEmptyProperties(req *gcs.CreateObjectReq
 // An objectCreator that records the arguments it is called with, returning
 // canned results.
 type fakeObjectCreator struct {
+	t      *testing.T
+	assert *assert.Assertions
 	called bool
 
 	// Supplied arguments
@@ -254,7 +273,7 @@ func (oc *fakeObjectCreator) Create(
 	chunkTransferTimeoutSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Have we been called more than once?
-	AssertFalse(oc.called)
+	oc.assert.False(oc.called)
 	oc.called = true
 
 	// Record args.
@@ -263,7 +282,7 @@ func (oc *fakeObjectCreator) Create(
 		oc.mtime = *mtime
 	}
 	oc.contents, err = io.ReadAll(r)
-	AssertEq(nil, err)
+	oc.assert.NoError(err)
 
 	// Return results.
 	o, err = oc.o, oc.err
@@ -271,7 +290,7 @@ func (oc *fakeObjectCreator) Create(
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Boilerplate
+// Boilerplate for SyncerTests
 ////////////////////////////////////////////////////////////////////////
 
 const srcObjectContents = "taco"
@@ -279,66 +298,80 @@ const appendThreshold = int64(len(srcObjectContents))
 const chunkRetryDeadlineSecs = 120
 const chunkTransferTimeoutSecs = 10
 
-type SyncerTest struct {
-	ctx context.Context
-
+type syncerHelper struct {
+	t             *testing.T
+	assert        *assert.Assertions
+	require       *require.Assertions
+	ctx           context.Context
 	fullCreator   fakeObjectCreator
 	appendCreator fakeObjectCreator
-
-	bucket gcs.Bucket
-	syncer Syncer
-	clock  timeutil.SimulatedClock
-
-	srcObject *gcs.Object
-	content   TempFile
+	bucket        gcs.Bucket
+	syncer        Syncer
+	clock         timeutil.SimulatedClock
+	srcObject     *gcs.Object
+	content       TempFile
 }
 
-var _ SetUpInterface = &SyncerTest{}
-
-func init() { RegisterTestSuite(&SyncerTest{}) }
-
-func (t *SyncerTest) SetUp(ti *TestInfo) {
-	var err error
-	t.ctx = ti.Ctx
+func newSyncerHelper(t *testing.T) *syncerHelper {
+	h := &syncerHelper{
+		t:       t,
+		assert:  assert.New(t),
+		require: require.New(t),
+		ctx:     context.Background(),
+		fullCreator: fakeObjectCreator{
+			t:      t,
+			assert: assert.New(t),
+		},
+		appendCreator: fakeObjectCreator{
+			t:      t,
+			assert: assert.New(t),
+		},
+	}
 
 	// Set up dependencies.
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
-	t.syncer = newSyncer(
+	h.bucket = fake.NewFakeBucket(&h.clock, "some_bucket", gcs.BucketType{})
+	h.syncer = newSyncer(
 		appendThreshold,
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
-		&t.fullCreator,
-		&t.appendCreator)
+		&h.fullCreator,
+		&h.appendCreator)
 
-	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	h.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
 	// Set up a source object.
-	t.srcObject, err = t.bucket.CreateObject(
-		t.ctx,
+	var err error
+	h.srcObject, err = h.bucket.CreateObject(
+		h.ctx,
 		&gcs.CreateObjectRequest{
 			Name:     "foo",
 			Contents: strings.NewReader(srcObjectContents),
 		})
-
-	AssertEq(nil, err)
-	t.srcObject.Finalized = time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local)
+	h.require.NoError(err)
+	h.srcObject.Finalized = time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local)
 
 	// Wrap a TempFile around it.
-	t.content, err = NewTempFile(
+	h.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader(srcObjectContents)},
-		"",
-		&t.clock)
-
-	AssertEq(nil, err)
+		t.TempDir(),
+		&h.clock)
+	h.require.NoError(err)
 
 	// Return errors from the fakes by default.
-	t.fullCreator.err = errors.New("Fake error")
-	t.appendCreator.err = errors.New("Fake error")
+	h.fullCreator.err = errors.New("Fake error")
+	h.appendCreator.err = errors.New("Fake error")
+
+	return h
 }
 
-func (t *SyncerTest) call() (o *gcs.Object, err error) {
-	o, err = t.syncer.SyncObject(t.ctx, t.srcObject.Name, t.srcObject, t.content)
-	return
+func (h *syncerHelper) tearDown() {
+	if h.content != nil {
+		h.content.Destroy()
+	}
+}
+
+func (h *syncerHelper) call() (*gcs.Object, error) {
+	return h.syncer.SyncObject(h.ctx, h.srcObject.Name, h.srcObject, h.content)
 }
 
 type dummyReadCloser struct {
@@ -350,358 +383,418 @@ func (rc dummyReadCloser) Close() error {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Tests
+// Tests for Syncer
 ////////////////////////////////////////////////////////////////////////
 
-func (t *SyncerTest) SyncObjectShouldInvokeFullObjectCreatorWhenSrcObjectIsNil() {
+func TestSyncer_SyncObjectShouldInvokeFullObjectCreatorWhenSrcObjectIsNil(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	// It doesn't make sense to validate returned object or error since fake
 	// is not handling them.
-	_, _ = t.syncer.SyncObject(t.ctx, t.srcObject.Name, nil, t.content)
+	_, _ = h.syncer.SyncObject(h.ctx, h.srcObject.Name, nil, h.content)
 
-	ExpectTrue(t.fullCreator.called)
-	ExpectFalse(t.appendCreator.called)
+	h.assert.True(h.fullCreator.called)
+	h.assert.False(h.appendCreator.called)
 }
 
-func (t *SyncerTest) UnfinalizedObjectBypassesDirtyThresholdCheck() {
+func TestSyncer_UnfinalizedObjectBypassesDirtyThresholdCheck(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.fullCreator.o = &gcs.Object{}
-	t.fullCreator.err = nil
+	h.fullCreator.o = &gcs.Object{}
+	h.fullCreator.err = nil
 	// Simulate an unfinalized object (Finalized time is zero).
-	t.srcObject.Finalized = time.Time{}
-	t.srcObject.Size = 0
+	h.srcObject.Finalized = time.Time{}
+	h.srcObject.Size = 0
 	// Set up the content to have a dirty threshold of 5.
 	// We populate NewTempFile with 10 bytes of data so tf.dirtyThreshold is initialized to 10.
-	t.content, err = NewTempFile(
+	h.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader("1234567890")},
-		"",
-		&t.clock)
-	AssertEq(nil, err)
+		t.TempDir(),
+		&h.clock)
+	h.require.NoError(err)
 	// Write at offset 5 to make dirtyThreshold = min(10, 5) = 5.
-	_, err = t.content.WriteAt([]byte("hi"), 5)
-	AssertEq(nil, err)
+	_, err = h.content.(io.WriterAt).WriteAt([]byte("hi"), 5)
+	h.require.NoError(err)
 
-	o, err := t.call()
+	o, err := h.call()
 
 	// It should bypass the weird dirty threshold error and succeed.
-	AssertEq(nil, err)
-	ExpectEq(t.fullCreator.o, o)
-	ExpectTrue(t.fullCreator.called)
+	h.require.NoError(err)
+	h.assert.Equal(h.fullCreator.o, o)
+	h.assert.True(h.fullCreator.called)
 }
 
-func (t *SyncerTest) UnfinalizedObjectDoesNotReturnEarlyOnTruncateToZero() {
+func TestSyncer_UnfinalizedObjectDoesNotReturnEarlyOnTruncateToZero(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.fullCreator.o = &gcs.Object{}
-	t.fullCreator.err = nil
+	h.fullCreator.o = &gcs.Object{}
+	h.fullCreator.err = nil
 	// Simulate an unfinalized object (Finalized time is zero).
-	t.srcObject.Finalized = time.Time{}
-	t.srcObject.Size = 0
+	h.srcObject.Finalized = time.Time{}
+	h.srcObject.Size = 0
 	// Set up the content with 10 bytes of initial data.
-	t.content, err = NewTempFile(
+	h.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader("1234567890")},
-		"",
-		&t.clock)
-	AssertEq(nil, err)
+		t.TempDir(),
+		&h.clock)
+	h.require.NoError(err)
 	// Truncate to 0. This sets size to 0 and dirtyThreshold to 0.
-	err = t.content.Truncate(0)
-	AssertEq(nil, err)
+	err = h.content.Truncate(0)
+	h.require.NoError(err)
 
 	// Even though sr.Size == 0 (srcSize) and sr.DirtyThreshold == 0 (srcSize),
 	// since the object is unfinalized, it should NOT return early but call fullCreator.
-	o, err := t.call()
+	o, err := h.call()
 
-	AssertEq(nil, err)
-	ExpectEq(t.fullCreator.o, o)
-	ExpectTrue(t.fullCreator.called)
+	h.require.NoError(err)
+	h.assert.Equal(h.fullCreator.o, o)
+	h.assert.True(h.fullCreator.called)
 }
 
-func (t *SyncerTest) UnfinalizedObjectReturnsEarlyIfUnmodifiedAndNonZeroSize() {
+func TestSyncer_UnfinalizedObjectReturnsEarlyIfUnmodifiedAndNonZeroSize(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	// Simulate an unfinalized object (Finalized time is zero).
-	t.srcObject.Finalized = time.Time{}
+	h.srcObject.Finalized = time.Time{}
 	// But it has a correct metadata size (e.g. 4 bytes, matching local content).
-	t.srcObject.Size = uint64(len(srcObjectContents))
+	h.srcObject.Size = uint64(len(srcObjectContents))
 
 	// Since the local temp file is unmodified (sr.Mtime is nil), it should return
 	// early even though the object is unfinalized.
-	o, err := t.call()
+	o, err := h.call()
 
-	AssertEq(nil, err)
-	ExpectEq(nil, o)
+	h.require.NoError(err)
+	h.assert.Nil(o)
 	// Neither creator should be called.
-	ExpectFalse(t.fullCreator.called)
-	ExpectFalse(t.appendCreator.called)
+	h.assert.False(h.fullCreator.called)
+	h.assert.False(h.appendCreator.called)
 }
 
-func (t *SyncerTest) UnfinalizedObjectDoesNotReturnEarlyOnTruncateToStaleMetadataSize() {
+func TestSyncer_UnfinalizedObjectDoesNotReturnEarlyOnTruncateToStaleMetadataSize(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.appendCreator.o = &gcs.Object{}
-	t.appendCreator.err = nil
+	h.appendCreator.o = &gcs.Object{}
+	h.appendCreator.err = nil
 	// Simulate an unfinalized object (Finalized time is zero).
-	t.srcObject.Finalized = time.Time{}
+	h.srcObject.Finalized = time.Time{}
 	// GCS metadata reports stale size 4 (but actual size was 10).
-	t.srcObject.Size = 4
+	h.srcObject.Size = 4
 	// Set up the content with 10 bytes of initial data.
-	t.content, err = NewTempFile(
+	h.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader("1234567890")},
-		"",
-		&t.clock)
-	AssertEq(nil, err)
+		t.TempDir(),
+		&h.clock)
+	h.require.NoError(err)
 	// Truncate to 4. This sets size to 4 and dirtyThreshold to 4.
 	// Since we truncated, tf.mtime becomes non-nil.
-	err = t.content.Truncate(4)
-	AssertEq(nil, err)
+	err = h.content.Truncate(4)
+	h.require.NoError(err)
 
 	// Even though local size matches stale GCS size (4 == 4) and dirtyThreshold (4 == 4)
 	// matches GCS size, since tf.mtime is non-nil and the object is unfinalized,
 	// it should bypass early return and call appendCreator.
-	o, err := t.call()
+	o, err := h.call()
 
-	AssertEq(nil, err)
-	ExpectEq(t.appendCreator.o, o)
-	ExpectTrue(t.appendCreator.called)
-	ExpectFalse(t.fullCreator.called)
+	h.require.NoError(err)
+	h.assert.Equal(h.appendCreator.o, o)
+	h.assert.True(h.appendCreator.called)
+	h.assert.False(h.fullCreator.called)
 }
 
-func (t *SyncerTest) NotDirty() {
-	// Call
-	o, err := t.call()
+func TestSyncer_NotDirty(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
 
-	AssertEq(nil, err)
-	ExpectEq(nil, o)
+	// Call
+	o, err := h.call()
+
+	h.require.NoError(err)
+	h.assert.Nil(o)
 
 	// Neither creater should have been called.
-	ExpectFalse(t.fullCreator.called)
-	ExpectFalse(t.appendCreator.called)
+	h.assert.False(h.fullCreator.called)
+	h.assert.False(h.appendCreator.called)
 }
 
-func (t *SyncerTest) SmallerThanSource() {
+func TestSyncer_SmallerThanSource(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	// Truncate downward.
-	err := t.content.Truncate(int64(len(srcObjectContents) - 1))
-	AssertEq(nil, err)
+	err := h.content.Truncate(int64(len(srcObjectContents) - 1))
+	h.require.NoError(err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = h.call()
 
-	ExpectTrue(t.fullCreator.called)
-	ExpectFalse(t.appendCreator.called)
+	h.assert.True(h.fullCreator.called)
+	h.assert.False(h.appendCreator.called)
 }
 
-func (t *SyncerTest) SameSizeAsSource() {
+func TestSyncer_SameSizeAsSource(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	// Dirty a byte without changing the length.
-	_, err := t.content.WriteAt(
+	_, err := h.content.(io.WriterAt).WriteAt(
 		[]byte("a"),
 		int64(len(srcObjectContents)-1))
 
-	AssertEq(nil, err)
+	h.require.NoError(err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = h.call()
 
-	ExpectTrue(t.fullCreator.called)
-	ExpectFalse(t.appendCreator.called)
+	h.assert.True(h.fullCreator.called)
+	h.assert.False(h.appendCreator.called)
 }
 
-func (t *SyncerTest) LargerThanSource_ThresholdInSource() {
+func TestSyncer_LargerThanSource_ThresholdInSource(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
 
 	// Extend the length of the content.
-	err = t.content.Truncate(int64(len(srcObjectContents) + 100))
-	AssertEq(nil, err)
+	err = h.content.Truncate(int64(len(srcObjectContents) + 100))
+	h.require.NoError(err)
 
 	// But dirty a byte within the initial content.
-	_, err = t.content.WriteAt(
+	_, err = h.content.(io.WriterAt).WriteAt(
 		[]byte("a"),
 		int64(len(srcObjectContents)-1))
 
-	AssertEq(nil, err)
+	h.require.NoError(err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = h.call()
 
-	ExpectTrue(t.fullCreator.called)
-	ExpectFalse(t.appendCreator.called)
+	h.assert.True(h.fullCreator.called)
+	h.assert.False(h.appendCreator.called)
 }
 
-func (t *SyncerTest) SourceTooShortForAppend() {
+func TestSyncer_SourceTooShortForAppend(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
 
 	// Recreate the syncer with a higher append threshold.
-	t.syncer = newSyncer(
+	h.syncer = newSyncer(
 		int64(len(srcObjectContents)+1),
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
-		&t.fullCreator,
-		&t.appendCreator)
+		&h.fullCreator,
+		&h.appendCreator)
 
 	// Extend the length of the content.
-	err = t.content.Truncate(int64(len(srcObjectContents) + 1))
-	AssertEq(nil, err)
+	err = h.content.Truncate(int64(len(srcObjectContents) + 1))
+	h.require.NoError(err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = h.call()
 
-	ExpectTrue(t.fullCreator.called)
-	ExpectFalse(t.appendCreator.called)
+	h.assert.True(h.fullCreator.called)
+	h.assert.False(h.appendCreator.called)
 }
 
-func (t *SyncerTest) SourceComponentCountTooHigh() {
+func TestSyncer_SourceComponentCountTooHigh(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
 
 	// Simulate a large component count.
-	t.srcObject.ComponentCount = gcs.MaxComponentCount
+	h.srcObject.ComponentCount = gcs.MaxComponentCount
 
 	// Extend the length of the content.
-	err = t.content.Truncate(int64(len(srcObjectContents) + 1))
-	AssertEq(nil, err)
+	err = h.content.Truncate(int64(len(srcObjectContents) + 1))
+	h.require.NoError(err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = h.call()
 
-	ExpectTrue(t.fullCreator.called)
-	ExpectFalse(t.appendCreator.called)
+	h.assert.True(h.fullCreator.called)
+	h.assert.False(h.appendCreator.called)
 }
 
-func (t *SyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
+func TestSyncer_LargerThanSource_ThresholdAtEndOfSource(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
 
 	// Extend the length of the content.
-	err = t.content.Truncate(int64(len(srcObjectContents) + 1))
-	AssertEq(nil, err)
+	err = h.content.Truncate(int64(len(srcObjectContents) + 1))
+	h.require.NoError(err)
 
 	// The append creator should be called.
-	t.call()
+	_, _ = h.call()
 
-	ExpectFalse(t.fullCreator.called)
-	ExpectTrue(t.appendCreator.called)
+	h.assert.False(h.fullCreator.called)
+	h.assert.True(h.appendCreator.called)
 }
 
-func (t *SyncerTest) CallsFullCreator() {
+func TestSyncer_CallsFullCreator(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	AssertLt(2, t.srcObject.Size)
+	h.require.Less(2, int(h.srcObject.Size))
 
 	// Ready the content.
-	err = t.content.Truncate(2)
-	AssertEq(nil, err)
+	err = h.content.Truncate(2)
+	h.require.NoError(err)
 
 	mtime := time.Now().Add(123 * time.Second)
-	t.content.SetMtime(mtime)
+	h.content.SetMtime(mtime)
 
 	// Call
-	t.call()
+	_, _ = h.call()
 
-	AssertTrue(t.fullCreator.called)
-	ExpectEq(t.srcObject, t.fullCreator.srcObject)
-	ExpectThat(t.fullCreator.mtime, timeutil.TimeEq(mtime))
-	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
+	h.assert.True(h.fullCreator.called)
+	h.assert.Equal(h.srcObject, h.fullCreator.srcObject)
+	h.assert.True(mtime.Equal(h.fullCreator.mtime))
+	h.assert.Equal(srcObjectContents[:2], string(h.fullCreator.contents))
 }
 
-func (t *SyncerTest) FullCreatorFails() {
+func TestSyncer_FullCreatorFails(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.fullCreator.err = errors.New("taco")
+	h.fullCreator.err = errors.New("taco")
 
 	// Truncate downward.
-	err = t.content.Truncate(2)
-	AssertEq(nil, err)
+	err = h.content.Truncate(2)
+	h.require.NoError(err)
 
 	// Call
-	_, err = t.call()
+	_, err = h.call()
 
-	ExpectThat(err, Error(HasSubstr("create")))
-	ExpectThat(err, Error(HasSubstr("taco")))
+	h.assert.ErrorContains(err, "create")
+	h.assert.ErrorContains(err, "taco")
 }
 
-func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
+func TestSyncer_FullCreatorReturnsPreconditionError(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.fullCreator.err = &gcs.PreconditionError{}
+	h.fullCreator.err = &gcs.PreconditionError{}
 
 	// Truncate downward.
-	err = t.content.Truncate(2)
-	AssertEq(nil, err)
+	err = h.content.Truncate(2)
+	h.require.NoError(err)
 
 	// Call
-	_, err = t.call()
+	_, err = h.call()
 
 	var preconditionErr *gcs.PreconditionError
-	ExpectTrue(errors.As(err, &preconditionErr))
+	h.assert.ErrorAs(err, &preconditionErr)
 }
 
-func (t *SyncerTest) FullCreatorSucceeds() {
+func TestSyncer_FullCreatorSucceeds(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.fullCreator.o = &gcs.Object{}
-	t.fullCreator.err = nil
+	h.fullCreator.o = &gcs.Object{}
+	h.fullCreator.err = nil
 
 	// Truncate downward.
-	err = t.content.Truncate(2)
-	AssertEq(nil, err)
+	err = h.content.Truncate(2)
+	h.require.NoError(err)
 
 	// Call
-	o, err := t.call()
+	o, err := h.call()
 
-	AssertEq(nil, err)
-	ExpectEq(t.fullCreator.o, o)
+	h.require.NoError(err)
+	h.assert.Equal(h.fullCreator.o, o)
 }
 
-func (t *SyncerTest) CallsAppendCreator() {
+func TestSyncer_CallsAppendCreator(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
 
 	// Append some data.
-	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
-	AssertEq(nil, err)
+	_, err = h.content.(io.WriterAt).WriteAt([]byte("burrito"), int64(h.srcObject.Size))
+	h.require.NoError(err)
 
 	// Set up an expected mtime.
 	mtime := time.Now().Add(123 * time.Second)
-	t.content.SetMtime(mtime)
+	h.content.SetMtime(mtime)
 
 	// Call
-	t.call()
+	_, _ = h.call()
 
-	AssertTrue(t.appendCreator.called)
-	ExpectEq(t.srcObject, t.appendCreator.srcObject)
-	ExpectThat(t.appendCreator.mtime, timeutil.TimeEq(mtime))
-	ExpectEq("burrito", string(t.appendCreator.contents))
+	h.assert.True(h.appendCreator.called)
+	h.assert.Equal(h.srcObject, h.appendCreator.srcObject)
+	h.assert.True(mtime.Equal(h.appendCreator.mtime))
+	h.assert.Equal("burrito", string(h.appendCreator.contents))
 }
 
-func (t *SyncerTest) AppendCreatorFails() {
+func TestSyncer_AppendCreatorFails(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.appendCreator.err = errors.New("taco")
+	h.appendCreator.err = errors.New("taco")
 
 	// Append some data.
-	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
-	AssertEq(nil, err)
+	_, err = h.content.(io.WriterAt).WriteAt([]byte("burrito"), int64(h.srcObject.Size))
+	h.require.NoError(err)
 
 	// Call
-	_, err = t.call()
+	_, err = h.call()
 
-	ExpectThat(err, Error(HasSubstr("create")))
-	ExpectThat(err, Error(HasSubstr("taco")))
+	h.assert.ErrorContains(err, "create")
+	h.assert.ErrorContains(err, "taco")
 }
 
-func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
+func TestSyncer_AppendCreatorReturnsPreconditionError(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.appendCreator.err = &gcs.PreconditionError{}
+	h.appendCreator.err = &gcs.PreconditionError{}
 
 	// Append some data.
-	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
-	AssertEq(nil, err)
+	_, err = h.content.(io.WriterAt).WriteAt([]byte("burrito"), int64(h.srcObject.Size))
+	h.require.NoError(err)
 
 	// Call
-	_, err = t.call()
+	_, err = h.call()
 
 	var preconditionErr *gcs.PreconditionError
-	ExpectTrue(errors.As(err, &preconditionErr))
+	h.assert.ErrorAs(err, &preconditionErr)
 }
 
-func (t *SyncerTest) AppendCreatorSucceeds() {
+func TestSyncer_AppendCreatorSucceeds(t *testing.T) {
+	h := newSyncerHelper(t)
+	defer h.tearDown()
+
 	var err error
-	t.appendCreator.o = &gcs.Object{}
-	t.appendCreator.err = nil
+	h.appendCreator.o = &gcs.Object{}
+	h.appendCreator.err = nil
 
 	// Append some data.
-	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
-	AssertEq(nil, err)
+	_, err = h.content.(io.WriterAt).WriteAt([]byte("burrito"), int64(h.srcObject.Size))
+	h.require.NoError(err)
 
 	// Call
-	o, err := t.call()
+	o, err := h.call()
 
-	AssertEq(nil, err)
-	ExpectEq(t.appendCreator.o, o)
+	h.require.NoError(err)
+	h.assert.Equal(h.appendCreator.o, o)
 }
