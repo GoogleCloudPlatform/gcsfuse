@@ -793,7 +793,18 @@ func (d *dirInode) lookUpUnknownType(ctx context.Context, name string) (*Core, e
 
 	if d.implicitDirs {
 		group.Go(func() (err error) {
-			dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+			dirName := NewDirName(d.Name(), name)
+			dirResult, err = findDirInode(ctx, d.Bucket(), dirName)
+
+			// If ListObjects returned empty (err == nil && dirResult == nil),
+			// this directory doesn't exist (neither explicit nor implicit).
+			// We can safely add a negative cache entry to prevent repeated ListObjects calls.
+			if err == nil && dirResult == nil {
+				_ = d.Bucket().DeleteObject(ctx, &gcs.DeleteObjectRequest{
+					Name:                dirName.GcsObjectName(),
+					OnlyDeleteFromCache: true,
+				})
+			}
 			return err
 		})
 	} else {
