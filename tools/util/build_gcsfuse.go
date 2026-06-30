@@ -69,11 +69,17 @@ func BuildGcsfuse(dstDir string) (err error) {
 	log.Printf("Building gcsfuse into %s", dstDir)
 
 	{
-		cmd := exec.Command(
-			toolPath,
+		args := []string{
 			srcDir,
 			dstDir,
 			"0.0.0",
+		}
+		if os.Getenv("GOCOVERDIR") != "" {
+			args = append(args, "--", "-cover", "-coverpkg=github.com/googlecloudplatform/gcsfuse/v3/...")
+		}
+		cmd := exec.Command(
+			toolPath,
+			args...,
 		)
 
 		var output []byte

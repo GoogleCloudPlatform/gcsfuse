@@ -133,7 +133,7 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on zonal bucket(s) ..."
-  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage --enable-coverage --run-package "streaming_writes" --skip-emulator
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -143,7 +143,7 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
-  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage --enable-coverage --run-package "streaming_writes" --skip-emulator
 fi
 
 # Execute package build tests.
