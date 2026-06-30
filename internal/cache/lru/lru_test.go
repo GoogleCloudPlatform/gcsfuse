@@ -15,7 +15,6 @@
 package lru_test
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -23,28 +22,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-func TestCache(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
 
 const MaxSize = 50
 const OperationCount = 100
-
-type CacheTest struct {
-	cache *lru.Cache
-}
-
-func init() { RegisterTestSuite(&CacheTest{}) }
-
-func (t *CacheTest) SetUp(*TestInfo) {
-	locker.EnableInvariantsCheck()
-	t.cache = lru.NewCache(MaxSize)
-}
 
 type testData struct {
 	Value    int64
@@ -55,19 +38,20 @@ func (td testData) Size() uint64 {
 	return td.DataSize
 }
 
+func setupCacheTest(t *testing.T) *lru.Cache {
+	locker.EnableInvariantsCheck()
+	return lru.NewCache(MaxSize)
+}
+
 // insertAndAssert inserts the given key,value in the cache and assert based on
 // the expected eviction and error.
-func (t *CacheTest) insertAndAssert(key string, val lru.ValueType, evictedValues []int64, expectedError error) {
-	ret, err := t.cache.Insert(key, val)
+func insertAndAssert(t *testing.T, cache *lru.Cache, key string, val lru.ValueType, evictedValues []int64, expectedError error) {
+	ret, err := cache.Insert(key, val)
 
-	if err == nil || expectedError == nil {
-		AssertEq(err, expectedError)
-	} else {
-		AssertEq(expectedError.Error(), err.Error())
-	}
-	AssertEq(len(evictedValues), len(ret))
+	require.ErrorIs(t, err, expectedError)
+	require.Equal(t, len(evictedValues), len(ret))
 	for index, value := range ret {
-		ExpectEq(evictedValues[index], value.(testData).Value)
+		assert.Equal(t, evictedValues[index], value.(testData).Value)
 	}
 }
 
@@ -75,286 +59,304 @@ func (t *CacheTest) insertAndAssert(key string, val lru.ValueType, evictedValues
 // Test functions
 ////////////////////////////////////////////////////////////////////////
 
-func (t *CacheTest) LookUpInEmptyCache() {
-	ExpectEq(nil, t.cache.LookUp(""))
-	ExpectEq(nil, t.cache.LookUp("taco"))
+func TestLookUpInEmptyCache(t *testing.T) {
+	cache := setupCacheTest(t)
+	assert.Nil(t, cache.LookUp(""))
+	assert.Nil(t, cache.LookUp("taco"))
 }
 
-func (t *CacheTest) InsertNilValue() {
-	t.insertAndAssert("taco", nil, []int64{}, lru.ErrInvalidEntry)
+func TestInsertNilValue(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "taco", nil, []int64{}, lru.ErrInvalidEntry)
 }
 
-func (t *CacheTest) LookUpUnknownKey() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	t.insertAndAssert("taco", testData{Value: 23, DataSize: 8}, []int64{}, nil)
+func TestLookUpUnknownKey(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 23, DataSize: 8}, []int64{}, nil)
 
-	ExpectEq(nil, t.cache.LookUp(""))
-	ExpectEq(nil, t.cache.LookUp("enchilada"))
+	assert.Nil(t, cache.LookUp(""))
+	assert.Nil(t, cache.LookUp("enchilada"))
 }
 
-func (t *CacheTest) FillUpToCapacity() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	t.insertAndAssert("taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-	t.insertAndAssert("enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
+func TestFillUpToCapacity(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
 
-	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
-	ExpectEq(26, t.cache.LookUp("taco").(testData).Value)
-	ExpectEq(28, t.cache.LookUp("enchilada").(testData).Value)
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(26), cache.LookUp("taco").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
 }
 
-func (t *CacheTest) ExpiresLeastRecentlyUsed() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+func TestExpiresLeastRecentlyUsed(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
 
 	// Least recent.
-	t.insertAndAssert("taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
 
 	// Second most recent.
-	t.insertAndAssert("enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
 
-	AssertEq(23, t.cache.LookUp("burrito").(testData).Value) // Most recent
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value) // Most recent
 
 	// Insert another.
-	t.insertAndAssert("queso", testData{Value: 34, DataSize: 5}, []int64{26}, nil)
+	insertAndAssert(t, cache, "queso", testData{Value: 34, DataSize: 5}, []int64{26}, nil)
 
 	// See what's left.
-	ExpectEq(nil, t.cache.LookUp("taco"))
-	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
-	ExpectEq(28, t.cache.LookUp("enchilada").(testData).Value)
-	ExpectEq(34, t.cache.LookUp("queso").(testData).Value)
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
+	assert.Equal(t, int64(34), cache.LookUp("queso").(testData).Value)
 }
 
-func (t *CacheTest) Overwrite() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	t.insertAndAssert("taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-	t.insertAndAssert("enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
-	t.insertAndAssert("burrito", testData{Value: 33, DataSize: 6}, []int64{}, nil)
+func TestOverwrite(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 6}, []int64{}, nil)
 
 	// Increase the DataSize while modifying, so eviction should happen
-	t.insertAndAssert("burrito", testData{Value: 33, DataSize: 12}, []int64{26}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 12}, []int64{26}, nil)
 
-	ExpectEq(nil, t.cache.LookUp("taco"))
-	ExpectEq(33, t.cache.LookUp("burrito").(testData).Value)
-	ExpectEq(28, t.cache.LookUp("enchilada").(testData).Value)
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Equal(t, int64(33), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
 }
 
-func (t *CacheTest) TestMultipleEviction() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	t.insertAndAssert("taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-	t.insertAndAssert("enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
+func TestMultipleEviction(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
 
 	// Increase the DataSize while modifying, so eviction should happen
-	t.insertAndAssert("large_data", testData{Value: 33, DataSize: 45}, []int64{23, 26, 28}, nil)
+	insertAndAssert(t, cache, "large_data", testData{Value: 33, DataSize: 45}, []int64{23, 26, 28}, nil)
 
-	ExpectEq(nil, t.cache.LookUp("taco"))
-	ExpectEq(nil, t.cache.LookUp("burrito"))
-	ExpectEq(nil, t.cache.LookUp("enchilada"))
-	ExpectEq(33, t.cache.LookUp("large_data").(testData).Value)
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Nil(t, cache.LookUp("burrito"))
+	assert.Nil(t, cache.LookUp("enchilada"))
+	assert.Equal(t, int64(33), cache.LookUp("large_data").(testData).Value)
 }
 
-func (t *CacheTest) TestWhenEntrySizeMoreThanCacheMaxSize() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+func TestWhenEntrySizeMoreThanCacheMaxSize(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
 
 	// Insert entry with size greater than maxSize of cache.
-	t.insertAndAssert("taco", testData{Value: 26, DataSize: MaxSize + 1}, []int64{}, lru.ErrInvalidEntrySize)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: MaxSize + 1}, []int64{}, lru.ErrInvalidEntrySize)
 
-	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
 }
 
-func (t *CacheTest) TestEraseWhenKeyPresent() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+func TestEraseWhenKeyPresent(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
 
-	deletedEntry := t.cache.Erase("burrito")
+	deletedEntry := cache.Erase("burrito")
 
-	ExpectEq(23, deletedEntry.(testData).Value)
-	ExpectEq(nil, t.cache.LookUp("burrito"))
+	assert.Equal(t, int64(23), deletedEntry.(testData).Value)
+	assert.Nil(t, cache.LookUp("burrito"))
 }
 
-func (t *CacheTest) TestEraseCacheWithGivenPrefix() {
-	t.insertAndAssert("a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	t.insertAndAssert("a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
-	t.insertAndAssert("a/b/d", testData{Value: 22, DataSize: 6}, []int64{}, nil)
-	t.insertAndAssert("a/c", testData{Value: 20, DataSize: 6}, []int64{}, nil)
-	t.insertAndAssert("b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+func TestEraseCacheWithGivenPrefix(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b/d", testData{Value: 22, DataSize: 6}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/c", testData{Value: 20, DataSize: 6}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
 
-	t.cache.EraseEntriesWithGivenPrefix("a")
+	cache.EraseEntriesWithGivenPrefix("a")
 
-	ExpectEq(nil, t.cache.LookUp("a"))
-	ExpectEq(nil, t.cache.LookUp("a/b"))
-	ExpectEq(nil, t.cache.LookUp("a/b/d"))
-	ExpectEq(nil, t.cache.LookUp("a/c"))
-	ExpectEq(2, t.cache.LookUp("b").Size())
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("a/b/d"))
+	assert.Nil(t, cache.LookUp("a/c"))
+	assert.Equal(t, uint64(2), cache.LookUp("b").Size())
 }
 
-func (t *CacheTest) TestEraseCacheWhereNoEntriesExistWithGivenPrefix() {
-	t.insertAndAssert("a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	t.insertAndAssert("a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
-	t.insertAndAssert("b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+func TestEraseCacheWhereNoEntriesExistWithGivenPrefix(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
 
-	t.cache.EraseEntriesWithGivenPrefix("c")
+	cache.EraseEntriesWithGivenPrefix("c")
 
-	ExpectEq(4, t.cache.LookUp("a").Size())
-	ExpectEq(5, t.cache.LookUp("a/b").Size())
-	ExpectEq(2, t.cache.LookUp("b").Size())
+	assert.Equal(t, uint64(4), cache.LookUp("a").Size())
+	assert.Equal(t, uint64(5), cache.LookUp("a/b").Size())
+	assert.Equal(t, uint64(2), cache.LookUp("b").Size())
 }
 
-func (t *CacheTest) TestEraseCacheWithGivenPrefixWithSomeEntriesEvictedDueToCacheSize() {
-	t.insertAndAssert("a", testData{Value: 23, DataSize: 20}, []int64{}, nil)
-	t.insertAndAssert("a/b", testData{Value: 26, DataSize: 10}, []int64{}, nil)
-	t.insertAndAssert("a/b/d", testData{Value: 22, DataSize: 5}, []int64{}, nil)
-	t.insertAndAssert("a/c", testData{Value: 20, DataSize: 10}, []int64{}, nil)
-	t.insertAndAssert("b", testData{Value: 21, DataSize: 15}, []int64{23}, nil)
+func TestEraseCacheWithGivenPrefixWithSomeEntriesEvictedDueToCacheSize(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 10}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b/d", testData{Value: 22, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/c", testData{Value: 20, DataSize: 10}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 15}, []int64{23}, nil)
 
 	// As entry "a" was already evicted by the insertion of "b", only three entries will be removed.
-	t.cache.EraseEntriesWithGivenPrefix("a")
+	cache.EraseEntriesWithGivenPrefix("a")
 
-	ExpectEq(nil, t.cache.LookUp("a"))
-	ExpectEq(nil, t.cache.LookUp("a/b"))
-	ExpectEq(nil, t.cache.LookUp("a/b/d"))
-	ExpectEq(nil, t.cache.LookUp("a/c"))
-	ExpectEq(15, t.cache.LookUp("b").Size())
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("a/b/d"))
+	assert.Nil(t, cache.LookUp("a/c"))
+	assert.Equal(t, uint64(15), cache.LookUp("b").Size())
 }
 
-func (t *CacheTest) TestEraseWhenKeyNotPresent() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+func TestEraseWhenKeyNotPresent(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
 
-	deletedEntry := t.cache.Erase("taco")
-	ExpectEq(nil, deletedEntry)
+	deletedEntry := cache.Erase("taco")
+	assert.Nil(t, deletedEntry)
 
-	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
 }
 
-func (t *CacheTest) TestUpdateWhenKeyPresent() {
+func TestUpdateWhenKeyPresent(t *testing.T) {
+	cache := setupCacheTest(t)
 	key := "burrito"
 	data := testData{Value: 23, DataSize: 4}
-	t.insertAndAssert(key, data, []int64{}, nil)
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
 	newData := testData{Value: 2, DataSize: 4}
 
-	err := t.cache.UpdateWithoutChangingOrder(key, newData)
+	err := cache.UpdateWithoutChangingOrder(key, newData)
 
-	ExpectEq(nil, err)
-	ExpectEq(2, t.cache.LookUp(key).(testData).Value)
+	assert.Nil(t, err)
+	assert.Equal(t, int64(2), cache.LookUp(key).(testData).Value)
 }
 
-func (t *CacheTest) TestUpdateWhenKeyNotPresent() {
+func TestUpdateWhenKeyNotPresent(t *testing.T) {
+	cache := setupCacheTest(t)
 	key := "burrito"
 	data := testData{Value: 23, DataSize: 4}
 
-	err := t.cache.UpdateWithoutChangingOrder(key, data)
+	err := cache.UpdateWithoutChangingOrder(key, data)
 
-	ExpectNe(nil, err)
-	ExpectTrue(errors.Is(err, lru.ErrEntryNotExist))
+	assert.ErrorIs(t, err, lru.ErrEntryNotExist)
 }
 
-func (t *CacheTest) TestUpdateWhenSizeIsDifferent() {
+func TestUpdateWhenSizeIsDifferent(t *testing.T) {
+	cache := setupCacheTest(t)
 	key := "burrito"
 	data := testData{Value: 23, DataSize: 4}
-	t.insertAndAssert(key, data, []int64{}, nil)
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
 	newData := testData{Value: 2, DataSize: 3}
 
-	err := t.cache.UpdateWithoutChangingOrder(key, newData)
+	err := cache.UpdateWithoutChangingOrder(key, newData)
 
-	ExpectNe(nil, err)
-	ExpectTrue(errors.Is(err, lru.ErrInvalidUpdateEntrySize))
+	assert.ErrorIs(t, err, lru.ErrInvalidUpdateEntrySize)
 }
 
-func (t *CacheTest) TestUpdateNotChangeOrder() {
+func TestUpdateNotChangeOrder(t *testing.T) {
+	cache := setupCacheTest(t)
 	key1 := "burrito1"
 	data1 := testData{Value: 23, DataSize: 10}
-	t.insertAndAssert(key1, data1, []int64{}, nil)
+	insertAndAssert(t, cache, key1, data1, []int64{}, nil)
 	key2 := "burrito2"
 	data2 := testData{Value: 2, DataSize: 40}
-	t.insertAndAssert(key2, data2, []int64{}, nil)
+	insertAndAssert(t, cache, key2, data2, []int64{}, nil)
 
 	newData := testData{Value: 7, DataSize: 10}
-	err := t.cache.UpdateWithoutChangingOrder(key1, newData)
+	err := cache.UpdateWithoutChangingOrder(key1, newData)
 
-	ExpectEq(nil, err)
+	assert.Nil(t, err)
 	// inserting again which should evict key1 because key1 is updated without
 	// changing order
 	key3 := "burrito3"
 	data3 := testData{Value: 3, DataSize: 5}
-	t.insertAndAssert(key3, data3, []int64{7}, nil)
+	insertAndAssert(t, cache, key3, data3, []int64{7}, nil)
 }
 
-func (t *CacheTest) TestLookUpWithoutChangingOrder_WhenKeyPresent() {
+func TestLookUpWithoutChangingOrder_WhenKeyPresent(t *testing.T) {
+	cache := setupCacheTest(t)
 	key := "burrito"
 	data := testData{Value: 23, DataSize: 4}
-	t.insertAndAssert(key, data, []int64{}, nil)
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
 
-	value := t.cache.LookUpWithoutChangingOrder(key)
+	value := cache.LookUpWithoutChangingOrder(key)
 
-	ExpectEq(23, value.(testData).Value)
+	assert.Equal(t, int64(23), value.(testData).Value)
 }
 
-func (t *CacheTest) TestLookUpWithoutChangingOrder_WhenKeyNotPresent() {
+func TestLookUpWithoutChangingOrder_WhenKeyNotPresent(t *testing.T) {
+	cache := setupCacheTest(t)
 	key := "burrito"
 
-	value := t.cache.LookUpWithoutChangingOrder(key)
+	value := cache.LookUpWithoutChangingOrder(key)
 
-	ExpectEq(nil, value)
+	assert.Nil(t, value)
 }
 
-func (t *CacheTest) TestLookUpWithoutChangingOrder_NotChangeOrder() {
+func TestLookUpWithoutChangingOrder_NotChangeOrder(t *testing.T) {
+	cache := setupCacheTest(t)
 	key1 := "burrito1"
 	data1 := testData{Value: 23, DataSize: 10}
-	t.insertAndAssert(key1, data1, []int64{}, nil)
+	insertAndAssert(t, cache, key1, data1, []int64{}, nil)
 	key2 := "burrito2"
 	data2 := testData{Value: 2, DataSize: 40}
-	t.insertAndAssert(key2, data2, []int64{}, nil)
+	insertAndAssert(t, cache, key2, data2, []int64{}, nil)
 
-	value := t.cache.LookUpWithoutChangingOrder(key1)
+	value := cache.LookUpWithoutChangingOrder(key1)
 
-	ExpectEq(23, value.(testData).Value)
+	assert.Equal(t, int64(23), value.(testData).Value)
 	// inserting again which should evict key1 because key1 is looked up without
 	// changing order
 	key3 := "burrito3"
 	data3 := testData{Value: 3, DataSize: 5}
-	t.insertAndAssert(key3, data3, []int64{23}, nil)
+	insertAndAssert(t, cache, key3, data3, []int64{23}, nil)
 }
 
 // This will detect race if we run the test with `-race` flag.
 // We get the race condition failure if we remove lock from Insert or Erase method.
-func (t *CacheTest) TestRaceCondition() {
+func TestRaceCondition(t *testing.T) {
+	cache := setupCacheTest(t)
 	var wg sync.WaitGroup
 	wg.Add(5)
 
 	go func() {
 		defer wg.Done()
 		for i := range OperationCount {
-			_, err := t.cache.Insert("key", testData{
+			_, err := cache.Insert("key", testData{
 				Value:    int64(i),
 				DataSize: uint64(rand.Intn(MaxSize)),
 			})
-
-			AssertEq(nil, err)
+			assert.NoError(t, err)
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for range OperationCount {
-			t.cache.Erase("key")
+			cache.Erase("key")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for range OperationCount {
-			t.cache.LookUp("key")
+			cache.LookUp("key")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for range OperationCount {
-			t.cache.LookUpWithoutChangingOrder("key")
+			cache.LookUpWithoutChangingOrder("key")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for i := range OperationCount {
-			_ = t.cache.UpdateWithoutChangingOrder("key", testData{
+			_ = cache.UpdateWithoutChangingOrder("key", testData{
 				Value:    int64(i),
 				DataSize: uint64(rand.Intn(MaxSize)),
 			})
@@ -364,7 +366,7 @@ func (t *CacheTest) TestRaceCondition() {
 	wg.Wait()
 }
 
-func (t *CacheTest) Test_EraseEntriesWithGivenPrefix_Concurrent() {
+func Test_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
 	c := lru.NewCache(100000)
 
 	// Pre-fill the cache
