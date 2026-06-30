@@ -18,7 +18,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -174,12 +173,8 @@ func TestLegacySymlinks(t *testing.T) {
 }
 
 func RunTests(t *testing.T, runName string, factory func(flags []string) suite.TestingSuite) {
-	for _, cfg := range testEnv.cfg.Configs {
-		if cfg.Run == runName {
-			for _, flagStr := range cfg.Flags {
-				flags := strings.Fields(flagStr)
-				suite.Run(t, factory(flags))
-			}
-		}
+	flagsSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, runName)
+	for _, flags := range flagsSets {
+		suite.Run(t, factory(flags))
 	}
 }

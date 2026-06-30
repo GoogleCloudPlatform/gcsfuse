@@ -41,6 +41,7 @@ type env struct {
 	storageClient *storage.Client
 	ctx           context.Context
 	cfg           *test_suite.TestConfig
+	bucketType    string
 }
 
 func TestMain(m *testing.M) {
@@ -70,7 +71,7 @@ func TestMain(m *testing.M) {
 
 	testEnv.ctx = context.Background()
 	testEnv.cfg = &cfg.SymlinkHandling[0]
-	setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 
 	// 2. Create storage client before running tests.
 	var err error
