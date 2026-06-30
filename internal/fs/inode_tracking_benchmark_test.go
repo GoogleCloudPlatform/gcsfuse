@@ -110,7 +110,7 @@ func Benchmark_MapKey_InodeName_Lookup_Static(b *testing.B) {
 		name := inode.NewDescendantName(root, pool[i%poolSize])
 		m[name] = nil
 	}
-	
+
 	i := 0
 	for b.Loop() {
 		name := inode.NewDescendantName(root, pool[i%poolSize])
@@ -128,7 +128,7 @@ func Benchmark_MapKey_InodeName_Lookup_Dynamic(b *testing.B) {
 		name := inode.NewDescendantName(root, pool[i%poolSize])
 		m[name] = nil
 	}
-	
+
 	i := 0
 	for b.Loop() {
 		name := inode.NewDescendantName(root, pool[i%poolSize])
@@ -146,7 +146,7 @@ func Benchmark_MapKey_String_Lookup_Static(b *testing.B) {
 		name := inode.NewDescendantName(root, pool[i%poolSize])
 		m[name.LocalName()] = nil
 	}
-	
+
 	i := 0
 	for b.Loop() {
 		name := inode.NewDescendantName(root, pool[i%poolSize])
@@ -164,7 +164,7 @@ func Benchmark_MapKey_String_Lookup_Dynamic(b *testing.B) {
 		name := inode.NewDescendantName(root, pool[i%poolSize])
 		m[name.LocalName()] = nil
 	}
-	
+
 	i := 0
 	for b.Loop() {
 		name := inode.NewDescendantName(root, pool[i%poolSize])
