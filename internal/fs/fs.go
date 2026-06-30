@@ -209,9 +209,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		dirMode:                    serverCfg.DirPerms | os.ModeDir,
 		inodes:                     make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:                fuseops.RootInodeID + 1,
-		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
-		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
-		folderInodes:               make(map[inode.Name]inode.DirInode),
+		generationBackedInodes:     make(map[string]inode.GenerationBackedInode),
+		implicitDirInodes:          make(map[string]inode.DirInode),
+		folderInodes:               make(map[string]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]any),
 		newConfig:                  serverCfg.NewConfig,
@@ -296,8 +296,8 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.implicitDirInodes[root.Name()] = root
-	fs.folderInodes[root.Name()] = root
+	fs.implicitDirInodes[root.Name().LocalName()] = root
+	fs.folderInodes[root.Name().LocalName()] = root
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -576,7 +576,7 @@ type fileSystem struct {
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	generationBackedInodes map[inode.Name]inode.GenerationBackedInode
+	generationBackedInodes map[string]inode.GenerationBackedInode
 
 	// A map from object name to the implicit directory inode that represents
 	// that name, if any. There can be at most one implicit directory inode for a
@@ -589,7 +589,7 @@ type fileSystem struct {
 	//            ExplicitDirInode, implicitDirInodes[d.Name()] == d
 	//
 	// GUARDED_BY(mu)
-	implicitDirInodes map[inode.Name]inode.DirInode
+	implicitDirInodes map[string]inode.DirInode
 
 	// A map from folder name to the folder inode that represents
 	// that name, if any. There can be at most one folder inode for a
@@ -599,7 +599,7 @@ type fileSystem struct {
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	folderInodes map[inode.Name]inode.DirInode
+	folderInodes map[string]inode.DirInode
 
 	// A map from object name to the local fileInode that represents
 	// that name. There can be at most one local file inode for a
@@ -689,13 +689,13 @@ func (fs *fileSystem) findParentDirInode(childName inode.Name) inode.DirInode {
 		return nil
 	}
 
-	if parentInode, ok := fs.implicitDirInodes[parentName]; ok {
+	if parentInode, ok := fs.implicitDirInodes[parentName.LocalName()]; ok {
 		return parentInode
 	}
-	if parentInode, ok := fs.folderInodes[parentName]; ok {
+	if parentInode, ok := fs.folderInodes[parentName.LocalName()]; ok {
 		return parentInode
 	}
-	if parentInode, ok := fs.generationBackedInodes[parentName]; ok {
+	if parentInode, ok := fs.generationBackedInodes[parentName.LocalName()]; ok {
 		if dirInode, ok := parentInode.(inode.DirInode); ok {
 			return dirInode
 		}
@@ -753,9 +753,9 @@ func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 }
 
 func (fs *fileSystem) checkInvariantsForFolderInodes() {
-	// INVARIANT: For each k/v, v.Name() == k
+	// INVARIANT: For each k/v, v.Name().LocalName() == k
 	for k, v := range fs.folderInodes {
-		if !(v.Name() == k) {
+		if !(v.Name().LocalName() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
 				v.Name(),
@@ -776,9 +776,9 @@ func (fs *fileSystem) checkInvariantsForFolderInodes() {
 }
 
 func (fs *fileSystem) checkInvariantsForImplicitDirs() {
-	// INVARIANT: For each k/v, v.Name() == k
+	// INVARIANT: For each k/v, v.Name().LocalName() == k
 	for k, v := range fs.implicitDirInodes {
-		if !(v.Name() == k) {
+		if !(v.Name().LocalName() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
 				v.Name(),
@@ -814,11 +814,11 @@ func (fs *fileSystem) checkInvariantsForImplicitDirs() {
 		_, edir := in.(inode.ExplicitDirInode)
 
 		if dir && !edir {
-			if !(fs.implicitDirInodes[in.Name()] == in) {
+			if !(fs.implicitDirInodes[in.Name().LocalName()] == in) {
 				panic(fmt.Sprintf(
 					"implicitDirInodes mismatch: %q %v %v",
 					in.Name(),
-					fs.implicitDirInodes[in.Name()],
+					fs.implicitDirInodes[in.Name().LocalName()],
 					in))
 			}
 		}
@@ -826,9 +826,9 @@ func (fs *fileSystem) checkInvariantsForImplicitDirs() {
 }
 
 func (fs *fileSystem) checkInvariantsForGenerationBackedInodes() {
-	// INVARIANT: For each k/v, v.Name() == k
+	// INVARIANT: For each k/v, v.Name().LocalName() == k
 	for k, v := range fs.generationBackedInodes {
-		if !(v.Name() == k) {
+		if !(v.Name().LocalName() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
 				v.Name(),
@@ -1040,7 +1040,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode, parInodeCtx context.Context) (inode.Inode, error) {
+func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[string]inode.DirInode, parInodeCtx context.Context) (inode.Inode, error) {
 	if !ic.FullName.IsDir() {
 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
 	}
@@ -1048,14 +1048,14 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 	var maxTriesToCreateInode = 3
 
 	for range maxTriesToCreateInode {
-		in, ok := (inodes)[ic.FullName]
+		in, ok := (inodes)[ic.FullName.LocalName()]
 		// Create a new inode when a folder is created first time, or when a folder is deleted and then recreated with the same name.
 		if !ok || in.IsUnlinked() {
 			in, err := fs.mintInode(ic, parInodeCtx)
 			if err != nil {
 				return nil, err
 			}
-			(inodes)[in.Name()] = in.(inode.DirInode)
+			(inodes)[in.Name().LocalName()] = in.(inode.DirInode)
 			in.Lock()
 			return in, nil
 		}
@@ -1064,7 +1064,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 		in.Lock()
 		fs.mu.Lock()
 
-		if (inodes)[ic.FullName] != in {
+		if (inodes)[ic.FullName.LocalName()] != in {
 			in.Unlock()
 			continue
 		}
@@ -1124,7 +1124,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
 	// but no inode lock.
 	for {
 		// Look at the current index entry.
-		existingInode, ok := fs.generationBackedInodes[ic.FullName]
+		existingInode, ok := fs.generationBackedInodes[ic.FullName.LocalName()]
 
 		// If we have no existing record, mint an inode and return it.
 		if !ok {
@@ -1132,7 +1132,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
 			if err != nil {
 				return nil, err
 			}
-			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
+			fs.generationBackedInodes[in.Name().LocalName()] = in.(inode.GenerationBackedInode)
 
 			in.Lock()
 			return in, nil
@@ -1149,7 +1149,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
 		// Check that the index still points at this inode. If not, it's possible
 		// that the inode is in the process of being destroyed and is unsafe to
 		// use. Go around and try again.
-		if fs.generationBackedInodes[ic.FullName] != existingInode {
+		if fs.generationBackedInodes[ic.FullName.LocalName()] != existingInode {
 			existingInode.Unlock()
 			continue
 		}
@@ -1191,7 +1191,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
+		fs.generationBackedInodes[in.Name().LocalName()] = in.(inode.GenerationBackedInode)
 
 		continue
 	}
@@ -1369,8 +1369,8 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
 	delete(fs.localFileInodes, f.Name())
-	if _, ok := fs.generationBackedInodes[f.Name()]; !ok {
-		fs.generationBackedInodes[f.Name()] = f
+	if _, ok := fs.generationBackedInodes[f.Name().LocalName()]; !ok {
+		fs.generationBackedInodes[f.Name().LocalName()] = f
 	}
 	fs.mu.Unlock()
 
@@ -1532,17 +1532,17 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 		delete(fs.inodes, in.ID())
 
 		// Update indexes if necessary.
-		if fs.generationBackedInodes[name] == in {
-			delete(fs.generationBackedInodes, name)
+		if fs.generationBackedInodes[name.LocalName()] == in {
+			delete(fs.generationBackedInodes, name.LocalName())
 		}
-		if fs.implicitDirInodes[name] == in {
-			delete(fs.implicitDirInodes, name)
+		if fs.implicitDirInodes[name.LocalName()] == in {
+			delete(fs.implicitDirInodes, name.LocalName())
 		}
 		if fs.localFileInodes[name] == in {
 			delete(fs.localFileInodes, name)
 		}
-		if fs.folderInodes[name] == in {
-			delete(fs.folderInodes, name)
+		if fs.folderInodes[name.LocalName()] == in {
+			delete(fs.folderInodes, name.LocalName())
 		}
 		fs.mu.Unlock()
 	}
@@ -1845,11 +1845,11 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 
 	var parentInodeID fuseops.InodeID
 	// Check in all maps: implicit dirs → folders → generation-backed
-	if parentInode, ok := fs.implicitDirInodes[parentName]; ok {
+	if parentInode, ok := fs.implicitDirInodes[parentName.LocalName()]; ok {
 		parentInodeID = parentInode.ID()
-	} else if parentInode, ok := fs.folderInodes[parentName]; ok {
+	} else if parentInode, ok := fs.folderInodes[parentName.LocalName()]; ok {
 		parentInodeID = parentInode.ID()
-	} else if parentInode, ok := fs.generationBackedInodes[parentName]; ok {
+	} else if parentInode, ok := fs.generationBackedInodes[parentName.LocalName()]; ok {
 		parentInodeID = parentInode.ID()
 	} else {
 		return fmt.Errorf("invalidateCachedEntry: failed to invalidate the entry, parent inode not found for child ID %d (parent: %s)", childID, parentName.String())
@@ -2453,7 +2453,7 @@ func (fs *fileSystem) RmDir(
 
 	// Delete the backing object.
 	fs.mu.Lock()
-	_, isImplicitDir := fs.implicitDirInodes[child.Name()]
+	_, isImplicitDir := fs.implicitDirInodes[child.Name().LocalName()]
 	fs.mu.Unlock()
 	parent.Lock()
 	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir, childDir)
@@ -2836,7 +2836,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 
 	// Delete the backing object of the old directory.
 	fs.mu.Lock()
-	_, isImplicitDir := fs.implicitDirInodes[oldDir.Name()]
+	_, isImplicitDir := fs.implicitDirInodes[oldDir.Name().LocalName()]
 	fs.mu.Unlock()
 	oldParent.Lock()
 	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir, oldDir)
@@ -2868,7 +2868,7 @@ func (fs *fileSystem) Unlink(
 	// the unlink operation is only applicable to files.
 	in, isLocalFile := fs.localFileInodes[fileName]
 	if !isLocalFile {
-		in = fs.generationBackedInodes[fileName]
+		in = fs.generationBackedInodes[fileName.LocalName()]
 	}
 
 	fs.mu.Unlock()
