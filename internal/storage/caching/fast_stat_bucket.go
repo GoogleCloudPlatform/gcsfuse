@@ -147,6 +147,19 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	if !b.implicitDir {
 		return
 	}
+	
+	if b.negativeCacheTTL > 0 && dirName != "" && isDirPath && !dirHasContents {
+		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
+	}
+
+	// 4. Negative Cache (Only if it's a directory and there are NO contents)
+	// We must not aggressively overwrite existing positive cache entries.
+	if b.negativeCacheTTL > 0 && isDirPath && !dirHasContents && dirName != "" {
+		// Only cache as negative if it's not already cached as a positive entry.
+		if hit, entry := b.cache.LookUp(dirName, b.clock.Now()); !hit || entry == nil {
+			b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
+		}
+	}
 
 	// 4. Negative Cache (Only if it's a directory and there are NO contents)
 	// We must not aggressively overwrite existing positive cache entries.
