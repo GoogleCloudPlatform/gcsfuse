@@ -20,11 +20,16 @@ import (
 	"os"
 	"testing"
 
+	"time"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -461,5 +466,90 @@ func TestGCSMetrics_RetryCount(t *testing.T) {
 	// Verify gcs/retry_count with retry_error_category="STALLED_READ_REQUEST"
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/retry_count",
 		attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")),
+		1)
+}
+
+type fakeBucketManagerForShortCircuit struct {
+	bucket  gcs.Bucket
+	tempDir string
+}
+
+func (bm *fakeBucketManagerForShortCircuit) SetUpBucket(ctx context.Context, name string, _ bool, _ metrics.MetricHandle) (gcsx.SyncerBucket, error) {
+	return gcsx.NewSyncerBucket(0, 120, 10, bm.tempDir, gcsx.NewContentTypeBucket(bm.bucket)), nil
+}
+func (bm *fakeBucketManagerForShortCircuit) ShutDown() {}
+
+// TestGCSMetrics_RequestCount_NegativeCachingShortCircuit validates that when negative entry caching is enabled,
+// repeated lookups for non-existent files short-circuit in memory and do not emit redundant backend GCS requests.
+func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
+	ctx := context.Background()
+	origProvider := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
+	reader := metric.NewManualReader()
+	provider := metric.NewMeterProvider(metric.WithReader(reader))
+	otel.SetMeterProvider(provider)
+	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
+	require.NoError(t, err, "metrics.NewOTelMetrics")
+	bucketName := "test-bucket"
+	rawBucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
+	monitoringInnerBucket := monitor.NewMonitoringBucket(rawBucket, mh)
+	lruCache := lru.NewCache(1024 * 1024)
+	statCacheView := metadata.NewStatCacheBucketView(lruCache, "")
+	cachedOuterBucket := caching.NewFastStatBucket(
+		time.Minute,
+		statCacheView,
+		timeutil.RealClock(),
+		monitoringInnerBucket,
+		time.Minute,
+		true, // isTypeCacheDeprecated
+		true, // implicitDir
+	)
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			EnableNewReader:            true,
+			EnableTypeCacheDeprecation: true,
+			MetadataCache: cfg.MetadataCacheConfig{
+				TtlSecs: 60,
+			},
+		},
+		MetricHandle: mh,
+		TraceHandle:  tracing.NewNoopTracer(),
+		CacheClock:   &timeutil.SimulatedClock{},
+		BucketName:   bucketName,
+		BucketManager: &fakeBucketManagerForShortCircuit{
+			bucket:  cachedOuterBucket,
+			tempDir: t.TempDir(),
+		},
+		ImplicitDirectories: true,
+	}
+	server, err := fs.NewFileSystem(ctx, serverCfg)
+	require.NoError(t, err, "NewFileSystem")
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "missing_file",
+	}
+
+	// First Lookup - Cache Miss
+	_ = server.LookUpInode(ctx, lookupOp)
+	waitForMetricsProcessing()
+
+	// Probing a missing file checks file (StatObject) and then implicit dir (ListObjects)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
+		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "ListObjects")),
+		1)
+
+	// Second Lookup - Negative Cache Hit
+	_ = server.LookUpInode(ctx, lookupOp)
+	waitForMetricsProcessing()
+
+	// StatObject is short-circuited (remains 1), and ListObjects is also short-circuited (remains 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
+		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "ListObjects")),
 		1)
 }
