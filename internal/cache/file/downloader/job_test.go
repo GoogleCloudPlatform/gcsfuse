@@ -23,9 +23,9 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"strings"
 	"sync"
 	"sync/atomic"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
@@ -36,7 +36,6 @@ import (
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
-	. "github.com/jacobsa/ogletest"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -55,7 +54,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	ctx := context.Background()
 	objects := map[string][]byte{objectName: objectContent}
 	err := storageutil.CreateObjects(ctx, dt.bucket, objects)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	dt.object = getMinObject(objectName, dt.bucket)
 	dt.fileSpec = data.FileSpec{
 		Path:     dt.fileCachePath(dt.bucket.Name(), dt.object.Name),
@@ -71,47 +70,49 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	}
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, dt.object.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 }
 
 func (dt *downloaderTest) verifyInvalidError(err error) {
-	AssertTrue((nil == err) || (errors.Is(err, context.Canceled)) || errors.Is(err, lru.ErrEntryNotExist),
+	dt.require.True((nil == err) || (errors.Is(err, context.Canceled)) || errors.Is(err, lru.ErrEntryNotExist),
 		fmt.Sprintf("actual error:%v is not as expected", err))
 }
 
 func (dt *downloaderTest) verifyFile(content []byte) {
 	fileStat, err := os.Stat(dt.fileSpec.Path)
-	AssertEq(nil, err)
-	AssertEq(dt.fileSpec.FilePerm, fileStat.Mode())
-	AssertLe(len(content), fileStat.Size())
+	dt.require.NoError(err)
+	dt.require.Equal(dt.fileSpec.FilePerm, fileStat.Mode())
+	dt.require.LessOrEqual(int64(len(content)), fileStat.Size())
 	// Verify the content of file downloaded only till the size of content passed.
 	fileContent, err := os.ReadFile(dt.fileSpec.Path)
-	AssertEq(nil, err)
-	AssertTrue(reflect.DeepEqual(content, fileContent[:len(content)]))
+	dt.require.NoError(err)
+	dt.require.Equal(content, fileContent[:len(content)])
 }
 
 func (dt *downloaderTest) verifyFileInfoEntry(offset uint64) {
 	fileInfo := dt.getFileInfo()
-	AssertTrue(fileInfo != nil)
-	AssertEq(dt.object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
-	AssertLe(offset, fileInfo.(data.FileInfo).Offset)
-	AssertEq(dt.object.Size, fileInfo.(data.FileInfo).ContentSize())
+	dt.require.NotNil(fileInfo)
+	dt.require.Equal(dt.object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
+	dt.require.LessOrEqual(offset, fileInfo.(data.FileInfo).Offset)
+	dt.require.Equal(dt.object.Size, fileInfo.(data.FileInfo).ContentSize())
 }
 
 func (dt *downloaderTest) getFileInfo() lru.ValueType {
 	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(), ObjectName: dt.object.Name}
 	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	return dt.cache.LookUp(fileInfoKeyName)
 }
 
 func (dt *downloaderTest) fileCachePath(bucketName string, objectName string) string {
-	return path.Join(cacheDir, bucketName, objectName)
+	return path.Join(dt.cacheDir, bucketName, objectName)
 }
 
-func (dt *downloaderTest) Test_init() {
+func Test_init(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	// Explicitly changing initialized values first.
 	dt.job.status.Name = Downloading
 	dt.job.status.Err = fmt.Errorf("some error")
@@ -120,32 +121,36 @@ func (dt *downloaderTest) Test_init() {
 
 	dt.job.init()
 
-	AssertEq(NotStarted, dt.job.status.Name)
-	AssertEq(nil, dt.job.status.Err)
-	AssertEq(0, dt.job.status.Offset)
-	AssertTrue(reflect.DeepEqual(list.List{}, dt.job.subscribers))
+	dt.require.Equal(NotStarted, dt.job.status.Name)
+	dt.require.NoError(dt.job.status.Err)
+	dt.require.Equal(int64(0), dt.job.status.Offset)
+	dt.require.Equal(list.List{}, dt.job.subscribers)
 }
 
-func (dt *downloaderTest) Test_subscribe() {
+func Test_subscribe(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	subscriberOffset1 := int64(0)
 	subscriberOffset2 := int64(1)
 
 	notificationC1 := dt.job.subscribe(subscriberOffset1)
 	notificationC2 := dt.job.subscribe(subscriberOffset2)
 
-	AssertEq(2, dt.job.subscribers.Len())
+	dt.require.Equal(2, dt.job.subscribers.Len())
 	receivingC := make(<-chan JobStatus, 1)
-	AssertEq(reflect.TypeOf(receivingC), reflect.TypeOf(notificationC1))
-	AssertEq(reflect.TypeOf(receivingC), reflect.TypeOf(notificationC2))
+	dt.require.Equal(reflect.TypeOf(receivingC), reflect.TypeOf(notificationC1))
+	dt.require.Equal(reflect.TypeOf(receivingC), reflect.TypeOf(notificationC2))
 	// Check 1st and 2nd subscribers
 	var subscriber jobSubscriber
-	AssertEq(reflect.TypeOf(subscriber), reflect.TypeOf(dt.job.subscribers.Front().Value.(jobSubscriber)))
-	AssertEq(0, dt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
-	AssertEq(reflect.TypeOf(subscriber), reflect.TypeOf(dt.job.subscribers.Back().Value.(jobSubscriber)))
-	AssertEq(1, dt.job.subscribers.Back().Value.(jobSubscriber).subscribedOffset)
+	dt.require.Equal(reflect.TypeOf(subscriber), reflect.TypeOf(dt.job.subscribers.Front().Value.(jobSubscriber)))
+	dt.require.Equal(int64(0), dt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
+	dt.require.Equal(reflect.TypeOf(subscriber), reflect.TypeOf(dt.job.subscribers.Back().Value.(jobSubscriber)))
+	dt.require.Equal(int64(1), dt.job.subscribers.Back().Value.(jobSubscriber).subscribedOffset)
 }
 
-func (dt *downloaderTest) Test_notifySubscriber_Failed() {
+func Test_notifySubscriber_Failed(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	subscriberOffset := int64(1)
 	notificationC := dt.job.subscribe(subscriberOffset)
 	dt.job.status.Name = Failed
@@ -154,28 +159,32 @@ func (dt *downloaderTest) Test_notifySubscriber_Failed() {
 
 	dt.job.notifySubscribers()
 
-	AssertEq(0, dt.job.subscribers.Len())
+	dt.require.Equal(0, dt.job.subscribers.Len())
 	notification, ok := <-notificationC
 	jobStatus := JobStatus{Name: Failed, Err: customErr, Offset: 0}
-	AssertTrue(reflect.DeepEqual(jobStatus, notification))
-	AssertEq(true, ok)
+	dt.require.Equal(jobStatus, notification)
+	dt.require.True(ok)
 }
 
-func (dt *downloaderTest) Test_notifySubscriber_Invalid() {
+func Test_notifySubscriber_Invalid(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	subscriberOffset := int64(1)
 	notificationC := dt.job.subscribe(subscriberOffset)
 	dt.job.status.Name = Invalid
 
 	dt.job.notifySubscribers()
 
-	AssertEq(0, dt.job.subscribers.Len())
+	dt.require.Equal(0, dt.job.subscribers.Len())
 	notification, ok := <-notificationC
 	jobStatus := JobStatus{Name: Invalid, Err: nil, Offset: 0}
-	AssertTrue(reflect.DeepEqual(jobStatus, notification))
-	AssertEq(true, ok)
+	dt.require.Equal(jobStatus, notification)
+	dt.require.True(ok)
 }
 
-func (dt *downloaderTest) Test_notifySubscriber_SubscribedOffset() {
+func Test_notifySubscriber_SubscribedOffset(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	subscriberOffset1 := int64(3)
 	subscriberOffset2 := int64(5)
 	notificationC1 := dt.job.subscribe(subscriberOffset1)
@@ -185,16 +194,18 @@ func (dt *downloaderTest) Test_notifySubscriber_SubscribedOffset() {
 
 	dt.job.notifySubscribers()
 
-	AssertEq(1, dt.job.subscribers.Len())
+	dt.require.Equal(1, dt.job.subscribers.Len())
 	notification1, ok := <-notificationC1
 	jobStatus := JobStatus{Name: Downloading, Err: nil, Offset: 4}
-	AssertTrue(reflect.DeepEqual(jobStatus, notification1))
-	AssertEq(true, ok)
+	dt.require.Equal(jobStatus, notification1)
+	dt.require.True(ok)
 	// Check 2nd subscriber's offset
-	AssertEq(subscriberOffset2, dt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
+	dt.require.Equal(subscriberOffset2, dt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
 }
 
-func (dt *downloaderTest) Test_updateStatusAndNotifySubscribers() {
+func Test_updateStatusAndNotifySubscribers(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	// Failed with error
 	subscriberOffset1 := int64(3)
 	subscriberOffset2 := int64(5)
@@ -205,15 +216,15 @@ func (dt *downloaderTest) Test_updateStatusAndNotifySubscribers() {
 	customErr := fmt.Errorf("custom error")
 	dt.job.updateStatusAndNotifySubscribers(Failed, customErr)
 
-	AssertEq(0, dt.job.subscribers.Len())
+	dt.require.Equal(0, dt.job.subscribers.Len())
 	notification1, ok1 := <-notificationC1
 	notification2, ok2 := <-notificationC2
 	jobStatus := JobStatus{Name: Failed, Err: customErr, Offset: 4}
 	// Check 1st and 2nd subscriber notifications
-	AssertTrue(reflect.DeepEqual(jobStatus, notification1))
-	AssertEq(true, ok1)
-	AssertTrue(reflect.DeepEqual(jobStatus, notification2))
-	AssertEq(true, ok2)
+	dt.require.Equal(jobStatus, notification1)
+	dt.require.True(ok1)
+	dt.require.Equal(jobStatus, notification2)
+	dt.require.True(ok2)
 
 	// Complete without error
 	subscriberOffset1 = int64(3)
@@ -222,15 +233,17 @@ func (dt *downloaderTest) Test_updateStatusAndNotifySubscribers() {
 
 	dt.job.updateStatusAndNotifySubscribers(Completed, nil)
 
-	AssertEq(0, dt.job.subscribers.Len())
+	dt.require.Equal(0, dt.job.subscribers.Len())
 	notification1, ok1 = <-notificationC1
 	jobStatus = JobStatus{Name: Completed, Err: nil, Offset: 4}
 	// Check subscriber notification
-	AssertTrue(reflect.DeepEqual(jobStatus, notification1))
-	AssertEq(true, ok1)
+	dt.require.Equal(jobStatus, notification1)
+	dt.require.True(ok1)
 }
 
-func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
+func Test_updateStatusOffset_UpdateEntry(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	// Add an entry into
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
@@ -238,9 +251,9 @@ func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 	}
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, dt.job.object.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	dt.job.mu.Lock()
 	dt.job.status.Name = Downloading
 	notificationCh := dt.job.subscribe(5)
@@ -248,63 +261,69 @@ func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 
 	err = dt.job.updateStatusOffset(10)
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Confirm fileInfoCache is updated with new offset.
 	lookupResult := dt.cache.LookUp(fileInfoKeyName)
-	AssertFalse(lookupResult == nil)
+	dt.require.NotNil(lookupResult)
 	fileInfo = lookupResult.(data.FileInfo)
-	AssertEq(10, fileInfo.Offset)
-	AssertEq(dt.job.object.Generation, fileInfo.ObjectGeneration)
-	AssertEq(dt.job.object.Size, fileInfo.FileSize)
+	dt.require.Equal(uint64(10), fileInfo.Offset)
+	dt.require.Equal(dt.job.object.Generation, fileInfo.ObjectGeneration)
+	dt.require.Equal(dt.job.object.Size, fileInfo.FileSize)
 	// Confirm job's status offset
-	AssertEq(10, dt.job.status.Offset)
+	dt.require.Equal(int64(10), dt.job.status.Offset)
 	// Check the subscriber's notification
 	notification, ok := <-notificationCh
-	AssertEq(true, ok)
+	dt.require.True(ok)
 	jobStatus := JobStatus{Name: Downloading, Err: nil, Offset: 10}
-	AssertTrue(reflect.DeepEqual(jobStatus, notification))
+	dt.require.Equal(jobStatus, notification)
 }
 
-func (dt *downloaderTest) Test_updateStatusOffset_InsertNew() {
+func Test_updateStatusOffset_InsertNew(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: dt.object.Name,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	value := dt.cache.Erase(fileInfoKeyName)
-	AssertTrue(value != nil)
+	dt.require.NotNil(value)
 
 	err = dt.job.updateStatusOffset(10)
 
-	AssertNe(nil, err)
-	AssertTrue(errors.Is(err, lru.ErrEntryNotExist))
+	dt.require.Error(err)
+	dt.require.ErrorIs(err, lru.ErrEntryNotExist)
 	// Confirm job's status offset
-	AssertEq(0, dt.job.status.Offset)
+	dt.require.Equal(int64(0), dt.job.status.Offset)
 }
 
-func (dt *downloaderTest) Test_updateStatusOffset_Fail() {
+func Test_updateStatusOffset_Fail(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: DefaultObjectName,
 	}
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, dt.job.object.Size, 0, false, nil, 1)
 	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 
 	// Change the size of object and then try to update file info cache.
 	dt.job.object.Size = 10
 	err = dt.job.updateStatusOffset(15)
 
-	AssertNe(nil, err)
-	AssertTrue(errors.Is(err, lru.ErrInvalidUpdateEntrySize))
+	dt.require.Error(err)
+	dt.require.ErrorIs(err, lru.ErrInvalidUpdateEntrySize)
 	// Confirm job's status offset
-	AssertEq(0, dt.job.status.Offset)
+	dt.require.Equal(int64(0), dt.job.status.Offset)
 }
 
-func (dt *downloaderTest) Test_cleanUpDownloadAsyncJob() {
+func Test_cleanUpDownloadAsyncJob(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	dt.job.mu.Lock()
 	var callbackExecuted atomic.Bool
 	removeCallback := func() { callbackExecuted.Store(true) }
@@ -316,21 +335,23 @@ func (dt *downloaderTest) Test_cleanUpDownloadAsyncJob() {
 	dt.job.cleanUpDownloadAsyncJob()
 
 	// Verify context is canceled
-	AssertTrue(errors.Is(cancelCtx.Err(), context.Canceled))
+	dt.require.ErrorIs(cancelCtx.Err(), context.Canceled)
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
 	// doneCh is closed
 	_, ok := <-dt.job.doneCh
-	AssertFalse(ok)
+	dt.require.False(ok)
 	// References to context and cancel function are removed
-	AssertEq(nil, dt.job.cancelCtx)
-	AssertEq(nil, dt.job.cancelFunc)
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.Nil(dt.job.cancelCtx)
+	dt.require.Nil(dt.job.cancelFunc)
+	dt.require.Nil(dt.job.removeJobCallback)
 	// Call back function should have been called
-	AssertTrue(callbackExecuted.Load())
+	dt.require.True(callbackExecuted.Load())
 }
 
-func (dt *downloaderTest) Test_downloadObjectToFile() {
+func Test_downloadObjectToFile(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 10 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -341,7 +362,7 @@ func (dt *downloaderTest) Test_downloadObjectToFile() {
 	notificationC := dt.job.subscribe(subscribedOffset)
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	defer func() {
 		_ = file.Close()
 	}()
@@ -349,11 +370,11 @@ func (dt *downloaderTest) Test_downloadObjectToFile() {
 	// Start download
 	err = dt.job.downloadObjectToFile(file)
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	jobStatus, ok := <-notificationC
-	AssertEq(true, ok)
+	dt.require.True(ok)
 	// Check the notification is sent after subscribed offset
-	AssertGe(jobStatus.Offset, subscribedOffset)
+	dt.require.GreaterOrEqual(jobStatus.Offset, subscribedOffset)
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
 	// Verify file is downloaded
@@ -362,7 +383,9 @@ func (dt *downloaderTest) Test_downloadObjectToFile() {
 	dt.verifyFileInfoEntry(uint64(objectSize))
 }
 
-func (dt *downloaderTest) Test_downloadObjectToFile_CtxCancelled() {
+func Test_downloadObjectToFile_CtxCancelled(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/cancel.txt"
 	objectSize := util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -370,7 +393,7 @@ func (dt *downloaderTest) Test_downloadObjectToFile_CtxCancelled() {
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	defer func() {
 		_ = file.Close()
 	}()
@@ -378,13 +401,15 @@ func (dt *downloaderTest) Test_downloadObjectToFile_CtxCancelled() {
 	dt.job.cancelFunc()
 	err = dt.job.downloadObjectToFile(file)
 
-	AssertTrue(errors.Is(err, context.Canceled), fmt.Sprintf("didn't get context canceled error: %v", err))
+	dt.require.ErrorIs(err, context.Canceled, fmt.Sprintf("didn't get context canceled error: %v", err))
 }
 
 // Note: We can't test Test_downloadObjectAsync_MoreThanSequentialReadSize as
 // the fake storage bucket/server in the testing environment doesn't support
 // reading ranges (start and limit in NewReader call)
-func (dt *downloaderTest) Test_downloadObjectAsync_LessThanSequentialReadSize() {
+func Test_downloadObjectAsync_LessThanSequentialReadSize(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	// Create new object in bucket and create new job for it.
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
@@ -401,17 +426,19 @@ func (dt *downloaderTest) Test_downloadObjectAsync_LessThanSequentialReadSize() 
 	jobStatus := JobStatus{Completed, nil, int64(objectSize)}
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertTrue(reflect.DeepEqual(jobStatus, dt.job.status))
+	dt.require.Equal(jobStatus, dt.job.status)
 	// Verify file is downloaded
 	dt.verifyFile(objectContent)
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(objectSize))
 	// Verify callback is executed and removed
-	AssertTrue(callbackExecuted.Load())
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.True(callbackExecuted.Load())
+	dt.require.Nil(dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_downloadObjectAsync_LessThanChunkSize() {
+func Test_downloadObjectAsync_LessThanChunkSize(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 2 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -427,17 +454,19 @@ func (dt *downloaderTest) Test_downloadObjectAsync_LessThanChunkSize() {
 	jobStatus := JobStatus{Completed, nil, int64(objectSize)}
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertTrue(reflect.DeepEqual(jobStatus, dt.job.status))
+	dt.require.Equal(jobStatus, dt.job.status)
 	// Verify file is downloaded
 	dt.verifyFile(objectContent)
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(objectSize))
 	// Verify callback is executed and removed
-	AssertTrue(callbackExecuted.Load())
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.True(callbackExecuted.Load())
+	dt.require.Nil(dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_downloadObjectAsync_Notification() {
+func Test_downloadObjectAsync_Notification(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -454,22 +483,24 @@ func (dt *downloaderTest) Test_downloadObjectAsync_Notification() {
 
 	jobStatus := <-notificationC
 	// check the notification is sent after subscribed offset
-	AssertGe(jobStatus.Offset, subscribedOffset)
+	dt.require.GreaterOrEqual(jobStatus.Offset, subscribedOffset)
 	// check job completed successfully
 	jobStatus = JobStatus{Completed, nil, int64(objectSize)}
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertTrue(reflect.DeepEqual(jobStatus, dt.job.status))
+	dt.require.Equal(jobStatus, dt.job.status)
 	// verify file is downloaded
 	dt.verifyFile(objectContent)
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(objectSize))
 	// Verify callback is executed and removed
-	AssertTrue(callbackExecuted.Load())
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.True(callbackExecuted.Load())
+	dt.require.Nil(dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_Download_WhenNotStarted() {
+func Test_Download_WhenNotStarted(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 16 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -479,18 +510,20 @@ func (dt *downloaderTest) Test_Download_WhenNotStarted() {
 	offset := int64(8 * util.MiB)
 	jobStatus, err := dt.job.Download(context.Background(), offset, true)
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Verify that jobStatus is downloading and downloaded more than 8 Mib.
-	AssertEq(Downloading, jobStatus.Name)
-	AssertEq(nil, jobStatus.Err)
-	AssertGe(jobStatus.Offset, offset)
+	dt.require.Equal(Downloading, jobStatus.Name)
+	dt.require.NoError(jobStatus.Err)
+	dt.require.GreaterOrEqual(jobStatus.Offset, offset)
 	// Verify file
 	dt.verifyFile(objectContent[:jobStatus.Offset])
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 }
 
-func (dt *downloaderTest) Test_Download_WhenAlreadyDownloading() {
+func Test_Download_WhenAlreadyDownloading(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	// Create new object in bucket and create new job for it.
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
@@ -499,25 +532,27 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyDownloading() {
 	// Start download but not wait for download
 	ctx := context.Background()
 	jobStatus, err := dt.job.Download(ctx, 1, false)
-	AssertEq(nil, err)
-	AssertEq(Downloading, jobStatus.Name)
+	dt.require.NoError(err)
+	dt.require.Equal(Downloading, jobStatus.Name)
 
 	// Again call download but wait for download this time.
 	offset := int64(25 * util.MiB)
 	jobStatus, err = dt.job.Download(ctx, offset, true)
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Verify that jobStatus is downloading and downloaded at least 25 Mib.
-	AssertEq(Downloading, jobStatus.Name)
-	AssertEq(nil, jobStatus.Err)
-	AssertGe(jobStatus.Offset, offset)
+	dt.require.Equal(Downloading, jobStatus.Name)
+	dt.require.NoError(jobStatus.Err)
+	dt.require.GreaterOrEqual(jobStatus.Offset, offset)
 	// Verify file
 	dt.verifyFile(objectContent[:jobStatus.Offset])
 	// verify file info cache
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 }
 
-func (dt *downloaderTest) Test_Download_WhenAlreadyCompleted() {
+func Test_Download_WhenAlreadyCompleted(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 16 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -525,30 +560,32 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyCompleted() {
 	// Wait for whole download to be completed.
 	ctx := context.Background()
 	jobStatus, err := dt.job.Download(ctx, int64(objectSize), true)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Verify that jobStatus is Downloading but offset is object size
 	expectedJobStatus := JobStatus{Downloading, nil, int64(objectSize)}
-	AssertTrue(reflect.DeepEqual(expectedJobStatus, jobStatus))
+	dt.require.Equal(expectedJobStatus, jobStatus)
 	dt.waitForCrcCheckToBeCompleted()
-	AssertEq(Completed, dt.job.status.Name)
+	dt.require.Equal(Completed, dt.job.status.Name)
 
 	// Try to request for some offset when job was already completed.
 	offset := int64(16 * util.MiB)
 	jobStatus, err = dt.job.Download(ctx, offset, true)
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Verify that jobStatus is completed & offset returned is still 16 MiB
 	// this ensures that async job is not started again.
-	AssertEq(Completed, jobStatus.Name)
-	AssertEq(nil, jobStatus.Err)
-	AssertGe(jobStatus.Offset, objectSize)
+	dt.require.Equal(Completed, jobStatus.Name)
+	dt.require.NoError(jobStatus.Err)
+	dt.require.GreaterOrEqual(jobStatus.Offset, int64(objectSize))
 	// Verify file
 	dt.verifyFile(objectContent)
 	// Verify file info cache
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 }
 
-func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
+func Test_Download_WhenAsyncFails(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -563,18 +600,20 @@ func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
 	ctx := context.Background()
 	jobStatus, err := dt.job.Download(ctx, int64(objectSize-10), true)
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Verify that jobStatus is failed
-	AssertEq(Failed, jobStatus.Name)
-	AssertGe(jobStatus.Offset, 0)
-	AssertTrue(errors.Is(jobStatus.Err, lru.ErrInvalidUpdateEntrySize))
+	dt.require.Equal(Failed, jobStatus.Name)
+	dt.require.GreaterOrEqual(jobStatus.Offset, int64(0))
+	dt.require.ErrorIs(jobStatus.Err, lru.ErrInvalidUpdateEntrySize)
 	// Wait for the async goroutine to complete its cleanup.
 	<-dt.job.doneCh
 	// Verify callback is executed
-	AssertTrue(callbackExecuted.Load())
+	dt.require.True(callbackExecuted.Load())
 }
 
-func (dt *downloaderTest) Test_Download_AlreadyFailed() {
+func Test_Download_AlreadyFailed(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -586,12 +625,14 @@ func (dt *downloaderTest) Test_Download_AlreadyFailed() {
 	// Requesting again from download job which is in failed state
 	jobStatus, err := dt.job.Download(context.Background(), int64(objectSize-1), true)
 
-	AssertEq(nil, err)
-	AssertEq(Failed, jobStatus.Name)
-	AssertTrue(errors.Is(jobStatus.Err, lru.ErrInvalidUpdateEntrySize))
+	dt.require.NoError(err)
+	dt.require.Equal(Failed, jobStatus.Name)
+	dt.require.ErrorIs(jobStatus.Err, lru.ErrInvalidUpdateEntrySize)
 }
 
-func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
+func Test_Download_AlreadyInvalid(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -604,12 +645,14 @@ func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
 	// Requesting download when already invalid.
 	jobStatus, err := dt.job.Download(context.Background(), int64(objectSize), true)
 
-	AssertEq(nil, err)
-	AssertEq(Invalid, jobStatus.Name)
+	dt.require.NoError(err)
+	dt.require.Equal(Invalid, jobStatus.Name)
 	dt.verifyInvalidError(jobStatus.Err)
 }
 
-func (dt *downloaderTest) Test_Download_InvalidOffset() {
+func Test_Download_InvalidOffset(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -621,14 +664,16 @@ func (dt *downloaderTest) Test_Download_InvalidOffset() {
 	offset := int64(objectSize) + 1
 	jobStatus, err := dt.job.Download(context.Background(), offset, true)
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("download: the requested offset %d is greater than the size of object %d", offset, dt.object.Size)))
+	dt.require.Error(err)
+	dt.require.Contains(err.Error(), fmt.Sprintf("download: the requested offset %d is greater than the size of object %d", offset, dt.object.Size))
 	expectedJobStatus := JobStatus{NotStarted, nil, 0}
-	AssertTrue(reflect.DeepEqual(expectedJobStatus, jobStatus))
-	AssertFalse(callbackExecuted.Load())
+	dt.require.Equal(expectedJobStatus, jobStatus)
+	dt.require.False(callbackExecuted.Load())
 }
 
-func (dt *downloaderTest) Test_Download_CtxCancelled() {
+func Test_Download_CtxCancelled(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/cancel.txt"
 	objectSize := 16 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -643,28 +688,30 @@ func (dt *downloaderTest) Test_Download_CtxCancelled() {
 	offset := int64(objectSize)
 	jobStatus, err := dt.job.Download(ctx, offset, true)
 
-	AssertNe(nil, err)
-	AssertTrue(errors.Is(err, context.DeadlineExceeded))
+	dt.require.Error(err)
+	dt.require.ErrorIs(err, context.DeadlineExceeded)
 	// jobStatus is empty in this case.
-	AssertEq("", jobStatus.Name)
-	AssertEq(nil, jobStatus.Err)
+	dt.require.Equal(jobStatusName(""), jobStatus.Name)
+	dt.require.NoError(jobStatus.Err)
 	// job should be either Downloading or Completed.
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertTrue(dt.job.status.Name == Downloading || dt.job.status.Name == Completed)
+	dt.require.True(dt.job.status.Name == Downloading || dt.job.status.Name == Completed)
 	if dt.job.status.Name == Downloading {
-		AssertFalse(callbackExecuted.Load())
+		dt.require.False(callbackExecuted.Load())
 	} else {
-		AssertTrue(callbackExecuted.Load())
+		dt.require.True(callbackExecuted.Load())
 	}
-	AssertEq(nil, dt.job.status.Err)
+	dt.require.NoError(dt.job.status.Err)
 	// Verify file
 	dt.verifyFile(objectContent[:dt.job.status.Offset])
 	// Verify file info cache
 	dt.verifyFileInfoEntry(uint64(dt.job.status.Offset))
 }
 
-func (dt *downloaderTest) Test_Download_Concurrent() {
+func Test_Download_Concurrent(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -678,14 +725,14 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 		var jobStatus JobStatus
 		var err error
 		jobStatus, err = dt.job.Download(ctx, expectedOffset, true)
-		AssertNe(Failed, jobStatus.Name)
+		dt.require.NotEqual(Failed, jobStatus.Name)
 		if expectedErr != nil {
-			AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
+			dt.require.Contains(err.Error(), expectedErr.Error())
 			return
 		} else {
-			AssertEq(expectedErr, err)
+			dt.require.NoError(err)
 		}
-		AssertGe(jobStatus.Offset, expectedOffset)
+		dt.require.GreaterOrEqual(jobStatus.Offset, expectedOffset)
 	}
 
 	// Start concurrent downloads
@@ -699,14 +746,16 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
 	expectedJobStatus := JobStatus{Completed, nil, int64(objectSize)}
-	AssertTrue(reflect.DeepEqual(expectedJobStatus, dt.job.status))
+	dt.require.Equal(expectedJobStatus, dt.job.status)
 	// Verify file
 	dt.verifyFile(objectContent)
 	// Verify file info cache
 	dt.verifyFileInfoEntry(uint64(objectSize))
 }
 
-func (dt *downloaderTest) Test_GetStatus() {
+func Test_GetStatus(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 20 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -714,20 +763,22 @@ func (dt *downloaderTest) Test_GetStatus() {
 	ctx := context.Background()
 	// Start download
 	jobStatus, err := dt.job.Download(ctx, util.MiB, true)
-	AssertEq(nil, err)
-	AssertEq(Downloading, jobStatus.Name)
+	dt.require.NoError(err)
+	dt.require.Equal(Downloading, jobStatus.Name)
 
 	// GetStatus in between downloading
 	jobStatus = dt.job.GetStatus()
 
-	AssertTrue((jobStatus.Name == Downloading) || (jobStatus.Name == Completed))
-	AssertEq(nil, jobStatus.Err)
-	AssertGe(jobStatus.Offset, 0)
+	dt.require.True((jobStatus.Name == Downloading) || (jobStatus.Name == Completed))
+	dt.require.NoError(jobStatus.Err)
+	dt.require.GreaterOrEqual(jobStatus.Offset, int64(0))
 	// Verify file
 	dt.verifyFile(objectContent[:jobStatus.Offset])
 }
 
-func (dt *downloaderTest) Test_Invalidate_WhenDownloading() {
+func Test_Invalidate_WhenDownloading(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 10 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -737,20 +788,22 @@ func (dt *downloaderTest) Test_Invalidate_WhenDownloading() {
 	ctx := context.Background()
 	// Start download without waiting
 	jobStatus, err := dt.job.Download(ctx, 0, false)
-	AssertEq(nil, err)
-	AssertEq(Downloading, jobStatus.Name)
+	dt.require.NoError(err)
+	dt.require.Equal(Downloading, jobStatus.Name)
 
 	dt.job.Invalidate()
 
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
 	dt.verifyInvalidError(dt.job.status.Err)
-	AssertEq(Invalid, dt.job.status.Name)
-	AssertTrue(callbackExecuted.Load())
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.Equal(Invalid, dt.job.status.Name)
+	dt.require.True(callbackExecuted.Load())
+	dt.require.Nil(dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_Invalidate_NotStarted() {
+func Test_Invalidate_NotStarted(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -762,13 +815,15 @@ func (dt *downloaderTest) Test_Invalidate_NotStarted() {
 
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertEq(nil, dt.job.status.Err)
-	AssertEq(Invalid, dt.job.status.Name)
-	AssertTrue(callbackExecuted.Load())
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.NoError(dt.job.status.Err)
+	dt.require.Equal(Invalid, dt.job.status.Name)
+	dt.require.True(callbackExecuted.Load())
+	dt.require.Nil(dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_Invalidate_WhenAlreadyCompleted() {
+func Test_Invalidate_WhenAlreadyCompleted(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -778,22 +833,24 @@ func (dt *downloaderTest) Test_Invalidate_WhenAlreadyCompleted() {
 	ctx := context.Background()
 	// Start download with waiting
 	_, err := dt.job.Download(ctx, int64(objectSize), true)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	dt.waitForCrcCheckToBeCompleted()
 	jobStatus := dt.job.GetStatus()
-	AssertEq(Completed, jobStatus.Name)
+	dt.require.Equal(Completed, jobStatus.Name)
 
 	dt.job.Invalidate()
 
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertEq(Invalid, dt.job.status.Name)
+	dt.require.Equal(Invalid, dt.job.status.Name)
 	dt.verifyInvalidError(dt.job.status.Err)
-	AssertEq(1, callbackExecutionCount.Load())
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.Equal(int32(1), callbackExecutionCount.Load())
+	dt.require.Nil(dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_Invalidate_Concurrent() {
+func Test_Invalidate_Concurrent(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 20 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -803,14 +860,14 @@ func (dt *downloaderTest) Test_Invalidate_Concurrent() {
 	ctx := context.Background()
 	// Start download without waiting
 	jobStatus, err := dt.job.Download(ctx, 0, false)
-	AssertEq(nil, err)
-	AssertEq(Downloading, jobStatus.Name)
+	dt.require.NoError(err)
+	dt.require.Equal(Downloading, jobStatus.Name)
 	wg := sync.WaitGroup{}
 	invalidateFunc := func() {
 		defer wg.Done()
 		dt.job.Invalidate()
 		currJobStatus := dt.job.GetStatus()
-		AssertEq(Invalid, currJobStatus.Name)
+		dt.require.Equal(Invalid, currJobStatus.Name)
 		dt.verifyInvalidError(currJobStatus.Err)
 	}
 
@@ -821,13 +878,15 @@ func (dt *downloaderTest) Test_Invalidate_Concurrent() {
 	}
 	wg.Wait()
 
-	AssertEq(1, callbackExecutionCount.Load())
+	dt.require.Equal(int32(1), callbackExecutionCount.Load())
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.Nil(dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
+func Test_Invalidate_Download_Concurrent(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 10 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -840,19 +899,19 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 		ctx := context.Background()
 		// Start download without waiting
 		jobStatus, err := dt.job.Download(ctx, offset, waitForDownload)
-		AssertEq(nil, err)
-		AssertTrue(jobStatus.Name == Downloading || jobStatus.Name == Invalid || jobStatus.Name == Completed)
+		dt.require.NoError(err)
+		dt.require.True(jobStatus.Name == Downloading || jobStatus.Name == Invalid || jobStatus.Name == Completed)
 		// If status is downloading/complete and wait for download is true then
 		// status offset should be at least requested offset.
 		if waitForDownload && (jobStatus.Name == Downloading || jobStatus.Name == Completed) {
-			AssertGe(jobStatus.Offset, offset)
+			dt.require.GreaterOrEqual(jobStatus.Offset, offset)
 		}
 	}
 	invalidateFunc := func() {
 		defer wg.Done()
 		dt.job.Invalidate()
 		currJobStatus := dt.job.GetStatus()
-		AssertEq(Invalid, currJobStatus.Name)
+		dt.require.Equal(Invalid, currJobStatus.Name)
 		dt.verifyInvalidError(currJobStatus.Err)
 	}
 
@@ -869,13 +928,15 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 	}
 	wg.Wait()
 
-	AssertEq(1, callbackExecutionCount.Load())
+	dt.require.Equal(int32(1), callbackExecutionCount.Load())
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertEq(nil, dt.job.removeJobCallback)
+	dt.require.Nil(dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsTrue() {
+func Test_validateCRC_ForTamperedFileWhenEnableCRCIsTrue(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/file1.txt"
 	objectSize := 8 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -883,32 +944,34 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsTrue() 
 	// Start download
 	offset := int64(8 * util.MiB)
 	jobStatus, err := dt.job.Download(context.Background(), offset, true)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Here the crc check will be successful
 	dt.waitForCrcCheckToBeCompleted()
-	AssertEq(Completed, dt.job.status.Name)
-	AssertEq(nil, dt.job.status.Err)
-	AssertGe(dt.job.status.Offset, offset)
+	dt.require.Equal(Completed, dt.job.status.Name)
+	dt.require.NoError(dt.job.status.Err)
+	dt.require.GreaterOrEqual(dt.job.status.Offset, offset)
 	// Verify file
 	dt.verifyFile(objectContent[:jobStatus.Offset])
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 	// Tamper the file
 	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	err = dt.job.validateCRC()
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "checksum mismatch detected"))
-	AssertEq(nil, dt.getFileInfo())
+	dt.require.Error(err)
+	dt.require.Contains(err.Error(), "checksum mismatch detected")
+	dt.require.Nil(dt.getFileInfo())
 	_, err = os.Stat(dt.fileSpec.Path)
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+	dt.require.Error(err)
+	dt.require.Contains(err.Error(), "no such file or directory")
 }
 
-func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse() {
+func Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/file2.txt"
 	objectSize := 1 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -916,25 +979,25 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse()
 	// Start download
 	offset := int64(1 * util.MiB)
 	jobStatus, err := dt.job.Download(context.Background(), offset, true)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Here the crc check will be successful
 	dt.waitForCrcCheckToBeCompleted()
-	AssertEq(Completed, dt.job.status.Name)
-	AssertEq(nil, dt.job.status.Err)
-	AssertGe(dt.job.status.Offset, offset)
+	dt.require.Equal(Completed, dt.job.status.Name)
+	dt.require.NoError(dt.job.status.Err)
+	dt.require.GreaterOrEqual(dt.job.status.Offset, offset)
 	// Verify file
 	dt.verifyFile(objectContent[:jobStatus.Offset])
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 	// Tamper the file
 	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	dt.job.fileCacheConfig.EnableCrc = false
 
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	err = dt.job.validateCRC()
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	// Verify file
 	dt.verifyFile([]byte("test"))
 	// Verify fileInfoCache update
@@ -943,7 +1006,9 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse()
 
 // Disabled because it's flaky.
 /*
-func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
+func Test_validateCRC_WheContextIsCancelled(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	objectName := "path/in/gcs/file2.txt"
 	objectSize := 10 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -951,10 +1016,10 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	// Start download
 	offset := int64(10 * util.MiB)
 	_, err := dt.job.Download(context.Background(), offset, true)
-	AssertEq(nil, err)
-	AssertTrue((dt.job.status.Name == Downloading) || (dt.job.status.Name == Completed), fmt.Sprintf("got job status: %v", dt.job.status.Name))
-	AssertEq(nil, dt.job.status.Err)
-	AssertGe(dt.job.status.Offset, offset)
+	dt.require.NoError(err)
+	dt.require.True((dt.job.status.Name == Downloading) || (dt.job.status.Name == Completed), fmt.Sprintf("got job status: %v", dt.job.status.Name))
+	dt.require.NoError(dt.job.status.Err)
+	dt.require.GreaterOrEqual(dt.job.status.Offset, offset)
 
 	// Taking lock to ensure cancelFunc is valid before calling it.
 	dt.job.mu.Lock()
@@ -964,12 +1029,14 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	dt.job.mu.Unlock()
 	dt.waitForCrcCheckToBeCompleted()
 
-	AssertEq(Invalid, dt.job.status.Name)
+	dt.require.Equal(Invalid, dt.job.status.Name)
 	dt.verifyInvalidError(dt.job.status.Err)
 }
 */
 
-func (dt *downloaderTest) Test_handleError_SetStatusAsInvalidWhenContextIsCancelled() {
+func Test_handleError_SetStatusAsInvalidWhenContextIsCancelled(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	subscriberOffset := int64(1)
 	notificationC := dt.job.subscribe(subscriberOffset)
 	err := errors.Join(context.Canceled)
@@ -977,15 +1044,17 @@ func (dt *downloaderTest) Test_handleError_SetStatusAsInvalidWhenContextIsCancel
 	err = fmt.Errorf("Wrapping with custom message %w", err)
 	dt.job.handleError(err)
 
-	AssertEq(0, dt.job.subscribers.Len())
+	dt.require.Equal(0, dt.job.subscribers.Len())
 	notification, ok := <-notificationC
-	AssertEq(Invalid, notification.Name)
+	dt.require.Equal(Invalid, notification.Name)
 	dt.verifyInvalidError(notification.Err)
-	AssertEq(0, notification.Offset)
-	AssertEq(true, ok)
+	dt.require.Equal(int64(0), notification.Offset)
+	dt.require.True(ok)
 }
 
-func (dt *downloaderTest) Test_handleError_SetStatusAsErrorWhenContextIsNotCancelled() {
+func Test_handleError_SetStatusAsErrorWhenContextIsNotCancelled(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	subscriberOffset := int64(1)
 	notificationC := dt.job.subscribe(subscriberOffset)
 	err := errors.New("custom error")
@@ -993,80 +1062,94 @@ func (dt *downloaderTest) Test_handleError_SetStatusAsErrorWhenContextIsNotCance
 	updatedErr := fmt.Errorf("Custom message %w", err)
 	dt.job.handleError(updatedErr)
 
-	AssertEq(0, dt.job.subscribers.Len())
+	dt.require.Equal(0, dt.job.subscribers.Len())
 	notification, ok := <-notificationC
 	jobStatus := JobStatus{Name: Failed, Err: updatedErr, Offset: 0}
 	fmt.Println(notification)
-	AssertTrue(reflect.DeepEqual(jobStatus, notification))
-	AssertEq(true, ok)
+	dt.require.Equal(jobStatus, notification)
+	dt.require.True(ok)
 }
 
-func (dt *downloaderTest) Test_When_Parallel_Download_Is_Enabled() {
+func Test_When_Parallel_Download_Is_Enabled(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.EnableParallelDownloads = true
 
 	result := dt.job.IsParallelDownloadsEnabled()
 
-	AssertTrue(result)
+	dt.require.True(result)
 }
 
-func (dt *downloaderTest) Test_When_Parallel_Download_Is_Disabled() {
+func Test_When_Parallel_Download_Is_Disabled(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.EnableParallelDownloads = false
 
 	result := dt.job.IsParallelDownloadsEnabled()
 
-	AssertFalse(result)
+	dt.require.False(result)
 }
 
-func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_Explicitly_Set_On() {
+func Test_When_Experimental_Default_Parallel_Download_Explicitly_Set_On(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.ExperimentalParallelDownloadsDefaultOn = true
 
 	result := dt.job.IsExperimentalParallelDownloadsDefaultOn()
 
-	AssertTrue(result)
+	dt.require.True(result)
 }
 
-func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_On() {
+func Test_When_Experimental_Default_Parallel_Download_On(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 
 	result := dt.job.IsExperimentalParallelDownloadsDefaultOn()
 
-	AssertTrue(result)
+	dt.require.True(result)
 }
 
-func (dt *downloaderTest) Test_createCacheFile_WhenNonParallelDownloads() {
+func Test_createCacheFile_WhenNonParallelDownloads(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.EnableParallelDownloads = false
 
 	cacheFile, err := dt.job.createCacheFile()
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	defer func() {
 		_ = cacheFile.Close()
 	}()
 }
 
-func (dt *downloaderTest) Test_createCacheFile_WhenParallelDownloads() {
+func Test_createCacheFile_WhenParallelDownloads(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.EnableParallelDownloads = true
 
 	cacheFile, err := dt.job.createCacheFile()
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	defer func() {
 		_ = cacheFile.Close()
 	}()
 }
 
-func (dt *downloaderTest) Test_createCacheFile_WhenParallelDownloadsEnabledAndODirectDisabled() {
+func Test_createCacheFile_WhenParallelDownloadsEnabledAndODirectDisabled(t *testing.T) {
+	dt := newDownloaderTest(t)
+	defer dt.tearDown()
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.EnableParallelDownloads = true
 	dt.job.fileCacheConfig.EnableODirect = false
 
 	cacheFile, err := dt.job.createCacheFile()
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	defer func() {
 		_ = cacheFile.Close()
 	}()

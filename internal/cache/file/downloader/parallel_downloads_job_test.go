@@ -19,11 +19,9 @@ package downloader
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"sync/atomic"
 	"testing"
 
@@ -31,21 +29,22 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-// TestParallelDownloader runs all the tests with parallel downloads job that
-// are run without parallel downloads job as part of TestDownloader in
-// downloader_test.go
-func TestParallelDownloader(t *testing.T) { RunTests(t) }
 
 type parallelDownloaderTest struct {
 	downloaderTest
 }
 
-func init() { RegisterTestSuite(&parallelDownloaderTest{}) }
-
-func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
+func newParallelDownloaderTest(t *testing.T) *parallelDownloaderTest {
+	dt := &parallelDownloaderTest{
+		downloaderTest: downloaderTest{
+			t:       t,
+			assert:  assert.New(t),
+			require: require.New(t),
+		},
+	}
 	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{
 		ExperimentalParallelDownloadsDefaultOn: true,
 		EnableParallelDownloads:                true,
@@ -55,9 +54,13 @@ func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
 		WriteBufferSize:                        4 * 1024 * 1024,
 	}
 	dt.setupHelper()
+	return dt
 }
 
-func (dt *parallelDownloaderTest) Test_downloadRange() {
+func TestParallel_downloadRange(t *testing.T) {
+	dt := newParallelDownloaderTest(t)
+	defer dt.tearDown()
+
 	// Create object in fake GCS
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 10 * util.MiB
@@ -69,15 +72,15 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	defer dt.job.cancelFunc()
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	verifyContentAtOffset := func(file *os.File, start, end int64) {
 		_, err = file.Seek(int64(start), 0)
-		AssertEq(nil, err)
+		dt.require.NoError(err)
 		buf := make([]byte, end-start)
 		_, err = file.Read(buf)
-		AssertEq(nil, err)
+		dt.require.NoError(err)
 		// If content don't match then print start and end for easy debuggability.
-		AssertTrue(reflect.DeepEqual(objectContent[start:end], buf), fmt.Sprintf("content didn't match for start: %v and end: %v", start, end))
+		dt.require.Equal(objectContent[start:end], buf, fmt.Sprintf("content didn't match for start: %v and end: %v", start, end))
 	}
 
 	// Download end 1MiB of object
@@ -86,35 +89,38 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	rangeMap := make(map[int64]int64)
 
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download start 4MiB of object
 	start, end = int64(0*util.MiB), int64(4*util.MiB)
 	offsetWriter = io.NewOffsetWriter(file, start)
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(int64(4*util.MiB), rangeMap[start])
+	dt.require.Equal(int64(4*util.MiB), rangeMap[start])
 
 	// Download middle 1B of object
 	start, end = int64(5*util.MiB), int64(5*util.MiB+1)
 	offsetWriter = io.NewOffsetWriter(file, start)
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(int64(5*util.MiB+1), rangeMap[start])
+	dt.require.Equal(int64(5*util.MiB+1), rangeMap[start])
 
 	// Download 0B of object
 	start, end = int64(5*util.MiB), int64(5*util.MiB)
 	offsetWriter = io.NewOffsetWriter(file, start)
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(int64(5*util.MiB+1), rangeMap[start])
+	dt.require.Equal(int64(5*util.MiB+1), rangeMap[start])
 }
 
-func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
+func TestParallel_parallelDownloadObjectToFile(t *testing.T) {
+	dt := newParallelDownloaderTest(t)
+	defer dt.tearDown()
+
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 10 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -126,7 +132,7 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
 	notificationC := dt.job.subscribe(subscribedOffset)
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	defer func() {
 		_ = file.Close()
 	}()
@@ -134,11 +140,11 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
 	// Start download
 	err = dt.job.parallelDownloadObjectToFile(file)
 
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	jobStatus, ok := <-notificationC
-	AssertEq(true, ok)
+	dt.require.True(ok)
 	// Check the notification is sent after subscribed offset
-	AssertGe(jobStatus.Offset, subscribedOffset)
+	dt.require.GreaterOrEqual(jobStatus.Offset, subscribedOffset)
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
 	// Verify file is downloaded
@@ -147,7 +153,10 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
 	dt.verifyFileInfoEntry(uint64(objectSize))
 }
 
-func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile_CtxCancelled() {
+func TestParallel_parallelDownloadObjectToFile_CtxCancelled(t *testing.T) {
+	dt := newParallelDownloaderTest(t)
+	defer dt.tearDown()
+
 	objectName := "path/in/gcs/cancel.txt"
 	objectSize := util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -155,7 +164,7 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile_CtxCancelled
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
-	AssertEq(nil, err)
+	dt.require.NoError(err)
 	defer func() {
 		_ = file.Close()
 	}()
@@ -163,21 +172,27 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile_CtxCancelled
 	dt.job.cancelFunc()
 	err = dt.job.parallelDownloadObjectToFile(file)
 
-	AssertTrue(errors.Is(err, context.Canceled), fmt.Sprintf("didn't get context canceled error: %v", err))
+	dt.require.ErrorIs(err, context.Canceled)
 }
 
-func (dt *parallelDownloaderTest) Test_updateRangeMap_withNoEntries() {
+func TestParallel_updateRangeMap_withNoEntries(t *testing.T) {
+	dt := newParallelDownloaderTest(t)
+	defer dt.tearDown()
+
 	rangeMap := make(map[int64]int64)
 
 	err := dt.job.updateRangeMap(rangeMap, 0, 10)
 
-	AssertEq(nil, err)
-	AssertEq(2, len(rangeMap))
-	AssertEq(10, rangeMap[0])
-	AssertEq(0, rangeMap[10])
+	dt.require.NoError(err)
+	dt.require.Len(rangeMap, 2)
+	dt.require.Equal(int64(10), rangeMap[0])
+	dt.require.Equal(int64(0), rangeMap[10])
 }
 
-func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithEndOffset() {
+func TestParallel_updateRangeMap_withInputContinuousWithEndOffset(t *testing.T) {
+	dt := newParallelDownloaderTest(t)
+	defer dt.tearDown()
+
 	rangeMap := make(map[int64]int64)
 	rangeMap[0] = 2
 	rangeMap[2] = 0
@@ -186,15 +201,18 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithEnd
 
 	err := dt.job.updateRangeMap(rangeMap, 6, 8)
 
-	AssertEq(nil, err)
-	AssertEq(4, len(rangeMap))
-	AssertEq(2, rangeMap[0])
-	AssertEq(0, rangeMap[2])
-	AssertEq(8, rangeMap[4])
-	AssertEq(4, rangeMap[8])
+	dt.require.NoError(err)
+	dt.require.Len(rangeMap, 4)
+	dt.require.Equal(int64(2), rangeMap[0])
+	dt.require.Equal(int64(0), rangeMap[2])
+	dt.require.Equal(int64(8), rangeMap[4])
+	dt.require.Equal(int64(4), rangeMap[8])
 }
 
-func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithStartOffset() {
+func TestParallel_updateRangeMap_withInputContinuousWithStartOffset(t *testing.T) {
+	dt := newParallelDownloaderTest(t)
+	defer dt.tearDown()
+
 	rangeMap := make(map[int64]int64)
 	rangeMap[2] = 4
 	rangeMap[4] = 2
@@ -203,15 +221,18 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithSta
 
 	err := dt.job.updateRangeMap(rangeMap, 0, 2)
 
-	AssertEq(nil, err)
-	AssertEq(4, len(rangeMap))
-	AssertEq(4, rangeMap[0])
-	AssertEq(0, rangeMap[4])
-	AssertEq(10, rangeMap[8])
-	AssertEq(8, rangeMap[10])
+	dt.require.NoError(err)
+	dt.require.Len(rangeMap, 4)
+	dt.require.Equal(int64(4), rangeMap[0])
+	dt.require.Equal(int64(0), rangeMap[4])
+	dt.require.Equal(int64(10), rangeMap[8])
+	dt.require.Equal(int64(8), rangeMap[10])
 }
 
-func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputFillingTheMissingRange() {
+func TestParallel_updateRangeMap_withInputFillingTheMissingRange(t *testing.T) {
+	dt := newParallelDownloaderTest(t)
+	defer dt.tearDown()
+
 	rangeMap := make(map[int64]int64)
 	rangeMap[0] = 4
 	rangeMap[4] = 0
@@ -220,13 +241,16 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputFillingTheMissing
 
 	err := dt.job.updateRangeMap(rangeMap, 4, 6)
 
-	AssertEq(nil, err)
-	AssertEq(2, len(rangeMap))
-	AssertEq(8, rangeMap[0])
-	AssertEq(0, rangeMap[8])
+	dt.require.NoError(err)
+	dt.require.Len(rangeMap, 2)
+	dt.require.Equal(int64(8), rangeMap[0])
+	dt.require.Equal(int64(0), rangeMap[8])
 }
 
-func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputNotOverlappingWithAnyRanges() {
+func TestParallel_updateRangeMap_withInputNotOverlappingWithAnyRanges(t *testing.T) {
+	dt := newParallelDownloaderTest(t)
+	defer dt.tearDown()
+
 	rangeMap := make(map[int64]int64)
 	rangeMap[0] = 4
 	rangeMap[4] = 0
@@ -235,12 +259,12 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputNotOverlappingWit
 
 	err := dt.job.updateRangeMap(rangeMap, 8, 10)
 
-	AssertEq(nil, err)
-	AssertEq(6, len(rangeMap))
-	AssertEq(0, rangeMap[4])
-	AssertEq(4, rangeMap[0])
-	AssertEq(8, rangeMap[10])
-	AssertEq(10, rangeMap[8])
-	AssertEq(12, rangeMap[14])
-	AssertEq(14, rangeMap[12])
+	dt.require.NoError(err)
+	dt.require.Len(rangeMap, 6)
+	dt.require.Equal(int64(0), rangeMap[4])
+	dt.require.Equal(int64(4), rangeMap[0])
+	dt.require.Equal(int64(8), rangeMap[10])
+	dt.require.Equal(int64(10), rangeMap[8])
+	dt.require.Equal(int64(12), rangeMap[14])
+	dt.require.Equal(int64(14), rangeMap[12])
 }
