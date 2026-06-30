@@ -111,9 +111,9 @@ type statCacheBucketView struct {
 // An entry in the cache, pairing an object with the expiration time for the
 // entry. Nil object means negative entry.
 type entry struct {
-	m          *gcs.MinObject
-	f          *gcs.Folder
-	expiration time.Time
+	m            *gcs.MinObject
+	f            *gcs.Folder
+	expirationNS int64
 	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
 }
@@ -200,8 +200,8 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 
 	// Insert an entry.
 	e := entry{
-		m:          m,
-		expiration: expiration,
+		m:            m,
+		expirationNS: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -236,8 +236,8 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 
 	// Insert an entry.
 	e := entry{
-		implicitDir: true,
-		expiration:  expiration,
+		implicitDir:  true,
+		expirationNS: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -250,8 +250,8 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 
 	// Insert a negative entry.
 	e := entry{
-		m:          nil,
-		expiration: expiration,
+		m:            nil,
+		expirationNS: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -264,8 +264,8 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 
 	// Insert a negative entry.
 	e := entry{
-		f:          nil,
-		expiration: expiration,
+		f:            nil,
+		expirationNS: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -315,7 +315,7 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 	e := value.(entry)
 
 	// Has this entry expired?
-	if e.expiration.Before(now) {
+	if e.expirationNS < now.UnixNano() {
 		sc.Erase(key)
 		return false, nil
 	}
@@ -327,8 +327,8 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 	name := sc.key(f.Name)
 
 	e := entry{
-		f:          f,
-		expiration: expiration,
+		f:            f,
+		expirationNS: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
