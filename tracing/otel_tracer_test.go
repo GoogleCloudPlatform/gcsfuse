@@ -124,6 +124,26 @@ func TestOtelTracer_SetCacheReadAttributes(t *testing.T) {
 	}
 }
 
+func TestOtelTracer_SetReadFileAttributes(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	otel.SetTracerProvider(provider)
+	tracer := NewOTELTracer()
+	spanName := "test-read-file-span"
+	bytesRead := 4096
+	offset := int64(1024)
+
+	_, span := tracer.StartSpan(context.Background(), spanName)
+	tracer.SetReadFileAttributes(span, bytesRead, offset)
+	tracer.EndSpan(span)
+
+	spans := recorder.Ended()
+	assert.Len(t, spans, 1)
+	assert.Len(t, spans[0].Attributes(), 2)
+	assert.Contains(t, spans[0].Attributes(), attribute.Int(BYTES_READ, bytesRead))
+	assert.Contains(t, spans[0].Attributes(), attribute.Int64(READ_OFFSET, offset))
+}
+
 func TestOtelTracer_PropagateTraceContext(t *testing.T) {
 	recorder := tracetest.NewSpanRecorder()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))

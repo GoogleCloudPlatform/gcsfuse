@@ -26,12 +26,14 @@ import (
 	"strings"
 	"time"
 
+	gcsstorage "cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func storageControlClientRetryOptions() []gax.CallOption {
@@ -96,16 +98,23 @@ func DeleteManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 	}
 }
 
-func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageControlClient, managedFolderPath, bucket string) {
+// CreateManagedFoldersInBucket creates a managed folder in the specified bucket. It returns true if the managed folder was created successfully, and false if it already exists.
+func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageControlClient, managedFolderPath, bucket string) bool {
 	mf := &controlpb.ManagedFolder{}
 	req := &controlpb.CreateManagedFolderRequest{
 		Parent:          fmt.Sprintf("projects/_/buckets/%v", bucket),
 		ManagedFolder:   mf,
 		ManagedFolderId: managedFolderPath,
 	}
-	if _, err := client.CreateManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The specified managed folder already exists") {
-		log.Fatalf("Error while creating managed folder: %v", err)
+	_, err := client.CreateManagedFolder(ctx, req)
+	if err == nil {
+		return true
 	}
+	if status.Code(err) == codes.AlreadyExists || strings.Contains(err.Error(), "The specified managed folder already exists") {
+		return false
+	}
+	log.Fatalf("Error while creating managed folder: %v", err)
+	return true
 }
 
 func CreateFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) (*controlpb.Folder, error) {
@@ -118,4 +127,22 @@ func CreateFolderInBucket(ctx context.Context, client *control.StorageControlCli
 	f, err := client.CreateFolder(ctx, req)
 
 	return f, err
+}
+
+func DeleteFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) error {
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	req := &controlpb.DeleteFolderRequest{
+		Name: fmt.Sprintf("projects/_/buckets/%s/folders/%s", bucket, path.Join(rootFolder, folderPath)),
+	}
+	return client.DeleteFolder(ctx, req)
+}
+
+func DeleteDirOnGCS(ctx context.Context, storageClient *gcsstorage.Client, relativeDirPath string) {
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	gcsObjName := path.Join(rootFolder, relativeDirPath) + "/"
+	_ = getBucketHandle(storageClient, bucket).Object(gcsObjName).Delete(ctx)
+	if controlClient, err := CreateControlClient(ctx); err == nil && controlClient != nil {
+		_ = DeleteFolderInBucket(ctx, controlClient, relativeDirPath)
+		controlClient.Close()
+	}
 }
