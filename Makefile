@@ -89,3 +89,10 @@ e2e-test:
 	REGION=$$(echo $$ZONE | sed 's/-[a-z]$$//'); \
 	echo $$REGION; \
 	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION $(if $(PROJECT),--project-id $(PROJECT))
+
+npi-conformance: fmt
+	@echo "Running NPI Conformance Suite via tools/cd_scripts/npi_conformance.sh..."
+	ZONE=$$(curl -s -H "Metadata-Flavor: Google" metadata.google.internal/computeMetadata/v1/instance/zone 2>/dev/null | awk -F'/' '{print $$NF}'); \
+	REGION=$${BUCKET_LOCATION:-$$(echo $$ZONE | sed 's/-[a-z]$$//')}; \
+	tools/cd_scripts/npi_conformance.sh --local-run $$(if [ -n "$$REGION" ]; then echo "--bucket-location $$REGION"; fi) $(if $(PROJECT),--project-id $(PROJECT))
+

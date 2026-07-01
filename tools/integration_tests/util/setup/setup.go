@@ -51,6 +51,7 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
+var readAheadKB = flag.Int("read-ahead-kb", -1, "The read-ahead size in KB to set on the FUSE mount point. Values <= 0 will bypass configuration.")
 
 const (
 	FilePermission_0600               = 0600
@@ -69,6 +70,7 @@ var (
 	logFile              string
 	testDir              string
 	mntDir               string
+	rootMntDir           string
 	sbinFile             string
 	onlyDirMounted       string
 	dynamicBucketMounted string
@@ -151,6 +153,10 @@ func MountedDirectory() string {
 	return *mountedDirectory
 }
 
+func ReadAheadKB() int {
+	return *readAheadKB
+}
+
 func SetLogFile(logFileValue string) {
 	logFile = logFileValue
 }
@@ -176,6 +182,17 @@ func SetMntDir(mntDirValue string) {
 }
 
 func MntDir() string {
+	return mntDir
+}
+
+func SetRootMntDir(dir string) {
+	rootMntDir = dir
+}
+
+func RootMntDir() string {
+	if rootMntDir != "" {
+		return rootMntDir
+	}
 	return mntDir
 }
 
@@ -477,6 +494,7 @@ func SetUpTestDirForTestBucket(cfg *test_suite.TestConfig) {
 	}
 
 	cfg.GCSFuseMountedDirectory = path.Join(testDirPath, "mnt")
+	SetRootMntDir(cfg.GCSFuseMountedDirectory)
 	cfg.LogFile = path.Join(TestDir(), "gcsfuse.log")
 	// TODO: clean up this global variable up after migration is complete.
 	SetLogFile(cfg.LogFile)
