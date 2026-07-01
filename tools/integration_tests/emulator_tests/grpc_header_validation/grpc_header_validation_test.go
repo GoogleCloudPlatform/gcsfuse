@@ -35,11 +35,19 @@ type grpcHeaderValidation struct {
 	proxyProcessId     int
 	proxyServerLogFile string
 	flags              []string
+	baseFlags          []string
 	configPath         string
 	suite.Suite
 }
 
+func (g *grpcHeaderValidation) SetupSuite() {
+	g.baseFlags = make([]string, len(g.flags))
+	copy(g.baseFlags, g.flags)
+}
+
 func (g *grpcHeaderValidation) SetupTest() {
+	g.flags = make([]string, len(g.baseFlags))
+	copy(g.flags, g.baseFlags)
 	g.configPath = "../configs/grpc_header_validation.yaml"
 	g.proxyServerLogFile = setup.CreateProxyServerLogFile(g.T())
 	g.T().Logf("Proxy server log file: %s", g.proxyServerLogFile)
@@ -98,7 +106,7 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 	assert.Greater(g.T(), validationCount, 0, "Expected at least one successful metadata validation")
 	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
 	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
-	assert.Equal(g.T(), 3, strings.Count(logStr, "/google.storage.v2.Storage/GetObject"), "Expected 3 GetObject calls (1 for each operation)")
+	assert.Equal(g.T(), 4, strings.Count(logStr, "/google.storage.v2.Storage/GetObject"), "Expected 4 GetObject calls (1 verification + 3 operations)")
 	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/BidiWriteObject"), "Expected 1 BidiWriteObject call for writing the file")
 	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/ReadObject"), "Expected 1 ReadObject call for reading the file")
 	// Expected at least 1 ListObjects call - for listing the directory and potentially 1 extra due to async metadata prefetch

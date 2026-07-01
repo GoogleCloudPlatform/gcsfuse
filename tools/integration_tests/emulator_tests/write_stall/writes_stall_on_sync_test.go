@@ -141,8 +141,9 @@ func TestChunkTransferTimeout(t *testing.T) {
 					proxyServerLogFile := setup.CreateProxyServerLogFile(t)
 					port, proxyProcessId, err := emulator_tests.StartProxyServer(scenario.configPath, proxyServerLogFile)
 					require.NoError(t, err)
-					setup.AppendProxyEndpointToFlagSet(&flags, port)
-					setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+					localFlags := append([]string{}, flags...)
+					setup.AppendProxyEndpointToFlagSet(&localFlags, port)
+					setup.MountGCSFuseWithGivenMountFunc(localFlags, mountFunc)
 
 					defer func() { // Defer unmount, killing the proxy server and saving log files.
 						setup.UnmountGCSFuse(rootDir)

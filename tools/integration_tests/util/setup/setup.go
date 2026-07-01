@@ -58,7 +58,7 @@ const (
 	Charset                           = "abcdefghijklmnopqrstuvwxyz0123456789"
 	PathEnvVariable                   = "PATH"
 	GCSFuseLogFilePrefix              = "gcsfuse-failed-integration-test-logs-"
-	ProxyServerLogFilePrefix          = "proxy-server-failed-integration-test-logs-"
+	ProxyServerLogFilePrefix          = "gcsfuse-failed-integration-test-logs-proxy-server-"
 	zoneMatcherRegex                  = "^[a-z]+-[a-z0-9]+-[a-z]$"
 	regionMatcherRegex                = "^[a-z]+-[a-z0-9]+$"
 	unsupportedCharactersInTestBucket = " "
