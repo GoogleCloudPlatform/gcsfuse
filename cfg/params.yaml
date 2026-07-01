@@ -1121,12 +1121,40 @@ params:
     default: "3"
     hide-flag: true
 
+  - config-path: "mrd.max-connections"
+    flag-name: "mrd-max-connections"
+    type: "int"
+    usage: "The maximum number of concurrent TCP connections allowed for Multi-Range Downloader."
+    default: "0"
+    hide-flag: true
+
+  - config-path: "mrd.min-connections"
+    flag-name: "mrd-min-connections"
+    type: "int"
+    usage: "The minimum number of concurrent TCP connections allowed for Multi-Range Downloader."
+    default: "0"
+    hide-flag: true
+
   - config-path: "mrd.pool-size"
     flag-name: "mrd-pool-size"
     type: "int"
     usage: >-
       Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.
     default: "4"
+    hide-flag: true
+
+  - config-path: "mrd.target-pending-bytes"
+    flag-name: "mrd-target-pending-bytes"
+    type: "int"
+    usage: "The target threshold for pending bytes to trigger Multi-Range Downloader autoscaling."
+    default: "0"
+    hide-flag: true
+
+  - config-path: "mrd.target-pending-ranges"
+    flag-name: "mrd-target-pending-ranges"
+    type: "int"
+    usage: "The target threshold for pending ranges to trigger Multi-Range Downloader autoscaling."
+    default: "0"
     hide-flag: true
 
   - config-path: "only-dir"
