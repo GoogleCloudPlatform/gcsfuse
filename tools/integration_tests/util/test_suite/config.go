@@ -40,13 +40,26 @@ type TestConfig struct {
 	OnlyDir                          string       `yaml:"only_dir,omitempty"`
 }
 
+// PirloZoneConfig defines whether to run in the same or different zone for Pirlo.
+type PirloZoneConfig struct {
+	SameZone      bool `yaml:"same_zone"`
+	DifferentZone bool `yaml:"different_zone"`
+}
+
+// RunOnPirloConfig defines the Pirlo execution configurations and specific flags.
+type RunOnPirloConfig struct {
+	Flat PirloZoneConfig `yaml:"flat"`
+	Hns  PirloZoneConfig `yaml:"hns"`
+}
+
 // ConfigItem defines the variable parts of each test run.
 type ConfigItem struct {
-	Flags          []string        `yaml:"flags"`
-	SecondaryFlags []string        `yaml:"secondary_flags"`
-	Compatible     map[string]bool `yaml:"compatible"`
-	Run            string          `yaml:"run,omitempty"`
-	RunOnGKE       bool            `yaml:"run_on_gke"`
+	Flags          []string         `yaml:"flags"`
+	SecondaryFlags []string         `yaml:"secondary_flags"`
+	Compatible     map[string]bool  `yaml:"compatible"`
+	Run            string           `yaml:"run,omitempty"`
+	RunOnGKE       bool             `yaml:"run_on_gke"`
+	RunOnPirlo     RunOnPirloConfig `yaml:"run_on_pirlo"`
 }
 
 // Config holds all test configurations parsed from the YAML file.

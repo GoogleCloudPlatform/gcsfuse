@@ -197,6 +197,19 @@ func (t *BaseSuite) isMetadataCacheEnabled() bool {
 func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
+			isCompatible := false
+			switch testEnv.bucketType {
+			case setup.FlatPirloBucket:
+				isCompatible = cfg.RunOnPirlo.Flat.SameZone || cfg.RunOnPirlo.Flat.DifferentZone
+			case setup.HNSPirloBucket:
+				isCompatible = cfg.RunOnPirlo.Hns.SameZone || cfg.RunOnPirlo.Hns.DifferentZone
+			default:
+				isCompatible = cfg.Compatible[testEnv.bucketType]
+			}
+			if !isCompatible {
+				continue
+			}
+
 			for i, flagStr := range cfg.Flags {
 				flagStr = strings.ReplaceAll(flagStr, ",", " ")
 				primaryFlags := strings.Fields(flagStr)
