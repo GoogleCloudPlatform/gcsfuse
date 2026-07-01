@@ -42,6 +42,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
@@ -914,4 +915,22 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 	assert.Equal(cht.T(), n, 0)
 	assert.False(cht.T(), cacheHit)
 	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
+}
+
+func Test_GetCacheHandle_PathTraversal(t *testing.T) {
+	cacheDir := t.TempDir()
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
+
+	// Object name designed to escape the cache directory
+	object := &gcs.MinObject{
+		Name:       "../../../../etc/cron.d/pwn",
+		Generation: 1,
+		Size:       10,
+	}
+
+	_, err := chTestArgs.cacheHandler.GetCacheHandle(object, chTestArgs.bucket, true, 0)
+
+	// We expect the cache handler to catch this and return a containment error
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "outside cache directory")
 }
