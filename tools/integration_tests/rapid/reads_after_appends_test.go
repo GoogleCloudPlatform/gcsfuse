@@ -16,6 +16,7 @@ package rapid
 
 import (
 	"path"
+	"syscall"
 	"testing"
 	"time"
 
@@ -33,7 +34,7 @@ func (t *SingleMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerif
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), fileOpenModeAppend)
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
 	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 
 	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
@@ -68,7 +69,7 @@ func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyF
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.getAppendPath(), t.fileName), fileOpenModeAppend)
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.getAppendPath(), t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
 	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 
 	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)

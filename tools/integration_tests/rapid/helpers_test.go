@@ -19,8 +19,8 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/require"
@@ -34,25 +34,9 @@ func (t *BaseSuite) createGCSFile(useAppendableAPI bool, fileSize int64) (filePa
 	content, err := operations.GenerateRandomData(fileSize)
 	require.NoError(t.T(), err)
 
-	// Create file directly in GCS using Go SDK.
-	bh := testEnv.storageClient.Bucket(setup.TestBucket())
-	obj := bh.Object(path.Join(testDirName, t.fileName))
-	wc := obj.NewWriter(testEnv.ctx)
-	wc.Append = useAppendableAPI
-	// For this test, we need to finalize the object to make it readable as a regular object.
-	wc.FinalizeOnClose = true
-
-	_, err = wc.Write(content)
+	// Create file directly in GCS using Go SDK with the chosen API.
+	err = client.CreateObjectWithAPI(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName), content, useAppendableAPI)
 	require.NoError(t.T(), err)
-	err = wc.Close()
-	require.NoError(t.T(), err)
-
-	// Wait for the file to appear in the mount.
-	operations.RetryUntil(testEnv.ctx, t.T(), 2*time.Second, defaultMetadataCacheTTL, func() (any, error) {
-		_, err := os.Stat(filePath)
-		return nil, err
-	})
-
 	return filePath, content
 }
 
