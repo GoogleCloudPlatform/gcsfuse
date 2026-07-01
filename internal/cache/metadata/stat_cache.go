@@ -15,13 +15,17 @@
 package metadata
 
 import (
+	"fmt"
 	"math"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // A cache mapping from name to most recent known record for the object of that
@@ -86,10 +90,11 @@ type StatCache interface {
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
-func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
+func NewStatCacheBucketView(sc *lru.Cache, bn string, metricHandle metrics.MetricHandle) StatCache {
 	return &statCacheBucketView{
-		sharedCache: sc,
-		bucketName:  bn,
+		sharedCache:  sc,
+		bucketName:   bn,
+		metricHandle: metricHandle,
 	}
 }
 
@@ -105,7 +110,8 @@ type statCacheBucketView struct {
 	// statCache object among all statCache objects
 	// using the same shared lru.Cache object.
 	// It can be empty ("").
-	bucketName string
+	bucketName   string
+	metricHandle metrics.MetricHandle
 }
 
 // An entry in the cache, pairing an object with the expiration time for the
@@ -309,18 +315,64 @@ func (sc *statCacheBucketView) LookUpFolder(
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
 	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
+		logger.Infof("MetadataCache: sharedCacheLookup miss for key %q, entryStatus: %s, lookupDetail: %s, caller: %s", key, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr, getBriefStack())
+		sc.metricHandle.MetadataCacheReadCount(1, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
 		return false, nil
 	}
 
 	e := value.(entry)
 
+	// An entry in statCache is positive if it holds either a GCS MinObject (e.m),
+	// a GCS Folder (e.f), or is an implicit directory (e.implicitDir).
+	// If all are nil/false, the entry represents a negative cache entry (i.e. we
+	// explicitly cached that the object/folder does not exist).
+	var entryStatus metrics.EntryStatus
+	if e.m != nil || e.f != nil || e.implicitDir {
+		entryStatus = metrics.EntryStatusPositiveAttr
+	} else {
+		entryStatus = metrics.EntryStatusNegativeAttr
+	}
+
 	// Has this entry expired?
 	if e.expiration.Before(now) {
+		logger.Infof("MetadataCache: sharedCacheLookup expired for key %q, entryStatus: %s, lookupDetail: %s, caller: %s", key, entryStatus, metrics.LookupDetailTtlExpiredAttr, getBriefStack())
 		sc.Erase(key)
+		sc.metricHandle.MetadataCacheReadCount(1, false, entryStatus, metrics.LookupDetailTtlExpiredAttr)
 		return false, nil
 	}
 
+	logger.Infof("MetadataCache: sharedCacheLookup hit for key %q, entryStatus: %s, lookupDetail: %s, caller: %s", key, entryStatus, metrics.LookupDetailFoundAttr, getBriefStack())
+	sc.metricHandle.MetadataCacheReadCount(1, true, entryStatus, metrics.LookupDetailFoundAttr)
 	return true, &e
+}
+
+func getBriefStack() string {
+	var pcs [16]uintptr
+	n := runtime.Callers(3, pcs[:])
+	frames := runtime.CallersFrames(pcs[:n])
+	var sb strings.Builder
+	for {
+		frame, more := frames.Next()
+		if sb.Len() > 0 {
+			sb.WriteString(" -> ")
+		}
+
+		file := frame.File
+		if idx := strings.LastIndex(file, "/"); idx != -1 {
+			file = file[idx+1:]
+		}
+
+		funcName := frame.Function
+		if idx := strings.LastIndex(funcName, "/"); idx != -1 {
+			funcName = funcName[idx+1:]
+		}
+
+		sb.WriteString(fmt.Sprintf("%s (%s:%d)", funcName, file, frame.Line))
+		if !more {
+			break
+		}
+	}
+	return sb.String()
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
