@@ -15,65 +15,14 @@
 package rapid
 
 import (
-	"math/rand/v2"
-	"os"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-// declare a function type for read and verify
-type readAndVerifyFunc func(t *testing.T, filePath string, expectedContent []byte)
-
-func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY, setup.FilePermission_0600)
-	require.NoError(t, err)
-	readContent, err := operations.ReadFileSequentially(file, 1024*1024)
-
-	// For sequential reads, we expect the content to be exactly as expected.
-	require.NoErrorf(t, err, "failed to read file %q sequentially: %v", filePath, err)
-	require.Equal(t, expectedContent, readContent)
-}
-
-func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY, setup.FilePermission_0600)
-	require.NoErrorf(t, err, "failed to open file %q: %v", filePath, err)
-	defer operations.CloseFileShouldNotThrowError(t, file) // This line is already correct.
-	if len(expectedContent) == 0 {
-		t.SkipNow()
-	}
-	fileInfo, err := file.Stat()
-	require.NoError(t, err)
-	fileSize := fileInfo.Size()
-	require.GreaterOrEqualf(t, fileSize, int64(len(expectedContent)), "file %q is too small to read %d bytes", filePath, len(expectedContent))
-
-	// Content to be read from [0, maxOffset) .
-	maxOffset := len(expectedContent)
-	// Limit number of reads if the content to read is too small.
-	numReads := min(maxOffset, 10)
-	for i := range numReads {
-		// Ensure offset <= maxOffset-1 .
-		offset := rand.IntN(maxOffset)
-		// Ensure (offset+readSize) <= maxOffset and readSize >= 1.
-		readSize := rand.IntN(maxOffset-offset) + 1
-		buffer := make([]byte, readSize)
-
-		n, err := file.ReadAt(buffer, int64(offset))
-
-		require.NoErrorf(t, err, "Random-read failed at iter#%d to read file %q at [%d, %d): %v", i, filePath, offset, offset+readSize, err)
-		require.Equalf(t, readSize, n, "failed to read %v bytes from %q at offset %v. Read bytes = %v.", readSize, filePath, offset, n)
-		require.Equalf(t, expectedContent[offset:offset+n], buffer[:n], "content mismatch in random read at iter#%d at offset [%d, %d): expected %q, got %q", i, offset, offset+readSize, expectedContent[offset:offset+n], buffer[:n])
-	}
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests for the SingleMountReadsTestSuite

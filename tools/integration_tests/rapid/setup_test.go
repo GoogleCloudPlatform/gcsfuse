@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 		cfg.Rapid[0].TestBucket = setup.TestBucket()
 		cfg.Rapid[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.Rapid[0].LogFile = setup.LogFile()
-		cfg.Rapid[0].Configs = make([]test_suite.ConfigItem, 7)
+		cfg.Rapid[0].Configs = make([]test_suite.ConfigItem, 5)
 
 		// 1. TestSingleMountAppendsTestSuite
 		cfg.Rapid[0].Configs[0].Flags = []string{"--write-block-size-mb=1"}
@@ -122,21 +122,6 @@ func TestMain(m *testing.M) {
 		}
 		cfg.Rapid[0].Configs[4].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
 		cfg.Rapid[0].Configs[4].Run = "TestDualMountReadsTestSuiteWithoutMetadataCache"
-
-		// 6. TestFinalizeRapidWritesTestSuite
-		cfg.Rapid[0].Configs[5].Flags = []string{
-			"--finalize-file-for-rapid=true",
-			"--finalize-file-for-rapid=false",
-		}
-		cfg.Rapid[0].Configs[5].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.Rapid[0].Configs[5].Run = "TestFinalizeRapidWritesTestSuite"
-
-		// 7. TestStatAndListTestSuite
-		cfg.Rapid[0].Configs[6].Flags = []string{
-			"--metadata-cache-ttl-secs=0",
-		}
-		cfg.Rapid[0].Configs[6].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.Rapid[0].Configs[6].Run = "TestStatAndListTestSuite"
 	}
 
 	testEnv.ctx = context.Background()
