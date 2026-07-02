@@ -15,6 +15,7 @@
 package caching_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -22,25 +23,16 @@ import (
 	"testing"
 	"time"
 
-	"context"
-
 	gostorage "cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching/mock_gcscaching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/oglemock"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
-
-func TestFastStatBucket(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
 
 const primaryCacheTTL = time.Second
 const negativeCacheTTL = time.Second * 5
@@ -48,87 +40,139 @@ const isTypeCacheDeprecated = true
 const isImplicitDir = true
 const isEnableEmptyManagedFolders = false
 
-type fastStatBucketTest struct {
-	cache   mock_gcscaching.MockStatCache
-	clock   timeutil.SimulatedClock
-	wrapped storage.MockBucket
-
-	bucket gcs.Bucket
+type TestifyMockStatCache struct {
+	mock.Mock
 }
 
-func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
+var _ metadata.StatCache = (*TestifyMockStatCache)(nil)
+
+func (m *TestifyMockStatCache) Insert(obj *gcs.MinObject, expiration time.Time) {
+	m.Called(obj, expiration)
+}
+
+func (m *TestifyMockStatCache) InsertImplicitDir(objectName string, expiration time.Time) {
+	m.Called(objectName, expiration)
+}
+
+func (m *TestifyMockStatCache) AddNegativeEntry(name string, expiration time.Time) {
+	m.Called(name, expiration)
+}
+
+func (m *TestifyMockStatCache) Erase(name string) {
+	m.Called(name)
+}
+
+func (m *TestifyMockStatCache) LookUp(name string, now time.Time) (bool, *gcs.MinObject) {
+	args := m.Called(name, now)
+	var obj *gcs.MinObject
+	if args.Get(1) != nil {
+		obj = args.Get(1).(*gcs.MinObject)
+	}
+	return args.Bool(0), obj
+}
+
+func (m *TestifyMockStatCache) InsertFolder(f *gcs.Folder, expiration time.Time) {
+	m.Called(f, expiration)
+}
+
+func (m *TestifyMockStatCache) LookUpFolder(folderName string, now time.Time) (bool, *gcs.Folder) {
+	args := m.Called(folderName, now)
+	var f *gcs.Folder
+	if args.Get(1) != nil {
+		f = args.Get(1).(*gcs.Folder)
+	}
+	return args.Bool(0), f
+}
+
+func (m *TestifyMockStatCache) AddNegativeEntryForFolder(folderName string, expiration time.Time) {
+	m.Called(folderName, expiration)
+}
+
+func (m *TestifyMockStatCache) EraseEntriesWithGivenPrefix(prefix string) {
+	m.Called(prefix)
+}
+
+type FastStatBucketSuite struct {
+	suite.Suite
+	cache   *TestifyMockStatCache
+	clock   timeutil.SimulatedClock
+	wrapped *storage.TestifyMockBucket
+	bucket  gcs.Bucket
+}
+
+func (s *FastStatBucketSuite) SetupTest() {
 	// Set up a fixed, non-zero time.
-	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	s.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
 	// Set up dependencies.
-	t.cache = mock_gcscaching.NewMockStatCache(ti.MockController, "cache")
-	t.wrapped = storage.NewMockBucket(ti.MockController, "wrapped")
+	s.cache = new(TestifyMockStatCache)
+	s.wrapped = new(storage.TestifyMockBucket)
 
-	t.bucket = caching.NewFastStatBucket(
+	s.bucket = caching.NewFastStatBucket(
 		primaryCacheTTL,
-		t.cache,
-		&t.clock,
-		t.wrapped,
+		s.cache,
+		&s.clock,
+		s.wrapped,
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
 		isImplicitDir,
 		isEnableEmptyManagedFolders)
 }
 
-////////////////////////////////////////////////////////////////////////
-// CreateObject
-////////////////////////////////////////////////////////////////////////
-
-type CreateObjectTest struct {
-	fastStatBucketTest
+func TestFastStatBucket(t *testing.T) {
+	suite.Run(t, new(FastStatBucketSuite))
 }
 
-func init() { RegisterTestSuite(&CreateObjectTest{}) }
+// //////////////////////////////////////////////////////////////////////
+// CreateObject
+// //////////////////////////////////////////////////////////////////////
 
-func (t *CreateObjectTest) CallsEraseAndWrapped() {
+func (s *FastStatBucketSuite) Test_CreateObject_CallsEraseAndWrapped() {
 	const name = "taco"
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 
 	// Wrapped
 	var wrappedReq *gcs.CreateObjectRequest
-	ExpectCall(t.wrapped, "CreateObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+	s.wrapped.On("CreateObject", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.CreateObjectRequest)
+		}).
+		Return(nil, errors.New("")).
+		Once()
 
 	// Call
 	req := &gcs.CreateObjectRequest{
 		Name: name,
 	}
 
-	_, _ = t.bucket.CreateObject(context.TODO(), req)
+	_, _ = s.bucket.CreateObject(context.TODO(), req)
 
-	AssertNe(nil, wrappedReq)
-	ExpectEq(req, wrappedReq)
+	s.NotNil(wrappedReq)
+	s.Equal(req, wrappedReq)
 }
 
-func (t *CreateObjectTest) WrappedFails() {
-	var err error
-
+func (s *FastStatBucketSuite) Test_CreateObject_WrappedFails() {
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	s.wrapped.On("CreateObject", mock.Anything, mock.Anything).
+		Return(nil, errors.New("taco")).
+		Once()
 
 	// Call
-	_, err = t.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
+	_, err := s.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.ErrorContains(err, "taco")
 }
 
-func (t *CreateObjectTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_CreateObject_WrappedSucceeds() {
 	const name = "taco"
-	var err error
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 
 	// Wrapped
 	obj := &gcs.Object{
@@ -136,37 +180,38 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 		Generation: 1234,
 	}
 
-	ExpectCall(t.wrapped, "CreateObject")(Any(), Any()).
-		WillOnce(Return(obj, nil))
+	s.wrapped.On("CreateObject", mock.Anything, mock.Anything).
+		Return(obj, nil).
+		Once()
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
 	// Call
-	o, err := t.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
+	o, err := s.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(obj, o)
+	s.NoError(err)
+	s.Equal(obj, o)
 }
 
-////////////////////////////////////////////////////////////////////////
-// CreateObject
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
+// CreateObjectChunkWriter
+// //////////////////////////////////////////////////////////////////////
 
-type CreateObjectChunkWriterTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&CreateObjectChunkWriterTest{}) }
-
-func (t *CreateObjectChunkWriterTest) CallsWrappedWithExpectedParameters() {
+func (s *FastStatBucketSuite) Test_CreateObjectChunkWriter_CallsWrappedWithExpectedParameters() {
 	const name = "taco"
 	// Wrapped
 	var wrappedReq *gcs.CreateObjectRequest
 	var wrappedChunkSize int
 	var wrappedCallback func(_ int64)
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), SaveArg(2, &wrappedChunkSize), SaveArg(3, &wrappedCallback), Return(nil, errors.New(""))))
+	s.wrapped.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.CreateObjectRequest)
+			wrappedChunkSize = args.Int(2)
+			wrappedCallback = args.Get(3).(func(int64))
+		}).
+		Return(nil, errors.New("")).
+		Once()
 	// Call
 	req := &gcs.CreateObjectRequest{
 		Name: name,
@@ -176,69 +221,67 @@ func (t *CreateObjectChunkWriterTest) CallsWrappedWithExpectedParameters() {
 		fmt.Println("callback called!")
 	}
 
-	_, _ = t.bucket.CreateObjectChunkWriter(context.TODO(), req, chunkSize, callback)
+	_, _ = s.bucket.CreateObjectChunkWriter(context.TODO(), req, chunkSize, callback)
 
-	AssertNe(nil, wrappedReq)
-	ExpectEq(req, wrappedReq)
-	ExpectEq(chunkSize, wrappedChunkSize)
-	ExpectEq(callback, wrappedCallback)
+	s.NotNil(wrappedReq)
+	s.Equal(req, wrappedReq)
+	s.Equal(chunkSize, wrappedChunkSize)
+	s.NotNil(wrappedCallback)
 }
 
-func (t *CreateObjectChunkWriterTest) WrappedFails() {
+func (s *FastStatBucketSuite) Test_CreateObjectChunkWriter_WrappedFails() {
 	chunkSize := 1024
 	progressFunc := func(_ int64) {}
 	ctx := context.TODO()
 	req := &gcs.CreateObjectRequest{}
-	var err error
 	// Wrapped
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	s.wrapped.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("taco")).
+		Once()
 
 	// Call
-	_, err = t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+	_, err := s.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.ErrorContains(err, "taco")
 }
 
-func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_CreateObjectChunkWriter_WrappedSucceeds() {
 	chunkSize := 1024
 	progressFunc := func(_ int64) {}
 	ctx := context.TODO()
 	req := &gcs.CreateObjectRequest{}
-	var err error
 	// Wrapped
 	wr := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ChunkSize: chunkSize, ProgressFunc: progressFunc},
 	}
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
-		WillOnce(Return(wr, nil))
+	s.wrapped.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(wr, nil).
+		Once()
 
 	// Call
-	gotWr, err := t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+	gotWr, err := s.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
 
-	AssertEq(nil, err)
-	ExpectEq(wr, gotWr)
+	s.NoError(err)
+	s.Equal(wr, gotWr)
 }
 
-////////////////////////////////////////////////////////////////////////
-// CreateAppendableObjectWriterTest
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
+// CreateAppendableObjectWriter
+// //////////////////////////////////////////////////////////////////////
 
-type CreateAppendableObjectWriterTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&CreateAppendableObjectWriterTest{}) }
-
-func (t *CreateAppendableObjectWriterTest) CallsWrappedWithExpectedParameters() {
+func (s *FastStatBucketSuite) Test_CreateAppendableObjectWriter_CallsWrappedWithExpectedParameters() {
 	const name = "taco"
 	const offset int64 = 10
 	const chunkSize = 1024
 	ctx := context.TODO()
 	// Wrapped
 	var wrappedReq *gcs.CreateObjectChunkWriterRequest
-	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+	s.wrapped.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.CreateObjectChunkWriterRequest)
+		}).
+		Return(nil, errors.New("")).
+		Once()
 	// Call
 	req := &gcs.CreateObjectChunkWriterRequest{
 		CreateObjectRequest: gcs.CreateObjectRequest{
@@ -248,45 +291,45 @@ func (t *CreateAppendableObjectWriterTest) CallsWrappedWithExpectedParameters() 
 		ChunkSize: chunkSize,
 	}
 
-	_, _ = t.bucket.CreateAppendableObjectWriter(ctx, req)
+	_, _ = s.bucket.CreateAppendableObjectWriter(ctx, req)
 
-	AssertNe(nil, wrappedReq)
-	ExpectEq(req, wrappedReq)
+	s.NotNil(wrappedReq)
+	s.Equal(req, wrappedReq)
 }
 
-func (t *CreateAppendableObjectWriterTest) WrappedFails() {
+func (s *FastStatBucketSuite) Test_CreateAppendableObjectWriter_WrappedFails() {
 	ctx := context.TODO()
 	req := &gcs.CreateObjectChunkWriterRequest{}
-	var err error
 	// Wrapped
-	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	s.wrapped.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).
+		Return(nil, errors.New("taco")).
+		Once()
 
 	// Call
-	_, err = t.bucket.CreateAppendableObjectWriter(ctx, req)
+	_, err := s.bucket.CreateAppendableObjectWriter(ctx, req)
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.ErrorContains(err, "taco")
 }
 
-func (t *CreateAppendableObjectWriterTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_CreateAppendableObjectWriter_WrappedSucceeds() {
 	ctx := context.TODO()
 	req := &gcs.CreateObjectChunkWriterRequest{}
-	var err error
 	// Wrapped
 	wr := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{},
 	}
-	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
-		WillOnce(Return(wr, nil))
+	s.wrapped.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).
+		Return(wr, nil).
+		Once()
 
 	// Call
-	gotWr, err := t.bucket.CreateAppendableObjectWriter(ctx, req)
+	gotWr, err := s.bucket.CreateAppendableObjectWriter(ctx, req)
 
-	AssertEq(nil, err)
-	ExpectEq(wr, gotWr)
+	s.NoError(err)
+	s.Equal(wr, gotWr)
 }
 
-func (t *CreateAppendableObjectWriterTest) WrappedReturnsPreconditionError() {
+func (s *FastStatBucketSuite) Test_CreateAppendableObjectWriter_WrappedReturnsPreconditionError() {
 	const name = "taco"
 	ctx := context.TODO()
 	req := &gcs.CreateObjectChunkWriterRequest{
@@ -295,162 +338,161 @@ func (t *CreateAppendableObjectWriterTest) WrappedReturnsPreconditionError() {
 		},
 	}
 	// Erase
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 	// Wrapped
-	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("precondition failed")}))
+	s.wrapped.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).
+		Return(nil, &gcs.PreconditionError{Err: errors.New("precondition failed")}).
+		Once()
 
 	// Call
-	_, err := t.bucket.CreateAppendableObjectWriter(ctx, req)
+	_, err := s.bucket.CreateAppendableObjectWriter(ctx, req)
 
-	ExpectThat(err, Error(HasSubstr("precondition failed")))
+	s.ErrorContains(err, "precondition failed")
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // FinalizeUpload
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type FinalizeUploadTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&FinalizeUploadTest{}) }
-
-func (t *FinalizeUploadTest) CallsEraseAndWrappedWithExpectedParameter() {
+func (s *FastStatBucketSuite) Test_FinalizeUpload_CallsEraseAndWrappedWithExpectedParameter() {
 	const name = "taco"
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
 	}
 	// Erase
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 	// Wrapped
 	var wrappedWriter gcs.Writer
-	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(&gcs.MinObject{}, errors.New(""))))
+	s.wrapped.On("FinalizeUpload", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedWriter = args.Get(1).(gcs.Writer)
+		}).
+		Return(&gcs.MinObject{}, errors.New("")).
+		Once()
 
 	// Call
-	_, _ = t.bucket.FinalizeUpload(context.TODO(), writer)
+	_, _ = s.bucket.FinalizeUpload(context.TODO(), writer)
 
-	AssertNe(nil, wrappedWriter)
-	ExpectEq(writer, wrappedWriter)
+	s.NotNil(wrappedWriter)
+	s.Equal(writer, wrappedWriter)
 }
 
-func (t *FinalizeUploadTest) WrappedFails() {
-	var err error
+func (s *FastStatBucketSuite) Test_FinalizeUpload_WrappedFails() {
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: "name"}},
 	}
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 	// Wrapped
-	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
-		WillOnce(Return(&gcs.MinObject{}, errors.New("taco")))
+	s.wrapped.On("FinalizeUpload", mock.Anything, mock.Anything).
+		Return(&gcs.MinObject{}, errors.New("taco")).
+		Once()
 
 	// Call
-	o, err := t.bucket.FinalizeUpload(context.TODO(), writer)
+	o, err := s.bucket.FinalizeUpload(context.TODO(), writer)
 
-	ExpectThat(err, Error(HasSubstr("taco")))
-	ExpectNe(nil, o)
+	s.ErrorContains(err, "taco")
+	s.NotNil(o)
 }
 
-func (t *FinalizeUploadTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_FinalizeUpload_WrappedSucceeds() {
 	const name = "taco"
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
 	}
-	var err error
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 	// Wrapped
-	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
-		WillOnce(Return(&gcs.MinObject{}, nil))
+	s.wrapped.On("FinalizeUpload", mock.Anything, mock.Anything).
+		Return(&gcs.MinObject{}, nil).
+		Once()
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
 	// Call
-	o, err := t.bucket.FinalizeUpload(context.TODO(), writer)
+	o, err := s.bucket.FinalizeUpload(context.TODO(), writer)
 
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	s.NoError(err)
+	s.NotNil(o)
 }
 
-////////////////////////////////////////////////////////////////////////
-// FinalizeUpload
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
+// FlushPendingWrites
+// //////////////////////////////////////////////////////////////////////
 
-type FlushPendingWritesTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&FlushPendingWritesTest{}) }
-
-func (t *FlushPendingWritesTest) WrappedFails() {
+func (s *FastStatBucketSuite) Test_FlushPendingWrites_WrappedFails() {
 	const name = "taco"
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
 	}
 	// Expect cache Erase.
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 	// Expect call to Wrapped method.
 	var wrappedWriter gcs.Writer
 	mockObject := &gcs.MinObject{Size: 10}
-	ExpectCall(t.wrapped, "FlushPendingWrites")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(mockObject, errors.New("taco"))))
+	s.wrapped.On("FlushPendingWrites", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedWriter = args.Get(1).(gcs.Writer)
+		}).
+		Return(mockObject, errors.New("taco")).
+		Once()
 
 	// Call.
-	gotObject, err := t.bucket.FlushPendingWrites(context.TODO(), writer)
+	gotObject, err := s.bucket.FlushPendingWrites(context.TODO(), writer)
 
-	ExpectEq(writer, wrappedWriter)
-	ExpectEq(mockObject, gotObject)
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.Equal(writer, wrappedWriter)
+	s.Equal(mockObject, gotObject)
+	s.ErrorContains(err, "taco")
 }
 
-func (t *FlushPendingWritesTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_FlushPendingWrites_WrappedSucceeds() {
 	const name = "taco"
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
 	}
-	var err error
 	// Expect cache Erase.
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 	// Wrapped.
 	mockObject := &gcs.MinObject{Size: 10}
-	ExpectCall(t.wrapped, "FlushPendingWrites")(Any(), Any()).
-		WillOnce(Return(mockObject, nil))
+	s.wrapped.On("FlushPendingWrites", mock.Anything, mock.Anything).
+		Return(mockObject, nil).
+		Once()
 	// Insert.
 	var cachedMinObject *gcs.MinObject
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).
-		WillOnce(DoAll(SaveArg(0, &cachedMinObject)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).
+		Run(func(args mock.Arguments) {
+			cachedMinObject = args.Get(0).(*gcs.MinObject)
+		}).
+		Return().
+		Once()
 
 	// Call
-	gotObject, err := t.bucket.FlushPendingWrites(context.TODO(), writer)
+	gotObject, err := s.bucket.FlushPendingWrites(context.TODO(), writer)
 
-	AssertEq(nil, err)
-	ExpectEq(mockObject, gotObject)
-	ExpectEq(mockObject.Size, cachedMinObject.Size)
+	s.NoError(err)
+	s.Equal(mockObject, gotObject)
+	s.Equal(mockObject.Size, cachedMinObject.Size)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // CopyObject
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type CopyObjectTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&CopyObjectTest{}) }
-
-func (t *CopyObjectTest) CallsEraseAndWrapped() {
+func (s *FastStatBucketSuite) Test_CopyObject_CallsEraseAndWrapped() {
 	const srcName = "taco"
 	const dstName = "burrito"
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(dstName)
+	s.cache.On("Erase", dstName).Return().Once()
 
 	// Wrapped
 	var wrappedReq *gcs.CopyObjectRequest
-	ExpectCall(t.wrapped, "CopyObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+	s.wrapped.On("CopyObject", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.CopyObjectRequest)
+		}).
+		Return(nil, errors.New("")).
+		Once()
 
 	// Call
 	req := &gcs.CopyObjectRequest{
@@ -458,34 +500,32 @@ func (t *CopyObjectTest) CallsEraseAndWrapped() {
 		DstName: dstName,
 	}
 
-	_, _ = t.bucket.CopyObject(context.TODO(), req)
+	_, _ = s.bucket.CopyObject(context.TODO(), req)
 
-	AssertNe(nil, wrappedReq)
-	ExpectEq(req, wrappedReq)
+	s.NotNil(wrappedReq)
+	s.Equal(req, wrappedReq)
 }
 
-func (t *CopyObjectTest) WrappedFails() {
-	var err error
-
+func (s *FastStatBucketSuite) Test_CopyObject_WrappedFails() {
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "CopyObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	s.wrapped.On("CopyObject", mock.Anything, mock.Anything).
+		Return(nil, errors.New("taco")).
+		Once()
 
 	// Call
-	_, err = t.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
+	_, err := s.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.ErrorContains(err, "taco")
 }
 
-func (t *CopyObjectTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_CopyObject_WrappedSucceeds() {
 	const dstName = "burrito"
-	var err error
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 
 	// Wrapped
 	obj := &gcs.Object{
@@ -493,40 +533,39 @@ func (t *CopyObjectTest) WrappedSucceeds() {
 		Generation: 1234,
 	}
 
-	ExpectCall(t.wrapped, "CopyObject")(Any(), Any()).
-		WillOnce(Return(obj, nil))
+	s.wrapped.On("CopyObject", mock.Anything, mock.Anything).
+		Return(obj, nil).
+		Once()
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
 	// Call
-	o, err := t.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
+	o, err := s.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(obj, o)
+	s.NoError(err)
+	s.Equal(obj, o)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // ComposeObjects
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type ComposeObjectsTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&ComposeObjectsTest{}) }
-
-func (t *ComposeObjectsTest) CallsEraseAndWrapped() {
+func (s *FastStatBucketSuite) Test_ComposeObjects_CallsEraseAndWrapped() {
 	const srcName = "taco"
 	const dstName = "burrito"
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(dstName)
+	s.cache.On("Erase", dstName).Return().Once()
 
 	// Wrapped
 	var wrappedReq *gcs.ComposeObjectsRequest
-	ExpectCall(t.wrapped, "ComposeObjects")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+	s.wrapped.On("ComposeObjects", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.ComposeObjectsRequest)
+		}).
+		Return(nil, errors.New("")).
+		Once()
 
 	// Call
 	req := &gcs.ComposeObjectsRequest{
@@ -536,34 +575,32 @@ func (t *ComposeObjectsTest) CallsEraseAndWrapped() {
 		},
 	}
 
-	_, _ = t.bucket.ComposeObjects(context.TODO(), req)
+	_, _ = s.bucket.ComposeObjects(context.TODO(), req)
 
-	AssertNe(nil, wrappedReq)
-	ExpectEq(req, wrappedReq)
+	s.NotNil(wrappedReq)
+	s.Equal(req, wrappedReq)
 }
 
-func (t *ComposeObjectsTest) WrappedFails() {
-	var err error
-
+func (s *FastStatBucketSuite) Test_ComposeObjects_WrappedFails() {
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	s.wrapped.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return(nil, errors.New("taco")).
+		Once()
 
 	// Call
-	_, err = t.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
+	_, err := s.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.ErrorContains(err, "taco")
 }
 
-func (t *ComposeObjectsTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_ComposeObjects_WrappedSucceeds() {
 	const dstName = "burrito"
-	var err error
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 
 	// Wrapped
 	obj := &gcs.Object{
@@ -571,45 +608,41 @@ func (t *ComposeObjectsTest) WrappedSucceeds() {
 		Generation: 1234,
 	}
 
-	ExpectCall(t.wrapped, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(obj, nil))
+	s.wrapped.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return(obj, nil).
+		Once()
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
 	// Call
-	o, err := t.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
+	o, err := s.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(obj, o)
+	s.NoError(err)
+	s.Equal(obj, o)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // StatObject
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type StatObjectTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&StatObjectTest{}) }
-
-func (t *StatObjectTest) CallsCache() {
+func (s *FastStatBucketSuite) Test_StatObject_CallsCache() {
 	const name = "taco"
 
 	// LookUp
-	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
-		WillOnce(Return(true, &gcs.MinObject{}))
+	s.cache.On("LookUp", name, s.clock.Now()).
+		Return(true, &gcs.MinObject{}).
+		Once()
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	_, _, _ = t.bucket.StatObject(context.TODO(), req)
+	_, _, _ = s.bucket.StatObject(context.TODO(), req)
 }
 
-func (t *StatObjectTest) CacheHit_Positive() {
+func (s *FastStatBucketSuite) Test_StatObject_CacheHit_Positive() {
 	const name = "taco"
 
 	// LookUp
@@ -617,42 +650,41 @@ func (t *StatObjectTest) CacheHit_Positive() {
 		Name: name,
 	}
 
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(true, minObj))
+	s.cache.On("LookUp", mock.Anything, mock.Anything).
+		Return(true, minObj).
+		Once()
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	m, e, err := t.bucket.StatObject(context.TODO(), req)
-	AssertEq(nil, err)
-	AssertEq(nil, e)
-	AssertNe(nil, m)
-	ExpectThat(m, Pointee(DeepEquals(*minObj)))
+	m, e, err := s.bucket.StatObject(context.TODO(), req)
+	s.NoError(err)
+	s.Nil(e)
+	s.NotNil(m)
+	s.Equal(minObj, m)
 }
 
-func (t *StatObjectTest) CacheHit_Negative() {
+func (s *FastStatBucketSuite) Test_StatObject_CacheHit_Negative() {
 	const name = "taco"
 
 	// LookUp
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(true, nil))
+	s.cache.On("LookUp", mock.Anything, mock.Anything).
+		Return(true, (*gcs.MinObject)(nil)).
+		Once()
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, _, err := s.bucket.StatObject(context.TODO(), req)
+	s.IsType(&gcs.NotFoundError{}, err)
 }
 
-func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
+func (s *FastStatBucketSuite) Test_StatObject_IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	const name = "taco"
-
-	// Lookup
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).Times(0)
 
 	// Request
 	req := &gcs.StatObjectRequest{
@@ -669,25 +701,23 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 		CacheControl: "testControl",
 	}
 
-	ExpectCall(t.wrapped, "StatObject")(Any(), req).
-		WillOnce(Return(minObjFromGcs, extObjAttrFromGcs, nil))
+	s.wrapped.On("StatObject", mock.Anything, req).
+		Return(minObjFromGcs, extObjAttrFromGcs, nil).
+		Once()
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
-	m, e, err := t.bucket.StatObject(context.TODO(), req)
-	AssertEq(nil, err)
-	AssertNe(nil, m)
-	AssertNe(nil, e)
-	ExpectEq(minObjFromGcs, m)
-	ExpectEq(extObjAttrFromGcs, e)
+	m, e, err := s.bucket.StatObject(context.TODO(), req)
+	s.NoError(err)
+	s.NotNil(m)
+	s.NotNil(e)
+	s.Equal(minObjFromGcs, m)
+	s.Equal(extObjAttrFromGcs, e)
 }
 
-func (t *StatObjectTest) TestStatObject_ForceFetchFromGcsTrueAndReturnExtendedObjectAttributesFalse() {
+func (s *FastStatBucketSuite) Test_StatObject_ForceFetchFromGcsTrueAndReturnExtendedObjectAttributesFalse() {
 	const name = "taco"
-
-	// Lookup
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).Times(0)
 
 	// Request
 	req := &gcs.StatObjectRequest{
@@ -701,22 +731,22 @@ func (t *StatObjectTest) TestStatObject_ForceFetchFromGcsTrueAndReturnExtendedOb
 		Name: name,
 	}
 
-	ExpectCall(t.wrapped, "StatObject")(Any(), req).
-		WillOnce(Return(minObjFromGcs, &gcs.ExtendedObjectAttributes{}, nil))
+	s.wrapped.On("StatObject", mock.Anything, req).
+		Return(minObjFromGcs, &gcs.ExtendedObjectAttributes{}, nil).
+		Once()
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
-	m, e, err := t.bucket.StatObject(context.TODO(), req)
-	AssertEq(nil, err)
-	AssertNe(nil, m)
-	ExpectEq(minObjFromGcs, m)
-	ExpectEq(nil, e)
+	m, e, err := s.bucket.StatObject(context.TODO(), req)
+	s.NoError(err)
+	s.NotNil(m)
+	s.Nil(e)
 }
 
-func (t *StatObjectTest) TestStatObjectPanics_ForceFetchFromGcsFalseAndReturnExtendedObjectAttributesTrue() {
+func (s *FastStatBucketSuite) Test_StatObject_Panics_ForceFetchFromGcsFalseAndReturnExtendedObjectAttributesTrue() {
 	const name = "taco"
-	const panic = "invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true"
+	const panicMsg = "invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true"
 
 	// Request
 	req := &gcs.StatObjectRequest{
@@ -725,161 +755,320 @@ func (t *StatObjectTest) TestStatObjectPanics_ForceFetchFromGcsFalseAndReturnExt
 		ReturnExtendedObjectAttributes: true,
 	}
 
-	defer func() {
-		r := recover()
-		AssertEq(panic, r)
-	}()
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
-	AssertEq(nil, err)
+	s.PanicsWithValue(panicMsg, func() {
+		_, _, _ = s.bucket.StatObject(context.TODO(), req)
+	})
 }
 
-func (t *StatObjectTest) CallsWrapped() {
+func (s *FastStatBucketSuite) Test_StatObject_CallsWrapped() {
 	const name = ""
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
 	// LookUp
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+	s.cache.On("LookUp", mock.Anything, mock.Anything).
+		Return(false, (*gcs.MinObject)(nil)).
+		Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "StatObject")(Any(), req).
-		WillOnce(Return(nil, nil, errors.New("")))
+	s.wrapped.On("StatObject", mock.Anything, req).
+		Return(nil, nil, errors.New("")).
+		Once()
 
 	// Call
-	_, _, _ = t.bucket.StatObject(context.TODO(), req)
+	_, _, _ = s.bucket.StatObject(context.TODO(), req)
 }
 
-func (t *StatObjectTest) WrappedFails() {
+func (s *FastStatBucketSuite) Test_StatObject_WrappedFails() {
 	const name = ""
 
 	// LookUp
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+	s.cache.On("LookUp", mock.Anything, mock.Anything).
+		Return(false, (*gcs.MinObject)(nil)).
+		Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(nil, nil, errors.New("taco")))
+	s.wrapped.On("StatObject", mock.Anything, mock.Anything).
+		Return(nil, nil, errors.New("taco")).
+		Once()
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, Error(HasSubstr("taco")))
+	_, _, err := s.bucket.StatObject(context.TODO(), req)
+	s.ErrorContains(err, "taco")
 }
 
-func (t *StatObjectTest) WrappedSaysNotFound() {
+func (s *FastStatBucketSuite) Test_StatObject_WrappedSaysNotFound() {
 	const name = "taco"
 
 	// LookUp
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+	s.cache.On("LookUp", mock.Anything, mock.Anything).
+		Return(false, (*gcs.MinObject)(nil)).
+		Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(nil, nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
+	s.wrapped.On("StatObject", mock.Anything, mock.Anything).
+		Return(nil, nil, &gcs.NotFoundError{Err: errors.New("burrito")}).
+		Once()
 
 	// AddNegativeEntry
-	ExpectCall(t.cache, "AddNegativeEntry")(
-		name,
-		timeutil.TimeEq(t.clock.Now().Add(negativeCacheTTL)))
+	s.cache.On("AddNegativeEntry", name, s.clock.Now().Add(negativeCacheTTL)).
+		Return().
+		Once()
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(HasSubstr("burrito")))
+	_, _, err := s.bucket.StatObject(context.TODO(), req)
+	s.IsType(&gcs.NotFoundError{}, err)
+	s.ErrorContains(err, "burrito")
 }
 
-func (t *StatObjectTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_StatObject_WrappedSucceeds() {
 	const name = "taco"
 
 	// LookUp
-	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+	s.cache.On("LookUp", mock.Anything, mock.Anything).
+		Return(false, (*gcs.MinObject)(nil)).
+		Once()
 
 	// Wrapped
 	minObj := &gcs.MinObject{
 		Name: name,
 	}
 
-	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(minObj, nil, nil))
+	s.wrapped.On("StatObject", mock.Anything, mock.Anything).
+		Return(minObj, nil, nil).
+		Once()
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	m, _, err := t.bucket.StatObject(context.TODO(), req)
-	AssertEq(nil, err)
-	ExpectEq(minObj, m)
+	m, _, err := s.bucket.StatObject(context.TODO(), req)
+	s.NoError(err)
+	s.Equal(minObj, m)
 }
 
-////////////////////////////////////////////////////////////////////////
+func (s *FastStatBucketSuite) Test_StatObject_ShouldReturnFromCacheWhenEntryIsPresent() {
+	const name = "some-name"
+	folder := &gcs.Folder{
+		Name: name,
+	}
+	s.cache.On("LookUpFolder", name, mock.Anything).
+		Return(true, folder).
+		Once()
+
+	result, err := s.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
+
+	s.NoError(err)
+	s.Equal(folder, result)
+}
+
+func (s *FastStatBucketSuite) Test_StatObject_ShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
+	const name = "some-name"
+
+	s.cache.On("LookUpFolder", name, mock.Anything).
+		Return(true, (*gcs.Folder)(nil)).
+		Once()
+
+	result, err := s.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
+
+	s.IsType(&gcs.NotFoundError{}, err)
+	s.Nil(result)
+}
+
+func (s *FastStatBucketSuite) Test_StatObject_ShouldCallGetFolderWhenEntryIsNotPresent() {
+	const name = "some-name"
+	folder := &gcs.Folder{
+		Name: name,
+	}
+	getFolderReq := &gcs.GetFolderRequest{Name: name}
+
+	s.cache.On("LookUpFolder", name, mock.Anything).
+		Return(false, (*gcs.Folder)(nil)).
+		Once()
+	s.cache.On("InsertFolder", folder, mock.Anything).
+		Return().
+		Once()
+	s.wrapped.On("GetFolder", mock.Anything, getFolderReq).
+		Return(folder, nil).
+		Once()
+
+	result, err := s.bucket.GetFolder(context.TODO(), getFolderReq)
+
+	s.NoError(err)
+	s.Equal(folder, result)
+}
+
+func (s *FastStatBucketSuite) Test_StatObject_ShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
+	const name = "some-name"
+	err := errors.New("connection error")
+	getFolderReq := &gcs.GetFolderRequest{Name: name}
+
+	s.cache.On("LookUpFolder", name, mock.Anything).
+		Return(false, (*gcs.Folder)(nil)).
+		Once()
+	s.wrapped.On("GetFolder", mock.Anything, getFolderReq).
+		Return(nil, err).
+		Once()
+
+	folder, result := s.bucket.GetFolder(context.TODO(), getFolderReq)
+
+	s.Nil(folder)
+	s.Equal(err, result)
+}
+
+func (s *FastStatBucketSuite) Test_StatObject_RenameFolder() {
+	const name = "some-name"
+	const newName = "new-name"
+	var folder = &gcs.Folder{
+		Name: newName,
+	}
+
+	s.cache.On("EraseEntriesWithGivenPrefix", name).Return().Once()
+	s.cache.On("InsertFolder", folder, mock.Anything).Return().Once()
+	s.wrapped.On("RenameFolder", mock.Anything, name, newName).Return(folder, nil).Once()
+
+	result, err := s.bucket.RenameFolder(context.Background(), name, newName)
+
+	s.NoError(err)
+	s.Equal(result, folder)
+}
+
+func (s *FastStatBucketSuite) Test_StatObject_FetchOnlyFromCacheFalse() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: false,
+	}
+	s.cache.On("LookUp", name, mock.Anything).
+		Return(false, (*gcs.MinObject)(nil)).
+		Once()
+
+	minObj := &gcs.MinObject{Name: name}
+	s.wrapped.On("StatObject", mock.Anything, mock.Anything).
+		Return(minObj, nil, nil).
+		Once()
+	s.cache.On("Insert", mock.Anything, mock.Anything).Return().Once()
+
+	m, _, err := s.bucket.StatObject(context.TODO(), req)
+
+	s.NoError(err)
+	s.Equal(minObj, m)
+}
+
+func (s *FastStatBucketSuite) Test_StatObject_FetchOnlyFromCacheTrue_CacheHitPositive() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	minObj := &gcs.MinObject{Name: name}
+	s.cache.On("LookUp", name, mock.Anything).
+		Return(true, minObj).
+		Once()
+
+	m, _, err := s.bucket.StatObject(context.TODO(), req)
+
+	s.NoError(err)
+	s.Equal(minObj, m)
+}
+
+func (s *FastStatBucketSuite) Test_StatObject_FetchOnlyFromCacheTrue_CacheHitNegative() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	s.cache.On("LookUp", name, mock.Anything).
+		Return(true, (*gcs.MinObject)(nil)).
+		Once()
+
+	_, _, err := s.bucket.StatObject(context.TODO(), req)
+
+	s.IsType(&gcs.NotFoundError{}, err)
+}
+
+func (s *FastStatBucketSuite) Test_StatObject_FetchOnlyFromCacheTrue_CacheMiss() {
+	const name = "taco"
+	req := &gcs.StatObjectRequest{
+		Name:               name,
+		FetchOnlyFromCache: true,
+	}
+	s.cache.On("LookUp", name, mock.Anything).
+		Return(false, (*gcs.MinObject)(nil)).
+		Once()
+
+	_, _, err := s.bucket.StatObject(context.TODO(), req)
+
+	s.IsType(&caching.CacheMissError{}, err)
+}
+
+// //////////////////////////////////////////////////////////////////////
 // ListObjects
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type ListObjectsTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&ListObjectsTest{}) }
-
-func (t *ListObjectsTest) WrappedFails() {
+func (s *FastStatBucketSuite) Test_ListObjects_WrappedFails() {
 	// Wrapped
-	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	s.wrapped.On("ListObjects", mock.Anything, mock.Anything).
+		Return(nil, errors.New("taco")).
+		Once()
 
 	// Call
-	_, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
-	ExpectThat(err, Error(HasSubstr("taco")))
+	_, err := s.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+	s.ErrorContains(err, "taco")
 }
 
-func (t *ListObjectsTest) EmptyListing() {
+func (s *FastStatBucketSuite) Test_ListObjects_EmptyListing() {
 	// Wrapped
 	expected := &gcs.Listing{}
 
-	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.BucketType{}))
+	s.wrapped.On("BucketType").
+		Return(gcs.BucketType{}).
+		Once()
 
-	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
-		WillOnce(Return(expected, nil))
+	s.wrapped.On("ListObjects", mock.Anything, mock.Anything).
+		Return(expected, nil).
+		Once()
 
 	// Call
-	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+	listing, err := s.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(expected, listing)
+	s.NoError(err)
+	s.Equal(expected, listing)
 }
 
-func (t *ListObjectsTest) EmptyListingForHNS() {
+func (s *FastStatBucketSuite) Test_ListObjects_EmptyListingForHNS() {
 	// wrapped
 	expected := &gcs.Listing{}
 
-	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.BucketType{Hierarchical: true}))
+	s.wrapped.On("BucketType").
+		Return(gcs.BucketType{Hierarchical: true}).
+		Once()
 
-	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
-		WillOnce(Return(expected, nil))
+	s.wrapped.On("ListObjects", mock.Anything, mock.Anything).
+		Return(expected, nil).
+		Once()
 
 	// call
-	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+	listing, err := s.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(expected, listing)
+	s.NoError(err)
+	s.Equal(expected, listing)
 }
 
-func (t *ListObjectsTest) NonEmptyListing() {
+func (s *FastStatBucketSuite) Test_ListObjects_NonEmptyListing() {
 	// Wrapped
 	o0 := &gcs.MinObject{Name: "taco"}
 	o1 := &gcs.MinObject{Name: "burrito"}
@@ -888,24 +1077,26 @@ func (t *ListObjectsTest) NonEmptyListing() {
 		MinObjects: []*gcs.MinObject{o0, o1},
 	}
 
-	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.BucketType{}))
+	s.wrapped.On("BucketType").
+		Return(gcs.BucketType{}).
+		Once()
 
-	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
-		WillOnce(Return(expected, nil))
+	s.wrapped.On("ListObjects", mock.Anything, mock.Anything).
+		Return(expected, nil).
+		Once()
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(2)
-	ExpectCall(t.cache, "InsertImplicitDir")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(1)
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Times(2)
+	s.cache.On("InsertImplicitDir", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Times(1)
 
 	// Call
-	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+	listing, err := s.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(expected, listing)
+	s.NoError(err)
+	s.Equal(expected, listing)
 }
 
-func (t *ListObjectsTest) NonEmptyListingForHNS() {
+func (s *FastStatBucketSuite) Test_ListObjects_NonEmptyListingForHNS() {
 	// wrapped
 	o0 := &gcs.MinObject{Name: "taco"}
 	o1 := &gcs.MinObject{Name: "burrito"}
@@ -915,49 +1106,50 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 		CollapsedRuns: []string{"p0", "p1/"},
 	}
 
-	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.BucketType{Hierarchical: true}))
+	s.wrapped.On("BucketType").
+		Return(gcs.BucketType{Hierarchical: true}).
+		Once()
 
-	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
-		WillOnce(Return(expected, nil))
+	s.wrapped.On("ListObjects", mock.Anything, mock.Anything).
+		Return(expected, nil).
+		Once()
 
 	// insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(2)
-
-	ExpectCall(t.cache, "InsertFolder")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(1)
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Times(2)
+	s.cache.On("InsertFolder", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Times(1)
 
 	// call
-	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+	listing, err := s.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(expected, listing)
+	s.NoError(err)
+	s.Equal(expected, listing)
 }
 
-func (t *ListObjectsTest) NonEmptyListingWithCancelledContext() {
+func (s *FastStatBucketSuite) Test_ListObjects_NonEmptyListingWithCancelledContext() {
 	// Wrapped
 	o0 := &gcs.MinObject{Name: "taco"}
 	o1 := &gcs.MinObject{Name: "burrito"}
 	expected := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{o0, o1},
 	}
-	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.BucketType{}))
+	s.wrapped.On("BucketType").
+		Return(gcs.BucketType{}).
+		Once()
 	// Create a cancellable context.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately.
-	ExpectCall(t.wrapped, "ListObjects")(ctx, Any()).
-		WillOnce(Return(expected, nil))
-	// Insert not called.
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(0)
+	s.wrapped.On("ListObjects", ctx, mock.Anything).
+		Return(expected, nil).
+		Once()
 
 	// Call
-	listing, err := t.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{})
+	listing, err := s.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(expected, listing)
+	s.NoError(err)
+	s.Equal(expected, listing)
 }
 
-func (t *ListObjectsTest) NonEmptyListingWithCancelledContextForHNS() {
+func (s *FastStatBucketSuite) Test_ListObjects_NonEmptyListingWithCancelledContextForHNS() {
 	// wrapped
 	o0 := &gcs.MinObject{Name: "taco"}
 	o1 := &gcs.MinObject{Name: "burrito"}
@@ -965,106 +1157,88 @@ func (t *ListObjectsTest) NonEmptyListingWithCancelledContextForHNS() {
 		MinObjects:    []*gcs.MinObject{o0, o1},
 		CollapsedRuns: []string{"p0", "p1/"},
 	}
-	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.BucketType{Hierarchical: true}))
+	s.wrapped.On("BucketType").
+		Return(gcs.BucketType{Hierarchical: true}).
+		Once()
 	// Create a cancellable context.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately.
-	ExpectCall(t.wrapped, "ListObjects")(ctx, Any()).
-		WillOnce(Return(expected, nil))
-	// insert not called.
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(0)
-	ExpectCall(t.cache, "InsertFolder")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(0)
+	s.wrapped.On("ListObjects", ctx, mock.Anything).
+		Return(expected, nil).
+		Once()
 
 	// call
-	listing, err := t.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{})
+	listing, err := s.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(expected, listing)
+	s.NoError(err)
+	s.Equal(expected, listing)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // ListObjectsTest_InsertListing
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type ListObjectsTest_InsertListing struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&ListObjectsTest_InsertListing{}) }
-
-func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
-	t.fastStatBucketTest.SetUp(ti)
-	t.bucket = caching.NewFastStatBucket(
-		primaryCacheTTL,
-		t.cache,
-		&t.clock,
-		t.wrapped,
-		negativeCacheTTL,
-		true,
-		true,
-		isEnableEmptyManagedFolders)
-}
-
-func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string) {
+func (s *FastStatBucketSuite) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string) {
 	expectNegativeEntry := len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && prefix != "" && listing.ContinuationToken == ""
-	t.callAndVerifyWithRequest(ctx, isHNS, listing, &gcs.ListObjectsRequest{Prefix: prefix}, expectedInserts, expectedImplicitDirs, expectNegativeEntry)
+	s.callAndVerifyWithRequest(ctx, isHNS, listing, &gcs.ListObjectsRequest{Prefix: prefix}, expectedInserts, expectedImplicitDirs, expectNegativeEntry)
 }
 
-func (t *ListObjectsTest_InsertListing) callAndVerifyWithRequest(ctx context.Context, isHNS bool, listing *gcs.Listing, req *gcs.ListObjectsRequest, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string, expectNegativeEntry bool) {
+func (s *FastStatBucketSuite) callAndVerifyWithRequest(ctx context.Context, isHNS bool, listing *gcs.Listing, req *gcs.ListObjectsRequest, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string, expectNegativeEntry bool) {
 	// Wrapped
-	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.BucketType{Hierarchical: isHNS}))
-	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
-		WillOnce(Return(listing, nil))
+	s.wrapped.On("BucketType").
+		Return(gcs.BucketType{Hierarchical: isHNS}).
+		Once()
+	s.wrapped.On("ListObjects", mock.Anything, mock.Anything).
+		Return(listing, nil).
+		Once()
 	// Register expectations.
 	for _, obj := range expectedInserts {
-		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
+		s.cache.On("Insert", obj, mock.Anything).Return().Once()
 	}
 	for _, dir := range expectedImplicitDirs {
-		ExpectCall(t.cache, "InsertImplicitDir")(dir, Any())
+		s.cache.On("InsertImplicitDir", dir, mock.Anything).Return().Once()
 	}
 	if expectNegativeEntry {
-		ExpectCall(t.cache, "AddNegativeEntry")(req.Prefix, Any())
+		s.cache.On("AddNegativeEntry", req.Prefix, mock.Anything).Return().Once()
 	}
 
 	// Call
-	gotListing, err := t.bucket.ListObjects(ctx, req)
+	gotListing, err := s.bucket.ListObjects(ctx, req)
 
-	AssertEq(nil, err)
-	AssertEq(listing, gotListing)
+	s.NoError(err)
+	s.Equal(listing, gotListing)
 }
 
 // An empty windowed listing (StartOffset set) covers only a slice of the
 // namespace and must not produce a negative entry for the directory.
-func (t *ListObjectsTest_InsertListing) EmptyListingWithStartOffsetDoesNotCacheNegativeEntry() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_EmptyListingWithStartOffsetDoesNotCacheNegativeEntry() {
 	listing := &gcs.Listing{}
 	req := &gcs.ListObjectsRequest{Prefix: "dir/", StartOffset: "dir/zzz"}
 
-	t.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
+	s.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
 }
 
 // An empty continuation page proves nothing about the prefix as a whole and
 // must not produce a negative entry for the directory.
-func (t *ListObjectsTest_InsertListing) EmptyListingWithRequestContinuationTokenDoesNotCacheNegativeEntry() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_EmptyListingWithRequestContinuationTokenDoesNotCacheNegativeEntry() {
 	listing := &gcs.Listing{}
 	req := &gcs.ListObjectsRequest{Prefix: "dir/", ContinuationToken: "token-from-previous-page"}
 
-	t.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
+	s.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
 }
 
 // An empty page that carries a continuation token is an incomplete listing and
 // must not produce a negative entry for the directory.
-func (t *ListObjectsTest_InsertListing) EmptyPageWithResponseContinuationTokenDoesNotCacheNegativeEntry() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_EmptyPageWithResponseContinuationTokenDoesNotCacheNegativeEntry() {
 	listing := &gcs.Listing{ContinuationToken: "next-page"}
 	req := &gcs.ListObjectsRequest{Prefix: "dir/"}
 
-	t.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
+	s.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
 }
 
 // A non-empty windowed listing (StartOffset set) must insert the returned
 // objects and still infer the parent implicit directory.
-func (t *ListObjectsTest_InsertListing) NonEmptyListingWithStartOffsetInsertsPositiveEntries() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_NonEmptyListingWithStartOffsetInsertsPositiveEntries() {
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/c", Size: 10},
@@ -1079,7 +1253,7 @@ func (t *ListObjectsTest_InsertListing) NonEmptyListingWithStartOffsetInsertsPos
 	}
 	expectedImplicitDirs := []string{"dir/"}
 
-	t.callAndVerifyWithRequest(
+	s.callAndVerifyWithRequest(
 		context.TODO(),
 		false, // isHNS
 		listing,
@@ -1090,15 +1264,15 @@ func (t *ListObjectsTest_InsertListing) NonEmptyListingWithStartOffsetInsertsPos
 	)
 }
 
-func (t *ListObjectsTest_InsertListing) EmptyListing() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_EmptyListing() {
 	listing := &gcs.Listing{}
 	expectedInserts := []*gcs.MinObject{}
 	expectedImplicitDirs := []string{}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
+	s.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_ObjectsOnly() {
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a", Size: 1},
@@ -1111,20 +1285,20 @@ func (t *ListObjectsTest_InsertListing) ObjectsOnly() {
 	}
 	expectedImplicitDirs := []string{"dir/"}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
+	s.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-func (t *ListObjectsTest_InsertListing) CollapsedRunsOnly() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_CollapsedRunsOnly() {
 	listing := &gcs.Listing{
 		CollapsedRuns: []string{"dir/a/", "dir/b/"},
 	}
 	expectedImplicitDirs := []string{"dir/", "dir/a/", "dir/b/"}
 	expectedInserts := []*gcs.MinObject{}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
+	s.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-func (t *ListObjectsTest_InsertListing) ObjectsAndCollapsedRuns() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_ObjectsAndCollapsedRuns() {
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a", Size: 1},
@@ -1136,10 +1310,10 @@ func (t *ListObjectsTest_InsertListing) ObjectsAndCollapsedRuns() {
 	}
 	expectedImplicitDirs := []string{"dir/", "dir/b/"}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
+	s.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-func (t *ListObjectsTest_InsertListing) ImplicitDir() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_ImplicitDir() {
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a", Size: 1},
@@ -1150,10 +1324,10 @@ func (t *ListObjectsTest_InsertListing) ImplicitDir() {
 	}
 	expectedImplicitDirs := []string{"dir/"}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
+	s.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_ObjectSameAsCollapsedRun() {
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a/", Size: 0},
@@ -1165,12 +1339,11 @@ func (t *ListObjectsTest_InsertListing) ObjectSameAsCollapsedRun() {
 	}
 	expectedImplicitDirs := []string{"dir/", "dir/a/"}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
+	s.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-func (t *ListObjectsTest_InsertListing) cancelledContextDoesNotUpdatesCache(isHNS bool) {
+func (s *FastStatBucketSuite) cancelledContextDoesNotUpdatesCache(isHNS bool) {
 	// Helper function to test for context cancelled scenarios.
-	// 1. Setup
 	listing := &gcs.Listing{
 		CollapsedRuns: []string{"dir/a/", "dir/b/"},
 		MinObjects: []*gcs.MinObject{
@@ -1183,24 +1356,24 @@ func (t *ListObjectsTest_InsertListing) cancelledContextDoesNotUpdatesCache(isHN
 	expectedInserts := []*gcs.MinObject{}
 	expectedImplicitDirs := []string{}
 
-	t.callAndVerify(ctx, isHNS, listing, "dir/", expectedInserts, expectedImplicitDirs)
+	s.callAndVerify(ctx, isHNS, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-func (t *ListObjectsTest_InsertListing) TestInsertListing_ContextCancelledDoesNotUpdatesCache_HNSBucket() {
-	t.cancelledContextDoesNotUpdatesCache(true)
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_ContextCancelledDoesNotUpdatesCache_HNSBucket() {
+	s.cancelledContextDoesNotUpdatesCache(true)
 }
 
-func (t *ListObjectsTest_InsertListing) TestInsertListing_ContextCancelledDoesNotUpdatesCache_FlatBucket() {
-	t.cancelledContextDoesNotUpdatesCache(false)
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_ContextCancelledDoesNotUpdatesCache_FlatBucket() {
+	s.cancelledContextDoesNotUpdatesCache(false)
 }
 
-func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached() {
+func (s *FastStatBucketSuite) Test_ListObjects_InsertListing_ImplicitDirFalse_CollapsedRunsNotCached() {
 	// Re-initialize bucket with implicitDir = false
-	t.bucket = caching.NewFastStatBucket(
+	s.bucket = caching.NewFastStatBucket(
 		primaryCacheTTL,
-		t.cache,
-		&t.clock,
-		t.wrapped,
+		s.cache,
+		&s.clock,
+		s.wrapped,
 		negativeCacheTTL,
 		true,
 		false,
@@ -1216,63 +1389,59 @@ func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached(
 	}
 	expectedImplicitDirs := []string{}
 
-	t.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
+	s.callAndVerify(context.TODO(), false, listing, "dir/", expectedInserts, expectedImplicitDirs)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // UpdateObject
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type UpdateObjectTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&UpdateObjectTest{}) }
-
-func (t *UpdateObjectTest) CallsEraseAndWrapped() {
+func (s *FastStatBucketSuite) Test_UpdateObject_CallsEraseAndWrapped() {
 	const name = "taco"
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 
 	// Wrapped
 	var wrappedReq *gcs.UpdateObjectRequest
-	ExpectCall(t.wrapped, "UpdateObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+	s.wrapped.On("UpdateObject", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.UpdateObjectRequest)
+		}).
+		Return(nil, errors.New("")).
+		Once()
 
 	// Call
 	req := &gcs.UpdateObjectRequest{
 		Name: name,
 	}
 
-	_, _ = t.bucket.UpdateObject(context.TODO(), req)
+	_, _ = s.bucket.UpdateObject(context.TODO(), req)
 
-	AssertNe(nil, wrappedReq)
-	ExpectEq(req, wrappedReq)
+	s.NotNil(wrappedReq)
+	s.Equal(req, wrappedReq)
 }
 
-func (t *UpdateObjectTest) WrappedFails() {
-	var err error
-
+func (s *FastStatBucketSuite) Test_UpdateObject_WrappedFails() {
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "UpdateObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	s.wrapped.On("UpdateObject", mock.Anything, mock.Anything).
+		Return(nil, errors.New("taco")).
+		Once()
 
 	// Call
-	_, err = t.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})
+	_, err := s.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.ErrorContains(err, "taco")
 }
 
-func (t *UpdateObjectTest) WrappedSucceeds() {
+func (s *FastStatBucketSuite) Test_UpdateObject_WrappedSucceeds() {
 	const name = "taco"
-	var err error
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	s.cache.On("Erase", mock.Anything).Return().Once()
 
 	// Wrapped
 	obj := &gcs.Object{
@@ -1280,534 +1449,396 @@ func (t *UpdateObjectTest) WrappedSucceeds() {
 		Generation: 1234,
 	}
 
-	ExpectCall(t.wrapped, "UpdateObject")(Any(), Any()).
-		WillOnce(Return(obj, nil))
+	s.wrapped.On("UpdateObject", mock.Anything, mock.Anything).
+		Return(obj, nil).
+		Once()
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
 	// Call
-	o, err := t.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})
+	o, err := s.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(obj, o)
+	s.NoError(err)
+	s.Equal(obj, o)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // DeleteObject
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type DeleteObjectTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&DeleteObjectTest{}) }
-
-func (t *DeleteObjectTest) deleteObject(name string) (err error) {
-	err = t.bucket.DeleteObject(context.TODO(), &gcs.DeleteObjectRequest{Name: name})
+func (s *FastStatBucketSuite) deleteObject(name string) (err error) {
+	err = s.bucket.DeleteObject(context.TODO(), &gcs.DeleteObjectRequest{Name: name})
 	return
 }
 
-func (t *DeleteObjectTest) CallsWrapped() {
+func (s *FastStatBucketSuite) Test_DeleteObject_CallsWrapped() {
 	const name = "taco"
 
 	// Wrapped
 	var wrappedReq *gcs.DeleteObjectRequest
-	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(errors.New(""))))
+	s.wrapped.On("DeleteObject", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.DeleteObjectRequest)
+		}).
+		Return(errors.New("")).
+		Once()
 
 	// Call
-	_ = t.deleteObject(name)
+	_ = s.deleteObject(name)
 
-	AssertNe(nil, wrappedReq)
-	ExpectEq(name, wrappedReq.Name)
+	s.NotNil(wrappedReq)
+	s.Equal(name, wrappedReq.Name)
 }
 
-func (t *DeleteObjectTest) WrappedFails_GenericError() {
+func (s *FastStatBucketSuite) Test_DeleteObject_WrappedFails_GenericError() {
 	const name = ""
-	var err error
 
 	// Wrapped
-	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
-		WillOnce(Return(errors.New("taco")))
+	s.wrapped.On("DeleteObject", mock.Anything, mock.Anything).
+		Return(errors.New("taco")).
+		Once()
 
 	// Call
-	err = t.deleteObject(name)
+	err := s.deleteObject(name)
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.ErrorContains(err, "taco")
 }
 
-func (t *DeleteObjectTest) WrappedReturnsPreconditionError() {
+func (s *FastStatBucketSuite) Test_DeleteObject_WrappedReturnsPreconditionError() {
 	const name = "taco"
 	// Erase
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 	// Wrapped
-	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
-		WillOnce(Return(&gcs.PreconditionError{Err: errors.New("precondition failed")}))
+	s.wrapped.On("DeleteObject", mock.Anything, mock.Anything).
+		Return(&gcs.PreconditionError{Err: errors.New("precondition failed")}).
+		Once()
 
 	// Call.
-	err := t.deleteObject(name)
+	err := s.deleteObject(name)
 
-	ExpectThat(err, Error(HasSubstr("precondition failed")))
+	s.ErrorContains(err, "precondition failed")
 }
 
-func (t *DeleteObjectTest) WrappedReturnsNotFoundError() {
+func (s *FastStatBucketSuite) Test_DeleteObject_WrappedReturnsNotFoundError() {
 	const name = "taco"
 	// Erase
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 	// Wrapped
-	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
-		WillOnce(Return(&gcs.NotFoundError{Err: errors.New("object not found")}))
+	s.wrapped.On("DeleteObject", mock.Anything, mock.Anything).
+		Return(&gcs.NotFoundError{Err: errors.New("object not found")}).
+		Once()
 
 	// Call.
-	err := t.deleteObject(name)
+	err := s.deleteObject(name)
 
-	ExpectThat(err, Error(HasSubstr("object not found")))
+	s.ErrorContains(err, "object not found")
 }
 
-func (t *DeleteObjectTest) WrappedSucceeds_AddsNegativeEntry() {
+func (s *FastStatBucketSuite) Test_DeleteObject_WrappedSucceeds_AddsNegativeEntry() {
 	const name = ""
-	var err error
 
 	// AddNegativeEntry
-	ExpectCall(t.cache, "AddNegativeEntry")(Any(), Any())
+	s.cache.On("AddNegativeEntry", mock.Anything, mock.Anything).Return().Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
-		WillOnce(Return(nil))
+	s.wrapped.On("DeleteObject", mock.Anything, mock.Anything).
+		Return(nil).
+		Once()
 
 	// Call
-	err = t.deleteObject(name)
-	AssertEq(nil, err)
+	err := s.deleteObject(name)
+	s.NoError(err)
 }
 
-func (t *DeleteObjectTest) OnlyDeleteFromCache() {
+func (s *FastStatBucketSuite) Test_DeleteObject_OnlyDeleteFromCache() {
 	const name = "taco"
 	req := &gcs.DeleteObjectRequest{
 		Name:                name,
 		OnlyDeleteFromCache: true,
 	}
 	// Expect AddNegativeEntry call.
-	ExpectCall(t.cache, "AddNegativeEntry")(
-		name,
-		timeutil.TimeEq(t.clock.Now().Add(negativeCacheTTL)))
+	s.cache.On("AddNegativeEntry", name, s.clock.Now().Add(negativeCacheTTL)).
+		Return().
+		Once()
 
-	err := t.bucket.DeleteObject(context.TODO(), req)
+	err := s.bucket.DeleteObject(context.TODO(), req)
 
-	AssertEq(nil, err)
+	s.NoError(err)
 }
 
-func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
+// //////////////////////////////////////////////////////////////////////
+// DeleteFolder
+// //////////////////////////////////////////////////////////////////////
+
+func (s *FastStatBucketSuite) Test_DeleteFolder_Success() {
 	const name = "some-name"
-	folder := &gcs.Folder{
-		Name: name,
-	}
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(true, folder))
+	s.cache.On("AddNegativeEntryForFolder", name, mock.Anything).
+		Return().
+		Once()
+	s.wrapped.On("DeleteFolder", mock.Anything, name).
+		Return(nil).
+		Once()
 
-	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
+	err := s.bucket.DeleteFolder(context.TODO(), name)
 
-	AssertEq(nil, err)
-	ExpectThat(result, Pointee(DeepEquals(*folder)))
+	s.NoError(err)
 }
 
-func (t *StatObjectTest) TestShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
-	const name = "some-name"
-
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(true, nil))
-
-	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
-
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	AssertEq(nil, result)
-}
-
-func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
-	const name = "some-name"
-	folder := &gcs.Folder{
-		Name: name,
-	}
-	getFolderReq := &gcs.GetFolderRequest{Name: name}
-
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(false, nil))
-	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
-		WillOnce(Return())
-	ExpectCall(t.wrapped, "GetFolder")(Any(), getFolderReq).
-		WillOnce(Return(folder, nil))
-
-	result, err := t.bucket.GetFolder(context.TODO(), getFolderReq)
-
-	AssertEq(nil, err)
-	ExpectThat(result, Pointee(DeepEquals(*folder)))
-}
-
-func (t *StatObjectTest) TestShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
-	const name = "some-name"
-	error := errors.New("connection error")
-	getFolderReq := &gcs.GetFolderRequest{Name: name}
-
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(false, nil))
-	ExpectCall(t.wrapped, "GetFolder")(Any(), getFolderReq).
-		WillOnce(Return(nil, error))
-
-	folder, result := t.bucket.GetFolder(context.TODO(), getFolderReq)
-
-	AssertEq(nil, folder)
-	AssertEq(error, result)
-}
-
-func (t *StatObjectTest) TestRenameFolder() {
-	const name = "some-name"
-	const newName = "new-name"
-	var folder = &gcs.Folder{
-		Name: newName,
-	}
-
-	ExpectCall(t.cache, "EraseEntriesWithGivenPrefix")(name).WillOnce(Return())
-	ExpectCall(t.cache, "InsertFolder")(folder, Any()).WillOnce(Return())
-	ExpectCall(t.wrapped, "RenameFolder")(Any(), name, newName).WillOnce(Return(folder, nil))
-
-	result, err := t.bucket.RenameFolder(context.Background(), name, newName)
-
-	AssertEq(nil, err)
-	ExpectEq(result, folder)
-}
-
-func (t *StatObjectTest) FetchOnlyFromCacheFalse() {
-	const name = "taco"
-	req := &gcs.StatObjectRequest{
-		Name:               name,
-		FetchOnlyFromCache: false,
-	}
-	// We expect a call to GCS, so we mock the wrapped bucket.
-	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(false, nil))
-
-	minObj := &gcs.MinObject{Name: name}
-	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(minObj, nil, nil))
-	ExpectCall(t.cache, "Insert")(Any(), Any())
-
-	m, _, err := t.bucket.StatObject(context.TODO(), req)
-
-	AssertEq(nil, err)
-	ExpectEq(minObj, m)
-}
-
-func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
-	const name = "taco"
-	req := &gcs.StatObjectRequest{
-		Name:               name,
-		FetchOnlyFromCache: true,
-	}
-	minObj := &gcs.MinObject{Name: name}
-	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(true, minObj))
-
-	m, _, err := t.bucket.StatObject(context.TODO(), req)
-
-	AssertEq(nil, err)
-	ExpectEq(minObj, m)
-}
-
-func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
-	const name = "taco"
-	req := &gcs.StatObjectRequest{
-		Name:               name,
-		FetchOnlyFromCache: true,
-	}
-	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(true, nil))
-
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
-
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-}
-
-func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheMiss() {
-	const name = "taco"
-	req := &gcs.StatObjectRequest{
-		Name:               name,
-		FetchOnlyFromCache: true,
-	}
-	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(false, nil))
-
-	_, _, err := t.bucket.StatObject(context.TODO(), req)
-
-	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
-}
-
-type DeleteFolderTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&DeleteFolderTest{}) }
-
-func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
-	const name = "some-name"
-	ExpectCall(t.cache, "AddNegativeEntryForFolder")(name, Any()).
-		WillOnce(Return())
-	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
-		WillOnce(Return(nil))
-
-	err := t.bucket.DeleteFolder(context.TODO(), name)
-
-	AssertEq(nil, err)
-}
-
-func (t *DeleteFolderTest) Test_DeleteFolder_Failure() {
+func (s *FastStatBucketSuite) Test_DeleteFolder_Failure() {
 	const name = "some-name"
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
-	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
-		WillOnce(Return(fmt.Errorf("mock error")))
+	s.cache.On("Erase", mock.Anything).Return().Once()
+	s.wrapped.On("DeleteFolder", mock.Anything, name).
+		Return(fmt.Errorf("mock error")).
+		Once()
 
-	err := t.bucket.DeleteFolder(context.TODO(), name)
+	err := s.bucket.DeleteFolder(context.TODO(), name)
 
-	AssertNe(nil, err)
+	s.NotNil(err)
 }
 
-type CreateFolderTest struct {
-	fastStatBucketTest
-}
+// //////////////////////////////////////////////////////////////////////
+// CreateFolder
+// //////////////////////////////////////////////////////////////////////
 
-func init() { RegisterTestSuite(&CreateFolderTest{}) }
-
-func (t *CreateFolderTest) TestCreateFolderWhenGCSCallSucceeds() {
+func (s *FastStatBucketSuite) Test_CreateFolder_WhenGCSCallSucceeds() {
 	const name = "some-name"
 	folder := &gcs.Folder{
 		Name: name,
 	}
-	ExpectCall(t.cache, "Erase")(name).
-		WillOnce(Return())
-	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
-		WillOnce(Return())
-	ExpectCall(t.wrapped, "CreateFolder")(Any(), name).
-		WillOnce(Return(folder, nil))
+	s.cache.On("Erase", name).
+		Return().
+		Once()
+	s.cache.On("InsertFolder", folder, mock.Anything).
+		Return().
+		Once()
+	s.wrapped.On("CreateFolder", mock.Anything, name).
+		Return(folder, nil).
+		Once()
 
-	result, err := t.bucket.CreateFolder(context.TODO(), name)
+	result, err := s.bucket.CreateFolder(context.TODO(), name)
 
-	AssertEq(nil, err)
-	ExpectThat(result, Pointee(DeepEquals(*folder)))
+	s.NoError(err)
+	s.Equal(folder, result)
 }
 
-func (t *CreateFolderTest) TestCreateFolderWhenGCSCallFails() {
+func (s *FastStatBucketSuite) Test_CreateFolder_WhenGCSCallFails() {
 	const name = "some-name"
-	ExpectCall(t.cache, "Erase")(name).
-		WillOnce(Return())
-	ExpectCall(t.wrapped, "CreateFolder")(Any(), name).
-		WillOnce(Return(nil, fmt.Errorf("mock error")))
+	s.cache.On("Erase", name).
+		Return().
+		Once()
+	s.wrapped.On("CreateFolder", mock.Anything, name).
+		Return(nil, fmt.Errorf("mock error")).
+		Once()
 
-	result, err := t.bucket.CreateFolder(context.TODO(), name)
+	result, err := s.bucket.CreateFolder(context.TODO(), name)
 
-	AssertNe(nil, err)
-	AssertEq(nil, result)
+	s.NotNil(err)
+	s.Nil(result)
 }
 
-type MoveObjectTest struct {
-	fastStatBucketTest
-}
+// //////////////////////////////////////////////////////////////////////
+// MoveObject
+// //////////////////////////////////////////////////////////////////////
 
-func init() { RegisterTestSuite(&MoveObjectTest{}) }
-
-func (t *MoveObjectTest) MoveObjectFails() {
+func (s *FastStatBucketSuite) Test_MoveObject_MoveObjectFails() {
 	const srcName = "taco"
 	const dstName = "burrito"
 
 	// Erase
-	ExpectCall(t.cache, "Erase")(dstName)
-	ExpectCall(t.cache, "Erase")(srcName)
+	s.cache.On("Erase", dstName).Return().Once()
+	s.cache.On("Erase", srcName).Return().Once()
 
 	// Wrapped
-	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).WillOnce(Return(nil, errors.New("taco")))
+	s.wrapped.On("MoveObject", mock.Anything, mock.Anything).
+		Return(nil, errors.New("taco")).
+		Once()
 
 	// Call
-	_, err := t.bucket.MoveObject(context.TODO(), &gcs.MoveObjectRequest{SrcName: srcName, DstName: dstName})
+	_, err := s.bucket.MoveObject(context.TODO(), &gcs.MoveObjectRequest{SrcName: srcName, DstName: dstName})
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	s.ErrorContains(err, "taco")
 }
 
-func (t *MoveObjectTest) MoveObjectSucceeds() {
+func (s *FastStatBucketSuite) Test_MoveObject_MoveObjectSucceeds() {
 	const dstName = "burrito"
 	// Erase
-	ExpectCall(t.cache, "Erase")(Any()).Times(2)
+	s.cache.On("Erase", mock.Anything).Return().Times(2)
 
 	// Wrap object
 	obj := &gcs.Object{
 		Name:       dstName,
 		Generation: 1234,
 	}
-	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).WillOnce(Return(obj, nil))
+	s.wrapped.On("MoveObject", mock.Anything, mock.Anything).
+		Return(obj, nil).
+		Once()
 
 	// Insert in cache
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+	s.cache.On("Insert", mock.Anything, s.clock.Now().Add(primaryCacheTTL)).Return().Once()
 
 	// Call
-	o, err := t.bucket.MoveObject(context.TODO(), &gcs.MoveObjectRequest{})
+	o, err := s.bucket.MoveObject(context.TODO(), &gcs.MoveObjectRequest{})
 
-	AssertEq(nil, err)
-	ExpectEq(obj, o)
+	s.NoError(err)
+	s.Equal(obj, o)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // NewReaderWithReadHandleTest
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type NewReaderWithReadHandleTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&NewReaderWithReadHandleTest{}) }
-
-func (t *NewReaderWithReadHandleTest) CallsWrappedAndInvalidatesOnNotFound() {
+func (s *FastStatBucketSuite) Test_NewReaderWithReadHandle_CallsWrappedAndInvalidatesOnNotFound() {
 	const name = "some-name"
 	// Expect: wrapped bucket returns NotFoundError
 	var wrappedReq *gcs.ReadObjectRequest
-	ExpectCall(t.wrapped, "NewReaderWithReadHandle")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, &gcs.NotFoundError{Err: errors.New("not found")})))
+	s.wrapped.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.ReadObjectRequest)
+		}).
+		Return(nil, &gcs.NotFoundError{Err: errors.New("not found")}).
+		Once()
 	// Expect: cache invalidate is called
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 
 	// Call
 	req := &gcs.ReadObjectRequest{Name: name}
-	rd, err := t.bucket.NewReaderWithReadHandle(context.TODO(), req)
+	rd, err := s.bucket.NewReaderWithReadHandle(context.TODO(), req)
 
-	AssertEq(nil, rd)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	AssertEq(name, wrappedReq.Name)
+	s.Nil(rd)
+	s.IsType(&gcs.NotFoundError{}, err)
+	s.Equal(name, wrappedReq.Name)
 }
 
-func (t *NewReaderWithReadHandleTest) CallsWrappedAndDoesNotInvalidateOnSuccess() {
+func (s *FastStatBucketSuite) Test_NewReaderWithReadHandle_CallsWrappedAndDoesNotInvalidateOnSuccess() {
 	const name = "some-name"
 	expectedReader := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader("abc")), Handle: []byte("fake")}
 	// Expect: wrapped returns reader, no error
-	ExpectCall(t.wrapped, "NewReaderWithReadHandle")(Any(), Any()).
-		WillOnce(Return(expectedReader, nil))
+	s.wrapped.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).
+		Return(expectedReader, nil).
+		Once()
 
 	// Call
 	req := &gcs.ReadObjectRequest{Name: name}
-	rd, err := t.bucket.NewReaderWithReadHandle(context.TODO(), req)
+	rd, err := s.bucket.NewReaderWithReadHandle(context.TODO(), req)
 
-	AssertEq(nil, err)
-	ExpectEq(expectedReader, rd)
+	s.NoError(err)
+	s.Equal(expectedReader, rd)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // NewMultiRangeDownloader
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type NewMultiRangeDownloaderTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&NewMultiRangeDownloaderTest{}) }
-
-func (t *NewMultiRangeDownloaderTest) CallsWrappedAndInvalidatesOnNotFound() {
+func (s *FastStatBucketSuite) Test_NewMultiRangeDownloader_CallsWrappedAndInvalidatesOnNotFound() {
 	const name = "some-name"
 	// Expect: wrapped bucket returns NotFoundError
 	var wrappedReq *gcs.MultiRangeDownloaderRequest
-	ExpectCall(t.wrapped, "NewMultiRangeDownloader")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, &gcs.NotFoundError{Err: errors.New("not found")})))
+	s.wrapped.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			wrappedReq = args.Get(1).(*gcs.MultiRangeDownloaderRequest)
+		}).
+		Return(nil, &gcs.NotFoundError{Err: errors.New("not found")}).
+		Once()
 	// Expect: cache invalidate is called
-	ExpectCall(t.cache, "Erase")(name)
+	s.cache.On("Erase", name).Return().Once()
 
 	// Call
 	req := &gcs.MultiRangeDownloaderRequest{Name: name}
-	mrd, err := t.bucket.NewMultiRangeDownloader(context.TODO(), req)
+	mrd, err := s.bucket.NewMultiRangeDownloader(context.TODO(), req)
 
-	AssertEq(nil, mrd)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	AssertEq(name, wrappedReq.Name)
+	s.Nil(mrd)
+	s.IsType(&gcs.NotFoundError{}, err)
+	s.Equal(name, wrappedReq.Name)
 }
 
-func (t *NewMultiRangeDownloaderTest) CallsWrappedAndDoesNotInvalidateOnSuccess() {
+func (s *FastStatBucketSuite) Test_NewMultiRangeDownloader_CallsWrappedAndDoesNotInvalidateOnSuccess() {
 	const name = "some-name"
 	expectedMrd := fake.NewFakeMultiRangeDownloader(&gcs.MinObject{Name: name}, nil)
 	// Expect: wrapped returns mrd, no error
-	ExpectCall(t.wrapped, "NewMultiRangeDownloader")(Any(), Any()).
-		WillOnce(Return(expectedMrd, nil))
+	s.wrapped.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).
+		Return(expectedMrd, nil).
+		Once()
 
 	// Call
 	req := &gcs.MultiRangeDownloaderRequest{Name: name}
-	mrd, err := t.bucket.NewMultiRangeDownloader(context.TODO(), req)
+	mrd, err := s.bucket.NewMultiRangeDownloader(context.TODO(), req)
 
-	AssertEq(nil, err)
-	ExpectEq(expectedMrd, mrd)
+	s.NoError(err)
+	s.Equal(expectedMrd, mrd)
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // GetFolder
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 
-type GetFolderTest struct {
-	fastStatBucketTest
-}
-
-func init() { RegisterTestSuite(&GetFolderTest{}) }
-
-func (t *GetFolderTest) FetchOnlyFromCacheFalse() {
+func (s *FastStatBucketSuite) Test_GetFolder_FetchOnlyFromCacheFalse() {
 	const name = "taco/"
 	req := &gcs.GetFolderRequest{
 		Name:               name,
 		FetchOnlyFromCache: false,
 	}
 	folder := &gcs.Folder{Name: name}
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(false, nil))
-	ExpectCall(t.wrapped, "GetFolder")(Any(), Any()).
-		WillOnce(Return(folder, nil))
-	ExpectCall(t.cache, "InsertFolder")(Any(), Any())
+	s.cache.On("LookUpFolder", name, mock.Anything).
+		Return(false, (*gcs.Folder)(nil)).
+		Once()
+	s.wrapped.On("GetFolder", mock.Anything, mock.Anything).
+		Return(folder, nil).
+		Once()
+	s.cache.On("InsertFolder", mock.Anything, mock.Anything).
+		Return().
+		Once()
 
-	f, err := t.bucket.GetFolder(context.TODO(), req)
+	f, err := s.bucket.GetFolder(context.TODO(), req)
 
-	AssertEq(nil, err)
-	ExpectEq(folder, f)
+	s.NoError(err)
+	s.Equal(folder, f)
 }
 
-func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
+func (s *FastStatBucketSuite) Test_GetFolder_FetchOnlyFromCacheTrue_CacheHitPositive() {
 	const name = "taco/"
 	req := &gcs.GetFolderRequest{
 		Name:               name,
 		FetchOnlyFromCache: true,
 	}
 	folder := &gcs.Folder{Name: name}
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(true, folder))
+	s.cache.On("LookUpFolder", name, mock.Anything).
+		Return(true, folder).
+		Once()
 
-	f, err := t.bucket.GetFolder(context.TODO(), req)
+	f, err := s.bucket.GetFolder(context.TODO(), req)
 
-	AssertEq(nil, err)
-	ExpectEq(folder, f)
+	s.NoError(err)
+	s.Equal(folder, f)
 }
 
-func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
+func (s *FastStatBucketSuite) Test_GetFolder_FetchOnlyFromCacheTrue_CacheHitNegative() {
 	const name = "taco/"
 	req := &gcs.GetFolderRequest{
 		Name:               name,
 		FetchOnlyFromCache: true,
 	}
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(true, nil))
+	s.cache.On("LookUpFolder", name, mock.Anything).
+		Return(true, (*gcs.Folder)(nil)).
+		Once()
 
-	_, err := t.bucket.GetFolder(context.TODO(), req)
+	_, err := s.bucket.GetFolder(context.TODO(), req)
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	s.IsType(&gcs.NotFoundError{}, err)
 }
 
-func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheMiss() {
+func (s *FastStatBucketSuite) Test_GetFolder_FetchOnlyFromCacheTrue_CacheMiss() {
 	const name = "taco/"
 	req := &gcs.GetFolderRequest{
 		Name:               name,
 		FetchOnlyFromCache: true,
 	}
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(false, nil))
+	s.cache.On("LookUpFolder", name, mock.Anything).
+		Return(false, (*gcs.Folder)(nil)).
+		Once()
 
-	_, err := t.bucket.GetFolder(context.TODO(), req)
+	_, err := s.bucket.GetFolder(context.TODO(), req)
 
-	ExpectThat(err, HasSameTypeAs(&caching.CacheMissError{}))
+	s.IsType(&caching.CacheMissError{}, err)
 }

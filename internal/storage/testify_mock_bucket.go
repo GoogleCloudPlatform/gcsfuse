@@ -53,7 +53,7 @@ func (m *TestifyMockBucket) CreateObject(ctx context.Context, req *gcs.CreateObj
 }
 
 func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
-	args := m.Called(ctx, req)
+	args := m.Called(ctx, req, chunkSize, callBack)
 	if args.Get(1) != nil {
 		return nil, args.Error(1)
 	}
@@ -69,23 +69,39 @@ func (m *TestifyMockBucket) CreateAppendableObjectWriter(ctx context.Context, re
 }
 
 func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
-	args := m.Called(ctx, w.ObjectName())
-	return args.Get(0).(*gcs.MinObject), args.Error(1)
+	args := m.Called(ctx, w)
+	var obj *gcs.MinObject
+	if args.Get(0) != nil {
+		obj = args.Get(0).(*gcs.MinObject)
+	}
+	return obj, args.Error(1)
 }
 
 func (m *TestifyMockBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	args := m.Called(ctx, w)
-	return args.Get(0).(*gcs.MinObject), args.Error(1)
+	var obj *gcs.MinObject
+	if args.Get(0) != nil {
+		obj = args.Get(0).(*gcs.MinObject)
+	}
+	return obj, args.Error(1)
 }
 
 func (m *TestifyMockBucket) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (*gcs.Object, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(*gcs.Object), args.Error(1)
+	var obj *gcs.Object
+	if args.Get(0) != nil {
+		obj = args.Get(0).(*gcs.Object)
+	}
+	return obj, args.Error(1)
 }
 
 func (m *TestifyMockBucket) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (*gcs.Object, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(*gcs.Object), args.Error(1)
+	var obj *gcs.Object
+	if args.Get(0) != nil {
+		obj = args.Get(0).(*gcs.Object)
+	}
+	return obj, args.Error(1)
 }
 
 func (m *TestifyMockBucket) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
@@ -93,17 +109,33 @@ func (m *TestifyMockBucket) StatObject(ctx context.Context, req *gcs.StatObjectR
 	if args.Get(2) != nil {
 		return nil, nil, args.Error(2)
 	}
-	return args.Get(0).(*gcs.MinObject), args.Get(1).(*gcs.ExtendedObjectAttributes), nil
+	var minObj *gcs.MinObject
+	if args.Get(0) != nil {
+		minObj = args.Get(0).(*gcs.MinObject)
+	}
+	var extAttr *gcs.ExtendedObjectAttributes
+	if args.Get(1) != nil {
+		extAttr = args.Get(1).(*gcs.ExtendedObjectAttributes)
+	}
+	return minObj, extAttr, nil
 }
 
 func (m *TestifyMockBucket) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (*gcs.Listing, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(*gcs.Listing), args.Error(1)
+	var listing *gcs.Listing
+	if args.Get(0) != nil {
+		listing = args.Get(0).(*gcs.Listing)
+	}
+	return listing, args.Error(1)
 }
 
 func (m *TestifyMockBucket) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (*gcs.Object, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(*gcs.Object), args.Error(1)
+	var obj *gcs.Object
+	if args.Get(0) != nil {
+		obj = args.Get(0).(*gcs.Object)
+	}
+	return obj, args.Error(1)
 }
 
 func (m *TestifyMockBucket) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
