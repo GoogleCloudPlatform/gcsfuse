@@ -15,7 +15,6 @@
 package gcsx_test
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -121,9 +120,7 @@ const initialContent = "tacoburrito"
 
 const initialContentSize = len(initialContent)
 
-func setupTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, checkingTempFile) {
-	ctx := context.Background()
-
+func setupTest(t *testing.T) (*timeutil.SimulatedClock, checkingTempFile) {
 	// Set up the clock.
 	clock := &timeutil.SimulatedClock{}
 	clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
@@ -142,7 +139,7 @@ func setupTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, checkin
 		tf.Destroy()
 	})
 
-	return ctx, clock, tf
+	return clock, tf
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -150,7 +147,7 @@ func setupTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, checkin
 ////////////////////////////////////////////////////////////////////////
 
 func TestStat_InitialState(t *testing.T) {
-	_, _, tf := setupTest(t)
+	_, tf := setupTest(t)
 	sr, err := tf.Stat()
 
 	require.NoError(t, err)
@@ -160,7 +157,7 @@ func TestStat_InitialState(t *testing.T) {
 }
 
 func TestReadAt(t *testing.T) {
-	_, _, tf := setupTest(t)
+	_, tf := setupTest(t)
 	// Call
 	var buf [2]byte
 	n, err := tf.ReadAt(buf[:], 1)
@@ -187,7 +184,7 @@ func TestReadAt(t *testing.T) {
 }
 
 func TestWriteAt(t *testing.T) {
-	_, clock, tf := setupTest(t)
+	clock, tf := setupTest(t)
 	// Call
 	p := []byte("fo")
 	n, err := tf.WriteAt(p, 1)
@@ -215,7 +212,7 @@ func TestWriteAt(t *testing.T) {
 }
 
 func TestTruncate(t *testing.T) {
-	_, clock, tf := setupTest(t)
+	clock, tf := setupTest(t)
 	// Call
 	err := tf.Truncate(2)
 	assert.NoError(t, err)
@@ -238,7 +235,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestSetMtime(t *testing.T) {
-	_, clock, tf := setupTest(t)
+	clock, tf := setupTest(t)
 	mtime := time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local)
 	assert.NotEqual(t, clock.Now(), mtime)
 
