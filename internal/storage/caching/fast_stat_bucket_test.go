@@ -45,6 +45,7 @@ const primaryCacheTTL = time.Second
 const negativeCacheTTL = time.Second * 5
 const isTypeCacheDeprecated = true
 const isImplicitDir = true
+const isEnableEmptyManagedFolders = false
 
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
@@ -69,7 +70,8 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
-		isImplicitDir)
+		isImplicitDir,
+		isEnableEmptyManagedFolders)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -893,7 +895,6 @@ func (t *ListObjectsTest) NonEmptyListing() {
 
 	// Insert
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(2)
-	ExpectCall(t.cache, "InsertImplicitDir")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(1)
 
 	// Call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
@@ -999,7 +1000,8 @@ func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		true,
-		true)
+		true,
+		isEnableEmptyManagedFolders)
 }
 
 func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string) {
@@ -1008,12 +1010,17 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 		WillOnce(Return(gcs.BucketType{Hierarchical: isHNS}))
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(listing, nil))
-	// Register expectations.
+	if prefix != "" {
+		ExpectCall(t.cache, "LookUp")(prefix, Any()).WillRepeatedly(Return(false, nil))
+	}
 	for _, obj := range expectedInserts {
 		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
 	}
 	for _, dir := range expectedImplicitDirs {
 		ExpectCall(t.cache, "InsertImplicitDir")(dir, Any())
+	}
+	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && prefix != "" {
+		ExpectCall(t.cache, "AddNegativeEntry")(prefix, Any())
 	}
 
 	// Call
@@ -1136,7 +1143,8 @@ func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached(
 		t.wrapped,
 		negativeCacheTTL,
 		true,
-		false)
+		false,
+		isEnableEmptyManagedFolders)
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a", Size: 1},

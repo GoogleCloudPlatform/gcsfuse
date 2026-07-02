@@ -51,15 +51,17 @@ func NewFastStatBucket(
 	negativeCacheTTL time.Duration,
 	isTypeCacheDeprecated bool,
 	implicitDir bool,
+	enableEmptyManagedFolders bool,
 ) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
-		cache:                 cache,
-		clock:                 clock,
-		wrapped:               wrapped,
-		primaryCacheTTL:       primaryCacheTTL,
-		negativeCacheTTL:      negativeCacheTTL,
-		isTypeCacheDeprecated: isTypeCacheDeprecated,
-		implicitDir:           implicitDir,
+		cache:                     cache,
+		clock:                     clock,
+		wrapped:                   wrapped,
+		primaryCacheTTL:           primaryCacheTTL,
+		negativeCacheTTL:          negativeCacheTTL,
+		isTypeCacheDeprecated:     isTypeCacheDeprecated,
+		implicitDir:               implicitDir,
+		enableEmptyManagedFolders: enableEmptyManagedFolders,
 	}
 
 	b = fsb
@@ -92,6 +94,8 @@ type fastStatBucket struct {
 	isTypeCacheDeprecated bool
 
 	implicitDir bool
+
+	enableEmptyManagedFolders bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -132,7 +136,9 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// implicit directory.
 	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
 	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
-	if b.implicitDir && dirHasContents && !isDirInListing {
+	isDirPath := strings.HasSuffix(dirName, "/")
+
+	if b.implicitDir && isDirPath && dirHasContents && !isDirInListing {
 		b.cache.InsertImplicitDir(dirName, expiration)
 	}
 
@@ -144,6 +150,12 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// Do not cache implicit directories if the flag is not passed.
 	if !b.implicitDir {
 		return
+	}
+
+	isNegativeCacheEnabled := b.negativeCacheTTL > 0 && !b.enableEmptyManagedFolders
+	isValidEmptyDir := isDirPath && !dirHasContents && dirName != ""
+	if isNegativeCacheEnabled && isValidEmptyDir {
+		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 
 	// 3. Cache Sub-directories (Collapsed Runs)

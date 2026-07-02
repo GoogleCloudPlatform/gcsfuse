@@ -1043,8 +1043,8 @@ dentry_cache:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2,--client-protocol=http1"
-          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2,--client-protocol=grpc"
+          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2,--client-protocol=http1,--metadata-cache-negative-ttl-secs=2"
+          - "--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2,--client-protocol=grpc,--metadata-cache-negative-ttl-secs=2"
         compatible:
           flat: true
           hns: true
