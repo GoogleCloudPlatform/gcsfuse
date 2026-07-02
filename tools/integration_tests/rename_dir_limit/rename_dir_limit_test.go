@@ -55,22 +55,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.RenameDirLimit) == 0 {
-		log.Println("No configuration found for rename dir limit tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.RenameDirLimit = make([]test_suite.TestConfig, 1)
-		cfg.RenameDirLimit[0].TestBucket = setup.TestBucket()
-		cfg.RenameDirLimit[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.RenameDirLimit[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.RenameDirLimit[0].Configs[0].Flags = []string{
-			"--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc",
-			"--rename-dir-limit=3",
-			"--rename-dir-limit=3 --client-protocol=grpc",
-		}
-		cfg.RenameDirLimit[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.RenameDirLimit[0].Configs[1].Flags = []string{
-			"",
-		}
-		cfg.RenameDirLimit[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for RenameDirLimit in config file.")
 	}
 
 	ctx = context.Background()

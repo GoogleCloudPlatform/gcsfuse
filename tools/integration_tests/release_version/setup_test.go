@@ -29,10 +29,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ReleaseVersion) == 0 {
-		log.Println("No configuration found for release_version tests in config. Using flags instead.")
-		cfg.ReleaseVersion = make([]test_suite.TestConfig, 1)
-		cfg.ReleaseVersion[0].TestBucket = setup.TestBucket()
-		cfg.ReleaseVersion[0].GKEMountedDirectory = setup.MountedDirectory()
+		log.Fatal("No configuration found for ReleaseVersion in config file.")
 	}
 
 	// 2. Not running mounted directory tests.
