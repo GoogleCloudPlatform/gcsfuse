@@ -15,6 +15,7 @@
 package caching_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 type integrationTestDeps struct {

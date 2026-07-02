@@ -16,6 +16,7 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -31,7 +32,6 @@ import (
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 const FileName = "foo.txt"
@@ -578,6 +578,7 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 			content := testutil.GenerateRandomBytes(int(tc.contentSize))
 			src := bytes.NewReader(content)
 			ctx, cancelCtx := context.WithCancel(context.Background())
+			defer cancelCtx()
 			if tc.cancelCtx {
 				cancelCtx()
 			}
