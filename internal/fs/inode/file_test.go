@@ -605,9 +605,7 @@ func (t *FileTest) TestDestroy_MrdInstanceDestroyed() {
 	// Manually initialize MRD pool since FileInode.Read doesn't use it directly.
 	mi := t.in.GetMRDInstance()
 	require.NotNil(t.T(), mi)
-	// Perform a read on MrdInstance to trigger pool creation.
-	buf := make([]byte, 1)
-	_, err := mi.Read(t.ctx, buf, 0, metrics.NewNoopMetrics())
+	_, err := mi.Read(t.ctx, io.Discard, 0, 1, metrics.NewNoopMetrics())
 	require.NoError(t.T(), err)
 	// Verify pool is initialized.
 	assert.Greater(t.T(), int(mi.Size()), 0)

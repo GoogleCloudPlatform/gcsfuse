@@ -225,6 +225,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
+		readBufferPool:             NewBufferPool(50, 1024*1024),
 	}
 
 	// Initialize MRD cache if enabled
@@ -676,6 +677,9 @@ type fileSystem struct {
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
+
+	// readBufferPool manages the pool of 1MB read buffers.
+	readBufferPool *BufferPool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1869,6 +1873,9 @@ func (fs *fileSystem) Destroy() {
 	}
 	if fs.bufferedReadWorkerPool != nil {
 		fs.bufferedReadWorkerPool.Stop()
+	}
+	if fs.readBufferPool != nil {
+		_ = fs.readBufferPool.Close()
 	}
 }
 
@@ -3117,29 +3124,99 @@ func (fs *fileSystem) ReadFile(
 		}
 	}
 	// Serve the read.
+	var poolBufs [][]byte
+	var buf []byte
+	var isAllocated bool
+
+	size := op.Size
+	if size == 0 && op.Dst != nil {
+		size = int64(len(op.Dst))
+	}
+
+	if op.Dst == nil || cap(op.Dst) < int(size) {
+		isAllocated = true
+		if fs.readBufferPool != nil && (fs.newConfig.FileSystem.EnableKernelReader || fs.newConfig.EnableNewReader) {
+			remaining := int(size)
+			for remaining > 0 {
+				pBuf := fs.readBufferPool.Get()
+				bufSize := 1024 * 1024 // 1MB
+				if remaining < bufSize {
+					bufSize = remaining
+				}
+				poolBufs = append(poolBufs, pBuf[:bufSize])
+				remaining -= bufSize
+			}
+		} else {
+			buf = make([]byte, size)
+		}
+	} else {
+		// Traditional path: use op.Dst.
+		buf = op.Dst[:size]
+	}
+
+	if len(poolBufs) == 1 {
+		buf = poolBufs[0]
+	}
+
+	req := &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: op.Offset,
+		Size:   size,
+	}
+	if len(poolBufs) > 1 {
+		req.Buffers = poolBufs
+	}
 
 	if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
 		resp, err = fh.ReadWithKernelReader(ctx, req)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
 		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else {
-		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		var bytesRead int
+		buf, bytesRead, err = fh.Read(ctx, buf, op.Offset, fs.sequentialReadSizeMb)
+		op.BytesRead = bytesRead
+		op.Dst = buf
+	}
+
+	if isAllocated {
+		if len(op.Data) == 0 {
+			if len(poolBufs) > 1 {
+				op.Data = make([][]byte, 0, len(poolBufs))
+				remaining := int(op.BytesRead)
+				for _, pBuf := range poolBufs {
+					if remaining <= 0 {
+						break
+					}
+					size := len(pBuf)
+					if remaining < size {
+						size = remaining
+					}
+					op.Data = append(op.Data, pBuf[:size])
+					remaining -= size
+				}
+			} else {
+				op.Data = [][]byte{buf[:op.BytesRead]}
+			}
+		}
+		oldCallback := op.Callback
+		op.Callback = func() {
+			if oldCallback != nil {
+				oldCallback()
+			}
+			if fs.readBufferPool != nil {
+				for _, pBuf := range poolBufs {
+					fs.readBufferPool.Put(pBuf)
+				}
+			}
+		}
 	}
 
 	// A FileClobberedError indicates the underlying GCS object has changed,
