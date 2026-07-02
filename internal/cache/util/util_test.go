@@ -71,9 +71,11 @@ func Test_CreateFile_FileDirNotPresent(t *testing.T) {
 	fileSpec, flag, uid, gid := setupUtilTest(t)
 
 	file, err := CreateFile(fileSpec, flag)
+	if err == nil {
+		defer file.Close()
+	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
-	assert.NoError(t, file.Close())
 }
 
 func Test_CreateFile_ShouldThrowErrorIfFileDirNotPresentAndProvidedPermissionsAreInsufficient(t *testing.T) {
@@ -92,9 +94,11 @@ func Test_CreateFile_FileDirPresent(t *testing.T) {
 	require.NoError(t, err)
 
 	file, err := CreateFile(fileSpec, flag)
+	if err == nil {
+		defer file.Close()
+	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0755)
-	assert.NoError(t, file.Close())
 }
 
 func Test_CreateFile_ReadOnlyFile(t *testing.T) {
@@ -102,13 +106,15 @@ func Test_CreateFile_ReadOnlyFile(t *testing.T) {
 	flag := os.O_RDONLY
 
 	file, err := CreateFile(fileSpec, flag)
+	if err == nil {
+		defer file.Close()
+	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
 	content := "foo"
 	_, err = file.Write([]byte(content))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "bad file descriptor")
-	assert.NoError(t, file.Close())
 
 	fileContent, err := os.ReadFile(fileSpec.Path)
 	assert.NoError(t, err)
@@ -119,13 +125,15 @@ func Test_CreateFile_ReadWriteFile(t *testing.T) {
 	fileSpec, flag, uid, gid := setupUtilTest(t)
 
 	file, err := CreateFile(fileSpec, flag)
+	if err == nil {
+		defer file.Close()
+	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
 	content := "foo"
 	n, err := file.Write([]byte(content))
 	assert.NoError(t, err)
 	assert.Equal(t, 3, n)
-	assert.NoError(t, file.Close())
 
 	fileContent, err := os.ReadFile(fileSpec.Path)
 	assert.NoError(t, err)
@@ -137,9 +145,11 @@ func Test_CreateFile_FilePerm0755(t *testing.T) {
 	fileSpec.FilePerm = os.FileMode(0755)
 
 	file, err := CreateFile(fileSpec, flag)
+	if err == nil {
+		defer file.Close()
+	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
-	assert.NoError(t, file.Close())
 }
 
 func Test_CreateFile_FilePerm0544(t *testing.T) {
@@ -147,9 +157,11 @@ func Test_CreateFile_FilePerm0544(t *testing.T) {
 	fileSpec.FilePerm = os.FileMode(0544)
 
 	file, err := CreateFile(fileSpec, flag)
+	if err == nil {
+		defer file.Close()
+	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
-	assert.NoError(t, file.Close())
 }
 
 func Test_CreateFile_FilePresent(t *testing.T) {
@@ -161,9 +173,11 @@ func Test_CreateFile_FilePresent(t *testing.T) {
 	assert.NoError(t, file.Close())
 
 	file, err = CreateFile(fileSpec, flag)
+	if err == nil {
+		defer file.Close()
+	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0755)
-	assert.NoError(t, file.Close())
 }
 
 func Test_CreateFile_FilePresentWithLessAccess(t *testing.T) {
@@ -193,9 +207,11 @@ func Test_CreateFile_RelativePath(t *testing.T) {
 	defer os.RemoveAll("./some")
 
 	file, err := CreateFile(fileSpec, flag)
+	if err == nil {
+		defer file.Close()
+	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
-	assert.NoError(t, file.Close())
 }
 
 func Test_getObjectPath(t *testing.T) {

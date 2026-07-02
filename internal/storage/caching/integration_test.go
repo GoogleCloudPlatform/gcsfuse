@@ -43,7 +43,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestDeps {
 	bucketName := "some_bucket"
 
 	clock := &timeutil.SimulatedClock{}
-	clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.UTC))
 
 	const cacheCapacity = 100
 	lruCache := lru.NewCache(cfg.AverageSizeOfPositiveStatCacheEntry * cacheCapacity)

@@ -67,7 +67,7 @@ func (bm *fakeBucketManager) SetUpTimes() int {
 func setupBaseDirTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, *fakeBucketManager, DirInode) {
 	ctx := context.Background()
 	clock := &timeutil.SimulatedClock{}
-	clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.UTC))
 
 	bm := &fakeBucketManager{
 		buckets: make(map[string]gcsx.SyncerBucket),
