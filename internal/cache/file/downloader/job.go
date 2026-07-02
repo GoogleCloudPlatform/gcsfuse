@@ -141,8 +141,23 @@ func NewJob(
 		traceHandle = tracing.NewNoopTracer()
 	}
 
+	// Create a copy of MinObject to prevent data race with the reader thread
+	// which might update the size of the object concurrently.
+	objectCopy := *object
+	if object.CRC32C != nil {
+		crcCopy := *object.CRC32C
+		objectCopy.CRC32C = &crcCopy
+	}
+	if object.Metadata != nil {
+		metadataCopy := make(map[string]string)
+		for k, v := range object.Metadata {
+			metadataCopy[k] = v
+		}
+		objectCopy.Metadata = metadataCopy
+	}
+
 	job = &Job{
-		object:                  object,
+		object:                  &objectCopy,
 		bucket:                  bucket,
 		fileInfoCache:           fileInfoCache,
 		sequentialReadSizeMb:    sequentialReadSizeMb,
@@ -468,7 +483,10 @@ func (job *Job) downloadObjectAsync() {
 	// Truncate as the parallel downloads can create file with size little higher
 	// than the actual object size because writing with O_DIRECT happens in size
 	// multiple of cfg.MinimumAlignSizeForWriting.
-	err = cacheFile.Truncate(int64(job.object.Size))
+	job.mu.Lock()
+	sizeToTruncate := job.object.Size
+	job.mu.Unlock()
+	err = cacheFile.Truncate(int64(sizeToTruncate))
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error while truncating cache file: %w", err)
 		job.handleError(err)
@@ -608,4 +626,12 @@ func (job *Job) IsExperimentalParallelDownloadsDefaultOn() bool {
 		return true
 	}
 	return false
+}
+
+// UpdateSize updates the size of the object in the job.
+// Acquires and releases LOCK(job.mu)
+func (job *Job) UpdateSize(newSize uint64) {
+	job.mu.Lock()
+	defer job.mu.Unlock()
+	job.object.Size = newSize
 }

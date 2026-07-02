@@ -2177,10 +2177,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	parent := fs.dirInodeOrDie(parentID)
 
 	defer func() {
-		if err != nil {
-			if child == nil {
-				return
-			}
+		if err != nil && child != nil {
 			// fs.mu lock is already taken
 			delete(fs.localFileInodes, child.Name())
 		}
@@ -2195,6 +2192,10 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	}()
 
 	fullName := inode.NewFileName(parent.Name(), name)
+	if len(fullName.GcsObjectName()) > 1024 {
+		err = syscall.ENAMETOOLONG
+		return
+	}
 	child, ok := fs.localFileInodes[fullName]
 
 	if ok && !child.(*inode.FileInode).IsUnlinked() {
@@ -2504,6 +2505,18 @@ func (fs *fileSystem) Rename(
 	childBktOwned, ok := child.(inode.BucketOwnedInode)
 	if !ok { // Won't happen in ideal case.
 		return fmt.Errorf("child inode (id %v) is not owned by any bucket", child.ID())
+	}
+
+	// Construct new full name to validate length.
+	newParentName := newParent.Name()
+	var newFullName inode.Name
+	if child.Name().IsDir() {
+		newFullName = inode.NewDirName(newParentName, op.NewName)
+	} else {
+		newFullName = inode.NewFileName(newParentName, op.NewName)
+	}
+	if len(newFullName.GcsObjectName()) > 1024 {
+		return syscall.ENAMETOOLONG
 	}
 
 	if child.Name().IsDir() {
