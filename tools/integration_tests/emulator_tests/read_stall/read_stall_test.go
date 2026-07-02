@@ -93,7 +93,15 @@ func TestReadStall(t *testing.T) {
 	ts := &readStall{}
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--enable-read-stall-retry=true", "--read-stall-min-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds()), "--read-stall-initial-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds())},
+		{
+			"--enable-read-stall-retry=true",
+			"--read-stall-min-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds()),
+			"--read-stall-initial-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds()),
+			// Disable HNS to prevent gRPC Control Client initialization.
+			// Legacy emulator proxy servers run on HTTP/1.1, which causes the
+			// gRPC HTTP/2 dialer to crash the mount sequence.
+			"--enable-hns=false",
+		},
 	}
 
 	// Run tests.
