@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -489,6 +490,16 @@ func TestShouldRetryOnMount(t *testing.T) {
 			name:     "permanent error HTTP 400",
 			err:      &googleapi.Error{Code: 400, Message: "Bad Request"},
 			expected: false,
+		},
+		{
+			name:     "permanent error gRPC InvalidArgument",
+			err:      status.Error(codes.InvalidArgument, "invalid bucket name"),
+			expected: false,
+		},
+		{
+			name:     "wrapped gRPC PermissionDenied",
+			err:      fmt.Errorf("mount failed: %w", status.Error(codes.PermissionDenied, "caller does not have required permission")),
+			expected: true,
 		},
 	}
 
