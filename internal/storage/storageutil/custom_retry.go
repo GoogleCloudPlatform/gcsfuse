@@ -134,10 +134,10 @@ func ShouldRetryOnMountWithRetryContext(err error, retryCtx *storage.RetryContex
 	switch action {
 	case retry404BucketDoesNotExist, retryNotFoundBucketDoesNotExist:
 		shouldRetry = true
-		logger.LogToStderr("GCSFuse Mounting: Bucket does not exist")
+		logger.LogToStderr("GCSFuse Mounting: bucket does not exist")
 	case retry403, retryPermissionDenied:
 		shouldRetry = true
-		logger.LogToStderr("GCSFuse Mounting: Permission denied")
+		logger.LogToStderr("GCSFuse Mounting: permission denied")
 	}
 	if !shouldRetry {
 		return false
