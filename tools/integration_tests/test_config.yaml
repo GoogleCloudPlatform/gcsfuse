@@ -215,7 +215,7 @@ read_large_files:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--implicit-dirs --enable-kernel-reader=false,--client-protocol=http1"
+          - "--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
         compatible:
           flat: false
           hns: false
@@ -979,7 +979,7 @@ benchmarking:
     configs:
       - flags:
           - "--stat-cache-ttl=0,--client-protocol=http1"
-          - "--stat-cache-ttl=0 --client-protocol=grpc"
+          - "--stat-cache-ttl=0,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -2003,7 +2003,7 @@ symlink_handling:
       - run: TestStandardSymlinksTestSuite
         flags:
           - "--enable-standard-symlinks=true,--client-protocol=http1"
-          - "--enable-standard-symlinks=true --client-protocol=grpc"
+          - "--enable-standard-symlinks=true,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -2023,7 +2023,7 @@ symlink_handling:
       - run: TestLegacySymlinksTestSuite
         flags:
           - "--enable-standard-symlinks=false,--client-protocol=http1"
-          - "--enable-standard-symlinks=false --client-protocol=grpc"
+          - "--enable-standard-symlinks=false,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
