@@ -2166,6 +2166,29 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Test with gke-mount-retries-error-file",
+			args: []string{"gcsfuse", "--gke-mount-retries-error-file=/path/to/error.json", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkRetryDeadlineSecs:   120,
+					ChunkTransferTimeoutSecs: 10,
+					EnableMountRetries:       false,
+					GkeMountRetriesErrorFile: "/path/to/error.json",
+					MaxRetryAttempts:         math.MaxInt,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
+						MinReqTimeout:       1500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2889,4 +2912,25 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 			tc.validate(t, capturedMountInfo)
 		})
 	}
+}
+
+func TestArgsParsing_GcsRetriesConfigFile(t *testing.T) {
+	content := `
+gcs-retries:
+  gke-mount-retries-error-file: /path/to/error.json
+`
+	tempFile := createTempConfigFile(t, content)
+	defer func() { _ = os.Remove(tempFile) }()
+	var gotConfig *cfg.Config
+	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+		gotConfig = mountInfo.config
+		return nil
+	})
+	require.Nil(t, err)
+	cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=%s", tempFile), "abc", "pqr"}, cmd))
+
+	err = cmd.Execute()
+
+	require.NoError(t, err)
+	assert.Equal(t, "/path/to/error.json", string(gotConfig.GcsRetries.GkeMountRetriesErrorFile))
 }

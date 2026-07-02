@@ -743,6 +743,13 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "gcs-retries.gke-mount-retries-error-file"
+    flag-name: "gke-mount-retries-error-file"
+    type: "resolvedPath"
+    usage: "File path to write GCSFuse mounting errors during mount retries in GKE environment when enable-mount-retries is set."
+    default: ""
+    hide-flag: true
+
   - config-path: "gcs-retries.max-retry-attempts"
     flag-name: "max-retry-attempts"
     type: "int"
