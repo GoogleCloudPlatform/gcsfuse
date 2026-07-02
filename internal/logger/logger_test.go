@@ -17,7 +17,9 @@ package logger
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -565,4 +567,42 @@ func TestGetLogFHandler(t *testing.T) {
 		expectedTraceRegex := expectedLogRegex(t, "text", "TRACE", message)
 		assert.Regexp(t, expectedTraceRegex, logs[1])
 	})
+}
+
+func TestLogToStderr(t *testing.T) {
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+
+	LogToStderr("plain message")
+	LogToStderr("formatted %s %d", "error", 404)
+
+	_ = w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err)
+
+	assert.Equal(t, "plain message\nformatted error 404\n", buf.String())
+}
+
+func TestLogToStdout(t *testing.T) {
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+
+	LogToStdout("plain message")
+	LogToStdout("formatted %s %d", "info", 200)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err)
+
+	assert.Equal(t, "plain message\nformatted info 200\n", buf.String())
 }

@@ -333,8 +333,53 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	return
 }
 
-func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
+const checkBucketAccessTempObject = "gcsfuse-mount-access-check-object"
+
+func (sh *storageClient) checkBucketAccessForMount(ctx context.Context, bucketName string, billingProject string) error {
+	client, err := sh.getClient(ctx, false, bucketName, billingProject)
+	if err != nil {
+		return fmt.Errorf("failed to get storage client for bucket check: %w", err)
+	}
+
+	bucketHandle := client.Bucket(bucketName)
+	if billingProject != "" {
+		bucketHandle = bucketHandle.UserProject(billingProject)
+	}
+
+	retryConfig := storageutil.NewRetryConfig(&sh.clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff)
+
+	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
+		return bucketHandle.Object(checkBucketAccessTempObject).Attrs(attemptCtx)
+	}
+
+	_, err = storageutil.ExecuteWithCustomShouldRetryAtLogLevel(
+		ctx,
+		retryConfig,
+		"Attrs",
+		fmt.Sprintf("%s/%s", bucketName, checkBucketAccessTempObject),
+		uuid.NewString(),
+		apiCall,
+		storageutil.ShouldRetryOnMountWithRetryContext,
+		logger.LevelInfo,
+	)
+
+	var notFoundError *gcs.NotFoundError
+	// An object-not-found error (storage.ErrObjectNotExist or NotFoundError) confirms that the bucket exists
+	// and authentication/permissions are valid. We treat object-not-found as a successful bucket access check.
+	if err == nil || errors.As(gcs.GetGCSError(err), &notFoundError) || errors.Is(err, storage.ErrObjectNotExist) {
+		return nil
+	}
+
+	return err
+}
+
+func (sh *storageClient) lookupBucketType(bucketName string, billingProject string) (*gcs.BucketType, error) {
 	if sh.storageControlClient == nil {
+		if sh.clientConfig.EnableMountRetries {
+			if err := sh.checkBucketAccessForMount(context.Background(), bucketName, billingProject); err != nil {
+				return nil, err
+			}
+		}
 		return &gcs.BucketType{}, nil // Assume defaults
 	}
 
@@ -414,8 +459,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		// special handling for mounts created with custom billing projects.
 		controlClientWithBillingProject := withBillingProject(rawStorageControlClientWithoutGaxRetries, billingProject)
 		// Wrap the control client with retry-on-stall logic.
-		// This will retry on only on GetStorageLayout call for all buckets.
-		controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)
+		if clientConfig.EnableMountRetries {
+			controlClient = withRetryOnMount(controlClientWithBillingProject, &clientConfig)
+		} else {
+			controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)
+		}
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
@@ -488,7 +536,9 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 	}
 
 	var controlClientWithoutBillingProject StorageControlClient
-	if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
+	if sh.clientConfig.EnableMountRetries {
+		controlClientWithoutBillingProject = withRetryOnMount(sh.rawStorageControlClientWithoutGaxRetries, &sh.clientConfig)
+	} else if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
 		// sh.storageControlClient already contains handling for billing project,
 		// and enhanced retries for GetStorageLayout API call. Extending it here for
 		// retries for folder APIs.
@@ -508,7 +558,7 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
 	var client *storage.Client
-	bucketType, err := sh.lookupBucketType(bucketName)
+	bucketType, err := sh.lookupBucketType(bucketName, billingProject)
 	if err != nil {
 		return nil, fmt.Errorf("storageLayout call failed: %s", err)
 	}

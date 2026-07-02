@@ -76,8 +76,7 @@ func mountWithStorageHandle(
 	}
 
 	if uid == 0 && newConfig.FileSystem.Uid < 0 {
-		fmt.Fprintln(os.Stdout, `
-WARNING: gcsfuse invoked as root. This will cause all files to be owned by
+		logger.LogToStdout(`WARNING: gcsfuse invoked as root. This will cause all files to be owned by
 root. If this is not what you intended, invoke gcsfuse as the user that will
 be interacting with the file system.`)
 	}

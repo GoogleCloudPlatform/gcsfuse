@@ -183,7 +183,7 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	client.storageControlClient = testSuite.mockClient
 	testSuite.mockStorageLayout(gcs.BucketType{Zonal: true})
 
-	bt, err := client.lookupBucketType(TestBucketName)
+	bt, err := client.lookupBucketType(TestBucketName, "")
 
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesEnabled, bt.Pirlo)
@@ -1111,4 +1111,15 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on zonal buckets")
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on zonal buckets")
 	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
+}
+
+func (testSuite *StorageHandleTest) TestCheckBucketAccessForMount_HNSDisabled() {
+	sh := testSuite.fakeStorage.CreateStorageHandle()
+	client := sh.(*storageClient)
+	client.storageControlClient = nil
+	client.clientConfig.EnableMountRetries = true
+	client.clientConfig.MaxRetryAttempts = 1
+
+	err := client.checkBucketAccessForMount(testSuite.ctx, TestBucketName, "")
+	assert.NoError(testSuite.T(), err)
 }

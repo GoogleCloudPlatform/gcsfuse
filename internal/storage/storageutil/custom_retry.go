@@ -17,6 +17,7 @@ package storageutil
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -88,6 +89,56 @@ func ShouldRetryWithRetryContext(err error, retryCtx *storage.RetryContext) bool
 	}
 	logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
 		retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
+	return true
+}
+
+func isBucketNotFoundError(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "bucket does not exist")
+}
+
+// ShouldRetryOnMountWithRetryContext checks if the given error is retryable during mount operations.
+// It first delegates to ShouldRetryWithRetryContext for standard transient error classification (logged at Warning level).
+// If not a standard transient error, it checks for mount-specific retryable error conditions (such as metadata server
+// connection refused, HTTP 403, HTTP 404 bucket does not exist, gRPC PermissionDenied, and gRPC NotFound bucket does not exist),
+// logging them at Error level with RetryContext details.
+// Returns true if the error is retryable, false otherwise.
+func ShouldRetryOnMountWithRetryContext(err error, retryCtx *storage.RetryContext) bool {
+	if ShouldRetryWithRetryContext(err, retryCtx) {
+		return true
+	}
+	shouldRetry := false
+	if strings.Contains(strings.ToLower(err.Error()), "dial tcp 169.254.169.254:80: connect: connection refused") {
+		shouldRetry = true
+	}
+	if !shouldRetry {
+		if typed, ok := err.(*googleapi.Error); ok {
+			if typed.Code == 403 || (typed.Code == 404 && isBucketNotFoundError(err)) {
+				shouldRetry = true
+			}
+		}
+	}
+
+	if !shouldRetry {
+		if st, ok := status.FromError(err); ok {
+			if st.Code() == codes.PermissionDenied || (st.Code() == codes.NotFound && isBucketNotFoundError(err)) {
+				shouldRetry = true
+			}
+		}
+	}
+
+	if !shouldRetry {
+		return false
+	}
+
+	if retryCtx == nil {
+		logger.LogToStderr("Retrying for error: %v", err) // Added for GKE env.
+		logger.Errorf("Retrying for error: %v", err)
+	} else {
+		logger.LogToStderr("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+			retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err) // Added for GKE env.
+		logger.Errorf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+			retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
+	}
 	return true
 }
 

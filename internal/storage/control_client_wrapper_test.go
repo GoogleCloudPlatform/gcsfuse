@@ -295,7 +295,7 @@ func (t *ControlClientRetryWrapperTest) newHelperRetryWrapper(controlClient Stor
 		MaxRetrySleep:   maxRetrySleep,
 		RetryMultiplier: backoffMultiplier,
 	}
-	return newRetryWrapper(t.stallingClient, clientConfig, retryDeadline, totalRetryBudget, initialBackoff, retryFolderAPIs)
+	return newRetryWrapper(t.stallingClient, clientConfig, retryDeadline, totalRetryBudget, initialBackoff, true, retryFolderAPIs, false)
 }
 
 func (t *AllApiRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {

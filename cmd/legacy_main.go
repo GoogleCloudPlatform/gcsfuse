@@ -158,6 +158,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		TokenUrl:                                newConfig.GcsAuth.TokenUrl,
 		ReuseTokenFromUrl:                       newConfig.GcsAuth.ReuseTokenFromUrl,
 		ExperimentalNonrapidFolderApiStallRetry: newConfig.GcsRetries.ExperimentalNonrapidFolderApiStallRetry,
+		EnableMountRetries:                      newConfig.GcsRetries.EnableMountRetries,
 		ExperimentalEnableJsonRead:              newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:                        int(newConfig.GcsConnection.GrpcConnPoolSize),
 		GrpcPathStrategy:                        newConfig.GcsConnection.GrpcPathStrategy,
@@ -311,16 +312,10 @@ func forwardedEnvVars() []string {
 	// https_proxy has precedence over http_proxy, in case both are set
 	if p, ok := os.LookupEnv("https_proxy"); ok {
 		env = append(env, fmt.Sprintf("https_proxy=%s", p))
-		fmt.Fprintf(
-			os.Stdout,
-			"Added environment https_proxy: %s\n",
-			p)
+		logger.LogToStdout("Added environment https_proxy: %s", p)
 	} else if p, ok := os.LookupEnv("http_proxy"); ok {
 		env = append(env, fmt.Sprintf("http_proxy=%s", p))
-		fmt.Fprintf(
-			os.Stdout,
-			"Added environment http_proxy: %s\n",
-			p)
+		logger.LogToStdout("Added environment http_proxy: %s", p)
 	}
 
 	// Forward GOOGLE_APPLICATION_CREDENTIALS, since we document in
@@ -334,10 +329,7 @@ func forwardedEnvVars() []string {
 	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
 		if envval, ok := os.LookupEnv(envvar); ok {
 			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
-			fmt.Fprintf(
-				os.Stdout,
-				"Added environment %s: %s\n",
-				envvar, envval)
+			logger.LogToStdout("Added environment %s: %s", envvar, envval)
 		}
 	}
 
@@ -504,6 +496,9 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 				logger.Warnf(MountSlownessMessage, mountDuration, MountTimeThreshold)
 			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
+			if cfg.IsGKEEnvironment(mountPoint) {
+				logger.LogToStderr(SuccessfulMountMessage)
+			}
 			logger.Info(SuccessfulMountMessage)
 			callDaemonizeSignalOutcome(nil)
 		}

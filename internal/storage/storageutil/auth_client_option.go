@@ -37,6 +37,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 			return nil, nil, fmt.Errorf("while fetching token source: %w", err)
 		}
 
+		tokenSrc = WrapTokenSource(config, tokenSrc)
 		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
 		return clientOpts, tokenSrc, nil
 	}
@@ -47,7 +48,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		return nil, nil, fmt.Errorf("while fetching credentials: %w", err)
 	}
 
-	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
+	tokenSrc := WrapTokenSource(config, oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider))
 
 	var domain string
 

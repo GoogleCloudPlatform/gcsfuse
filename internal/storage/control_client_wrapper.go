@@ -100,6 +100,8 @@ type storageControlClientWithRetry struct {
 	enableRetriesOnStorageLayoutAPI bool
 	// Whether or not to enable retries for folder APIs.
 	enableRetriesOnFolderAPIs bool
+	// Whether or not to enable mount retries.
+	enableRetriesOnMount bool
 }
 
 func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Context,
@@ -113,6 +115,9 @@ func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Conte
 		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
 
+	if sccwros.enableRetriesOnMount {
+		return storageutil.ExecuteWithCustomShouldRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, storageutil.ShouldRetryOnMountWithRetryContext, logger.LevelInfo)
+	}
 	return storageutil.ExecuteWithRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, logger.LevelInfo)
 }
 
@@ -178,9 +183,8 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 
 // newRetryWrapper creates a new StorageControlClient with retry capabilities.
 // It accepts various parameters to configure the retry behavior.
-// The returned control client retries storage-layout.
-// It also retries folder-related APIs if `retryFolderAPIs` is true.
-func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageutil.StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration, retryFolderAPIs bool) StorageControlClient {
+// It retries storage-layout if `retryStorageLayout` is true, folder-related APIs if `retryFolderAPIs` is true, and mount operations if `retryMount` is true.
+func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageutil.StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration, retryStorageLayout bool, retryFolderAPIs bool, retryMount bool) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {
@@ -191,22 +195,28 @@ func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageut
 	return &storageControlClientWithRetry{
 		raw:                             raw,
 		retryConfig:                     retryConfig,
-		enableRetriesOnStorageLayoutAPI: true,
+		enableRetriesOnStorageLayoutAPI: retryStorageLayout,
 		enableRetriesOnFolderAPIs:       retryFolderAPIs,
+		enableRetriesOnMount:            retryMount,
 	}
 }
 
 // withRetryOnAllAPIs wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
 func withRetryOnAllAPIs(controlClient StorageControlClient,
 	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
-	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, true)
+	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, true, true, false)
 }
 
 // withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
 func withRetryOnStorageLayout(controlClient StorageControlClient,
 	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
-	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, false)
+	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, true, false, false)
+}
 
+// withRetryOnMount wraps a StorageControlClient to do a time-bound retry approach for retryable errors for mount operations through it.
+func withRetryOnMount(controlClient StorageControlClient,
+	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
+	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, true, false, true)
 }
 
 func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {

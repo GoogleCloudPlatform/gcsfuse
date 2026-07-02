@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -512,7 +513,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_SuccessWith
 		}
 		return "success", nil
 	}
-	customShouldRetry := func(err error) bool {
+	customShouldRetry := func(err error, retryCtx *storage.RetryContext) bool {
 		return errors.Is(err, customErr)
 	}
 
@@ -534,7 +535,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_FailWithCus
 		return "", defaultRetryableErr
 	}
 	// A custom predicate that rejects everything (returns false)
-	customShouldRetry := func(err error) bool {
+	customShouldRetry := func(err error, retryCtx *storage.RetryContext) bool {
 		return false
 	}
 
@@ -563,8 +564,8 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithCustomShouldRetry_Composition
 		return "success", nil
 	}
 	// Wrap default ShouldRetryWithoutLogging and also allow customErr
-	customShouldRetry := func(err error) bool {
-		return ShouldRetryWithRetryContext(err, nil) || errors.Is(err, customErr)
+	customShouldRetry := func(err error, retryCtx *storage.RetryContext) bool {
+		return ShouldRetryWithRetryContext(err, retryCtx) || errors.Is(err, customErr)
 	}
 
 	// Act
@@ -591,8 +592,15 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_LogsErrorContext() {
 		return "success", nil
 	}
 	// We need a shouldRetry function that returns true for retryableErr.
-	customShouldRetry := func(err error) bool {
-		return err.Error() == "transient failure 429"
+	customShouldRetry := func(err error, retryCtx *storage.RetryContext) bool {
+		if err.Error() == "transient failure 429" {
+			if retryCtx != nil {
+				logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+					retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
+			}
+			return true
+		}
+		return false
 	}
 
 	// Act
@@ -602,7 +610,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_LogsErrorContext() {
 	// Assert
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 2, callCount)
-	assert.Contains(t.T(), buf.String(), "Retrying testOp")
+	assert.Contains(t.T(), buf.String(), "Calling testOp")
 	assert.Contains(t.T(), buf.String(), "testReq")
 	assert.Contains(t.T(), buf.String(), "transient failure 429")
 }
@@ -621,8 +629,15 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_AttemptNumberIncreases(
 		}
 		return "success", nil
 	}
-	customShouldRetry := func(err error) bool {
-		return err.Error() == "transient failure"
+	customShouldRetry := func(err error, retryCtx *storage.RetryContext) bool {
+		if err.Error() == "transient failure" {
+			if retryCtx != nil {
+				logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+					retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
+			}
+			return true
+		}
+		return false
 	}
 
 	// Act
@@ -652,8 +667,15 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RequestIDSameAcrossRetr
 		}
 		return "success", nil
 	}
-	customShouldRetry := func(err error) bool {
-		return err.Error() == "transient failure"
+	customShouldRetry := func(err error, retryCtx *storage.RetryContext) bool {
+		if err.Error() == "transient failure" {
+			if retryCtx != nil {
+				logger.Warnf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
+					retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
+			}
+			return true
+		}
+		return false
 	}
 	expectedRequestID := "unique-request-id-12345"
 

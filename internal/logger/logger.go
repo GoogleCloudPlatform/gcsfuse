@@ -256,6 +256,24 @@ func SetOutput(w io.Writer) {
 	slog.SetDefault(defaultLogger)
 }
 
+// LogToStderr appends a formatted string directly to os.Stderr on a new line.
+func LogToStderr(format string, v ...any) {
+	if len(v) == 0 {
+		fmt.Fprintln(os.Stderr, format)
+	} else {
+		fmt.Fprintln(os.Stderr, fmt.Sprintf(format, v...))
+	}
+}
+
+// LogToStdout appends a formatted string directly to os.Stdout on a new line.
+func LogToStdout(format string, v ...any) {
+	if len(v) == 0 {
+		fmt.Fprintln(os.Stdout, format)
+	} else {
+		fmt.Fprintln(os.Stdout, fmt.Sprintf(format, v...))
+	}
+}
+
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file       *os.File
