@@ -1369,9 +1369,7 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
 	delete(fs.localFileInodes, f.Name())
-	if _, ok := fs.generationBackedInodes[f.Name()]; !ok {
-		fs.generationBackedInodes[f.Name()] = f
-	}
+	fs.generationBackedInodes[f.Name()] = f
 	fs.mu.Unlock()
 
 	// We need not update fileIndex:
