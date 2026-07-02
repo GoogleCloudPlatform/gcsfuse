@@ -41,7 +41,7 @@ func setupTest(t *testing.T) (gcs.Bucket, storage.StorageHandle, *storage.MockSt
 	storageHandle := fakeStorage.CreateStorageHandle()
 
 	mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return strings.Contains(req.Name, TestBucketName)
+		return req != nil && strings.Contains(req.Name, TestBucketName)
 	}), mock.Anything).
 		Return(&controlpb.StorageLayout{
 			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
@@ -154,7 +154,7 @@ func TestSetUpBucketWhenBucketDoesNotExist(t *testing.T) {
 
 	// Configure mock to return NotFound error for invalidBucketName layout check
 	mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return strings.Contains(req.Name, invalidBucketName)
+		return req != nil && strings.Contains(req.Name, invalidBucketName)
 	}), mock.Anything).
 		Return(nil, status.Errorf(codes.NotFound, "The specified bucket does not exist."))
 
@@ -188,7 +188,7 @@ func TestSetUpBucketWhenBucketDoesNotExist_IsMultiBucketMountTrue(t *testing.T) 
 
 	// Configure mock to return NotFound error for invalidBucketName layout check
 	mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return strings.Contains(req.Name, invalidBucketName)
+		return req != nil && strings.Contains(req.Name, invalidBucketName)
 	}), mock.Anything).
 		Return(nil, status.Errorf(codes.NotFound, "The specified bucket does not exist."))
 
