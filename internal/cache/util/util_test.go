@@ -72,7 +72,7 @@ func Test_CreateFile_FileDirNotPresent(t *testing.T) {
 
 	file, err := CreateFile(fileSpec, flag)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
@@ -95,7 +95,7 @@ func Test_CreateFile_FileDirPresent(t *testing.T) {
 
 	file, err := CreateFile(fileSpec, flag)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0755)
@@ -107,7 +107,7 @@ func Test_CreateFile_ReadOnlyFile(t *testing.T) {
 
 	file, err := CreateFile(fileSpec, flag)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
@@ -126,7 +126,7 @@ func Test_CreateFile_ReadWriteFile(t *testing.T) {
 
 	file, err := CreateFile(fileSpec, flag)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
@@ -146,7 +146,7 @@ func Test_CreateFile_FilePerm0755(t *testing.T) {
 
 	file, err := CreateFile(fileSpec, flag)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
@@ -158,7 +158,7 @@ func Test_CreateFile_FilePerm0544(t *testing.T) {
 
 	file, err := CreateFile(fileSpec, flag)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
@@ -174,7 +174,7 @@ func Test_CreateFile_FilePresent(t *testing.T) {
 
 	file, err = CreateFile(fileSpec, flag)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0755)
@@ -204,11 +204,11 @@ func Test_CreateFile_RelativePath(t *testing.T) {
 	uid := os.Getuid()
 	gid := os.Getgid()
 
-	defer os.RemoveAll("./some")
+	defer func() { _ = os.RemoveAll("./some") }()
 
 	file, err := CreateFile(fileSpec, flag)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	assertFileAndDirCreationWithGivenDirPerm(t, file, err, fileSpec, uid, gid, 0700)
