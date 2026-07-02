@@ -497,7 +497,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			if cfg.IsGKEEnvironment(mountPoint) {
-				logger.LogToStderr(SuccessfulMountMessage)
+				logger.LogToStderr(storageutil.MountingPrefix + SuccessfulMountMessage)
 			}
 			logger.Info(SuccessfulMountMessage)
 			callDaemonizeSignalOutcome(nil)
