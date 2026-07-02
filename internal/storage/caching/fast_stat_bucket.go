@@ -152,9 +152,10 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		return
 	}
 
-	// 4. Negative Cache (Only if it's a directory and there are NO contents and empty managed folders are not enabled)
-	if b.negativeCacheTTL > 0 && !b.enableEmptyManagedFolders && isDirPath && !dirHasContents && dirName != "" {
-			b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
+	isNegativeCacheEnabled := b.negativeCacheTTL > 0 && !b.enableEmptyManagedFolders
+	isValidEmptyDir := isDirPath && !dirHasContents && dirName != ""
+	if isNegativeCacheEnabled && isValidEmptyDir {
+		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 
 	// 3. Cache Sub-directories (Collapsed Runs)
