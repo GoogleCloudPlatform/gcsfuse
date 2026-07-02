@@ -39,6 +39,14 @@ const (
 	retry401
 	// retryUnauthenticated indicates a gRPC Unauthenticated error which requires a retry due to credentials refresh.
 	retryUnauthenticated
+	// retry403 indicates a 403 PermissionDenied error retryable during mount operations.
+	retry403
+	// retry404BucketDoesNotExist indicates a 404 Bucket Not Found error retryable during mount operations.
+	retry404BucketDoesNotExist
+	// retryPermissionDenied indicates a gRPC PermissionDenied error retryable during mount operations.
+	retryPermissionDenied
+	// retryNotFoundBucketDoesNotExist indicates a gRPC NotFound bucket does not exist error retryable during mount operations.
+	retryNotFoundBucketDoesNotExist
 )
 
 func determineRetryAction(err error) retryAction {
@@ -46,25 +54,38 @@ func determineRetryAction(err error) retryAction {
 		return retryTransient
 	}
 
-	// HTTP 401 errors - Invalid Credentials
-	// This is a work-around to fix the corner case where GCSFuse checks the token
-	// as valid but GCS says invalid. This might be due to client-server timer
-	// issues. Actual fix will be refresh the token earlier than 1 hr.
-	// Changes will be done post resolution of the below issue:
-	// https://github.com/golang/oauth2/issues/623
-	// TODO(b/518674297): Please incorporate the correct fix post resolution of the above issue.
+	// HTTP API errors (googleapi.Error)
 	if typed, ok := err.(*googleapi.Error); ok {
+		// HTTP 401 errors - Invalid Credentials
+		// This is a work-around to fix the corner case where GCSFuse checks the token
+		// as valid but GCS says invalid. This might be due to client-server timer
+		// issues. Actual fix will be to refresh the token earlier than 1 hr.
+		// Changes will be done post resolution of the below issue:
+		// https://github.com/golang/oauth2/issues/623
+		// TODO(b/518674297): Please incorporate the correct fix post resolution of the above issue.
 		if typed.Code == 401 {
 			return retry401
 		}
+		if typed.Code == 403 {
+			return retry403
+		}
+		if typed.Code == 404 && isBucketNotFoundError(err) {
+			return retry404BucketDoesNotExist
+		}
 	}
 
-	// This is the same case as above, but for gRPC UNAUTHENTICATED errors. See
-	// https://github.com/golang/oauth2/issues/623
-	// TODO(b/518674297): Please incorporate the correct fix post resolution of the above issue.
-	if status, ok := status.FromError(err); ok {
-		if status.Code() == codes.Unauthenticated {
+	// gRPC API errors (status.Status)
+	if st, ok := status.FromError(err); ok {
+		// gRPC UNAUTHENTICATED errors. See https://github.com/golang/oauth2/issues/623
+		// TODO(b/518674297): Please incorporate the correct fix post resolution of the above issue.
+		if st.Code() == codes.Unauthenticated {
 			return retryUnauthenticated
+		}
+		if st.Code() == codes.PermissionDenied {
+			return retryPermissionDenied
+		}
+		if st.Code() == codes.NotFound && isBucketNotFoundError(err) {
+			return retryNotFoundBucketDoesNotExist
 		}
 	}
 	return noRetry
@@ -73,7 +94,8 @@ func determineRetryAction(err error) retryAction {
 // ShouldRetryWithoutLogging checks if the error is transient and should be retried.
 // This method is same as ShouldRetry except it doesn't add warning logs.
 func ShouldRetryWithoutLogging(err error) bool {
-	return determineRetryAction(err) != noRetry
+	action := determineRetryAction(err)
+	return action == retryTransient || action == retry401 || action == retryUnauthenticated
 }
 
 // ShouldRetryWithRetryContext checks if the given error is transient and should be retried,
@@ -106,36 +128,24 @@ func ShouldRetryOnMountWithRetryContext(err error, retryCtx *storage.RetryContex
 	if ShouldRetryWithRetryContext(err, retryCtx) {
 		return true
 	}
+	action := determineRetryAction(err)
 	shouldRetry := false
-	if strings.Contains(strings.ToLower(err.Error()), "dial tcp 169.254.169.254:80: connect: connection refused") {
+
+	switch action {
+	case retry404BucketDoesNotExist, retryNotFoundBucketDoesNotExist:
 		shouldRetry = true
+		logger.LogToStderr("GCSFuse Mounting: Bucket does not exist")
+	case retry403, retryPermissionDenied:
+		shouldRetry = true
+		logger.LogToStderr("GCSFuse Mounting: Permission denied")
 	}
-	if !shouldRetry {
-		if typed, ok := err.(*googleapi.Error); ok {
-			if typed.Code == 403 || (typed.Code == 404 && isBucketNotFoundError(err)) {
-				shouldRetry = true
-			}
-		}
-	}
-
-	if !shouldRetry {
-		if st, ok := status.FromError(err); ok {
-			if st.Code() == codes.PermissionDenied || (st.Code() == codes.NotFound && isBucketNotFoundError(err)) {
-				shouldRetry = true
-			}
-		}
-	}
-
 	if !shouldRetry {
 		return false
 	}
 
 	if retryCtx == nil {
-		logger.LogToStderr("Retrying for error: %v", err) // Added for GKE env.
 		logger.Errorf("Retrying for error: %v", err)
 	} else {
-		logger.LogToStderr("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
-			retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err) // Added for GKE env.
 		logger.Errorf("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v",
 			retryCtx.Operation, retryCtx.Object, retryCtx.InvocationID, retryCtx.Attempt+1, err)
 	}

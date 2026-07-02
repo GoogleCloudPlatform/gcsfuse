@@ -221,6 +221,21 @@ func TestDetermineRetryAction(t *testing.T) {
 			expected: retry401,
 		},
 		{
+			name:     "GoogleApiError403",
+			err:      &googleapi.Error{Code: 403},
+			expected: retry403,
+		},
+		{
+			name:     "GoogleApiError404_BucketNotFound",
+			err:      &googleapi.Error{Code: 404, Message: "The specified bucket does not exist."},
+			expected: retry404BucketDoesNotExist,
+		},
+		{
+			name:     "GoogleApiError404_ObjectNotFound",
+			err:      &googleapi.Error{Code: 404, Message: "Object not found."},
+			expected: noRetry,
+		},
+		{
 			name:     "GoogleApiError429",
 			err:      &googleapi.Error{Code: 429},
 			expected: retryTransient,
@@ -233,6 +248,16 @@ func TestDetermineRetryAction(t *testing.T) {
 		{
 			name:     "PermissionDeniedGrpcError",
 			err:      status.Error(codes.PermissionDenied, "permission denied"),
+			expected: retryPermissionDenied,
+		},
+		{
+			name:     "NotFoundGrpcError_BucketNotFound",
+			err:      status.Error(codes.NotFound, "The specified bucket does not exist."),
+			expected: retryNotFoundBucketDoesNotExist,
+		},
+		{
+			name:     "NotFoundGrpcError_ObjectNotFound",
+			err:      status.Error(codes.NotFound, "Object not found."),
 			expected: noRetry,
 		},
 		{
