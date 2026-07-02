@@ -256,8 +256,15 @@ func SetOutput(w io.Writer) {
 	slog.SetDefault(defaultLogger)
 }
 
+var (
+	stderrMu sync.Mutex
+	stdoutMu sync.Mutex
+)
+
 // LogToStderr appends a formatted string directly to os.Stderr on a new line.
 func LogToStderr(format string, v ...any) {
+	stderrMu.Lock()
+	defer stderrMu.Unlock()
 	if len(v) == 0 {
 		fmt.Fprintln(os.Stderr, format)
 	} else {
@@ -267,6 +274,8 @@ func LogToStderr(format string, v ...any) {
 
 // LogToStdout appends a formatted string directly to os.Stdout on a new line.
 func LogToStdout(format string, v ...any) {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
 	if len(v) == 0 {
 		fmt.Fprintln(os.Stdout, format)
 	} else {
