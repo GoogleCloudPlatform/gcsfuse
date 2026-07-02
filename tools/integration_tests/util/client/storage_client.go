@@ -292,7 +292,6 @@ func CreateObjectWithAPI(ctx context.Context, client *storage.Client, object str
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("wc.Close failed for object %q: %w", object, err)
 	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
 	return nil
 }
 
