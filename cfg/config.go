@@ -719,6 +719,10 @@ type MetricsConfig struct {
 
 type MrdConfig struct {
 	PoolSize int64 `yaml:"pool-size"`
+
+	TargetPendingBytes int64 `yaml:"target-pending-bytes"`
+
+	TargetPendingRanges int64 `yaml:"target-pending-ranges"`
 }
 
 type ReadConfig struct {
@@ -1270,6 +1274,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("mrd-pool-size", "", 4, "Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("mrd-pool-size"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("mrd-target-pending-bytes", "", 10485760, "The target threshold for pending bytes to trigger Multi-Range Downloader autoscaling.")
+
+	if err := flagSet.MarkHidden("mrd-target-pending-bytes"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("mrd-target-pending-ranges", "", 20, "The target threshold for pending ranges to trigger Multi-Range Downloader autoscaling.")
+
+	if err := flagSet.MarkHidden("mrd-target-pending-ranges"); err != nil {
 		return err
 	}
 
@@ -1885,6 +1901,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("mrd.pool-size", flagSet.Lookup("mrd-pool-size")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("mrd.target-pending-bytes", flagSet.Lookup("mrd-target-pending-bytes")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("mrd.target-pending-ranges", flagSet.Lookup("mrd-target-pending-ranges")); err != nil {
 		return err
 	}
 
