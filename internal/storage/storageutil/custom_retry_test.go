@@ -181,6 +181,21 @@ func TestShouldRetryWithoutLogging(t *testing.T) {
 			},
 			expectedResult: false,
 		},
+		{
+			name: "403 error - non-retryable for regular ops",
+			err: &googleapi.Error{
+				Code: 403,
+			},
+			expectedResult: false,
+		},
+		{
+			name: "404 bucket missing error - non-retryable for regular ops",
+			err: &googleapi.Error{
+				Code:    404,
+				Message: "The specified bucket does not exist.",
+			},
+			expectedResult: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -234,7 +249,22 @@ func TestDetermineRetryAction(t *testing.T) {
 		{
 			name:     "PermissionDeniedGrpcError",
 			err:      status.Error(codes.PermissionDenied, "permission denied"),
-			expected: noRetry,
+			expected: retryPermissionDenied,
+		},
+		{
+			name:     "GoogleApiError403",
+			err:      &googleapi.Error{Code: 403},
+			expected: retry403,
+		},
+		{
+			name:     "GoogleApiError404BucketNotExist",
+			err:      &googleapi.Error{Code: 404, Message: "The specified bucket does not exist."},
+			expected: retry404BucketDoesNotExist,
+		},
+		{
+			name:     "GrpcNotFoundBucketNotExist",
+			err:      status.Error(codes.NotFound, "The specified bucket does not exist."),
+			expected: retryNotFoundBucketDoesNotExist,
 		},
 		{
 			name:     "UnexpectedEOF",
