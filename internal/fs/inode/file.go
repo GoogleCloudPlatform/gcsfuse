@@ -159,7 +159,7 @@ func NewFileInode(
 	localFile bool,
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
-	mrdCache *lru.Cache,
+	mrdCache lru.Cache,
 	traceHandle tracing.TraceHandle,
 	metricHandle metrics.MetricHandle) (f *FileInode) {
 	// Set up the basic struct.
