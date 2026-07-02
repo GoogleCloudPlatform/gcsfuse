@@ -503,6 +503,7 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 		time.Minute,
 		true, // isTypeCacheDeprecated
 		true, // implicitDir
+		false,
 	)
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{

@@ -51,15 +51,17 @@ func NewFastStatBucket(
 	negativeCacheTTL time.Duration,
 	isTypeCacheDeprecated bool,
 	implicitDir bool,
+	enableEmptyManagedFolders bool,
 ) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
-		cache:                 cache,
-		clock:                 clock,
-		wrapped:               wrapped,
-		primaryCacheTTL:       primaryCacheTTL,
-		negativeCacheTTL:      negativeCacheTTL,
-		isTypeCacheDeprecated: isTypeCacheDeprecated,
-		implicitDir:           implicitDir,
+		cache:                     cache,
+		clock:                     clock,
+		wrapped:                   wrapped,
+		primaryCacheTTL:           primaryCacheTTL,
+		negativeCacheTTL:          negativeCacheTTL,
+		isTypeCacheDeprecated:     isTypeCacheDeprecated,
+		implicitDir:               implicitDir,
+		enableEmptyManagedFolders: enableEmptyManagedFolders,
 	}
 
 	b = fsb
@@ -92,6 +94,8 @@ type fastStatBucket struct {
 	isTypeCacheDeprecated bool
 
 	implicitDir bool
+
+	enableEmptyManagedFolders bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -147,22 +151,10 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	if !b.implicitDir {
 		return
 	}
-	
-	if b.negativeCacheTTL > 0 && dirName != "" && isDirPath && !dirHasContents {
-		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
-	}
 
-	// 4. Negative Cache (Only if it's a directory and there are NO contents)
-	// We must not aggressively overwrite existing positive cache entries.
-	if b.negativeCacheTTL > 0 && isDirPath && !dirHasContents && dirName != "" {
-		// Only cache as negative if it's not already cached as a positive entry.
-		if hit, entry := b.cache.LookUp(dirName, b.clock.Now()); !hit || entry == nil {
+	// 4. Negative Cache (Only if it's a directory and there are NO contents and empty managed folders are not enabled)
+	if b.negativeCacheTTL > 0 && !b.enableEmptyManagedFolders && isDirPath && !dirHasContents && dirName != "" {
 			b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
-		}
-	}
-
-	if b.negativeCacheTTL > 0 && dirName != "" && isDirPath && !dirHasContents {
-		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 
 	// 3. Cache Sub-directories (Collapsed Runs)

@@ -45,6 +45,7 @@ const primaryCacheTTL = time.Second
 const negativeCacheTTL = time.Second * 5
 const isTypeCacheDeprecated = true
 const isImplicitDir = true
+const isEnableEmptyManagedFolders = false
 
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
@@ -69,7 +70,8 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
-		isImplicitDir)
+		isImplicitDir,
+		isEnableEmptyManagedFolders)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -998,7 +1000,8 @@ func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		true,
-		true)
+		true,
+		isEnableEmptyManagedFolders)
 }
 
 func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string) {
@@ -1140,7 +1143,8 @@ func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached(
 		t.wrapped,
 		negativeCacheTTL,
 		true,
-		false)
+		false,
+		isEnableEmptyManagedFolders)
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a", Size: 1},
