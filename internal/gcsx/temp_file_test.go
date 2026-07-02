@@ -17,6 +17,7 @@ package gcsx_test
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -248,4 +249,154 @@ func (t *TempFileTest) SetMtime() {
 
 	AssertEq(nil, err)
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(mtime)))
+}
+
+type panicReader struct {
+	readCalled bool
+}
+
+func (pr *panicReader) Read(p []byte) (n int, err error) {
+	pr.readCalled = true
+	return 0, fmt.Errorf("Read should not be called!")
+}
+
+func (pr *panicReader) Close() error {
+	return nil
+}
+
+func (t *TempFileTest) Truncate_ZeroToIncompleteFileDoesNotReadSource() {
+	pr := &panicReader{}
+	tf, err := gcsx.NewTempFile(pr, "", &t.clock)
+	AssertEq(nil, err)
+	defer tf.Destroy()
+
+	err = tf.Truncate(0)
+	ExpectEq(nil, err)
+	ExpectFalse(pr.readCalled)
+
+	// Stat should return size 0 and mtime non-nil.
+	sr, err := tf.Stat()
+	AssertEq(nil, err)
+	ExpectEq(0, sr.Size)
+	ExpectEq(0, sr.DirtyThreshold)
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
+}
+
+type countingReader struct {
+	content   string
+	readBytes int
+}
+
+func (cr *countingReader) Read(p []byte) (n int, err error) {
+	if cr.readBytes >= len(cr.content) {
+		return 0, io.EOF
+	}
+	n = copy(p, cr.content[cr.readBytes:])
+	cr.readBytes += n
+	return n, nil
+}
+
+func (cr *countingReader) Close() error {
+	return nil
+}
+
+func (t *TempFileTest) Truncate_NToIncompleteFileDownloadsAtMostNBytes() {
+	content := "abcdefghijklmnopqrstuvwxyz0123456789" // 36 bytes
+	cr := &countingReader{content: content}
+	tf, err := gcsx.NewTempFile(cr, "", &t.clock)
+	AssertEq(nil, err)
+	defer tf.Destroy()
+
+	// Truncate to 10 bytes.
+	err = tf.Truncate(10)
+	ExpectEq(nil, err)
+	ExpectEq(10, cr.readBytes)
+
+	// Stat should return size 10 and dirtyThreshold 10.
+	sr, err := tf.Stat()
+	AssertEq(nil, err)
+	ExpectEq(10, sr.Size)
+	ExpectEq(10, sr.DirtyThreshold)
+
+	// Verify contents.
+	actual, err := readAll(tf)
+	AssertEq(nil, err)
+	ExpectEq("abcdefghij", string(actual))
+}
+
+func (t *TempFileTest) Truncate_NToIncompleteFilePadsWithZeroesWhenShorterThanN() {
+	content := "abcdefghij" // 10 bytes
+	cr := &countingReader{content: content}
+	tf, err := gcsx.NewTempFile(cr, "", &t.clock)
+	AssertEq(nil, err)
+	defer tf.Destroy()
+
+	// Truncate to 15 bytes (longer than content).
+	err = tf.Truncate(15)
+	ExpectEq(nil, err)
+	ExpectEq(10, cr.readBytes) // Should read all 10 bytes until EOF
+
+	// Stat should return size 15 and dirtyThreshold 10.
+	sr, err := tf.Stat()
+	AssertEq(nil, err)
+	ExpectEq(15, sr.Size)
+	ExpectEq(10, sr.DirtyThreshold)
+
+	// Verify contents (first 10 are original, last 5 are zeroes).
+	actual, err := readAll(tf)
+	AssertEq(nil, err)
+	ExpectEq("abcdefghij\x00\x00\x00\x00\x00", string(actual))
+}
+
+func (t *TempFileTest) Truncate_NToIncompleteCacheFileWithExistingBytes() {
+	// Create a temp file on disk and pre-populate it with some bytes.
+	f, err := os.CreateTemp("", "cachefile_test")
+	AssertEq(nil, err)
+	defer func() {
+		_ = os.Remove(f.Name())
+	}()
+
+	_, err = f.Write([]byte("abcdefghijklmnopqrstuvwxyz")) // 26 bytes
+	AssertEq(nil, err)
+
+	pr := &panicReader{}
+	// Wrap it with NewCacheFile (starts as fileIncomplete, size = 26).
+	tf := gcsx.NewCacheFile(pr, f, "", &t.clock)
+	defer tf.Destroy()
+
+	// Truncate to 10 bytes (10 <= 26).
+	err = tf.Truncate(10)
+	ExpectEq(nil, err)
+	ExpectFalse(pr.readCalled) // Should not read from source GCS reader
+
+	// Stat should return size 10 and dirtyThreshold 10.
+	sr, err := tf.Stat()
+	AssertEq(nil, err)
+	ExpectEq(10, sr.Size)
+	ExpectEq(10, sr.DirtyThreshold)
+
+	// Verify contents.
+	actual, err := readAll(tf)
+	AssertEq(nil, err)
+	ExpectEq("abcdefghij", string(actual))
+}
+
+func (t *TempFileTest) Truncate_DestroyedFileReturnsError() {
+	tf, err := gcsx.NewTempFile(
+		dummyReadCloser{strings.NewReader(initialContent)},
+		"",
+		&t.clock)
+	AssertEq(nil, err)
+
+	// Destroy the file.
+	tf.Destroy()
+
+	// Calling Truncate should return an error.
+	err = tf.Truncate(0)
+	ExpectNe(nil, err)
+	ExpectThat(err.Error(), HasSubstr("file destroyed"))
+
+	err = tf.Truncate(10)
+	ExpectNe(nil, err)
+	ExpectThat(err.Error(), HasSubstr("file destroyed"))
 }
