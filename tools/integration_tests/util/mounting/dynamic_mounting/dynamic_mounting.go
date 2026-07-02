@@ -15,13 +15,11 @@
 package dynamic_mounting
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"path"
 	"testing"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
@@ -92,18 +90,6 @@ func executeTestsForDynamicMounting(config *test_suite.TestConfig, flagsSet [][]
 	setup.SetDynamicBucketMounted("")
 
 	return
-}
-
-// Deprecated: Use RunTestsWithConfigFile instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
-func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *testing.M) (successCode int) {
-	config := &test_suite.TestConfig{
-		TestBucket:              setup.TestBucket(),
-		GKEMountedDirectory:     setup.MountedDirectory(),
-		GCSFuseMountedDirectory: setup.MntDir(),
-		LogFile:                 setup.LogFile(),
-	}
-	return RunTestsWithConfigFile(config, flags, m)
 }
 
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
