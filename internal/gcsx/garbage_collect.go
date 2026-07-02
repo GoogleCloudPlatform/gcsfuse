@@ -53,7 +53,7 @@ func garbageCollectOnce(
 	group.Go(func() (err error) {
 		defer close(staleNames)
 		for o := range minObjects {
-			if now.Sub(o.Updated) < stalenessThreshold {
+			if now.Sub(o.UpdatedTime()) < stalenessThreshold {
 				continue
 			}
 

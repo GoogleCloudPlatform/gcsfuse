@@ -86,8 +86,8 @@ type MinObject struct {
 	Size            uint64
 	Generation      int64
 	MetaGeneration  int64
-	Updated         time.Time
-	Finalized       time.Time
+	Updated         int64 // Unix nanoseconds, 0 if zero
+	Finalized       int64 // Unix nanoseconds, 0 if zero
 	Metadata        map[string]string
 	ContentEncoding string
 	CRC32C          *uint32 // Missing for CMEK buckets
@@ -119,5 +119,32 @@ func (mo MinObject) HasContentEncodingGzip() bool {
 }
 
 func (mo MinObject) IsUnfinalized() bool {
-	return mo.Finalized.IsZero()
+	return mo.Finalized == 0
+}
+
+// UpdatedTime returns the time.Time representation of the Updated timestamp.
+func (mo MinObject) UpdatedTime() time.Time {
+	return NSToTime(mo.Updated)
+}
+
+// FinalizedTime returns the time.Time representation of the Finalized timestamp.
+func (mo MinObject) FinalizedTime() time.Time {
+	return NSToTime(mo.Finalized)
+}
+
+// TimeToNS converts a time.Time to Unix nanoseconds, returning 0 if the time is zero.
+// This avoids panics when calling UnixNano() on a zero time.Time.
+func TimeToNS(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.UnixNano()
+}
+
+// NSToTime converts Unix nanoseconds to time.Time, returning a zero time.Time if ns is 0.
+func NSToTime(ns int64) time.Time {
+	if ns == 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, ns)
 }

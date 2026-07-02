@@ -250,8 +250,8 @@ func Test_ConvertObjToMinObject_WithValidObject(t *testing.T) {
 	assert.Equal(t, size, gcsMinObject.Size)
 	assert.Equal(t, generation, gcsMinObject.Generation)
 	assert.Equal(t, metaGeneration, gcsMinObject.MetaGeneration)
-	assert.True(t, currentTime.Equal(gcsMinObject.Updated))
-	assert.True(t, currentTime.Equal(gcsMinObject.Finalized))
+	assert.True(t, currentTime.Equal(gcsMinObject.UpdatedTime()))
+	assert.True(t, currentTime.Equal(gcsMinObject.FinalizedTime()))
 	assert.Equal(t, contentEncode, gcsMinObject.ContentEncoding)
 	assert.Equal(t, metadata, gcsMinObject.Metadata)
 	assert.Equal(t, crc32C, *gcsMinObject.CRC32C)
@@ -342,8 +342,8 @@ func Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNonNilAttri
 		Size:            uint64(36),
 		Generation:      int64(444),
 		MetaGeneration:  int64(555),
-		Updated:         timeAttr,
-		Finalized:       timeAttr,
+		Updated:         gcs.TimeToNS(timeAttr),
+		Finalized:       gcs.TimeToNS(timeAttr),
 		Metadata:        map[string]string{"test_key": "test_value"},
 		ContentEncoding: "test_encoding",
 	}
@@ -370,8 +370,8 @@ func Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNonNilAttri
 	assert.Equal(t, minObject.Size, gcsObject.Size)
 	assert.Equal(t, minObject.Generation, gcsObject.Generation)
 	assert.Equal(t, minObject.MetaGeneration, gcsObject.MetaGeneration)
-	assert.Equal(t, 0, gcsObject.Updated.Compare(minObject.Updated))
-	assert.Equal(t, 0, gcsObject.Finalized.Compare(minObject.Finalized))
+	assert.Equal(t, 0, gcsObject.Updated.Compare(minObject.UpdatedTime()))
+	assert.Equal(t, 0, gcsObject.Finalized.Compare(minObject.FinalizedTime()))
 	assert.Equal(t, minObject.Metadata, gcsObject.Metadata)
 	assert.Equal(t, minObject.ContentEncoding, gcsObject.ContentEncoding)
 	assert.Equal(t, extendedObjAttr.ContentType, gcsObject.ContentType)
@@ -406,8 +406,8 @@ func Test_ConvertMinObjectToObject_WithNonNilMinObject(t *testing.T) {
 		Size:            uint64(36),
 		Generation:      int64(444),
 		MetaGeneration:  int64(555),
-		Updated:         timeAttr,
-		Finalized:       timeAttr,
+		Updated:         gcs.TimeToNS(timeAttr),
+		Finalized:       gcs.TimeToNS(timeAttr),
 		Metadata:        map[string]string{"test_key": "test_value"},
 		ContentEncoding: "test_encoding",
 		CRC32C:          &crc32C,
@@ -420,8 +420,8 @@ func Test_ConvertMinObjectToObject_WithNonNilMinObject(t *testing.T) {
 	assert.Equal(t, minObject.Size, gcsObject.Size)
 	assert.Equal(t, minObject.Generation, gcsObject.Generation)
 	assert.Equal(t, minObject.MetaGeneration, gcsObject.MetaGeneration)
-	assert.Equal(t, 0, gcsObject.Updated.Compare(minObject.Updated))
-	assert.Equal(t, 0, gcsObject.Finalized.Compare(minObject.Finalized))
+	assert.Equal(t, 0, gcsObject.Updated.Compare(minObject.UpdatedTime()))
+	assert.Equal(t, 0, gcsObject.Finalized.Compare(minObject.FinalizedTime()))
 	assert.Equal(t, minObject.Metadata, gcsObject.Metadata)
 	assert.Equal(t, minObject.ContentEncoding, gcsObject.ContentEncoding)
 	assert.Equal(t, "", gcsObject.ContentType)

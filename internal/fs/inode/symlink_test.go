@@ -172,7 +172,7 @@ func (t *SymlinkTest) TestSource() {
 	AssertEq(nil, err)
 	m := storageutil.ConvertObjToMinObject(obj)
 	m.Metadata = map[string]string{inode.StandardSymlinkMetadataKey: "true"}
-	m.Updated = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC) // Explicitly set Updated time for consistent testing.
+	m.Updated = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixNano() // Explicitly set Updated time for consistent testing.
 	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
 	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
@@ -185,5 +185,5 @@ func (t *SymlinkTest) TestSource() {
 	AssertEq(m.MetaGeneration, source.MetaGeneration)
 	AssertEq(m.Size, source.Size)
 	AssertEq(m.Metadata, source.Metadata)
-	AssertEq(0, m.Updated.Compare(source.Updated))
+	AssertEq(m.Updated, source.Updated)
 }
