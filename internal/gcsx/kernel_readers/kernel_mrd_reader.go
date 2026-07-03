@@ -15,9 +15,11 @@
 package kernel_readers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -81,7 +83,7 @@ func (kmr *KernelMRDReader) CheckInvariants() {
 // requested byte range.
 func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	// If the destination buffer is empty, there's nothing to read.
-	if len(req.Buffer) == 0 {
+	if len(req.Buffer) == 0 && len(req.Buffers) == 0 {
 		return gcsx.ReadResponse{}, nil
 	}
 
@@ -102,19 +104,68 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 	}()
 
 	var err error
-	bytesRead, err = kmr.mrdInstance.Read(ctx, req.Buffer, req.Offset, kmr.metrics)
-	if isShortRead(bytesRead, len(req.Buffer), err) {
-		logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, len(req.Buffer))
+	var writer io.Writer
+	var sizeToRead int64
+	var buffers [][]byte
+
+	if len(req.Buffers) == 0 {
+		sizeToRead = req.GetReadSize(0)
+		// Use req.Buffer[:0] so that bytes.Buffer starts with 0 length
+		// but retains the capacity to write into the backing array.
+		writer = bytes.NewBuffer(req.Buffer[:0])
+	} else {
+		buffers, sizeToRead = gcsx.GetVectoredBuffers(req, 0)
+		writer = gcsx.NewVectoredWriter(buffers)
+	}
+
+	bytesRead, err = kmr.mrdInstance.Read(ctx, writer, req.Offset, sizeToRead, kmr.metrics)
+	if isShortRead(bytesRead, int(sizeToRead), err) {
+		logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, sizeToRead)
 		if err = kmr.mrdInstance.RecreateMRD(); err != nil {
 			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
 		}
 		retryOffset := req.Offset + int64(bytesRead)
-		retryBuffer := req.Buffer[bytesRead:]
+
+		var retryWriter io.Writer
+		if len(req.Buffers) == 0 {
+			retryWriter = bytes.NewBuffer(req.Buffer[bytesRead:sizeToRead][:0])
+		} else {
+			remainingBuffers := sliceBuffers(buffers, bytesRead)
+			retryWriter = gcsx.NewVectoredWriter(remainingBuffers)
+		}
+
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = kmr.mrdInstance.Read(ctx, retryBuffer, retryOffset, kmr.metrics)
+		bytesReadOnRetry, err = kmr.mrdInstance.Read(ctx, retryWriter, retryOffset, sizeToRead-int64(bytesRead), kmr.metrics)
 		bytesRead += bytesReadOnRetry
 	}
 	return gcsx.ReadResponse{Size: bytesRead}, err
+}
+
+func sliceBuffers(buffers [][]byte, offset int) [][]byte {
+	if len(buffers) == 0 {
+		return nil
+	}
+	if offset <= 0 {
+		return buffers
+	}
+	var currentOffset int
+	for i, b := range buffers {
+		if currentOffset+len(b) <= offset {
+			currentOffset += len(b)
+			continue
+		}
+
+		start := offset - currentOffset
+		if start == 0 {
+			return buffers[i:]
+		}
+
+		result := make([][]byte, 0, len(buffers)-i)
+		result = append(result, b[start:])
+		result = append(result, buffers[i+1:]...)
+		return result
+	}
+	return nil
 }
 
 // Destroy cleans up the resources used by the reader, primarily by destroying
