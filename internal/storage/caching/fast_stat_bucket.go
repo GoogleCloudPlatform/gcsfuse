@@ -151,7 +151,6 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	if !b.implicitDir {
 		return
 	}
-	
 	// Negative Cache (Only if it's a directory and there are NO contents)
 	// If enableEmptyManagedFolders is true, do not negatively cache empty directories,
 	// otherwise existing positive entries for valid empty managed folders get overwritten.
