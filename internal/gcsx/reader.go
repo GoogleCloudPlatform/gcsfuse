@@ -31,11 +31,18 @@ type ReadRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
 	Buffer []byte
 
+	// Buffers is a slice of slices of bytes that should be filled sequentially with data.
+	// If Buffers is non-empty, readers should populate Buffers instead of Buffer.
+	Buffers [][]byte
+
 	// Offset specifies the starting position in the object from where data should be read.
 	// Note: This value should not be modified by any reader. It is used by the
 	// read manager to fall back to the next reader and to record the read operation
 	// correctly.
 	Offset int64
+
+	// Size specifies the number of bytes requested to read (corresponding to op.Size).
+	Size int64
 
 	// SkipSizeChecks, when true, instructs the reader to bypass validation of the
 	// read request against the object's cached size. This is necessary for
@@ -45,6 +52,28 @@ type ReadRequest struct {
 
 	// ReadInfo contains metadata about the read pattern.
 	ReadInfo
+}
+
+// GetReadSize calculates the size to read based on the request capacity and the provided limit.
+func (req *ReadRequest) GetReadSize(limit int64) int64 {
+	var totalCapacity int64
+	if len(req.Buffers) == 0 {
+		totalCapacity = int64(len(req.Buffer))
+	} else {
+		for _, b := range req.Buffers {
+			totalCapacity += int64(len(b))
+		}
+	}
+
+	sizeToRead := req.Size
+	if sizeToRead <= 0 || sizeToRead > totalCapacity {
+		sizeToRead = totalCapacity
+	}
+
+	if limit > 0 && sizeToRead > limit {
+		sizeToRead = limit
+	}
+	return sizeToRead
 }
 
 // GCSReaderRequest represents the request parameters needed to read a data from a GCS object.
