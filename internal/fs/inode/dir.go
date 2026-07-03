@@ -690,13 +690,14 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			dirResult, dirErr = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		}
 
-		// If we found a directory, we're done. Return it now.
-		if dirResult != nil {
-			return dirResult, nil
-		}
 		// If we hit a real error (not a cache miss), exit early.
 		if dirErr != nil && !errors.As(dirErr, &cacheMissErr) {
 			return nil, dirErr
+		}
+
+		// If we found a directory, we're done. Return it now.
+		if dirResult != nil {
+			return dirResult, nil
 		}
 
 		// 2. Try File ONLY if directory wasn't found
@@ -709,7 +710,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			return fileResult, nil
 		}
 
-		// 3. Both lookups resulted in cache hits (no errors) with no results found,
+		// 3. Both lookups resulted in cache hits (no cacheMiss errors) with no results found,
 		// indicating a negative cache entry. Return nil to indicate the entry doesn't exist from cache.
 		if dirErr == nil && fileErr == nil {
 			return nil, nil

@@ -45,9 +45,6 @@ func (s *statWithDentryCacheEnabledTest) SetupTest() {
 
 func (s *statWithDentryCacheEnabledTest) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-	// Wait for the metadata cache TTL to expire so that negatively cached entries
-	// don't pollute subsequent tests.
-	time.Sleep(2500 * time.Millisecond)
 }
 
 func (s *statWithDentryCacheEnabledTest) TearDownSuite() {
