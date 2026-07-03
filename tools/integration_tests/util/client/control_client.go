@@ -32,6 +32,7 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -57,14 +58,22 @@ func storageControlClientRetryOptions() []gax.CallOption {
 }
 
 func CreateControlClient(ctx context.Context) (client *control.StorageControlClient, err error) {
-	client, err = control.NewStorageControlClient(ctx)
+	var opts []option.ClientOption
+	if setup.TestOnTPCEndPoint() {
+		ts, err := getTokenSrc("/tmp/sa.key.json")
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch token-source for TPC: %w", err)
+		}
+		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
+	}
+	client, err = control.NewStorageControlClient(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("control.NewStorageControlClient: %w", err)
+	}
 
 	client.CallOptions.CreateManagedFolder = storageControlClientRetryOptions()
 	client.CallOptions.DeleteManagedFolder = storageControlClientRetryOptions()
 
-	if err != nil {
-		return nil, fmt.Errorf("control.NewStorageControlClient: #{err}")
-	}
 	return client, nil
 }
 
