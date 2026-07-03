@@ -79,20 +79,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.Benchmarking) == 0 {
-		log.Println("No configuration found for benchmarking tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.Benchmarking = make([]test_suite.TestConfig, 1)
-		cfg.Benchmarking[0].TestBucket = setup.TestBucket()
-		cfg.Benchmarking[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.Benchmarking[0].LogFile = setup.LogFile()
-		// Manually add configs for each benchmark test.
-		cfg.Benchmarking[0].Configs = make([]test_suite.ConfigItem, 3)
-		cfg.Benchmarking[0].Configs[0].Flags = []string{"--stat-cache-ttl=0", "--stat-cache-ttl=0 --client-protocol=grpc"}
-		cfg.Benchmarking[0].Configs[0].Run = "Benchmark_Stat"
-		cfg.Benchmarking[0].Configs[1].Flags = []string{"--stat-cache-ttl=0 --enable-atomic-rename-object=true", "--stat-cache-ttl=0 --enable-atomic-rename-object=true --client-protocol=grpc"}
-		cfg.Benchmarking[0].Configs[1].Run = "Benchmark_Rename"
-		cfg.Benchmarking[0].Configs[2].Flags = []string{"--stat-cache-ttl=0", "--client-protocol=grpc --stat-cache-ttl=0"}
-		cfg.Benchmarking[0].Configs[2].Run = "Benchmark_Delete"
+		log.Fatal("No configuration found for Benchmarking in config file.")
 	}
 
 	testEnv.ctx = context.Background()

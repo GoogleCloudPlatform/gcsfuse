@@ -15,8 +15,10 @@
 package test_suite
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -60,6 +62,27 @@ type ConfigItem struct {
 	Run            string           `yaml:"run,omitempty"`
 	RunOnGKE       bool             `yaml:"run_on_gke"`
 	RunOnPirlo     RunOnPirloConfig `yaml:"run_on_pirlo"`
+}
+
+// UnmarshalYAML validates flags during YAML unmarshaling without needing reflection.
+func (c *ConfigItem) UnmarshalYAML(value *yaml.Node) error {
+	type alias ConfigItem
+	var item alias
+	if err := value.Decode(&item); err != nil {
+		return err
+	}
+	for _, flagString := range item.Flags {
+		if strings.Contains(flagString, " ") {
+			return fmt.Errorf("invalid flag string %q in test_config.yaml: flags must not contain spaces. Separate flags using commas without spaces", flagString)
+		}
+	}
+	for _, flagString := range item.SecondaryFlags {
+		if strings.Contains(flagString, " ") {
+			return fmt.Errorf("invalid secondary flag string %q in test_config.yaml: flags must not contain spaces. Separate flags using commas without spaces", flagString)
+		}
+	}
+	*c = ConfigItem(item)
+	return nil
 }
 
 // Config holds all test configurations parsed from the YAML file.

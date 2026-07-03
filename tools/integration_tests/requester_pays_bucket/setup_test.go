@@ -81,18 +81,7 @@ func TestMain(m *testing.M) {
 	// Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.RequesterPaysBucket) == 0 {
-		log.Println("No configuration found for requester pays bucket tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.RequesterPaysBucket = make([]test_suite.TestConfig, 1)
-		cfg.RequesterPaysBucket[0].TestBucket = setup.TestBucket()
-		cfg.RequesterPaysBucket[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.RequesterPaysBucket[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.RequesterPaysBucket[0].Configs[0].Flags = []string{
-			"--billing-project=${BILLING_PROJECT} --key-file=${KEY_FILE}",
-			"--billing-project=${BILLING_PROJECT} --client-protocol=grpc --key-file=${KEY_FILE}",
-			"--billing-project=${BILLING_PROJECT} --client-protocol=grpc --grpc-path-strategy=direct-path-only --key-file=${KEY_FILE}",
-		}
-		cfg.RequesterPaysBucket[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+		log.Fatal("No configuration found for RequesterPaysBucket in config file.")
 	}
 
 	testEnv.ctx = context.Background()

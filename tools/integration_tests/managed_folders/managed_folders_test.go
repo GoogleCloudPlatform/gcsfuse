@@ -68,23 +68,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ManagedFolders) == 0 {
-		log.Println("No configuration found for managed_folders tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.ManagedFolders = make([]test_suite.TestConfig, 1)
-		cfg.ManagedFolders[0].TestBucket = setup.TestBucket()
-		cfg.ManagedFolders[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ManagedFolders[0].LogFile = setup.LogFile()
-		// Initialize the slice to hold 15 specific test configurations
-		cfg.ManagedFolders[0].Configs = make([]test_suite.ConfigItem, 3)
-		cfg.ManagedFolders[0].Configs[0].Flags = []string{"--implicit-dirs --key-file=${KEY_FILE} --rename-dir-limit=3"}
-		cfg.ManagedFolders[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ManagedFolders[0].Configs[0].Run = "TestManagedFolders_FolderViewPermission"
-		cfg.ManagedFolders[0].Configs[1].Flags = []string{"--implicit-dirs --enable-empty-managed-folders"}
-		cfg.ManagedFolders[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ManagedFolders[0].Configs[1].Run = "TestEnableEmptyManagedFoldersTrue"
-		cfg.ManagedFolders[0].Configs[2].Flags = []string{"--implicit-dirs --key-file=${KEY_FILE} --rename-dir-limit=5 --stat-cache-ttl=0"}
-		cfg.ManagedFolders[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ManagedFolders[0].Configs[2].Run = "TestManagedFolders_FolderAdminPermission"
+		log.Fatal("No configuration found for ManagedFolders in config file.")
 	}
 
 	testEnv.ctx = context.Background()

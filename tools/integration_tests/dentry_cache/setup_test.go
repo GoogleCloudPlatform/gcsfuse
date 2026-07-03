@@ -64,28 +64,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.DentryCache) == 0 {
-		log.Println("No configuration found for dentry_cache tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.DentryCache = make([]test_suite.TestConfig, 1)
-		cfg.DentryCache[0].TestBucket = setup.TestBucket()
-		cfg.DentryCache[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.DentryCache[0].LogFile = setup.LogFile()
-		cfg.DentryCache[0].Configs = make([]test_suite.ConfigItem, 3)
-		cfg.DentryCache[0].Configs[0].Flags = []string{
-			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2 --metadata-cache-negative-ttl-secs=2",
-		}
-		cfg.DentryCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.DentryCache[0].Configs[0].Run = "TestStatWithDentryCacheEnabledTest"
-		cfg.DentryCache[0].Configs[1].Flags = []string{
-			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000",
-		}
-		cfg.DentryCache[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.DentryCache[0].Configs[1].Run = "TestDeleteOperationTest"
-		cfg.DentryCache[0].Configs[2].Flags = []string{
-			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000",
-		}
-		cfg.DentryCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.DentryCache[0].Configs[2].Run = "TestNotifierTest"
+		log.Fatal("No configuration found for DentryCache in config file.")
 	}
 
 	testEnv.ctx = context.Background()
