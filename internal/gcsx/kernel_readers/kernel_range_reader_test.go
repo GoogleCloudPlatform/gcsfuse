@@ -145,3 +145,27 @@ func (t *KernelRangeReaderTest) TestReadAt_NilObject() {
 	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt Nil MinObject")
 	assert.Equal(t.T(), 0, resp.Size)
 }
+
+func (t *KernelRangeReaderTest) TestReadAt_MultipleBuffers_Success() {
+	data := []byte("abcdefghij") // length 10
+	req := &gcsx.ReadRequest{
+		Buffers: [][]byte{
+			make([]byte, 3),
+			make([]byte, 2),
+			make([]byte, 4),
+		},
+		Offset: 0,
+	}
+	mockReader := &mockStorageReader{io.NopCloser(bytes.NewReader(data))}
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 9, resp.Size) // Sum of buffers capacity is 3+2+4 = 9
+	assert.Equal(t.T(), "abc", string(req.Buffers[0]))
+	assert.Equal(t.T(), "de", string(req.Buffers[1]))
+	assert.Equal(t.T(), "fghi", string(req.Buffers[2]))
+	t.bucket.AssertExpectations(t.T())
+}
+

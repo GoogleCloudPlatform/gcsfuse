@@ -63,12 +63,13 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 
 	if req.Offset >= int64(obj.Size) {
 		return resp, io.EOF
+	} else if req.Offset < 0 {
+		return resp, fmt.Errorf("KernelRangeReader::ReadAt: illegal offset %d for %d byte object", req.Offset, obj.Size)
 	}
 
-	endOffset := req.Offset + int64(len(req.Buffer))
-	if endOffset > int64(obj.Size) {
-		endOffset = int64(obj.Size)
-	}
+	limit := int64(obj.Size) - req.Offset
+	bytesToRead := req.GetReadSize(limit)
+	endOffset := req.Offset + bytesToRead
 
 	reader, err := krr.bucket.NewReaderWithReadHandle(
 		ctx,
@@ -90,7 +91,15 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 		}
 	}()
 
-	n, err := io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
+	var n int
+	if len(req.Buffers) == 0 {
+		n, err = io.ReadFull(reader, req.Buffer[:bytesToRead])
+	} else {
+		writer := gcsx.NewVectoredWriter(req.Buffers)
+		var written int64
+		written, err = io.CopyN(writer, reader, bytesToRead)
+		n = int(written)
+	}
 	resp.Size = n
 
 	if krr.metrics != nil {
