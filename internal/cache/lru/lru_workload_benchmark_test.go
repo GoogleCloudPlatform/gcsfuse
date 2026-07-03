@@ -53,7 +53,7 @@ func generateKeys(prefixCount, itemsPerPrefix, depth int) (keys []string, prefix
 	return keys, prefixMap, prefixes
 }
 
-func benchmarkInsert(b *testing.B, cache *lru.Cache, keys []string) {
+func benchmarkInsert(b *testing.B, cache lru.Cache, keys []string) {
 	data := testData{Value: 1, DataSize: 10}
 
 	i := 0
@@ -64,7 +64,7 @@ func benchmarkInsert(b *testing.B, cache *lru.Cache, keys []string) {
 	}
 }
 
-func benchmarkLookup(b *testing.B, cache *lru.Cache, keys []string) {
+func benchmarkLookup(b *testing.B, cache lru.Cache, keys []string) {
 	data := testData{Value: 1, DataSize: 10}
 	for _, key := range keys {
 		_, _ = cache.Insert(key, data)
@@ -78,7 +78,7 @@ func benchmarkLookup(b *testing.B, cache *lru.Cache, keys []string) {
 	}
 }
 
-func benchmarkErasePrefix(b *testing.B, cache *lru.Cache, prefixMap map[string][]string, prefixes []string) {
+func benchmarkErasePrefix(b *testing.B, cache lru.Cache, prefixMap map[string][]string, prefixes []string) {
 	data := testData{Value: 1, DataSize: 10}
 
 	for _, keysInPrefix := range prefixMap {

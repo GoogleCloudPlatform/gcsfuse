@@ -61,7 +61,7 @@ func configureFakeStorage(t *testing.T) storage.StorageHandle {
 	return fakeStorage.CreateStorageHandle()
 }
 
-func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
+func configureCache(t *testing.T, maxSize int64) (lru.Cache, string) {
 	t.Helper()
 	cache := lru.NewCache(uint64(maxSize))
 	cacheDir, err := os.MkdirTemp("", "gcsfuse_test")
@@ -72,7 +72,7 @@ func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
 	return cache, cacheDir
 }
 
-func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, bucket gcs.Bucket, objectName string, objectSize int64) (gcs.MinObject, []byte) {
+func createObjectInStoreAndInitCache(t *testing.T, cache lru.Cache, bucket gcs.Bucket, objectName string, objectSize int64) (gcs.MinObject, []byte) {
 	t.Helper()
 	content := createObjectInBucket(t, objectName, objectSize, bucket)
 	minObj := getMinObject(objectName, bucket)

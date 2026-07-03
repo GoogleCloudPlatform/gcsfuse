@@ -37,7 +37,7 @@ import (
 // directory.
 type CacheHandler struct {
 	// fileInfoCache contains the reference of fileInfo cache.
-	fileInfoCache *lru.Cache
+	fileInfoCache lru.Cache
 
 	// jobManager contains reference to a singleton jobManager.
 	jobManager *downloader.JobManager
@@ -67,7 +67,7 @@ type CacheHandler struct {
 	volumeBlockSize uint64
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, volumeBlockSize uint64) *CacheHandler {
+func NewCacheHandler(fileInfoCache lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool, volumeBlockSize uint64) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 

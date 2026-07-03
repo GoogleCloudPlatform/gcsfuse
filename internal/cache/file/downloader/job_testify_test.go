@@ -48,7 +48,7 @@ type JobTestifyTest struct {
 	defaultFileCacheConfig *cfg.FileCacheConfig
 	job                    *Job
 	object                 gcs.MinObject
-	cache                  *lru.Cache
+	cache                  lru.Cache
 	fileSpec               data.FileSpec
 	mockBucket             *storage.TestifyMockBucket
 }

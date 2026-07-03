@@ -38,14 +38,14 @@ func (td testData) Size() uint64 {
 	return td.DataSize
 }
 
-func setupCacheTest(t *testing.T) *lru.Cache {
+func setupCacheTest(t *testing.T) lru.Cache {
 	locker.EnableInvariantsCheck()
 	return lru.NewCache(MaxSize)
 }
 
 // insertAndAssert inserts the given key,value in the cache and assert based on
 // the expected eviction and error.
-func insertAndAssert(t *testing.T, cache *lru.Cache, key string, val lru.ValueType, evictedValues []int64, expectedError error) {
+func insertAndAssert(t *testing.T, cache lru.Cache, key string, val lru.ValueType, evictedValues []int64, expectedError error) {
 	ret, err := cache.Insert(key, val)
 
 	require.ErrorIs(t, err, expectedError)
