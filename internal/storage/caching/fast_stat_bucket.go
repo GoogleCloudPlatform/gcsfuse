@@ -136,9 +136,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// implicit directory.
 	dirHasContents := len(listing.MinObjects) > 0 || len(listing.CollapsedRuns) > 0
 	isDirInListing := len(listing.MinObjects) > 0 && listing.MinObjects[0].Name == dirName
-	isDirPath := strings.HasSuffix(dirName, "/")
-
-	if b.implicitDir && isDirPath && dirHasContents && !isDirInListing {
+	if b.implicitDir && dirHasContents && !isDirInListing {
 		b.cache.InsertImplicitDir(dirName, expiration)
 	}
 
@@ -155,8 +153,8 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// If enableEmptyManagedFolders is true, do not negatively cache empty directories,
 	// otherwise existing positive entries for valid empty managed folders get overwritten.
 	isNegativeCacheEnabled := b.negativeCacheTTL > 0 && !b.enableEmptyManagedFolders
-	isValidEmptyDir := isDirPath && !dirHasContents && dirName != ""
-	if isNegativeCacheEnabled && isValidEmptyDir {
+	isEmptyNonRootDir := !dirHasContents && dirName != ""
+	if isNegativeCacheEnabled && isEmptyNonRootDir {
 		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 

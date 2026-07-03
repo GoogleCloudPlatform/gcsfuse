@@ -895,6 +895,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 
 	// Insert
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(2)
+	ExpectCall(t.cache, "InsertImplicitDir")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).Times(1)
 
 	// Call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
@@ -1010,6 +1011,7 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 		WillOnce(Return(gcs.BucketType{Hierarchical: isHNS}))
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(listing, nil))
+	// Register expectations.
 	for _, obj := range expectedInserts {
 		ExpectCall(t.cache, "Insert")(Pointee(DeepEquals(*obj)), Any())
 	}
