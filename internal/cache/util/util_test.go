@@ -22,7 +22,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -220,10 +219,10 @@ func Test_getObjectPath(t *testing.T) {
 
 	results := [5]string{}
 	for i := range 5 {
-		results[i] = GetDownloadPath(inputs[i][0], inputs[i][1])
+		results[i] = GetObjectPath(inputs[i][0], inputs[i][1])
 	}
 
-	assert.True(t, reflect.DeepEqual(expectedOutPuts, results))
+	assert.Equal(t, expectedOutPuts, results)
 }
 
 func Test_getDownloadPath(t *testing.T) {
@@ -237,7 +236,7 @@ func Test_getDownloadPath(t *testing.T) {
 		results[i] = GetDownloadPath(cacheDir, inputs[i])
 	}
 
-	assert.True(t, reflect.DeepEqual(expectedOutputs, results))
+	assert.Equal(t, expectedOutputs, results)
 }
 
 func Test_IsCacheHandleValid_True(t *testing.T) {
@@ -626,7 +625,7 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 				if err != nil && err != io.EOF {
 					t.Errorf("error (%v) while reading contents at the time of assertion for: %v", err, tc.name)
 				}
-				assert.True(t, reflect.DeepEqual(string(content[:sizeToMatch]), string(buf)))
+				assert.Equal(t, content[:sizeToMatch], buf)
 			}
 		})
 	}
