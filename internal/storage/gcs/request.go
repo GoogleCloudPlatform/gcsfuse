@@ -55,15 +55,13 @@ type CreateObjectRequest struct {
 	StorageClass       string
 	Acl                []*storagev1.ObjectAccessControl
 
-	// ChunkRetryDeadlineSecs sets the total deadline for retrying a chunk upload
-	// during resumable uploads.
+	// ChunkRetryDeadlineSecs sets a retry deadline for multi-chunk uploads.
 	//
-	// For resumable uploads, if a chunk upload fails or stalls, retries will be
-	// attempted until this deadline is reached.
+	// If a chunk upload fails or stalls, retries will be attempted until this
+	// deadline is reached. For HTTP clients, this deadline is per chunk.
+	// For gRPC clients, this is per quantum, which is 2 MiB.
 	//
 	// The default value is 120 seconds.
-	//
-	// NOTE: This is not supported in gRPC (e.g. CreateAppendableObjectWriter).
 	ChunkRetryDeadlineSecs int64
 
 	// ChunkTransferTimeoutSecs sets a per-chunk request timeout for resumable uploads.
