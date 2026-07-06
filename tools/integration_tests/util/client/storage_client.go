@@ -29,7 +29,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -313,35 +312,6 @@ func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage
 		defer cancel()
 		return nil
 	}
-}
-
-// DownloadObjectFromGCS downloads an object to a local file.
-func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) error {
-	bucket, gcsFile := setup.GetBucketAndObjectBasedOnTypeOfMount(gcsFile)
-
-	ctx := context.Background()
-	var storageClient *storage.Client
-	closeStorageClient := CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			t.Errorf("closeStorageClient failed: %v", err)
-		}
-	}()
-	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
-	defer operations.CloseFileShouldNotThrowError(t, f)
-
-	rc, err := storageClient.Bucket(bucket).Object(gcsFile).NewReader(ctx)
-	if err != nil {
-		return fmt.Errorf("Object(%q).NewReader: %w", gcsFile, err)
-	}
-	defer rc.Close()
-
-	if _, err := io.Copy(f, rc); err != nil {
-		return fmt.Errorf("io.Copy: %w", err)
-	}
-
-	return nil
 }
 
 func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
