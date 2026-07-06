@@ -16,18 +16,24 @@ package gcsx
 
 import "io"
 
-// VectoredWriter implements io.Writer and writes data sequentially into a slice of byte slices.
+type bufferWithOffset struct {
+	buffer []byte
+	offset int
+}
+
+// VectoredWriter implements io.Writer and writes data sequentially into a slice of bufferWithOffset.
 type VectoredWriter struct {
-	buffers [][]byte
-	offset  int
+	buffers []bufferWithOffset
 	index   int
 }
 
 // NewVectoredWriter creates a new VectoredWriter that writes into the provided buffers.
 func NewVectoredWriter(buffers [][]byte) *VectoredWriter {
-	return &VectoredWriter{
-		buffers: buffers,
+	w := &VectoredWriter{buffers: make([]bufferWithOffset, len(buffers))}
+	for i, b := range buffers {
+		w.buffers[i].buffer = b
 	}
+	return w
 }
 
 func (w *VectoredWriter) Write(p []byte) (n int, err error) {
@@ -35,19 +41,15 @@ func (w *VectoredWriter) Write(p []byte) (n int, err error) {
 		if w.index >= len(w.buffers) {
 			return n, io.ErrShortWrite
 		}
-		buf := w.buffers[w.index]
-		avail := len(buf) - w.offset
+		sb := &w.buffers[w.index]
+		avail := len(sb.buffer) - sb.offset
 		if avail <= 0 {
 			w.index++
-			w.offset = 0
 			continue
 		}
-		toCopy := len(p) - n
-		if toCopy > avail {
-			toCopy = avail
-		}
-		copy(buf[w.offset:w.offset+toCopy], p[n:n+toCopy])
-		w.offset += toCopy
+		toCopy := min(len(p)-n, avail)
+		copy(sb.buffer[sb.offset:sb.offset+toCopy], p[n:n+toCopy])
+		sb.offset += toCopy
 		n += toCopy
 	}
 	return n, nil
@@ -57,36 +59,23 @@ func (w *VectoredWriter) Write(p []byte) (n int, err error) {
 // underlying buffers, avoiding intermediate allocations and double-copying.
 func (w *VectoredWriter) ReadFrom(r io.Reader) (n int64, err error) {
 	for w.index < len(w.buffers) {
-		buf := w.buffers[w.index]
-		avail := len(buf) - w.offset
-		if avail <= 0 {
+		sb := &w.buffers[w.index]
+		if sb.offset >= len(sb.buffer) {
 			w.index++
-			w.offset = 0
 			continue
 		}
 
 		var readNum int
-		readNum, err = r.Read(buf[w.offset:])
-		w.offset += readNum
+		readNum, err = r.Read(sb.buffer[sb.offset:])
+		sb.offset += readNum
 		n += int64(readNum)
 
 		if err != nil {
 			if err == io.EOF {
-				return n, nil
+				err = nil
 			}
-			return n, err
+			break
 		}
 	}
-	return n, nil
-}
-
-// GetVectoredBuffers returns the buffers to be used for the read operation and the actual size to read.
-// The returned size will not exceed the total capacity of the buffers, or the provided limit (if limit > 0).
-func GetVectoredBuffers(req *ReadRequest, limit int64) ([][]byte, int64) {
-	sizeToRead := req.GetReadSize(limit)
-
-	if len(req.Buffers) > 0 {
-		return req.Buffers, sizeToRead
-	}
-	return [][]byte{req.Buffer[:sizeToRead]}, sizeToRead
+	return n, err
 }

@@ -66,15 +66,6 @@ func (t *MrdInstanceTest) SetupTest() {
 	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
 }
 
-func (t *MrdInstanceTest) read(ctx context.Context, p []byte, offset int64) (int, error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
-	buf := bytes.NewBuffer(p)
-	buf.Reset()
-	return t.mrdInstance.Read(ctx, buf, offset, int64(len(p)), metrics.NewNoopMetrics())
-}
-
 func (t *MrdInstanceTest) TestNewMrdInstance() {
 	assert.Equal(t.T(), t.object, t.mrdInstance.object)
 	assert.Equal(t.T(), t.bucket, t.mrdInstance.bucket)
@@ -91,7 +82,7 @@ func (t *MrdInstanceTest) TestRead_Success() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, 5)
 
-	n, err := t.read(context.Background(), buf, 0)
+	n, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, n)
@@ -104,7 +95,7 @@ func (t *MrdInstanceTest) TestRead_InitializesPool() {
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
 	buf := make([]byte, 1)
 
-	_, err := t.read(context.Background(), buf, 0)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
@@ -116,7 +107,7 @@ func (t *MrdInstanceTest) TestRead_RecreatesInvalidEntry() {
 	// Initial creation
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	buf := make([]byte, 1)
-	_, err := t.read(context.Background(), buf, 0)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 	assert.NoError(t.T(), err)
 
 	// Manually invalidate the entry to simulate a failure
@@ -130,7 +121,7 @@ func (t *MrdInstanceTest) TestRead_RecreatesInvalidEntry() {
 	// Expect recreation
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 
-	_, err = t.read(context.Background(), buf, 0)
+	_, err = t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 
 	assert.NoError(t.T(), err)
 	entry.mu.RLock()
@@ -143,7 +134,7 @@ func (t *MrdInstanceTest) TestRead_EnsureFails() {
 	assert.Nil(t.T(), t.mrdInstance.mrdPool)
 	buf := make([]byte, 1)
 
-	n, err := t.read(context.Background(), buf, 0)
+	n, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "init error")
@@ -155,7 +146,7 @@ func (t *MrdInstanceTest) TestRead_RecreationFails() {
 	// Initial creation.
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	buf := make([]byte, 1)
-	_, err := t.read(context.Background(), buf, 0)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 	assert.NoError(t.T(), err)
 
 	// Manually invalidate the entry to simulate a failure.
@@ -169,7 +160,7 @@ func (t *MrdInstanceTest) TestRead_RecreationFails() {
 	// Expect recreation failure.
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("recreate error")).Once()
 
-	n, err := t.read(context.Background(), buf, 0)
+	n, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "recreate error")
@@ -177,7 +168,7 @@ func (t *MrdInstanceTest) TestRead_RecreationFails() {
 }
 
 func (t *MrdInstanceTest) TestRead_EmptyBuffer() {
-	n, err := t.read(context.Background(), []byte{}, 0)
+	n, err := t.mrdInstance.Read(context.Background(), []byte{}, 0, metrics.NewNoopMetrics())
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 0, n)
@@ -191,7 +182,7 @@ func (t *MrdInstanceTest) TestRead_ContextCancelled() {
 	buf := make([]byte, 5)
 
 	cancel()
-	n, err := t.read(ctx, buf, 0)
+	n, err := t.mrdInstance.Read(ctx, buf, 0, metrics.NewNoopMetrics())
 
 	assert.Error(t.T(), err)
 	assert.Equal(t.T(), context.Canceled, err)
@@ -203,7 +194,7 @@ func (t *MrdInstanceTest) TestRead_AddError() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, 5)
 
-	n, err := t.read(context.Background(), buf, 0)
+	n, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "read error")
@@ -257,7 +248,7 @@ func (t *MrdInstanceTest) TestRecreateMRD() {
 	// Initial creation
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	buf := make([]byte, 1)
-	_, err := t.read(context.Background(), buf, 0)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 	assert.NoError(t.T(), err)
 	pool1 := t.mrdInstance.mrdPool
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
@@ -274,7 +265,7 @@ func (t *MrdInstanceTest) TestDestroy() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, 1)
-	_, err := t.read(context.Background(), buf, 0)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdInstance.mrdPool)
 
@@ -288,7 +279,7 @@ func (t *MrdInstanceTest) TestIncrementRefCount() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, 1)
-	_, err := t.read(context.Background(), buf, 0)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 	assert.NoError(t.T(), err)
 	// Manually insert into cache to simulate it being inactive
 	key := strconv.FormatUint(uint64(t.inodeID), 10)
@@ -306,7 +297,7 @@ func (t *MrdInstanceTest) TestDecrementRefCount() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, 1)
-	_, err := t.read(context.Background(), buf, 0)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 	assert.NoError(t.T(), err)
 	t.mrdInstance.refCount = 1
 
@@ -327,7 +318,7 @@ func (t *MrdInstanceTest) TestDecrementRefCount_Eviction() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, 1)
-	_, err = t.read(context.Background(), buf, 0)
+	_, err = t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 	assert.NoError(t.T(), err)
 	t.mrdInstance.refCount = 1
 
@@ -398,7 +389,7 @@ func (t *MrdInstanceTest) TestSize() {
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, 1)
-	_, err := t.read(context.Background(), buf, 0)
+	_, err := t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 	assert.NoError(t.T(), err)
 
 	poolSize := t.mrdInstance.Size()
@@ -934,7 +925,7 @@ func (t *MrdInstanceTest) Test_Cache_EvictionRaceWithRepool() {
 	).Once()
 
 	// Act: Access evicted instance (should recreate MRD Pool). Read should recreate it
-	_, err = t.read(context.Background(), buf, 0)
+	_, err = t.mrdInstance.Read(context.Background(), buf, 0, metrics.NewNoopMetrics())
 
 	// Assert: MRD Pool recreated successfully after eviction
 	assert.NoError(t.T(), err)

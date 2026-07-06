@@ -17,10 +17,12 @@ package kernel_readers
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"testing"
 
 	storagev2 "cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -144,6 +146,24 @@ func (t *KernelRangeReaderTest) TestReadAt_NilObject() {
 
 	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt Nil MinObject")
 	assert.Equal(t.T(), 0, resp.Size)
+}
+
+func (t *KernelRangeReaderTest) TestReadAt_ClobberedError() {
+	req := &gcsx.ReadRequest{
+		Buffer: make([]byte, 5),
+		Offset: 0,
+	}
+	gcsErr := &gcs.NotFoundError{Err: errors.New("not found")}
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, gcsErr).Once()
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	assert.ErrorAs(t.T(), err, &clobberedErr)
+	assert.Equal(t.T(), "foo", clobberedErr.ObjectName)
+	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt Failed to create range reader")
+	assert.Equal(t.T(), 0, resp.Size)
+	t.bucket.AssertExpectations(t.T())
 }
 
 func (t *KernelRangeReaderTest) TestReadAt_MultipleBuffers_Success() {

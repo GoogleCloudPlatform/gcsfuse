@@ -108,124 +108,6 @@ func TestVectoredWriter_Write(t *testing.T) {
 	}
 }
 
-func TestGetVectoredBuffers(t *testing.T) {
-	tests := []struct {
-		name         string
-		req          *ReadRequest
-		limit        int64
-		expectedBufs [][]byte
-		expectedSize int64
-	}{
-		{
-			name: "Single buffer, no limit, size matches capacity",
-			req: &ReadRequest{
-				Buffer: make([]byte, 10),
-				Size:   10,
-			},
-			limit:        0,
-			expectedBufs: [][]byte{make([]byte, 10)},
-			expectedSize: 10,
-		},
-		{
-			name: "Single buffer, size less than capacity",
-			req: &ReadRequest{
-				Buffer: make([]byte, 10),
-				Size:   5,
-			},
-			limit:        0,
-			expectedBufs: [][]byte{make([]byte, 5)},
-			expectedSize: 5,
-		},
-		{
-			name: "Single buffer, size 0 (defaults to capacity)",
-			req: &ReadRequest{
-				Buffer: make([]byte, 10),
-				Size:   0,
-			},
-			limit:        0,
-			expectedBufs: [][]byte{make([]byte, 10)},
-			expectedSize: 10,
-		},
-		{
-			name: "Single buffer, size exceeds capacity (capped to capacity)",
-			req: &ReadRequest{
-				Buffer: make([]byte, 10),
-				Size:   15,
-			},
-			limit:        0,
-			expectedBufs: [][]byte{make([]byte, 10)},
-			expectedSize: 10,
-		},
-		{
-			name: "Single buffer, limit applies",
-			req: &ReadRequest{
-				Buffer: make([]byte, 10),
-				Size:   8,
-			},
-			limit:        5,
-			expectedBufs: [][]byte{make([]byte, 5)},
-			expectedSize: 5,
-		},
-		{
-			name: "Multi buffer, no limit, size matches capacity",
-			req: &ReadRequest{
-				Buffers: [][]byte{
-					make([]byte, 3),
-					make([]byte, 4),
-				},
-				Size: 7,
-			},
-			limit: 0,
-			expectedBufs: [][]byte{
-				make([]byte, 3),
-				make([]byte, 4),
-			},
-			expectedSize: 7,
-		},
-		{
-			name: "Multi buffer, size less than capacity (returns all buffers, caller limits write)",
-			req: &ReadRequest{
-				Buffers: [][]byte{
-					make([]byte, 3),
-					make([]byte, 4),
-				},
-				Size: 5,
-			},
-			limit: 0,
-			expectedBufs: [][]byte{
-				make([]byte, 3),
-				make([]byte, 4),
-			},
-			expectedSize: 5,
-		},
-		{
-			name: "Multi buffer, limit applies",
-			req: &ReadRequest{
-				Buffers: [][]byte{
-					make([]byte, 3),
-					make([]byte, 4),
-				},
-				Size: 7,
-			},
-			limit: 5,
-			expectedBufs: [][]byte{
-				make([]byte, 3),
-				make([]byte, 4),
-			},
-			expectedSize: 5,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			bufs, size := GetVectoredBuffers(tc.req, tc.limit)
-
-			assert.Equal(t, tc.expectedSize, size)
-			assert.Equal(t, tc.expectedBufs, bufs)
-		})
-	}
-}
-
 type errorReader struct {
 	err error
 }
@@ -328,5 +210,19 @@ func TestVectoredWriter_ReadFrom(t *testing.T) {
 			assert.Equal(t, tc.expectedErr, err)
 			assert.Equal(t, tc.expectedBufs, tc.buffers)
 		})
+	}
+}
+
+var globalWriter *VectoredWriter
+
+func BenchmarkNewVectoredWriter(b *testing.B) {
+	buffers := [][]byte{
+		make([]byte, 100),
+		make([]byte, 100),
+		make([]byte, 100),
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		globalWriter = NewVectoredWriter(buffers)
 	}
 }

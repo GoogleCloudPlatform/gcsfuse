@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -150,9 +151,10 @@ func (mi *MrdInstance) getMRDEntry() (*MRDEntry, error) {
 	return entry, nil
 }
 
-// Read downloads data from the GCS object into the provided io.Writer starting at the offset.
-func (mi *MrdInstance) Read(ctx context.Context, w io.Writer, offset int64, length int64, metrics metrics.MetricHandle) (int, error) {
-	if length == 0 {
+// Read downloads data from the GCS object into the provided buffer starting at the offset.
+// It handles the details of selecting a valid MRD entry, locking it, and waiting for the async download to complete.
+func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics metrics.MetricHandle) (int, error) {
+	if len(p) == 0 {
 		return 0, nil
 	}
 
@@ -161,6 +163,11 @@ func (mi *MrdInstance) Read(ctx context.Context, w io.Writer, offset int64, leng
 		return 0, err
 	}
 
+	// Prepare the buffer for the read operation.
+	// bytes.NewBuffer creates a buffer using p as the initial content.
+	// Reset() sets the length to 0 but keeps the capacity, allowing writes to fill p.
+	buffer := bytes.NewBuffer(p)
+	buffer.Reset()
 	done := make(chan readResult, 1)
 
 	// Take Read lock before using MRD for reading.
@@ -172,7 +179,7 @@ func (mi *MrdInstance) Read(ctx context.Context, w io.Writer, offset int64, leng
 
 	start := time.Now()
 	defer monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
-	entry.mrd.Add(w, offset, length, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
+	entry.mrd.Add(buffer, offset, int64(len(p)), func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
 	})
 	entry.mu.RUnlock()

@@ -16,9 +16,11 @@ package kernel_readers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -67,6 +69,11 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 		return resp, fmt.Errorf("KernelRangeReader::ReadAt: illegal offset %d for %d byte object", req.Offset, obj.Size)
 	}
 
+	// If the destination buffer is empty, there's nothing to read.
+	if len(req.Buffer) == 0 && len(req.Buffers) == 0 {
+		return resp, nil
+	}
+
 	limit := int64(obj.Size) - req.Offset
 	bytesToRead := req.GetReadSize(limit)
 	endOffset := req.Offset + bytesToRead
@@ -82,6 +89,18 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 			},
 			ReadCompressed: obj.HasContentEncodingGzip(),
 		})
+
+	// If a file handle is open locally, but the corresponding object doesn't exist
+	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
+	//  - The file was deleted in GCS while a local handle was still open.
+	//  - The file content was modified leading to different generation number.
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		return resp, &gcsfuse_errors.FileClobberedError{
+			Err:        fmt.Errorf("KernelRangeReader::ReadAt Failed to create range reader: %w", err),
+			ObjectName: obj.Name,
+		}
+	}
 	if err != nil {
 		return resp, fmt.Errorf("KernelRangeReader::ReadAt Failed to create range reader: %w", err)
 	}
@@ -99,6 +118,11 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 		var written int64
 		written, err = io.CopyN(writer, reader, bytesToRead)
 		n = int(written)
+		// Align error behavior with io.ReadFull: if EOF is encountered after
+		// reading some but not all of the requested bytes, return ErrUnexpectedEOF.
+		if err == io.EOF && written > 0 {
+			err = io.ErrUnexpectedEOF
+		}
 	}
 	resp.Size = n
 
