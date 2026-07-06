@@ -152,7 +152,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "mounting"
   "negative_stat_cache"
   "operations"
-  "rapid_appends"
+  "rapid_operations"
   "read_cache"
   "read_large_files"
   "rename_dir_limit"

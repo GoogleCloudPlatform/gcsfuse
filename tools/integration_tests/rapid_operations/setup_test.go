@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rapid_appends
+package rapid_operations
 
 import (
 	"context"
@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	testDirName           = "RapidAppendsTest"
-	fileNamePrefix        = "rapid-append-file-"
+	testDirName           = "RapidOperationsTest"
+	fileNamePrefix        = "rapid-operations-file-"
 	contentSizeForBW      = 3
 	blockSize             = operations.OneMiB
 	numAppends            = 2
@@ -57,12 +57,12 @@ func TestMain(m *testing.M) {
 
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
-	if len(cfg.RapidAppends) == 0 {
+	if len(cfg.RapidOperations) == 0 {
 		log.Fatal("No configuration found for RapidAppends in config file.")
 	}
 
 	testEnv.ctx = context.Background()
-	testEnv.cfg = &cfg.RapidAppends[0]
+	testEnv.cfg = &cfg.RapidOperations[0]
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 	if !setup.IsZonalBucketRun() && !setup.IsPirloBucketRun() {
 		log.Fatalf("This test package is only compatible for zonal and pirlo bucket runs")
@@ -98,7 +98,7 @@ func TestMain(m *testing.M) {
 	}
 	testEnv.cfg.GCSFuseMountedDirectorySecondary = secondaryDir
 
-	log.Println("Running static mounting tests for rapid appends...")
+	log.Println("Running static mounting tests for rapid_operations...")
 	successCode := m.Run()
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
