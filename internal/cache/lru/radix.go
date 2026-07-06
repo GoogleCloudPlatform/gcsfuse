@@ -56,6 +56,10 @@ func (n *radixNode) getChild(b byte) *radixNode {
 		if curr.prefix[0] == b {
 			return curr
 		}
+		//as the siblings are arranged in lexicographical order we can exit early
+		if curr.prefix[0] > b {
+			break
+		}
 	}
 	return nil
 }
@@ -76,13 +80,17 @@ func (n *radixNode) removeChild(childToRemove *radixNode) {
 	for pcurr := &n.child; *pcurr != nil; pcurr = &(*pcurr).sibling {
 		if *pcurr == childToRemove {
 			*pcurr = childToRemove.sibling
-			break
+			return
 		}
 	}
 }
 
 // insertNode inserts a new key into the radix tree and returns the leaf node.
 func (t *radixTree) insertNode(key string, value ValueType) (*radixNode, bool) {
+	if value == nil {
+		return nil, false
+	}
+
 	node := t.root
 	search := key
 
@@ -98,6 +106,7 @@ func (t *radixTree) insertNode(key string, value ValueType) (*radixNode, bool) {
 
 		child := node.getChild(search[0])
 		if child == nil {
+			// clone the substring to prevent memory leaks otherwise, the slice pins the entire original string in memory
 			newLeaf := &radixNode{
 				prefix: strings.Clone(search),
 				value:  value,
