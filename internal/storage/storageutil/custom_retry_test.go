@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -180,6 +181,21 @@ func TestShouldRetryWithoutLogging(t *testing.T) {
 			},
 			expectedResult: false,
 		},
+		{
+			name: "403 error - non-retryable for regular ops",
+			err: &googleapi.Error{
+				Code: 403,
+			},
+			expectedResult: false,
+		},
+		{
+			name: "404 bucket missing error - non-retryable for regular ops",
+			err: &googleapi.Error{
+				Code:    404,
+				Message: "The specified bucket does not exist.",
+			},
+			expectedResult: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -233,7 +249,22 @@ func TestDetermineRetryAction(t *testing.T) {
 		{
 			name:     "PermissionDeniedGrpcError",
 			err:      status.Error(codes.PermissionDenied, "permission denied"),
-			expected: noRetry,
+			expected: retryPermissionDenied,
+		},
+		{
+			name:     "GoogleApiError403",
+			err:      &googleapi.Error{Code: 403},
+			expected: retry403,
+		},
+		{
+			name:     "GoogleApiError404BucketNotExist",
+			err:      &googleapi.Error{Code: 404, Message: "The specified bucket does not exist."},
+			expected: retry404BucketDoesNotExist,
+		},
+		{
+			name:     "GrpcNotFoundBucketNotExist",
+			err:      status.Error(codes.NotFound, "The specified bucket does not exist."),
+			expected: retryNotFoundBucketDoesNotExist,
 		},
 		{
 			name:     "UnexpectedEOF",
@@ -420,6 +451,93 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 			assert.True(t, fakeMetrics.gcsRetryCountCalled)
 			assert.Equal(t, int64(1), fakeMetrics.gcsRetryCountInc)
 			assert.Equal(t, tc.expectedMetricCategory, fakeMetrics.gcsRetryErrorCategory)
+		})
+	}
+}
+
+func TestShouldRetryOnMount(t *testing.T) {
+	testCases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "standard transient error 502",
+			err:      &googleapi.Error{Code: 502},
+			expected: true,
+		},
+		{
+			name:     "standard transient error 401",
+			err:      &googleapi.Error{Code: 401},
+			expected: true,
+		},
+		{
+			name:     "HTTP 403 Forbidden",
+			err:      &googleapi.Error{Code: 403, Message: "Permission denied on resource"},
+			expected: true,
+		},
+		{
+			name:     "HTTP 404 missing bucket",
+			err:      &googleapi.Error{Code: 404, Message: "The specified bucket does not exist."},
+			expected: true,
+		},
+		{
+			name:     "HTTP 404 missing bucket mixed case",
+			err:      &googleapi.Error{Code: 404, Message: "The Specified Bucket Does Not Exist."},
+			expected: true,
+		},
+		{
+			name:     "HTTP 404 missing object",
+			err:      &googleapi.Error{Code: 404, Message: "No such object: my-bucket/test-object"},
+			expected: false,
+		},
+		{
+			name:     "gRPC PermissionDenied",
+			err:      status.Error(codes.PermissionDenied, "caller does not have required permission"),
+			expected: true,
+		},
+		{
+			name:     "gRPC NotFound missing bucket",
+			err:      status.Error(codes.NotFound, "The specified bucket does not exist."),
+			expected: true,
+		},
+		{
+			name:     "gRPC NotFound missing bucket mixed case",
+			err:      status.Error(codes.NotFound, "The Specified Bucket Does Not Exist."),
+			expected: true,
+		},
+		{
+			name:     "gRPC NotFound missing object",
+			err:      status.Error(codes.NotFound, "No such object: my-bucket/test-object"),
+			expected: false,
+		},
+		{
+			name:     "permanent error HTTP 400",
+			err:      &googleapi.Error{Code: 400, Message: "Bad Request"},
+			expected: false,
+		},
+		{
+			name:     "permanent error gRPC InvalidArgument",
+			err:      status.Error(codes.InvalidArgument, "invalid bucket name"),
+			expected: false,
+		},
+		{
+			name:     "wrapped gRPC PermissionDenied",
+			err:      fmt.Errorf("mount failed: %w", status.Error(codes.PermissionDenied, "caller does not have required permission")),
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ShouldRetryOnMount(tc.err)
+
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }

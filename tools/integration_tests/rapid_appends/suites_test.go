@@ -182,14 +182,6 @@ func (t *BaseSuite) appendToFile(file *os.File, appendContent string) {
 	}
 }
 
-func getNewEmptyCacheDir(rootDir string) string {
-	cacheDirPath, err := os.MkdirTemp(rootDir, "cache_dir_*")
-	if err != nil {
-		log.Fatalf("Failed to create temporary directory for cache dir for tests: %v", err)
-	}
-	return cacheDirPath
-}
-
 func (t *BaseSuite) isMetadataCacheEnabled() bool {
 	return t.metadataCacheEnabled
 }

@@ -38,9 +38,8 @@ const MaxReadableByteFromFile = 500 * operations.MiB
 const DirForReadLargeFilesTests = "dirForReadLargeFilesTests"
 
 var (
-	storageClient     *storage.Client
-	ctx               context.Context
-	FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
+	storageClient *storage.Client
+	ctx           context.Context
 )
 
 func TestMain(m *testing.M) {
@@ -49,25 +48,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ReadLargeFiles) == 0 {
-		log.Println("No configuration found for read large files tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.ReadLargeFiles = make([]test_suite.TestConfig, 1)
-		cfg.ReadLargeFiles[0].TestBucket = setup.TestBucket()
-		cfg.ReadLargeFiles[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ReadLargeFiles[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.ReadLargeFiles[0].Configs[0].Flags = []string{
-			"--implicit-dirs",
-			"--implicit-dirs --client-protocol=grpc",
-			"--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/read_large_files",
-			"--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --client-protocol=grpc --cache-dir=/gcsfuse-tmp/read_large_files",
-			"--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --cache-dir=/gcsfuse-tmp/read_large_files",
-			"--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --client-protocol=grpc --cache-dir=/gcsfuse-tmp/read_large_files",
-		}
-		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ReadLargeFiles[0].Configs[1].Flags = []string{
-			"--implicit-dirs --enable-kernel-reader=false",
-		}
-		cfg.ReadLargeFiles[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
+		log.Fatal("No configuration found for ReadLargeFiles in config file.")
 	}
 
 	ctx = context.Background()
