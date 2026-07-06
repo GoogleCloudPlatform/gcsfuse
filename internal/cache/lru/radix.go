@@ -63,42 +63,21 @@ func (n *radixNode) getChild(b byte) *radixNode {
 // addChild adds a child node, maintaining sorted order by the first byte of the prefix.
 func (n *radixNode) addChild(newChild *radixNode) {
 	newChild.parent = n
-	newChild.sibling = nil
-
-	if n.child == nil {
-		n.child = newChild
-		return
+	pcurr := &n.child
+	for *pcurr != nil && (*pcurr).prefix[0] < newChild.prefix[0] {
+		pcurr = &(*pcurr).sibling
 	}
-
-	if newChild.prefix[0] < n.child.prefix[0] {
-		newChild.sibling = n.child
-		n.child = newChild
-		return
-	}
-
-	curr := n.child
-	for curr.sibling != nil && curr.sibling.prefix[0] < newChild.prefix[0] {
-		curr = curr.sibling
-	}
-
-	newChild.sibling = curr.sibling
-	curr.sibling = newChild
+	newChild.sibling = *pcurr
+	*pcurr = newChild
 }
 
 // removeChild directly removes a child node by reference from the sibling list.
 func (n *radixNode) removeChild(childToRemove *radixNode) {
-	if n.child == childToRemove {
-		n.child = childToRemove.sibling
-		return
-	}
-
-	curr := n.child
-	for curr != nil && curr.sibling != childToRemove {
-		curr = curr.sibling
-	}
-
-	if curr != nil {
-		curr.sibling = childToRemove.sibling
+	for pcurr := &n.child; *pcurr != nil; pcurr = &(*pcurr).sibling {
+		if *pcurr == childToRemove {
+			*pcurr = childToRemove.sibling
+			break
+		}
 	}
 }
 
@@ -141,17 +120,11 @@ func (t *radixTree) insertNode(key string, value ValueType) (*radixNode, bool) {
 			parent: node,
 		}
 
-		if node.child == child {
-			splitNode.sibling = child.sibling
-			node.child = splitNode
-		} else {
-			curr := node.child
-			for curr != nil && curr.sibling != child {
-				curr = curr.sibling
-			}
-			if curr != nil {
+		for pcurr := &node.child; *pcurr != nil; pcurr = &(*pcurr).sibling {
+			if *pcurr == child {
 				splitNode.sibling = child.sibling
-				curr.sibling = splitNode
+				*pcurr = splitNode
+				break
 			}
 		}
 
@@ -233,17 +206,11 @@ func (t *radixTree) compressPathUpwards(curr *radixNode) {
 			onlyChild.prefix = curr.prefix + onlyChild.prefix
 			onlyChild.parent = curr.parent
 
-			if curr.parent.child == curr {
-				onlyChild.sibling = curr.sibling
-				curr.parent.child = onlyChild
-			} else {
-				prev := curr.parent.child
-				for prev != nil && prev.sibling != curr {
-					prev = prev.sibling
-				}
-				if prev != nil {
+			for pcurr := &curr.parent.child; *pcurr != nil; pcurr = &(*pcurr).sibling {
+				if *pcurr == curr {
 					onlyChild.sibling = curr.sibling
-					prev.sibling = onlyChild
+					*pcurr = onlyChild
+					break
 				}
 			}
 			curr = curr.parent
