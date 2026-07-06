@@ -80,7 +80,6 @@ func (w *VectoredWriter) ReadFrom(r io.Reader) (n int64, err error) {
 	return n, nil
 }
 
-
 // GetVectoredBuffers returns the buffers to be used for the read operation and the actual size to read.
 // The returned size will not exceed the total capacity of the buffers, or the provided limit (if limit > 0).
 func GetVectoredBuffers(req *ReadRequest, limit int64) ([][]byte, int64) {
@@ -91,5 +90,3 @@ func GetVectoredBuffers(req *ReadRequest, limit int64) ([][]byte, int64) {
 	}
 	return [][]byte{req.Buffer[:sizeToRead]}, sizeToRead
 }
-
-

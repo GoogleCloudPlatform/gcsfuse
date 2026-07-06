@@ -168,4 +168,3 @@ func (t *KernelRangeReaderTest) TestReadAt_MultipleBuffers_Success() {
 	assert.Equal(t.T(), "fghi", string(req.Buffers[2]))
 	t.bucket.AssertExpectations(t.T())
 }
-
