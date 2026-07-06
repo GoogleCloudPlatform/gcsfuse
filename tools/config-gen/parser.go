@@ -95,7 +95,7 @@ func checkFlagName(name string) error {
 
 func validateParam(param Param) error {
 	if param.Sensitive == nil {
-		return fmt.Errorf("sensitive is empty/unset for flag-name: %s (must be explicitly set to true or false)", param.FlagName)
+		return fmt.Errorf("sensitive is empty/unset for flag-name: %s; must be explicitly set to true or false", param.FlagName)
 	}
 	if err := checkFlagName(param.FlagName); err != nil {
 		return err
