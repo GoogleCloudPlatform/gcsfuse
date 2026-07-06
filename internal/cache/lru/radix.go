@@ -58,7 +58,7 @@ func (n *radixNode) getChild(b byte) *radixNode {
 		}
 		//as the siblings are arranged in lexicographical order we can exit early
 		if curr.prefix[0] > b {
-			break
+			return nil
 		}
 	}
 	return nil

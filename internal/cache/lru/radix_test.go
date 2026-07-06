@@ -25,66 +25,106 @@ type mockValue struct{ size uint64 }
 
 func (m mockValue) Size() uint64 { return m.size }
 
-func TestRadixTree_InsertAndGet(t *testing.T) {
+func TestRadixTree_Insert(t *testing.T) {
+	// Arrange
 	tree := newRadixTree()
 	val1 := mockValue{10}
-	val2 := mockValue{20}
 
-	// Test Insert
+	// Act
 	node1, isNew := tree.insertNode("foo/bar", val1)
+
+	// Assert
 	assert.True(t, isNew)
 	assert.NotNil(t, node1)
 	assert.Equal(t, 1, tree.size)
+}
 
-	// Test Get
+func TestRadixTree_InsertNil(t *testing.T) {
+	// Arrange
+	tree := newRadixTree()
+
+	// Act
+	node, isNew := tree.insertNode("foo/bar", nil)
+
+	// Assert
+	assert.False(t, isNew)
+	assert.Nil(t, node)
+	assert.Equal(t, 0, tree.size)
+}
+
+func TestRadixTree_Get(t *testing.T) {
+	// Arrange
+	tree := newRadixTree()
+	val1 := mockValue{10}
+	tree.insertNode("foo/bar", val1)
+
+	// Act
 	gotNode, ok := tree.getNode("foo/bar")
+
+	// Assert
 	assert.True(t, ok)
 	assert.Equal(t, val1, gotNode.value)
+}
 
-	// Test Overwrite (should not increase size)
+func TestRadixTree_Overwrite(t *testing.T) {
+	// Arrange
+	tree := newRadixTree()
+	tree.insertNode("foo/bar", mockValue{10})
+	val2 := mockValue{20}
+
+	// Act
 	node2, isNew2 := tree.insertNode("foo/bar", val2)
+
+	// Assert
 	assert.False(t, isNew2)
 	assert.Equal(t, val2, node2.value)
 	assert.Equal(t, 1, tree.size)
+}
 
-	// Test non-existent get
-	_, ok = tree.getNode("foo/baz")
+func TestRadixTree_GetNonExistent(t *testing.T) {
+	// Arrange
+	tree := newRadixTree()
+	tree.insertNode("foo/bar", mockValue{10})
+
+	// Act
+	_, ok := tree.getNode("foo/baz")
+
+	// Assert
 	assert.False(t, ok)
 }
 
 func TestRadixTree_PrefixSplitting(t *testing.T) {
+	// Arrange
 	tree := newRadixTree()
-
 	tree.insertNode("foo/bar", mockValue{1})
+
+	// Act
 	tree.insertNode("foo/baz", mockValue{2}) // Splits "foo/ba" -> "r", "z"
-
-	assert.Equal(t, 2, tree.size)
-
 	n1, _ := tree.getNode("foo/bar")
 	n2, _ := tree.getNode("foo/baz")
 
-	// Both should share the same parent routing node "foo/ba"
+	// Assert
+	assert.Equal(t, 2, tree.size)
 	assert.Equal(t, n1.parent, n2.parent)
 	assert.Equal(t, "foo/ba", n1.parent.prefix)
 	assert.Nil(t, n1.parent.value) // Parent is just a routing node
 }
 
 func TestRadixTree_DeleteAndCompress(t *testing.T) {
+	// Arrange
 	tree := newRadixTree()
-
 	tree.insertNode("foo/bar", mockValue{1})
 	tree.insertNode("foo/baz", mockValue{2})
-
 	n1, _ := tree.getNode("foo/bar")
+
+	// Act
 	tree.deleteNode(n1)
-
-	assert.Equal(t, 1, tree.size)
 	_, ok := tree.getNode("foo/bar")
-	assert.False(t, ok)
-
-	// After deleting "foo/bar", the routing node "foo/ba" should compress back
-	// into the surviving leaf "foo/baz", turning it back into "foo/baz".
 	n2, _ := tree.getNode("foo/baz")
+
+	// Assert
+	assert.Equal(t, 1, tree.size)
+	assert.False(t, ok)
 	assert.Equal(t, "foo/baz", n2.prefix)
 	assert.Equal(t, tree.root, n2.parent) // Path compressed all the way up to the root!
 }
