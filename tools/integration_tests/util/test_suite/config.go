@@ -62,6 +62,7 @@ type ConfigItem struct {
 	Run            string           `yaml:"run,omitempty"`
 	RunOnGKE       bool             `yaml:"run_on_gke"`
 	RunOnPirlo     RunOnPirloConfig `yaml:"run_on_pirlo"`
+	TPC            bool             `yaml:"tpc,omitempty"`
 }
 
 // UnmarshalYAML validates flags during YAML unmarshaling without needing reflection.

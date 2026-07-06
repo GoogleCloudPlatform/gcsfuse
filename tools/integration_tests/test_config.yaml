@@ -134,6 +134,17 @@ operations:
             same_zone: true
             different_zone: false
         run_on_gke: true
+      - flags:
+          - "--enable-atomic-rename-object=true,--client-protocol=http1"
+          - "--experimental-enable-json-read=true,--client-protocol=http1"
+          - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false,--client-protocol=http1"
+          - "--kernel-list-cache-ttl-secs=-1,--implicit-dirs=true,--client-protocol=http1"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        tpc: true
+        run_on_gke: false
 
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
