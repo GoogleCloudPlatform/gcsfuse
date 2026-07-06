@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -154,6 +155,19 @@ type ServerConfig struct {
 	Notifier *fuse.Notifier
 }
 
+// Would be called only when kernel reader was not explicitly enabled by user.
+func shouldEnableKernelReaderForNonRapidBuckets(serverCfg *ServerConfig, bucketType gcs.BucketType) bool {
+	if bucketType.IsRapid() {
+		return false
+	}
+
+	// Do not enable if file cache or buffered read are enabled explicitly by user
+	// or if kernel does not support increasing max pages limit beyond 1MiB.
+	isFileCacheSet := serverCfg.ViperConfig.IsSet("cache-dir")
+	isBufferedReadSet := serverCfg.ViperConfig.IsSet("read.enable-buffered-read")
+	return /*serverCfg.NewConfig.Profile == "aiml-serving" &&*/ !isFileCacheSet && !isBufferedReadSet && kernelparams.SupportsFuseMaxPagesLimit()
+}
+
 // Create a fuse file system server according to the supplied configuration.
 func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
@@ -225,6 +239,11 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
+		bufferPool: sync.Pool{
+			New: func() interface{} {
+				return make([]byte, 1024*1024)
+			},
+		},
 	}
 
 	// Initialize MRD cache if enabled
@@ -276,6 +295,58 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 				optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 				if err := cfg.Rationalize(serverCfg.ViperConfig, serverCfg.NewConfig, optimizedFlagNames); err != nil {
 					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
+				}
+			}
+
+			// Manual handling for enable-kernel-reader as requested by user.
+			if !serverCfg.NewConfig.DisableAutoconfig &&
+				!serverCfg.ViperConfig.IsSet("file-system.enable-kernel-reader") &&
+				shouldEnableKernelReaderForNonRapidBuckets(serverCfg, bucketType) {
+				if _, optimized := optimizedFlags["file-system.enable-kernel-reader"]; !optimized {
+					serverCfg.NewConfig.FileSystem.EnableKernelReader = true
+					if optimizedFlags == nil {
+						optimizedFlags = make(map[string]cfg.OptimizationResult)
+					}
+					optimizedFlags["file-system.enable-kernel-reader"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: true,
+					}
+					logger.Info("GCSFuse Config: Automatically enabled enable-kernel-reader for aiml-serving profile on flat/hns bucket.")
+				}
+			}
+
+			// Apply kernel reader specific optimizations for non-rapid buckets if kernel reader is enabled and they are not overridden.
+			if !serverCfg.NewConfig.DisableAutoconfig && !bucketType.IsRapid() && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+				if optimizedFlags == nil {
+					optimizedFlags = make(map[string]cfg.OptimizationResult)
+				}
+				if !serverCfg.ViperConfig.IsSet("file-system.max-read-ahead-kb") && !optimizedFlags["file-system.max-read-ahead-kb"].Optimized {
+					serverCfg.NewConfig.FileSystem.MaxReadAheadKb = int64(cfg.DefaultMaxReadAheadKbForNonRapid())
+					optimizedFlags["file-system.max-read-ahead-kb"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(cfg.DefaultMaxReadAheadKbForNonRapid()),
+					}
+				}
+				if !serverCfg.ViperConfig.IsSet("file-system.max-background") && !optimizedFlags["file-system.max-background"].Optimized {
+					serverCfg.NewConfig.FileSystem.MaxBackground = int64(cfg.DefaultMaxBackgroundForNonRapid())
+					optimizedFlags["file-system.max-background"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(cfg.DefaultMaxBackgroundForNonRapid()),
+					}
+				}
+				if !serverCfg.ViperConfig.IsSet("file-system.congestion-threshold") && !optimizedFlags["file-system.congestion-threshold"].Optimized {
+					serverCfg.NewConfig.FileSystem.CongestionThreshold = int64(cfg.DefaultCongestionThresholdForNonRapid())
+					optimizedFlags["file-system.congestion-threshold"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(cfg.DefaultCongestionThresholdForNonRapid()),
+					}
+				}
+				if !serverCfg.ViperConfig.IsSet("file-system.fuse-max-pages-limit") && !optimizedFlags["file-system.fuse-max-pages-limit"].Optimized {
+					serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit = 16 * gcsx.MiB / int64(os.Getpagesize())
+					optimizedFlags["file-system.fuse-max-pages-limit"] = cfg.OptimizationResult{
+						Optimized:  true,
+						FinalValue: int64(serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit),
+					}
 				}
 			}
 		} else {
@@ -676,6 +747,9 @@ type fileSystem struct {
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
+
+	// bufferPool is a sync.Pool of 1MB buffers.
+	bufferPool sync.Pool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -3118,28 +3192,76 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
-	if fs.newConfig.FileSystem.EnableKernelReader {
-		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
+	if op.Size > 0 && (op.Dst == nil || len(op.Dst) < int(op.Size)) {
+		if !fs.newConfig.FileSystem.EnableKernelReader || fh.Inode().Bucket().BucketType().IsRapid() {
+			fh.Inode().Unlock()
+			return syscall.EOPNOTSUPP
 		}
+
+		var poolBufs [][]byte
+		var buffers [][]byte
+		remaining := op.Size
+		for remaining > 0 {
+			bufVal := fs.bufferPool.Get()
+			poolBuf := bufVal.([]byte)
+			poolBufs = append(poolBufs, poolBuf)
+
+			size := int64(1024 * 1024)
+			if remaining < size {
+				size = remaining
+			}
+			buffers = append(buffers, poolBuf[:size])
+			remaining -= size
+		}
+
+		req := &gcsx.ReadRequest{
+			Buffers: buffers,
+			Offset:  op.Offset,
+			Size:    op.Size,
+		}
+
+		var resp gcsx.ReadResponse
 		resp, err = fh.ReadWithKernelReader(ctx, req)
 		op.BytesRead = resp.Size
-		op.Data = resp.Data
-		op.Callback = resp.Callback
-	} else if fs.newConfig.EnableNewReader {
-		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
+		if len(resp.Data) > 0 {
+			op.Data = resp.Data
+		} else if resp.Size > 0 {
+			op.Data = limitBuffers(buffers, resp.Size)
 		}
-		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
-		op.BytesRead = resp.Size
-		op.Data = resp.Data
-		op.Callback = resp.Callback
+		op.Callback = func() {
+			if resp.Callback != nil {
+				resp.Callback()
+			}
+			for _, poolBuf := range poolBufs {
+				fs.bufferPool.Put(poolBuf)
+			}
+		}
 	} else {
-		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		if fs.newConfig.FileSystem.EnableKernelReader {
+			var resp gcsx.ReadResponse
+			req := &gcsx.ReadRequest{
+				Buffer: op.Dst,
+				Offset: op.Offset,
+				Size:   op.Size,
+			}
+			resp, err = fh.ReadWithKernelReader(ctx, req)
+			op.BytesRead = resp.Size
+			op.Data = resp.Data
+			op.Callback = resp.Callback
+		} else if fs.newConfig.EnableNewReader {
+			var resp gcsx.ReadResponse
+			req := &gcsx.ReadRequest{
+				Buffer: op.Dst,
+				Offset: op.Offset,
+				Size:   op.Size,
+			}
+			resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
+			op.BytesRead = resp.Size
+			op.Data = resp.Data
+			op.Callback = resp.Callback
+		} else {
+			op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		}
 	}
 
 	// A FileClobberedError indicates the underlying GCS object has changed,
@@ -3160,6 +3282,24 @@ func (fs *fileSystem) ReadFile(
 	}
 
 	return
+}
+
+func limitBuffers(buffers [][]byte, limit int) [][]byte {
+	var result [][]byte
+	var current int
+	for _, b := range buffers {
+		if current >= limit {
+			break
+		}
+		if current+len(b) <= limit {
+			result = append(result, b)
+			current += len(b)
+		} else {
+			result = append(result, b[:limit-current])
+			current = limit
+		}
+	}
+	return result
 }
 
 // LOCKS_EXCLUDED(fs.mu)

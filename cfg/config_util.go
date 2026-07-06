@@ -41,9 +41,23 @@ func DefaultMaxBackground() int {
 	return min(max(12, 2*runtime.NumCPU()), maxBackgroundLimit)
 }
 
+func DefaultMaxBackgroundForNonRapid() int {
+	return 96
+}
+
 func DefaultCongestionThreshold() int {
 	// 75 % of DefaultMaxBackground
 	return (3 * DefaultMaxBackground()) / 4
+}
+
+func DefaultCongestionThresholdForNonRapid() int {
+	// 75 % of DefaultMaxBackgroundForNonRapid
+	return (3 * DefaultMaxBackgroundForNonRapid()) / 4
+}
+
+func DefaultMaxReadAheadKbForNonRapid() int {
+	// 128 Kib
+	return 128 * 1024
 }
 
 func DefaultMaxParallelDownloads() int {

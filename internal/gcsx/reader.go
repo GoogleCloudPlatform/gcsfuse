@@ -31,11 +31,18 @@ type ReadRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
 	Buffer []byte
 
+	// Buffers is a slice of slices of bytes that should be filled sequentially with data.
+	// If Buffers is non-empty, readers should populate Buffers instead of Buffer.
+	Buffers [][]byte
+
 	// Offset specifies the starting position in the object from where data should be read.
 	// Note: This value should not be modified by any reader. It is used by the
 	// read manager to fall back to the next reader and to record the read operation
 	// correctly.
 	Offset int64
+
+	// Size specifies the number of bytes requested to read (corresponding to op.Size).
+	Size int64
 
 	// SkipSizeChecks, when true, instructs the reader to bypass validation of the
 	// read request against the object's cached size. This is necessary for
