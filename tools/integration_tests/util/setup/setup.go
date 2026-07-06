@@ -612,7 +612,7 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 		if err != nil {
 			return "", fmt.Errorf("failed to get credentials for TPC: %w", err)
 		}
-		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred))
+		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
 	} else if keyFile != "" {
 		cred, err := auth2.GetCredentials(keyFile)
 		if err != nil {
