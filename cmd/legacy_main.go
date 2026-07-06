@@ -151,6 +151,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		MaxRetrySleep:                           newConfig.GcsRetries.MaxRetrySleep,
 		MaxRetryAttempts:                        int(newConfig.GcsRetries.MaxRetryAttempts),
 		RetryMultiplier:                         newConfig.GcsRetries.Multiplier,
+		EnableMountRetries:                      newConfig.GcsRetries.EnableMountRetries,
 		UserAgent:                               userAgent,
 		CustomEndpoint:                          newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                                 string(newConfig.GcsAuth.KeyFile),

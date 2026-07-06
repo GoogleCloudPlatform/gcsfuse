@@ -100,6 +100,8 @@ type storageControlClientWithRetry struct {
 	enableRetriesOnStorageLayoutAPI bool
 	// Whether or not to enable retries for folder APIs.
 	enableRetriesOnFolderAPIs bool
+	// Whether or not to enable mount retries for GetStorageLayout call.
+	enableRetriesOnMount bool
 }
 
 func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Context,
@@ -113,6 +115,9 @@ func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Conte
 		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
 
+	if sccwros.enableRetriesOnMount {
+		return storageutil.ExecuteWithCustomShouldRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, storageutil.ShouldRetryOnMount, logger.LevelInfo)
+	}
 	return storageutil.ExecuteWithRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, logger.LevelInfo)
 }
 
@@ -180,7 +185,7 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 // It accepts various parameters to configure the retry behavior.
 // The returned control client retries storage-layout.
 // It also retries folder-related APIs if `retryFolderAPIs` is true.
-func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageutil.StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration, retryFolderAPIs bool) StorageControlClient {
+func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageutil.StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration, retryFolderAPIs, enableRetriesOnMount bool) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {
@@ -193,20 +198,30 @@ func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageut
 		retryConfig:                     retryConfig,
 		enableRetriesOnStorageLayoutAPI: true,
 		enableRetriesOnFolderAPIs:       retryFolderAPIs,
+		enableRetriesOnMount:            enableRetriesOnMount,
 	}
 }
 
 // withRetryOnAllAPIs wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
 func withRetryOnAllAPIs(controlClient StorageControlClient,
 	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
-	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, true)
+	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, true, false)
 }
 
 // withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
 func withRetryOnStorageLayout(controlClient StorageControlClient,
 	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
-	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, false)
+	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, false, false)
+}
 
+// withRetryOnMount wraps a StorageControlClient to do a time-bound retry approach for retryable errors and mount errors (404/403) for the GetStorageLayout call during mount initialization.
+func withRetryOnMount(controlClient StorageControlClient,
+	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
+	enableRetriesOnMount := false
+	if clientConfig != nil {
+		enableRetriesOnMount = clientConfig.EnableMountRetries
+	}
+	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, false, enableRetriesOnMount)
 }
 
 func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {

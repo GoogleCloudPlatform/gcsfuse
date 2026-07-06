@@ -218,6 +218,59 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_AllAttemptsTimeOut(
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
+func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_MountRetriesEnabled_Retry404ThenSuccess() {
+	// Arrange
+	client := t.newHelperRetryWrapperWithMountRetries(t.stallingClient, 100*time.Millisecond, 1000*time.Millisecond, time.Microsecond, 10*time.Microsecond, 2, false, true)
+	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
+	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
+	mountErr := status.Error(codes.NotFound, "The specified bucket does not exist.")
+	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, mountErr).Times(2)
+	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
+
+	// Act
+	layout, err := client.GetStorageLayout(t.ctx, req)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedLayout, layout)
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
+func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_MountRetriesDisabled_404FailsImmediately() {
+	// Arrange
+	client := t.newHelperRetryWrapperWithMountRetries(t.stallingClient, 100*time.Millisecond, 1000*time.Millisecond, time.Microsecond, 10*time.Microsecond, 2, false, false)
+	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
+	mountErr := status.Error(codes.NotFound, "The specified bucket does not exist.")
+	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, mountErr).Once()
+
+	// Act
+	layout, err := client.GetStorageLayout(t.ctx, req)
+
+	// Assert
+	assert.Error(t.T(), err)
+	assert.Nil(t.T(), layout)
+	assert.Contains(t.T(), err.Error(), "failed:")
+	assert.Contains(t.T(), err.Error(), mountErr.Error())
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
+func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_MountRetriesEnabled_AllAttemptsTimeOut() {
+	// Arrange
+	client := t.newHelperRetryWrapperWithMountRetries(t.stallingClient, 1000*time.Microsecond, 10000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, false, true)
+	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
+	mountErr := status.Error(codes.NotFound, "The specified bucket does not exist.")
+	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, mountErr)
+
+	// Act
+	layout, err := client.GetStorageLayout(t.ctx, req)
+
+	// Assert
+	assert.Error(t.T(), err)
+	assert.Nil(t.T(), layout)
+	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
 func (t *StorageLayoutRetryWrapperTest) TestGetFolder_IsNotRetried() {
 	// Arrange
 	client := t.newHelperRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, false)
@@ -295,7 +348,17 @@ func (t *ControlClientRetryWrapperTest) newHelperRetryWrapper(controlClient Stor
 		MaxRetrySleep:   maxRetrySleep,
 		RetryMultiplier: backoffMultiplier,
 	}
-	return newRetryWrapper(t.stallingClient, clientConfig, retryDeadline, totalRetryBudget, initialBackoff, retryFolderAPIs)
+	return newRetryWrapper(t.stallingClient, clientConfig, retryDeadline, totalRetryBudget, initialBackoff, retryFolderAPIs, false)
+}
+
+func (t *ControlClientRetryWrapperTest) newHelperRetryWrapperWithMountRetries(controlClient StorageControlClient, retryDeadline, totalRetryBudget, initialBackoff, maxRetrySleep time.Duration, backoffMultiplier float64, retryFolderAPIs bool, enableRetriesOnMount bool) StorageControlClient {
+	t.T().Helper()
+	clientConfig := &storageutil.StorageClientConfig{
+		MaxRetrySleep:      maxRetrySleep,
+		RetryMultiplier:    backoffMultiplier,
+		EnableMountRetries: enableRetriesOnMount,
+	}
+	return newRetryWrapper(t.stallingClient, clientConfig, retryDeadline, totalRetryBudget, initialBackoff, retryFolderAPIs, enableRetriesOnMount)
 }
 
 func (t *AllApiRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {

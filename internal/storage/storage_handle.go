@@ -413,9 +413,9 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		}
 		// special handling for mounts created with custom billing projects.
 		controlClientWithBillingProject := withBillingProject(rawStorageControlClientWithoutGaxRetries, billingProject)
-		// Wrap the control client with retry-on-stall logic.
-		// This will retry on only on GetStorageLayout call for all buckets.
-		controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)
+		// Wrap the control client with retry-on-stall and mount retry logic.
+		// This will retry only on GetStorageLayout call during mount initialization.
+		controlClient = withRetryOnMount(controlClientWithBillingProject, &clientConfig)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
