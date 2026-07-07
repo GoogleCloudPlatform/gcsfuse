@@ -25,6 +25,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
@@ -280,6 +281,102 @@ func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnErrorWhenContextIsCancel
 	ExpectTrue(errors.Is(err, context.Canceled))
 	ExpectTrue(strings.Contains(err.Error(), "CRC computation is cancelled"))
 	ExpectEq(0, crc)
+}
+
+// mockDirLocker implements baseutil.DirLocker for testing purposes.
+type mockDirLocker struct {
+	readLocks    int
+	writeLocks   int
+	readUnlocks  int
+	writeUnlocks int
+}
+
+func (m *mockDirLocker) ReadLock(path string) {
+	m.readLocks++
+}
+
+func (m *mockDirLocker) ReadUnlock(path string) {
+	m.readUnlocks++
+}
+
+func (m *mockDirLocker) WriteLock(path string) {
+	m.writeLocks++
+}
+
+func (m *mockDirLocker) WriteUnlock(path string) {
+	m.writeUnlocks++
+}
+
+func (ut *utilTest) Test_SafeCreateFile() {
+	// Arrange
+	ut.flag = os.O_RDWR
+	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
+	ExpectEq(nil, err)
+	locker := &mockDirLocker{}
+
+	// Act
+	file, err := SafeCreateFile(ut.fileSpec, ut.flag, locker)
+
+	// Assert
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0755)
+	ExpectEq(nil, file.Close())
+	ExpectEq(1, locker.readLocks)
+	ExpectEq(1, locker.readUnlocks)
+	ExpectEq(0, locker.writeLocks)
+	ExpectEq(0, locker.writeUnlocks)
+}
+
+func (ut *utilTest) Test_SafeCreateFile_NilLocker() {
+	// Arrange
+	ut.flag = os.O_RDWR
+	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
+	ExpectEq(nil, err)
+
+	// Act
+	file, err := SafeCreateFile(ut.fileSpec, ut.flag, nil)
+
+	// Assert
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0755)
+	ExpectEq(nil, file.Close())
+}
+
+func (ut *utilTest) Test_SafeCreateFile_BlocksWriteLock() {
+	// Arrange
+	ut.flag = os.O_RDWR
+	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
+	ExpectEq(nil, err)
+	locker := NewSharedDirLocker()
+	fileDir := path.Dir(ut.fileSpec.Path)
+	// Acquire a write lock simulating a directory prune operation
+	locker.WriteLock(fileDir)
+	createDone := make(chan bool, 1)
+
+	// Act
+	// This SafeCreateFile should block trying to acquire the ReadLock
+	go func() {
+		file, createErr := SafeCreateFile(ut.fileSpec, ut.flag, locker)
+		if createErr == nil {
+			_ = file.Close()
+		}
+		createDone <- true
+	}()
+
+	// Assert
+	// Verify that SafeCreateFile is blocked
+	select {
+	case <-createDone:
+		AddFailure("SafeCreateFile should have been blocked by WriteLock")
+	case <-time.After(10 * time.Millisecond):
+		// Expected: blocked
+	}
+	// Release the write lock so the goroutine can finish
+	locker.WriteUnlock(fileDir)
+	select {
+	case <-createDone:
+		// Success: SafeCreateFile was able to proceed after WriteUnlock
+	case <-time.After(100 * time.Millisecond):
+		AddFailure("SafeCreateFile was not unblocked after WriteUnlock")
+	}
 }
 
 func (ut *utilTest) Test_TruncateAndRemoveFile_FileExists() {
