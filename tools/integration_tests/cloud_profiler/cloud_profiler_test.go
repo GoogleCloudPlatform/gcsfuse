@@ -80,20 +80,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.CloudProfiler) == 0 {
-		log.Println("No configuration found for cloud profiler tests in config. Using flags instead.")
-
-		// Populate the config manually.
-		cfg.CloudProfiler = make([]test_suite.TestConfig, 1)
-		cfg.CloudProfiler[0].TestBucket = setup.TestBucket()
-		cfg.CloudProfiler[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.CloudProfiler[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.CloudProfiler[0].Configs[0].Flags = []string{
-			"--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap",
-		}
-		testVersionFlag := fmt.Sprintf(" --cloud-profiler-label=%s", testVersionName)
-		testServiceNameFlag := fmt.Sprintf(" --cloud-profiler-service-name=%s", testServiceName)
-		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testVersionFlag + testServiceNameFlag
-		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for CloudProfiler in config file.")
 	} else if cfg.CloudProfiler[0].GKEMountedDirectory == "" {
 		if len(cfg.CloudProfiler[0].Configs[0].Flags) != 1 {
 			log.Fatalf("Expected exactly 1 config flag, got %d", len(cfg.CloudProfiler[0].Configs[0].Flags))
