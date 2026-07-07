@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -327,6 +328,28 @@ func Test_addFileInfoEntryAndCreateDownloadJob_IfNotAlready(t *testing.T) {
 	minObjectJob := chTestArgs.jobManager.GetJob(minObject.Name, chTestArgs.bucket.Name())
 	assert.NotNil(t, minObjectJob)
 	assert.Equal(t, downloader.NotStarted, minObjectJob.GetStatus().Name)
+}
+
+func Test_addFileInfoEntryAndCreateDownloadJob_PathValidationFailure(t *testing.T) {
+	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
+	oldJob := getDownloadJobForTestObject(t, chTestArgs)
+	// Content of size more than 20 would lead to eviction of initial TestObjectName if inserted.
+	minObject := createObject(t, chTestArgs.bucket, "../../etc/passwd", []byte("content of object_1 ..."))
+	existingJob := chTestArgs.jobManager.GetJob(minObject.Name, chTestArgs.bucket.Name())
+	require.Nil(t, existingJob)
+
+	// Insertion should fail at path validation before modifying cache or evicting.
+	err := chTestArgs.cacheHandler.addFileInfoEntryAndCreateDownloadJob(minObject, chTestArgs.bucket)
+
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "is outside cache directory"))
+	// Ensure no entry was added to fileInfoCache.
+	assert.False(t, isEntryInFileInfoCache(t, chTestArgs.cache, minObject.Name, chTestArgs.bucket.Name()))
+	// Ensure existing valid cache entries (and jobs) were not evicted or invalidated.
+	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
+	assert.NotEqual(t, downloader.Invalid, oldJob.GetStatus().Name)
+	assert.Nil(t, chTestArgs.jobManager.GetJob(minObject.Name, chTestArgs.bucket.Name()))
 }
 
 func Test_addFileInfoEntryAndCreateDownloadJob_IfLocalFileGetsDeleted(t *testing.T) {

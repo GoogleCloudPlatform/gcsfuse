@@ -235,7 +235,9 @@ func (ut *utilTest) Test_getDownloadPath_EscapingPath() {
 
 	for _, input := range badInputs {
 		_, err := GetDownloadPath(cacheDir, input)
+
 		ExpectNe(nil, err)
+		ExpectTrue(strings.Contains(err.Error(), "is outside cache directory"))
 	}
 }
 

@@ -94,17 +94,16 @@ func GetObjectPath(bucketName string, objectName string) string {
 // GetDownloadPath gives file path to file in cache for given object path.
 // It returns an error if the resolved path is not within the cacheDir.
 func GetDownloadPath(cacheDir string, objectPath string) (string, error) {
-	resolvedPath := filepath.Clean(filepath.Join(cacheDir, objectPath))
-	cleanCacheDir := filepath.Clean(cacheDir)
+	resolvedPath := filepath.Join(cacheDir, objectPath)
 
 	// Ensure the resolved path is inside cacheDir.
-	rel, err := filepath.Rel(cleanCacheDir, resolvedPath)
+	rel, err := filepath.Rel(cacheDir, resolvedPath)
 	if err != nil {
 		return "", fmt.Errorf("error resolving relative path: %w", err)
 	}
 
 	if rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
-		return "", fmt.Errorf("resolved path %s is outside cache directory %s", resolvedPath, cleanCacheDir)
+		return "", fmt.Errorf("resolved path %s is outside cache directory %s", resolvedPath, filepath.Clean(cacheDir))
 	}
 
 	return resolvedPath, nil

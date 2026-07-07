@@ -162,6 +162,11 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 		return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while creating key: %v", fileInfoKeyName)
 	}
 
+	filePath, err := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
+	if err != nil {
+		return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w", err)
+	}
+
 	addEntryToCache := false
 	fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	if fileInfo == nil {
@@ -169,10 +174,6 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	} else {
 		// Throw an error, if there is an entry in the file-info cache and cache file doesn't
 		// exist locally.
-		filePath, err := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
-		if err != nil {
-			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w", err)
-		}
 		_, err = os.Stat(filePath)
 		if err != nil && os.IsNotExist(err) {
 			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w: %s", util.ErrFileNotPresentInCache, filePath)
