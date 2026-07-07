@@ -688,8 +688,8 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 				isCompatible = false
 			}
 		}
-		tpcMatches := (TestOnTPCEndPoint() == testCase.TPC)
-		if isCompatible && tpcMatches && (run == "" || run == testCase.Run) {
+		tpcRun := (TestOnTPCEndPoint() == testCase.TPC)
+		if isCompatible && tpcRun && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				flagString = strings.ReplaceAll(flagString, ",", " ")
