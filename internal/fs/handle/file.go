@@ -289,6 +289,23 @@ func (fh *FileHandle) ReadWithKernelReader(ctx context.Context, req *gcsx.ReadRe
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
+		if req.BufferPool != nil {
+			writer := gcsx.NewVectoredWriter(req.BufferPool, req.Size)
+			written, err := writer.ReadFromOffset(ctx, fh.inode, req.Offset)
+			if err == io.EOF && written > 0 {
+				err = nil
+			}
+			if written > 0 {
+				return gcsx.ReadResponse{
+					Size:     int(written),
+					Data:     writer.Buffers(),
+					Callback: func() { writer.Release() },
+				}, err
+			}
+			writer.Release()
+			return gcsx.ReadResponse{Size: int(written)}, err
+		}
+
 		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
 		return gcsx.ReadResponse{Size: n}, err
 	}

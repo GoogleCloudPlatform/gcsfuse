@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -60,6 +61,9 @@ import (
 	"github.com/jacobsa/timeutil"
 	"github.com/spf13/viper"
 )
+
+// readPoolBufferSize is the size of each buffer in readBufferPool (1 MiB).
+const readPoolBufferSize = util.MiB
 
 type ServerConfig struct {
 	// A clock used for cache expiration. It is *not* used for inode times, for
@@ -225,6 +229,11 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
+		readBufferPool: sync.Pool{
+			New: func() any {
+				return new([readPoolBufferSize]byte)
+			},
+		},
 	}
 
 	// Initialize MRD cache if enabled
@@ -676,6 +685,20 @@ type fileSystem struct {
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
+
+	// readBufferPool is a sync.Pool of readPoolBufferSize (1 MiB) buffers.
+	readBufferPool sync.Pool
+}
+
+type bufferPoolWrapper struct {
+	pool *sync.Pool
+}
+
+func (bp *bufferPoolWrapper) Get() []byte {
+	return bp.pool.Get().(*[readPoolBufferSize]byte)[:]
+}
+func (bp *bufferPoolWrapper) Put(buf []byte) {
+	bp.pool.Put((*[readPoolBufferSize]byte)(buf[:cap(buf)]))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -3118,23 +3141,36 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
+	req := gcsx.ReadRequest{
+		Offset: op.Offset,
+		Size:   op.Size,
+	}
+
+	useReadBufferPool := op.Size > 0 && op.Dst == nil
+	if useReadBufferPool {
+		if !fs.newConfig.FileSystem.EnableKernelReader || fh.Inode().Bucket().BucketType().IsRapid() {
+			logger.Errorf("ReadFile: buffer pool allocation is only supported for regional buckets with"+
+				" kernel reader enabled (EnableKernelReader: %v, IsRapid: %v)",
+				fs.newConfig.FileSystem.EnableKernelReader,
+				fh.Inode().Bucket().BucketType().IsRapid())
+			fh.Inode().Unlock()
+			return syscall.ENOTSUP
+		}
+
+		req.BufferPool = &bufferPoolWrapper{pool: &fs.readBufferPool}
+	} else {
+		req.Buffer = op.Dst
+	}
+
 	if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
-		resp, err = fh.ReadWithKernelReader(ctx, req)
+		resp, err = fh.ReadWithKernelReader(ctx, &req)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
-		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
+		resp, err = fh.ReadWithReadManager(ctx, &req, fs.sequentialReadSizeMb)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback
