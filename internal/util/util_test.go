@@ -213,3 +213,57 @@ func (ts *UtilTest) TestBytesToHigherMiBs() {
 		assert.Equal(ts.T(), tc.mib, BytesToHigherMiBs(tc.bytes))
 	}
 }
+
+func (ts *UtilTest) TestLimitBuffers() {
+	cases := []struct {
+		name     string
+		buffers  [][]byte
+		limit    int
+		expected [][]byte
+	}{
+		{
+			name:     "limit zero",
+			buffers:  [][]byte{[]byte("hello"), []byte("world")},
+			limit:    0,
+			expected: nil,
+		},
+		{
+			name:     "limit negative",
+			buffers:  [][]byte{[]byte("hello"), []byte("world")},
+			limit:    -5,
+			expected: nil,
+		},
+		{
+			name:     "limit within first buffer",
+			buffers:  [][]byte{[]byte("hello"), []byte("world")},
+			limit:    3,
+			expected: [][]byte{[]byte("hel")},
+		},
+		{
+			name:     "limit at buffer boundary",
+			buffers:  [][]byte{[]byte("hello"), []byte("world")},
+			limit:    5,
+			expected: [][]byte{[]byte("hello")},
+		},
+		{
+			name:     "limit spanning multiple buffers",
+			buffers:  [][]byte{[]byte("hello"), []byte("world")},
+			limit:    8,
+			expected: [][]byte{[]byte("hello"), []byte("wor")},
+		},
+		{
+			name:     "limit greater than total length",
+			buffers:  [][]byte{[]byte("hello"), []byte("world")},
+			limit:    20,
+			expected: [][]byte{[]byte("hello"), []byte("world")},
+		},
+	}
+
+	for _, tc := range cases {
+		ts.Run(tc.name, func() {
+			result := LimitBuffers(tc.buffers, tc.limit)
+
+			assert.Equal(ts.T(), tc.expected, result)
+		})
+	}
+}
