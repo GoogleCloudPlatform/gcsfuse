@@ -408,6 +408,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
+	c.applyRegionalKernelReaderOptimizations(v, input, optimizedFlags)
 	return optimizedFlags
 }
 

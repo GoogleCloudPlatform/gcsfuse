@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 const (
@@ -116,4 +118,67 @@ func GetBucketType(hierarchical, zonal, pirlo bool) BucketType {
 		return BucketTypeHierarchical
 	}
 	return BucketTypeFlat
+}
+
+func DefaultFuseMaxPagesLimitForNonRapid() int {
+	// 16 MiB maximum request size based on the kernel page size.
+	return (16 * 1024 * 1024) / kernelPageSize
+}
+
+// IsNonRapid returns true for regional and multi-regional bucket types (flat and hierarchical).
+func (bt BucketType) IsNonRapid() bool {
+	return bt == BucketTypeFlat || bt == BucketTypeHierarchical
+}
+
+func (c *Config) shouldEnableKernelReaderForNonRapidBuckets(v *viper.Viper, input *OptimizationInput) bool {
+	if input == nil || !input.BucketType.IsNonRapid() || v == nil {
+		return false
+	}
+
+	// Do not enable if file cache or buffered read are enabled explicitly by user
+	// or if kernel does not support increasing max pages limit beyond 1MiB.
+	isFileCacheSet := v.IsSet("cache-dir")
+	isBufferedReadSet := v.IsSet("read.enable-buffered-read")
+	return /*c.Profile == "aiml-serving" &&*/ !isFileCacheSet && !isBufferedReadSet && input.HasCapability(CapabilityFuseMaxPagesLimit)
+}
+
+func (c *Config) applyRegionalKernelReaderOptimizations(v *viper.Viper, input *OptimizationInput, optimizedFlags map[string]OptimizationResult) {
+	if c.DisableAutoconfig || v == nil || input == nil || !input.BucketType.IsNonRapid() {
+		return
+	}
+
+	// 1. Automatically enable kernel reader for non-rapid buckets if appropriate.
+	if !v.IsSet("file-system.enable-kernel-reader") && !optimizedFlags["file-system.enable-kernel-reader"].Optimized {
+		if c.shouldEnableKernelReaderForNonRapidBuckets(v, input) {
+			c.FileSystem.EnableKernelReader = true
+			optimizedFlags["file-system.enable-kernel-reader"] = OptimizationResult{
+				Optimized:  true,
+				FinalValue: true,
+			}
+		}
+	}
+
+	// 2. If kernel reader is enabled, apply parameter optimizations cleanly using a table-driven loop.
+	if c.FileSystem.EnableKernelReader {
+		type flagOpt struct {
+			name   string
+			val    int64
+			setter func(int64)
+		}
+		opts := []flagOpt{
+			{"file-system.max-read-ahead-kb", int64(DefaultMaxReadAheadKbForNonRapid()), func(v int64) { c.FileSystem.MaxReadAheadKb = v }},
+			{"file-system.max-background", int64(DefaultMaxBackgroundForNonRapid()), func(v int64) { c.FileSystem.MaxBackground = v }},
+			{"file-system.congestion-threshold", int64(DefaultCongestionThresholdForNonRapid()), func(v int64) { c.FileSystem.CongestionThreshold = v }},
+			{"file-system.fuse-max-pages-limit", int64(DefaultFuseMaxPagesLimitForNonRapid()), func(v int64) { c.FileSystem.FuseMaxPagesLimit = v }},
+		}
+		for _, opt := range opts {
+			if !v.IsSet(opt.name) && !optimizedFlags[opt.name].Optimized {
+				opt.setter(opt.val)
+				optimizedFlags[opt.name] = OptimizationResult{
+					Optimized:  true,
+					FinalValue: opt.val,
+				}
+			}
+		}
+	}
 }

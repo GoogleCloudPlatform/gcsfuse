@@ -144,6 +144,20 @@ type OptimizationInput struct {
 	// BucketType specifies the GCS bucket type.
 	// An empty string means no bucket-type-based optimization should be applied.
 	BucketType BucketType
+
+	// Capabilities stores runtime or system capabilities that may influence optimizations
+	// (e.g., whether the host kernel supports specific attributes like max_pages_limit).
+	Capabilities map[string]bool
+}
+
+const (
+	// CapabilityFuseMaxPagesLimit indicates if the host kernel supports configuring FUSE max_pages_limit.
+	CapabilityFuseMaxPagesLimit = "fuse_max_pages_limit"
+)
+
+// HasCapability checks if a runtime capability is present and true.
+func (o *OptimizationInput) HasCapability(cap string) bool {
+	return o != nil && o.Capabilities != nil && o.Capabilities[cap]
 }
 
 // BucketType represents the type of GCS bucket.
