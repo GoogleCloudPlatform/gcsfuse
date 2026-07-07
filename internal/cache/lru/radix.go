@@ -26,6 +26,9 @@ type radixNode struct {
 	parent  *radixNode
 	child   *radixNode
 	sibling *radixNode
+	// LRU Linked List pointers
+	prev *radixNode
+	next *radixNode
 }
 
 // this radixTree struct will be replaced by a RadixCache struct afterwards with additional necessary fields
@@ -33,6 +36,10 @@ type radixNode struct {
 type radixTree struct {
 	root *radixNode
 	size int
+	// Head and tail of the LRU Doubly Linked List
+	head *radixNode
+	tail *radixNode
+	len  int
 }
 
 func newRadixTree() *radixTree {
@@ -190,6 +197,7 @@ func (t *radixTree) deleteNode(node *radixNode) {
 	if node == nil || node.value == nil {
 		return
 	}
+	t.remove(node) // Unlink from LRU list
 
 	node.value = nil
 	t.size--
@@ -227,4 +235,73 @@ func (t *radixTree) compressPathUpwards(curr *radixNode) {
 		}
 		break
 	}
+}
+
+// --- LRU Logic ---
+func (t *radixTree) moveToFront(node *radixNode) {
+	if t.head == node {
+		return
+	}
+	if node.prev != nil {
+		node.prev.next = node.next
+	}
+	if node.next != nil {
+		node.next.prev = node.prev
+	}
+	if t.tail == node {
+		t.tail = node.prev
+	}
+	node.prev = nil
+	node.next = t.head
+	if t.head != nil {
+		t.head.prev = node
+	}
+	t.head = node
+	if t.tail == nil {
+		t.tail = node
+	}
+}
+
+func (t *radixTree) pushFront(node *radixNode) {
+	node.prev = nil
+	node.next = t.head
+	if t.head != nil {
+		t.head.prev = node
+	}
+	t.head = node
+	if t.tail == nil {
+		t.tail = node
+	}
+	t.len++
+}
+
+func (t *radixTree) remove(node *radixNode) {
+	if t.head != node && node.prev == nil {
+		return
+	}
+	if node.prev != nil {
+		node.prev.next = node.next
+	} else {
+		t.head = node.next
+	}
+	if node.next != nil {
+		node.next.prev = node.prev
+	} else {
+		t.tail = node.prev
+	}
+	node.prev = nil
+	node.next = nil
+	t.len--
+}
+
+func (t *radixTree) evictOne() ValueType {
+	node := t.tail
+	if node == nil {
+		return nil
+	}
+	evictedEntry := node.value
+	// Remove from LRU list and then fully delete from the tree
+	t.remove(node)
+	t.deleteNode(node)
+	return evictedEntry
 }

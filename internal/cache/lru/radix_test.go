@@ -128,3 +128,72 @@ func TestRadixTree_DeleteAndCompress(t *testing.T) {
 	assert.Equal(t, "foo/baz", n2.prefix)
 	assert.Equal(t, tree.root, n2.parent) // Path compressed all the way up to the root!
 }
+
+func TestRadixTree_LRU_PushFront(t *testing.T) {
+	// Arrange
+	tree := newRadixTree()
+	val1 := mockValue{10}
+	val2 := mockValue{20}
+	node1, _ := tree.insertNode("foo/1", val1)
+	node2, _ := tree.insertNode("foo/2", val2)
+
+	// Act
+	tree.pushFront(node1)
+	tree.pushFront(node2)
+
+	// Assert
+	assert.Equal(t, 2, tree.len)
+	assert.Equal(t, node2, tree.head)
+	assert.Equal(t, node1, tree.tail)
+	assert.Equal(t, node1, node2.next)
+	assert.Equal(t, node2, node1.prev)
+}
+
+func TestRadixTree_LRU_MoveToFront(t *testing.T) {
+	// Arrange
+	tree := newRadixTree()
+	node1, _ := tree.insertNode("foo/1", mockValue{10})
+	node2, _ := tree.insertNode("foo/2", mockValue{20})
+	tree.pushFront(node1)
+	tree.pushFront(node2)
+
+	// Act
+	tree.moveToFront(node1) // Move tail to head
+
+	// Assert
+	assert.Equal(t, node1, tree.head)
+	assert.Equal(t, node2, tree.tail)
+}
+
+func TestRadixTree_LRU_Remove(t *testing.T) {
+	// Arrange
+	tree := newRadixTree()
+	node1, _ := tree.insertNode("foo/1", mockValue{10})
+	tree.pushFront(node1)
+
+	// Act
+	tree.remove(node1)
+
+	// Assert
+	assert.Equal(t, 0, tree.len)
+	assert.Nil(t, tree.head)
+	assert.Nil(t, tree.tail)
+}
+
+func TestRadixTree_LRU_EvictOne(t *testing.T) {
+	// Arrange
+	tree := newRadixTree()
+	node1, _ := tree.insertNode("foo/1", mockValue{10})
+	node2, _ := tree.insertNode("foo/2", mockValue{20})
+	tree.pushFront(node1)
+	tree.pushFront(node2)
+
+	// Act
+	evictedValue := tree.evictOne()
+
+	// Assert
+	assert.Equal(t, 1, tree.len)
+	assert.Equal(t, mockValue{10}, evictedValue) // node1 was tail (least recently used)
+	assert.Equal(t, node2, tree.head)
+	assert.Equal(t, node2, tree.tail)
+}
