@@ -3135,7 +3135,7 @@ func (fs *fileSystem) ReadFile(
 		Size:   op.Size,
 	}
 
-	useReadBufferPool := op.Dst == nil
+	useReadBufferPool := op.Size > 0 && op.Dst == nil
 	if useReadBufferPool {
 		if !fs.newConfig.FileSystem.EnableKernelReader || fh.Inode().Bucket().BucketType().IsRapid() {
 			logger.Errorf("ReadFile: buffer pool allocation is only supported for regional buckets with"+

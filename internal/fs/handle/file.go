@@ -289,8 +289,23 @@ func (fh *FileHandle) ReadWithKernelReader(ctx context.Context, req *gcsx.ReadRe
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
-		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
-		return gcsx.ReadResponse{Size: n}, err
+		buffers := req.Buffers
+		if len(buffers) == 0 {
+			// Use a stack-allocated 1-element array to avoid heap allocation
+			// when wrapping req.Buffer into a slice for unified iteration.
+			single := [1][]byte{req.Buffer}
+			buffers = single[:]
+		}
+
+		var n int
+		for _, b := range buffers {
+			bytesRead, err := fh.inode.Read(ctx, b, req.Offset+int64(n))
+			n += bytesRead
+			if err != nil || bytesRead < len(b) {
+				return gcsx.ReadResponse{Size: n}, err
+			}
+		}
+		return gcsx.ReadResponse{Size: n}, nil
 	}
 	fh.inode.Unlock()
 
