@@ -158,6 +158,60 @@ type ServerConfig struct {
 	Notifier *fuse.Notifier
 }
 
+func shouldEnableKernelReaderForNonRapidBuckets(serverCfg *ServerConfig, bucketType gcs.BucketType) bool {
+	if bucketType.IsRapid() {
+		return false
+	}
+
+	// Do not enable if file cache or buffered read are enabled explicitly by user
+	// or if kernel does not support increasing max pages limit beyond 1MiB.
+	isFileCacheSet := serverCfg.ViperConfig.IsSet("cache-dir")
+	isBufferedReadSet := serverCfg.ViperConfig.IsSet("read.enable-buffered-read")
+	return /*serverCfg.NewConfig.Profile == "aiml-serving" &&*/ !isFileCacheSet && !isBufferedReadSet && kernelparams.SupportsFuseMaxPagesLimit()
+}
+
+func applyRegionalKernelReaderOptimizations(serverCfg *ServerConfig, bucketType gcs.BucketType, optimizedFlags map[string]cfg.OptimizationResult) {
+	if serverCfg.NewConfig.DisableAutoconfig || bucketType.IsRapid() {
+		return
+	}
+
+	// 1. Automatically enable kernel reader for non-rapid buckets if appropriate.
+	if !serverCfg.ViperConfig.IsSet("file-system.enable-kernel-reader") && !optimizedFlags["file-system.enable-kernel-reader"].Optimized {
+		if shouldEnableKernelReaderForNonRapidBuckets(serverCfg, bucketType) {
+			serverCfg.NewConfig.FileSystem.EnableKernelReader = true
+			optimizedFlags["file-system.enable-kernel-reader"] = cfg.OptimizationResult{
+				Optimized:  true,
+				FinalValue: true,
+			}
+			logger.Info("GCSFuse Config: Automatically enabled enable-kernel-reader for aiml-serving profile on flat/hns bucket.")
+		}
+	}
+
+	// 2. If kernel reader is enabled, apply parameter optimizations cleanly using a table-driven loop.
+	if serverCfg.NewConfig.FileSystem.EnableKernelReader {
+		type flagOpt struct {
+			name   string
+			val    int64
+			setter func(int64)
+		}
+		opts := []flagOpt{
+			{"file-system.max-read-ahead-kb", int64(cfg.DefaultMaxReadAheadKbForNonRapid()), func(v int64) { serverCfg.NewConfig.FileSystem.MaxReadAheadKb = v }},
+			{"file-system.max-background", int64(cfg.DefaultMaxBackgroundForNonRapid()), func(v int64) { serverCfg.NewConfig.FileSystem.MaxBackground = v }},
+			{"file-system.congestion-threshold", int64(cfg.DefaultCongestionThresholdForNonRapid()), func(v int64) { serverCfg.NewConfig.FileSystem.CongestionThreshold = v }},
+			{"file-system.fuse-max-pages-limit", 16 * gcsx.MiB / int64(os.Getpagesize()), func(v int64) { serverCfg.NewConfig.FileSystem.FuseMaxPagesLimit = v }},
+		}
+		for _, opt := range opts {
+			if !serverCfg.ViperConfig.IsSet(opt.name) && !optimizedFlags[opt.name].Optimized {
+				opt.setter(opt.val)
+				optimizedFlags[opt.name] = cfg.OptimizationResult{
+					Optimized:  true,
+					FinalValue: opt.val,
+				}
+			}
+		}
+	}
+}
+
 // Create a fuse file system server according to the supplied configuration.
 func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
@@ -280,6 +334,12 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
+			if optimizedFlags == nil {
+				optimizedFlags = make(map[string]cfg.OptimizationResult)
+			}
+
+			applyRegionalKernelReaderOptimizations(serverCfg, bucketType, optimizedFlags)
+
 			if len(optimizedFlags) > 0 {
 				logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
 				optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))

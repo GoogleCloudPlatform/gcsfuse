@@ -43,6 +43,13 @@ var readMaxPagesLimitFunc = func() (int, error) {
 	return val, nil
 }
 
+// SupportsFuseMaxPagesLimit checks if the host kernel supports configuring
+// the FUSE max_pages_limit attribute by reading the procfs entry.
+func SupportsFuseMaxPagesLimit() bool {
+	_, err := readMaxPagesLimitFunc()
+	return err == nil
+}
+
 // KernelParamsManager wraps KernelParamsConfig with a mutex to ensure thread safety.
 type KernelParamsManager struct {
 	*KernelParamsConfig
