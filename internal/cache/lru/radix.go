@@ -35,11 +35,17 @@ type radixNode struct {
 // radixTree encapsulates the core tree structure (LRU logic to be added in next PR).
 type radixTree struct {
 	root *radixNode
+
+	// size is the number of active, value-bearing entries in the radix tree.
 	size int
+
 	// Head and tail of the LRU Doubly Linked List
 	head *radixNode
 	tail *radixNode
-	len  int
+
+	// len is the number of nodes currently linked in the LRU list.
+	// In a properly functioning cache, size and len must always be equal.
+	len int
 }
 
 func newRadixTree() *radixTree {
@@ -197,7 +203,6 @@ func (t *radixTree) deleteNode(node *radixNode) {
 	if node == nil || node.value == nil {
 		return
 	}
-	t.remove(node) // Unlink from LRU list
 
 	node.value = nil
 	t.size--
@@ -257,9 +262,6 @@ func (t *radixTree) moveToFront(node *radixNode) {
 		t.head.prev = node
 	}
 	t.head = node
-	if t.tail == nil {
-		t.tail = node
-	}
 }
 
 func (t *radixTree) pushFront(node *radixNode) {
