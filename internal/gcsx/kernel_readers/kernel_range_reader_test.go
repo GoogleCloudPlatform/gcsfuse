@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -166,15 +167,35 @@ func (t *KernelRangeReaderTest) TestReadAt_ClobberedError() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *KernelRangeReaderTest) TestReadAt_MultipleBuffers_Success() {
+type testBufferPool struct {
+	buffers [][]byte
+	idx     int
+}
+
+func (p *testBufferPool) Get() []byte {
+	if p.idx < len(p.buffers) {
+		b := p.buffers[p.idx]
+		p.idx++
+		return b
+	}
+	return make([]byte, 1024)
+}
+
+func (p *testBufferPool) Put(b []byte) {}
+
+func (t *KernelRangeReaderTest) TestReadAt_BufferPool_Success() {
 	data := []byte("abcdefghij") // length 10
-	req := &gcsx.ReadRequest{
-		Buffers: [][]byte{
+	pool := &testBufferPool{
+		buffers: [][]byte{
 			make([]byte, 3),
 			make([]byte, 2),
 			make([]byte, 4),
 		},
-		Offset: 0,
+	}
+	req := &gcsx.ReadRequest{
+		BufferPool: pool,
+		Offset:     0,
+		Size:       9,
 	}
 	mockReader := &mockStorageReader{io.NopCloser(bytes.NewReader(data))}
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
@@ -183,8 +204,9 @@ func (t *KernelRangeReaderTest) TestReadAt_MultipleBuffers_Success() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 9, resp.Size) // Sum of buffers capacity is 3+2+4 = 9
-	assert.Equal(t.T(), "abc", string(req.Buffers[0]))
-	assert.Equal(t.T(), "de", string(req.Buffers[1]))
-	assert.Equal(t.T(), "fghi", string(req.Buffers[2]))
+	require.Len(t.T(), resp.Data, 3)
+	assert.Equal(t.T(), "abc", string(resp.Data[0]))
+	assert.Equal(t.T(), "de", string(resp.Data[1]))
+	assert.Equal(t.T(), "fghi", string(resp.Data[2]))
 	t.bucket.AssertExpectations(t.T())
 }

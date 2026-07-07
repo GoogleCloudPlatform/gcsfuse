@@ -70,7 +70,7 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 	}
 
 	// If the destination buffer is empty, there's nothing to read.
-	if len(req.Buffer) == 0 && len(req.Buffers) == 0 {
+	if len(req.Buffer) == 0 && req.BufferPool == nil {
 		return resp, nil
 	}
 
@@ -111,18 +111,22 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 	}()
 
 	var n int
-	if len(req.Buffers) == 0 {
-		n, err = io.ReadFull(reader, req.Buffer[:bytesToRead])
-	} else {
-		writer := gcsx.NewVectoredWriter(req.Buffers)
+	if req.BufferPool != nil {
+		writer := gcsx.NewVectoredWriter(req.BufferPool, bytesToRead)
 		var written int64
 		written, err = io.CopyN(writer, reader, bytesToRead)
 		n = int(written)
-		// Align error behavior with io.ReadFull: if EOF is encountered after
-		// reading some but not all of the requested bytes, return ErrUnexpectedEOF.
 		if err == io.EOF && written > 0 {
 			err = io.ErrUnexpectedEOF
 		}
+		if n > 0 {
+			resp.Data = writer.Buffers()
+			resp.Callback = func() { writer.Release() }
+		} else {
+			writer.Release() // Release immediately on 0-byte read or early error
+		}
+	} else {
+		n, err = io.ReadFull(reader, req.Buffer[:bytesToRead])
 	}
 	resp.Size = n
 

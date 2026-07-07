@@ -14,7 +14,15 @@
 
 package gcsx
 
-import "io"
+import (
+	"context"
+	"io"
+)
+
+// OffsetReader is an interface for reading data at an offset with a context.
+type OffsetReader interface {
+	Read(ctx context.Context, dst []byte, offset int64) (n int, err error)
+}
 
 type bufferWithOffset struct {
 	buffer []byte
@@ -25,51 +33,79 @@ type bufferWithOffset struct {
 type VectoredWriter struct {
 	buffers []bufferWithOffset
 	index   int
+	pool    BufferPool
+	maxSize int64
+	written int64
 }
 
-// NewVectoredWriter creates a new VectoredWriter that writes into the provided buffers.
-func NewVectoredWriter(buffers [][]byte) *VectoredWriter {
-	w := &VectoredWriter{buffers: make([]bufferWithOffset, len(buffers))}
-	for i, b := range buffers {
-		w.buffers[i].buffer = b
+// NewVectoredWriter creates a new VectoredWriter that allocates buffers on demand from pool.
+func NewVectoredWriter(pool BufferPool, maxSize int64) *VectoredWriter {
+	return &VectoredWriter{
+		buffers: make([]bufferWithOffset, 0, 2),
+		pool:    pool,
+		maxSize: maxSize,
 	}
-	return w
+}
+
+// availableBuffer returns a slice of the current buffer available for writing.
+// If the current buffer is full or no buffers exist, it allocates a new buffer
+// from the pool. Returns nil if no more buffers can be allocated (e.g. pool is nil
+// or maxSize is reached).
+func (w *VectoredWriter) availableBuffer() []byte {
+	for {
+		if w.index < len(w.buffers) {
+			sb := &w.buffers[w.index]
+			if sb.offset < len(sb.buffer) {
+				return sb.buffer[sb.offset:]
+			}
+			w.index++
+			continue
+		}
+		if w.pool == nil || w.written >= w.maxSize {
+			return nil
+		}
+		buf := w.pool.Get()
+		if len(buf) == 0 {
+			return nil
+		}
+		if int64(len(buf)) > w.maxSize-w.written {
+			buf = buf[:w.maxSize-w.written]
+		}
+		w.buffers = append(w.buffers, bufferWithOffset{buffer: buf})
+	}
+}
+
+// advance updates the offset of the current buffer and the total bytes written.
+func (w *VectoredWriter) advance(n int) {
+	w.buffers[w.index].offset += n
+	w.written += int64(n)
 }
 
 func (w *VectoredWriter) Write(p []byte) (n int, err error) {
 	for n < len(p) {
-		if w.index >= len(w.buffers) {
+		buf := w.availableBuffer()
+		if buf == nil {
 			return n, io.ErrShortWrite
 		}
-		sb := &w.buffers[w.index]
-		avail := len(sb.buffer) - sb.offset
-		if avail <= 0 {
-			w.index++
-			continue
-		}
-		toCopy := min(len(p)-n, avail)
-		copy(sb.buffer[sb.offset:sb.offset+toCopy], p[n:n+toCopy])
-		sb.offset += toCopy
+		toCopy := copy(buf, p[n:])
+		w.advance(toCopy)
 		n += toCopy
 	}
 	return n, nil
 }
 
-// ReadFrom implements io.ReaderFrom. It reads data from r directly into the
-// underlying buffers, avoiding intermediate allocations and double-copying.
-func (w *VectoredWriter) ReadFrom(r io.Reader) (n int64, err error) {
-	for w.index < len(w.buffers) {
-		sb := &w.buffers[w.index]
-		if sb.offset >= len(sb.buffer) {
-			w.index++
-			continue
+func (w *VectoredWriter) readIntoBuffers(readFn func(buf []byte) (int, error)) (n int64, err error) {
+	for {
+		buf := w.availableBuffer()
+		if buf == nil {
+			break
 		}
-
 		var readNum int
-		readNum, err = r.Read(sb.buffer[sb.offset:])
-		sb.offset += readNum
-		n += int64(readNum)
-
+		readNum, err = readFn(buf)
+		if readNum > 0 {
+			w.advance(readNum)
+			n += int64(readNum)
+		}
 		if err != nil {
 			if err == io.EOF {
 				err = nil
@@ -78,4 +114,40 @@ func (w *VectoredWriter) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 	}
 	return n, err
+}
+
+// ReadFrom implements io.ReaderFrom. It reads data from r directly into the
+// underlying buffers, avoiding intermediate allocations and double-copying.
+func (w *VectoredWriter) ReadFrom(r io.Reader) (n int64, err error) {
+	return w.readIntoBuffers(r.Read)
+}
+
+// ReadFromOffset reads data from r starting at offset directly into the
+// underlying buffers, avoiding intermediate allocations and double-copying.
+func (w *VectoredWriter) ReadFromOffset(ctx context.Context, r OffsetReader, offset int64) (n int64, err error) {
+	return w.readIntoBuffers(func(buf []byte) (int, error) {
+		return r.Read(ctx, buf, offset+w.written)
+	})
+}
+
+// Buffers returns the slices of bytes actually written to.
+func (w *VectoredWriter) Buffers() [][]byte {
+	res := make([][]byte, 0, len(w.buffers))
+	for _, sb := range w.buffers {
+		if sb.offset > 0 {
+			res = append(res, sb.buffer[:sb.offset])
+		}
+	}
+	return res
+}
+
+// Release puts all allocated buffers back into the pool.
+func (w *VectoredWriter) Release() {
+	if w.pool == nil {
+		return
+	}
+	for _, sb := range w.buffers {
+		w.pool.Put(sb.buffer)
+	}
+	w.buffers = nil
 }
