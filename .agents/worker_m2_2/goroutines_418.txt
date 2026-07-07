@@ -1,0 +1,23 @@
+3:goroutine 68 [running]:
+8:created by testing.(*T).Run in goroutine 1
+11:goroutine 1 [chan receive]:
+25:goroutine 22 [select]:
+28:created by go.opencensus.io/stats/view.init.0 in goroutine 1
+31:goroutine 66 [syscall]:
+36:created by os/signal.Notify.func1.1 in goroutine 1
+39:goroutine 67 [chan receive]:
+42:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.init.5 in goroutine 1
+45:goroutine 29 [runnable]:
+56:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+59:goroutine 30 [sync.Mutex.Lock]:
+80:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+83:goroutine 31 [sync.Mutex.Lock]:
+104:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+107:goroutine 32 [sync.Mutex.Lock]:
+128:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+131:goroutine 33 [sync.Mutex.Lock]:
+152:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+155:goroutine 46182 [sync.WaitGroup.Wait]:
+162:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+168:goroutine 68 [running]:
+179:created by testing.(*T).Run in goroutine 1

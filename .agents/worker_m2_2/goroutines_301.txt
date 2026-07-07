@@ -1,0 +1,53 @@
+3:goroutine 84 [running]:
+8:created by testing.(*T).Run in goroutine 1
+11:goroutine 1 [chan receive]:
+25:goroutine 7 [select]:
+28:created by go.opencensus.io/stats/view.init.0 in goroutine 1
+31:goroutine 82 [syscall]:
+36:created by os/signal.Notify.func1.1 in goroutine 1
+39:goroutine 83 [chan receive]:
+42:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.init.5 in goroutine 1
+45:goroutine 40 [sync.Mutex.Lock]:
+68:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+71:goroutine 41 [sync.Mutex.Lock]:
+94:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+97:goroutine 42 [sync.Mutex.Lock]:
+120:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+123:goroutine 43 [sync.Mutex.Lock]:
+146:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+149:goroutine 44 [sync.Mutex.Lock]:
+172:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+175:goroutine 45 [sync.Mutex.Lock]:
+198:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+201:goroutine 46 [sync.Mutex.Lock]:
+224:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+227:goroutine 47 [sync.Mutex.Lock]:
+250:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+253:goroutine 48 [sync.Mutex.Lock]:
+276:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+279:goroutine 49 [sync.Mutex.Lock]:
+302:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+305:goroutine 162 [runnable]:
+318:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+321:goroutine 163 [sync.Mutex.Lock]:
+344:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+347:goroutine 164 [sync.Mutex.Lock]:
+370:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+373:goroutine 165 [sync.Mutex.Lock]:
+396:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+399:goroutine 166 [sync.Mutex.Lock]:
+422:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+425:goroutine 167 [sync.Mutex.Lock]:
+448:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+451:goroutine 168 [sync.Mutex.Lock]:
+474:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+477:goroutine 169 [sync.Mutex.Lock]:
+500:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+503:goroutine 170 [sync.Mutex.Lock]:
+526:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+529:goroutine 171 [sync.RWMutex.RLock]:
+548:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+551:goroutine 8769 [sync.WaitGroup.Wait]:
+558:created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 84
+564:goroutine 84 [running]:
+575:created by testing.(*T).Run in goroutine 1

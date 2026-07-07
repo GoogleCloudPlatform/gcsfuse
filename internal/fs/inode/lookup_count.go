@@ -16,6 +16,7 @@ package inode
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/jacobsa/fuse/fuseops"
 )
@@ -39,7 +40,7 @@ func (lc *lookupCount) Inc() {
 		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
 	}
 
-	lc.count++
+	atomic.AddUint64(&lc.count, 1)
 }
 
 func (lc *lookupCount) Dec(n uint64) (destroy bool) {
@@ -47,17 +48,19 @@ func (lc *lookupCount) Dec(n uint64) (destroy bool) {
 		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
 	}
 
-	// Make sure n is in range.
-	if n > lc.count {
-		panic(fmt.Sprintf(
-			"n is greater than lookup count: %v vs. %v",
-			n,
-			lc.count))
+	for {
+		current := atomic.LoadUint64(&lc.count)
+		if n > current {
+			panic(fmt.Sprintf(
+				"n is greater than lookup count: %v vs. %v",
+				n,
+				current))
+		}
+		newCount := current - n
+		if atomic.CompareAndSwapUint64(&lc.count, current, newCount) {
+			destroy = newCount == 0
+			break
+		}
 	}
-
-	// Decrement.
-	lc.count -= n
-
-	destroy = lc.count == 0
 	return
 }

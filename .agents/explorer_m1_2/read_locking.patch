@@ -1,0 +1,539 @@
+diff --git a/internal/fs/fs.go b/internal/fs/fs.go
+index 258c5cbfd..d85a1532f 100644
+--- a/internal/fs/fs.go
++++ b/internal/fs/fs.go
+@@ -1040,11 +1040,12 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in
+ // LOCKS_EXCLUDED(fs.mu)
+ // UNLOCK_FUNCTION(fs.mu)
+ // LOCK_FUNCTION(in)
+-func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode, parInodeCtx context.Context) (inode.Inode, error) {
++func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode, parInodeCtx context.Context, readLock bool) (in inode.Inode, isReadLocked bool, err error) {
+ 	if !ic.FullName.IsDir() {
+ 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
+ 	}
+ 
++	isReadLocked = false
+ 	var maxTriesToCreateInode = 3
+ 
+ 	for range maxTriesToCreateInode {
+@@ -1053,26 +1054,49 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
+ 		if !ok || in.IsUnlinked() {
+ 			in, err := fs.mintInode(ic, parInodeCtx)
+ 			if err != nil {
+-				return nil, err
++				return nil, false, err
+ 			}
+ 			(inodes)[in.Name()] = in.(inode.DirInode)
++			if readLock {
++				if rwLocker, ok := in.(locker.RWLocker); ok {
++					rwLocker.RLock()
++					isReadLocked = true
++					return in, isReadLocked, nil
++				}
++			}
+ 			in.Lock()
+-			return in, nil
++			isReadLocked = false
++			return in, isReadLocked, nil
+ 		}
+ 
+ 		fs.mu.Unlock()
+-		in.Lock()
++		var rwLocker locker.RWLocker
++		var hasRWLocker bool
++		if readLock {
++			rwLocker, hasRWLocker = in.(locker.RWLocker)
++		}
++		if hasRWLocker {
++			rwLocker.RLock()
++			isReadLocked = true
++		} else {
++			in.Lock()
++			isReadLocked = false
++		}
+ 		fs.mu.Lock()
+ 
+ 		if (inodes)[ic.FullName] != in {
+-			in.Unlock()
++			if isReadLocked {
++				rwLocker.RUnlock()
++			} else {
++				in.Unlock()
++			}
+ 			continue
+ 		}
+ 
+-		return in, nil
++		return in, isReadLocked, nil
+ 	}
+ 
+-	return nil, fmt.Errorf("createDirInode: failed to create inode after %d tries", maxTriesToCreateInode)
++	return nil, false, fmt.Errorf("createDirInode: failed to create inode after %d tries", maxTriesToCreateInode)
+ }
+ 
+ // Attempt to find an inode for a backing object or an implicit directory.
+@@ -1086,11 +1109,12 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
+ // LOCKS_EXCLUDED(fs.mu)
+ // UNLOCK_FUNCTION(fs.mu)
+ // LOCK_FUNCTION(in)
+-func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context, ic inode.Core) (in inode.Inode, err error) {
++func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context, ic inode.Core, readLock bool) (in inode.Inode, isReadLocked bool, err error) {
+ 
+ 	if err := ic.SanityCheck(); err != nil {
+ 		panic(err.Error())
+ 	}
+ 
++	isReadLocked = false
+ 	// Ensure that no matter which inode we return, we increase its lookup count
+ 	// on the way out and then release the file system lock.
+ 	defer func() {
+@@ -1106,12 +1130,12 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ 
+ 	// Handle Folders in hierarchical bucket.
+ 	if ic.Folder != nil {
+-		return fs.createDirInode(ic, fs.folderInodes, parInodeCtx)
++		return fs.createDirInode(ic, fs.folderInodes, parInodeCtx, readLock)
+ 	}
+ 
+ 	// Handle implicit directories.
+ 	if ic.MinObject == nil {
+-		return fs.createDirInode(ic, fs.implicitDirInodes, parInodeCtx)
++		return fs.createDirInode(ic, fs.implicitDirInodes, parInodeCtx, readLock)
+ 	}
+ 
+ 	oGen := inode.Generation{
+@@ -1122,6 +1146,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ 
+ 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
+ 	// but no inode lock.
++	localReadLock := readLock
+ 	for {
+ 		// Look at the current index entry.
+ 		existingInode, ok := fs.generationBackedInodes[ic.FullName]
+@@ -1130,20 +1155,21 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ 		if !ok {
+ 			in, err = fs.mintInode(ic, parInodeCtx)
+ 			if err != nil {
+-				return nil, err
++				return nil, false, err
+ 			}
+ 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
+ 
+-			in.Lock()
+-			return in, nil
++			if localReadLock {
++				if rwLocker, ok := in.(locker.RWLocker); ok {
++					rwLocker.RLock()
++					isReadLocked = true
++					return in, isReadLocked, nil
++				}
++			}
++			in.Lock()
++			isReadLocked = false
++			return in, isReadLocked, nil
+ 		}
+ 
+ 		// Otherwise we need to read the inode's source generation below, which
+@@ -1150,18 +1176,29 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ 		// acquiring the file system lock, so drop it while acquiring the inode's
+ 		// lock, then reacquire.
+ 		fs.mu.Unlock()
+-		existingInode.Lock()
++		var rwLocker locker.RWLocker
++		var hasRWLocker bool
++		if localReadLock {
++			rwLocker, hasRWLocker = existingInode.(locker.RWLocker)
++		}
++		if hasRWLocker {
++			rwLocker.RLock()
++			isReadLocked = true
++		} else {
++			existingInode.Lock()
++			isReadLocked = false
++		}
+ 		fs.mu.Lock()
+ 
+ 		// Check that the index still points at this inode. If not, it's possible
+@@ -1168,7 +1205,11 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ 		// use. Go around and try again.
+ 		if fs.generationBackedInodes[ic.FullName] != existingInode {
+-			existingInode.Unlock()
++			if isReadLocked {
++				rwLocker.RUnlock()
++			} else {
++				existingInode.Unlock()
++			}
+ 			continue
+ 		}
+ 
+@@ -1164,6 +1213,13 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ 		// The existing inode has the same generation but a different size.
+ 		// Update the size and return the existing inode.
+ 		if cmp == 2 {
++			if isReadLocked {
++				rwLocker.RUnlock()
++				fs.mu.Unlock()
++				localReadLock = false
++				fs.mu.Lock()
++				continue
++			}
+ 			logger.Warnf("The size of object has changed remotely at the same generation. Updating the existing inode to reflect the size change.\n")
+ 			existingInode.UpdateSize(oGen.Size)
+ 			in = existingInode
+@@ -1173,7 +1229,11 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ 		// The existing inode is newer than the backing object. The caller
+ 		// should call again with a newer backing object.
+ 		if cmp == -1 {
+-			existingInode.Unlock()
++			if isReadLocked {
++				rwLocker.RUnlock()
++			} else {
++				existingInode.Unlock()
++			}
+ 			return
+ 		}
+ 
+@@ -1185,11 +1245,15 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ 		//
+ 		// Replace it with a newly-mintend inode and then go around, acquiring its
+ 		// lock in accordance with our lock ordering rules.
+-		existingInode.Unlock()
++		if isReadLocked {
++			rwLocker.RUnlock()
++		} else {
++			existingInode.Unlock()
++		}
+ 
+ 		in, err = fs.mintInode(ic, parInodeCtx)
+ 		if err != nil {
+-			return nil, err
++			return nil, false, err
+ 		}
+ 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
+ 
+@@ -1209,14 +1273,15 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(parInodeCtx context.Context,
+ func (fs *fileSystem) lookUpOrCreateChildInode(
+ 	ctx context.Context,
+ 	parent inode.DirInode,
+-	childName string) (child inode.Inode, err error) {
++	childName string,
++	readLock bool) (child inode.Inode, isReadLocked bool, err error) {
+ 	// First check if the requested child is a localFileInode.
+ 	child, err = fs.lookUpLocalFileInode(parent, childName)
+ 	if err != nil {
+-		return nil, err
++		return nil, false, err
+ 	}
+ 	if child != nil {
+-		return
++		return child, false, nil
+ 	}
+ 
+ 	// If the requested child is not a localFileInode, continue with the existing
+@@ -1254,9 +1319,9 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
+ 		}
+ 
+ 		// Attempt to create the inode. Return if successful.
+-		child, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *core)
++		child, isReadLocked, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *core, readLock)
+ 		if err != nil {
+-			return nil, err
++			return nil, false, err
+ 		}
+ 		if child != nil {
+ 			return
+@@ -1347,13 +1412,13 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
+ 	ctx context.Context,
+ 	parent inode.DirInode,
+ 	childName string) (child inode.BucketOwnedDirInode, err error) {
+-	in, err := fs.lookUpOrCreateChildInode(ctx, parent, childName)
++	in, isReadLocked, err := fs.lookUpOrCreateChildInode(ctx, parent, childName, false)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("lookup or create %q: %w", childName, err)
+ 	}
+ 	var ok bool
+ 	if child, ok = in.(inode.BucketOwnedDirInode); !ok {
+-		fs.unlockAndDecrementLookupCount(in, 1)
++		fs.unlockAndDecrementLookupCount(in, isReadLocked, 1)
+ 		return nil, fmt.Errorf("not a bucket owned directory: %q", childName)
+ 	}
+ 	return child, nil
+@@ -1519,7 +1584,7 @@ func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.
+ // LOCKS_EXCLUDED(fs.mu)
+ // UNLOCK_FUNCTION(fs.mu)
+ // UNLOCK_FUNCTION(in)
+-func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
++func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, isReadLocked bool, N uint64) {
+ 	name := in.Name()
+ 
+ 	// Decrement the lookup count.
+@@ -1555,7 +1620,11 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
+ 		}
+ 	}
+ 
+-	in.Unlock()
++	if isReadLocked {
++		in.(locker.RWLocker).RUnlock()
++	} else {
++		in.Unlock()
++	}
+ }
+ 
+ // A helper function for use after incrementing an inode's lookup count.
+@@ -1582,15 +1651,20 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
+ // UNLOCK_FUNCTION(in)
+ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
+ 	in inode.Inode,
++	isReadLocked bool,
+ 	err *error) {
+ 	// If there is no error, just unlock.
+ 	if *err == nil {
+-		in.Unlock()
++		if isReadLocked {
++			in.(locker.RWLocker).RUnlock()
++		} else {
++			in.Unlock()
++		}
+ 		return
+ 	}
+ 
+ 	// Otherwise, go through the decrement helper
+-	fs.unlockAndDecrementLookupCount(in, 1)
++	fs.unlockAndDecrementLookupCount(in, isReadLocked, 1)
+ }
+ 
+ // Fetch attributes for the supplied inode and fill in an appropriate
+@@ -1699,14 +1773,20 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
+ // LOCKS_EXCLUDED(fs.mu)
+ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core, parInodeCtx context.Context) (entryPlus *fuseutil.DirentPlus, err error) {
+ 	// Look up or create the inode for the core.
+-	child, err := fs.lookUpOrCreateInodeIfNotStale(parInodeCtx, core)
++	child, isReadLocked, err := fs.lookUpOrCreateInodeIfNotStale(parInodeCtx, core, true)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("coreToDirentPlus: lookUpOrCreateInodeIfNotStale: %w", err)
+ 	}
+ 	if child == nil {
+ 		return nil, fmt.Errorf("coreToDirentPlus: stale record for %s", path.Base(fullName.LocalName()))
+ 	}
+-	defer child.Unlock()
++	defer func() {
++		if isReadLocked {
++			child.(locker.RWLocker).RUnlock()
++		} else {
++			child.Unlock()
++		}
++	}()
+ 
+ 	// Extract the child's attributes.
+ 	attributes, err := child.Attributes(ctx, false)
+@@ -1919,12 +1999,12 @@ func (fs *fileSystem) LookUpInode(
+ 	fs.mu.Unlock()
+ 
+ 	// Find or create the child inode.
+-	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
++	child, isReadLocked, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name, true)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
++	defer fs.unlockAndMaybeDisposeOfInode(child, isReadLocked, &err)
+ 
+ 	// Fill out the response.
+ 	e := &op.Entry
+@@ -2028,7 +2108,7 @@ func (fs *fileSystem) ForgetInode(
+ 
+ 	// Decrement and unlock.
+ 	in.Lock()
+-	fs.unlockAndDecrementLookupCount(in, op.N)
++	fs.unlockAndDecrementLookupCount(in, false, op.N)
+ 
+ 	return
+ }
+@@ -2065,7 +2145,7 @@ func (fs *fileSystem) MkDir(
+ 	// Attempt to create a child inode using the object we created. If we fail to
+ 	// do so, it means someone beat us to the punch with a newer generation
+ 	// (unlikely, so we're probably okay with failing here).
+-	child, err := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
++	child, _, err := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result, false)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -2074,7 +2154,7 @@ func (fs *fileSystem) MkDir(
+ 		return err
+ 	}
+ 
+-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
++	defer fs.unlockAndMaybeDisposeOfInode(child, false, &err)
+ 
+ 	// Fill out the response.
+ 	e := &op.Entry
+@@ -2104,7 +2184,7 @@ func (fs *fileSystem) MkDir(
+ 		return err
+ 	}
+ 
+-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
++	defer fs.unlockAndMaybeDisposeOfInode(child, false, &err)
+ 
+ 	// Fill out the response.
+ 	e := &op.Entry
+@@ -2155,7 +2235,7 @@ func (fs *fileSystem) createFile(
+ 	// Attempt to create a child inode using the object we created. If we fail to
+ 	// do so, it means someone beat us to the punch with a newer generation
+ 	// (unlikely, so we're probably okay with failing here).
+-	child, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
++	child, _, err = fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result, false)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -2187,7 +2267,7 @@ func (fs *fileSystem) MkNode(
+ 		return err
+ 	}
+ 
+-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
++	defer fs.unlockAndMaybeDisposeOfInode(child, false, &err)
+ 
+ 	// Fill out the response.
+ 	e := &op.Entry
+@@ -2247,7 +2327,7 @@ func (fs *fileSystem) OpenFile(
+ 		return err
+ 	}
+ 
+-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
++	defer fs.unlockAndMaybeDisposeOfInode(child, false, &err)
+ 
+ 	// Allocate a handle.
+ 	fs.mu.Lock()
+@@ -2317,7 +2397,7 @@ func (fs *fileSystem) CreateSymlink(
+ 	// Attempt to create a child inode using the object we created. If we fail to
+ 	// do so, it means someone beat us to the punch with a newer generation
+ 	// (unlikely, so we're probably okay with failing here).
+-	child, err := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result)
++	child, _, err := fs.lookUpOrCreateInodeIfNotStale(parent.Context(), *result, false)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -2326,7 +2406,7 @@ func (fs *fileSystem) CreateSymlink(
+ 		return err
+ 	}
+ 
+-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
++	defer fs.unlockAndMaybeDisposeOfInode(child, false, &err)
+ 
+ 	// Fill out the response.
+ 	e := &op.Entry
+@@ -2364,7 +2444,7 @@ func (fs *fileSystem) RmDir(
+ 	fs.mu.Unlock()
+ 
+ 	// Find or create the child inode, locked.
+-	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
++	child, isReadLocked, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name, false)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -2377,7 +2457,7 @@ func (fs *fileSystem) RmDir(
+ 	cleanUpAndUnlockChild := func() {
+ 		if !childCleanedUp {
+ 			childCleanedUp = true
+-			fs.unlockAndDecrementLookupCount(child, 1)
++			fs.unlockAndDecrementLookupCount(child, isReadLocked, 1)
+ 		}
+ 	}
+ 
+@@ -2491,7 +2571,7 @@ func (fs *fileSystem) Rename(
+ 		}
+ 	}
+ 
+-	child, err := fs.lookUpOrCreateChildInode(ctx, oldParent, op.OldName)
++	child, isReadLocked, err := fs.lookUpOrCreateChildInode(ctx, oldParent, op.OldName, false)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -2498,7 +2578,11 @@ func (fs *fileSystem) Rename(
+ 		return fuse.ENOENT
+ 	}
+ 	child.DecrementLookupCount(1)
+-	child.Unlock()
++	if isReadLocked {
++		child.(locker.RWLocker).RUnlock()
++	} else {
++		child.Unlock()
++	}
+ 
+ 	childBktOwned, ok := child.(inode.BucketOwnedInode)
+ 	if !ok { // Won't happen in ideal case.
+@@ -2633,7 +2717,7 @@ func (fs *fileSystem) Rename(
+ 
+ func (fs *fileSystem) releaseInodes(inodes *[]inode.DirInode) {
+ 	for _, in := range *inodes {
+-		fs.unlockAndDecrementLookupCount(in, 1)
++		fs.unlockAndDecrementLookupCount(in, false, 1)
+ 	}
+ 	*inodes = []inode.DirInode{}
+ }
+diff --git a/internal/fs/inode/lookup_count.go b/internal/fs/inode/lookup_count.go
+index 869902d8d..d3228c531 100644
+--- a/internal/fs/inode/lookup_count.go
++++ b/internal/fs/inode/lookup_count.go
+@@ -16,6 +16,7 @@ package inode
+ 
+ import (
+ 	"fmt"
++	"sync/atomic"
+ 
+ 	"github.com/jacobsa/fuse/fuseops"
+ )
+@@ -27,7 +28,7 @@ import (
+ type lookupCount struct {
+ 	id        fuseops.InodeID
+ 	count     uint64
+-	destroyed bool
++	destroyed uint32
+ }
+ 
+ func (lc *lookupCount) Init(id fuseops.InodeID) {
+@@ -35,29 +36,29 @@ func (lc *lookupCount) Init(id fuseops.InodeID) {
+ }
+ 
+ func (lc *lookupCount) Inc() {
+-	if lc.destroyed {
++	if atomic.LoadUint32(&lc.destroyed) == 1 {
+ 		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
+ 	}
+ 
+-	lc.count++
++	atomic.AddUint64(&lc.count, 1)
+ }
+ 
+ func (lc *lookupCount) Dec(n uint64) (destroy bool) {
+-	if lc.destroyed {
++	if atomic.LoadUint32(&lc.destroyed) == 1 {
+ 		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
+ 	}
+ 
+-	// Make sure n is in range.
+-	if n > lc.count {
+-		panic(fmt.Sprintf(
+-			"n is greater than lookup count: %v vs. %v",
+-			n,
+-			lc.count))
++	for {
++		current := atomic.LoadUint64(&lc.count)
++		if n > current {
++			panic(fmt.Sprintf(
++				"n is greater than lookup count: %v vs. %v",
++				n,
++				current))
++		}
++		newCount := current - n
++		if atomic.CompareAndSwapUint64(&lc.count, current, newCount) {
++			return newCount == 0
++		}
+ 	}
+-
+-	// Decrement.
+-	lc.count -= n
+-
+-	destroy = lc.count == 0
+-	return
+ }

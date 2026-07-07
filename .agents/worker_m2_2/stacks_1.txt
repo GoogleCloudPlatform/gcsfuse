@@ -1,0 +1,409 @@
+goroutine 69 [running]:
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:62 +0x70
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:58 +0xa8
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0x3df2eb870908, {0x1cd5b24?, 0x0?}, 0x1d82b80)
+	/usr/lib/go-1.26/src/testing/testing.go:2109 +0x4e5
+testing.runTests.func1(0x3df2eb870908)
+	/usr/lib/go-1.26/src/testing/testing.go:2585 +0x3e
+testing.tRunner(0x3df2eb870908, 0x3df2ebe3fc58)
+	/usr/lib/go-1.26/src/testing/testing.go:2036 +0xea
+testing.runTests({0x1ced3d6, 0x29}, {0x1d010a5, 0x35}, 0x3df2eb87a7b0, {0x308ab00, 0x4d, 0x4d}, {0xc28b6ceb29a8523a, 0x8bb3a02449, ...})
+	/usr/lib/go-1.26/src/testing/testing.go:2583 +0x505
+testing.(*M).Run(0x3df2eba0efa0)
+	/usr/lib/go-1.26/src/testing/testing.go:2443 +0x6ac
+main.main()
+	_testmain.go:200 +0x9b
+
+goroutine 7 [select]:
+go.opencensus.io/stats/view.(*worker).start(0x3df2eb7af300)
+	/usr/local/google/home/kislayk/go/pkg/mod/go.opencensus.io@v0.24.0/stats/view/worker.go:292 +0xa5
+created by go.opencensus.io/stats/view.init.0 in goroutine 1
+	/usr/local/google/home/kislayk/go/pkg/mod/go.opencensus.io@v0.24.0/stats/view/worker.go:34 +0x8d
+
+goroutine 66 [syscall]:
+os/signal.signal_recv()
+	/usr/lib/go-1.26/src/runtime/sigqueue.go:152 +0x98
+os/signal.loop()
+	/usr/lib/go-1.26/src/os/signal/signal_unix.go:23 +0x13
+created by os/signal.Notify.func1.1 in goroutine 1
+	/usr/lib/go-1.26/src/os/signal/signal.go:152 +0x1f
+
+goroutine 67 [chan receive]:
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.init.5.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs_test.go:70 +0x19
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.init.5 in goroutine 1
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs_test.go:69 +0x98
+
+goroutine 68 [runnable]:
+time.Sleep(0x3b9aca00)
+	/usr/lib/go-1.26/src/runtime/time.go:363 +0x165
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock(0x3df2eb870b48)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:204 +0x945
+testing.tRunner(0x3df2eb870b48, 0x1d82b80)
+	/usr/lib/go-1.26/src/testing/testing.go:2036 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/lib/go-1.26/src/testing/testing.go:2101 +0x4c5
+
+goroutine 137 [sync.Mutex.Lock]:
+internal/sync.runtime_SemacquireMutex(0x14aa185?, 0xa0?, 0x1dc3cd8?)
+	/usr/lib/go-1.26/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0x3df2eb7328c8)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:149 +0x15d
+internal/sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:70
+sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/sync/mutex.go:46
+sync.(*RWMutex).Lock(0x3df2ebcc8c00?)
+	/usr/lib/go-1.26/src/sync/rwmutex.go:150 +0x32
+github.com/jacobsa/syncutil.(*InvariantMutex).Lock(0x3df2eb7328c8)
+	/usr/local/google/home/kislayk/go/pkg/mod/github.com/jacobsa/syncutil@v0.0.0-20180201203307-228ac8e5a6c3/invariant_mutex.go:85 +0x1a
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*FileInode).Lock(0x0?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/file.go:390 +0x1b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.lockInode({0x1dd92a8?, 0x3df2eb732800?}, 0x0?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1045 +0x4b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateInodeIfNotStale(0x3df2eb97b340, {0x1dc40e0, 0x3df2eb8db4a0}, {{{0x0, 0x0}, {0x1cae4a5, 0x6}}, 0x3df2ebe56120, 0x3df2ebe3b580, 0x0, ...}, ...)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1175 +0x3b3
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode(0x3df2eb97b340, {0x1dc3cd8, 0x30c01e0}, {0x1dec658, 0x3df2eb97b4a0}, {0x1cae4a5, 0x6}, 0x1)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1324 +0x230
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).LookUpInode(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2ebf11c20)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1990 +0x149
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func5()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:161 +0xb7
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:150 +0x755
+
+goroutine 138 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0x3df2ebdcd638?, 0x20?)
+	/usr/lib/go-1.26/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0x3df2ebdfb088)
+	/usr/lib/go-1.26/src/sync/waitgroup.go:206 +0x85
+golang.org/x/sync/errgroup.(*Group).Wait(0x3df2ebdfb080)
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x1e
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:800 +0x332
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).fetchCoreEntity(0x3df2ebed4008?, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5?, 0x1cae4a5?}, 0x3df2ebcccb18?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:760 +0xa5
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).LookUpChild(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:719 +0x37a
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1304 +0x13b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode(0x3df2eb97b340, {0x1dc3cd8, 0x30c01e0}, {0x1dec658, 0x3df2eb97b4a0}, {0x1cae4a5, 0x6}, 0x1)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1312 +0x186
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).LookUpInode(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2ebdfe4b0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1990 +0x149
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func5()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:161 +0xb7
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:150 +0x755
+
+goroutine 319310 [runnable]:
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 139
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x95
+
+goroutine 136 [runnable]:
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*FileInode).clobbered(0x3df2eb732800, {0x1dc3cd8, 0x30c01e0}, 0x0, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/file.go:257 +0x5d
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*FileInode).Attributes(0x3df2eb732800, {0x1dc3cd8, 0x30c01e0}, 0x1)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/file.go:604 +0x3a6
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).getAttributes(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, {0x1dd92a8?, 0x3df2eb732800?})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1675 +0xb1
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).LookUpInode(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2ebbbd2c0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:2000 +0x256
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func5()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:161 +0xb7
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:150 +0x755
+
+goroutine 135 [runnable]:
+sync.runtime_SemacquireWaitGroup(0x3df2ebdcd5f0?, 0xc0?)
+	/usr/lib/go-1.26/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0x3df2ebdfafc8)
+	/usr/lib/go-1.26/src/sync/waitgroup.go:206 +0x85
+golang.org/x/sync/errgroup.(*Group).Wait(0x3df2ebdfafc0)
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x1e
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:800 +0x332
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).fetchCoreEntity(0x3df2ebed5808?, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5?, 0x1cae4a5?}, 0x3df2eb8bbb18?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:760 +0xa5
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).LookUpChild(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:719 +0x37a
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1304 +0x13b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode(0x3df2eb97b340, {0x1dc3cd8, 0x30c01e0}, {0x1dec658, 0x3df2eb97b4a0}, {0x1cae4a5, 0x6}, 0x1)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1312 +0x186
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).LookUpInode(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2ebdfe3c0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1990 +0x149
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func5()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:161 +0xb7
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:150 +0x755
+
+goroutine 134 [runnable]:
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func5()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:157 +0x7d
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:150 +0x755
+
+goroutine 144 [sleep]:
+time.Sleep(0x186a0)
+	/usr/lib/go-1.26/src/runtime/time.go:363 +0x165
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func7()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:199 +0x69
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:189 +0x93b
+
+goroutine 143 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0x3df2ebdcd6b0?, 0x60?)
+	/usr/lib/go-1.26/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0x3df2ebdfb1c8)
+	/usr/lib/go-1.26/src/sync/waitgroup.go:206 +0x85
+golang.org/x/sync/errgroup.(*Group).Wait(0x3df2ebdfb1c0)
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x1e
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:800 +0x332
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).fetchCoreEntity(0x3df2eb7328c8?, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5?, 0x1cae4a5?}, 0x3df2ebd6cbb8?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:760 +0xa5
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).LookUpChild(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:719 +0x37a
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1304 +0x13b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode(0x3df2eb97b340, {0x1dc3cd8, 0x30c01e0}, {0x1dec658, 0x3df2eb97b4a0}, {0x1cae4a5, 0x6}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1312 +0x186
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).RmDir(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2ebc71200)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:2435 +0x131
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func6()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:181 +0xba
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:170 +0x819
+
+goroutine 142 [runnable]:
+sync.runtime_SemacquireWaitGroup(0x3df2ebc7fc50?, 0x40?)
+	/usr/lib/go-1.26/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0x3df2ec068148)
+	/usr/lib/go-1.26/src/sync/waitgroup.go:206 +0x85
+golang.org/x/sync/errgroup.(*Group).Wait(0x3df2ec068140)
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x1e
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:800 +0x332
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).fetchCoreEntity(0x3df2eb7328c8?, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5?, 0x1cae4a5?}, 0x3df2eb80fbb8?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:760 +0xa5
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).LookUpChild(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:719 +0x37a
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1304 +0x13b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode(0x3df2eb97b340, {0x1dc3cd8, 0x30c01e0}, {0x1dec658, 0x3df2eb97b4a0}, {0x1cae4a5, 0x6}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1312 +0x186
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).RmDir(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2ec22e510)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:2435 +0x131
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func6()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:181 +0xba
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:170 +0x819
+
+goroutine 141 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0x3df2ebbb5b78?, 0x20?)
+	/usr/lib/go-1.26/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0x3df2ebbc5388)
+	/usr/lib/go-1.26/src/sync/waitgroup.go:206 +0x85
+golang.org/x/sync/errgroup.(*Group).Wait(0x3df2ebbc5380)
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x1e
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:800 +0x332
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).fetchCoreEntity(0x3df2eb7328c8?, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5?, 0x1cae4a5?}, 0x3df2eb80ebb8?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:760 +0xa5
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).LookUpChild(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:719 +0x37a
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1304 +0x13b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode(0x3df2eb97b340, {0x1dc3cd8, 0x30c01e0}, {0x1dec658, 0x3df2eb97b4a0}, {0x1cae4a5, 0x6}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1312 +0x186
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).RmDir(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2ebf21170)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:2435 +0x131
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func6()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:181 +0xba
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:170 +0x819
+
+goroutine 140 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0x3df2ebc7fba8?, 0x0?)
+	/usr/lib/go-1.26/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0x3df2ec063e88)
+	/usr/lib/go-1.26/src/sync/waitgroup.go:206 +0x85
+golang.org/x/sync/errgroup.(*Group).Wait(0x3df2ec063e80)
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x1e
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:800 +0x332
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).fetchCoreEntity(0x3df2eb7328c8?, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5?, 0x1cae4a5?}, 0x3df2eb80dbb8?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:760 +0xa5
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).LookUpChild(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:719 +0x37a
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1304 +0x13b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode(0x3df2eb97b340, {0x1dc3cd8, 0x30c01e0}, {0x1dec658, 0x3df2eb97b4a0}, {0x1cae4a5, 0x6}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1312 +0x186
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).RmDir(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2ec22e4e0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:2435 +0x131
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func6()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:181 +0xba
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:170 +0x819
+
+goroutine 139 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0x3df2ec105320?, 0xe0?)
+	/usr/lib/go-1.26/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0x3df2ec10f588)
+	/usr/lib/go-1.26/src/sync/waitgroup.go:206 +0x85
+golang.org/x/sync/errgroup.(*Group).Wait(0x3df2ec10f580)
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:56 +0x1e
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:800 +0x332
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).fetchCoreEntity(0x3df2eb7328c8?, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5?, 0x1cae4a5?}, 0x3df2eb80bbb8?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:760 +0xa5
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).LookUpChild(0x3df2eb97b4a0, {0x1dc3cd8, 0x30c01e0}, {0x1cae4a5, 0x6})
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:719 +0x37a
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1304 +0x13b
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).lookUpOrCreateChildInode(0x3df2eb97b340, {0x1dc3cd8, 0x30c01e0}, {0x1dec658, 0x3df2eb97b4a0}, {0x1cae4a5, 0x6}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:1312 +0x186
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs.(*fileSystem).RmDir(0x3df2eb97b340, {0x1dc3cd8?, 0x30c01e0?}, 0x3df2eb8953e0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/fs.go:2435 +0x131
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func6()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:181 +0xba
+created by github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock in goroutine 68
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:170 +0x819
+
+goroutine 319623 [runnable]:
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 143
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x95
+
+goroutine 319588 [runnable]:
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 141
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x95
+
+goroutine 319311 [runnable]:
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 139
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x95
+
+goroutine 319602 [runnable]:
+internal/sync.runtime_SemacquireMutex(0xa0000004a1c3b?, 0x20?, 0x7f982f9270e8?)
+	/usr/lib/go-1.26/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0x3df2ebb12150)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:149 +0x15d
+internal/sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:70
+sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/sync/mutex.go:46
+sync.(*RWMutex).Lock(0x1?)
+	/usr/lib/go-1.26/src/sync/rwmutex.go:150 +0x32
+github.com/jacobsa/syncutil.(*InvariantMutex).Lock(0x3df2ebb12150)
+	/usr/local/google/home/kislayk/go/pkg/mod/github.com/jacobsa/syncutil@v0.0.0-20180201203307-228ac8e5a6c3/invariant_mutex.go:85 +0x1a
+github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake.(*bucket).StatObject(0x3df2ebb12120, {0x3df2ebc0fe40?, 0x474f93?}, 0x3df2ebc7fbc0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/storage/fake/bucket.go:907 +0x77
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func2({0x1dc40e0?, 0x3df2ebf03400?}, 0x1aee660?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:80 +0x65
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.(*mockBucket).StatObject(0x428005?, {0x1dc40e0?, 0x3df2ebf03400?}, 0x1?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:34 +0x33
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.findExplicitInode({0x1dc40e0, 0x3df2ebf03400}, 0x3df2ebe56120, {{0x0?, 0x1cae4a5?}, {0x3df2ebfa61b0?, 0x0?}}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:448 +0xc9
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType.func3()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:795 +0x79
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x50
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 140
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x95
+
+goroutine 319589 [sync.Mutex.Lock]:
+internal/sync.runtime_SemacquireMutex(0x4a1c3b?, 0x68?, 0x7f982f9267f0?)
+	/usr/lib/go-1.26/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0x3df2ebb12150)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:149 +0x15d
+internal/sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:70
+sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/sync/mutex.go:46
+sync.(*RWMutex).Lock(0x1?)
+	/usr/lib/go-1.26/src/sync/rwmutex.go:150 +0x32
+github.com/jacobsa/syncutil.(*InvariantMutex).Lock(0x3df2ebb12150)
+	/usr/local/google/home/kislayk/go/pkg/mod/github.com/jacobsa/syncutil@v0.0.0-20180201203307-228ac8e5a6c3/invariant_mutex.go:85 +0x1a
+github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake.(*bucket).StatObject(0x3df2ebb12120, {0x3df2eba3fe40?, 0x474f93?}, 0x3df2ebbb5b90)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/storage/fake/bucket.go:907 +0x77
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func2({0x1dc40e0?, 0x3df2ebbc6550?}, 0x1aee660?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:80 +0x65
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.(*mockBucket).StatObject(0x428005?, {0x1dc40e0?, 0x3df2ebbc6550?}, 0x3df2ebbb5b90?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:34 +0x33
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.findExplicitInode({0x1dc40e0, 0x3df2ebbc6550}, 0x3df2ebe56120, {{0x0?, 0x1cae4a5?}, {0x3df2ebb0a9d0?, 0x0?}}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:448 +0xc9
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType.func3()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:795 +0x79
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x50
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 141
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x95
+
+goroutine 319624 [sync.Mutex.Lock]:
+internal/sync.runtime_SemacquireMutex(0xa0000004a1c3b?, 0x68?, 0x7f982f92d5a0?)
+	/usr/lib/go-1.26/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0x3df2ebb12150)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:149 +0x15d
+internal/sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:70
+sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/sync/mutex.go:46
+sync.(*RWMutex).Lock(0x1?)
+	/usr/lib/go-1.26/src/sync/rwmutex.go:150 +0x32
+github.com/jacobsa/syncutil.(*InvariantMutex).Lock(0x3df2ebb12150)
+	/usr/local/google/home/kislayk/go/pkg/mod/github.com/jacobsa/syncutil@v0.0.0-20180201203307-228ac8e5a6c3/invariant_mutex.go:85 +0x1a
+github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake.(*bucket).StatObject(0x3df2ebb12120, {0x3df2ec05c640?, 0x474f93?}, 0x3df2ebdcd6c8)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/storage/fake/bucket.go:907 +0x77
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func2({0x1dc40e0?, 0x3df2ebdfc550?}, 0x1aee660?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:80 +0x65
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.(*mockBucket).StatObject(0x428005?, {0x1dc40e0?, 0x3df2ebdfc550?}, 0x3df2ebdcd6c8?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:34 +0x33
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.findExplicitInode({0x1dc40e0, 0x3df2ebdfc550}, 0x3df2ebe56120, {{0x0?, 0x1cae4a5?}, {0x3df2ec3145e0?, 0x0?}}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:448 +0xc9
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType.func3()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:795 +0x79
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x50
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 143
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x95
+
+goroutine 319621 [sync.Mutex.Lock]:
+internal/sync.runtime_SemacquireMutex(0xa0000004a1c3b?, 0x8?, 0x7f982f92de98?)
+	/usr/lib/go-1.26/src/runtime/sema.go:95 +0x25
+internal/sync.(*Mutex).lockSlow(0x3df2ebb12150)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:149 +0x15d
+internal/sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/internal/sync/mutex.go:70
+sync.(*Mutex).Lock(...)
+	/usr/lib/go-1.26/src/sync/mutex.go:46
+sync.(*RWMutex).Lock(0x1?)
+	/usr/lib/go-1.26/src/sync/rwmutex.go:150 +0x32
+github.com/jacobsa/syncutil.(*InvariantMutex).Lock(0x3df2ebb12150)
+	/usr/local/google/home/kislayk/go/pkg/mod/github.com/jacobsa/syncutil@v0.0.0-20180201203307-228ac8e5a6c3/invariant_mutex.go:85 +0x1a
+github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake.(*bucket).StatObject(0x3df2ebb12120, {0x3df2ec225640?, 0x437040?}, 0x3df2ebe3e888)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/storage/fake/bucket.go:907 +0x77
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.TestReadLockingUpgradeDeadlock.func2({0x1dc40e0?, 0x3df2ebdfc500?}, 0x1aee660?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:80 +0x65
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs_test.(*mockBucket).StatObject(0x428005?, {0x1dc40e0?, 0x3df2ebdfc500?}, 0x3df2ebe3e888?)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/read_locking_deadlock_test.go:34 +0x33
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.findExplicitInode({0x1dc40e0, 0x3df2ebdfc500}, 0x3df2ebe56120, {{0x0?, 0x1cae4a5?}, {0x1cae4a5?, 0x0?}}, 0x0)
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:448 +0xc9
+github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode.(*dirInode).lookUpUnknownType.func1()
+	/usr/local/google/home/kislayk/gitproj/gcsfuse/internal/fs/inode/dir.go:784 +0x79
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:93 +0x50
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 138
+	/usr/local/google/home/kislayk/go/pkg/mod/golang.org/x/sync@v0.20.0/errgroup/errgroup.go:78 +0x95
