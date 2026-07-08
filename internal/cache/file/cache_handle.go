@@ -38,7 +38,10 @@ type CacheHandle struct {
 	fileDownloadJob *downloader.Job
 
 	// fileInfoCache contains the reference to fileInfo cache.
-	fileInfoCache *lru.Cache
+	fileInfoCache *lru.Cache[data.FileInfoKey, *data.FileInfo]
+
+	// fileInfoKey is the cached file info key.
+	fileInfoKey data.FileInfoKey
 
 	// cacheFileForRangeRead if true, async download job will start even for range
 	// reads.
@@ -54,11 +57,12 @@ type CacheHandle struct {
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
-	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
+	fileInfoCache *lru.Cache[data.FileInfoKey, *data.FileInfo], fileInfoKey data.FileInfoKey, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
 	fch := CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
 		fileInfoCache:         fileInfoCache,
+		fileInfoKey:           fileInfoKey,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 	}
 	fch.isSequential.Store(initialOffset == 0)
@@ -96,34 +100,17 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 // Whether to change the order in cache while lookup is controlled via
 // changeCacheOrder.
 func (fch *CacheHandle) getFileInfoData(bucket gcs.Bucket, object *gcs.MinObject, changeCacheOrder bool) (*data.FileInfo, error) {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: bucket.Name(),
-		ObjectName: object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	if err != nil {
-		return nil, fmt.Errorf("error while creating key for bucket %s and object %s: %w", bucket.Name(), object.Name, err)
-	}
-
-	var fileInfo lru.ValueType
+	var fileInfo *data.FileInfo
 	if changeCacheOrder {
-		fileInfo = fch.fileInfoCache.LookUp(fileInfoKeyName)
+		fileInfo = fch.fileInfoCache.LookUp(fch.fileInfoKey)
 	} else {
-		fileInfo = fch.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+		fileInfo = fch.fileInfoCache.LookUpWithoutChangingOrder(fch.fileInfoKey)
 	}
 	if fileInfo == nil {
-		return nil, fmt.Errorf("%w: no entry found in file info cache for key %v", util.ErrInvalidFileInfoCache, fileInfoKeyName)
+		return nil, fmt.Errorf("%w: no entry found in file info cache for key %v", util.ErrInvalidFileInfoCache, fch.fileInfoKey)
 	}
 
-	// The generation check below is required because it may happen that file
-	// being read is evicted from cache during or after reading the required offset
-	// from local cached file to `dst` buffer.
-	fileInfoData, ok := fileInfo.(data.FileInfo)
-	if !ok {
-		return nil, fmt.Errorf("getFileInfoData: failed to get fileInfoData from file-cache for %q: %w", object.Name, util.ErrInvalidFileHandle)
-	}
-
-	return &fileInfoData, nil
+	return fileInfo, nil
 }
 
 // validateEntryInFileInfoCache checks if entry is present for a given object in

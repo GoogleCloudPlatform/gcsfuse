@@ -120,6 +120,7 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
+		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics())
 
@@ -157,6 +158,7 @@ func (t *FileMockBucketTest) createGCSBackedFileInode(backingObj *gcs.MinObject)
 		false, // localFile
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
+		nil,
 		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics())

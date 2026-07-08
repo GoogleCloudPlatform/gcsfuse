@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
@@ -181,7 +182,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
 	t.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
-	lruCache := lru.NewCache(cacheMaxSize)
+	lruCache := lru.NewCache[data.FileInfoKey, *data.FileInfo](cacheMaxSize)
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}

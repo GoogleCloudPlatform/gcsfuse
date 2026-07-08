@@ -33,7 +33,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config, mrdCache *lru.Cache) (*MultiRangeDownloaderWrapper, error) {
+func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config, mrdCache *lru.Cache[string, *MultiRangeDownloaderWrapper]) (*MultiRangeDownloaderWrapper, error) {
 	if object == nil {
 		return nil, fmt.Errorf("NewMultiRangeDownloaderWrapper: Missing MinObject")
 	}
@@ -75,7 +75,7 @@ type MultiRangeDownloaderWrapper struct {
 	handle []byte
 
 	// MRD cache for LRU-based eviction of inactive MRD instances.
-	mrdCache *lru.Cache
+	mrdCache *lru.Cache[string, *MultiRangeDownloaderWrapper]
 }
 
 // SetMinObject sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
@@ -166,12 +166,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	// Evict outside all locks to avoid deadlock.
 	mrdWrapper.mu.Unlock()
 	for _, wrapper := range evictedValues {
-		mrdWrapper, ok := wrapper.(*MultiRangeDownloaderWrapper)
-		if !ok {
-			logger.Errorf("invalid value type, expected MultiRangeDownloaderWrapper, got %T", wrapper)
-		} else {
-			mrdWrapper.CloseMRDForEviction()
-		}
+		wrapper.CloseMRDForEviction()
 	}
 	// Reacquire the lock ensuring safe defer's Unlock.
 	mrdWrapper.mu.Lock()

@@ -49,15 +49,15 @@ const HandlerCacheMaxSize = TestObjectSize + ObjectSizeToCauseEviction
 const ObjectSizeToCauseEviction = 20
 
 type cacheHandlerTestArgs struct {
-	jobManager      *downloader.JobManager
-	bucket          gcs.Bucket
-	fakeStorage     storage.FakeStorage
-	object          *gcs.MinObject
-	cache           *lru.Cache
-	cacheHandler    *CacheHandler
-	downloadPath    string
-	fileInfoKeyName string
-	cacheDir        string
+	jobManager   *downloader.JobManager
+	bucket       gcs.Bucket
+	fakeStorage  storage.FakeStorage
+	object       *gcs.MinObject
+	cache        *lru.Cache[data.FileInfoKey, *data.FileInfo]
+	cacheHandler *CacheHandler
+	downloadPath string
+	fileInfoKey  data.FileInfoKey
+	cacheDir     string
 }
 
 func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCacheConfig, cacheDir string) *cacheHandlerTestArgs {
@@ -84,7 +84,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	object := createObject(t, bucket, TestObjectName, testObjectContent)
 
 	// fileInfoCache with testFileInfoEntry
-	cache := lru.NewCache(HandlerCacheMaxSize)
+	cache := lru.NewCache[data.FileInfoKey, *data.FileInfo](HandlerCacheMaxSize)
 
 	// Calculate block size
 	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(cacheDir)
@@ -100,7 +100,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex, isSparse, cacheDirVolumeBlockSize)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
-	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName, cacheDirVolumeBlockSize)
+	fileInfoKey := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName, cacheDirVolumeBlockSize)
 	downloadPath := util.GetDownloadPath(cacheHandler.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
 	_, err = util.CreateFile(data.FileSpec{Path: downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
 	t.Cleanup(func() {
@@ -112,15 +112,15 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	require.NotNil(t, job)
 
 	return &cacheHandlerTestArgs{
-		jobManager:      jobManager,
-		bucket:          bucket,
-		fakeStorage:     fakeStorage,
-		object:          object,
-		cache:           cache,
-		cacheHandler:    cacheHandler,
-		downloadPath:    downloadPath,
-		fileInfoKeyName: fileInfoKeyName,
-		cacheDir:        cacheDir,
+		jobManager:   jobManager,
+		bucket:       bucket,
+		fakeStorage:  fakeStorage,
+		object:       object,
+		cache:        cache,
+		cacheHandler: cacheHandler,
+		downloadPath: downloadPath,
+		fileInfoKey:  fileInfoKey,
+		cacheDir:     cacheDir,
 	}
 }
 
@@ -138,22 +138,17 @@ func createObject(t *testing.T, bucket gcs.Bucket, objName string, objContent []
 	return minObject
 }
 
-func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.MinObject, bucketName string, cacheDirVolumeBlockSize uint64) string {
+func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache[data.FileInfoKey, *data.FileInfo], object *gcs.MinObject, bucketName string, cacheDirVolumeBlockSize uint64) data.FileInfoKey {
 	t.Helper()
 	// Add an entry into
-	fileInfoKey := data.FileInfoKey{
-		BucketName: bucketName,
-		ObjectName: object.Name,
-	}
+	fileInfoKey, err := data.NewFileInfoKey(bucketName, 0, object.Name)
+	require.NoError(t, err)
 	fileInfo := data.NewFileInfo(fileInfoKey, object.Generation, object.Size, 0, false, nil, cacheDirVolumeBlockSize)
 
-	fileInfoKeyName, err := fileInfoKey.Key()
+	_, err = cache.Insert(fileInfoKey, &fileInfo)
 	require.NoError(t, err)
 
-	_, err = cache.Insert(fileInfoKeyName, fileInfo)
-	require.NoError(t, err)
-
-	return fileInfoKeyName
+	return fileInfoKey
 }
 
 func getDownloadJobForTestObject(t *testing.T, chTestArgs *cacheHandlerTestArgs) *downloader.Job {
@@ -163,17 +158,12 @@ func getDownloadJobForTestObject(t *testing.T, chTestArgs *cacheHandlerTestArgs)
 	return job
 }
 
-func isEntryInFileInfoCache(t *testing.T, cache *lru.Cache, objectName string, bucketName string) bool {
+func isEntryInFileInfoCache(t *testing.T, cache *lru.Cache[data.FileInfoKey, *data.FileInfo], objectName string, bucketName string) bool {
 	t.Helper()
-	fileInfoKey := data.FileInfoKey{
-		BucketName: bucketName,
-		ObjectName: objectName,
-	}
-
-	fileInfoKeyName, err := fileInfoKey.Key()
+	fileInfoKey, err := data.NewFileInfoKey(bucketName, 0, objectName)
 	require.NoError(t, err)
 
-	fileInfo := cache.LookUp(fileInfoKeyName)
+	fileInfo := cache.LookUp(fileInfoKey)
 	return fileInfo != nil
 }
 
@@ -227,15 +217,14 @@ func Test_cleanUpEvictedFile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			chTestArgs := initializeCacheHandlerTestArgs(t, &tc.fileCacheConfig, tc.cacheDir)
 			fileDownloadJob := getDownloadJobForTestObject(t, chTestArgs)
-			fileInfo := chTestArgs.cache.LookUp(chTestArgs.fileInfoKeyName)
-			fileInfoData := fileInfo.(data.FileInfo)
+			fileInfo := chTestArgs.cache.LookUp(chTestArgs.fileInfoKey)
 			jobStatusBefore := fileDownloadJob.GetStatus()
 			require.Equal(t, downloader.NotStarted, jobStatusBefore.Name)
 			jobStatusBefore, err := fileDownloadJob.Download(context.Background(), int64(util.MiB), false)
 			require.NoError(t, err)
 			require.Equal(t, downloader.Downloading, jobStatusBefore.Name)
 
-			err = chTestArgs.cacheHandler.cleanUpEvictedFile(&fileInfoData)
+			err = chTestArgs.cacheHandler.cleanUpEvictedFile(fileInfo)
 
 			assert.NoError(t, err)
 			jobStatusAfter := fileDownloadJob.GetStatus()
@@ -251,8 +240,7 @@ func Test_cleanUpEvictedFile_WhenLocalFileNotExist(t *testing.T) {
 	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 	fileDownloadJob := getDownloadJobForTestObject(t, chTestArgs)
-	fileInfo := chTestArgs.cache.LookUp(chTestArgs.fileInfoKeyName)
-	fileInfoData := fileInfo.(data.FileInfo)
+	fileInfo := chTestArgs.cache.LookUp(chTestArgs.fileInfoKey)
 	jobStatusBefore := fileDownloadJob.GetStatus()
 	require.Equal(t, downloader.NotStarted, jobStatusBefore.Name)
 	jobStatusBefore, err := fileDownloadJob.Download(context.Background(), int64(util.MiB), false)
@@ -261,7 +249,7 @@ func Test_cleanUpEvictedFile_WhenLocalFileNotExist(t *testing.T) {
 	err = os.Remove(chTestArgs.downloadPath)
 	require.NoError(t, err)
 
-	err = chTestArgs.cacheHandler.cleanUpEvictedFile(&fileInfoData)
+	err = chTestArgs.cacheHandler.cleanUpEvictedFile(fileInfo)
 
 	assert.NoError(t, err)
 	jobStatusAfter := fileDownloadJob.GetStatus()
@@ -1123,16 +1111,16 @@ func Test_Destroy(t *testing.T) {
 
 func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
-	cache := lru.NewCache(100)
+	cache := lru.NewCache[data.FileInfoKey, *data.FileInfo](100)
 	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(cacheDir)
 	// Create with volumeBlockSize
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
 	// Verify that inserting a 1-byte file via the handler's calculated block size would overflow a 100-byte cache.
+	fileInfoKey, err := data.NewFileInfoKey("bucket", 0, "test.txt")
+	require.NoError(t, err)
 	fi := data.NewFileInfo(
-		data.FileInfoKey{
-			ObjectName: "test.txt",
-		},
+		fileInfoKey,
 		1,     // dummy generation number
 		1,     // file-size
 		0,     // offset
@@ -1141,7 +1129,7 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 		cacheDirVolumeBlockSize)
 
 	// Inserting should immediately fail because volumeBlockSize (e.g. 4096) > 100.
-	_, err := cache.Insert("test_key", fi)
+	_, err = cache.Insert(fileInfoKey, &fi)
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, lru.ErrInvalidEntrySize)
@@ -1149,15 +1137,15 @@ func Test_NewCacheHandler_WithSizeCalcFix(t *testing.T) {
 
 func Test_NewCacheHandler_WithoutSizeCalcFix(t *testing.T) {
 	cacheDir := t.TempDir()
-	cache := lru.NewCache(100)
+	cache := lru.NewCache[data.FileInfoKey, *data.FileInfo](100)
 	cacheDirVolumeBlockSize := uint64(1)
 	handler := NewCacheHandler(cache, nil, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", false, cacheDirVolumeBlockSize)
 	require.NotNil(t, handler)
 	// Verify that inserting a 5-byte file via the handler's block size of would work.
+	fileInfoKey, err := data.NewFileInfoKey("bucket", 0, "test.txt")
+	require.NoError(t, err)
 	fi := data.NewFileInfo(
-		data.FileInfoKey{
-			ObjectName: "test.txt",
-		},
+		fileInfoKey,
 		1,     // dummy generation number
 		5,     // file-size
 		0,     // offset
@@ -1166,7 +1154,7 @@ func Test_NewCacheHandler_WithoutSizeCalcFix(t *testing.T) {
 		cacheDirVolumeBlockSize)
 
 	// Inserting should work because Max(volumeBlockSize (1), item-size(5)) <= cache-size (100).
-	evicted, err := cache.Insert("test_key", fi)
+	evicted, err := cache.Insert(fileInfoKey, &fi)
 
 	require.NoError(t, err)
 	require.Nil(t, evicted)

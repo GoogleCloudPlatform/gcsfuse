@@ -61,9 +61,9 @@ func configureFakeStorage(t *testing.T) storage.StorageHandle {
 	return fakeStorage.CreateStorageHandle()
 }
 
-func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
+func configureCache(t *testing.T, maxSize int64) (*lru.Cache[data.FileInfoKey, *data.FileInfo], string) {
 	t.Helper()
-	cache := lru.NewCache(uint64(maxSize))
+	cache := lru.NewCache[data.FileInfoKey, *data.FileInfo](uint64(maxSize))
 	cacheDir, err := os.MkdirTemp("", "gcsfuse_test")
 	if err != nil {
 		t.Fatalf("Error while creating the cache directory: %v", err)
@@ -72,20 +72,16 @@ func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
 	return cache, cacheDir
 }
 
-func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, bucket gcs.Bucket, objectName string, objectSize int64) (gcs.MinObject, []byte) {
+func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache[data.FileInfoKey, *data.FileInfo], bucket gcs.Bucket, objectName string, objectSize int64) (gcs.MinObject, []byte) {
 	t.Helper()
 	content := createObjectInBucket(t, objectName, objectSize, bucket)
 	minObj := getMinObject(objectName, bucket)
-	fileInfoKey := data.FileInfoKey{
-		BucketName: storage.TestBucketName,
-		ObjectName: objectName,
+	fileInfoKey, err := data.NewFileInfoKey(storage.TestBucketName, 0, objectName)
+	if err != nil {
+		t.Fatalf("failed to create file info key: %v", err)
 	}
 	fileInfo := data.NewFileInfo(fileInfoKey, minObj.Generation, minObj.Size, 0, false, nil, 1)
-	fileInfoKeyName, err := fileInfoKey.Key()
-	if err != nil {
-		t.Fatalf("Error occurred while retrieving fileInfoKey: %v", err)
-	}
-	_, err = cache.Insert(fileInfoKeyName, fileInfo)
+	_, err = cache.Insert(fileInfoKey, &fileInfo)
 	if err != nil {
 		t.Fatalf("Error occurred while inserting fileinfo into cache: %v", err)
 	}

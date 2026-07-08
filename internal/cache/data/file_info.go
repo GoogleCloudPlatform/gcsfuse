@@ -18,33 +18,68 @@ import (
 	"errors"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 )
 
 const InvalidKeyAttributes = "key attributes not initialised"
 
+// FileInfoKey is used to uniquely identify file info in the cache.
 type FileInfoKey struct {
-	BucketName         string
-	BucketCreationTime time.Time
-	ObjectName         string
+	bucketName         string
+	bucketCreationTime int64
+	objectName         string
+	cachedKey          string
+}
+
+// NewFileInfoKey constructor returns a FileInfoKey with the key precomputed.
+func NewFileInfoKey(bucketName string, bucketCreationTime int64, objectName string) (FileInfoKey, error) {
+	cachedKey, err := GetFileInfoKeyName(objectName, bucketCreationTime, bucketName)
+	if err != nil {
+		return FileInfoKey{}, err
+	}
+	return FileInfoKey{
+		bucketName:         bucketName,
+		bucketCreationTime: bucketCreationTime,
+		objectName:         objectName,
+		cachedKey:          cachedKey,
+	}, nil
+}
+
+// BucketName returns the name of the GCS bucket.
+func (fik FileInfoKey) BucketName() string {
+	return fik.bucketName
+}
+
+// BucketCreationTime returns the creation time of the GCS bucket.
+func (fik FileInfoKey) BucketCreationTime() int64 {
+	return fik.bucketCreationTime
+}
+
+// ObjectName returns the name of the object in the bucket.
+func (fik FileInfoKey) ObjectName() string {
+	return fik.objectName
 }
 
 // Key will return a string, combining all the attributes of FileInfoKey.
 // Returns error in case of uninitialized value.
 func (fik FileInfoKey) Key() (string, error) {
-	return GetFileInfoKeyName(fik.ObjectName, fik.BucketCreationTime, fik.BucketName)
+	if fik.cachedKey != "" {
+		return fik.cachedKey, nil
+	}
+	return GetFileInfoKeyName(fik.objectName, fik.bucketCreationTime, fik.bucketName)
 }
 
-func GetFileInfoKeyName(objectName string, bucketCreationTime time.Time, bucketName string) (string, error) {
+func GetFileInfoKeyName(objectName string, bucketCreationTime int64, bucketName string) (string, error) {
 	if bucketName == "" || objectName == "" {
 		return "", errors.New(InvalidKeyAttributes)
 	}
-	size := len(bucketName) + len(objectName) + 20
+	size := len(bucketName) + 1 + 20 + 1 + len(objectName)
 	keyBytes := make([]byte, 0, size)
 	keyBytes = append(keyBytes, bucketName...)
-	keyBytes = strconv.AppendInt(keyBytes, bucketCreationTime.Unix(), 10)
+	keyBytes = append(keyBytes, '\x00')
+	keyBytes = strconv.AppendInt(keyBytes, bucketCreationTime, 10)
+	keyBytes = append(keyBytes, '\x00')
 	keyBytes = append(keyBytes, objectName...)
 	return string(keyBytes), nil
 }

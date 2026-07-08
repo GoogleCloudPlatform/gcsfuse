@@ -269,6 +269,7 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
+		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics()) // mrdCache
 	return

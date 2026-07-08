@@ -126,7 +126,7 @@ type typeCache struct {
 	// A cache mapping names to the cache entry.
 	// INVARIANT: entries.CheckInvariants() does not panic
 	// INVARIANT: Each value is of type cacheEntry
-	entries *lru.Cache
+	entries *lru.Cache[string, cacheEntry]
 }
 
 // NewTypeCache creates an LRU-policy-based cache with given parameters.
@@ -142,7 +142,7 @@ func NewTypeCache(maxSizeMB int64, ttl time.Duration) TypeCache {
 		}
 		return &typeCache{
 			ttl:     ttl,
-			entries: lru.NewCache(lruSizeInBytesToUse),
+			entries: lru.NewCache[string, cacheEntry](lruSizeInBytesToUse),
 		}
 	}
 	return &typeCache{}
@@ -172,12 +172,11 @@ func (tc *typeCache) Get(now time.Time, name string) Type {
 		return UnknownType
 	}
 
-	val := tc.entries.LookUp(name)
-	if val == nil {
+	entry := tc.entries.LookUp(name)
+	if entry.expiry.IsZero() {
 		return UnknownType
 	}
 
-	entry := val.(cacheEntry)
 	// Has the entry expired?
 	if entry.expiry.Before(now) {
 		tc.entries.Erase(name)

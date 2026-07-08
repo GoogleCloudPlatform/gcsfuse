@@ -42,7 +42,7 @@ type MrdInstanceTest struct {
 	suite.Suite
 	object      *gcs.MinObject
 	bucket      *storage.TestifyMockBucket
-	cache       *lru.Cache
+	cache       *lru.Cache[string, *MrdInstance]
 	inodeID     fuseops.InodeID
 	config      *cfg.Config
 	mrdInstance *MrdInstance
@@ -59,7 +59,7 @@ func (t *MrdInstanceTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.bucket = new(storage.TestifyMockBucket)
-	t.cache = lru.NewCache(2) // Small cache size for testing eviction
+	t.cache = lru.NewCache[string, *MrdInstance](2) // Small cache size for testing eviction
 	t.inodeID = 100
 	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 
@@ -447,7 +447,7 @@ func (t *MrdInstanceTest) TestDecrementRefCount_Negative() {
 
 func (t *MrdInstanceTest) TestDecrementRefCount_CacheInsertFailure() {
 	// Create a cache with capacity 1
-	smallCache := lru.NewCache(1)
+	smallCache := lru.NewCache[string, *MrdInstance](1)
 	// Create instance with pool size 2 (so Size() returns 2).
 	config := &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 2}}
 	mi := NewMrdInstance(t.object, t.bucket, smallCache, t.inodeID, config)
@@ -936,7 +936,7 @@ func (t *MrdInstanceTest) Test_Cache_EvictionRaceWithRepool() {
 
 func (t *MrdInstanceTest) Test_Cache_MultipleEvictions() {
 	// Arrange: Create small cache (size 2) and 5 instances
-	smallCache := lru.NewCache(2)
+	smallCache := lru.NewCache[string, *MrdInstance](2)
 	instances := make([]*MrdInstance, 5)
 	for i := 0; i < 5; i++ {
 		obj := &gcs.MinObject{

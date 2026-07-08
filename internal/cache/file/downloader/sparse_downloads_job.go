@@ -113,7 +113,7 @@ func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int
 // getChunksToDownload calculates the missing chunks that need to be downloaded
 // and filters out chunks that are already in-flight. It returns a list of
 // individual chunks to download and marks them as in-flight.
-func (job *Job) getChunksToDownload(fileInfo data.FileInfo, startOffset, endOffset int64) ([]uint64, []chan struct{}, error) {
+func (job *Job) getChunksToDownload(fileInfo *data.FileInfo, startOffset, endOffset int64) ([]uint64, []chan struct{}, error) {
 	if startOffset < 0 || endOffset < 0 || startOffset >= endOffset {
 		return nil, nil, fmt.Errorf("invalid offset range: [%d, %d)", startOffset, endOffset)
 	}
@@ -143,27 +143,18 @@ func (job *Job) getChunksToDownload(fileInfo data.FileInfo, startOffset, endOffs
 }
 
 // getFileInfo retrieves the FileInfo from cache for this job's object.
-func (job *Job) getFileInfo() (data.FileInfo, error) {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: job.bucket.Name(),
-		ObjectName: job.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
+func (job *Job) getFileInfo() (*data.FileInfo, error) {
+	fileInfoKey, err := data.NewFileInfoKey(job.bucket.Name(), 0, job.object.Name)
 	if err != nil {
-		return data.FileInfo{}, fmt.Errorf("error creating fileInfoKeyName: %w", err)
+		return nil, fmt.Errorf("getFileInfo: create file info key: %w", err)
 	}
 
-	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKey)
 	if fileInfoVal == nil {
-		return data.FileInfo{}, fmt.Errorf("file info not found in cache")
+		return nil, fmt.Errorf("file info not found in cache")
 	}
 
-	fileInfo, ok := fileInfoVal.(data.FileInfo)
-	if !ok {
-		return data.FileInfo{}, fmt.Errorf("getFileInfo: cached value has wrong type")
-	}
-
-	return fileInfo, nil
+	return fileInfoVal, nil
 }
 
 // verifySparseRangeDownloaded verifies that the requested range has been
@@ -250,15 +241,11 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	bytesAdded := fileInfo.DownloadedChunks.AddRange(start, start+uint64(bytesWritten))
 
 	// Update LRU cache size accounting
-	fileInfoKey := data.FileInfoKey{
-		BucketName: job.bucket.Name(),
-		ObjectName: job.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
+	fileInfoKey, err := data.NewFileInfoKey(job.bucket.Name(), 0, job.object.Name)
 	if err != nil {
-		return fmt.Errorf("downloadSparseRange: error creating fileInfoKeyName: %w", err)
+		return fmt.Errorf("downloadSparseRange: create file info key: %w", err)
 	}
-	err = job.fileInfoCache.UpdateSize(fileInfoKeyName, bytesAdded)
+	err = job.fileInfoCache.UpdateSize(fileInfoKey, bytesAdded)
 	if err != nil {
 		return fmt.Errorf("downloadSparseRange: error updating cache size: %w", err)
 	}

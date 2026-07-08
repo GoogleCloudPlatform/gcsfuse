@@ -155,6 +155,7 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
+		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics())
 

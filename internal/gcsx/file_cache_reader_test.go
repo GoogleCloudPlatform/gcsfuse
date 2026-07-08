@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
@@ -99,7 +100,7 @@ func (t *fileCacheReaderTest) SetupTest() {
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
-	lruCache := lru.NewCache(cacheMaxSize)
+	lruCache := lru.NewCache[data.FileInfoKey, *data.FileInfo](cacheMaxSize)
 	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: false}
 	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(t.cacheDir)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)

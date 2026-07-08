@@ -48,7 +48,7 @@ type JobTestifyTest struct {
 	defaultFileCacheConfig *cfg.FileCacheConfig
 	job                    *Job
 	object                 gcs.MinObject
-	cache                  *lru.Cache
+	cache                  *lru.Cache[data.FileInfoKey, *data.FileInfo]
 	fileSpec               data.FileSpec
 	mockBucket             *storage.TestifyMockBucket
 }
@@ -67,17 +67,13 @@ func (t *JobTestifyTest) initReadCacheTestifyTest(objectName string, objectConte
 		FilePerm: util.DefaultFilePerm,
 		DirPerm:  util.DefaultDirPerm,
 	}
-	t.cache = lru.NewCache(lruCacheSize)
+	t.cache = lru.NewCache[data.FileInfoKey, *data.FileInfo](lruCacheSize)
 	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(t.fileSpec.Path)
 	t.job = NewJob(&t.object, t.mockBucket, t.cache, sequentialReadSize, t.fileSpec, removeCallback, t.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), cacheDirVolumeBlockSize)
-	fileInfoKey := data.FileInfoKey{
-		BucketName: storage.TestBucketName,
-		ObjectName: objectName,
-	}
+	fileInfoKey, err := data.NewFileInfoKey(storage.TestBucketName, 0, objectName)
+	assert.Nil(t.T(), err)
 	fileInfo := data.NewFileInfo(fileInfoKey, t.object.Generation, t.object.Size, 0, false, nil, 1)
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Equal(t.T(), nil, err)
-	_, err = t.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err = t.cache.Insert(fileInfoKey, &fileInfo)
 	assert.Equal(t.T(), nil, err)
 }
 

@@ -43,7 +43,7 @@ type KernelMRDReaderTest struct {
 	suite.Suite
 	object      *gcs.MinObject
 	bucket      *storage.TestifyMockBucket
-	cache       *lru.Cache
+	cache       *lru.Cache[string, *gcsx.MrdInstance]
 	inodeID     fuseops.InodeID
 	config      *cfg.Config
 	mrdInstance *gcsx.MrdInstance
@@ -61,7 +61,7 @@ func (t *KernelMRDReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.bucket = new(storage.TestifyMockBucket)
-	t.cache = lru.NewCache(2)
+	t.cache = lru.NewCache[string, *gcsx.MrdInstance](2)
 	t.inodeID = 100
 	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 

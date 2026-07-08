@@ -83,7 +83,7 @@ func TestStatCacheMemoryWorkloads(t *testing.T) {
 		paths := generatePaths(w, count)
 		baseMem := getMemStats()
 
-		sharedCache := lru.NewCache(capacity)
+		sharedCache := lru.NewCache[string, metadata.Entry](capacity)
 		statCache := metadata.NewStatCacheBucketView(sharedCache, "")
 
 		for _, p := range paths {

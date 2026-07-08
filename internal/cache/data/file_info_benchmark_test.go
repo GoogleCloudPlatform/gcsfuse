@@ -16,11 +16,60 @@ package data
 
 import (
 	"testing"
-	"time"
 )
 
+var pathDepths = []struct {
+	name string
+	path string
+}{
+	{"Short", "short.txt"},
+	{"Medium", "medium/path/to/object.txt"},
+	{"Long", "very/long/path/with/multiple/subdirectories/to/simulate/deep/structure/and/long/object/name/in/gcs/bucket.txt"},
+}
+
+func BenchmarkFileInfoKey_Key_Current(b *testing.B) {
+	for _, tc := range pathDepths {
+		b.Run(tc.name, func(b *testing.B) {
+			fik := FileInfoKey{
+				bucketName:         "test-bucket-name",
+				objectName:         tc.path,
+				bucketCreationTime: TestTimeInEpoch,
+			}
+
+			b.ResetTimer()
+			for b.Loop() {
+				_, err := fik.Key()
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkFileInfoKey_Key_Optimized(b *testing.B) {
+	for _, tc := range pathDepths {
+		b.Run(tc.name, func(b *testing.B) {
+			bucket := "test-bucket-name"
+			creationTime := TestTimeInEpoch
+			fik, err := NewFileInfoKey(bucket, creationTime, tc.path)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			b.ResetTimer()
+			for b.Loop() {
+				_, err := fik.Key()
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkGetFileInfoKeyName_Optimized(b *testing.B) {
-	bucketCreationTime := time.Unix(TestTimeInEpoch, 0)
+	bucketCreationTime := TestTimeInEpoch
 	b.ResetTimer()
 	for b.Loop() {
 		_, _ = GetFileInfoKeyName(TestObjectName, bucketCreationTime, TestBucketName)

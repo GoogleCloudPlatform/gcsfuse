@@ -53,7 +53,7 @@ func generateKeys(prefixCount, itemsPerPrefix, depth int) (keys []string, prefix
 	return keys, prefixMap, prefixes
 }
 
-func benchmarkInsert(b *testing.B, cache *lru.Cache, keys []string) {
+func benchmarkInsert(b *testing.B, cache *lru.Cache[string, lru.ValueType], keys []string) {
 	data := testData{Value: 1, DataSize: 10}
 
 	i := 0
@@ -64,7 +64,7 @@ func benchmarkInsert(b *testing.B, cache *lru.Cache, keys []string) {
 	}
 }
 
-func benchmarkLookup(b *testing.B, cache *lru.Cache, keys []string) {
+func benchmarkLookup(b *testing.B, cache *lru.Cache[string, lru.ValueType], keys []string) {
 	data := testData{Value: 1, DataSize: 10}
 	for _, key := range keys {
 		_, _ = cache.Insert(key, data)
@@ -78,7 +78,7 @@ func benchmarkLookup(b *testing.B, cache *lru.Cache, keys []string) {
 	}
 }
 
-func benchmarkErasePrefix(b *testing.B, cache *lru.Cache, prefixMap map[string][]string, prefixes []string) {
+func benchmarkErasePrefix(b *testing.B, cache *lru.Cache[string, lru.ValueType], prefixMap map[string][]string, prefixes []string) {
 	data := testData{Value: 1, DataSize: 10}
 
 	for _, keysInPrefix := range prefixMap {
@@ -114,15 +114,15 @@ func runBenchmarks(b *testing.B, name string, depth int) {
 	capacity := uint64(len(keys) * 100)
 
 	b.Run(name+"_MapLRU_Insert", func(b *testing.B) {
-		benchmarkInsert(b, lru.NewCache(capacity), keys)
+		benchmarkInsert(b, lru.NewCache[string, lru.ValueType](capacity), keys)
 	})
 
 	b.Run(name+"_MapLRU_Lookup", func(b *testing.B) {
-		benchmarkLookup(b, lru.NewCache(capacity), keys)
+		benchmarkLookup(b, lru.NewCache[string, lru.ValueType](capacity), keys)
 	})
 
 	b.Run(name+"_MapLRU_ErasePrefix", func(b *testing.B) {
-		benchmarkErasePrefix(b, lru.NewCache(capacity), prefixMap, prefixes)
+		benchmarkErasePrefix(b, lru.NewCache[string, lru.ValueType](capacity), prefixMap, prefixes)
 	})
 }
 

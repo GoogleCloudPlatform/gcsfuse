@@ -404,7 +404,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_FileClobbered() {
 // mrdWrapperCacheTest inherits from mrdWrapperTest and adds cache functionality.
 type mrdWrapperCacheTest struct {
 	mrdWrapperTest
-	cache *lru.Cache
+	cache *lru.Cache[string, *MultiRangeDownloaderWrapper]
 }
 
 func TestMRDWrapperCacheTestSuite(t *testing.T) {
@@ -415,7 +415,7 @@ func (t *mrdWrapperCacheTest) SetupTest() {
 	t.mrdWrapperTest.SetupTest()
 
 	// Recreate wrapper with cache enabled
-	t.cache = lru.NewCache(3)
+	t.cache = lru.NewCache[string, *MultiRangeDownloaderWrapper](3)
 	var err error
 	t.mrdWrapper, err = NewMultiRangeDownloaderWrapper(
 		t.mockBucket,
@@ -630,7 +630,7 @@ func (t *mrdWrapperCacheTest) Test_Cache_EvictionRaceWithRepool() {
 
 func (t *mrdWrapperCacheTest) Test_Cache_MultipleEvictions() {
 	// Arrange: Create small cache (size 2) and 5 wrappers
-	smallCache := lru.NewCache(2)
+	smallCache := lru.NewCache[string, *MultiRangeDownloaderWrapper](2)
 	wrappers := make([]*MultiRangeDownloaderWrapper, 5)
 	for i := range 5 {
 		obj := &gcs.MinObject{

@@ -123,7 +123,7 @@ type MultiBucketStatCacheTest struct {
 }
 
 func (t *StatCacheTest) SetupTest() {
-	cache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
+	cache := lru.NewCache[string, metadata.Entry](uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
 	t.statCache = metadata.NewStatCacheBucketView(cache, "")     // this demonstrates
 	// that if you are using a cache for a single bucket, then
@@ -131,7 +131,7 @@ func (t *StatCacheTest) SetupTest() {
 }
 
 func (t *MultiBucketStatCacheTest) SetupTest() {
-	sharedCache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
+	sharedCache := lru.NewCache[string, metadata.Entry](uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
 	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
 }
@@ -543,7 +543,7 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := lru.NewCache(uint64(2800))
+	localCache := lru.NewCache[string, metadata.Entry](uint64(2800))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
@@ -576,7 +576,7 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 }
 
 func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
-	localCache := lru.NewCache(uint64(10000))
+	localCache := lru.NewCache[string, metadata.Entry](uint64(10000))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	folderEntry1 := &gcs.Folder{
 		Name: "a",

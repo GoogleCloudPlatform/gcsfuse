@@ -66,17 +66,18 @@ func verifyCompleteFile(t *testing.T, spec data.FileSpec, content []byte) {
 	assert.True(t, reflect.DeepEqual(content, fileContent[:len(content)]))
 }
 
-func verifyFileInfoEntry(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache *lru.Cache, offset uint64) {
+func verifyFileInfoEntry(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache *lru.Cache[data.FileInfoKey, *data.FileInfo], offset uint64) {
 	fileInfo := getFileInfo(t, mockBucket, object, cache)
 	assert.True(t, fileInfo != nil)
-	assert.Equal(t, object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
-	assert.LessOrEqual(t, offset, fileInfo.(data.FileInfo).Offset)
-	assert.Equal(t, object.Size, fileInfo.(data.FileInfo).ContentSize())
+	assert.Equal(t, object.Generation, fileInfo.ObjectGeneration)
+	assert.LessOrEqual(t, offset, fileInfo.Offset)
+	assert.Equal(t, object.Size, fileInfo.ContentSize())
 }
 
-func getFileInfo(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache *lru.Cache) lru.ValueType {
-	fileInfoKey := data.FileInfoKey{BucketName: mockBucket.Name(), ObjectName: object.Name}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Equal(t, nil, err)
-	return cache.LookUp(fileInfoKeyName)
+func getFileInfo(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache *lru.Cache[data.FileInfoKey, *data.FileInfo]) *data.FileInfo {
+	fileInfoKey, err := data.NewFileInfoKey(mockBucket.Name(), 0, object.Name)
+	if err != nil {
+		t.Fatalf("failed to create file info key: %v", err)
+	}
+	return cache.LookUp(fileInfoKey)
 }

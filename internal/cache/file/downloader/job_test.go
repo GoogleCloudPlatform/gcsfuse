@@ -62,18 +62,19 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 		FilePerm: util.DefaultFilePerm,
 		DirPerm:  util.DefaultDirPerm,
 	}
-	dt.cache = lru.NewCache(lruCacheSize)
+	dt.cache = lru.NewCache[data.FileInfoKey, *data.FileInfo](lruCacheSize)
 
 	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback, dt.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
-	fileInfoKey := data.FileInfoKey{
-		BucketName: storage.TestBucketName,
-		ObjectName: objectName,
-	}
+	fileInfoKey := dt.newFileInfoKey(storage.TestBucketName, objectName)
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, dt.object.Size, 0, false, nil, 1)
-	fileInfoKeyName, err := fileInfoKey.Key()
+	_, err = dt.cache.Insert(fileInfoKey, &fileInfo)
 	AssertEq(nil, err)
-	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+}
+
+func (dt *downloaderTest) newFileInfoKey(bucketName string, objectName string) data.FileInfoKey {
+	key, err := data.NewFileInfoKey(bucketName, 0, objectName)
 	AssertEq(nil, err)
+	return key
 }
 
 func (dt *downloaderTest) verifyInvalidError(err error) {
@@ -95,16 +96,14 @@ func (dt *downloaderTest) verifyFile(content []byte) {
 func (dt *downloaderTest) verifyFileInfoEntry(offset uint64) {
 	fileInfo := dt.getFileInfo()
 	AssertTrue(fileInfo != nil)
-	AssertEq(dt.object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
-	AssertLe(offset, fileInfo.(data.FileInfo).Offset)
-	AssertEq(dt.object.Size, fileInfo.(data.FileInfo).ContentSize())
+	AssertEq(dt.object.Generation, fileInfo.ObjectGeneration)
+	AssertLe(offset, fileInfo.Offset)
+	AssertEq(dt.object.Size, fileInfo.ContentSize())
 }
 
-func (dt *downloaderTest) getFileInfo() lru.ValueType {
-	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(), ObjectName: dt.object.Name}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	return dt.cache.LookUp(fileInfoKeyName)
+func (dt *downloaderTest) getFileInfo() *data.FileInfo {
+	fileInfoKey := dt.newFileInfoKey(dt.bucket.Name(), dt.object.Name)
+	return dt.cache.LookUp(fileInfoKey)
 }
 
 func (dt *downloaderTest) fileCachePath(bucketName string, objectName string) string {
@@ -232,14 +231,9 @@ func (dt *downloaderTest) Test_updateStatusAndNotifySubscribers() {
 
 func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 	// Add an entry into
-	fileInfoKey := data.FileInfoKey{
-		BucketName: storage.TestBucketName,
-		ObjectName: DefaultObjectName,
-	}
+	fileInfoKey := dt.newFileInfoKey(storage.TestBucketName, DefaultObjectName)
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, dt.job.object.Size, 0, false, nil, 1)
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err := dt.cache.Insert(fileInfoKey, &fileInfo)
 	AssertEq(nil, err)
 	dt.job.mu.Lock()
 	dt.job.status.Name = Downloading
@@ -250,12 +244,11 @@ func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 
 	AssertEq(nil, err)
 	// Confirm fileInfoCache is updated with new offset.
-	lookupResult := dt.cache.LookUp(fileInfoKeyName)
+	lookupResult := dt.cache.LookUp(fileInfoKey)
 	AssertFalse(lookupResult == nil)
-	fileInfo = lookupResult.(data.FileInfo)
-	AssertEq(10, fileInfo.Offset)
-	AssertEq(dt.job.object.Generation, fileInfo.ObjectGeneration)
-	AssertEq(dt.job.object.Size, fileInfo.FileSize)
+	AssertEq(10, lookupResult.Offset)
+	AssertEq(dt.job.object.Generation, lookupResult.ObjectGeneration)
+	AssertEq(dt.job.object.Size, lookupResult.FileSize)
 	// Confirm job's status offset
 	AssertEq(10, dt.job.status.Offset)
 	// Check the subscriber's notification
@@ -266,16 +259,11 @@ func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 }
 
 func (dt *downloaderTest) Test_updateStatusOffset_InsertNew() {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: storage.TestBucketName,
-		ObjectName: dt.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	value := dt.cache.Erase(fileInfoKeyName)
+	fileInfoKey := dt.newFileInfoKey(storage.TestBucketName, dt.object.Name)
+	value := dt.cache.Erase(fileInfoKey)
 	AssertTrue(value != nil)
 
-	err = dt.job.updateStatusOffset(10)
+	err := dt.job.updateStatusOffset(10)
 
 	AssertNe(nil, err)
 	AssertTrue(errors.Is(err, lru.ErrEntryNotExist))
@@ -284,14 +272,9 @@ func (dt *downloaderTest) Test_updateStatusOffset_InsertNew() {
 }
 
 func (dt *downloaderTest) Test_updateStatusOffset_Fail() {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: storage.TestBucketName,
-		ObjectName: DefaultObjectName,
-	}
+	fileInfoKey := dt.newFileInfoKey(storage.TestBucketName, DefaultObjectName)
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, dt.job.object.Size, 0, false, nil, 1)
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err := dt.cache.Insert(fileInfoKey, &fileInfo)
 	AssertEq(nil, err)
 
 	// Change the size of object and then try to update file info cache.

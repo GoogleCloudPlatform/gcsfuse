@@ -24,7 +24,7 @@ import (
 )
 
 func BenchmarkInsert(b *testing.B) {
-	cache := lru.NewCache(10000000) // 10MB
+	cache := lru.NewCache[string, lru.ValueType](10000000) // 10MB
 	data := testData{Value: 1, DataSize: 10}
 
 	b.ResetTimer()
@@ -35,7 +35,7 @@ func BenchmarkInsert(b *testing.B) {
 }
 
 func BenchmarkLookUp(b *testing.B) {
-	cache := lru.NewCache(10000000) // 10MB
+	cache := lru.NewCache[string, lru.ValueType](10000000) // 10MB
 	data := testData{Value: 1, DataSize: 10}
 
 	// Pre-populate
@@ -52,7 +52,7 @@ func BenchmarkLookUp(b *testing.B) {
 }
 
 func BenchmarkErase(b *testing.B) {
-	cache := lru.NewCache(10000000) // 10MB
+	cache := lru.NewCache[string, lru.ValueType](10000000) // 10MB
 	data := testData{Value: 1, DataSize: 10}
 
 	b.ResetTimer()
@@ -67,7 +67,7 @@ func BenchmarkErase(b *testing.B) {
 }
 
 func BenchmarkConcurrency(b *testing.B) {
-	cache := lru.NewCache(50000000) // 50MB
+	cache := lru.NewCache[string, lru.ValueType](50000000) // 50MB
 	data := testData{Value: 1, DataSize: 10}
 
 	b.ResetTimer()
@@ -97,7 +97,7 @@ func BenchmarkInsert1Million(b *testing.B) {
 
 	for range b.N {
 		b.StopTimer()
-		cache := lru.NewCache(cacheMaxSize)
+		cache := lru.NewCache[string, lru.ValueType](cacheMaxSize)
 
 		// Insert 1 million entries
 		for j := range numEntries {
@@ -117,7 +117,7 @@ func BenchmarkEraseEntriesWithGivenPrefix_1Million(b *testing.B) {
 
 	for range b.N {
 		b.StopTimer()
-		cache := lru.NewCache(cacheMaxSize)
+		cache := lru.NewCache[string, lru.ValueType](cacheMaxSize)
 
 		// Insert 1 million entries
 		for j := range numEntries {

@@ -38,14 +38,14 @@ func (td testData) Size() uint64 {
 	return td.DataSize
 }
 
-func setupCacheTest(t *testing.T) *lru.Cache {
+func setupCacheTest(t *testing.T) *lru.Cache[string, lru.ValueType] {
 	locker.EnableInvariantsCheck()
-	return lru.NewCache(MaxSize)
+	return lru.NewCache[string, lru.ValueType](MaxSize)
 }
 
 // insertAndAssert inserts the given key,value in the cache and assert based on
 // the expected eviction and error.
-func insertAndAssert(t *testing.T, cache *lru.Cache, key string, val lru.ValueType, evictedValues []int64, expectedError error) {
+func insertAndAssert(t *testing.T, cache *lru.Cache[string, lru.ValueType], key string, val lru.ValueType, evictedValues []int64, expectedError error) {
 	ret, err := cache.Insert(key, val)
 
 	require.ErrorIs(t, err, expectedError)
@@ -367,7 +367,7 @@ func TestRaceCondition(t *testing.T) {
 }
 
 func Test_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
-	c := lru.NewCache(100000)
+	c := lru.NewCache[string, lru.ValueType](100000)
 
 	// Pre-fill the cache
 	for i := range 1000 {

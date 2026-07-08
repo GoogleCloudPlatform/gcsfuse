@@ -59,7 +59,7 @@ type Job struct {
 
 	object                  *gcs.MinObject
 	bucket                  gcs.Bucket
-	fileInfoCache           *lru.Cache
+	fileInfoCache           *lru.Cache[data.FileInfoKey, *data.FileInfo]
 	sequentialReadSizeMb    int32
 	fileSpec                data.FileSpec
 	fileCacheConfig         *cfg.FileCacheConfig
@@ -127,7 +127,7 @@ type jobSubscriber struct {
 func NewJob(
 	object *gcs.MinObject,
 	bucket gcs.Bucket,
-	fileInfoCache *lru.Cache,
+	fileInfoCache *lru.Cache[data.FileInfoKey, *data.FileInfo],
 	sequentialReadSizeMb int32,
 	fileSpec data.FileSpec,
 	removeJobCallback func(),
@@ -282,20 +282,14 @@ func (job *Job) updateStatusAndNotifySubscribers(statusName jobStatusName, statu
 // notify the subscribers.
 // Not concurrency safe and requires LOCK(job.mu)
 func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: job.bucket.Name(),
-		ObjectName: job.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
+	fileInfoKey, err := data.NewFileInfoKey(job.bucket.Name(), 0, job.object.Name)
 	if err != nil {
-		err = fmt.Errorf("updateStatusOffset: error while creating fileInfoKeyName for bucket %s and object %s %w",
-			fileInfoKey.BucketName, fileInfoKey.ObjectName, err)
-		return err
+		return fmt.Errorf("updateStatusOffset: create file info key: %w", err)
 	}
 
 	updatedFileInfo := data.NewFileInfo(fileInfoKey, job.object.Generation, job.object.Size, uint64(downloadedOffset), false, nil, job.cacheDirVolumeBlockSize)
 
-	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
+	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKey, &updatedFileInfo)
 	if err == nil {
 		job.status.Offset = downloadedOffset
 		// Notify subscribers if file cache is updated.
@@ -304,7 +298,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 		return err
 	}
 
-	err = fmt.Errorf("updateStatusOffset: error while updating offset: %v in fileInfoCache %s: %w", downloadedOffset, updatedFileInfo.Key, err)
+	err = fmt.Errorf("updateStatusOffset: error while updating offset: %v in fileInfoCache %v: %w", downloadedOffset, updatedFileInfo.Key, err)
 	return err
 }
 
@@ -562,18 +556,12 @@ func (job *Job) validateCRC() (err error) {
 	// If the checksum doesn't match there is an error in downloading the object contents.
 	// Delete the file and corresponding key from fileInfoCache.
 	err = fmt.Errorf("checksum mismatch detected. Actual: %d, expected: %d", crc32Val, *job.object.CRC32C)
-	fileInfoKey := data.FileInfoKey{
-		BucketName: job.bucket.Name(),
-		ObjectName: job.object.Name,
-	}
-
-	fileInfoKeyName, keyErr := fileInfoKey.Key()
+	fileInfoKey, keyErr := data.NewFileInfoKey(job.bucket.Name(), 0, job.object.Name)
 	if keyErr != nil {
-		err = errors.Join(err, keyErr)
-		return
+		err = errors.Join(err, fmt.Errorf("create file info key: %w", keyErr))
+	} else {
+		job.fileInfoCache.Erase(fileInfoKey)
 	}
-
-	job.fileInfoCache.Erase(fileInfoKeyName)
 	removeErr := cacheutil.TruncateAndRemoveFile(job.fileSpec.Path)
 	if removeErr != nil && !os.IsNotExist(removeErr) {
 		err = errors.Join(err, removeErr)

@@ -53,13 +53,13 @@ type MrdInstance struct {
 	// poolMu protects access to mrdPool.
 	poolMu sync.RWMutex
 	// mrdCache is a shared cache for inactive MrdInstance objects.
-	mrdCache *lru.Cache
+	mrdCache *lru.Cache[string, *MrdInstance]
 	// holds config specified by the user using config-file flag and CLI flags.
 	config *cfg.Config
 }
 
 // NewMrdInstance creates a new MrdInstance for a given GCS object.
-func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache, inodeId fuseops.InodeID, config *cfg.Config) *MrdInstance {
+func NewMrdInstance(obj *gcs.MinObject, bucket gcs.Bucket, cache *lru.Cache[string, *MrdInstance], inodeId fuseops.InodeID, config *cfg.Config) *MrdInstance {
 	mrdInstance := MrdInstance{
 		bucket:   bucket,
 		mrdCache: cache,
@@ -392,12 +392,7 @@ func (mi *MrdInstance) DecrementRefCount() {
 	// Evict outside all locks.
 	mi.refCountMu.Unlock()
 	for _, instance := range evictedValues {
-		mrdInstance, ok := instance.(*MrdInstance)
-		if !ok {
-			logger.Errorf("MrdInstance::DecrementRefCount: Invalid value type, expected *MrdInstance, got %T", instance)
-		} else {
-			mrdInstance.handleEviction()
-		}
+		instance.handleEviction()
 	}
 	// Reacquire the lock ensuring safe defer's Unlock.
 	mi.refCountMu.Lock()

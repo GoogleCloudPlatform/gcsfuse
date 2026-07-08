@@ -119,14 +119,11 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload() {
 		dt.initJobTest(objectName, nil, DefaultSequentialReadSizeMb, tt.objectSize, func() {})
 		dt.job.fileCacheConfig.DownloadChunkSizeMb = tt.chunkSizeMb
 		// Manually insert FileInfo with DownloadedChunks
-		fileInfoKey := data.FileInfoKey{
-			BucketName: dt.job.bucket.Name(),
-			ObjectName: dt.job.object.Name,
-		}
+		fileInfoKey := dt.newFileInfoKey(dt.job.bucket.Name(), dt.job.object.Name)
 		chunkSizeBytes := uint64(tt.chunkSizeMb) * util.MiB
 		fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, tt.objectSize, ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, tt.objectSize), 1)
 
-		chunks, _, err := dt.job.getChunksToDownload(fileInfo, tt.offset, tt.requiredOffset)
+		chunks, _, err := dt.job.getChunksToDownload(&fileInfo, tt.offset, tt.requiredOffset)
 
 		if tt.expectError {
 			AssertNe(nil, err, fmt.Sprintf("Test case %q: expected error but got none", tt.name))
@@ -153,14 +150,11 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload_WithInflight() {
 	dt.job.inflightChunks[1] = inflightCh // Chunk 1 is in-flight
 	dt.job.mu.Unlock()
 	// Manually insert FileInfo with DownloadedChunks
-	fileInfoKey := data.FileInfoKey{
-		BucketName: dt.job.bucket.Name(),
-		ObjectName: dt.job.object.Name,
-	}
+	fileInfoKey := dt.newFileInfoKey(dt.job.bucket.Name(), dt.job.object.Name)
 	chunkSizeBytes := uint64(20) * 1024 * 1024
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
 
-	chunks, waitChans, err := dt.job.getChunksToDownload(fileInfo, 0, 60*util.MiB)
+	chunks, waitChans, err := dt.job.getChunksToDownload(&fileInfo, 0, 60*util.MiB)
 
 	AssertEq(nil, err)
 	// Should have 2 chunks to download: Chunk 0 and Chunk 2
@@ -203,16 +197,11 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 	defer file.Close()
 
 	// Set up sparse file info in cache
-	fileInfoKey := data.FileInfoKey{
-		BucketName: dt.bucket.Name(),
-		ObjectName: objectName,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
+	fileInfoKey := dt.newFileInfoKey(dt.bucket.Name(), objectName)
 
 	chunkSizeBytes := uint64(20) * 1024 * 1024
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
-	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err = dt.cache.Insert(fileInfoKey, &fileInfo)
 	AssertEq(nil, err)
 
 	// Download a range [10MB, 30MB)
@@ -230,9 +219,9 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 	AssertTrue(reflect.DeepEqual(objectContent[start:end], buf), "Downloaded content doesn't match")
 
 	// Verify the downloaded range was tracked in ByteRangeMap
-	updatedFileInfoVal := dt.cache.LookUpWithoutChangingOrder(fileInfoKeyName)
+	updatedFileInfoVal := dt.cache.LookUpWithoutChangingOrder(fileInfoKey)
 	AssertTrue(updatedFileInfoVal != nil, "FileInfo should exist in cache")
-	updatedFileInfo := updatedFileInfoVal.(data.FileInfo)
+	updatedFileInfo := *updatedFileInfoVal
 	AssertTrue(updatedFileInfo.DownloadedChunks.ContainsRange(start, end), "Downloaded range not tracked in ByteRangeMap")
 }
 
@@ -246,19 +235,14 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_AlreadyDownloaded() {
 	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20
 
 	// Set up sparse file info with pre-downloaded range
-	fileInfoKey := data.FileInfoKey{
-		BucketName: dt.bucket.Name(),
-		ObjectName: objectName,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
+	fileInfoKey := dt.newFileInfoKey(dt.bucket.Name(), objectName)
 
 	chunkSizeBytes := uint64(20) * 1024 * 1024
 	downloadedRanges := data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize))
 	downloadedRanges.AddRange(0, 40*util.MiB) // Mark first 40MB as downloaded
 
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, downloadedRanges, 1)
-	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err := dt.cache.Insert(fileInfoKey, &fileInfo)
 	AssertEq(nil, err)
 
 	// Request a range that's already downloaded [5MB, 10MB)
@@ -289,16 +273,11 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 	defer file.Close()
 
 	// Set up sparse file info with empty downloaded ranges
-	fileInfoKey := data.FileInfoKey{
-		BucketName: dt.bucket.Name(),
-		ObjectName: objectName,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
+	fileInfoKey := dt.newFileInfoKey(dt.bucket.Name(), objectName)
 
 	chunkSizeBytes := uint64(20) * 1024 * 1024
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
-	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err = dt.cache.Insert(fileInfoKey, &fileInfo)
 	AssertEq(nil, err)
 
 	// Request a range that needs to be downloaded [15MB, 25MB)
@@ -311,9 +290,9 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 
 	// Verify the chunk was downloaded [0, 40MB) due to alignment
 	// offset 15MB rounds down to 0, requiredOffset 25MB rounds up to 40MB
-	updatedFileInfoVal := dt.cache.LookUpWithoutChangingOrder(fileInfoKeyName)
+	updatedFileInfoVal := dt.cache.LookUpWithoutChangingOrder(fileInfoKey)
 	AssertTrue(updatedFileInfoVal != nil, "FileInfo should exist in cache")
-	updatedFileInfo := updatedFileInfoVal.(data.FileInfo)
+	updatedFileInfo := *updatedFileInfoVal
 	AssertTrue(updatedFileInfo.DownloadedChunks.ContainsRange(0, 40*util.MiB),
 		"Expected range [0, 40MB) to be downloaded")
 

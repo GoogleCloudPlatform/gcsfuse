@@ -86,7 +86,7 @@ func TestMapCacheWorkloads(t *testing.T) {
 		paths := generatePaths(w, count)
 		baseMem := getMemStats()
 
-		pureCache := lru.NewCache(capacity)
+		pureCache := lru.NewCache[string, lru.ValueType](capacity)
 		for _, p := range paths {
 			_, _ = pureCache.Insert(p, dummyValue{})
 		}

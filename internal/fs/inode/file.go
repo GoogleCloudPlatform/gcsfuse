@@ -159,7 +159,8 @@ func NewFileInode(
 	localFile bool,
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
-	mrdCache *lru.Cache,
+	mrdCache *lru.Cache[string, *gcsx.MrdInstance],
+	mrdWrapperCache *lru.Cache[string, *gcsx.MultiRangeDownloaderWrapper],
 	traceHandle tracing.TraceHandle,
 	metricHandle metrics.MetricHandle) (f *FileInode) {
 	// Set up the basic struct.
@@ -187,7 +188,7 @@ func NewFileInode(
 	if f.bucket.BucketType().IsRapid() {
 		var err error
 		f.mrdInstance = gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg)
-		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
+		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdWrapperCache)
 		if err != nil {
 			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 		}

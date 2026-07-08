@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
 
@@ -32,9 +33,9 @@ var (
 	ErrEntryNotExist          = errors.New("entry with given key does not exist")
 )
 
-// Cache is a LRU cache for any lru.ValueType indexed by string keys.
+// Cache is a LRU cache for any lru.ValueType indexed by comparable keys.
 // That means entry's value should be a lru.ValueType.
-type Cache struct {
+type Cache[K comparable, V ValueType] struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -59,7 +60,7 @@ type Cache struct {
 	//
 	// INVARIANT: For each k, v: v.Value.(entry).Key == k
 	// INVARIANT: Contains all and only the elements of entries
-	index map[string]*list.Element
+	index map[K]*list.Element
 
 	// All public methods of this Cache uses this RW mutex based locker while
 	// accessing/updating Cache's data.
@@ -70,17 +71,17 @@ type ValueType interface {
 	Size() uint64
 }
 
-type entry struct {
-	Key   string
-	Value ValueType
+type entry[K comparable, V ValueType] struct {
+	Key   K
+	Value V
 }
 
 // NewCache returns the reference of cache object by initialising the cache with
 // the supplied maxSize, which must be greater than zero.
-func NewCache(maxSize uint64) *Cache {
-	c := &Cache{
+func NewCache[K comparable, V ValueType](maxSize uint64) *Cache[K, V] {
+	c := &Cache[K, V]{
 		maxSize: maxSize,
-		index:   make(map[string]*list.Element),
+		index:   make(map[K]*list.Element),
 	}
 
 	// Set up invariant checking.
@@ -89,7 +90,7 @@ func NewCache(maxSize uint64) *Cache {
 }
 
 // checkInvariants panic if any internal invariants have been violated.
-func (c *Cache) checkInvariants() {
+func (c *Cache[K, V]) checkInvariants() {
 	// INVARIANT: maxSize > 0
 	if !(c.maxSize > 0) {
 		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
@@ -103,7 +104,7 @@ func (c *Cache) checkInvariants() {
 	// INVARIANT: Each element is of type entry
 	for e := c.entries.Front(); e != nil; e = e.Next() {
 		switch e.Value.(type) {
-		case entry:
+		case entry[K, V]:
 		default:
 			panic(fmt.Sprintf("Unexpected element type: %v", reflect.TypeOf(e.Value)))
 		}
@@ -119,17 +120,17 @@ func (c *Cache) checkInvariants() {
 	}
 
 	for e := c.entries.Front(); e != nil; e = e.Next() {
-		if c.index[e.Value.(entry).Key] != e {
-			panic(fmt.Sprintf("Mismatch for key %v", e.Value.(entry).Key))
+		if c.index[e.Value.(entry[K, V]).Key] != e {
+			panic(fmt.Sprintf("Mismatch for key %v", e.Value.(entry[K, V]).Key))
 		}
 	}
 }
 
-func (c *Cache) evictOne() ValueType {
+func (c *Cache[K, V]) evictOne() V {
 	e := c.entries.Back()
-	key := e.Value.(entry).Key
+	key := e.Value.(entry[K, V]).Key
 
-	evictedEntry := e.Value.(entry).Value
+	evictedEntry := e.Value.(entry[K, V]).Value
 	c.currentSize -= evictedEntry.Size()
 
 	c.entries.Remove(e)
@@ -144,11 +145,11 @@ func (c *Cache) evictOne() ValueType {
 
 // Insert the supplied value into the cache, overwriting any previous entry for
 // the given key. The value must be non-nil.
-// Also returns a slice of ValueType evicted by the new inserted entry.
-func (c *Cache) Insert(
-	key string,
-	value ValueType) ([]ValueType, error) {
-	if value == nil {
+// Also returns a slice of V evicted by the new inserted entry.
+func (c *Cache[K, V]) Insert(
+	key K,
+	value V) ([]V, error) {
+	if any(value) == nil {
 		return nil, ErrInvalidEntry
 	}
 
@@ -163,18 +164,18 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.currentSize -= e.Value.(entry).Value.Size()
+		c.currentSize -= e.Value.(entry[K, V]).Value.Size()
 		c.currentSize += valueSize
-		e.Value = entry{key, value}
+		e.Value = entry[K, V]{key, value}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
-		e := c.entries.PushFront(entry{key, value})
+		e := c.entries.PushFront(entry[K, V]{key, value})
 		c.index[key] = e
 		c.currentSize += valueSize
 	}
 
-	var evictedValues []ValueType
+	var evictedValues []V
 	// Evict until we're at or below maxSize.
 	for c.currentSize > c.maxSize {
 		evictedValues = append(evictedValues, c.evictOne())
@@ -186,13 +187,13 @@ func (c *Cache) Insert(
 // eraseInternal removes any entry for the supplied key from the cache without acquiring locks.
 // It returns the value of the erased key, or nil if not present.
 // LOCKS_REQUIRED(c.mu)
-func (c *Cache) eraseInternal(key string) (value ValueType) {
+func (c *Cache[K, V]) eraseInternal(key K) (value V) {
 	e, ok := c.index[key]
 	if !ok {
 		return
 	}
 
-	deletedEntry := e.Value.(entry).Value
+	deletedEntry := e.Value.(entry[K, V]).Value
 	c.currentSize -= deletedEntry.Size()
 
 	delete(c.index, key)
@@ -202,7 +203,7 @@ func (c *Cache) eraseInternal(key string) (value ValueType) {
 }
 
 // eraseKeys removes a list of keys from the cache.
-func (c *Cache) eraseKeys(keys []string) {
+func (c *Cache[K, V]) eraseKeys(keys []K) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -212,7 +213,7 @@ func (c *Cache) eraseKeys(keys []string) {
 }
 
 // Erase any entry for the supplied key, also returns the value of erased key.
-func (c *Cache) Erase(key string) (value ValueType) {
+func (c *Cache[K, V]) Erase(key K) (value V) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -221,7 +222,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 
 // LookUp a previously-inserted value for the given key. Return nil if no
 // value is present.
-func (c *Cache) LookUp(key string) (value ValueType) {
+func (c *Cache[K, V]) LookUp(key K) (value V) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -234,7 +235,7 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	c.entries.MoveToFront(e)
 
 	// Return the value.
-	return e.Value.(entry).Value
+	return e.Value.(entry[K, V]).Value
 }
 
 // LookUpWithoutChangingOrder looks up previously-inserted value for a given key
@@ -243,7 +244,7 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 //
 // Note: Because this look up doesn't change the order, it only acquires and
 // releases read lock.
-func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
+func (c *Cache[K, V]) LookUpWithoutChangingOrder(key K) (value V) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -254,17 +255,17 @@ func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 	}
 
 	// Return the value.
-	return e.Value.(entry).Value
+	return e.Value.(entry[K, V]).Value
 }
 
 // UpdateWithoutChangingOrder updates entry with the given key in cache with
 // given value without changing order of entries in cache, returning error if an
 // entry with given key doesn't exist. Also, the size of value for entry
 // shouldn't be updated with this method (use c.Insert for updating size).
-func (c *Cache) UpdateWithoutChangingOrder(
-	key string,
-	value ValueType) error {
-	if value == nil {
+func (c *Cache[K, V]) UpdateWithoutChangingOrder(
+	key K,
+	value V) error {
+	if any(value) == nil {
 		return ErrInvalidEntry
 	}
 
@@ -276,11 +277,19 @@ func (c *Cache) UpdateWithoutChangingOrder(
 		return ErrEntryNotExist
 	}
 
-	if value.Size() != e.Value.(entry).Value.Size() {
+	if value.Size() != e.Value.(entry[K, V]).Value.Size() {
+		if fiNew, ok := any(value).(*data.FileInfo); ok {
+			if fiOld, ok := any(e.Value.(entry[K, V]).Value).(*data.FileInfo); ok {
+				fmt.Printf("UpdateWithoutChangingOrder FAIL: key=%v\n  new: Gen=%d, Size=%d, Offset=%d, Sparse=%v, BlkSize=%d, ContentSize=%d, Size()=%d\n  old: Gen=%d, Size=%d, Offset=%d, Sparse=%v, BlkSize=%d, ContentSize=%d, Size()=%d\n",
+					key,
+					fiNew.ObjectGeneration, fiNew.FileSize, fiNew.Offset, fiNew.SparseMode, fiNew.CacheDirVolumeBlockSize, fiNew.ContentSize(), fiNew.Size(),
+					fiOld.ObjectGeneration, fiOld.FileSize, fiOld.Offset, fiOld.SparseMode, fiOld.CacheDirVolumeBlockSize, fiOld.ContentSize(), fiOld.Size())
+			}
+		}
 		return ErrInvalidUpdateEntrySize
 	}
 
-	e.Value = entry{key, value}
+	e.Value = entry[K, V]{key, value}
 	c.index[key] = e
 
 	return nil
@@ -290,7 +299,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 // This is needed for entries whose size grows incrementally (e.g., sparse files).
 // Eviction is deferred until the next Insert() call.
 // The entry's order in the LRU is not changed.
-func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
+func (c *Cache[K, V]) UpdateSize(key K, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -307,12 +316,14 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	return nil
 }
 
-func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
+func (c *Cache[K, V]) EraseEntriesWithGivenPrefix(prefix string) {
 	c.mu.RLock()
-	var keysToDelete []string
+	var keysToDelete []K
 	for key := range c.index {
-		if strings.HasPrefix(key, prefix) {
-			keysToDelete = append(keysToDelete, key)
+		if keyStr, ok := any(key).(string); ok {
+			if strings.HasPrefix(keyStr, prefix) {
+				keysToDelete = append(keysToDelete, key)
+			}
 		}
 	}
 	c.mu.RUnlock()

@@ -164,6 +164,7 @@ func createFileInode(
 		config,
 		semaphore.NewWeighted(100),
 		nil,
+		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics(),
 	)

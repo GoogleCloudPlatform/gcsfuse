@@ -46,10 +46,10 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-const CacheMaxSize = 5 * util.MiB
+const CacheMaxSize = 20 * util.MiB
 const ReadContentSize = 32 * util.KiB
 
-const TestObjectSize = 1200 * util.KiB
+const TestObjectSize = 10 * util.MiB
 const TestObjectName = "foo.txt"
 const DefaultSequentialReadSizeMb = 1
 
@@ -58,7 +58,7 @@ type cacheHandleTest struct {
 	bucket      gcs.Bucket
 	fakeStorage storage.FakeStorage
 	object      *gcs.MinObject
-	cache       *lru.Cache
+	cache       *lru.Cache[data.FileInfoKey, *data.FileInfo]
 	cacheHandle *CacheHandle
 	cacheDir    string
 	fileSpec    data.FileSpec
@@ -68,17 +68,17 @@ func TestBucketHandleTestSuite(testSuite *testing.T) {
 	suite.Run(testSuite, new(cacheHandleTest))
 }
 
-func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
-	// Add an entry into
-	fileInfoKey := data.FileInfoKey{
-		BucketName: storage.TestBucketName,
-		ObjectName: TestObjectName,
-	}
-	fileInfo := data.NewFileInfo(fileInfoKey, cht.object.Generation, cht.object.Size, 0, false, nil, 1)
-	fileInfoKeyName, err := fileInfoKey.Key()
+func (cht *cacheHandleTest) newFileInfoKey(bucketName string, objectName string) data.FileInfoKey {
+	key, err := data.NewFileInfoKey(bucketName, 0, objectName)
 	assert.Nil(cht.T(), err)
+	return key
+}
 
-	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
+	fileInfoKey := cht.newFileInfoKey(storage.TestBucketName, TestObjectName)
+	fileInfo := data.NewFileInfo(fileInfoKey, cht.object.Generation, cht.object.Size, 0, false, nil, 1)
+
+	_, err := cht.cache.Insert(fileInfoKey, &fileInfo)
 	assert.Nil(cht.T(), err)
 }
 
@@ -132,7 +132,7 @@ func (cht *cacheHandleTest) SetupTest() {
 	cht.object = minObject
 
 	// fileInfoCache with testFileInfoEntry
-	cht.cache = lru.NewCache(CacheMaxSize)
+	cht.cache = lru.NewCache[data.FileInfoKey, *data.FileInfo](CacheMaxSize)
 	cht.addTestFileInfoEntryInCache()
 
 	localDownloadedPath := path.Join(cht.cacheDir, cht.bucket.Name(), cht.object.Name)
@@ -156,8 +156,8 @@ func (cht *cacheHandleTest) SetupTest() {
 		1,
 	)
 
-	fileDownloadJob.ReadChunkSize = int64(util.MiB)
-	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), cht.object.Name)
+	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, fileInfoKey, false, 0)
 }
 
 func (cht *cacheHandleTest) TearDownTest() {
@@ -360,14 +360,9 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithNonNilJobStatusErr() {
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoPresent() {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: cht.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), cht.object.Name)
 	fileInfo := data.NewFileInfo(fileInfoKey, cht.object.Generation, cht.object.Size, cht.object.Size, false, nil, 1)
-	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err := cht.cache.Insert(fileInfoKey, &fileInfo)
 	assert.Nil(cht.T(), err)
 
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size, false)
@@ -376,28 +371,18 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoPresent() 
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoNotPresent() {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: cht.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), cht.object.Name)
 
-	_ = cht.cache.Erase(fileInfoKeyName)
-	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
+	_ = cht.cache.Erase(fileInfoKey)
+	err := cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
 
 	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGenerationChanged() {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: cht.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), cht.object.Name)
 	fileInfo := data.NewFileInfo(fileInfoKey, cht.object.Generation+1, cht.object.Size, cht.object.Size, false, nil, 1)
-	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err := cht.cache.Insert(fileInfoKey, &fileInfo)
 	assert.Nil(cht.T(), err)
 
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size-1, true)
@@ -406,15 +391,10 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGeneration
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLessThanRequired() {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: cht.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), cht.object.Name)
 	fileInfo := data.NewFileInfo(fileInfoKey, cht.object.Generation, cht.object.Size, 10, // Insert offset less than required,
 		false, nil, 1)
-	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	_, err := cht.cache.Insert(fileInfoKey, &fileInfo)
 	assert.Nil(cht.T(), err)
 
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 11, true)
@@ -428,17 +408,12 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 	// by cht.addTestFileInfoEntryInCache, such that the file info cache becomes
 	// full
 	newObjectName := "new_test_object"
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: newObjectName,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
-	fileInfo := data.NewFileInfo(fileInfoKey, 1, // Adding random generation.,
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), newObjectName)
+	fi1 := data.NewFileInfo(fileInfoKey, 1, // Adding random generation.,
 		CacheMaxSize-cht.object.Size, // This makes cache size full.,
 		1,                            // Insert offset less than required,
 		false, nil, 1)
-	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
+	evictedEntries, err := cht.cache.Insert(fileInfoKey, &fi1)
 	assert.Nil(cht.T(), err)
 	assert.Equal(cht.T(), 0, len(evictedEntries))
 
@@ -448,17 +423,12 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 
 	assert.Nil(cht.T(), err)
 	// Inserting new entry should evict the newObjectName
-	fileInfoKey = data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: "one more object",
-	}
-	fileInfoKeyName, err = fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
-	fileInfo = data.NewFileInfo(fileInfoKey, 1, 1, 1, false, nil, 1)
-	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	fileInfoKey = cht.newFileInfoKey(cht.bucket.Name(), "one more object")
+	fi2 := data.NewFileInfo(fileInfoKey, 1, 1, 1, false, nil, 1)
+	evictedEntries, err = cht.cache.Insert(fileInfoKey, &fi2)
 	assert.Nil(cht.T(), err)
 	assert.Equal(cht.T(), 1, len(evictedEntries))
-	assert.Equal(cht.T(), newObjectName, evictedEntries[0].(data.FileInfo).Key.ObjectName)
+	assert.Equal(cht.T(), newObjectName, evictedEntries[0].Key.ObjectName())
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIsFalse() {
@@ -466,17 +436,12 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 	// by cht.addTestFileInfoEntryInCache, such that the file info cache becomes
 	// full
 	newObjectName := "new_test_object"
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: newObjectName,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
-	fileInfo := data.NewFileInfo(fileInfoKey, 1, // Adding random generation.,
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), newObjectName)
+	fi1 := data.NewFileInfo(fileInfoKey, 1, // Adding random generation.,
 		CacheMaxSize-cht.object.Size, // This makes cache size full.,
 		1,                            // Insert offset less than required,
 		false, nil, 1)
-	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
+	evictedEntries, err := cht.cache.Insert(fileInfoKey, &fi1)
 	assert.Nil(cht.T(), err)
 	assert.Equal(cht.T(), 0, len(evictedEntries))
 
@@ -485,17 +450,12 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIs
 
 	assert.Nil(cht.T(), err)
 	// Inserting new entry should evict the entry corresponding to cht.object.
-	fileInfoKey = data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: "one more object",
-	}
-	fileInfoKeyName, err = fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
-	fileInfo = data.NewFileInfo(fileInfoKey, 1, 1, 1, false, nil, 1)
-	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	fileInfoKey = cht.newFileInfoKey(cht.bucket.Name(), "one more object")
+	fi2 := data.NewFileInfo(fileInfoKey, 1, 1, 1, false, nil, 1)
+	evictedEntries, err = cht.cache.Insert(fileInfoKey, &fi2)
 	assert.Nil(cht.T(), err)
 	assert.Equal(cht.T(), 1, len(evictedEntries))
-	assert.Equal(cht.T(), cht.object.Name, evictedEntries[0].(data.FileInfo).Key.ObjectName)
+	assert.Equal(cht.T(), cht.object.Name, evictedEntries[0].Key.ObjectName())
 }
 
 func (cht *cacheHandleTest) Test_Read_RequestingMoreOffsetThanSize() {
@@ -638,17 +598,12 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 	// by cht.addTestFileInfoEntryInCache, such that the file info cache becomes
 	// full
 	newObjectName := "new_test_object"
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: newObjectName,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
-	fileInfo := data.NewFileInfo(fileInfoKey, 1, // Adding random generation.,
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), newObjectName)
+	fi1 := data.NewFileInfo(fileInfoKey, 1, // Adding random generation.,
 		CacheMaxSize-cht.object.Size, // This makes cache size full.,
 		1,                            // Insert offset less than required,
 		false, nil, 1)
-	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
+	evictedEntries, err := cht.cache.Insert(fileInfoKey, &fi1)
 	assert.Nil(cht.T(), err)
 	assert.Equal(cht.T(), 0, len(evictedEntries))
 	dst := make([]byte, ReadContentSize)
@@ -667,17 +622,12 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, offset)
 	cht.verifyContentRead(offset, dst)
 	// Inserting new entry should evict the newObjectName
-	fileInfoKey = data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: "one more object",
-	}
-	fileInfoKeyName, err = fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
-	fileInfo = data.NewFileInfo(fileInfoKey, 1, 1, 1, false, nil, 1)
-	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	fileInfoKey = cht.newFileInfoKey(cht.bucket.Name(), "one more object")
+	fi2 := data.NewFileInfo(fileInfoKey, 1, 1, 1, false, nil, 1)
+	evictedEntries, err = cht.cache.Insert(fileInfoKey, &fi2)
 	assert.Nil(cht.T(), err)
 	assert.Equal(cht.T(), 1, len(evictedEntries))
-	assert.Equal(cht.T(), newObjectName, evictedEntries[0].(data.FileInfo).Key.ObjectName)
+	assert.Equal(cht.T(), newObjectName, evictedEntries[0].Key.ObjectName())
 }
 
 func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
@@ -733,16 +683,11 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	assert.Nil(cht.T(), err)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, int64(ReadContentSize))
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: cht.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), cht.object.Name)
 	assert.False(cht.T(), cacheHit)
 
 	// Delete the file info entry and again perform read
-	_ = cht.cache.Erase(fileInfoKeyName)
+	_ = cht.cache.Erase(fileInfoKey)
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	assert.NotNil(cht.T(), err)
@@ -761,18 +706,12 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	assert.False(cht.T(), cacheHit)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, int64(ReadContentSize))
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: cht.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	assert.Nil(cht.T(), err)
-	fileInfo := cht.cache.LookUp(fileInfoKeyName)
-	fileInfoData := fileInfo.(data.FileInfo)
+	fileInfoKey := cht.newFileInfoKey(cht.bucket.Name(), cht.object.Name)
+	fileInfo := cht.cache.LookUp(fileInfoKey)
 
 	// Update the file info entry generation and again perform read
-	fileInfoData.ObjectGeneration = 1
-	err = cht.cache.UpdateWithoutChangingOrder(fileInfoKeyName, fileInfoData)
+	fileInfo.ObjectGeneration = 1
+	err = cht.cache.UpdateWithoutChangingOrder(fileInfoKey, fileInfo)
 	assert.Nil(cht.T(), err)
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
@@ -914,4 +853,22 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 	assert.Equal(cht.T(), n, 0)
 	assert.False(cht.T(), cacheHit)
 	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
+}
+
+func BenchmarkFileInfoCacheLookUp(b *testing.B) {
+	cache := lru.NewCache[data.FileInfoKey, *data.FileInfo](1000 * 4096)
+	key, keyErr := data.NewFileInfoKey("my-bucket", 1234567890, "my-object-name")
+	if keyErr != nil {
+		b.Fatalf("failed to create key: %v", keyErr)
+	}
+	fi := data.NewFileInfo(key, 123, 1000, 1000, false, nil, 4096)
+	_, err := cache.Insert(key, &fi)
+	if err != nil {
+		b.Fatalf("failed to insert: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = cache.LookUpWithoutChangingOrder(key)
+	}
 }
