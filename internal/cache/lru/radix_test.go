@@ -49,6 +49,15 @@ func TestRadixCache_InsertNilValue(t *testing.T) {
 	insertAndAssert(t, cache, "taco", nil, []int64{}, lru.ErrInvalidEntry)
 }
 
+func TestRadixCache_InsertEmptyKey(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+
+	insertAndAssert(t, cache, "", testData{Value: 42, DataSize: 10}, []int64{}, nil)
+
+	assert.Equal(t, int64(42), cache.LookUp("").(testData).Value)
+	assert.Nil(t, cache.LookUp("taco"))
+}
+
 func TestRadixCache_LookUpUnknownKey(t *testing.T) {
 	cache := setupRadixCacheTest(t)
 	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
@@ -199,6 +208,31 @@ func TestRadixCache_EraseWhenKeyNotPresent(t *testing.T) {
 	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
 }
 
+func TestRadixCache_UpdateSize(t *testing.T) {
+	t.Run("NonExistentKey", func(t *testing.T) {
+		cache := lru.NewRadixCache(100)
+
+		err := cache.UpdateSize("key1", 20)
+
+		assert.ErrorIs(t, err, lru.ErrEntryNotExist)
+	})
+
+	t.Run("Immediate Eviction", func(t *testing.T) {
+		cache := lru.NewRadixCache(100)
+		data1 := testData{Value: 1, DataSize: 10}
+		data2 := testData{Value: 2, DataSize: 70}
+
+		_, _ = cache.Insert("key1", data1)
+		_, _ = cache.Insert("key2", data2)
+
+		errUpdate := cache.UpdateSize("key1", 30)
+
+		assert.NoError(t, errUpdate)
+		assert.Nil(t, cache.LookUp("key1"))
+		assert.NotNil(t, cache.LookUp("key2"))
+	})
+}
+
 func TestRadixCache_UpdateWhenKeyPresent(t *testing.T) {
 	cache := setupRadixCacheTest(t)
 	key := "burrito"
@@ -298,7 +332,21 @@ func TestRadixCache_LookUpWithoutChangingOrder_NotChangeOrder(t *testing.T) {
 func TestRadixCache_RaceCondition(t *testing.T) {
 	cache := setupRadixCacheTest(t)
 	var wg sync.WaitGroup
-	wg.Add(5)
+	wg.Add(7)
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			_ = cache.UpdateSize("key", uint64(rand.Intn(testMaxSize)))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.EraseEntriesWithGivenPrefix("k")
+		}
+	}()
 
 	go func() {
 		defer wg.Done()
