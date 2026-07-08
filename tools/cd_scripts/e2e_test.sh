@@ -426,7 +426,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   mounting
   negative_stat_cache
   operations
-  rapid_appends
+  rapid_operations
   read_large_files
   # Reenable when b/461334834 is done.
   # readdirplus
