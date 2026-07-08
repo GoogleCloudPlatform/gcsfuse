@@ -583,14 +583,26 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	defer cancel()
 	var opts []option.ClientOption
 	opts = append(opts, experimental.WithGRPCBidiReads())
-	if keyFile != "" {
+	if TestOnTPCEndPoint() {
+		cred, err := auth2.GetCredentials("/tmp/sa.key.json")
+		if err != nil {
+			return "", fmt.Errorf("failed to get credentials for TPC: %w", err)
+		}
+		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
+	} else if keyFile != "" {
 		cred, err := auth2.GetCredentials(keyFile)
 		if err != nil {
 			return "", fmt.Errorf("failed to get credentials: %w", err)
 		}
 		opts = append(opts, option.WithAuthCredentials(cred))
 	}
-	storageClient, err := storage.NewGRPCClient(ctx, opts...)
+	var storageClient *storage.Client
+	if TestOnTPCEndPoint() {
+		storageClient, err = storage.NewClient(ctx, opts...)
+	} else {
+		storageClient, err = storage.NewGRPCClient(ctx, opts...)
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
@@ -652,8 +664,8 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 				isCompatible = false
 			}
 		}
-
-		if isCompatible && (run == "" || run == testCase.Run) {
+		tpcRun := (TestOnTPCEndPoint() == testCase.TPC)
+		if isCompatible && tpcRun && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				flagString = strings.ReplaceAll(flagString, ",", " ")
