@@ -23,28 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type testBufferPool struct {
-	buffers               [][]byte
-	idx                   int
-	putBuffers            [][]byte
-	returnNilOnExhaustion bool
-}
-
-func (p *testBufferPool) Get() []byte {
-	if p.idx < len(p.buffers) {
-		b := p.buffers[p.idx]
-		p.idx++
-		return b
-	}
-	if p.returnNilOnExhaustion {
-		return nil
-	}
-	return make([]byte, 1024)
-}
-
-func (p *testBufferPool) Put(b []byte) {
-	p.putBuffers = append(p.putBuffers, b)
-}
 
 func TestVectoredWriter_Write(t *testing.T) {
 	tests := []struct {
@@ -126,7 +104,7 @@ func TestVectoredWriter_Write(t *testing.T) {
 			}
 			var pool BufferPool
 			if len(tc.buffers) > 0 {
-				pool = &testBufferPool{buffers: tc.buffers}
+				pool = &TestBufferPool{Buffers: tc.buffers}
 			}
 			w := NewVectoredWriter(pool, maxSize)
 
@@ -239,7 +217,7 @@ func TestVectoredWriter_ReadFrom(t *testing.T) {
 			}
 			var pool BufferPool
 			if len(tc.buffers) > 0 {
-				pool = &testBufferPool{buffers: tc.buffers}
+				pool = &TestBufferPool{Buffers: tc.buffers}
 			}
 			w := NewVectoredWriter(pool, maxSize)
 
@@ -327,7 +305,7 @@ func TestVectoredWriter_ReadFromAt(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			pool := &testBufferPool{buffers: tc.buffers}
+			pool := &TestBufferPool{Buffers: tc.buffers}
 			w := NewVectoredWriter(pool, tc.maxSize)
 
 			// Act
@@ -344,7 +322,7 @@ func TestVectoredWriter_ReadFromAt(t *testing.T) {
 func TestVectoredWriter_Release(t *testing.T) {
 	tests := []struct {
 		name             string
-		pool             *testBufferPool
+		pool             *TestBufferPool
 		maxSize          int64
 		writeInput       []byte
 		releaseCount     int
@@ -353,8 +331,8 @@ func TestVectoredWriter_Release(t *testing.T) {
 	}{
 		{
 			name: "release allocated buffers to pool and clear state",
-			pool: &testBufferPool{
-				buffers: [][]byte{
+			pool: &TestBufferPool{
+				Buffers: [][]byte{
 					make([]byte, 10),
 					make([]byte, 10),
 					make([]byte, 10),
@@ -377,8 +355,8 @@ func TestVectoredWriter_Release(t *testing.T) {
 		},
 		{
 			name: "release with no allocated buffers is safe",
-			pool: &testBufferPool{
-				buffers: [][]byte{
+			pool: &TestBufferPool{
+				Buffers: [][]byte{
 					make([]byte, 10),
 				},
 			},
@@ -390,8 +368,8 @@ func TestVectoredWriter_Release(t *testing.T) {
 		},
 		{
 			name: "release multiple times is safe and idempotent",
-			pool: &testBufferPool{
-				buffers: [][]byte{
+			pool: &TestBufferPool{
+				Buffers: [][]byte{
 					make([]byte, 10),
 				},
 			},
@@ -422,7 +400,7 @@ func TestVectoredWriter_Release(t *testing.T) {
 
 			// Assert
 			if tc.pool != nil {
-				assert.Equal(t, tc.expectedPutCount, len(tc.pool.putBuffers))
+				assert.Equal(t, tc.expectedPutCount, len(tc.pool.PutBuffers))
 			}
 			assert.Equal(t, tc.expectedBufs, w.Buffers())
 		})
@@ -431,8 +409,8 @@ func TestVectoredWriter_Release(t *testing.T) {
 
 func TestVectoredWriter_OversizedBufferTruncation(t *testing.T) {
 	// Arrange
-	pool := &testBufferPool{
-		buffers: [][]byte{
+	pool := &TestBufferPool{
+		Buffers: [][]byte{
 			make([]byte, 100),
 		},
 	}
@@ -472,8 +450,8 @@ func TestVectoredWriter_PoolExhaustion(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			pool := &testBufferPool{
-				returnNilOnExhaustion: true,
+			pool := &TestBufferPool{
+				ReturnNilOnExhaustion: true,
 			}
 			w := NewVectoredWriter(pool, 100)
 
@@ -507,8 +485,8 @@ func TestVectoredWriter_ZeroOrNegativeMaxSize(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			pool := &testBufferPool{
-				buffers: [][]byte{make([]byte, 10)},
+			pool := &TestBufferPool{
+				Buffers: [][]byte{make([]byte, 10)},
 			}
 			w := NewVectoredWriter(pool, tc.maxSize)
 
@@ -526,8 +504,8 @@ func TestVectoredWriter_ZeroOrNegativeMaxSize(t *testing.T) {
 var globalWriter *VectoredWriter
 
 func BenchmarkNewVectoredWriter(b *testing.B) {
-	pool := &testBufferPool{
-		buffers: [][]byte{
+	pool := &TestBufferPool{
+		Buffers: [][]byte{
 			make([]byte, 100),
 			make([]byte, 100),
 			make([]byte, 100),

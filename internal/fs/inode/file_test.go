@@ -514,21 +514,6 @@ func (t *FileTest) TestRead() {
 	}
 }
 
-type inodeTestBufferPool struct {
-	buffers [][]byte
-	idx     int
-}
-
-func (p *inodeTestBufferPool) Get() []byte {
-	if p.idx < len(p.buffers) {
-		b := p.buffers[p.idx]
-		p.idx++
-		return b
-	}
-	return make([]byte, 2)
-}
-
-func (p *inodeTestBufferPool) Put(b []byte) {}
 
 func (t *FileTest) TestReadWithBufferPool() {
 	assert.Equal(t.T(), "taco", t.initialContents)
@@ -586,8 +571,9 @@ func (t *FileTest) TestReadWithBufferPool() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			// Arrange
-			pool := &inodeTestBufferPool{
-				buffers: [][]byte{make([]byte, 2), make([]byte, 2)},
+			pool := &gcsx.TestBufferPool{
+				Buffers:           [][]byte{make([]byte, 2), make([]byte, 2)},
+				DefaultBufferSize: 2,
 			}
 			req := &gcsx.ReadRequest{
 				BufferPool: pool,

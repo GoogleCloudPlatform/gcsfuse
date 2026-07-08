@@ -46,27 +46,26 @@ func NewVectoredWriter(pool BufferPool, maxSize int64) *VectoredWriter {
 // from the pool. Returns nil if no more buffers can be allocated (e.g. pool is nil
 // or maxSize is reached).
 func (w *VectoredWriter) availableBuffer() []byte {
-	for {
-		if w.index < len(w.buffers) {
-			sb := &w.buffers[w.index]
-			if sb.offset < len(sb.buffer) {
-				return sb.buffer[sb.offset:]
-			}
-			w.index++
-			continue
+	if w.index < len(w.buffers) {
+		sb := &w.buffers[w.index]
+		if sb.offset < len(sb.buffer) {
+			return sb.buffer[sb.offset:]
 		}
-		if w.pool == nil || w.written >= w.maxSize {
-			return nil
-		}
-		buf := w.pool.Get()
-		if len(buf) == 0 {
-			return nil
-		}
-		if int64(len(buf)) > w.maxSize-w.written {
-			buf = buf[:w.maxSize-w.written]
-		}
-		w.buffers = append(w.buffers, bufferWithOffset{buffer: buf})
+		w.index++
 	}
+
+	if w.pool == nil || w.written >= w.maxSize {
+		return nil
+	}
+	buf := w.pool.Get()
+	if len(buf) == 0 {
+		return nil
+	}
+	if int64(len(buf)) > w.maxSize-w.written {
+		buf = buf[:w.maxSize-w.written]
+	}
+	w.buffers = append(w.buffers, bufferWithOffset{buffer: buf})
+	return buf
 }
 
 // advance updates the offset of the current buffer and the total bytes written.

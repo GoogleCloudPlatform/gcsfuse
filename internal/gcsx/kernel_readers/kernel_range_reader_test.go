@@ -167,26 +167,11 @@ func (t *KernelRangeReaderTest) TestReadAt_ClobberedError() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-type testBufferPool struct {
-	buffers [][]byte
-	idx     int
-}
-
-func (p *testBufferPool) Get() []byte {
-	if p.idx < len(p.buffers) {
-		b := p.buffers[p.idx]
-		p.idx++
-		return b
-	}
-	return make([]byte, 1024)
-}
-
-func (p *testBufferPool) Put(b []byte) {}
 
 func (t *KernelRangeReaderTest) TestReadAt_BufferPool_Success() {
 	data := []byte("abcdefghij") // length 10
-	pool := &testBufferPool{
-		buffers: [][]byte{
+	pool := &gcsx.TestBufferPool{
+		Buffers: [][]byte{
 			make([]byte, 3),
 			make([]byte, 2),
 			make([]byte, 4),
