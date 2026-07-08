@@ -15,7 +15,10 @@
 package lru
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
 
 // radixNode represents a node in the custom radix tree.
@@ -31,9 +34,22 @@ type radixNode struct {
 	next *radixNode
 }
 
-// this radixTree struct will be replaced by a RadixCache struct afterwards with additional necessary fields
-// radixTree encapsulates the core tree structure (LRU logic to be added in next PR).
-type radixTree struct {
+// radixCache encapsulates the core tree structure and implements the lru.Cache interface.
+type radixCache struct {
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	// INVARIANT: maxSize > 0
+	maxSize uint64
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	// Sum of Size() of all the entries in the cache.
+	currentSize uint64
+
 	root *radixNode
 
 	// size is the number of active, value-bearing entries in the radix tree.
@@ -46,11 +62,81 @@ type radixTree struct {
 	// len is the number of nodes currently linked in the LRU list.
 	// In a properly functioning cache, size and len must always be equal.
 	len int
+
+	// All public methods of this Cache uses this RW mutex based locker while
+	// accessing/updating Cache's data.
+	mu locker.RWLocker
 }
 
-func newRadixTree() *radixTree {
-	return &radixTree{
-		root: &radixNode{},
+// NewRadixCache returns the reference of cache object by initialising the cache with
+// the supplied maxSize, which must be greater than zero.
+func NewRadixCache(maxSize uint64) Cache {
+	c := &radixCache{
+		maxSize: maxSize,
+		root:    &radixNode{},
+	}
+	c.mu = locker.NewRW("RadixCache", c.checkInvariants)
+	return c
+}
+
+func (c *radixCache) checkInvariants() {
+	// INVARIANT: maxSize > 0
+	if c.maxSize <= 0 {
+		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
+	}
+
+	// INVARIANT: currentSize <= maxSize
+	if c.currentSize > c.maxSize {
+		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
+	}
+
+	// INVARIANT: Contains all and only the elements of entries (Tree vs LRU length)
+	if c.size != c.len {
+		panic(fmt.Sprintf("Length mismatch: Tree size %v vs. LRU len %v", c.size, c.len))
+	}
+
+	// INVARIANT: Each element in the LRU list must have a valid value
+	lruCount := 0
+	for curr := c.head; curr != nil; curr = curr.next {
+		lruCount++
+		if curr.value == nil {
+			panic(fmt.Sprintf("Unexpected empty value in LRU list for prefix: %v", curr.prefix))
+		}
+	}
+
+	if lruCount != c.len {
+		panic(fmt.Sprintf("LRU list actual count %v does not match c.len %v", lruCount, c.len))
+	}
+
+	// INVARIANT: Every value-bearing node in the tree must exist in the LRU list exactly once
+	treeCount := 0
+	var verifyTree func(n *radixNode)
+
+	verifyTree = func(n *radixNode) {
+		if n == nil {
+			return
+		}
+
+		if n.value != nil {
+			treeCount++
+			// A node is verifiably in the LRU list if it is the head, or if it has a predecessor
+			inLRU := c.head == n || n.prev != nil
+			if !inLRU {
+				panic(fmt.Sprintf("Mismatch: Node with prefix '%v' has a value but is missing from LRU list", n.prefix))
+			}
+		}
+
+		// Recurse through all siblings and children
+		for child := n.child; child != nil; child = child.sibling {
+			verifyTree(child)
+		}
+	}
+
+	// Initiate full tree structural scan
+	verifyTree(c.root)
+
+	if treeCount != c.size {
+		panic(fmt.Sprintf("Tree actual value count %v does not match c.size %v", treeCount, c.size))
 	}
 }
 
@@ -99,19 +185,19 @@ func (n *radixNode) removeChild(childToRemove *radixNode) {
 }
 
 // insertNode inserts a new key into the radix tree and returns the leaf node.
-func (t *radixTree) insertNode(key string, value ValueType) (*radixNode, bool) {
+func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, bool) {
 	if value == nil {
 		return nil, false
 	}
 
-	node := t.root
+	node := c.root
 	search := key
 
 	for {
 		if len(search) == 0 {
 			isNew := node.value == nil
 			if isNew {
-				t.size++
+				c.size++
 			}
 			node.value = value
 			return node, isNew
@@ -125,7 +211,7 @@ func (t *radixTree) insertNode(key string, value ValueType) (*radixNode, bool) {
 				value:  value,
 			}
 			node.addChild(newLeaf)
-			t.size++
+			c.size++
 			return newLeaf, true
 		}
 
@@ -156,7 +242,7 @@ func (t *radixTree) insertNode(key string, value ValueType) (*radixNode, bool) {
 
 		if lcp == len(search) {
 			splitNode.value = value
-			t.size++
+			c.size++
 			return splitNode, true
 		}
 
@@ -165,14 +251,14 @@ func (t *radixTree) insertNode(key string, value ValueType) (*radixNode, bool) {
 			value:  value,
 		}
 		splitNode.addChild(newLeaf)
-		t.size++
+		c.size++
 		return newLeaf, true
 	}
 }
 
 // getNode finds a leaf node by key.
-func (t *radixTree) getNode(key string) (*radixNode, bool) {
-	node := t.root
+func (c *radixCache) getNode(key string) (*radixNode, bool) {
+	node := c.root
 	search := key
 
 	for {
@@ -199,19 +285,19 @@ func (t *radixTree) getNode(key string) (*radixNode, bool) {
 }
 
 // deleteNode removes a leaf node directly using its parent pointers.
-func (t *radixTree) deleteNode(node *radixNode) {
+func (c *radixCache) deleteNode(node *radixNode) {
 	if node == nil || node.value == nil {
 		return
 	}
 
 	node.value = nil
-	t.size--
-	t.compressPathUpwards(node)
+	c.size--
+	c.compressPathUpwards(node)
 }
 
 // compressPathUpwards walks up the tree, pruning empty leaves and compressing single-child routing nodes.
-func (t *radixTree) compressPathUpwards(curr *radixNode) {
-	for curr != nil && curr != t.root {
+func (c *radixCache) compressPathUpwards(curr *radixNode) {
+	for curr != nil && curr != c.root {
 		if curr.value != nil {
 			break
 		}
@@ -243,8 +329,8 @@ func (t *radixTree) compressPathUpwards(curr *radixNode) {
 }
 
 // --- LRU Logic ---
-func (t *radixTree) moveToFront(node *radixNode) {
-	if t.head == node {
+func (c *radixCache) moveToFront(node *radixNode) {
+	if c.head == node {
 		return
 	}
 	if node.prev != nil {
@@ -253,57 +339,279 @@ func (t *radixTree) moveToFront(node *radixNode) {
 	if node.next != nil {
 		node.next.prev = node.prev
 	}
-	if t.tail == node {
-		t.tail = node.prev
+	if c.tail == node {
+		c.tail = node.prev
 	}
 	node.prev = nil
-	node.next = t.head
-	if t.head != nil {
-		t.head.prev = node
+	node.next = c.head
+	if c.head != nil {
+		c.head.prev = node
 	}
-	t.head = node
+	c.head = node
 }
 
-func (t *radixTree) pushFront(node *radixNode) {
+func (c *radixCache) pushFront(node *radixNode) {
 	node.prev = nil
-	node.next = t.head
-	if t.head != nil {
-		t.head.prev = node
+	node.next = c.head
+	if c.head != nil {
+		c.head.prev = node
 	}
-	t.head = node
-	if t.tail == nil {
-		t.tail = node
+	c.head = node
+	if c.tail == nil {
+		c.tail = node
 	}
-	t.len++
+	c.len++
 }
 
-func (t *radixTree) remove(node *radixNode) {
-	if t.head != node && node.prev == nil {
+func (c *radixCache) remove(node *radixNode) {
+	if c.head != node && node.prev == nil {
 		return
 	}
 	if node.prev != nil {
 		node.prev.next = node.next
 	} else {
-		t.head = node.next
+		c.head = node.next
 	}
 	if node.next != nil {
 		node.next.prev = node.prev
 	} else {
-		t.tail = node.prev
+		c.tail = node.prev
 	}
 	node.prev = nil
 	node.next = nil
-	t.len--
+	c.len--
 }
 
-func (t *radixTree) evictOne() ValueType {
-	node := t.tail
+func (c *radixCache) evictOne() ValueType {
+	node := c.tail
 	if node == nil {
 		return nil
 	}
 	evictedEntry := node.value
+
+	// Update accounting
+	c.currentSize -= evictedEntry.Size()
+
 	// Remove from LRU list and then fully delete from the tree
-	t.remove(node)
-	t.deleteNode(node)
+	c.remove(node)
+	c.deleteNode(node)
 	return evictedEntry
+}
+
+////////////////////////////////////////////////////////////////////////
+// Cache interface
+////////////////////////////////////////////////////////////////////////
+
+// Insert the supplied value into the cache, overwriting any previous entry for
+// the given key. The value must be non-nil.
+// Also returns a slice of ValueType evicted by the new inserted entry.
+func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
+	if value == nil {
+		return nil, ErrInvalidEntry
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	valueSize := value.Size()
+	if valueSize > c.maxSize {
+		return nil, ErrInvalidEntrySize
+	}
+
+	oldNode, exists := c.getNode(key)
+	if exists {
+		c.currentSize -= oldNode.value.Size()
+		c.currentSize += valueSize
+		oldNode.value = value
+		c.moveToFront(oldNode)
+	} else {
+		node, _ := c.insertNode(key, value)
+		c.pushFront(node)
+		c.currentSize += valueSize
+	}
+
+	var evictedValues []ValueType
+	//Evict until we're at or below maxSize
+	for c.currentSize > c.maxSize {
+		evictedValues = append(evictedValues, c.evictOne())
+	}
+
+	return evictedValues, nil
+}
+
+// eraseInternal removes any entry for the supplied key from the cache without acquiring locks.
+// It returns the value of the erased key, or nil if not present.
+// LOCKS_REQUIRED(c.mu)
+func (c *radixCache) eraseInternal(node *radixNode) (value ValueType) {
+	deletedEntry := node.value
+	c.currentSize -= deletedEntry.Size()
+
+	c.remove(node)
+	c.deleteNode(node)
+
+	return deletedEntry
+}
+
+// Erase any entry for the supplied key, also returns the value of erased key.
+func (c *radixCache) Erase(key string) (value ValueType) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	node, ok := c.getNode(key)
+	if !ok {
+		return
+	}
+
+	return c.eraseInternal(node)
+}
+
+// LookUp a previously-inserted value for the given key. Return nil if no
+// value is present.
+func (c *radixCache) LookUp(key string) (value ValueType) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	node, ok := c.getNode(key)
+	if !ok {
+		return
+	}
+	c.moveToFront(node)
+
+	return node.value
+}
+
+// LookUpWithoutChangingOrder looks up previously-inserted value for a given key
+// without changing the order of entries in the cache. Return nil if no value
+// is present.
+//
+// Note: Because this look up doesn't change the order, it only acquires and
+// releases read lock.
+func (c *radixCache) LookUpWithoutChangingOrder(key string) (value ValueType) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	node, ok := c.getNode(key)
+	if !ok {
+		return
+	}
+
+	return node.value
+}
+
+// UpdateWithoutChangingOrder updates entry with the given key in cache with
+// given value without changing order of entries in cache, returning error if an
+// entry with given key doesn't exist. Also, the size of value for entry
+// shouldn't be updated with this method (use c.Insert for updating size).
+func (c *radixCache) UpdateWithoutChangingOrder(key string, value ValueType) error {
+	if value == nil {
+		return ErrInvalidEntry
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	node, ok := c.getNode(key)
+	if !ok {
+		return ErrEntryNotExist
+	}
+
+	if value.Size() != node.value.Size() {
+		return ErrInvalidUpdateEntrySize
+	}
+
+	node.value = value
+	return nil
+}
+
+// UpdateSize updates the currentSize accounting when an entry's size has changed.
+// This is needed for entries whose size grows incrementally (e.g., sparse files).
+// Eviction is deferred until the next Insert() call.
+// The entry's order in the LRU is not changed.
+func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	_, ok := c.getNode(key)
+	if !ok {
+		return ErrEntryNotExist
+	}
+
+	// Update currentSize accounting
+	// Note: This may temporarily violate currentSize <= maxSize invariant
+	// Eviction will happen on the next Insert() call
+	c.currentSize += sizeDelta
+
+	return nil
+}
+
+func (c *radixCache) EraseEntriesWithGivenPrefix(prefix string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	//this check was done to comply with the existing behaviour of the EraseEntriesWithGivenPrefix function
+	//the mapCache uses strings.HasPrefix which returns true for any string compared with ""
+	if prefix == "" {
+		c.sweepAndUnlink(c.root)
+		c.root = &radixNode{} // Reset the tree
+		return
+	}
+
+	node := c.root
+	search := prefix
+
+	for len(search) > 0 {
+		child := node.getChild(search[0])
+		if child == nil {
+			return // Prefix doesn't exist
+		}
+
+		lcp := longestCommonPrefix(search, child.prefix)
+
+		if lcp == len(child.prefix) {
+			search = search[len(child.prefix):]
+			node = child
+			continue
+		}
+
+		if lcp == len(search) {
+			// We found the exact node where the prefix ends.
+			// Sever it entirely from the tree structure
+			node.removeChild(child)
+
+			// Now sweep the detached subtree to fix LRU and currentSize
+			c.sweepAndUnlink(child)
+			c.compressPathUpwards(node)
+		}
+		return
+	}
+
+	// If search == 0 at the start, the prefix is exact to 'node'
+	if node != c.root {
+		parent := node.parent
+		parent.removeChild(node)
+		c.sweepAndUnlink(node)
+		c.compressPathUpwards(parent)
+	}
+}
+
+// sweepAndUnlink recursively cleans up a detached subtree without triggering tree merges
+func (c *radixCache) sweepAndUnlink(n *radixNode) {
+	if n == nil {
+		return
+	}
+
+	// Clean up LRU list and size
+	if n.value != nil {
+		c.currentSize -= n.value.Size()
+		c.remove(n)
+		c.size--
+		n.value = nil
+	}
+
+	// Recurse through children
+	var nextChild *radixNode
+	for curr := n.child; curr != nil; curr = nextChild {
+		nextChild = curr.sibling
+		c.sweepAndUnlink(curr)
+	}
 }
