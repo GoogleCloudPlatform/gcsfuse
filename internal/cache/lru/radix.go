@@ -71,6 +71,10 @@ type radixCache struct {
 // NewRadixCache returns the reference of cache object by initialising the cache with
 // the supplied maxSize, which must be greater than zero.
 func NewRadixCache(maxSize uint64) Cache {
+	if maxSize == 0 {
+		panic(fmt.Sprintf("Invalid maxSize: %v", maxSize))
+	}
+
 	c := &radixCache{
 		maxSize: maxSize,
 		root:    &radixNode{},
@@ -80,11 +84,6 @@ func NewRadixCache(maxSize uint64) Cache {
 }
 
 func (c *radixCache) checkInvariants() {
-	// INVARIANT: maxSize > 0
-	if c.maxSize <= 0 {
-		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
-	}
-
 	// INVARIANT: currentSize <= maxSize
 	if c.currentSize > c.maxSize {
 		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
