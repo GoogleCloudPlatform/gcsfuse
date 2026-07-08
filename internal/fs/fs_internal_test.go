@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -64,6 +65,58 @@ func TestCacheDirVolumeBlockSize(t *testing.T) {
 			blockSize := cacheDirVolumeBlockSize(serverCfg, cacheDir)
 
 			assert.Equal(t, tc.expectedBlockSize, blockSize)
+		})
+	}
+}
+
+func TestBufferPoolWrapper_Get(t *testing.T) {
+	// Arrange
+	var pool sync.Pool
+	pool.New = func() any {
+		return new([readPoolBufferSize]byte)
+	}
+	bp := &bufferPoolWrapper{pool: &pool}
+
+	// Act
+	buf := bp.Get()
+
+	// Assert
+	assert.Equal(t, readPoolBufferSize, len(buf))
+	assert.Equal(t, readPoolBufferSize, cap(buf))
+}
+
+func TestBufferPoolWrapper_Put(t *testing.T) {
+	testCases := []struct {
+		name string
+		buf  []byte
+	}{
+		{
+			name: "ValidBuffer",
+			buf:  make([]byte, readPoolBufferSize),
+		},
+		{
+			name: "CapacityLessThanPoolSize",
+			buf:  make([]byte, 10),
+		},
+		{
+			name: "CapacityGreaterThanPoolSize",
+			buf:  make([]byte, readPoolBufferSize+10),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var pool sync.Pool
+			pool.New = func() any {
+				return new([readPoolBufferSize]byte)
+			}
+			bp := &bufferPoolWrapper{pool: &pool}
+
+			// Act & Assert
+			assert.NotPanics(t, func() {
+				bp.Put(tc.buf)
+			})
 		})
 	}
 }

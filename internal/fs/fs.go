@@ -697,7 +697,11 @@ type bufferPoolWrapper struct {
 func (bp *bufferPoolWrapper) Get() []byte {
 	return bp.pool.Get().(*[readPoolBufferSize]byte)[:]
 }
+
 func (bp *bufferPoolWrapper) Put(buf []byte) {
+	if cap(buf) != readPoolBufferSize {
+		return
+	}
 	bp.pool.Put((*[readPoolBufferSize]byte)(buf[:cap(buf)]))
 }
 

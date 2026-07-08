@@ -501,8 +501,8 @@ func (t *FileTest) TestRead() {
 	for _, tc := range testCases {
 		desc := fmt.Sprintf("offset: %d, size: %d", tc.offset, tc.size)
 		data := make([]byte, tc.size)
-		n, err := t.in.Read(t.ctx, data, tc.offset)
-		data = data[:n]
+		res, err := t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: data, Offset: tc.offset})
+		data = data[:res.Size]
 
 		// Ignore EOF.
 		if err == io.EOF {
@@ -511,6 +511,109 @@ func (t *FileTest) TestRead() {
 
 		assert.Nil(t.T(), err, "%s", desc)
 		assert.Equal(t.T(), tc.expected, string(data), "%s", desc)
+	}
+}
+
+type inodeTestBufferPool struct {
+	buffers [][]byte
+	idx     int
+}
+
+func (p *inodeTestBufferPool) Get() []byte {
+	if p.idx < len(p.buffers) {
+		b := p.buffers[p.idx]
+		p.idx++
+		return b
+	}
+	return make([]byte, 2)
+}
+
+func (p *inodeTestBufferPool) Put(b []byte) {}
+
+func (t *FileTest) TestReadWithBufferPool() {
+	assert.Equal(t.T(), "taco", t.initialContents)
+
+	testCases := []struct {
+		name         string
+		offset       int64
+		size         int64
+		expectedData []string
+		expectedSize int
+		expectedErr  error
+	}{
+		{
+			name:         "ExactFit_Full",
+			offset:       0,
+			size:         4,
+			expectedData: []string{"ta", "co"},
+			expectedSize: 4,
+			expectedErr:  nil,
+		},
+		{
+			name:         "ExactFit_Partial",
+			offset:       0,
+			size:         2,
+			expectedData: []string{"ta"},
+			expectedSize: 2,
+			expectedErr:  nil,
+		},
+		{
+			name:         "ExactFit_Remaining",
+			offset:       1,
+			size:         3,
+			expectedData: []string{"ac", "o"},
+			expectedSize: 3,
+			expectedErr:  nil,
+		},
+		{
+			name:         "PastEOF",
+			offset:       3,
+			size:         2,
+			expectedData: []string{"o"},
+			expectedSize: 1,
+			expectedErr:  io.EOF,
+		},
+		{
+			name:         "AtEOF",
+			offset:       4,
+			size:         2,
+			expectedData: []string{},
+			expectedSize: 0,
+			expectedErr:  io.EOF,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			// Arrange
+			pool := &inodeTestBufferPool{
+				buffers: [][]byte{make([]byte, 2), make([]byte, 2)},
+			}
+			req := &gcsx.ReadRequest{
+				BufferPool: pool,
+				Offset:     tc.offset,
+				Size:       tc.size,
+			}
+
+			// Act
+			res, err := t.in.Read(t.ctx, req)
+
+			// Assert
+			assert.ErrorIs(t.T(), err, tc.expectedErr)
+			assert.Equal(t.T(), tc.expectedSize, res.Size)
+			if res.Size > 0 {
+				var actualStrings []string
+				for _, b := range res.Data {
+					actualStrings = append(actualStrings, string(b))
+				}
+				assert.Equal(t.T(), tc.expectedData, actualStrings)
+				require.NotNil(t.T(), res.Callback)
+				res.Callback()
+			} else {
+				assert.Empty(t.T(), res.Data)
+				assert.Nil(t.T(), res.Callback)
+			}
+		})
 	}
 }
 
@@ -536,14 +639,14 @@ func (t *FileTest) TestWrite() {
 
 	// Read back the content.
 	var buf [1024]byte
-	n, err := t.in.Read(t.ctx, buf[:], 0)
+	res, err := t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: buf[:], Offset: 0})
 
 	if err == io.EOF {
 		err = nil
 	}
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), "pacoburrito", string(buf[:n]))
+	assert.Equal(t.T(), "pacoburrito", string(buf[:res.Size]))
 
 	// Check attributes.
 	attrs, err := t.in.Attributes(t.ctx, true)
@@ -571,14 +674,14 @@ func (t *FileTest) TestTruncate() {
 
 	// Read the contents.
 	var buf [1024]byte
-	n, err := t.in.Read(t.ctx, buf[:], 0)
+	res, err := t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: buf[:], Offset: 0})
 
 	if err == io.EOF {
 		err = nil
 	}
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), "ta", string(buf[:n]))
+	assert.Equal(t.T(), "ta", string(buf[:res.Size]))
 
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx, true)
@@ -1426,7 +1529,7 @@ func (t *FileTest) TestSetMtime_ContentClean() {
 	var attrs fuseops.InodeAttributes
 
 	// Cause the content to be faulted in.
-	_, err = t.in.Read(t.ctx, make([]byte, 1), 0)
+	_, err = t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: make([]byte, 1), Offset: 0})
 	assert.Nil(t.T(), err)
 
 	// Set mtime.
@@ -1780,13 +1883,13 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 			// Flush is required before reading an object for which BWH is open.
 			assert.NoError(t.T(), t.in.Flush(context.Background()))
 
-			n, err := t.in.Read(t.ctx, data, 0)
+			res, err := t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: data, Offset: 0})
 
 			if tc.performWrite {
-				assert.Equal(t.T(), len(data), n)
+				assert.Equal(t.T(), len(data), res.Size)
 				require.NoError(t.T(), err)
 			} else {
-				assert.Equal(t.T(), 0, n)
+				assert.Equal(t.T(), 0, res.Size)
 				require.Error(t.T(), err)
 				assert.ErrorIs(t.T(), err, io.EOF)
 			}
@@ -1799,9 +1902,9 @@ func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	data := make([]byte, 10)
 
-	n, err := t.in.Read(t.ctx, data, 0)
+	res, err := t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: data, Offset: 0})
 
-	assert.Equal(t.T(), 0, n)
+	assert.Equal(t.T(), 0, res.Size)
 	require.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "EOF")
 }

@@ -638,7 +638,7 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 	return f.bucket
 }
 
-// Serve a read for this file with semantics matching io.ReaderAt.
+// Serve a read for this file with semantics matching gcsx.Reader.ReadAt.
 //
 // The caller may be better off reading directly from GCS when
 // f.SourceGenerationIsAuthoritative() is true.
@@ -646,8 +646,7 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
 	ctx context.Context,
-	dst []byte,
-	offset int64) (n int, err error) {
+	req *gcsx.ReadRequest) (res gcsx.ReadResponse, err error) {
 	if f.bwh != nil {
 		err = fmt.Errorf("unexpected read call for %q when streaming write is in progress for it", f.Name().LocalName())
 		return
@@ -660,18 +659,34 @@ func (f *FileInode) Read(
 		return
 	}
 
-	// Read from the local content, propagating io.EOF.
-	n, err = f.content.ReadAt(dst, offset)
-	switch {
-	case err == io.EOF:
-		return
+	var n int
+	var data [][]byte
+	var callback func()
 
-	case err != nil:
-		err = fmt.Errorf("content.ReadAt: %w", err)
-		return
+	if req.BufferPool != nil {
+		writer := gcsx.NewVectoredWriter(req.BufferPool, req.Size)
+		var written int64
+		written, err = writer.ReadFromAt(f.content, req.Offset)
+		n = int(written)
+		if n > 0 {
+			data = writer.Buffers()
+			callback = func() { writer.Release() }
+		} else {
+			writer.Release()
+		}
+	} else {
+		n, err = f.content.ReadAt(req.Buffer, req.Offset)
 	}
 
-	return
+	if err != nil && err != io.EOF {
+		err = fmt.Errorf("content.ReadAt: %w", err)
+	}
+
+	return gcsx.ReadResponse{
+		Size:     n,
+		Data:     data,
+		Callback: callback,
+	}, err
 }
 
 func getMetricOpenMode(openMode util.OpenMode) metrics.OpenMode {

@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io"
 	"testing"
@@ -253,12 +252,12 @@ func TestVectoredWriter_ReadFrom(t *testing.T) {
 	}
 }
 
-type mockOffsetReader struct {
+type mockReaderAt struct {
 	data []byte
 	err  error
 }
 
-func (m *mockOffsetReader) Read(ctx context.Context, dst []byte, offset int64) (n int, err error) {
+func (m *mockReaderAt) ReadAt(dst []byte, offset int64) (n int, err error) {
 	if m.err != nil {
 		return 0, m.err
 	}
@@ -266,19 +265,19 @@ func (m *mockOffsetReader) Read(ctx context.Context, dst []byte, offset int64) (
 		return 0, io.EOF
 	}
 	n = copy(dst, m.data[offset:])
-	if offset+int64(n) >= int64(len(m.data)) {
+	if n < len(dst) {
 		err = io.EOF
 	}
 	return n, err
 }
 
-func TestVectoredWriter_ReadFromOffset(t *testing.T) {
-	testErr := errors.New("offset read error")
+func TestVectoredWriter_ReadFromAt(t *testing.T) {
+	testErr := errors.New("reader at error")
 
 	tests := []struct {
 		name         string
 		buffers      [][]byte
-		reader       *mockOffsetReader
+		reader       *mockReaderAt
 		offset       int64
 		maxSize      int64
 		expectedN    int64
@@ -286,12 +285,12 @@ func TestVectoredWriter_ReadFromOffset(t *testing.T) {
 		expectedBufs [][]byte
 	}{
 		{
-			name: "ReadFromOffset from zero offset fully",
+			name: "ReadFromAt from zero offset fully",
 			buffers: [][]byte{
 				make([]byte, 3),
 				make([]byte, 2),
 			},
-			reader:       &mockOffsetReader{data: []byte("hello")},
+			reader:       &mockReaderAt{data: []byte("hello")},
 			offset:       0,
 			maxSize:      5,
 			expectedN:    5,
@@ -299,12 +298,12 @@ func TestVectoredWriter_ReadFromOffset(t *testing.T) {
 			expectedBufs: [][]byte{[]byte("hel"), []byte("lo")},
 		},
 		{
-			name: "ReadFromOffset from non-zero offset across multiple buffers",
+			name: "ReadFromAt from non-zero offset across multiple buffers",
 			buffers: [][]byte{
 				make([]byte, 3),
 				make([]byte, 3),
 			},
-			reader:       &mockOffsetReader{data: []byte("0123456789")},
+			reader:       &mockReaderAt{data: []byte("0123456789")},
 			offset:       3,
 			maxSize:      6,
 			expectedN:    6,
@@ -312,11 +311,11 @@ func TestVectoredWriter_ReadFromOffset(t *testing.T) {
 			expectedBufs: [][]byte{[]byte("345"), []byte("678")},
 		},
 		{
-			name: "ReadFromOffset with reader error",
+			name: "ReadFromAt with reader error",
 			buffers: [][]byte{
 				make([]byte, 5),
 			},
-			reader:       &mockOffsetReader{err: testErr},
+			reader:       &mockReaderAt{err: testErr},
 			offset:       0,
 			maxSize:      5,
 			expectedN:    0,
@@ -332,7 +331,7 @@ func TestVectoredWriter_ReadFromOffset(t *testing.T) {
 			w := NewVectoredWriter(pool, tc.maxSize)
 
 			// Act
-			n, err := w.ReadFromOffset(context.Background(), tc.reader, tc.offset)
+			n, err := w.ReadFromAt(tc.reader, tc.offset)
 
 			// Assert
 			assert.Equal(t, tc.expectedN, n)

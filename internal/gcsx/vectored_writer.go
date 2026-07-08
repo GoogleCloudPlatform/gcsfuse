@@ -15,14 +15,8 @@
 package gcsx
 
 import (
-	"context"
 	"io"
 )
-
-// OffsetReader is an interface for reading data at an offset with a context.
-type OffsetReader interface {
-	Read(ctx context.Context, dst []byte, offset int64) (n int, err error)
-}
 
 type bufferWithOffset struct {
 	buffer []byte
@@ -107,9 +101,6 @@ func (w *VectoredWriter) readIntoBuffers(readFn func(buf []byte) (int, error)) (
 			n += int64(readNum)
 		}
 		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
 			break
 		}
 	}
@@ -119,14 +110,18 @@ func (w *VectoredWriter) readIntoBuffers(readFn func(buf []byte) (int, error)) (
 // ReadFrom implements io.ReaderFrom. It reads data from r directly into the
 // underlying buffers, avoiding intermediate allocations and double-copying.
 func (w *VectoredWriter) ReadFrom(r io.Reader) (n int64, err error) {
-	return w.readIntoBuffers(r.Read)
+	n, err = w.readIntoBuffers(r.Read)
+	if err == io.EOF {
+		err = nil
+	}
+	return n, err
 }
 
-// ReadFromOffset reads data from r starting at offset directly into the
+// ReadFromAt reads data from r starting at offset directly into the
 // underlying buffers, avoiding intermediate allocations and double-copying.
-func (w *VectoredWriter) ReadFromOffset(ctx context.Context, r OffsetReader, offset int64) (n int64, err error) {
+func (w *VectoredWriter) ReadFromAt(r io.ReaderAt, offset int64) (n int64, err error) {
 	return w.readIntoBuffers(func(buf []byte) (int, error) {
-		return r.Read(ctx, buf, offset+w.written)
+		return r.ReadAt(buf, offset+w.written)
 	})
 }
 
