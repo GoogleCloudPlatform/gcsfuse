@@ -36,6 +36,6 @@ echo "Step 4: Running tests ..."
 # These tests are chosen to verify that machine-type is correctly passed by
 # CSI Driver to GCSFuse and GCSFuse is correctly accepting it and triggering optimization flags
 # like implicit-dirs and rename-dir-limit for high-performance machine-type as expected.
-go test -v ./tools/integration_tests/flag_optimizations/... --integrationTest --mountedDirectory=/data_mnt --testbucket="$BUCKET_NAME" -run "TestImplicitDirsEnabled|TestRenameDirLimitSet"
+go test -v ./tools/integration_tests/flag_optimizations/... --integrationTest --config-file="$(pwd)/tools/integration_tests/test_config.yaml" --mountedDirectory=/data_mnt --testbucket="$BUCKET_NAME" -run "TestImplicitDirsEnabled|TestRenameDirLimitSet"
 
 echo "Step 5: Test finished successfully."
