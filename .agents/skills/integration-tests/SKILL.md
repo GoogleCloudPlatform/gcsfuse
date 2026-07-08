@@ -262,7 +262,7 @@ When introducing a new integration test suite, you **MUST** register the package
 ### 5.4 PR Creation & Skill Delegation
 After formatting verification passes successfully:
 1. Generate a concise, high-quality summary of changes and pull request fields (Title with Conventional Commits structure, e.g., `test(operations): add directory operations test`).
-2. **Invoke GCSFuse PR Skill**: Delegate the PR publishing task to GCSFuse's central **Pull Request Creation Skill** by loading and strictly executing the steps laid out in [.gemini/skills/pull-request/SKILL.md](../../../.gemini/skills/pull-request/SKILL.md).
+2. **Invoke GCSFuse PR Skill**: Delegate the PR publishing task to GCSFuse's central **Pull Request Creation Skill** by loading and strictly executing the steps laid out in [.agents/skills/pull-request/SKILL.md](../../../.agents/skills/pull-request/SKILL.md).
 
 ---
 
