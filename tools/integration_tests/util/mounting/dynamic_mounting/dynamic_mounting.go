@@ -37,17 +37,6 @@ func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags
 	return err
 }
 
-// MountGcsfuseWithDynamicMounting is deprecated. Use MountGcsfuseWithDynamicMountingWithConfig instead.
-func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
-	cfg := &test_suite.TestConfig{
-		GKEMountedDirectory:     setup.MountedDirectory(),
-		GCSFuseMountedDirectory: setup.MntDir(),
-		TestBucket:              setup.TestBucket(),
-		LogFile:                 setup.LogFile(),
-	}
-	return MountGcsfuseWithDynamicMountingWithConfig(cfg, flags)
-}
-
 func runTestsOnGivenMountedTestBucket(cfg *test_suite.TestConfig, flags [][]string, rootMntDir string, m *testing.M) (successCode int) {
 	for i := range flags {
 		if err := MountGcsfuseWithDynamicMountingWithConfig(cfg, flags[i]); err != nil {

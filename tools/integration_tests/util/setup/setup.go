@@ -35,8 +35,6 @@ import (
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
-	"go.opentelemetry.io/contrib/detectors/gcp"
-	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -59,8 +57,6 @@ const (
 	PathEnvVariable                   = "PATH"
 	GCSFuseLogFilePrefix              = "gcsfuse-failed-integration-test-logs-"
 	ProxyServerLogFilePrefix          = "proxy-server-failed-integration-test-logs-"
-	zoneMatcherRegex                  = "^[a-z]+-[a-z0-9]+-[a-z]$"
-	regionMatcherRegex                = "^[a-z]+-[a-z0-9]+$"
 	unsupportedCharactersInTestBucket = " "
 )
 
@@ -399,17 +395,6 @@ func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	}
 }
 
-// IgnoreTestIfIntegrationTestFlagIsNotSet helps skip a test if --integrationTest flag is not set.
-// If the test uses TestMain, then one usually calls os.Exit() to skip the test,
-// but for non-TestMain tests, this helps skip integration tests if --integrationTest has not been passed.
-func IgnoreTestIfIntegrationTestFlagIsNotSet(t *testing.T) {
-	flag.Parse()
-
-	if !*integrationTest {
-		t.SkipNow()
-	}
-}
-
 func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
 	flag.Parse()
 
@@ -424,15 +409,6 @@ func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	if TestBucket() == "" && *mountedDirectory == "" {
 		log.Print("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
-	}
-}
-
-// Deprecated: Use RunTestsForMountedDirectory instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
-func RunTestsForMountedDirectoryFlag(m *testing.M) {
-	// Execute tests for the mounted directory.
-	if *mountedDirectory != "" {
-		os.Exit(RunTestsForMountedDirectory(*mountedDirectory, m))
 	}
 }
 
@@ -607,14 +583,26 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	defer cancel()
 	var opts []option.ClientOption
 	opts = append(opts, experimental.WithGRPCBidiReads())
-	if keyFile != "" {
+	if TestOnTPCEndPoint() {
+		cred, err := auth2.GetCredentials("/tmp/sa.key.json")
+		if err != nil {
+			return "", fmt.Errorf("failed to get credentials for TPC: %w", err)
+		}
+		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
+	} else if keyFile != "" {
 		cred, err := auth2.GetCredentials(keyFile)
 		if err != nil {
 			return "", fmt.Errorf("failed to get credentials: %w", err)
 		}
 		opts = append(opts, option.WithAuthCredentials(cred))
 	}
-	storageClient, err := storage.NewGRPCClient(ctx, opts...)
+	var storageClient *storage.Client
+	if TestOnTPCEndPoint() {
+		storageClient, err = storage.NewClient(ctx, opts...)
+	} else {
+		storageClient, err = storage.NewGRPCClient(ctx, opts...)
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
@@ -676,8 +664,8 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 				isCompatible = false
 			}
 		}
-
-		if isCompatible && (run == "" || run == testCase.Run) {
+		tpcRun := (TestOnTPCEndPoint() == testCase.TPC)
+		if isCompatible && tpcRun && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				flagString = strings.ReplaceAll(flagString, ",", " ")
@@ -697,21 +685,6 @@ func SetGlobalVars(cfg *test_suite.TestConfig) {
 	logFile = cfg.LogFile
 	mntDir = cfg.GKEMountedDirectory
 	onlyDirMounted = cfg.OnlyDir
-}
-
-// Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
-func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
-	if !IsHierarchicalBucket(ctx, storageClient) {
-		return nil, fmt.Errorf("bucket is not Hierarchical")
-	}
-
-	var flags []string
-	mountConfig4 := map[string]any{
-		"enable-hns": true,
-	}
-	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
-	flags = append(flags, "--config-file="+filePath4)
-	return flags, nil
 }
 
 func separateBucketAndObjectName(bucket, object string) (string, string) {
@@ -810,25 +783,6 @@ func RunTestsOnlyForStaticMount(mountDir string, t *testing.T) {
 	}
 }
 
-// AppendFlagsToAllFlagsInTheFlagsSet appends each flag in newFlags to every flags present in the
-// flagsSet.
-// Input flagsSet: [][]string{{"--x", "--y"}, {"--x", "--z"}}
-// Input newFlags: {"--a", "--b", ""}
-// Output modified flagsSet: [][]string{{"--x", "--y", "--a"}, {"--x", "--z", "--a"},{"--x", "--y", "--b"},{"--x", "--z", "--b"},{"--x", "--y"}, {"--x", "--z"}}
-func AppendFlagsToAllFlagsInTheFlagsSet(flagsSet *[][]string, newFlags ...string) {
-	var resultFlagsSet [][]string
-	for _, flags := range *flagsSet {
-		for _, newFlag := range newFlags {
-			f := flags
-			if strings.Compare(newFlag, "") != 0 {
-				f = append(flags, newFlag)
-			}
-			resultFlagsSet = append(resultFlagsSet, f)
-		}
-	}
-	*flagsSet = resultFlagsSet
-}
-
 func CreateProxyServerLogFile(t *testing.T) string {
 	proxyServerLogFile := path.Join(TestDir(), "proxy-server-log-"+GenerateRandomString(5))
 	_, err := os.Create(proxyServerLogFile)
@@ -840,41 +794,6 @@ func CreateProxyServerLogFile(t *testing.T) string {
 
 func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
-}
-
-// GetGCEZone returns the GCE zone of the current machine from
-// the GCP resource detector.
-func GetGCEZone(ctx context.Context) (string, error) {
-	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch GCP resource detector: %w", err)
-	}
-	attrs := detectedAttrs.Set()
-	if zoneValue, exists := attrs.Value("cloud.availability_zone"); exists {
-		zone := zoneValue.AsString()
-		// Confirm that the zone string is in right format e.g. us-central1-a.
-		if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
-			return zone, fmt.Errorf("zone %q returned by GCP resource detector is not a valid zone-string: %w", zone, err)
-		}
-		return zone, nil
-	}
-	return "", fmt.Errorf("cloud.availability_zone not found in GCP resource detector")
-}
-
-// GetGCERegion return the GCE region for a given GCE zone.
-// E.g. from us-central1-a, it returns us-central1.
-func GetGCERegion(gceZone string) (string, error) {
-	indexOfLastHyphen := strings.LastIndex(gceZone, "-")
-	if indexOfLastHyphen < 0 {
-		return "", fmt.Errorf("input gceZone %q is not proper. It is expected to be of the form <country>-<region>-<zone> e.g. us-central1-a.", gceZone)
-	}
-	region := gceZone[:indexOfLastHyphen]
-
-	// Confirm that the region string is in right format e.g. us-central1.
-	if match, err := regexp.MatchString(regionMatcherRegex, region); !match || err != nil {
-		return region, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", region, err)
-	}
-	return region, nil
 }
 
 // IsDynamicMount returns true if the mount is dynamic.

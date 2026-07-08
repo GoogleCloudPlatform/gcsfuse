@@ -62,6 +62,7 @@ type ConfigItem struct {
 	Run            string           `yaml:"run,omitempty"`
 	RunOnGKE       bool             `yaml:"run_on_gke"`
 	RunOnPirlo     RunOnPirloConfig `yaml:"run_on_pirlo"`
+	TPC            bool             `yaml:"tpc,omitempty"`
 }
 
 // UnmarshalYAML validates flags during YAML unmarshaling without needing reflection.
@@ -114,7 +115,7 @@ type Config struct {
 	ReadGCSAlgo           []TestConfig `yaml:"read_gcs_algo"`
 	Interrupt             []TestConfig `yaml:"interrupt"`
 	UnfinalizedObject     []TestConfig `yaml:"unfinalized_object"`
-	RapidAppends          []TestConfig `yaml:"rapid_appends"`
+	RapidOperations       []TestConfig `yaml:"rapid_operations"`
 	MountTimeout          []TestConfig `yaml:"mount_timeout"`
 	Monitoring            []TestConfig `yaml:"monitoring"`
 	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`

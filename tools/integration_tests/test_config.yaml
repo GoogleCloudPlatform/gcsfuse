@@ -134,6 +134,17 @@ operations:
             same_zone: true
             different_zone: false
         run_on_gke: true
+      - flags:
+          - "--enable-atomic-rename-object=true,--client-protocol=http1"
+          - "--experimental-enable-json-read=true,--client-protocol=http1"
+          - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false,--client-protocol=http1"
+          - "--kernel-list-cache-ttl-secs=-1,--implicit-dirs=true,--client-protocol=http1"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        tpc: true
+        run_on_gke: false
 
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -1707,7 +1718,7 @@ kernel_list_cache:
         run: "TestDisabledKernelListCacheTest"
         run_on_gke: true
 
-rapid_appends:
+rapid_operations:
   - mounted_directory: "${MOUNTED_DIR}"
     mounted_directory_secondary: "${MOUNTED_DIR_SECONDARY}"
     test_bucket: "${BUCKET_NAME}"
@@ -1856,6 +1867,57 @@ rapid_appends:
           hns:
             same_zone: true
             different_zone: false
+        run_on_gke: true
+      - run: TestFinalizeRapidWritesTestSuite
+        flags:
+          - "--finalize-file-for-rapid=true"
+          - "--finalize-file-for-rapid=false"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestFinalizeRapidWritesTestSuite
+        flags:
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--finalize-file-for-rapid=true"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--finalize-file-for-rapid=false"
+        run_on_pirlo:
+          flat:
+            same_zone: true
+            different_zone: false
+          hns:
+            same_zone: true
+            different_zone: false
+        run_on_gke: true
+      - run: TestStatAndListTestSuite
+        flags:
+          - "--metadata-cache-ttl-secs=0"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestStatAndListTestSuite
+        flags:
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0"
+        run_on_pirlo:
+          flat:
+            same_zone: true
+            different_zone: false
+          hns:
+            same_zone: true
+            different_zone: false
+        run_on_gke: true
+      - run: ReadRoutingTestSuite
+        flags:
+          - "--experimental-enable-pirlo"
+        run_on_pirlo:
+          flat:
+            same_zone: true
+            different_zone: true
+          hns:
+            same_zone: true
+            different_zone: true
         run_on_gke: true
 
 monitoring:
