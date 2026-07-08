@@ -506,8 +506,8 @@ func (t *bucketTest) assertOnObjectAttributes(expectedMinObj *gcs.MinObject, exp
 	ExpectThat(expectedMinObj.Size, Equals(o.Size))
 	ExpectThat(expectedMinObj.Generation, Equals(o.Generation))
 	ExpectThat(expectedMinObj.MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(expectedMinObj.Updated, DeepEquals(o.Updated))
-	ExpectThat(expectedMinObj.Finalized, DeepEquals(o.Finalized))
+	ExpectThat(expectedMinObj.UpdatedTime(), DeepEquals(o.Updated))
+	ExpectThat(expectedMinObj.FinalizedTime(), DeepEquals(o.Finalized))
 	ExpectThat(expectedMinObj.Metadata, DeepEquals(o.Metadata))
 	ExpectThat(expectedMinObj.ContentEncoding, Equals(o.ContentEncoding))
 	ExpectThat(expectedMinObj.CRC32C, Equals(o.CRC32C))
@@ -3490,8 +3490,8 @@ func (t *statTest) StatAfterCreating() {
 	ExpectEq(orig.Generation, m.Generation)
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(orig.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.UpdatedTime(), timeutil.TimeEq(orig.Updated))
+	ExpectThat(m.FinalizedTime(), timeutil.TimeEq(time.Time{}))
 }
 
 func (t *statTest) StatAfterOverwriting() {
@@ -3527,8 +3527,8 @@ func (t *statTest) StatAfterOverwriting() {
 	ExpectEq(o2.Generation, m.Generation)
 	ExpectEq(len("burrito"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.UpdatedTime(), timeutil.TimeEq(o2.Updated))
+	ExpectThat(m.FinalizedTime(), timeutil.TimeEq(time.Time{}))
 }
 
 func (t *statTest) StatAfterUpdating() {
@@ -3581,8 +3581,8 @@ func (t *statTest) StatAfterUpdating() {
 	ExpectEq(o2.MetaGeneration, m.MetaGeneration)
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.UpdatedTime(), timeutil.TimeEq(o2.Updated))
+	ExpectThat(m.FinalizedTime(), timeutil.TimeEq(time.Time{}))
 }
 
 ////////////////////////////////////////////////////////////////////////

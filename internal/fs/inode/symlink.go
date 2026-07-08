@@ -102,9 +102,9 @@ func NewSymlinkInode(
 			Uid:   attrs.Uid,
 			Gid:   attrs.Gid,
 			Mode:  attrs.Mode,
-			Atime: m.Updated,
-			Ctime: m.Updated,
-			Mtime: m.Updated,
+			Atime: m.UpdatedTime(),
+			Ctime: m.UpdatedTime(),
+			Mtime: m.UpdatedTime(),
 		},
 		metadata: m.Metadata,
 	}
@@ -265,6 +265,6 @@ func (s *SymlinkInode) Source() *gcs.MinObject {
 		MetaGeneration: s.sourceGeneration.Metadata,
 		Size:           s.sourceGeneration.Size,
 		Metadata:       s.metadata,
-		Updated:        s.attrs.Mtime,
+		Updated:        gcs.TimeToNS(s.attrs.Mtime),
 	}
 }
