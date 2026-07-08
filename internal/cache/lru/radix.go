@@ -26,13 +26,26 @@ type radixNode struct {
 	parent  *radixNode
 	child   *radixNode
 	sibling *radixNode
+	// LRU Linked List pointers
+	prev *radixNode
+	next *radixNode
 }
 
 // this radixTree struct will be replaced by a RadixCache struct afterwards with additional necessary fields
 // radixTree encapsulates the core tree structure (LRU logic to be added in next PR).
 type radixTree struct {
 	root *radixNode
+
+	// size is the number of active, value-bearing entries in the radix tree.
 	size int
+
+	// Head and tail of the LRU Doubly Linked List
+	head *radixNode
+	tail *radixNode
+
+	// len is the number of nodes currently linked in the LRU list.
+	// In a properly functioning cache, size and len must always be equal.
+	len int
 }
 
 func newRadixTree() *radixTree {
@@ -227,4 +240,70 @@ func (t *radixTree) compressPathUpwards(curr *radixNode) {
 		}
 		break
 	}
+}
+
+// --- LRU Logic ---
+func (t *radixTree) moveToFront(node *radixNode) {
+	if t.head == node {
+		return
+	}
+	if node.prev != nil {
+		node.prev.next = node.next
+	}
+	if node.next != nil {
+		node.next.prev = node.prev
+	}
+	if t.tail == node {
+		t.tail = node.prev
+	}
+	node.prev = nil
+	node.next = t.head
+	if t.head != nil {
+		t.head.prev = node
+	}
+	t.head = node
+}
+
+func (t *radixTree) pushFront(node *radixNode) {
+	node.prev = nil
+	node.next = t.head
+	if t.head != nil {
+		t.head.prev = node
+	}
+	t.head = node
+	if t.tail == nil {
+		t.tail = node
+	}
+	t.len++
+}
+
+func (t *radixTree) remove(node *radixNode) {
+	if t.head != node && node.prev == nil {
+		return
+	}
+	if node.prev != nil {
+		node.prev.next = node.next
+	} else {
+		t.head = node.next
+	}
+	if node.next != nil {
+		node.next.prev = node.prev
+	} else {
+		t.tail = node.prev
+	}
+	node.prev = nil
+	node.next = nil
+	t.len--
+}
+
+func (t *radixTree) evictOne() ValueType {
+	node := t.tail
+	if node == nil {
+		return nil
+	}
+	evictedEntry := node.value
+	// Remove from LRU list and then fully delete from the tree
+	t.remove(node)
+	t.deleteNode(node)
+	return evictedEntry
 }
