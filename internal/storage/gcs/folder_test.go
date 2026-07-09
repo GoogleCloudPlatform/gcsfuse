@@ -59,8 +59,6 @@ func BenchmarkGCSFolder(b *testing.B) {
 		UpdateTime: timestamp,
 	}
 
-	b.ReportAllocs()
-	b.ResetTimer()
 	for b.Loop() {
 		// this triggers 2 allocations
 		// the string creation inside getFolderName()
