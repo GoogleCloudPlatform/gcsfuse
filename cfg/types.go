@@ -175,9 +175,15 @@ const (
 
 	// BucketTypeFlat represents a flat (regional or multi-regional) bucket.
 	BucketTypeFlat BucketType = "flat"
+
+	// BucketTypeRapid represents a rapid bucket group (zonal and pirlo).
+	BucketTypeRapid BucketType = "rapid"
+
+	// BucketTypeNonRapid represents a non-rapid bucket group (flat and hierarchical).
+	BucketTypeNonRapid BucketType = "non-rapid"
 )
 
 // IsValid returns true if the BucketType is one of the defined valid types.
 func (bt BucketType) IsValid() bool {
-	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeHierarchical || bt == BucketTypeFlat
+	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeHierarchical || bt == BucketTypeFlat || bt == BucketTypeRapid || bt == BucketTypeNonRapid
 }

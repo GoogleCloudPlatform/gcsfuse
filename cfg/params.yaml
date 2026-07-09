@@ -338,7 +338,7 @@ params:
     flag-name: "file-cache-max-parallel-downloads"
     type: "int"
     usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
-    default: "DefaultMaxParallelDownloads()"
+    default: "BucketTypeRapid.DefaultMaxParallelDownloads()"
 
   - config-path: "file-cache.max-size-mb"
     flag-name: "file-cache-max-size-mb"
@@ -377,10 +377,10 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: "DefaultCongestionThreshold()"
-        - bucket-type: "pirlo"
-          value: "DefaultCongestionThreshold()"
+        - bucket-type: "rapid"
+          value: "BucketTypeRapid.DefaultCongestionThreshold()"
+        - bucket-type: "non-rapid"
+          value: "BucketTypeNonRapid.DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
@@ -403,9 +403,7 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: true
-        - bucket-type: "pirlo"
+        - bucket-type: "rapid"
           value: true
 
   - config-path: "file-system.experimental-enable-dentry-cache"
@@ -455,8 +453,14 @@ params:
       single request. This is a global, machine-level configuration that applies across all mounts.
       To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if
       the specified value is greater than the current system limit.
-    default: "DefaultFuseMaxPagesLimit()"
+    default: "BucketTypeRapid.DefaultFuseMaxPagesLimit()"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "rapid"
+          value: "BucketTypeRapid.DefaultFuseMaxPagesLimit()"
+        - bucket-type: "non-rapid"
+          value: "BucketTypeNonRapid.DefaultFuseMaxPagesLimit()"
 
   - config-path: "file-system.fuse-options"
     flag-name: "o"
@@ -523,10 +527,10 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: "DefaultMaxBackground()"
-        - bucket-type: "pirlo"
-          value: "DefaultMaxBackground()"
+        - bucket-type: "rapid"
+          value: "BucketTypeRapid.DefaultMaxBackground()"
+        - bucket-type: "non-rapid"
+          value: "BucketTypeNonRapid.DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -539,10 +543,10 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: 16384 # 16 MiB
-        - bucket-type: "pirlo"
-          value: 16384 # 16 MiB
+        - bucket-type: "rapid"
+          value: "BucketTypeRapid.DefaultMaxReadAheadKb()"
+        - bucket-type: "non-rapid"
+          value: "BucketTypeNonRapid.DefaultMaxReadAheadKb()"
 
   - config-path: "file-system.rename-dir-limit"
     flag-name: "rename-dir-limit"

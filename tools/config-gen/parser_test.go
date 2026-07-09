@@ -203,6 +203,10 @@ params:
           value: true
         - bucket-type: pirlo
           value: true
+        - bucket-type: rapid
+          value: true
+        - bucket-type: non-rapid
+          value: false
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
     type: "int"
@@ -270,6 +274,8 @@ params:
 				{BucketType: "hierarchical", Value: false},
 				{BucketType: "flat", Value: true},
 				{BucketType: "pirlo", Value: true},
+				{BucketType: "rapid", Value: true},
+				{BucketType: "non-rapid", Value: false},
 			},
 		}
 		assert.Equal(t, "file-system.enable-kernel-reader", param.ConfigPath)

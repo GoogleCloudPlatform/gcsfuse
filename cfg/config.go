@@ -28,22 +28,18 @@ import (
 var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultCongestionThreshold()),
+			BucketType: "rapid",
+			Value:      int64(BucketTypeRapid.DefaultCongestionThreshold()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultCongestionThreshold()),
+			BucketType: "non-rapid",
+			Value:      int64(BucketTypeNonRapid.DefaultCongestionThreshold()),
 		},
 	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      bool(true),
-		},
-		{
-			BucketType: "pirlo",
+			BucketType: "rapid",
 			Value:      bool(true),
 		},
 	},
@@ -67,6 +63,17 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			BucketType: "pirlo",
 			Value:      bool(true),
+		},
+	},
+}, "file-system.fuse-max-pages-limit": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketType: "rapid",
+			Value:      int64(BucketTypeRapid.DefaultFuseMaxPagesLimit()),
+		},
+		{
+			BucketType: "non-rapid",
+			Value:      int64(BucketTypeNonRapid.DefaultFuseMaxPagesLimit()),
 		},
 	},
 }, "implicit-dirs": {
@@ -100,23 +107,23 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "file-system.max-background": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultMaxBackground()),
+			BucketType: "rapid",
+			Value:      int64(BucketTypeRapid.DefaultMaxBackground()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultMaxBackground()),
+			BucketType: "non-rapid",
+			Value:      int64(BucketTypeNonRapid.DefaultMaxBackground()),
 		},
 	},
 }, "file-system.max-read-ahead-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(16384),
+			BucketType: "rapid",
+			Value:      int64(BucketTypeRapid.DefaultMaxReadAheadKb()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(16384),
+			BucketType: "non-rapid",
+			Value:      int64(BucketTypeNonRapid.DefaultMaxReadAheadKb()),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
@@ -300,6 +307,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
+	if !v.IsSet("file-system.fuse-max-pages-limit") {
+		rules := AllFlagOptimizationRules["file-system.fuse-max-pages-limit"]
+		result := getOptimizedValue(&rules, c.FileSystem.FuseMaxPagesLimit, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.FuseMaxPagesLimit != val {
+					c.FileSystem.FuseMaxPagesLimit = val
+					optimizedFlags["file-system.fuse-max-pages-limit"] = result
+				}
+			}
+		}
+	}
 	if !v.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
 		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, input, machineTypeToGroupMap)
@@ -408,7 +427,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
-	c.applyRegionalKernelReaderOptimizations(v, input, optimizedFlags)
 	return optimizedFlags
 }
 
@@ -1130,7 +1148,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-cache-include-regex", "", "", "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching.")
 
-	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
+	flagSet.IntP("file-cache-max-parallel-downloads", "", BucketTypeRapid.DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
 	flagSet.IntP("file-cache-max-size-mb", "", -1, "Maximum size of the file-cache in MiBs")
 
@@ -1158,7 +1176,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
-	flagSet.IntP("fuse-max-pages-limit", "", DefaultFuseMaxPagesLimit(), "Sets the limit for the maximum number of pages that fuse can process in a single request. This is a global, machine-level configuration that applies across all mounts. To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if the specified value is greater than the current system limit.")
+	flagSet.IntP("fuse-max-pages-limit", "", BucketTypeRapid.DefaultFuseMaxPagesLimit(), "Sets the limit for the maximum number of pages that fuse can process in a single request. This is a global, machine-level configuration that applies across all mounts. To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if the specified value is greater than the current system limit.")
 
 	if err := flagSet.MarkHidden("fuse-max-pages-limit"); err != nil {
 		return err
