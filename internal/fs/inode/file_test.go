@@ -514,7 +514,6 @@ func (t *FileTest) TestRead() {
 	}
 }
 
-
 func (t *FileTest) TestReadWithBufferPool() {
 	assert.Equal(t.T(), "taco", t.initialContents)
 

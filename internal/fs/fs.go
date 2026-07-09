@@ -690,15 +690,15 @@ type fileSystem struct {
 	readBufferPool sync.Pool
 }
 
-type bufferPoolWrapper struct {
+type fixedSizeBufferPool struct {
 	pool *sync.Pool
 }
 
-func (bp *bufferPoolWrapper) Get() []byte {
+func (bp *fixedSizeBufferPool) Get() []byte {
 	return bp.pool.Get().(*[readPoolBufferSize]byte)[:]
 }
 
-func (bp *bufferPoolWrapper) Put(buf []byte) {
+func (bp *fixedSizeBufferPool) Put(buf []byte) {
 	if cap(buf) != readPoolBufferSize {
 		return
 	}
@@ -3161,7 +3161,7 @@ func (fs *fileSystem) ReadFile(
 			return syscall.ENOTSUP
 		}
 
-		req.BufferPool = &bufferPoolWrapper{pool: &fs.readBufferPool}
+		req.BufferPool = &fixedSizeBufferPool{pool: &fs.readBufferPool}
 	} else {
 		req.Buffer = op.Dst
 	}

@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestVectoredWriter_Write(t *testing.T) {
 	tests := []struct {
 		name         string

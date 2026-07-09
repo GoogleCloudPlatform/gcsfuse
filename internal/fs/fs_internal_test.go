@@ -69,13 +69,13 @@ func TestCacheDirVolumeBlockSize(t *testing.T) {
 	}
 }
 
-func TestBufferPoolWrapper_Get(t *testing.T) {
+func TestFixedSizeBufferPool_Get(t *testing.T) {
 	// Arrange
 	var pool sync.Pool
 	pool.New = func() any {
 		return new([readPoolBufferSize]byte)
 	}
-	bp := &bufferPoolWrapper{pool: &pool}
+	bp := &fixedSizeBufferPool{pool: &pool}
 
 	// Act
 	buf := bp.Get()
@@ -85,7 +85,7 @@ func TestBufferPoolWrapper_Get(t *testing.T) {
 	assert.Equal(t, readPoolBufferSize, cap(buf))
 }
 
-func TestBufferPoolWrapper_Put(t *testing.T) {
+func TestFixedSizeBufferPool_Put(t *testing.T) {
 	testCases := []struct {
 		name string
 		buf  []byte
@@ -111,7 +111,7 @@ func TestBufferPoolWrapper_Put(t *testing.T) {
 			pool.New = func() any {
 				return new([readPoolBufferSize]byte)
 			}
-			bp := &bufferPoolWrapper{pool: &pool}
+			bp := &fixedSizeBufferPool{pool: &pool}
 
 			// Act & Assert
 			assert.NotPanics(t, func() {

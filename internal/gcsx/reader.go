@@ -62,20 +62,16 @@ type ReadRequest struct {
 
 // GetReadSize calculates the size to read based on the request capacity and the provided limit.
 func (req *ReadRequest) GetReadSize(limit int64) int64 {
-	var totalCapacity int64
-	if req.BufferPool != nil {
-		totalCapacity = req.Size
-	} else {
-		totalCapacity = int64(len(req.Buffer))
-	}
-
 	sizeToRead := req.Size
-	if sizeToRead <= 0 || sizeToRead > totalCapacity {
-		sizeToRead = totalCapacity
+	if req.BufferPool == nil {
+		bufLen := int64(len(req.Buffer))
+		if sizeToRead <= 0 || sizeToRead > bufLen {
+			sizeToRead = bufLen
+		}
 	}
 
 	if limit > 0 && sizeToRead > limit {
-		sizeToRead = limit
+		return limit
 	}
 	return sizeToRead
 }

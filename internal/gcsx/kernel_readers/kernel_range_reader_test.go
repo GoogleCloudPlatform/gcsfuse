@@ -167,7 +167,6 @@ func (t *KernelRangeReaderTest) TestReadAt_ClobberedError() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-
 func (t *KernelRangeReaderTest) TestReadAt_BufferPool_Success() {
 	data := []byte("abcdefghij") // length 10
 	pool := &gcsx.TestBufferPool{
