@@ -48,5 +48,23 @@ func TestGCSFolder(t *testing.T) {
 	gcsFolder := GCSFolder(TestBucketName, &attrs)
 
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
-	assert.Equal(t, attrs.UpdateTime.AsTime(), gcsFolder.UpdateTime)
+	assert.Equal(t, attrs.UpdateTime.AsTime().UnixNano(), gcsFolder.UpdateTime)
+}
+func BenchmarkGCSFolder(b *testing.B) {
+	timestamp := &timestamppb.Timestamp{
+		Seconds: 1234567890,
+	}
+	attrs := controlpb.Folder{
+		Name:       "projects/_/buckets/testBucket/folders/testFolder",
+		UpdateTime: timestamp,
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		// this triggers 2 allocations
+		// the string creation inside getFolderName()
+		// and the &Folder{} heap allocation
+		_ = GCSFolder("testBucket", &attrs)
+	}
 }

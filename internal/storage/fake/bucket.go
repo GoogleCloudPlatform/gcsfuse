@@ -271,7 +271,7 @@ func (b *bucket) mintObject(
 func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 	f = gcs.Folder{
 		Name:       folderName,
-		UpdateTime: b.clock.Now(),
+		UpdateTime: b.clock.Now().UnixNano(),
 	}
 
 	return
@@ -1224,7 +1224,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	for i := range b.folders {
 		if strings.HasPrefix(b.folders[i].Name, folderName) {
 			b.folders[i].Name = strings.Replace(b.folders[i].Name, folderName, destinationFolderId, 1)
-			b.folders[i].UpdateTime = time.Now()
+			b.folders[i].UpdateTime = time.Now().UnixNano()
 		}
 	}
 
@@ -1245,7 +1245,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	// Return the updated folder.
 	folder := &gcs.Folder{
 		Name:       destinationFolderId,
-		UpdateTime: time.Now(),
+		UpdateTime: time.Now().UnixNano(),
 	}
 
 	return folder, nil
