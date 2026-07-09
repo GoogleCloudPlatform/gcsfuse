@@ -15,6 +15,7 @@
 package caching_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -25,275 +26,265 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestIntegration(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type IntegrationTest struct {
-	ctx context.Context
-
-	clock   timeutil.SimulatedClock
+type integrationTestDeps struct {
+	ctx     context.Context
+	clock   *timeutil.SimulatedClock
 	wrapped gcs.Bucket
-
-	bucket gcs.Bucket
+	bucket  gcs.Bucket
 }
 
-func init() { RegisterTestSuite(&IntegrationTest{}) }
-
-func (t *IntegrationTest) SetUp(ti *TestInfo) {
-	t.ctx = context.Background()
+func setupIntegrationTest(t *testing.T) *integrationTestDeps {
+	ctx := context.Background()
 	bucketName := "some_bucket"
 
-	// Set up a fixed, non-zero time.
-	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	clock := &timeutil.SimulatedClock{}
+	clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.UTC))
 
-	// Set up dependencies.
 	const cacheCapacity = 100
 	lruCache := lru.NewCache(cfg.AverageSizeOfPositiveStatCacheEntry * cacheCapacity)
 	cache := metadata.NewStatCacheBucketView(lruCache, "")
-	t.wrapped = fake.NewFakeBucket(&t.clock, bucketName, gcs.BucketType{})
+	wrapped := fake.NewFakeBucket(clock, bucketName, gcs.BucketType{})
 
-	t.bucket = caching.NewFastStatBucket(
+	bucket := caching.NewFastStatBucket(
 		primaryCacheTTL,
 		cache,
-		&t.clock,
-		t.wrapped,
+		clock,
+		wrapped,
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
 		isImplicitDir,
 	)
+
+	return &integrationTestDeps{
+		ctx:     ctx,
+		clock:   clock,
+		wrapped: wrapped,
+		bucket:  bucket,
+	}
 }
 
-func (t *IntegrationTest) stat(name string) (o *gcs.Object, err error) {
+func statObject(ctx context.Context, bucket gcs.Bucket, name string) (*gcs.Object, error) {
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
-
-	m, _, err := t.bucket.StatObject(t.ctx, req)
-	o = storageutil.ConvertMinObjectToObject(m)
-	return
+	m, _, err := bucket.StatObject(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return storageutil.ConvertMinObjectToObject(m), nil
 }
 
-////////////////////////////////////////////////////////////////////////
-// Test functions
-////////////////////////////////////////////////////////////////////////
-
-func (t *IntegrationTest) CreateInsertsIntoCache() {
+func TestIntegration_CreateInsertsIntoCache(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Create an object.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, name, []byte{})
-	AssertEq(nil, err)
+	_, err := storageutil.CreateObject(deps.ctx, deps.bucket, name, []byte{})
+	require.NoError(t, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: name})
-	AssertEq(nil, err)
+	err = deps.wrapped.DeleteObject(deps.ctx, &gcs.DeleteObjectRequest{Name: name})
+	require.NoError(t, err)
 
 	// StatObject should still see it.
-	o, err := t.stat(name)
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	o, err := statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
+	assert.NotNil(t, o)
 }
 
-func (t *IntegrationTest) StatInsertsIntoCache() {
+func TestIntegration_StatInsertsIntoCache(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "foo"
-	var err error
 
 	// Create an object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
-	AssertEq(nil, err)
+	_, err := storageutil.CreateObject(deps.ctx, deps.wrapped, name, []byte{})
+	require.NoError(t, err)
 
 	// Stat it so that it's in cache.
-	_, err = t.stat(name)
-	AssertEq(nil, err)
+	_, err = statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: name})
-	AssertEq(nil, err)
+	err = deps.wrapped.DeleteObject(deps.ctx, &gcs.DeleteObjectRequest{Name: name})
+	require.NoError(t, err)
 
 	// StatObject should still see it.
-	o, err := t.stat(name)
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	o, err := statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
+	assert.NotNil(t, o)
 }
 
-func (t *IntegrationTest) ListInsertsIntoCache() {
+func TestIntegration_ListInsertsIntoCache(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Create an object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
-	AssertEq(nil, err)
+	_, err := storageutil.CreateObject(deps.ctx, deps.wrapped, name, []byte{})
+	require.NoError(t, err)
 
 	// List so that it's in cache.
-	_, err = t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	_, err = deps.bucket.ListObjects(deps.ctx, &gcs.ListObjectsRequest{})
+	require.NoError(t, err)
 
 	// Delete the object through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: name})
-	AssertEq(nil, err)
+	err = deps.wrapped.DeleteObject(deps.ctx, &gcs.DeleteObjectRequest{Name: name})
+	require.NoError(t, err)
 
 	// StatObject should still see it.
-	o, err := t.stat(name)
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	o, err := statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
+	assert.NotNil(t, o)
 }
 
-func (t *IntegrationTest) UpdateUpdatesCache() {
+func TestIntegration_UpdateUpdatesCache(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Create an object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
-	AssertEq(nil, err)
+	_, err := storageutil.CreateObject(deps.ctx, deps.wrapped, name, []byte{})
+	require.NoError(t, err)
 
 	// Update it, putting the new version in cache.
 	updateReq := &gcs.UpdateObjectRequest{
 		Name: name,
 	}
-
-	_, err = t.bucket.UpdateObject(t.ctx, updateReq)
-	AssertEq(nil, err)
+	_, err = deps.bucket.UpdateObject(deps.ctx, updateReq)
+	require.NoError(t, err)
 
 	// Delete the object through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: name})
-	AssertEq(nil, err)
+	err = deps.wrapped.DeleteObject(deps.ctx, &gcs.DeleteObjectRequest{Name: name})
+	require.NoError(t, err)
 
 	// StatObject should still see it.
-	o, err := t.stat(name)
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	o, err := statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
+	assert.NotNil(t, o)
 }
 
-func (t *IntegrationTest) PositiveCacheExpiration() {
+func TestIntegration_PositiveCacheExpiration(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Create an object.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, name, []byte{})
-	AssertEq(nil, err)
+	_, err := storageutil.CreateObject(deps.ctx, deps.bucket, name, []byte{})
+	require.NoError(t, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: name})
-	AssertEq(nil, err)
+	err = deps.wrapped.DeleteObject(deps.ctx, &gcs.DeleteObjectRequest{Name: name})
+	require.NoError(t, err)
 
 	// Advance time.
-	t.clock.AdvanceTime(primaryCacheTTL + time.Millisecond)
+	deps.clock.AdvanceTime(primaryCacheTTL + time.Millisecond)
 
 	// StatObject should no longer see it.
-	_, err = t.stat(name)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err = statObject(deps.ctx, deps.bucket, name)
+	assert.IsType(t, &gcs.NotFoundError{}, err)
 }
 
-func (t *IntegrationTest) CreateInvalidatesNegativeCache() {
+func TestIntegration_CreateInvalidatesNegativeCache(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err := statObject(deps.ctx, deps.bucket, name)
+	assert.IsType(t, &gcs.NotFoundError{}, err)
 
 	// Create the object.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, name, []byte{})
-	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(deps.ctx, deps.bucket, name, []byte{})
+	require.NoError(t, err)
 
 	// Now StatObject should see it.
-	o, err := t.stat(name)
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	o, err := statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
+	assert.NotNil(t, o)
 }
 
-func (t *IntegrationTest) StatAddsToNegativeCache() {
+func TestIntegration_StatAddsToNegativeCache(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err := statObject(deps.ctx, deps.bucket, name)
+	assert.IsType(t, &gcs.NotFoundError{}, err)
 
 	// Create the object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
-	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(deps.ctx, deps.wrapped, name, []byte{})
+	require.NoError(t, err)
 
 	// StatObject should still not see it yet.
-	_, err = t.stat(name)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err = statObject(deps.ctx, deps.bucket, name)
+	assert.IsType(t, &gcs.NotFoundError{}, err)
 }
 
-func (t *IntegrationTest) ListInvalidatesNegativeCache() {
+func TestIntegration_ListInvalidatesNegativeCache(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err := statObject(deps.ctx, deps.bucket, name)
+	assert.IsType(t, &gcs.NotFoundError{}, err)
 
 	// Create the object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
-	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(deps.ctx, deps.wrapped, name, []byte{})
+	require.NoError(t, err)
 
 	// List the bucket.
-	_, err = t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
-	AssertEq(nil, err)
+	_, err = deps.bucket.ListObjects(deps.ctx, &gcs.ListObjectsRequest{})
+	require.NoError(t, err)
 
 	// Now StatObject should see it.
-	o, err := t.stat(name)
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	o, err := statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
+	assert.NotNil(t, o)
 }
 
-func (t *IntegrationTest) UpdateInvalidatesNegativeCache() {
+func TestIntegration_UpdateInvalidatesNegativeCache(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err := statObject(deps.ctx, deps.bucket, name)
+	assert.IsType(t, &gcs.NotFoundError{}, err)
 
 	// Create the object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
-	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(deps.ctx, deps.wrapped, name, []byte{})
+	require.NoError(t, err)
 
 	// Update the object.
 	updateReq := &gcs.UpdateObjectRequest{
 		Name: name,
 	}
-
-	_, err = t.bucket.UpdateObject(t.ctx, updateReq)
-	AssertEq(nil, err)
+	_, err = deps.bucket.UpdateObject(deps.ctx, updateReq)
+	require.NoError(t, err)
 
 	// Now StatObject should see it.
-	o, err := t.stat(name)
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	o, err := statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
+	assert.NotNil(t, o)
 }
 
-func (t *IntegrationTest) NegativeCacheExpiration() {
+func TestIntegration_NegativeCacheExpiration(t *testing.T) {
+	deps := setupIntegrationTest(t)
 	const name = "taco"
-	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err := statObject(deps.ctx, deps.bucket, name)
+	assert.IsType(t, &gcs.NotFoundError{}, err)
 
 	// Create the object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
-	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(deps.ctx, deps.wrapped, name, []byte{})
+	require.NoError(t, err)
 
 	// Advance time.
-	t.clock.AdvanceTime(negativeCacheTTL + time.Millisecond)
+	deps.clock.AdvanceTime(negativeCacheTTL + time.Millisecond)
 
 	// Now StatObject should see it.
-	o, err := t.stat(name)
-	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	o, err := statObject(deps.ctx, deps.bucket, name)
+	require.NoError(t, err)
+	assert.NotNil(t, o)
 }
