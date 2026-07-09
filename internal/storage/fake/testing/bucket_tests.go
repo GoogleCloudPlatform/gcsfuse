@@ -2169,6 +2169,46 @@ func (t *composeTest) Metadata() {
 	ExpectEq("val1", o.Metadata["key1"])
 }
 
+func (t *composeTest) DeleteSourceObjects() {
+	// Create source objects.
+	sources, err := t.createSources([]string{
+		"taco",
+		"burrito",
+	})
+
+	AssertEq(nil, err)
+
+	// Compose them.
+	o, err := t.bucket.ComposeObjects(
+		t.ctx,
+		&gcs.ComposeObjectsRequest{
+			DstName:             "foo",
+			DeleteSourceObjects: true,
+			Sources: []gcs.ComposeSource{
+				gcs.ComposeSource{
+					Name: sources[0].Name,
+				},
+
+				gcs.ComposeSource{
+					Name: sources[1].Name,
+				},
+			},
+		})
+
+	t.advanceTime()
+	AssertEq(nil, err)
+
+	// Check the result.
+	AssertEq("foo", o.Name)
+
+	// Verify sources were deleted.
+	_, _, err = t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: sources[0].Name})
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+
+	_, _, err = t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: sources[1].Name})
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
 func (t *composeTest) DestinationNameMatchesSource() {
 	// Create source objects.
 	sources, err := t.createSources([]string{

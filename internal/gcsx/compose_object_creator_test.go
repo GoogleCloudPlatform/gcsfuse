@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -35,27 +34,6 @@ func TestComposeObjectCreator(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
-
-func deleteReqName(expected string) (m Matcher) {
-	m = NewMatcher(
-		func(c any) (err error) {
-			req, ok := c.(*gcs.DeleteObjectRequest)
-			if !ok {
-				err = fmt.Errorf("which has type %T", c)
-				return
-			}
-
-			if req.Name != expected {
-				err = fmt.Errorf("which is for name %q", req.Name)
-				return
-			}
-
-			return
-		},
-		fmt.Sprintf("Delete request for name %q", expected))
-
-	return
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -175,10 +153,6 @@ func (t *ComposeObjectCreatorTest) CallsComposeObjects() {
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
-	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(nil))
-
 	// Call
 	_, err := t.call()
 	AssertNe(nil, err)
@@ -205,6 +179,7 @@ func (t *ComposeObjectCreatorTest) CallsComposeObjects() {
 	src = req.Sources[1]
 	ExpectEq(tmpObject.Name, src.Name)
 	ExpectEq(tmpObject.Generation, src.Generation)
+	ExpectTrue(req.DeleteSourceObjects)
 }
 
 func (t *ComposeObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
@@ -236,10 +211,6 @@ func (t *ComposeObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	var req *gcs.ComposeObjectsRequest
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
-
-	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(nil))
 
 	// Call
 	t.call()
@@ -288,10 +259,6 @@ func (t *ComposeObjectCreatorTest) ComposeObjectsFails() {
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(nil, errors.New("taco")))
 
-	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(errors.New("")))
-
 	// Call
 	_, err := t.call()
 
@@ -311,10 +278,6 @@ func (t *ComposeObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// ComposeObjects
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
-
-	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(errors.New("")))
 
 	// Call
 	_, err := t.call()
@@ -338,10 +301,6 @@ func (t *ComposeObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("taco")}))
 
-	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(errors.New("")))
-
 	// Call
 	_, err := t.call()
 
@@ -351,7 +310,7 @@ func (t *ComposeObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *ComposeObjectCreatorTest) CallsDeleteObject() {
+func (t *ComposeObjectCreatorTest) ComposeSucceeds() {
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
@@ -364,57 +323,6 @@ func (t *ComposeObjectCreatorTest) CallsDeleteObject() {
 	composed := &gcs.Object{}
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(composed, nil))
-
-	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(errors.New("")))
-
-	// Call
-	t.call()
-}
-
-func (t *ComposeObjectCreatorTest) DeleteObjectFails() {
-	// CreateObject
-	tmpObject := &gcs.Object{
-		Name: "bar",
-	}
-
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
-
-	// ComposeObjects
-	composed := &gcs.Object{}
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(composed, nil))
-
-	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), Any()).
-		WillOnce(Return(errors.New("taco")))
-
-	// Call
-	_, err := t.call()
-
-	ExpectThat(err, Error(HasSubstr("DeleteObject")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *ComposeObjectCreatorTest) DeleteObjectSucceeds() {
-	// CreateObject
-	tmpObject := &gcs.Object{
-		Name: "bar",
-	}
-
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
-
-	// ComposeObjects
-	composed := &gcs.Object{}
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(composed, nil))
-
-	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), Any()).
-		WillOnce(Return(nil))
 
 	// Call
 	o, err := t.call()
