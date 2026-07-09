@@ -103,3 +103,28 @@ func GetBucketType(hierarchical, zonal, pirlo bool) BucketType {
 	}
 	return BucketTypeFlat
 }
+
+// IsRapid returns true for rapid bucket types (zonal and pirlo).
+func (bt BucketType) IsRapid() bool {
+	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeRapid
+}
+
+// IsNonRapid returns true for regional and multi-regional bucket types (flat and hierarchical).
+func (bt BucketType) IsNonRapid() bool {
+	return bt == BucketTypeFlat || bt == BucketTypeHierarchical || bt == BucketTypeNonRapid
+}
+
+// Matches returns true if this BucketType matches the target rule BucketType,
+// including group matches for "rapid" and "non-rapid".
+func (bt BucketType) Matches(target BucketType) bool {
+	if bt == target {
+		return true
+	}
+	if target == BucketTypeRapid && bt.IsRapid() {
+		return true
+	}
+	if target == BucketTypeNonRapid && bt.IsNonRapid() {
+		return true
+	}
+	return false
+}

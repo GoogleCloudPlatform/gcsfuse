@@ -28,22 +28,14 @@ import (
 var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultCongestionThreshold()),
-		},
-		{
-			BucketType: "pirlo",
+			BucketType: "rapid",
 			Value:      int64(DefaultCongestionThreshold()),
 		},
 	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      bool(true),
-		},
-		{
-			BucketType: "pirlo",
+			BucketType: "rapid",
 			Value:      bool(true),
 		},
 	},
@@ -100,22 +92,14 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "file-system.max-background": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultMaxBackground()),
-		},
-		{
-			BucketType: "pirlo",
+			BucketType: "rapid",
 			Value:      int64(DefaultMaxBackground()),
 		},
 	},
 }, "file-system.max-read-ahead-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(16384),
-		},
-		{
-			BucketType: "pirlo",
+			BucketType: "rapid",
 			Value:      int64(16384),
 		},
 	},
