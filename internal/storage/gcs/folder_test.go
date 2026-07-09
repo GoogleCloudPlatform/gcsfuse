@@ -50,6 +50,18 @@ func TestGCSFolder(t *testing.T) {
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
 	assert.Equal(t, attrs.UpdateTime.AsTime().UnixNano(), gcsFolder.UpdateTime)
 }
+
+func TestGCSFolder_UninitializedTime(t *testing.T) {
+	attrs := controlpb.Folder{
+		Name:           TestFolderName,
+		Metageneration: 10,
+	}
+
+	gcsFolder := GCSFolder(TestBucketName, &attrs)
+
+	assert.Equal(t, int64(0), gcsFolder.UpdateTime)
+}
+
 func BenchmarkGCSFolder(b *testing.B) {
 	timestamp := &timestamppb.Timestamp{
 		Seconds: 1234567890,
