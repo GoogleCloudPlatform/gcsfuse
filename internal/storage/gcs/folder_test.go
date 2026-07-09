@@ -48,17 +48,5 @@ func TestGCSFolder(t *testing.T) {
 	gcsFolder := GCSFolder(TestBucketName, &attrs)
 
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
-	assert.Equal(t, attrs.UpdateTime.AsTime().Unix(), gcsFolder.UpdateTime)
-}
-
-func BenchmarkGCSFolder(b *testing.B) {
-	attrs := &controlpb.Folder{
-		Name:       "projects/_/buckets/my-bucket/folders/my-folder",
-		UpdateTime: timestamppb.Now(),
-	}
-	// Wait for b.Loop() to start the timer
-	for b.Loop() {
-		// This tests pure allocation speed and memory overhead of creating a Folder!
-		_ = GCSFolder("my-bucket", attrs)
-	}
+	assert.Equal(t, attrs.UpdateTime.AsTime(), gcsFolder.UpdateTime)
 }
