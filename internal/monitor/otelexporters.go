@@ -40,7 +40,7 @@ import (
 )
 
 const serviceName = "gcsfuse"
-const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
+const cloudMonitoringMetricPrefix = "storage.googleapis.com/gcsfuse/"
 
 var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_read/", "grpc.", "read/"}
 
@@ -122,6 +122,9 @@ func (e *permissionAwareExporter) Export(ctx context.Context, rm *metricdata.Res
 	if e.disabled.Load() {
 		return nil
 	}
+
+	// Log the metrics before exporting
+	logger.Infof("Attempting to export metrics to Cloud Monitoring. Data: %+v", rm)
 
 	err := e.Exporter.Export(ctx, rm)
 	// If we get a PermissionDenied error, disable the exporter to prevent future attempts.
