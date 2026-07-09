@@ -15,8 +15,11 @@
 package gcsx
 
 import (
+	"errors"
 	"io"
 )
+
+var ErrInvalidAdvance = errors.New("VectoredReadBuffer: Invalid Buffer Advance")
 
 // VectoredReadBuffer implements io.Writer and writes data sequentially into a slice of byte buffers.
 // Invariant: For each slice b in buffers, len(b) tracks the number of valid written bytes,
@@ -60,7 +63,7 @@ func (v *VectoredReadBuffer) availableBuffer() []byte {
 
 	// 2. Fetch new buffer from pool
 	if v.pool != nil {
-		if buf := v.pool.Get(); len(buf) > 0 {
+		if buf := v.pool.Get(); cap(buf) > 0 {
 			// Append with length 0, preserving full pool capacity for Release().
 			v.buffers = append(v.buffers, buf[:0])
 
@@ -71,14 +74,21 @@ func (v *VectoredReadBuffer) availableBuffer() []byte {
 	return nil
 }
 
-// advance updates the length of the active buffer and the total bytes written.
-func (v *VectoredReadBuffer) advance(n int) {
-	if len(v.buffers) == 0 || n <= 0 {
-		return
+// advance increases the length of the active buffer by n bytes and updates total written bytes.
+// It returns ErrInvalidAdvance if n is negative, exceeds available capacity, or no buffers exist.
+func (v *VectoredReadBuffer) advance(n int) error {
+	if n == 0 {
+		return nil
 	}
-	idx := len(v.buffers) - 1
-	v.buffers[idx] = v.buffers[idx][:len(v.buffers[idx])+n]
-	v.written += int64(n)
+	if len(v.buffers) > 0 {
+		idx := len(v.buffers) - 1
+		if n > 0 && n+len(v.buffers[idx]) <= cap(v.buffers[idx]) {
+			v.buffers[idx] = v.buffers[idx][:len(v.buffers[idx])+n]
+			v.written += int64(n)
+			return nil
+		}
+	}
+	return ErrInvalidAdvance
 }
 
 func (v *VectoredReadBuffer) Write(p []byte) (n int, err error) {
@@ -88,7 +98,9 @@ func (v *VectoredReadBuffer) Write(p []byte) (n int, err error) {
 			return n, io.ErrShortWrite
 		}
 		toCopy := copy(buf, p[n:])
-		v.advance(toCopy)
+		if err := v.advance(toCopy); err != nil {
+			return n, err
+		}
 		n += toCopy
 	}
 	return n, nil
@@ -103,7 +115,9 @@ func (v *VectoredReadBuffer) readIntoBuffers(readFn func(buf []byte) (int, error
 		var readNum int
 		readNum, err = readFn(buf)
 		if readNum > 0 {
-			v.advance(readNum)
+			if advErr := v.advance(readNum); advErr != nil {
+				return n, advErr
+			}
 			n += int64(readNum)
 		}
 		if err != nil {
