@@ -113,7 +113,7 @@ type statCacheBucketView struct {
 type entry struct {
 	m          *gcs.MinObject
 	f          *gcs.Folder
-	expiration int64
+	expiration int64 // expiration timestamp
 	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
 }
@@ -201,7 +201,7 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	// Insert an entry.
 	e := entry{
 		m:          m,
-		expiration: expiration.Unix(),
+		expiration: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -237,7 +237,7 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	// Insert an entry.
 	e := entry{
 		implicitDir: true,
-		expiration:  expiration.Unix(),
+		expiration:  expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -251,7 +251,7 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	// Insert a negative entry.
 	e := entry{
 		m:          nil,
-		expiration: expiration.Unix(),
+		expiration: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -265,7 +265,7 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	// Insert a negative entry.
 	e := entry{
 		f:          nil,
-		expiration: expiration.Unix(),
+		expiration: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -315,7 +315,7 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 	e := value.(entry)
 
 	// Has this entry expired?
-	if e.expiration < now.Unix() {
+	if e.expiration < now.UnixNano() {
 		sc.Erase(key)
 		return false, nil
 	}
@@ -328,7 +328,7 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 
 	e := entry{
 		f:          f,
-		expiration: expiration.Unix(),
+		expiration: expiration.UnixNano(),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
