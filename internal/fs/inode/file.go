@@ -664,15 +664,15 @@ func (f *FileInode) Read(
 	var callback func()
 
 	if req.BufferPool != nil {
-		writer := gcsx.NewVectoredWriter(req.BufferPool, req.Size)
+		vBuf := gcsx.NewVectoredReadBuffer(req.BufferPool, req.Size)
 		var written int64
-		written, err = writer.ReadFromAt(f.content, req.Offset)
+		written, err = vBuf.ReadFromAt(f.content, req.Offset)
 		n = int(written)
 		if n > 0 {
-			data = writer.Buffers()
-			callback = func() { writer.Release() }
+			data = vBuf.Buffers()
+			callback = func() { vBuf.Release() }
 		} else {
-			writer.Release()
+			vBuf.Release()
 		}
 	} else {
 		n, err = f.content.ReadAt(req.Buffer, req.Offset)

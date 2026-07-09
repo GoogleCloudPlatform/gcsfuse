@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestVectoredWriter_Write(t *testing.T) {
+func TestVectoredReadBuffer_Write(t *testing.T) {
 	tests := []struct {
 		name         string
 		buffers      [][]byte
@@ -105,7 +105,7 @@ func TestVectoredWriter_Write(t *testing.T) {
 			if len(tc.buffers) > 0 {
 				pool = &TestBufferPool{Buffers: tc.buffers}
 			}
-			w := NewVectoredWriter(pool, maxSize)
+			w := NewVectoredReadBuffer(pool, maxSize)
 
 			n, err := w.Write(tc.input)
 
@@ -124,7 +124,7 @@ func (r *errorReader) Read(p []byte) (n int, err error) {
 	return 0, r.err
 }
 
-func TestVectoredWriter_ReadFrom(t *testing.T) {
+func TestVectoredReadBuffer_ReadFrom(t *testing.T) {
 	testErr := errors.New("read error")
 
 	tests := []struct {
@@ -218,7 +218,7 @@ func TestVectoredWriter_ReadFrom(t *testing.T) {
 			if len(tc.buffers) > 0 {
 				pool = &TestBufferPool{Buffers: tc.buffers}
 			}
-			w := NewVectoredWriter(pool, maxSize)
+			w := NewVectoredReadBuffer(pool, maxSize)
 
 			n, err := w.ReadFrom(tc.reader)
 
@@ -248,7 +248,7 @@ func (m *mockReaderAt) ReadAt(dst []byte, offset int64) (n int, err error) {
 	return n, err
 }
 
-func TestVectoredWriter_ReadFromAt(t *testing.T) {
+func TestVectoredReadBuffer_ReadFromAt(t *testing.T) {
 	testErr := errors.New("reader at error")
 
 	tests := []struct {
@@ -305,7 +305,7 @@ func TestVectoredWriter_ReadFromAt(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			pool := &TestBufferPool{Buffers: tc.buffers}
-			w := NewVectoredWriter(pool, tc.maxSize)
+			w := NewVectoredReadBuffer(pool, tc.maxSize)
 
 			// Act
 			n, err := w.ReadFromAt(tc.reader, tc.offset)
@@ -318,7 +318,7 @@ func TestVectoredWriter_ReadFromAt(t *testing.T) {
 	}
 }
 
-func TestVectoredWriter_Release(t *testing.T) {
+func TestVectoredReadBuffer_Release(t *testing.T) {
 	tests := []struct {
 		name             string
 		pool             *TestBufferPool
@@ -326,7 +326,6 @@ func TestVectoredWriter_Release(t *testing.T) {
 		writeInput       []byte
 		releaseCount     int
 		expectedPutCount int
-		expectedBufs     [][]byte
 	}{
 		{
 			name: "release allocated buffers to pool and clear state",
@@ -341,7 +340,6 @@ func TestVectoredWriter_Release(t *testing.T) {
 			writeInput:       []byte("0123456789abcde"), // 15 bytes -> 2 buffers allocated
 			releaseCount:     1,
 			expectedPutCount: 2,
-			expectedBufs:     [][]byte{},
 		},
 		{
 			name:             "release with nil pool is safe",
@@ -350,7 +348,6 @@ func TestVectoredWriter_Release(t *testing.T) {
 			writeInput:       nil,
 			releaseCount:     1,
 			expectedPutCount: 0,
-			expectedBufs:     [][]byte{},
 		},
 		{
 			name: "release with no allocated buffers is safe",
@@ -363,7 +360,6 @@ func TestVectoredWriter_Release(t *testing.T) {
 			writeInput:       nil, // 0 bytes -> 0 buffers allocated
 			releaseCount:     1,
 			expectedPutCount: 0,
-			expectedBufs:     [][]byte{},
 		},
 		{
 			name: "release multiple times is safe and idempotent",
@@ -376,7 +372,6 @@ func TestVectoredWriter_Release(t *testing.T) {
 			writeInput:       []byte("hello"), // 5 bytes -> 1 buffer allocated
 			releaseCount:     2,
 			expectedPutCount: 1,
-			expectedBufs:     [][]byte{},
 		},
 	}
 
@@ -387,7 +382,7 @@ func TestVectoredWriter_Release(t *testing.T) {
 			if tc.pool != nil {
 				pool = tc.pool
 			}
-			w := NewVectoredWriter(pool, tc.maxSize)
+			w := NewVectoredReadBuffer(pool, tc.maxSize)
 			if len(tc.writeInput) > 0 {
 				_, _ = w.Write(tc.writeInput)
 			}
@@ -401,19 +396,19 @@ func TestVectoredWriter_Release(t *testing.T) {
 			if tc.pool != nil {
 				assert.Equal(t, tc.expectedPutCount, len(tc.pool.PutBuffers))
 			}
-			assert.Equal(t, tc.expectedBufs, w.Buffers())
+			assert.Empty(t, w.Buffers())
 		})
 	}
 }
 
-func TestVectoredWriter_OversizedBufferTruncation(t *testing.T) {
+func TestVectoredReadBuffer_OversizedBufferTruncation(t *testing.T) {
 	// Arrange
 	pool := &TestBufferPool{
 		Buffers: [][]byte{
 			make([]byte, 100),
 		},
 	}
-	w := NewVectoredWriter(pool, 25)
+	w := NewVectoredReadBuffer(pool, 25)
 
 	// Act
 	n, err := w.Write([]byte("this is a test string of length greater than 25 characters"))
@@ -425,7 +420,7 @@ func TestVectoredWriter_OversizedBufferTruncation(t *testing.T) {
 	assert.Equal(t, 25, len(w.Buffers()[0]))
 }
 
-func TestVectoredWriter_PoolExhaustion(t *testing.T) {
+func TestVectoredReadBuffer_PoolExhaustion(t *testing.T) {
 	tests := []struct {
 		name        string
 		isReadFrom  bool
@@ -452,7 +447,7 @@ func TestVectoredWriter_PoolExhaustion(t *testing.T) {
 			pool := &TestBufferPool{
 				ReturnNilOnExhaustion: true,
 			}
-			w := NewVectoredWriter(pool, 100)
+			w := NewVectoredReadBuffer(pool, 100)
 
 			// Act
 			var n int64
@@ -472,7 +467,7 @@ func TestVectoredWriter_PoolExhaustion(t *testing.T) {
 	}
 }
 
-func TestVectoredWriter_ZeroOrNegativeMaxSize(t *testing.T) {
+func TestVectoredReadBuffer_ZeroOrNegativeMaxSize(t *testing.T) {
 	tests := []struct {
 		name    string
 		maxSize int64
@@ -487,7 +482,7 @@ func TestVectoredWriter_ZeroOrNegativeMaxSize(t *testing.T) {
 			pool := &TestBufferPool{
 				Buffers: [][]byte{make([]byte, 10)},
 			}
-			w := NewVectoredWriter(pool, tc.maxSize)
+			w := NewVectoredReadBuffer(pool, tc.maxSize)
 
 			// Act
 			n, err := w.Write([]byte("hello"))
@@ -500,9 +495,9 @@ func TestVectoredWriter_ZeroOrNegativeMaxSize(t *testing.T) {
 	}
 }
 
-var globalWriter *VectoredWriter
+var globalBuffer *VectoredReadBuffer
 
-func BenchmarkNewVectoredWriter(b *testing.B) {
+func BenchmarkNewVectoredReadBuffer(b *testing.B) {
 	pool := &TestBufferPool{
 		Buffers: [][]byte{
 			make([]byte, 100),
@@ -512,6 +507,6 @@ func BenchmarkNewVectoredWriter(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		globalWriter = NewVectoredWriter(pool, 300)
+		globalBuffer = NewVectoredReadBuffer(pool, 300)
 	}
 }

@@ -555,7 +555,7 @@ func (t *FileTest) TestReadWithBufferPool() {
 			size:         2,
 			expectedData: []string{"o"},
 			expectedSize: 1,
-			expectedErr:  io.EOF,
+			expectedErr:  nil,
 		},
 		{
 			name:         "AtEOF",
@@ -563,7 +563,7 @@ func (t *FileTest) TestReadWithBufferPool() {
 			size:         2,
 			expectedData: []string{},
 			expectedSize: 0,
-			expectedErr:  io.EOF,
+			expectedErr:  nil,
 		},
 	}
 

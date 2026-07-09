@@ -26,12 +26,6 @@ import (
 // to an alternative reader.
 var FallbackToAnotherReader = errors.New("fallback to another reader is required")
 
-// BufferPool defines an interface for on-demand buffer allocation and recycling.
-type BufferPool interface {
-	Get() []byte
-	Put([]byte)
-}
-
 // ReadRequest encapsulates the parameters for a read operation.
 type ReadRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
@@ -64,14 +58,10 @@ type ReadRequest struct {
 func (req *ReadRequest) GetReadSize(limit int64) int64 {
 	sizeToRead := req.Size
 	if req.BufferPool == nil {
-		bufLen := int64(len(req.Buffer))
-		if sizeToRead <= 0 || sizeToRead > bufLen {
-			sizeToRead = bufLen
-		}
+		sizeToRead = min(sizeToRead, int64(len(req.Buffer)))
 	}
-
-	if limit > 0 && sizeToRead > limit {
-		return limit
+	if limit > 0 {
+		sizeToRead = min(sizeToRead, limit)
 	}
 	return sizeToRead
 }

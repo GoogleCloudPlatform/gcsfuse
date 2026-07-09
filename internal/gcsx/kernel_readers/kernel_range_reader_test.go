@@ -77,6 +77,7 @@ func (t *KernelRangeReaderTest) TestReadAt_Success() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
+		Size:   5,
 	}
 	mockReader := &mockStorageReader{io.NopCloser(bytes.NewReader(data))}
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
@@ -93,6 +94,7 @@ func (t *KernelRangeReaderTest) TestReadAt_EOF() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 100, // Equal to object size
+		Size:   5,
 	}
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
@@ -107,6 +109,7 @@ func (t *KernelRangeReaderTest) TestReadAt_PartialRead() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 5,
+		Size:   10,
 	}
 	// Expected read range: [5, 10), size = 5
 	expectedData := data[5:10]
@@ -125,6 +128,7 @@ func (t *KernelRangeReaderTest) TestReadAt_NewReaderError() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
+		Size:   5,
 	}
 	expectedErr := io.ErrUnexpectedEOF
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
@@ -141,6 +145,7 @@ func (t *KernelRangeReaderTest) TestReadAt_NilObject() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
+		Size:   5,
 	}
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
@@ -153,6 +158,7 @@ func (t *KernelRangeReaderTest) TestReadAt_ClobberedError() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
+		Size:   5,
 	}
 	gcsErr := &gcs.NotFoundError{Err: errors.New("not found")}
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, gcsErr).Once()

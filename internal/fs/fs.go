@@ -27,7 +27,6 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -61,9 +60,6 @@ import (
 	"github.com/jacobsa/timeutil"
 	"github.com/spf13/viper"
 )
-
-// readPoolBufferSize is the size of each buffer in readBufferPool (1 MiB).
-const readPoolBufferSize = util.MiB
 
 type ServerConfig struct {
 	// A clock used for cache expiration. It is *not* used for inode times, for
@@ -229,11 +225,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
-		readBufferPool: sync.Pool{
-			New: func() any {
-				return new([readPoolBufferSize]byte)
-			},
-		},
+		readBufferPool:             gcsx.NewFixedSizeBufferPool(),
 	}
 
 	// Initialize MRD cache if enabled
@@ -686,23 +678,8 @@ type fileSystem struct {
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
 
-	// readBufferPool is a sync.Pool of readPoolBufferSize (1 MiB) buffers.
-	readBufferPool sync.Pool
-}
-
-type fixedSizeBufferPool struct {
-	pool *sync.Pool
-}
-
-func (bp *fixedSizeBufferPool) Get() []byte {
-	return bp.pool.Get().(*[readPoolBufferSize]byte)[:]
-}
-
-func (bp *fixedSizeBufferPool) Put(buf []byte) {
-	if cap(buf) != readPoolBufferSize {
-		return
-	}
-	bp.pool.Put((*[readPoolBufferSize]byte)(buf[:cap(buf)]))
+	// readBufferPool is a pool of readPoolBufferSize (1 MiB) buffers.
+	readBufferPool gcsx.BufferPool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -3161,7 +3138,7 @@ func (fs *fileSystem) ReadFile(
 			return syscall.ENOTSUP
 		}
 
-		req.BufferPool = &fixedSizeBufferPool{pool: &fs.readBufferPool}
+		req.BufferPool = fs.readBufferPool
 	} else {
 		req.Buffer = op.Dst
 	}
