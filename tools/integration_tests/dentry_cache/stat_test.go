@@ -45,9 +45,6 @@ func (s *statWithDentryCacheEnabledTest) SetupTest() {
 
 func (s *statWithDentryCacheEnabledTest) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-	// Wait for the metadata cache TTL to expire so that negatively cached entries
-	// don't pollute subsequent tests.
-	time.Sleep(2500 * time.Millisecond)
 }
 
 func (s *statWithDentryCacheEnabledTest) TearDownSuite() {
@@ -108,6 +105,10 @@ func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGC
 	// Stat again, it should give error as file does not exist.
 	_, err = os.Stat(filePath)
 	assert.NotNil(s.T(), err)
+
+	// Wait for the negative stat cache TTL to expire so the negative entry created by the previous stat call
+	// does not affect later tests.
+	time.Sleep(2100 * time.Millisecond)
 }
 
 func TestStatWithDentryCacheEnabledTest(t *testing.T) {
