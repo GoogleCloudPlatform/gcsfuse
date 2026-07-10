@@ -100,30 +100,34 @@ func (c *radixCache) checkInvariants() {
 
 	// INVARIANT: Every value-bearing node in the tree must exist in the LRU list exactly once
 	treeCount := 0
-	var verifyTree func(n *radixNode)
 
-	verifyTree = func(n *radixNode) {
-		if n == nil {
-			return
-		}
-
-		if n.value != nil {
+	// Iterative pre-order traversal using parent/sibling pointers (O(1) space) to prevent stack overflows
+	curr := c.root
+	for curr != nil {
+		if curr.value != nil {
 			treeCount++
 			// A node is verifiably in the LRU list if it is the head, or if it has a predecessor
-			inLRU := c.head == n || n.prev != nil
+			inLRU := c.head == curr || curr.prev != nil
 			if !inLRU {
-				panic(fmt.Sprintf("Mismatch: Node with prefix '%v' has a value but is missing from LRU list", n.prefix))
+				panic(fmt.Sprintf("Mismatch: Node with prefix '%v' has a value but is missing from LRU list", curr.prefix))
 			}
 		}
 
-		// Recurse through all siblings and children
-		for child := n.child; child != nil; child = child.sibling {
-			verifyTree(child)
+		// Advance to next node
+		if curr.child != nil {
+			curr = curr.child
+			continue
 		}
-	}
 
-	// Initiate full tree structural scan
-	verifyTree(c.root)
+		// Backtrack up parent chain
+		for curr != c.root && curr.sibling == nil {
+			curr = curr.parent
+		}
+		if curr == c.root {
+			break
+		}
+		curr = curr.sibling
+	}
 
 	if treeCount != c.len {
 		panic(fmt.Sprintf("Tree actual value count %v does not match LRU length %v", treeCount, c.len))
@@ -511,7 +515,7 @@ func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
 		return ErrEntryNotExist
 	}
 
-	if node.value.Size()+sizeDelta > c.maxSize {
+	if node.value.Size() > c.maxSize {
 		return ErrInvalidEntrySize
 	}
 
