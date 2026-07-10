@@ -60,8 +60,14 @@ fi
 # Create string of config file content for fetching data from big query table.
 CONFIG_FILE_FLAGS_COMPRESSED_JSON=$(echo "$CONFIG_FILE_FLAGS_JSON" | jq -c .)
 
-echo "Building and installing gcsfuse on branch: " $BRANCH
-./perfmetrics/scripts/build_and_install_gcsfuse.sh $BRANCH
+git checkout "$BRANCH"
+if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
+  commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+else
+  commitId=$(git log -n 1 --pretty=%H)
+fi
+echo "Building and installing gcsfuse on branch: $BRANCH at commit ID: $commitId"
+./perfmetrics/scripts/build_and_install_gcsfuse.sh "$commitId"
 
 cd "./perfmetrics/scripts/"
 export PYTHONPATH="./"
