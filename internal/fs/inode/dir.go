@@ -1104,7 +1104,12 @@ func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Na
 		return
 	}
 
-	d.prevDirListingTimeStamp.Store(d.cacheClock.Now().UnixNano())
+	if now := d.cacheClock.Now(); !now.IsZero() {
+		d.prevDirListingTimeStamp.Store(now.UnixNano())
+	} else {
+		d.prevDirListingTimeStamp.Store(0)
+	}
+
 	return
 }
 
@@ -1511,9 +1516,15 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	if prevNS == 0 {
 		return true
 	}
-
-	cachedDuration := time.Duration(d.cacheClock.Now().UnixNano() - prevNS)
-	return cachedDuration >= ttl
+	now := d.cacheClock.Now()
+	if now.IsZero() {
+		return true
+	}
+	nowNS := now.UnixNano()
+	if nowNS < prevNS {
+		return true
+	}
+	return time.Duration(nowNS-prevNS) >= ttl
 }
 
 // LOCKS_REQUIRED(d)
