@@ -40,14 +40,14 @@ import (
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
 func mountWithStorageHandle(
-		ctx context.Context,
-		bucketName string,
-		mountPoint string,
-		newConfig *cfg.Config,
-		storageHandle storage.StorageHandle,
-		metricHandle metrics.MetricHandle,
-		traceHandle tracing.TraceHandle,
-		viperConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
+	ctx context.Context,
+	bucketName string,
+	mountPoint string,
+	newConfig *cfg.Config,
+	storageHandle storage.StorageHandle,
+	metricHandle metrics.MetricHandle,
+	traceHandle tracing.TraceHandle,
+	viperConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
 
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
@@ -61,7 +61,7 @@ func mountWithStorageHandle(
 		if err != nil {
 			err = fmt.Errorf(
 				"error writing to temporary directory (%q); are you sure it exists "+
-						"with the correct permissions",
+					"with the correct permissions",
 				err.Error())
 			return
 		}
@@ -168,6 +168,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	}
 
 	numWorkers := runtime.GOMAXPROCS(0)
+	if numWorkers > 16 {
+		numWorkers = 16
+	}
 
 	mountCfg := &fuse.MountConfig{
 		FSName:     fsName,
