@@ -648,6 +648,10 @@ func (c *Connection) RingFd() int {
 	return c.ringFd
 }
 
+func (c *Connection) DevFd() int {
+	return int(c.dev.Fd())
+}
+
 func (c *Connection) NumQueues() int {
 	if c.cfg.IoUringQueueDepth > 0 {
 		return c.cfg.IoUringQueueDepth
