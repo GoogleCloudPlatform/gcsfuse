@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -60,6 +61,9 @@ import (
 	"github.com/jacobsa/timeutil"
 	"github.com/spf13/viper"
 )
+
+// readPoolBufferSize is the size of each buffer in readBufferPool (1 MiB).
+const readPoolBufferSize = util.MiB
 
 type ServerConfig struct {
 	// A clock used for cache expiration. It is *not* used for inode times, for
@@ -225,6 +229,11 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
+		readBufferPool: sync.Pool{
+			New: func() interface{} {
+				return make([]byte, readPoolBufferSize)
+			},
+		},
 	}
 
 	// Initialize MRD cache if enabled
@@ -270,6 +279,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
+				Capabilities: map[string]bool{
+					cfg.CapabilityFuseMaxPagesLimit: kernelparams.SupportsFuseMaxPagesLimit(),
+				},
 			})
 			if len(optimizedFlags) > 0 {
 				logger.Info("GCSFuse Config", "Applied optimizations for bucket-type: ", bucketTypeEnum, "Full Config", optimizedFlags)
@@ -676,6 +688,9 @@ type fileSystem struct {
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
+
+	// readBufferPool is a sync.Pool of readPoolBufferSize (1 MiB) buffers.
+	readBufferPool sync.Pool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -3118,23 +3133,74 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
+	req := gcsx.ReadRequest{
+		Offset: op.Offset,
+		Size:   op.Size,
+	}
+
+	useReadBufferPool := op.Dst == nil
+	if useReadBufferPool {
+		if !fs.newConfig.FileSystem.EnableKernelReader || fh.Inode().Bucket().BucketType().IsRapid() {
+			logger.Errorf("ReadFile: buffer pool allocation is only supported for regional buckets with"+
+				" kernel reader enabled (EnableKernelReader: %v, IsRapid: %v)",
+				fs.newConfig.FileSystem.EnableKernelReader,
+				fh.Inode().Bucket().BucketType().IsRapid())
+			fh.Inode().Unlock()
+			return syscall.ENOTSUP
+		}
+
+		var buffers [][]byte
+		remaining := op.Size
+		for remaining > 0 {
+			bufVal := fs.readBufferPool.Get()
+			poolBuf := bufVal.([]byte)
+			size := min(remaining, readPoolBufferSize)
+			buffers = append(buffers, poolBuf[:size])
+			remaining -= size
+		}
+		req.Buffers = buffers
+	} else {
+		req.Buffer = op.Dst
+	}
+
 	if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
-		resp, err = fh.ReadWithKernelReader(ctx, req)
+		resp, err = fh.ReadWithKernelReader(ctx, &req)
 		op.BytesRead = resp.Size
-		op.Data = resp.Data
-		op.Callback = resp.Callback
+		if useReadBufferPool {
+			if len(resp.Data) > 0 {
+				op.Data = resp.Data
+				// Zero-copy hit: we did not use the pool buffers at all. Return all of them immediately.
+				for _, buf := range req.Buffers {
+					fs.readBufferPool.Put(buf[:cap(buf)])
+				}
+				req.Buffers = nil
+			} else {
+				op.Data = util.LimitBuffers(req.Buffers, resp.Size)
+				// Return unused buffers (from index len(op.Data) onwards) back to the pool immediately.
+				usedCount := len(op.Data)
+				for j := usedCount; j < len(req.Buffers); j++ {
+					fs.readBufferPool.Put(req.Buffers[j][:cap(req.Buffers[j])])
+				}
+				// Shrink req.Buffers so the callback only returns the used ones.
+				req.Buffers = req.Buffers[:usedCount]
+			}
+
+			op.Callback = func() {
+				if resp.Callback != nil {
+					resp.Callback()
+				}
+				for _, buf := range req.Buffers {
+					fs.readBufferPool.Put(buf[:cap(buf)])
+				}
+			}
+		} else {
+			op.Data = resp.Data
+			op.Callback = resp.Callback
+		}
 	} else if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
-		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
+		resp, err = fh.ReadWithReadManager(ctx, &req, fs.sequentialReadSizeMb)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback

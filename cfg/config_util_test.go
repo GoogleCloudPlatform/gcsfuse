@@ -22,17 +22,19 @@ import (
 )
 
 func Test_DefaultMaxBackground(t *testing.T) {
-	assert.GreaterOrEqual(t, DefaultMaxBackground(), 12)
-	assert.LessOrEqual(t, DefaultMaxBackground(), maxBackgroundLimit)
+	assert.GreaterOrEqual(t, BucketTypeRapid.DefaultMaxBackground(), 12)
+	assert.LessOrEqual(t, BucketTypeRapid.DefaultMaxBackground(), maxBackgroundLimit)
+	assert.Equal(t, 96, BucketTypeNonRapid.DefaultMaxBackground())
 }
 
 func Test_DefaultCongestionThreshold(t *testing.T) {
-	assert.GreaterOrEqual(t, DefaultCongestionThreshold(), 9)
-	assert.LessOrEqual(t, DefaultCongestionThreshold(), 144) // 75% of maxBackgroundLimit
+	assert.GreaterOrEqual(t, BucketTypeRapid.DefaultCongestionThreshold(), 9)
+	assert.LessOrEqual(t, BucketTypeRapid.DefaultCongestionThreshold(), 144) // 75% of maxBackgroundLimit
+	assert.Equal(t, 72, BucketTypeNonRapid.DefaultCongestionThreshold())
 }
 
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
-	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
+	assert.GreaterOrEqual(t, BucketTypeRapid.DefaultMaxParallelDownloads(), 16)
 }
 
 func TestIsFileCacheEnabled(t *testing.T) {

@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 const (
@@ -31,22 +33,32 @@ const (
 
 var kernelPageSize int = os.Getpagesize()
 
-func DefaultFuseMaxPagesLimit() int {
-	// The default limit is calculated to achieve a 1 MiB maximum request size
-	// based on the kernel page size.
-	return (1024 * 1024) / kernelPageSize
-}
-
-func DefaultMaxBackground() int {
+func (bt BucketType) DefaultMaxBackground() int {
+	if bt.IsNonRapid() {
+		return 96
+	}
 	return min(max(12, 2*runtime.NumCPU()), maxBackgroundLimit)
 }
 
-func DefaultCongestionThreshold() int {
-	// 75 % of DefaultMaxBackground
-	return (3 * DefaultMaxBackground()) / 4
+func (bt BucketType) DefaultCongestionThreshold() int {
+	return (3 * bt.DefaultMaxBackground()) / 4
 }
 
-func DefaultMaxParallelDownloads() int {
+func (bt BucketType) DefaultFuseMaxPagesLimit() int {
+	if bt.IsNonRapid() {
+		return (16 * 1024 * 1024) / kernelPageSize
+	}
+	return (1024 * 1024) / kernelPageSize
+}
+
+func (bt BucketType) DefaultMaxReadAheadKb() int64 {
+	if bt.IsNonRapid() {
+		return 128 * 1024
+	}
+	return 16 * 1024
+}
+
+func (bt BucketType) DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
 }
 
@@ -102,4 +114,61 @@ func GetBucketType(hierarchical, zonal, pirlo bool) BucketType {
 		return BucketTypeHierarchical
 	}
 	return BucketTypeFlat
+}
+
+// IsRapid returns true for rapid bucket types (zonal and pirlo).
+func (bt BucketType) IsRapid() bool {
+	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeRapid
+}
+
+// IsNonRapid returns true for regional and multi-regional bucket types (flat and hierarchical).
+func (bt BucketType) IsNonRapid() bool {
+	return bt == BucketTypeFlat || bt == BucketTypeHierarchical || bt == BucketTypeNonRapid
+}
+
+// Matches returns true if this BucketType matches the target rule BucketType,
+// including group matches for "rapid" and "non-rapid".
+func (bt BucketType) Matches(target BucketType) bool {
+	if bt == target {
+		return true
+	}
+	if target == BucketTypeRapid && bt.IsRapid() {
+		return true
+	}
+	if target == BucketTypeNonRapid && bt.IsNonRapid() {
+		return true
+	}
+	return false
+}
+
+func (c *Config) applyRegionalKernelReaderOptimizations(v *viper.Viper, input *OptimizationInput, optimizedFlags map[string]OptimizationResult) {
+	if c.DisableAutoconfig || v == nil || input == nil || !input.BucketType.IsNonRapid() {
+		return
+	}
+
+	// 1. TODO: Automatically enable kernel reader for non-rapid buckets if appropriate.
+
+	// 2. If kernel reader is enabled, apply parameter optimizations cleanly using a table-driven loop.
+	if c.FileSystem.EnableKernelReader {
+		type flagOpt struct {
+			name   string
+			val    int64
+			setter func(int64)
+		}
+		opts := []flagOpt{
+			{"file-system.max-read-ahead-kb", input.BucketType.DefaultMaxReadAheadKb(), func(v int64) { c.FileSystem.MaxReadAheadKb = v }},
+			{"file-system.max-background", int64(input.BucketType.DefaultMaxBackground()), func(v int64) { c.FileSystem.MaxBackground = v }},
+			{"file-system.congestion-threshold", int64(input.BucketType.DefaultCongestionThreshold()), func(v int64) { c.FileSystem.CongestionThreshold = v }},
+			{"file-system.fuse-max-pages-limit", int64(input.BucketType.DefaultFuseMaxPagesLimit()), func(v int64) { c.FileSystem.FuseMaxPagesLimit = v }},
+		}
+		for _, opt := range opts {
+			if !v.IsSet(opt.name) && !optimizedFlags[opt.name].Optimized {
+				opt.setter(opt.val)
+				optimizedFlags[opt.name] = OptimizationResult{
+					Optimized:  true,
+					FinalValue: opt.val,
+				}
+			}
+		}
+	}
 }

@@ -96,3 +96,21 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 	// Use integer arithmetic and bitwise shift to avoid slow float conversions
 	return (bytes + bytesInOneMiB - 1) >> 20
 }
+
+// LimitBuffers reslices the buffers slice in-place to represent the first 'limit'
+// bytes. It avoids allocating a new slice of slices by modifying the slice elements
+// in-place and returning a subslice of the original buffers slice.
+func LimitBuffers(buffers [][]byte, limit int) [][]byte {
+	if limit <= 0 {
+		return nil
+	}
+	var current int
+	for i, b := range buffers {
+		if current+len(b) >= limit {
+			buffers[i] = b[:limit-current]
+			return buffers[:i+1]
+		}
+		current += len(b)
+	}
+	return buffers
+}

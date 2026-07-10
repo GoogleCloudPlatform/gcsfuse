@@ -163,7 +163,7 @@ func getOptimizedValue(
 	// 3. If no profile is set, and no machine-type optimization applies, then check for bucket-type optimization.
 	if input != nil && input.BucketType.IsValid() {
 		for _, bto := range rules.BucketTypeOptimization {
-			if BucketType(bto.BucketType) == input.BucketType {
+			if input.BucketType.Matches(BucketType(bto.BucketType)) {
 				return OptimizationResult{
 					FinalValue:         bto.Value,
 					OptimizationReason: fmt.Sprintf("bucket-type %q", input.BucketType),

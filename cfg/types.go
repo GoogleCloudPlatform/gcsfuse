@@ -144,6 +144,20 @@ type OptimizationInput struct {
 	// BucketType specifies the GCS bucket type.
 	// An empty string means no bucket-type-based optimization should be applied.
 	BucketType BucketType
+
+	// Capabilities stores runtime or system capabilities that may influence optimizations
+	// (e.g., whether the host kernel supports specific attributes like max_pages_limit).
+	Capabilities map[string]bool
+}
+
+const (
+	// CapabilityFuseMaxPagesLimit indicates if the host kernel supports configuring FUSE max_pages_limit.
+	CapabilityFuseMaxPagesLimit = "fuse_max_pages_limit"
+)
+
+// HasCapability checks if a runtime capability is present and true.
+func (o *OptimizationInput) HasCapability(cap string) bool {
+	return o != nil && o.Capabilities != nil && o.Capabilities[cap]
 }
 
 // BucketType represents the type of GCS bucket.
@@ -161,9 +175,15 @@ const (
 
 	// BucketTypeFlat represents a flat (regional or multi-regional) bucket.
 	BucketTypeFlat BucketType = "flat"
+
+	// BucketTypeRapid represents a rapid bucket group (zonal and pirlo).
+	BucketTypeRapid BucketType = "rapid"
+
+	// BucketTypeNonRapid represents a non-rapid bucket group (flat and hierarchical).
+	BucketTypeNonRapid BucketType = "non-rapid"
 )
 
 // IsValid returns true if the BucketType is one of the defined valid types.
 func (bt BucketType) IsValid() bool {
-	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeHierarchical || bt == BucketTypeFlat
+	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeHierarchical || bt == BucketTypeFlat || bt == BucketTypeRapid || bt == BucketTypeNonRapid
 }
