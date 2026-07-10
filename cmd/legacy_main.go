@@ -184,6 +184,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 
 // Mount the file system according to arguments in the supplied context.
 func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle, traceHandle tracing.TraceHandle, viperConfig *viper.Viper) (mfs *fuse.MountedFileSystem, err error) {
+	time.Sleep(1 * time.Hour)
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -457,7 +458,6 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			logger.Warnf(MountSlownessMessage, mountDuration, MountTimeThreshold)
 		}
 		logger.Infof(SuccessfulMountMessage)
-		fmt.Fprintf(os.Stderr, "googleapi: Error 403\n")
 		return err
 	}
 
@@ -506,7 +506,6 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
-			fmt.Fprintf(os.Stderr, "googleapi: Error 403\n")
 			callDaemonizeSignalOutcome(nil)
 		}
 
