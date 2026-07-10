@@ -21,6 +21,7 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/internal/buffer"
 )
 
 // An interface with a method for each op type in the fuseops package. This can
@@ -97,6 +98,12 @@ type fileSystemServer struct {
 }
 
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
+	// If FUSE over io_uring is enabled on Linux:
+	if c.UsingIoUring() {
+		s.serveOpsOverIoUring(c, c.RingFd(), c.NumQueues())
+		return
+	}
+
 	// When we are done, we clean up by waiting for all in-flight ops then
 	// destroying the file system.
 	defer func() {
@@ -128,36 +135,39 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 }
 
 func (s *fileSystemServer) handleOp(
-	c *fuse.Connection,
-	ctx context.Context,
-	op interface{}) {
+		c *fuse.Connection,
+		ctx context.Context,
+		op interface{}) {
 	defer s.opsInFlight.Done()
 
+	err := s.handleOpSync(c, ctx, op, nil)
+	c.Reply(ctx, err)
+}
+
+// handleOpSync executes the op without calling c.Reply, allowing uring_server to
+// do atomic COMMIT_AND_FETCH.
+func (s *fileSystemServer) handleOpSync(
+		c *fuse.Connection,
+		ctx context.Context,
+		op interface{},
+		outMsg *buffer.OutMessage) (err error) {
 	// Dispatch to the appropriate method.
-	var err error
 	switch typed := op.(type) {
 	default:
 		err = fuse.ENOSYS
-
 	case *fuseops.StatFSOp:
 		err = s.fs.StatFS(ctx, typed)
-
 	case *fuseops.LookUpInodeOp:
 		err = s.fs.LookUpInode(ctx, typed)
-
 	case *fuseops.GetInodeAttributesOp:
 		err = s.fs.GetInodeAttributes(ctx, typed)
-
 	case *fuseops.SetInodeAttributesOp:
 		err = s.fs.SetInodeAttributes(ctx, typed)
-
 	case *fuseops.ForgetInodeOp:
 		err = s.fs.ForgetInode(ctx, typed)
-
 	case *fuseops.BatchForgetOp:
 		err = s.fs.BatchForget(ctx, typed)
 		if err == fuse.ENOSYS {
-			// Handle as a series of single-inode forget operations
 			for _, entry := range typed.Entries {
 				err = s.fs.ForgetInode(ctx, &fuseops.ForgetInodeOp{
 					Inode:     entry.Inode,
@@ -169,82 +179,56 @@ func (s *fileSystemServer) handleOp(
 				}
 			}
 		}
-
 	case *fuseops.MkDirOp:
 		err = s.fs.MkDir(ctx, typed)
-
 	case *fuseops.MkNodeOp:
 		err = s.fs.MkNode(ctx, typed)
-
 	case *fuseops.CreateFileOp:
 		err = s.fs.CreateFile(ctx, typed)
-
 	case *fuseops.CreateLinkOp:
 		err = s.fs.CreateLink(ctx, typed)
-
 	case *fuseops.CreateSymlinkOp:
 		err = s.fs.CreateSymlink(ctx, typed)
-
 	case *fuseops.RenameOp:
 		err = s.fs.Rename(ctx, typed)
-
 	case *fuseops.RmDirOp:
 		err = s.fs.RmDir(ctx, typed)
-
 	case *fuseops.UnlinkOp:
 		err = s.fs.Unlink(ctx, typed)
-
 	case *fuseops.OpenDirOp:
 		err = s.fs.OpenDir(ctx, typed)
-
 	case *fuseops.ReadDirOp:
 		err = s.fs.ReadDir(ctx, typed)
-
 	case *fuseops.ReadDirPlusOp:
 		err = s.fs.ReadDirPlus(ctx, typed)
-
 	case *fuseops.ReleaseDirHandleOp:
 		err = s.fs.ReleaseDirHandle(ctx, typed)
-
 	case *fuseops.OpenFileOp:
 		err = s.fs.OpenFile(ctx, typed)
-
 	case *fuseops.ReadFileOp:
 		err = s.fs.ReadFile(ctx, typed)
-
 	case *fuseops.WriteFileOp:
 		err = s.fs.WriteFile(ctx, typed)
-
 	case *fuseops.SyncFileOp:
 		err = s.fs.SyncFile(ctx, typed)
-
 	case *fuseops.FlushFileOp:
 		err = s.fs.FlushFile(ctx, typed)
-
 	case *fuseops.ReleaseFileHandleOp:
 		err = s.fs.ReleaseFileHandle(ctx, typed)
-
 	case *fuseops.ReadSymlinkOp:
 		err = s.fs.ReadSymlink(ctx, typed)
-
 	case *fuseops.RemoveXattrOp:
 		err = s.fs.RemoveXattr(ctx, typed)
-
 	case *fuseops.GetXattrOp:
 		err = s.fs.GetXattr(ctx, typed)
-
 	case *fuseops.ListXattrOp:
 		err = s.fs.ListXattr(ctx, typed)
-
 	case *fuseops.SetXattrOp:
 		err = s.fs.SetXattr(ctx, typed)
-
 	case *fuseops.FallocateOp:
 		err = s.fs.Fallocate(ctx, typed)
-
 	case *fuseops.SyncFSOp:
 		err = s.fs.SyncFS(ctx, typed)
 	}
-
-	c.Reply(ctx, err)
+	return err
 }

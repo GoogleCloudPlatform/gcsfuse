@@ -78,8 +78,10 @@ type Connection struct {
 	cancelFuncs map[uint64]func()
 
 	// Freelists, serviced by freelists.go.
-	inMessages  freelist.Freelist // GUARDED_BY(mu)
-	outMessages freelist.Freelist // GUARDED_BY(mu)
+	inMessages   freelist.Freelist // GUARDED_BY(mu)
+	outMessages  freelist.Freelist // GUARDED_BY(mu)
+	usingIoUring bool
+	ringFd int
 }
 
 // State that is maintained for each in-flight op. This is stuffed into the
@@ -107,11 +109,11 @@ func GetWirelog(ctx context.Context) *WireLogRecord {
 //
 // The loggers may be nil.
 func newConnection(
-	cfg MountConfig,
-	debugLogger *log.Logger,
-	errorLogger *log.Logger,
-	wireLogger io.Writer,
-	dev *os.File) (*Connection, error) {
+		cfg MountConfig,
+		debugLogger *log.Logger,
+		errorLogger *log.Logger,
+		wireLogger io.Writer,
+		dev *os.File) (*Connection, error) {
 	c := &Connection{
 		cfg:         cfg,
 		debugLogger: debugLogger,
@@ -235,16 +237,27 @@ func (c *Connection) Init() error {
 		}
 	}
 
+	// Check if both kernel and client support FUSE over io_uring:
+	hasExt := (initOp.Flags & fusekernel.InitExt) != 0
+	hasUring := (initOp.Flags2 & fusekernel.InitOverIoUring) != 0
+	fmt.Println(hasExt)
+	fmt.Println(hasUring)
+	if c.cfg.EnableOverIoUring && hasExt && hasUring {
+		initOp.Flags |= fusekernel.InitExt
+		initOp.Flags2 |= fusekernel.InitOverIoUring
+		c.usingIoUring = true // Mark connection as running over io_uring
+	}
+
 	return c.Reply(ctx, nil)
 }
 
 // Log information for an operation with the given ID. calldepth is the depth
 // to use when recovering file:line information with runtime.Caller.
 func (c *Connection) debugLog(
-	fuseID uint64,
-	calldepth int,
-	format string,
-	v ...interface{}) {
+		fuseID uint64,
+		calldepth int,
+		format string,
+		v ...interface{}) {
 	if c.debugLogger == nil {
 		return
 	}
@@ -274,8 +287,8 @@ func (c *Connection) debugLog(
 
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) recordCancelFunc(
-	fuseID uint64,
-	f func()) {
+		fuseID uint64,
+		f func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -293,8 +306,8 @@ func (c *Connection) recordCancelFunc(
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) beginOp(
-	opCode uint32,
-	fuseID uint64) context.Context {
+		opCode uint32,
+		fuseID uint64) context.Context {
 	// Start with the parent context.
 	ctx := c.cfg.OpContext
 
@@ -322,8 +335,8 @@ func (c *Connection) beginOp(
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) finishOp(
-	opCode uint32,
-	fuseID uint64) {
+		opCode uint32,
+		fuseID uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -495,8 +508,8 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 
 // Skip errors that happen as a matter of course, since they spook users.
 func (c *Connection) shouldLogError(
-	op interface{},
-	err error) bool {
+		op interface{},
+		err error) bool {
 	// We don't log non-errors.
 	if err == nil {
 		return false
@@ -625,4 +638,27 @@ func (c *Connection) close() error {
 	// write, but luckily we exclude the possibility of a race by requiring the
 	// user to respond to all ops first.
 	return c.dev.Close()
+}
+
+func (c *Connection) UsingIoUring() bool {
+	return c.usingIoUring
+}
+
+func (c *Connection) RingFd() int {
+	return c.ringFd
+}
+
+func (c *Connection) NumQueues() int {
+	if c.cfg.IoUringQueueDepth > 0 {
+		return c.cfg.IoUringQueueDepth
+	}
+	return runtime.GOMAXPROCS(0)
+}
+
+func (c *Connection) BeginOp(opCode uint32, fuseID uint64) context.Context {
+	return c.beginOp(opCode, fuseID)
+}
+
+func (c *Connection) ParseInMessage(inMsg *buffer.InMessage, outMsg *buffer.OutMessage) (interface{}, error) {
+	return convertInMessage(&c.cfg, inMsg, outMsg, c.protocol)
 }

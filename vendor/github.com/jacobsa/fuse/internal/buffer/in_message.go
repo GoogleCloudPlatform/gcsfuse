@@ -158,3 +158,8 @@ func (m *InMessage) GetFree(n int) []byte {
 	}
 	return m.storage[m.size : m.size+n]
 }
+
+// Get access to the raw internal storage buffer for io_uring registration.
+func (m *InMessage) Storage() []byte {
+	return m.storage
+}

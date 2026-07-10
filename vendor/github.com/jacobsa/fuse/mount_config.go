@@ -241,6 +241,13 @@ type MountConfig struct {
 	// to always provide ReadFileOp.Dst. If the file system populates ReadFileOp.Data,
 	// that data will be used for a vectored read, irrespective of this flag's value.
 	UseVectoredRead bool
+
+	// If true and supported by the kernel (Linux 6.13+), communicate with the
+	// FUSE driver over an io_uring ring instead of synchronous /dev/fuse syscalls.
+	EnableOverIoUring bool
+
+	// Number of io_uring worker queues to register (usually set to GOMAXPROCS).
+	IoUringQueueDepth int
 }
 
 type FUSEImpl uint8

@@ -38,10 +38,10 @@ import (
 //
 // The caller is responsible for arranging for the message to be destroyed.
 func convertInMessage(
-	config *MountConfig,
-	inMsg *buffer.InMessage,
-	outMsg *buffer.OutMessage,
-	protocol fusekernel.Protocol) (o interface{}, err error) {
+		config *MountConfig,
+		inMsg *buffer.InMessage,
+		outMsg *buffer.OutMessage,
+		protocol fusekernel.Protocol) (o interface{}, err error) {
 	switch inMsg.Header().Opcode {
 	case fusekernel.OpLookup:
 		buf := inMsg.ConsumeBytes(inMsg.Len())
@@ -288,8 +288,8 @@ func convertInMessage(
 		//
 		// the simplest fix is just to check for the presence of all-zero flags
 		if len(names) >= 8 &&
-			names[0] == 0 && names[1] == 0 && names[2] == 0 && names[3] == 0 &&
-			names[4] == 0 && names[5] == 0 && names[6] == 0 && names[7] == 0 {
+				names[0] == 0 && names[1] == 0 && names[2] == 0 && names[3] == 0 &&
+				names[4] == 0 && names[5] == 0 && names[6] == 0 && names[7] == 0 {
 			names = names[8:]
 		}
 		// names should be "old\x00new\x00"
@@ -596,6 +596,7 @@ func convertInMessage(
 			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
 			MaxReadahead: in.MaxReadahead,
 			Flags:        fusekernel.InitFlags(in.Flags),
+			Flags2:       fusekernel.InitFlags2(in.Flags2), // NEW
 		}
 
 	case fusekernel.OpLink:
@@ -778,10 +779,10 @@ func convertInMessage(
 // Fill in the response that should be sent to the kernel, or set noResponse if
 // the op requires no response.
 func (c *Connection) kernelResponse(
-	m *buffer.OutMessage,
-	fuseID uint64,
-	op interface{},
-	opErr error) (noResponse bool) {
+		m *buffer.OutMessage,
+		fuseID uint64,
+		op interface{},
+		opErr error) (noResponse bool) {
 	h := m.OutHeader()
 	h.Unique = fuseID
 
@@ -830,8 +831,8 @@ func (c *Connection) kernelResponse(
 // Like kernelResponse, but assumes the user replied with a nil error to the
 // op.
 func (c *Connection) kernelResponseForOp(
-	m *buffer.OutMessage,
-	op interface{}) {
+		m *buffer.OutMessage,
+		op interface{}) {
 	// Create the appropriate output message
 	switch o := op.(type) {
 	case *fuseops.LookUpInodeOp:
@@ -1027,6 +1028,7 @@ func (c *Connection) kernelResponseForOp(
 		out.Minor = o.Library.Minor
 		out.MaxReadahead = o.MaxReadahead
 		out.Flags = uint32(o.Flags)
+		out.Flags2 = uint32(o.Flags2) // NEW
 		// Default values
 		out.MaxBackground = 12
 		out.CongestionThreshold = 9
@@ -1053,9 +1055,9 @@ func convertTime(t time.Time) (secs uint64, nsec uint32) {
 }
 
 func convertAttributes(
-	inodeID fuseops.InodeID,
-	in *fuseops.InodeAttributes,
-	out *fusekernel.Attr) {
+		inodeID fuseops.InodeID,
+		in *fuseops.InodeAttributes,
+		out *fusekernel.Attr) {
 	out.Ino = uint64(inodeID)
 	out.Size = in.Size
 	out.Atime, out.AtimeNsec = convertTime(in.Atime)
@@ -1094,8 +1096,8 @@ func ConvertExpirationTime(t time.Time) (secs uint64, nsecs uint32) {
 }
 
 func convertChildInodeEntry(
-	in *fuseops.ChildInodeEntry,
-	out *fusekernel.EntryOut) {
+		in *fuseops.ChildInodeEntry,
+		out *fusekernel.EntryOut) {
 	out.Nodeid = uint64(in.Child)
 	out.Generation = uint64(in.Generation)
 	out.EntryValid, out.EntryValidNsec = ConvertExpirationTime(in.EntryExpiration)

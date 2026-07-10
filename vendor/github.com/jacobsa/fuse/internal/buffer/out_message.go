@@ -125,3 +125,18 @@ func (m *OutMessage) OutHeaderBytes() []byte {
 	}
 	return *(*[]byte)(unsafe.Pointer(&sh))
 }
+
+// Bytes returns the contiguous byte slice representation of the OutMessage.
+func (m *OutMessage) Bytes() []byte {
+	if len(m.Sglist) == 0 {
+		return m.OutHeaderBytes()
+	}
+	if len(m.Sglist) == 1 {
+		return m.Sglist[0]
+	}
+	var buf []byte
+	for _, b := range m.Sglist {
+		buf = append(buf, b...)
+	}
+	return buf
+}

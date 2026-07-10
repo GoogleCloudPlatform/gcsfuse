@@ -37,7 +37,8 @@ type initOp struct {
 	Kernel fusekernel.Protocol
 
 	// In/out
-	Flags fusekernel.InitFlags
+	Flags  fusekernel.InitFlags
+	Flags2 fusekernel.InitFlags2 // NEW: Extended 64-bit flags
 
 	// Out
 	Library       fusekernel.Protocol

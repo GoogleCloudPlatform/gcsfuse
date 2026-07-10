@@ -281,6 +281,16 @@ const (
 	InitCaseSensitive InitFlags = 1 << 29 // OS X only
 	InitVolRename     InitFlags = 1 << 30 // OS X only
 	InitXtimes        InitFlags = 1 << 31 // OS X only
+
+	InitExt InitFlags = 1 << 30
+)
+
+// InitFlags2 contains FUSE init flags for bits 32 through 63 (shifted down 32 bits).
+type InitFlags2 uint32
+
+const (
+	// FUSE_OVER_IO_URING (bit 41): Sits at bit 9 of Flags2 (41 - 32 = 9)
+	InitOverIoUring InitFlags2 = 1 << 9
 )
 
 type flagName struct {
@@ -738,6 +748,8 @@ type InitIn struct {
 	Minor        uint32
 	MaxReadahead uint32
 	Flags        uint32
+	Flags2       uint32 // NEW: Bits 32..63 from kernel
+	Unused       [11]uint32
 }
 
 const InitInSize = int(unsafe.Sizeof(InitIn{}))
@@ -753,7 +765,10 @@ type InitOut struct {
 	TimeGran            uint32
 	MaxPages            uint16
 	MapAlignment        uint16
-	Unused              [8]uint32
+	Flags2              uint32 // NEW: Bits 32..63 to kernel
+	MaxStackDepth       uint32
+	RequestTimeout      uint16
+	Unused              [10]uint16
 }
 
 type InterruptIn struct {
