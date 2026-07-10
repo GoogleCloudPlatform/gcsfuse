@@ -238,9 +238,9 @@ func (c *Connection) Init() error {
 	}
 
 	// Check if both kernel and client support FUSE over io_uring:
-	hasExt := (initOp.Flags & fusekernel.InitExt) != 0
+//	hasExt := (initOp.Flags & fusekernel.InitExt) != 0
 	hasUring := (initOp.Flags2 & fusekernel.InitOverIoUring) != 0
-	fmt.Println(hasExt)
+//	fmt.Println(hasExt)
 	fmt.Println(hasUring)
 	if c.cfg.EnableOverIoUring && hasExt && hasUring {
 		initOp.Flags |= fusekernel.InitExt
