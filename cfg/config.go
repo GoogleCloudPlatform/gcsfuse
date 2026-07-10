@@ -28,23 +28,21 @@ import (
 var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultCongestionThreshold()),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultCongestionThreshold()),
+			BucketType: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(DefaultCongestionThreshold()),
 		},
 	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      bool(true),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      bool(true),
+			BucketType: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: bool(true),
 		},
 	},
 }, "file-cache.cache-file-for-range-read": {
@@ -61,12 +59,16 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "write.finalize-file-for-rapid": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      bool(false),
+			BucketType: shared.BucketTypeList{
+				"zonal",
+			},
+			Value: bool(false),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      bool(true),
+			BucketType: shared.BucketTypeList{
+				"pirlo",
+			},
+			Value: bool(true),
 		},
 	},
 }, "implicit-dirs": {
@@ -100,23 +102,21 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "file-system.max-background": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultMaxBackground()),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultMaxBackground()),
+			BucketType: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(DefaultMaxBackground()),
 		},
 	},
 }, "file-system.max-read-ahead-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(16384),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      int64(16384),
+			BucketType: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(16384),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {

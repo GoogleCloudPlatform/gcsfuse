@@ -62,7 +62,8 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				{{- if .Optimizations.BucketTypeOptimization }}
 				{{- $bto := index .Optimizations.BucketTypeOptimization 0 }}
-				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				{{- $bt := index $bto.BucketType 0 }}
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				{{- else }}
 				input:           nil,
 				{{- end }}
@@ -111,14 +112,17 @@ func TestApplyOptimizations(t *testing.T) {
 		{{- end }}
 		{{- range .Optimizations.BucketTypeOptimization }}
 			{{- $bto := . }}
+			{{- range $bto.BucketType }}
+			{{- $bt := . }}
 			{
-				name:   "bucket_type_{{$bto.BucketType}}",
+				name:   "bucket_type_{{$bt}}",
 				config: Config{Profile: ""},
 				userSetFlags: map[string]any{},
-				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				expectOptimized: {{if ne (printf "%v" $bto.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$bto.Value}},
 			},
+			{{- end }}
 		{{- end }}
 		{{- if and .Optimizations.Profiles .Optimizations.MachineBasedOptimization }}
 			{{- $profile := index .Optimizations.Profiles 0 -}}
@@ -138,11 +142,12 @@ func TestApplyOptimizations(t *testing.T) {
 		{{- if and .Optimizations.Profiles .Optimizations.BucketTypeOptimization }}
 			{{- $profile := index .Optimizations.Profiles 0 -}}
 			{{- $bto := index .Optimizations.BucketTypeOptimization 0 -}}
+			{{- $bt := index $bto.BucketType 0 }}
 			{
 				name:   "profile_overrides_bucket_type",
 				config: Config{Profile: "{{$profile.Name}}"},
 				userSetFlags: map[string]any{},
-				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				expectOptimized: {{if ne (printf "%v" $profile.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$profile.Value}},
 			},
@@ -151,13 +156,14 @@ func TestApplyOptimizations(t *testing.T) {
 			{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
 			{{- $bto := index .Optimizations.BucketTypeOptimization 0 -}}
 			{{- $machineType := index $.MachineTypeGroups $mbo.Group 0 }}
+			{{- $bt := index $bto.BucketType 0 }}
 			{
 				name:   "machine_type_overrides_bucket_type",
 				config: Config{Profile: ""},
 				userSetFlags: map[string]any{
 					"machine-type": "{{$machineType}}",
 				},
-				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},
