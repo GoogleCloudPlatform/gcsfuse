@@ -85,10 +85,7 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 	}
 }
 
-type uringIovec struct {
-	base uintptr
-	len  uint64
-}
+
 
 // uringQueue manages a single io_uring submission/completion ring with 128-byte SQEs.
 type uringQueue struct {
@@ -104,7 +101,7 @@ type uringQueue struct {
 	cqTail      *uint32
 	cqMask      *uint32
 	cqes        []byte
-	iov         uringIovec
+	iov         unix.Iovec
 }
 
 const (
@@ -246,8 +243,8 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
 
 	if len(payload) > 0 {
-		q.iov.base = uintptr(unsafe.Pointer(&payload[0]))
-		q.iov.len = uint64(len(payload))
+		q.iov.Base = &payload[0]
+		q.iov.Len = uint64(len(payload))
 		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&q.iov))))
 		binary.LittleEndian.PutUint32(sqe[24:28], 1) // 1 segment/iovec
 	} else {
@@ -269,7 +266,7 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 
 	log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d base=0x%x len=%d iovAddr=0x%x iovVal={0x%x, %d}\n",
 		cmdOp, qid, uintptr(unsafe.Pointer(&payload[0])), len(payload),
-		uintptr(unsafe.Pointer(&q.iov)), q.iov.base, q.iov.len)
+		uintptr(unsafe.Pointer(&q.iov)), q.iov.Base, q.iov.Len)
 
 	// Enter syscall to push SQE and wake kernel worker
 	_, _, _ = syscall.Syscall6(unix.SYS_IO_URING_ENTER, uintptr(q.fd), 1, 0, 0, 0, 0)
