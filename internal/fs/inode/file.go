@@ -195,8 +195,6 @@ func NewFileInode(
 		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
-	f.lc.Init(id)
-
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
@@ -481,12 +479,12 @@ func (f *FileInode) SourceGeneration() (g Generation) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IncrementLookupCount() {
-	f.lc.Inc()
+	f.lc.Inc(f.id)
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = f.lc.Dec(n)
+	destroy = f.lc.Dec(f.id, n)
 	return
 }
 
@@ -533,6 +531,7 @@ func (f *FileInode) UpdateSize(size uint64) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
+	f.lc.Destroy()
 	if f.localFileCache {
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		f.contentCache.Remove(cacheObjectKey)
