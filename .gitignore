@@ -42,4 +42,4 @@ _testmain.go
 .vscode
 
 # External folders
-vendor/
+#vendor/
