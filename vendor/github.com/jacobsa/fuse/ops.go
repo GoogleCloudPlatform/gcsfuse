@@ -46,4 +46,5 @@ type initOp struct {
 	MaxBackground uint16
 	MaxWrite      uint32
 	MaxPages      uint16
+	NumQueues     uint16
 }

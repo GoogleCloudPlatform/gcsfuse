@@ -245,6 +245,7 @@ func (c *Connection) Init() error {
 	if c.cfg.EnableOverIoUring && hasUring {
 		initOp.Flags |= fusekernel.InitExt
 		initOp.Flags2 |= fusekernel.InitOverIoUring
+		initOp.NumQueues = uint16(c.NumQueues())
 		c.usingIoUring = true // Mark connection as running over io_uring
 	}
 

@@ -596,7 +596,7 @@ func convertInMessage(
 			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
 			MaxReadahead: in.MaxReadahead,
 			Flags:        fusekernel.InitFlags(in.Flags),
-			Flags2:       fusekernel.InitFlags2(in.Flags2), // NEW
+			Flags2:       fusekernel.InitFlags2(in.Flags2),
 		}
 
 	case fusekernel.OpLink:
@@ -1035,6 +1035,11 @@ func (c *Connection) kernelResponseForOp(
 		out.MaxWrite = o.MaxWrite
 		out.TimeGran = 1
 		out.MaxPages = o.MaxPages
+		if o.NumQueues > 0 {
+			out.Unused[0] = o.NumQueues
+			out.Unused[1] = o.NumQueues
+			out.Unused[2] = o.NumQueues
+		}
 
 	default:
 		panic(fmt.Sprintf("Unexpected op: %#v", op))

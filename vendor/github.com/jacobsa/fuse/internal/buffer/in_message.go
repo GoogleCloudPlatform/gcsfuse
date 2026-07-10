@@ -163,3 +163,8 @@ func (m *InMessage) GetFree(n int) []byte {
 func (m *InMessage) Storage() []byte {
 	return m.storage
 }
+
+// SetStorage overrides the internal storage buffer (used to install a page-aligned mmap buffer).
+func (m *InMessage) SetStorage(b []byte) {
+	m.storage = b
+}
