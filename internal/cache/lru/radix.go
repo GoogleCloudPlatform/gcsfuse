@@ -400,10 +400,8 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	node, oldValue := c.insertNode(key, value)
-	if oldValue != nil {
-		c.currentSize -= oldValue.Size()
-		c.currentSize += valueSize
+	if node, oldValue := c.insertNode(key, value); oldValue != nil {
+		c.currentSize += valueSize - oldValue.Size()
 		c.moveToFront(node)
 	} else {
 		c.pushFront(node)
@@ -510,13 +508,9 @@ func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	node, ok := c.getNode(key)
+	_, ok := c.getNode(key)
 	if !ok {
 		return ErrEntryNotExist
-	}
-
-	if node.value.Size() > c.maxSize {
-		return ErrInvalidEntrySize
 	}
 
 	// Update currentSize accounting
@@ -598,7 +592,7 @@ func (c *radixCache) sweepAndUnlink(node *radixNode) {
 			curr = curr.parent
 		}
 		if curr == node {
-			break
+			return
 		}
 		curr = curr.sibling
 	}

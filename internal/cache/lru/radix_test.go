@@ -24,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -217,8 +218,8 @@ func TestRadixCache_EraseWhenKeyNotPresent(t *testing.T) {
 	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
 
 	deletedEntry := cache.Erase("taco")
-	assert.Nil(t, deletedEntry)
 
+	assert.Nil(t, deletedEntry)
 	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
 }
 
@@ -235,7 +236,6 @@ func TestRadixCache_UpdateSize(t *testing.T) {
 		cache := lru.NewRadixCache(100)
 		data1 := testData{Value: 1, DataSize: 10}
 		data2 := testData{Value: 2, DataSize: 70}
-
 		_, _ = cache.Insert("key1", data1)
 		_, _ = cache.Insert("key2", data2)
 
@@ -245,6 +245,19 @@ func TestRadixCache_UpdateSize(t *testing.T) {
 		assert.Nil(t, cache.LookUp("key1"))
 		assert.NotNil(t, cache.LookUp("key2"))
 	})
+}
+
+func TestRadixCache_UpdateSize_ExceedsMaxSize(t *testing.T) {
+	cache := lru.NewRadixCache(100)
+	data := &testData{Value: 1, DataSize: 50}
+	_, err := cache.Insert("file.txt", data)
+	require.NoError(t, err)
+
+	data.DataSize = 150
+	err = cache.UpdateSize("file.txt", 100)
+
+	assert.NoError(t, err)
+	assert.Nil(t, cache.LookUp("file.txt"))
 }
 
 func TestRadixCache_UpdateWhenKeyPresent(t *testing.T) {
@@ -300,6 +313,39 @@ func TestRadixCache_UpdateNotChangeOrder(t *testing.T) {
 	key3 := "burrito3"
 	data3 := testData{Value: 3, DataSize: 5}
 	insertAndAssert(t, cache, key3, data3, []int64{7}, nil)
+}
+func TestUpdateSize_DoubleCountingDivergence(t *testing.T) {
+	const maxSize = 100
+	const initialSize = 50
+	const sizeDelta = 50 // New total size will be 50 + 50 = 100 (exactly at maxSize)
+
+	mapCache := lru.NewCache(maxSize)
+	radixCache := lru.NewRadixCache(maxSize)
+
+	mapVal := &testData{Value: 23, DataSize: initialSize}
+	radixVal := &testData{Value: 2, DataSize: initialSize}
+
+	// 1. Insert initial entries into both caches
+	_, err := mapCache.Insert("file.txt", mapVal)
+	assert.NoError(t, err)
+	_, err = radixCache.Insert("file.txt", radixVal)
+	assert.NoError(t, err)
+
+	// 2. Simulate incremental file growth in memory (e.g., downloading a 50-byte chunk)
+	// Both objects now report Size() == 100.
+	mapVal.DataSize += sizeDelta
+	radixVal.DataSize += sizeDelta
+
+	// 3. Notify mapCache of the growth.
+	// mapCache simply adds sizeDelta to c.currentSize without double counting.
+	err = mapCache.UpdateSize("file.txt", sizeDelta)
+	assert.NoError(t, err, "mapCache should succeed when updated size (100) <= maxSize (100)")
+
+	// 4. Notify radixCache of the growth.
+	// radixCache evaluates node.value.Size() (100) + sizeDelta (50) = 150 > maxSize (100).
+	// This double-counts sizeDelta and incorrectly rejects a valid update.
+	err = radixCache.UpdateSize("file.txt", sizeDelta)
+	assert.NoError(t, err)
 }
 
 func TestRadixCache_LookUpWithoutChangingOrder_WhenKeyPresent(t *testing.T) {
