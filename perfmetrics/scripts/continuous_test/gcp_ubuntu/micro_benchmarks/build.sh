@@ -35,7 +35,9 @@ run_script_on_vm() {
   fi
   KOKORO_BUILD_INITIATOR="${KOKORO_BUILD_INITIATOR:-}"
 
-    sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
+  sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
+    BRANCH_NAME=\"$BRANCH_NAME\"
+    KOKORO_BUILD_INITIATOR=\"$KOKORO_BUILD_INITIATOR\"
     set -euxo pipefail
 
     MOUNTED_DIR=\"$MOUNTED_DIR\"
