@@ -229,13 +229,15 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	}
 
 	const IORING_OP_URING_CMD uint8 = 46
-	sqe[0] = IORING_OP_URING_CMD // Opcode
-	binary.LittleEndian.PutUint32(sqe[4:8], uint32(devFd)) // Fd
+	sqe[0] = IORING_OP_URING_CMD                          // Opcode (offset 0)
+	binary.LittleEndian.PutUint32(sqe[4:8], uint32(devFd)) // Fd (offset 4..7)
+	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
 	if len(payload) > 0 {
-		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&payload[0])))) // Addr
+		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&payload[0])))) // Addr (offset 16..23)
 	}
-	binary.LittleEndian.PutUint32(sqe[24:28], uint32(len(payload))) // Len
-	binary.LittleEndian.PutUint32(sqe[28:32], cmdOp)                // UringCmdFlags (cmd_op)
+	binary.LittleEndian.PutUint32(sqe[24:28], uint32(len(payload))) // Len (offset 24..27)
+	binary.LittleEndian.PutUint32(sqe[28:32], 0)                    // UringCmdFlags (offset 28..31)
+	binary.LittleEndian.PutUint64(sqe[32:40], uint64(qid))          // user_data (offset 32..39)
 
 	// Write struct fuse_uring_cmd_req { uint64 flags; uint64 commit_id; uint16 qid; uint8 padding[6]; }
 	// into the 80-byte SQE command payload area right at offset 48:
