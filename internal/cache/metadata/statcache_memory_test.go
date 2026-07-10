@@ -79,7 +79,7 @@ func TestStatCacheMemoryWorkloads(t *testing.T) {
 	for _, w := range workloads {
 		t.Logf("=== WORKLOAD: %s (%d files) ===", w, count)
 
-		// 1. StatCache
+		// 1. StatCache (Map)
 		paths := generatePaths(w, count)
 		baseMem := getMemStats()
 
@@ -93,8 +93,24 @@ func TestStatCacheMemoryWorkloads(t *testing.T) {
 		alloc := getMemStats()
 		pureMem := alloc - baseMem
 		runtime.KeepAlive(statCache)
+
+		t.Logf("%-20s Heap Used: %10.2f MB\n", "Map StatCache", float64(pureMem)/(1024*1024))
+
+		// 2. StatCache (Radix)
+		baseMemRadix := getMemStats()
+
+		sharedRadixCache := lru.NewRadixCache(capacity)
+		statRadixCache := metadata.NewStatCacheBucketView(sharedRadixCache, "")
+
+		for _, p := range paths {
+			statRadixCache.Insert(&gcs.MinObject{Name: p}, expiration)
+		}
+
+		allocRadix := getMemStats()
+		pureMemRadix := allocRadix - baseMemRadix
+		runtime.KeepAlive(statRadixCache)
 		runtime.KeepAlive(paths)
 
-		t.Logf("%-20s Heap Used: %10.2f MB\n", "StatCache", float64(pureMem)/(1024*1024))
+		t.Logf("%-20s Heap Used: %10.2f MB\n", "Radix StatCache", float64(pureMemRadix)/(1024*1024))
 	}
 }

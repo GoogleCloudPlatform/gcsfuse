@@ -88,13 +88,14 @@ func benchmarkErasePrefix(b *testing.B, cache lru.Cache, prefixMap map[string][]
 	}
 
 	i := 0
+	b.ResetTimer()
 	for b.Loop() {
+		b.StopTimer() // Timer must be running when b.Loop() evaluates, stop it for setup
 		prefix := prefixes[i%len(prefixes)]
 
 		b.StartTimer()
 		cache.EraseEntriesWithGivenPrefix(prefix)
-		//reset the timer so that we only measure erasure time
-		b.StopTimer()
+		b.StopTimer() // Stop timer for cleanup
 
 		//restore the map
 		keysToRestore := prefixMap[prefix]
@@ -103,6 +104,7 @@ func benchmarkErasePrefix(b *testing.B, cache lru.Cache, prefixMap map[string][]
 		}
 
 		i++
+		b.StartTimer() // Restart timer before b.Loop() evaluates
 	}
 }
 
@@ -116,13 +118,22 @@ func runBenchmarks(b *testing.B, name string, depth int) {
 	b.Run(name+"_MapLRU_Insert", func(b *testing.B) {
 		benchmarkInsert(b, lru.NewCache(capacity), keys)
 	})
+	b.Run(name+"_RadixLRU_Insert", func(b *testing.B) {
+		benchmarkInsert(b, lru.NewRadixCache(capacity), keys)
+	})
 
 	b.Run(name+"_MapLRU_Lookup", func(b *testing.B) {
 		benchmarkLookup(b, lru.NewCache(capacity), keys)
 	})
+	b.Run(name+"_RadixLRU_Lookup", func(b *testing.B) {
+		benchmarkLookup(b, lru.NewRadixCache(capacity), keys)
+	})
 
 	b.Run(name+"_MapLRU_ErasePrefix", func(b *testing.B) {
 		benchmarkErasePrefix(b, lru.NewCache(capacity), prefixMap, prefixes)
+	})
+	b.Run(name+"_RadixLRU_ErasePrefix", func(b *testing.B) {
+		benchmarkErasePrefix(b, lru.NewRadixCache(capacity), prefixMap, prefixes)
 	})
 }
 

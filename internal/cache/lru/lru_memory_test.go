@@ -93,8 +93,21 @@ func TestMapCacheWorkloads(t *testing.T) {
 		alloc := getMemStats()
 		pureMem := alloc - baseMem
 		runtime.KeepAlive(pureCache)
-		runtime.KeepAlive(paths)
 
 		t.Logf("%-20s Heap Used: %10.2f MB\n", "MapLRU", float64(pureMem)/(1024*1024))
+
+		// 2. Pure RadixLRU
+		baseMemRadix := getMemStats()
+
+		radixCache := lru.NewRadixCache(capacity)
+		for _, p := range paths {
+			_, _ = radixCache.Insert(p, dummyValue{})
+		}
+		allocRadix := getMemStats()
+		pureMemRadix := allocRadix - baseMemRadix
+		runtime.KeepAlive(radixCache)
+		runtime.KeepAlive(paths)
+
+		t.Logf("%-20s Heap Used: %10.2f MB\n", "RadixLRU", float64(pureMemRadix)/(1024*1024))
 	}
 }
