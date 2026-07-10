@@ -52,7 +52,7 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 	defer queue.Close()
 
 	inMsg := buffer.NewInMessage()
-	if mmapBuf, err := unix.Mmap(-1, 0, len(inMsg.Storage()), unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_PRIVATE); err == nil {
+	if mmapBuf, err := unix.Mmap(-1, 0, len(inMsg.Storage()), unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE); err == nil {
 		inMsg.SetStorage(mmapBuf)
 		defer unix.Munmap(mmapBuf)
 	}
