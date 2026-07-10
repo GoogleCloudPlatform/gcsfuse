@@ -185,7 +185,7 @@ func (n *radixNode) replaceChild(oldChild, newChild *radixNode) {
 		if *pcurr == oldChild {
 			newChild.sibling = oldChild.sibling
 			*pcurr = newChild
-			break
+			return
 		}
 	}
 }
@@ -392,13 +392,13 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 		return nil, ErrInvalidEntry
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	valueSize := value.Size()
 	if valueSize > c.maxSize {
 		return nil, ErrInvalidEntrySize
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	node, oldValue := c.insertNode(key, value)
 	if oldValue != nil {
@@ -439,7 +439,7 @@ func (c *radixCache) Erase(key string) (value ValueType) {
 
 	node, ok := c.getNode(key)
 	if !ok {
-		return
+		return nil
 	}
 
 	return c.eraseInternal(node)
@@ -472,7 +472,7 @@ func (c *radixCache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 
 	node, ok := c.getNode(key)
 	if !ok {
-		return
+		return nil
 	}
 
 	return node.value

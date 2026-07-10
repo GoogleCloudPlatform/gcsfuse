@@ -66,5 +66,5 @@ func TestUpdateSize_DoubleCountingDivergence(t *testing.T) {
 	// radixCache evaluates node.value.Size() (100) + sizeDelta (50) = 150 > maxSize (100).
 	// This double-counts sizeDelta and incorrectly rejects a valid update.
 	err = radixCache.UpdateSize("file.txt", sizeDelta)
-	assert.ErrorIs(t, err, lru.ErrInvalidEntrySize, "radixCache incorrectly fails due to double counting (100 + 50 = 150 > 100)")
+	assert.NoError(t, err, "radixCache correctly handles the size update without double-counting!")
 }

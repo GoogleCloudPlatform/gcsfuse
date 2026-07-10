@@ -167,6 +167,20 @@ func TestRadixCache_EraseCacheWithGivenPrefix(t *testing.T) {
 	assert.Equal(t, uint64(2), cache.LookUp("b").Size())
 }
 
+func TestRadixCache_EraseCacheWithEmptyPrefix(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+
+	cache.EraseEntriesWithGivenPrefix("")
+
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("b"))
+}
+
 func TestRadixCache_EraseCacheWhereNoEntriesExistWithGivenPrefix(t *testing.T) {
 	cache := setupRadixCacheTest(t)
 	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
