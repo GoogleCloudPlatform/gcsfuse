@@ -108,6 +108,7 @@ be interacting with the file system.`)
 		DummyIOCfg:                         newConfig.DummyIo,
 		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
 		ImplicitDir:                        newConfig.ImplicitDirs,
+		EnableOptimizedMetadataCache:       newConfig.MetadataCache.ExperimentalEnableOptimizedMetadataCache,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 

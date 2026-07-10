@@ -78,6 +78,8 @@ type BucketConfig struct {
 	IsTypeCacheDeprecated bool
 
 	ImplicitDir bool
+
+	EnableOptimizedMetadataCache bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -103,7 +105,12 @@ type bucketManager struct {
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c lru.Cache
 	if config.StatCacheMaxSizeMB > 0 {
-		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		cacheSize := util.MiBsToBytes(config.StatCacheMaxSizeMB)
+		if config.EnableOptimizedMetadataCache {
+			c = lru.NewRadixCache(cacheSize)
+		} else {
+			c = lru.NewCache(cacheSize)
+		}
 	}
 
 	bm := &bucketManager{
