@@ -20,6 +20,13 @@ apt-get update && apt-get install -y wget git build-essential ca-certificates fu
 echo "Step 2: Cloning GCSFuse repo..."
 git clone -b "$GCSFUSE_BRANCH" https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
+if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
+  commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+else
+  commitId=$(git log -n 1 --pretty=%H)
+fi
+echo "Checking out commit ID: $commitId (initiator: ${KOKORO_BUILD_INITIATOR:-})"
+git checkout "$commitId"
 
 GO_VERSION=$(cat .go-version | tr -d '[:space:]')
 if [[ ! "$GO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then

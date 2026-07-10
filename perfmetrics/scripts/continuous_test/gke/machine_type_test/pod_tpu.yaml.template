@@ -23,6 +23,8 @@ spec:
       value: "$gcsfuse_branch"
     - name: BUCKET_NAME
       value: "$bucket_name"
+    - name: KOKORO_BUILD_INITIATOR
+      value: "$kokoro_build_initiator"
     command: ["/bin/bash", "/scripts/run_test.sh"]
     volumeMounts:
     - name: data-vol
