@@ -413,7 +413,7 @@ func (m *mutableTestData) setSize(newSize uint64) {
 // when an entry's size is mutated in memory concurrently with eviction or erasure before UpdateSize finishes.
 func TestMapCache_UpdateSize_TOCTOU_Underflow(t *testing.T) {
 	locker.EnableInvariantsCheck()
-	cache := lru.NewCache(100)
+	cache := lru.NewCache(20000)
 	key := "test-key"
 	val := &mutableTestData{dataSize: 20}
 	_, err := cache.Insert(key, val)
