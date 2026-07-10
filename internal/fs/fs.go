@@ -42,6 +42,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -225,7 +226,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
-		readBufferPool:             gcsx.NewFixedSizeBufferPool(),
+		readBufferPool:             buffer.NewFixedSizePool(),
 	}
 
 	// Initialize MRD cache if enabled
@@ -679,7 +680,7 @@ type fileSystem struct {
 	mrdCache *lru.Cache
 
 	// readBufferPool is a pool of readPoolBufferSize (1 MiB) buffers.
-	readBufferPool gcsx.BufferPool
+	readBufferPool buffer.Pool
 }
 
 ////////////////////////////////////////////////////////////////////////

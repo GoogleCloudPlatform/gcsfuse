@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package fake
 
-// TestBufferPool is a generic mock implementation of BufferPool used for testing across packages.
-type TestBufferPool struct {
+// FakeBufferPool is a generic fake implementation of buffer.Pool used for testing across packages.
+type FakeBufferPool struct {
 	Buffers               [][]byte
 	Idx                   int
 	PutBuffers            [][]byte
@@ -26,7 +26,7 @@ type TestBufferPool struct {
 // Get returns the next available buffer from Buffers. If all buffers have been consumed,
 // it returns nil if ReturnNilOnExhaustion is true, or a newly allocated buffer of size
 // DefaultBufferSize (or 1024 if DefaultBufferSize is <= 0).
-func (p *TestBufferPool) Get() []byte {
+func (p *FakeBufferPool) Get() []byte {
 	if p.Idx < len(p.Buffers) {
 		b := p.Buffers[p.Idx]
 		p.Idx++
@@ -43,6 +43,6 @@ func (p *TestBufferPool) Get() []byte {
 }
 
 // Put records the returned buffer in PutBuffers.
-func (p *TestBufferPool) Put(b []byte) {
+func (p *FakeBufferPool) Put(b []byte) {
 	p.PutBuffers = append(p.PutBuffers, b)
 }

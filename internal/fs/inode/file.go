@@ -26,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
@@ -664,7 +665,7 @@ func (f *FileInode) Read(
 	var callback func()
 
 	if req.BufferPool != nil {
-		vBuf := gcsx.NewVectoredReadBuffer(req.BufferPool, req.Size)
+		vBuf := buffer.NewVectoredReadBuffer(req.BufferPool, req.Size)
 		var written int64
 		written, err = vBuf.ReadFromAt(f.content, req.Offset)
 		n = int(written)

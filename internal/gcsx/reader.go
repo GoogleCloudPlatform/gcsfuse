@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
@@ -33,7 +34,7 @@ type ReadRequest struct {
 
 	// BufferPool provides on-demand buffer allocation for vectored reads when Dst is nil.
 	// If BufferPool is non-nil, readers should allocate buffers on demand and set ReadResponse.Callback.
-	BufferPool BufferPool
+	BufferPool buffer.Pool
 
 	// Offset specifies the starting position in the object from where data should be read.
 	// Note: This value should not be modified by any reader. It is used by the

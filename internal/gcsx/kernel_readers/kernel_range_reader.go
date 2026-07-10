@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -112,7 +113,7 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 
 	var n int
 	if req.BufferPool != nil {
-		vBuf := gcsx.NewVectoredReadBuffer(req.BufferPool, bytesToRead)
+		vBuf := buffer.NewVectoredReadBuffer(req.BufferPool, bytesToRead)
 		var written int64
 		written, err = io.CopyN(vBuf, reader, bytesToRead)
 		n = int(written)

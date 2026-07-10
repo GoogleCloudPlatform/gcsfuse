@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package buffer
 
 import (
 	"testing"
@@ -20,9 +20,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFixedSizeBufferPool_Get(t *testing.T) {
+func TestFixedSizePool_Get(t *testing.T) {
 	// Arrange
-	bp := NewFixedSizeBufferPool()
+	bp := NewFixedSizePool()
 
 	// Act
 	buf := bp.Get()
@@ -32,7 +32,7 @@ func TestFixedSizeBufferPool_Get(t *testing.T) {
 	assert.Equal(t, readPoolBufferSize, cap(buf))
 }
 
-func TestFixedSizeBufferPool_Put(t *testing.T) {
+func TestFixedSizePool_Put(t *testing.T) {
 	testCases := []struct {
 		name string
 		buf  []byte
@@ -54,7 +54,7 @@ func TestFixedSizeBufferPool_Put(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			bp := NewFixedSizeBufferPool()
+			bp := NewFixedSizePool()
 
 			// Act & Assert
 			assert.NotPanics(t, func() {

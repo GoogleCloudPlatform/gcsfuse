@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -175,7 +176,7 @@ func (t *KernelRangeReaderTest) TestReadAt_ClobberedError() {
 
 func (t *KernelRangeReaderTest) TestReadAt_BufferPool_Success() {
 	data := []byte("abcdefghij") // length 10
-	pool := &gcsx.TestBufferPool{
+	pool := &fake.FakeBufferPool{
 		Buffers: [][]byte{
 			make([]byte, 3),
 			make([]byte, 2),

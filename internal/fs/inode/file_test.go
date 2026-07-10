@@ -570,7 +570,7 @@ func (t *FileTest) TestReadWithBufferPool() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			// Arrange
-			pool := &gcsx.TestBufferPool{
+			pool := &fake.FakeBufferPool{
 				Buffers:           [][]byte{make([]byte, 2), make([]byte, 2)},
 				DefaultBufferSize: 2,
 			}
