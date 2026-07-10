@@ -457,7 +457,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			logger.Warnf(MountSlownessMessage, mountDuration, MountTimeThreshold)
 		}
 		logger.Infof(SuccessfulMountMessage)
-		fmt.Fprintf(os.Stderr, "Hello from GCSFuse or one of it's dependency\n")
+		fmt.Fprintf(os.Stderr, "googleapi: Error 403\n")
 		return err
 	}
 
@@ -506,7 +506,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
-			fmt.Fprintf(os.Stderr, "Hello from GCSFuse or one of it's dependency\n")
+			fmt.Fprintf(os.Stderr, "googleapi: Error 403\n")
 			callDaemonizeSignalOutcome(nil)
 		}
 
