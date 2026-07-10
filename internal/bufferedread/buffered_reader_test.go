@@ -149,6 +149,61 @@ func (t *BufferedReaderTest) TearDownTest() {
 	t.workerPool.Stop()
 }
 
+// Regression test for the buffered-read block leak on non-EOF read errors.
+// block1 (offset == blockSize) download fails; block0 succeeds. A single ReadAt
+// straddling the block0/block1 boundary consumes the tail of block0 (IncRef'd)
+// and then hits the failed block1 -> non-EOF error after an earlier block was
+// already referenced. Before the fix the IncRef'd block0 leaks and
+// inflightCallbackWg never reaches 0, so Destroy() blocks on its 10s timeout.
+// After the fix releaseInflightBlocks() runs and Destroy() returns promptly.
+func (t *BufferedReaderTest) TestReadAtReleasesInflightBlocksOnMidReadDownloadFailure() {
+	reader, err := NewBufferedReader(&BufferedReaderOptions{
+		Object:             t.object,
+		Bucket:             t.bucket,
+		Config:             t.config,
+		GlobalMaxBlocksSem: t.globalMaxBlocksSem,
+		WorkerPool:         t.workerPool,
+		MetricHandle:       t.metricHandle,
+		ReadTypeClassifier: t.readTypeClassifier})
+	require.NoError(t.T(), err)
+
+	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
+
+	blockSize := testPrefetchBlockSizeBytes // 1024 in tests
+
+	// block0 (Start == 0) downloads successfully.
+	t.bucket.On("NewReaderWithReadHandle",
+		mock.Anything,
+		mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 }),
+	).Return(createFakeReaderWithOffset(t.T(), int(blockSize), 0), nil).Maybe()
+	// block1 (Start == blockSize) download fails.
+	t.bucket.On("NewReaderWithReadHandle",
+		mock.Anything,
+		mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(blockSize) }),
+	).Return(nil, errors.New("injected download failure")).Maybe()
+	// Safety net for any other prefetched offset: fail harmlessly (no reader reuse -> no race).
+	t.bucket.On("NewReaderWithReadHandle",
+		mock.Anything,
+		mock.Anything,
+	).Return(nil, errors.New("unexpected prefetch offset in test")).Maybe()
+
+	// Straddle the block0/block1 boundary: read [blockSize/2, blockSize/2 + blockSize).
+	buf := make([]byte, blockSize)
+	_, err = reader.ReadAt(t.ctx, &gcsx.ReadRequest{Buffer: buf, Offset: blockSize / 2})
+	require.Error(t.T(), err)
+	require.NotErrorIs(t.T(), err, io.EOF)
+
+	// The IncRef'd block0 must have been released, so inflightCallbackWg is
+	// balanced and Destroy() returns promptly.
+	done := make(chan struct{})
+	go func() { reader.Destroy(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.T().Fatal("Destroy() blocked: an in-flight prefetch block leaked on the mid-read error path")
+	}
+}
+
 func (t *BufferedReaderTest) TestNewBufferedReader() {
 	reader, err := NewBufferedReader(&BufferedReaderOptions{
 		Object:             t.object,

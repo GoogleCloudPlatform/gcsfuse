@@ -320,8 +320,12 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (res
 			resp.Data = dataSlices
 			resp.Callback = func() { p.callback(entriesToCallback) }
 			resp.Size = bytesRead
-		} else if errors.Is(err, gcsx.FallbackToAnotherReader) {
-			// When falling back, we must immediately release the blocks we've acquired references to.
+		} else {
+			// On ANY error (fallback, or a mid-read block download failure /
+			// ctx cancellation), immediately release the blocks we IncRef'd.
+			// Otherwise their pool memory and the shared read-global-max-blocks
+			// permits leak, and inflightCallbackWg never reaches 0 (Destroy then
+			// blocks on its 10s timeout and leaks the blocks permanently).
 			p.releaseInflightBlocks(entriesToCallback)
 			resp = gcsx.ReadResponse{}
 		}
