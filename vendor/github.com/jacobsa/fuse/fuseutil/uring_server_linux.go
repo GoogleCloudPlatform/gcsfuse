@@ -102,6 +102,7 @@ type uringQueue struct {
 	cqTail      *uint32
 	cqMask      *uint32
 	cqes        []byte
+	iov         uringIovec
 }
 
 const (
@@ -242,11 +243,10 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	binary.LittleEndian.PutUint32(sqe[4:8], uint32(devFd)) // Fd (offset 4..7)
 	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
 
-	var iov uringIovec
 	if len(payload) > 0 {
-		iov.base = uintptr(unsafe.Pointer(&payload[0]))
-		iov.len = uint64(len(payload))
-		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&iov))))
+		q.iov.base = uintptr(unsafe.Pointer(&payload[0]))
+		q.iov.len = uint64(len(payload))
+		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&q.iov))))
 		binary.LittleEndian.PutUint32(sqe[24:28], 1) // 1 segment/iovec
 	} else {
 		binary.LittleEndian.PutUint32(sqe[24:28], 0)
@@ -267,7 +267,6 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 
 	// Enter syscall to push SQE and wake kernel worker
 	_, _, _ = syscall.Syscall6(unix.SYS_IO_URING_ENTER, uintptr(q.fd), 1, 0, 0, 0, 0)
-	runtime.KeepAlive(&iov)
 }
 
 // waitEvent checks the Completion Queue and blocks if necessary for 1 CQE.
