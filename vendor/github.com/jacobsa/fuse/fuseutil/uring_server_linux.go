@@ -53,11 +53,7 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 	defer queue.Close()
 
 	inMsg := buffer.NewInMessage()
-	bufSize := queueDepth * len(inMsg.Storage())
-	if mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE); err == nil {
-		inMsg.SetStorage(mmapBuf)
-		defer unix.Munmap(mmapBuf)
-	}
+	inMsg.SetStorage(queue.mmapBuf)
 	outMsg := new(buffer.OutMessage)
 	outMsg.Reset()
 
@@ -101,7 +97,7 @@ type uringQueue struct {
 	cqTail      *uint32
 	cqMask      *uint32
 	cqes        []byte
-	iov         unix.Iovec
+	mmapBuf     []byte
 }
 
 const (
@@ -209,10 +205,32 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	cqesPtr := (*[1 << 20]byte)(unsafe.Pointer(&cqRing[params.CqOff.Cqes]))
 	q.cqes = cqesPtr[:int(params.CqEntries)*16]
 
+	const queueDepth = 8
+	bufSize := queueDepth * (4096 + 1048576) // pageSize + MaxWriteSize
+	mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE)
+	if err != nil {
+		q.Close()
+		return nil, err
+	}
+	q.mmapBuf = mmapBuf
+
+	iov := unix.Iovec{
+		Base: &mmapBuf[0],
+		Len:  uint64(len(mmapBuf)),
+	}
+	_, _, errno := syscall.Syscall6(427, uintptr(fd), 0, uintptr(unsafe.Pointer(&iov)), 1, 0, 0)
+	if errno != 0 {
+		q.Close()
+		return nil, errno
+	}
+
 	return q, nil
 }
 
 func (q *uringQueue) Close() {
+	if q.mmapBuf != nil {
+		_ = unix.Munmap(q.mmapBuf)
+	}
 	if q.cqRing != nil {
 		_ = unix.Munmap(q.cqRing)
 	}
@@ -243,15 +261,15 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
 
 	if len(payload) > 0 {
-		q.iov.Base = &payload[0]
-		q.iov.Len = uint64(len(payload))
-		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&q.iov))))
-		binary.LittleEndian.PutUint32(sqe[24:28], 1) // 1 segment/iovec
+		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&payload[0]))))
+		binary.LittleEndian.PutUint32(sqe[24:28], uint32(len(payload)))
+		binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0
+		binary.LittleEndian.PutUint32(sqe[28:32], 1) // uring_cmd_flags = IORING_URING_CMD_FIXED (1)
 	} else {
 		binary.LittleEndian.PutUint32(sqe[24:28], 0)
+		binary.LittleEndian.PutUint32(sqe[28:32], 0)
 	}
 
-	binary.LittleEndian.PutUint32(sqe[28:32], 0)           // UringCmdFlags (offset 28..31)
 	binary.LittleEndian.PutUint64(sqe[32:40], uint64(qid)) // user_data (offset 32..39)
 
 	// Write struct fuse_uring_cmd_req { uint64 flags; uint64 commit_id; uint16 qid; uint8 padding[6]; }
@@ -264,9 +282,10 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	q.sqArray[idx] = idx
 	atomic.StoreUint32(q.sqTail, tail+1)
 
-	log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d base=0x%x len=%d iovAddr=0x%x iovVal={0x%x, %d}\n",
-		cmdOp, qid, uintptr(unsafe.Pointer(&payload[0])), len(payload),
-		uintptr(unsafe.Pointer(&q.iov)), q.iov.Base, q.iov.Len)
+	if len(payload) > 0 {
+		log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d base=0x%x len=%d (Fixed Buffer Registered)\n",
+			cmdOp, qid, uintptr(unsafe.Pointer(&payload[0])), len(payload))
+	}
 
 	// Enter syscall to push SQE and wake kernel worker
 	_, _, _ = syscall.Syscall6(unix.SYS_IO_URING_ENTER, uintptr(q.fd), 1, 0, 0, 0, 0)
