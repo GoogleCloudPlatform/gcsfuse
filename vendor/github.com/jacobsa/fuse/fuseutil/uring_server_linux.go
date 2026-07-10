@@ -265,6 +265,10 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	q.sqArray[idx] = idx
 	atomic.StoreUint32(q.sqTail, tail+1)
 
+	log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d base=0x%x len=%d iovAddr=0x%x iovVal={0x%x, %d}\n",
+		cmdOp, qid, uintptr(unsafe.Pointer(&payload[0])), len(payload),
+		uintptr(unsafe.Pointer(&q.iov)), q.iov.base, q.iov.len)
+
 	// Enter syscall to push SQE and wake kernel worker
 	_, _, _ = syscall.Syscall6(unix.SYS_IO_URING_ENTER, uintptr(q.fd), 1, 0, 0, 0, 0)
 }
