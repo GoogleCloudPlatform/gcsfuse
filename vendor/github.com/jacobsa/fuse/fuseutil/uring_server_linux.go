@@ -83,6 +83,11 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 	}
 }
 
+type uringIovec struct {
+	base uintptr
+	len  uint64
+}
+
 // uringQueue manages a single io_uring submission/completion ring with 128-byte SQEs.
 type uringQueue struct {
 	fd          int
@@ -236,12 +241,19 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	sqe[0] = IORING_OP_URING_CMD                          // Opcode (offset 0)
 	binary.LittleEndian.PutUint32(sqe[4:8], uint32(devFd)) // Fd (offset 4..7)
 	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
+
+	var iov uringIovec
 	if len(payload) > 0 {
-		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&payload[0])))) // Addr (offset 16..23)
+		iov.base = uintptr(unsafe.Pointer(&payload[0]))
+		iov.len = uint64(len(payload))
+		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&iov))))
+		binary.LittleEndian.PutUint32(sqe[24:28], 1) // 1 segment/iovec
+	} else {
+		binary.LittleEndian.PutUint32(sqe[24:28], 0)
 	}
-	binary.LittleEndian.PutUint32(sqe[24:28], uint32(len(payload))) // Len (offset 24..27)
-	binary.LittleEndian.PutUint32(sqe[28:32], 0)                    // UringCmdFlags (offset 28..31)
-	binary.LittleEndian.PutUint64(sqe[32:40], uint64(qid))          // user_data (offset 32..39)
+
+	binary.LittleEndian.PutUint32(sqe[28:32], 0)           // UringCmdFlags (offset 28..31)
+	binary.LittleEndian.PutUint64(sqe[32:40], uint64(qid)) // user_data (offset 32..39)
 
 	// Write struct fuse_uring_cmd_req { uint64 flags; uint64 commit_id; uint16 qid; uint8 padding[6]; }
 	// into the 80-byte SQE command payload area right at offset 48:
@@ -255,6 +267,7 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 
 	// Enter syscall to push SQE and wake kernel worker
 	_, _, _ = syscall.Syscall6(unix.SYS_IO_URING_ENTER, uintptr(q.fd), 1, 0, 0, 0, 0)
+	runtime.KeepAlive(&iov)
 }
 
 // waitEvent checks the Completion Queue and blocks if necessary for 1 CQE.
