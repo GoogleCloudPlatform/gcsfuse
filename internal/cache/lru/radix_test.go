@@ -12,227 +12,469 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lru
+package lru_test
 
 import (
+	"fmt"
+	"math/rand"
+	"sync"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// mockValue implements the ValueType interface for testing
-type mockValue struct{ size uint64 }
+////////////////////////////////////////////////////////////////////////
+// CACHE INTERFACE TESTS
+////////////////////////////////////////////////////////////////////////
 
-func (m mockValue) Size() uint64 { return m.size }
+const testMaxSize = 50
+const testOperationCount = 100
 
-func TestRadixTree_Insert(t *testing.T) {
-	tree := newRadixTree()
-	val1 := mockValue{10}
-
-	node1, isNew := tree.insertNode("foo/bar", val1)
-
-	assert.True(t, isNew)
-	assert.NotNil(t, node1)
-	assert.Equal(t, 1, tree.size)
+func setupRadixCacheTest(t *testing.T) lru.Cache {
+	locker.EnableInvariantsCheck()
+	return lru.NewRadixCache(testMaxSize)
 }
 
-func TestRadixTree_InsertNil(t *testing.T) {
-	tree := newRadixTree()
-
-	node, isNew := tree.insertNode("foo/bar", nil)
-
-	assert.False(t, isNew)
-	assert.Nil(t, node)
-	assert.Equal(t, 0, tree.size)
+func TestRadixCache_LookUpInEmptyCache(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	assert.Nil(t, cache.LookUp(""))
+	assert.Nil(t, cache.LookUp("taco"))
 }
 
-func TestRadixTree_Get(t *testing.T) {
-	tree := newRadixTree()
-	val1 := mockValue{10}
-	tree.insertNode("foo/bar", val1)
-
-	gotNode, ok := tree.getNode("foo/bar")
-
-	assert.True(t, ok)
-	assert.Equal(t, val1, gotNode.value)
+func TestRadixCache_InsertNilValue(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "taco", nil, []int64{}, lru.ErrInvalidEntry)
 }
 
-func TestRadixTree_Overwrite(t *testing.T) {
-	tree := newRadixTree()
-	tree.insertNode("foo/bar", mockValue{10})
-	val2 := mockValue{20}
+func TestRadixCache_InsertEmptyKey(t *testing.T) {
+	cache := setupRadixCacheTest(t)
 
-	node2, isNew2 := tree.insertNode("foo/bar", val2)
+	insertAndAssert(t, cache, "", testData{Value: 42, DataSize: 10}, []int64{}, nil)
 
-	assert.False(t, isNew2)
-	assert.Equal(t, val2, node2.value)
-	assert.Equal(t, 1, tree.size)
+	assert.Equal(t, int64(42), cache.LookUp("").(testData).Value)
+	assert.Nil(t, cache.LookUp("taco"))
 }
 
-func TestRadixTree_GetNonExistent(t *testing.T) {
-	tree := newRadixTree()
-	tree.insertNode("foo/bar", mockValue{10})
+func TestRadixCache_LookUpUnknownKey(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 23, DataSize: 8}, []int64{}, nil)
 
-	_, ok := tree.getNode("foo/baz")
-
-	assert.False(t, ok)
+	assert.Nil(t, cache.LookUp(""))
+	assert.Nil(t, cache.LookUp("enchilada"))
 }
 
-func TestRadixTree_PrefixSplitting(t *testing.T) {
-	tree := newRadixTree()
-	tree.insertNode("foo/bar", mockValue{1})
+func TestRadixCache_FillUpToCapacity(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
 
-	tree.insertNode("foo/baz", mockValue{2}) // Splits "foo/ba" -> "r", "z"
-	n1, _ := tree.getNode("foo/bar")
-	n2, _ := tree.getNode("foo/baz")
-
-	assert.Equal(t, 2, tree.size)
-	assert.Equal(t, n1.parent, n2.parent)
-	assert.Equal(t, "foo/ba", n1.parent.prefix)
-	assert.Nil(t, n1.parent.value) // Parent is just a routing node
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(26), cache.LookUp("taco").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
 }
 
-func TestRadixTree_DeleteAndCompress(t *testing.T) {
-	tree := newRadixTree()
-	tree.insertNode("foo/bar", mockValue{1})
-	tree.insertNode("foo/baz", mockValue{2})
-	n1, _ := tree.getNode("foo/bar")
+func TestRadixCache_ExpiresLeastRecentlyUsed(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
 
-	tree.deleteNode(n1)
-	_, ok := tree.getNode("foo/bar")
-	n2, _ := tree.getNode("foo/baz")
+	// Least recent.
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
 
-	assert.Equal(t, 1, tree.size)
-	assert.False(t, ok)
-	assert.Equal(t, "foo/baz", n2.prefix)
-	assert.Equal(t, tree.root, n2.parent) // Path compressed all the way up to the root!
+	// Second most recent.
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
+
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value) // Most recent
+
+	// Insert another.
+	insertAndAssert(t, cache, "queso", testData{Value: 34, DataSize: 5}, []int64{26}, nil)
+
+	// See what's left.
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
+	assert.Equal(t, int64(34), cache.LookUp("queso").(testData).Value)
 }
 
-func TestRadixTree_LRU_PushFront(t *testing.T) {
-	tree := newRadixTree()
-	val1 := mockValue{10}
-	val2 := mockValue{20}
-	node1, _ := tree.insertNode("foo/1", val1)
-	node2, _ := tree.insertNode("foo/2", val2)
+func TestRadixCache_Overwrite(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 6}, []int64{}, nil)
 
-	tree.pushFront(node1)
-	tree.pushFront(node2)
+	// Increase the DataSize while modifying, so eviction should happen
+	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 12}, []int64{26}, nil)
 
-	assert.Equal(t, 2, tree.len)
-	assert.Equal(t, node2, tree.head)
-	assert.Equal(t, node1, tree.tail)
-	assert.Equal(t, node1, node2.next)
-	assert.Equal(t, node2, node1.prev)
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Equal(t, int64(33), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
 }
 
-func TestRadixTree_LRU_MoveToFront(t *testing.T) {
-	t.Run("move tail to front", func(t *testing.T) {
-		tree := newRadixTree()
-		node1, _ := tree.insertNode("foo/1", mockValue{10})
-		node2, _ := tree.insertNode("foo/2", mockValue{20})
-		tree.pushFront(node1)
-		tree.pushFront(node2)
+func TestRadixCache_MultipleEviction(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
 
-		tree.moveToFront(node1)
+	// Increase the DataSize while modifying, so eviction should happen
+	insertAndAssert(t, cache, "large_data", testData{Value: 33, DataSize: 45}, []int64{23, 26, 28}, nil)
 
-		assert.Equal(t, node1, tree.head)
-		assert.Equal(t, node2, tree.tail)
-		assert.Nil(t, node1.prev)
-		assert.Equal(t, node2, node1.next)
-		assert.Equal(t, node1, node2.prev)
-		assert.Nil(t, node2.next)
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Nil(t, cache.LookUp("burrito"))
+	assert.Nil(t, cache.LookUp("enchilada"))
+	assert.Equal(t, int64(33), cache.LookUp("large_data").(testData).Value)
+}
+
+func TestRadixCache_WhenEntrySizeMoreThanCacheMaxSize(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	// Insert entry with size greater than maxSize of cache.
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: testMaxSize + 1}, []int64{}, lru.ErrInvalidEntrySize)
+
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+}
+
+func TestRadixCache_EraseWhenKeyPresent(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	deletedEntry := cache.Erase("burrito")
+
+	assert.Equal(t, int64(23), deletedEntry.(testData).Value)
+	assert.Nil(t, cache.LookUp("burrito"))
+}
+
+func TestRadixCache_EraseCacheWithGivenPrefix(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b/d", testData{Value: 22, DataSize: 6}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/c", testData{Value: 20, DataSize: 6}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+
+	cache.EraseEntriesWithGivenPrefix("a")
+
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("a/b/d"))
+	assert.Nil(t, cache.LookUp("a/c"))
+	assert.Equal(t, uint64(2), cache.LookUp("b").Size())
+}
+
+func TestRadixCache_EraseCacheWithEmptyPrefix(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+
+	cache.EraseEntriesWithGivenPrefix("")
+
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("b"))
+}
+
+func TestRadixCache_EraseCacheWhereNoEntriesExistWithGivenPrefix(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+
+	cache.EraseEntriesWithGivenPrefix("c")
+
+	assert.Equal(t, uint64(4), cache.LookUp("a").Size())
+	assert.Equal(t, uint64(5), cache.LookUp("a/b").Size())
+	assert.Equal(t, uint64(2), cache.LookUp("b").Size())
+}
+
+func TestRadixCache_EraseCacheWithGivenPrefixWithSomeEntriesEvictedDueToCacheSize(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 10}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b/d", testData{Value: 22, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/c", testData{Value: 20, DataSize: 10}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 15}, []int64{23}, nil)
+
+	// As entry "a" was already evicted by the insertion of "b", only three entries will be removed.
+	cache.EraseEntriesWithGivenPrefix("a")
+
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("a/b/d"))
+	assert.Nil(t, cache.LookUp("a/c"))
+	assert.Equal(t, uint64(15), cache.LookUp("b").Size())
+}
+
+func TestRadixCache_EraseWhenKeyNotPresent(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	deletedEntry := cache.Erase("taco")
+
+	assert.Nil(t, deletedEntry)
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+}
+
+func TestRadixCache_UpdateSize(t *testing.T) {
+	t.Run("NonExistentKey", func(t *testing.T) {
+		cache := lru.NewRadixCache(100)
+
+		err := cache.UpdateSize("key1", 20)
+
+		assert.ErrorIs(t, err, lru.ErrEntryNotExist)
 	})
 
-	t.Run("move middle to front", func(t *testing.T) {
-		tree := newRadixTree()
-		node1, _ := tree.insertNode("foo/1", mockValue{10})
-		node2, _ := tree.insertNode("foo/2", mockValue{20})
-		node3, _ := tree.insertNode("foo/3", mockValue{30})
-		tree.pushFront(node1)
-		tree.pushFront(node2)
-		tree.pushFront(node3)
+	t.Run("Immediate Eviction", func(t *testing.T) {
+		cache := lru.NewRadixCache(100)
+		data1 := testData{Value: 1, DataSize: 10}
+		data2 := testData{Value: 2, DataSize: 70}
+		_, _ = cache.Insert("key1", data1)
+		_, _ = cache.Insert("key2", data2)
 
-		tree.moveToFront(node2)
+		errUpdate := cache.UpdateSize("key1", 30)
 
-		assert.Equal(t, node2, tree.head)
-		assert.Equal(t, node1, tree.tail)
-		assert.Nil(t, node2.prev)
-		assert.Equal(t, node3, node2.next)
-		assert.Equal(t, node2, node3.prev)
-		assert.Equal(t, node1, node3.next)
-		assert.Equal(t, node3, node1.prev)
-	})
-
-	t.Run("move head to front", func(t *testing.T) {
-		tree := newRadixTree()
-		node1, _ := tree.insertNode("foo/1", mockValue{10})
-		node2, _ := tree.insertNode("foo/2", mockValue{20})
-		tree.pushFront(node1)
-		tree.pushFront(node2)
-
-		tree.moveToFront(node2)
-
-		assert.Equal(t, node2, tree.head)
-		assert.Equal(t, node1, tree.tail)
+		assert.NoError(t, errUpdate)
+		assert.Nil(t, cache.LookUp("key1"))
+		assert.NotNil(t, cache.LookUp("key2"))
 	})
 }
 
-func TestRadixTree_LRU_Remove(t *testing.T) {
-	t.Run("remove only node", func(t *testing.T) {
-		tree := newRadixTree()
-		node1, _ := tree.insertNode("foo/1", mockValue{10})
-		tree.pushFront(node1)
+func TestRadixCache_UpdateSize_ExceedsMaxSize(t *testing.T) {
+	cache := lru.NewRadixCache(100)
+	data := &testData{Value: 1, DataSize: 50}
+	_, err := cache.Insert("file.txt", data)
+	require.NoError(t, err)
 
-		tree.remove(node1)
+	data.DataSize = 150
+	err = cache.UpdateSize("file.txt", 100)
 
-		assert.Equal(t, 0, tree.len)
-		assert.Nil(t, tree.head)
-		assert.Nil(t, tree.tail)
-	})
-
-	t.Run("remove middle node", func(t *testing.T) {
-		tree := newRadixTree()
-		node1, _ := tree.insertNode("foo/1", mockValue{10})
-		node2, _ := tree.insertNode("foo/2", mockValue{20})
-		node3, _ := tree.insertNode("foo/3", mockValue{30})
-		tree.pushFront(node1)
-		tree.pushFront(node2)
-		tree.pushFront(node3)
-
-		tree.remove(node2)
-
-		assert.Equal(t, 2, tree.len)
-		assert.Equal(t, node3, tree.head)
-		assert.Equal(t, node1, tree.tail)
-		assert.Equal(t, node1, node3.next)
-		assert.Equal(t, node3, node1.prev)
-	})
-
-	t.Run("remove node not in list", func(t *testing.T) {
-		tree := newRadixTree()
-		node1, _ := tree.insertNode("foo/1", mockValue{10})
-		node2, _ := tree.insertNode("foo/2", mockValue{20})
-		tree.pushFront(node1)
-
-		tree.remove(node2)
-
-		assert.Equal(t, 1, tree.len)
-		assert.Equal(t, node1, tree.head)
-		assert.Equal(t, node1, tree.tail)
-	})
+	assert.NoError(t, err)
+	assert.Nil(t, cache.LookUp("file.txt"))
 }
 
-func TestRadixTree_LRU_EvictOne(t *testing.T) {
-	tree := newRadixTree()
-	node1, _ := tree.insertNode("foo/1", mockValue{10})
-	node2, _ := tree.insertNode("foo/2", mockValue{20})
-	tree.pushFront(node1)
-	tree.pushFront(node2)
+func TestRadixCache_UpdateWhenKeyPresent(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	key := "burrito"
+	data := testData{Value: 23, DataSize: 4}
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
+	newData := testData{Value: 2, DataSize: 4}
 
-	evictedValue := tree.evictOne()
+	err := cache.UpdateWithoutChangingOrder(key, newData)
 
-	assert.Equal(t, 1, tree.len)
-	assert.Equal(t, mockValue{10}, evictedValue) // node1 was tail (least recently used)
-	assert.Equal(t, node2, tree.head)
-	assert.Equal(t, node2, tree.tail)
+	assert.Nil(t, err)
+	assert.Equal(t, int64(2), cache.LookUp(key).(testData).Value)
+}
+
+func TestRadixCache_UpdateWhenKeyNotPresent(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	key := "burrito"
+	data := testData{Value: 23, DataSize: 4}
+
+	err := cache.UpdateWithoutChangingOrder(key, data)
+
+	assert.ErrorIs(t, err, lru.ErrEntryNotExist)
+}
+
+func TestRadixCache_UpdateWhenSizeIsDifferent(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	key := "burrito"
+	data := testData{Value: 23, DataSize: 4}
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
+	newData := testData{Value: 2, DataSize: 3}
+
+	err := cache.UpdateWithoutChangingOrder(key, newData)
+
+	assert.ErrorIs(t, err, lru.ErrInvalidUpdateEntrySize)
+}
+
+func TestRadixCache_UpdateNotChangeOrder(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	key1 := "burrito1"
+	data1 := testData{Value: 23, DataSize: 10}
+	insertAndAssert(t, cache, key1, data1, []int64{}, nil)
+	key2 := "burrito2"
+	data2 := testData{Value: 2, DataSize: 40}
+	insertAndAssert(t, cache, key2, data2, []int64{}, nil)
+
+	newData := testData{Value: 7, DataSize: 10}
+	err := cache.UpdateWithoutChangingOrder(key1, newData)
+
+	assert.Nil(t, err)
+	// inserting again which should evict key1 because key1 is updated without
+	// changing order
+	key3 := "burrito3"
+	data3 := testData{Value: 3, DataSize: 5}
+	insertAndAssert(t, cache, key3, data3, []int64{7}, nil)
+}
+func TestUpdateSize_DoubleCountingDivergence(t *testing.T) {
+	const maxSize = 100
+	const initialSize = 50
+	const sizeDelta = 50 // New total size will be 50 + 50 = 100 (exactly at maxSize)
+
+	mapCache := lru.NewCache(maxSize)
+	radixCache := lru.NewRadixCache(maxSize)
+
+	mapVal := &testData{Value: 23, DataSize: initialSize}
+	radixVal := &testData{Value: 2, DataSize: initialSize}
+
+	// 1. Insert initial entries into both caches
+	_, err := mapCache.Insert("file.txt", mapVal)
+	assert.NoError(t, err)
+	_, err = radixCache.Insert("file.txt", radixVal)
+	assert.NoError(t, err)
+
+	// 2. Simulate incremental file growth in memory (e.g., downloading a 50-byte chunk)
+	// Both objects now report Size() == 100.
+	mapVal.DataSize += sizeDelta
+	radixVal.DataSize += sizeDelta
+
+	// 3. Notify mapCache of the growth.
+	// mapCache simply adds sizeDelta to c.currentSize without double counting.
+	err = mapCache.UpdateSize("file.txt", sizeDelta)
+	assert.NoError(t, err, "mapCache should succeed when updated size (100) <= maxSize (100)")
+
+	// 4. Notify radixCache of the growth.
+	// radixCache evaluates node.value.Size() (100) + sizeDelta (50) = 150 > maxSize (100).
+	// This double-counts sizeDelta and incorrectly rejects a valid update.
+	err = radixCache.UpdateSize("file.txt", sizeDelta)
+	assert.NoError(t, err)
+}
+
+func TestRadixCache_LookUpWithoutChangingOrder_WhenKeyPresent(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	key := "burrito"
+	data := testData{Value: 23, DataSize: 4}
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
+
+	value := cache.LookUpWithoutChangingOrder(key)
+
+	assert.Equal(t, int64(23), value.(testData).Value)
+}
+
+func TestRadixCache_LookUpWithoutChangingOrder_WhenKeyNotPresent(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	key := "burrito"
+
+	value := cache.LookUpWithoutChangingOrder(key)
+
+	assert.Nil(t, value)
+}
+
+func TestRadixCache_LookUpWithoutChangingOrder_NotChangeOrder(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	key1 := "burrito1"
+	data1 := testData{Value: 23, DataSize: 10}
+	insertAndAssert(t, cache, key1, data1, []int64{}, nil)
+	key2 := "burrito2"
+	data2 := testData{Value: 2, DataSize: 40}
+	insertAndAssert(t, cache, key2, data2, []int64{}, nil)
+
+	value := cache.LookUpWithoutChangingOrder(key1)
+
+	assert.Equal(t, int64(23), value.(testData).Value)
+	// inserting again which should evict key1 because key1 is looked up without
+	// changing order
+	key3 := "burrito3"
+	data3 := testData{Value: 3, DataSize: 5}
+	insertAndAssert(t, cache, key3, data3, []int64{23}, nil)
+}
+
+// This will detect race if we run the test with `-race` flag.
+// We get the race condition failure if we remove lock from Insert or Erase method.
+func TestRadixCache_RaceCondition(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+	var wg sync.WaitGroup
+	wg.Add(7)
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			_ = cache.UpdateSize("key", uint64(rand.Intn(testMaxSize)))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.EraseEntriesWithGivenPrefix("k")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := range testOperationCount {
+			_, err := cache.Insert("key", testData{
+				Value:    int64(i),
+				DataSize: uint64(rand.Intn(testMaxSize)),
+			})
+			assert.NoError(t, err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.Erase("key")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.LookUp("key")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.LookUpWithoutChangingOrder("key")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := range testOperationCount {
+			_ = cache.UpdateWithoutChangingOrder("key", testData{
+				Value:    int64(i),
+				DataSize: uint64(rand.Intn(testMaxSize)),
+			})
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestRadixCache_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
+	c := lru.NewRadixCache(100000)
+
+	// Pre-fill the cache
+	for i := range 1000 {
+		_, _ = c.Insert(fmt.Sprintf("dir1/file%d", i), testData{10, 10})
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 1000; i < 2000; i++ {
+			_, _ = c.Insert(fmt.Sprintf("dir2/file%d", i), testData{10, 10})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		c.EraseEntriesWithGivenPrefix("dir1/")
+	}()
+
+	wg.Wait()
 }
