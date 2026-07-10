@@ -242,7 +242,7 @@ func (c *Connection) Init() error {
 	hasUring := (initOp.Flags2 & fusekernel.InitOverIoUring) != 0
 //	fmt.Println(hasExt)
 	fmt.Println(hasUring)
-	if c.cfg.EnableOverIoUring && hasExt && hasUring {
+	if c.cfg.EnableOverIoUring && hasUring {
 		initOp.Flags |= fusekernel.InitExt
 		initOp.Flags2 |= fusekernel.InitOverIoUring
 		c.usingIoUring = true // Mark connection as running over io_uring
