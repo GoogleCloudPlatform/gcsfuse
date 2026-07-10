@@ -44,7 +44,8 @@ func (s *fileSystemServer) serveOpsOverIoUring(c *fuse.Connection, _ int, numQue
 
 func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 	// 1. Create a dedicated io_uring instance for this queue with 128-byte SQEs
-	queue, err := newUringQueue(64)
+	const queueDepth = 8
+	queue, err := newUringQueue(queueDepth)
 	if err != nil {
 		log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to setup io_uring: %v\n", qid, err)
 		return
@@ -52,7 +53,8 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 	defer queue.Close()
 
 	inMsg := buffer.NewInMessage()
-	if mmapBuf, err := unix.Mmap(-1, 0, len(inMsg.Storage()), unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE); err == nil {
+	bufSize := queueDepth * len(inMsg.Storage())
+	if mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE); err == nil {
 		inMsg.SetStorage(mmapBuf)
 		defer unix.Munmap(mmapBuf)
 	}
