@@ -7,7 +7,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"os"
+	"os/exec"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -20,11 +23,78 @@ import (
 )
 
 func raiseMemlockLimit() error {
+	// Try standard Setrlimit first (succeeds if running as root)
 	limit := unix.Rlimit{
 		Cur: unix.RLIM_INFINITY,
 		Max: unix.RLIM_INFINITY,
 	}
-	return unix.Setrlimit(unix.RLIMIT_MEMLOCK, &limit)
+	err := unix.Setrlimit(unix.RLIMIT_MEMLOCK, &limit)
+	if err == nil {
+		log.Printf("[FUSE_OVER_IO_URING] Raised RLIMIT_MEMLOCK using direct Setrlimit.")
+		return nil
+	}
+
+	// Fallback: Use sudo prlimit to set limit for the current process
+	pid := os.Getpid()
+	log.Printf("[FUSE_OVER_IO_URING Debug] Direct Setrlimit failed (%v). Attempting sudo prlimit fallback for PID %d...", err, pid)
+	cmd := exec.Command("sudo", "-n", "prlimit", "--pid", strconv.Itoa(pid), "--memlock=unlimited:unlimited")
+	if out, serr := cmd.CombinedOutput(); serr != nil {
+		return fmt.Errorf("sudo prlimit failed: %v, output: %q", serr, string(out))
+	}
+
+	log.Printf("[FUSE_OVER_IO_URING] Raised RLIMIT_MEMLOCK successfully using sudo prlimit fallback.")
+	return nil
+}
+
+func inputStructSize(opcode uint32) int {
+	switch opcode {
+	case fusekernel.OpLookup, fusekernel.OpGetattr, fusekernel.OpSymlink,
+		fusekernel.OpUnlink, fusekernel.OpRmdir, fusekernel.OpOpendir,
+		fusekernel.OpReadlink, fusekernel.OpStatfs, fusekernel.OpRemovexattr:
+		return 0
+
+	case fusekernel.OpSetattr:
+		return int(unsafe.Sizeof(fusekernel.SetattrIn{}))
+	case fusekernel.OpForget:
+		return int(unsafe.Sizeof(fusekernel.ForgetIn{}))
+	case fusekernel.OpBatchForget:
+		return int(unsafe.Sizeof(fusekernel.BatchForgetCountIn{}))
+	case fusekernel.OpMkdir:
+		return int(unsafe.Sizeof(fusekernel.MkdirIn{}))
+	case fusekernel.OpMknod:
+		return int(unsafe.Sizeof(fusekernel.MknodIn{}))
+	case fusekernel.OpCreate:
+		return int(unsafe.Sizeof(fusekernel.CreateIn{}))
+	case fusekernel.OpRename:
+		return int(unsafe.Sizeof(fusekernel.RenameIn{}))
+	case fusekernel.OpOpen:
+		return int(unsafe.Sizeof(fusekernel.OpenIn{}))
+	case fusekernel.OpRead, fusekernel.OpReaddir, fusekernel.OpReaddirplus:
+		return int(unsafe.Sizeof(fusekernel.ReadIn{}))
+	case fusekernel.OpRelease, fusekernel.OpReleasedir:
+		return int(unsafe.Sizeof(fusekernel.ReleaseIn{}))
+	case fusekernel.OpWrite:
+		return int(unsafe.Sizeof(fusekernel.WriteIn{}))
+	case fusekernel.OpSyncFS:
+		return int(unsafe.Sizeof(fusekernel.SyncFSIn{}))
+	case fusekernel.OpFlush:
+		return int(unsafe.Sizeof(fusekernel.FlushIn{}))
+	case fusekernel.OpInterrupt:
+		return int(unsafe.Sizeof(fusekernel.InterruptIn{}))
+	case fusekernel.OpInit:
+		return int(unsafe.Sizeof(fusekernel.InitIn{}))
+	case fusekernel.OpLink:
+		return int(unsafe.Sizeof(fusekernel.LinkIn{}))
+	case fusekernel.OpGetxattr:
+		return int(unsafe.Sizeof(fusekernel.GetxattrIn{}))
+	case fusekernel.OpListxattr:
+		return int(unsafe.Sizeof(fusekernel.ListxattrIn{}))
+	case fusekernel.OpSetxattr:
+		return int(unsafe.Sizeof(fusekernel.SetxattrIn{}))
+	case fusekernel.OpFallocate:
+		return int(unsafe.Sizeof(fusekernel.FallocateIn{}))
+	}
+	return 0
 }
 
 // serveOpsOverIoUring is called from ServeOps when c.UsingIoUring() == true on Linux.
@@ -91,22 +161,26 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 
 		slot := &queue.slots[slotIdx]
 
-		// 4. Extract headers and payload from the completed slot and construct a contiguous InMessage
+		// 4. Extract headers and payload from the completed slot and construct a contiguous InMessage without gaps
 		inHdrLen := 40
-		opInLen := 128
+		opcode := binary.LittleEndian.Uint32(slot.header[4:8])
+		structSize := inputStructSize(opcode)
+
 		ent := (*fusekernel.FuseUringEntInOut)(unsafe.Pointer(&slot.header[256]))
 		payloadSz := int(ent.PayloadSz)
 
 		// Copy InHeader (first 40 bytes)
 		copy(inMsg.Storage()[0:inHdrLen], slot.header[0:inHdrLen])
-		// Copy OpIn (next 128 bytes)
-		copy(inMsg.Storage()[inHdrLen:inHdrLen+opInLen], slot.header[128:128+opInLen])
-		// Copy extra payload
+		// Copy OpIn struct if present (without gap!)
+		if structSize > 0 {
+			copy(inMsg.Storage()[inHdrLen:inHdrLen+structSize], slot.header[128:128+structSize])
+		}
+		// Copy extra payload directly after the struct
 		if payloadSz > 0 {
-			copy(inMsg.Storage()[inHdrLen+opInLen:inHdrLen+opInLen+payloadSz], slot.payload[0:payloadSz])
+			copy(inMsg.Storage()[inHdrLen+structSize:inHdrLen+structSize+payloadSz], slot.payload[0:payloadSz])
 		}
 
-		totalRead := inHdrLen + opInLen + payloadSz
+		totalRead := inHdrLen + structSize + payloadSz
 		// Re-initialize InMessage state to point to the copied buffer
 		inMsg.InitFromUring(totalRead, 40)
 
