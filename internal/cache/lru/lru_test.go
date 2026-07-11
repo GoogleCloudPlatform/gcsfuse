@@ -418,3 +418,59 @@ func Test_UpdateSize_AccountingSafety(t *testing.T) {
 	assert.Nil(t, c.LookUp("file2"))
 }
 
+func TestMapCache_UpdateSize_ImmediateTailEviction(t *testing.T) {
+	cache := lru.NewCache(50)
+
+	_, err := cache.Insert("key1", testData{Value: 10, DataSize: 30})
+	require.NoError(t, err)
+	_, err = cache.Insert("key2", testData{Value: 20, DataSize: 15})
+	require.NoError(t, err)
+
+	// Look up key1 so key1 becomes MRU and key2 becomes LRU (tail)
+	_ = cache.LookUp("key1")
+
+	// Update size of key1 by 20. Total size becomes 65 > 50.
+	// Immediate tail eviction should evict key2 (least recently used tail).
+	err = cache.UpdateSize("key1", 20)
+	require.NoError(t, err)
+
+	assert.Nil(t, cache.LookUp("key2"), "Tail entry key2 must be immediately evicted")
+	assert.NotNil(t, cache.LookUp("key1"), "Key1 should remain in cache")
+}
+
+func TestRadixAndMapCache_SizeAccounting_OverwriteExtraSize(t *testing.T) {
+	caches := []struct {
+		name string
+		c    lru.Cache
+	}{
+		{"mapCache", lru.NewCache(100)},
+		{"radixCache", lru.NewRadixCache(100)},
+	}
+
+	for _, tc := range caches {
+		t.Run(tc.name, func(t *testing.T) {
+			// Step 1: Insert entry of size 20
+			_, err := tc.c.Insert("file1", testData{Value: 1, DataSize: 20})
+			require.NoError(t, err)
+
+			// Step 2: Expand size by 40 (total 60)
+			err = tc.c.UpdateSize("file1", 40)
+			require.NoError(t, err)
+
+			// Step 3: Overwrite with size 10
+			evicted, err := tc.c.Insert("file1", testData{Value: 2, DataSize: 10})
+			require.NoError(t, err)
+			assert.Empty(t, evicted)
+
+			// Step 4: Insert another item of size 90 (10 + 90 = 100 <= 100 capacity)
+			evicted, err = tc.c.Insert("file2", testData{Value: 3, DataSize: 90})
+			require.NoError(t, err)
+			assert.Empty(t, evicted, "file1 should NOT be evicted because overwritten size was 10, not 60")
+
+			assert.NotNil(t, tc.c.LookUp("file1"))
+			assert.NotNil(t, tc.c.LookUp("file2"))
+		})
+	}
+}
+
+

@@ -150,13 +150,28 @@ func (c *mapCache) checkInvariants() {
 
 func (c *mapCache) evictOne() ValueType {
 	e := c.entries.Back()
+	if e == nil {
+		if c.entries.Len() == 0 {
+			c.currentSize = 0
+		}
+		return nil
+	}
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry)
-	c.currentSize -= (evictedEntry.Value.Size() + evictedEntry.extraSize)
+	deletedSize := evictedEntry.Value.Size() + evictedEntry.extraSize
+	if c.currentSize >= deletedSize {
+		c.currentSize -= deletedSize
+	} else {
+		c.currentSize = 0
+	}
 
 	c.entries.Remove(e)
 	delete(c.index, key)
+
+	if c.entries.Len() == 0 {
+		c.currentSize = 0
+	}
 
 	return evictedEntry.Value
 }
@@ -187,7 +202,12 @@ func (c *mapCache) Insert(
 	if ok {
 		// Update an entry if already exist.
 		oldEntry := e.Value.(entry)
-		c.currentSize -= (oldEntry.Value.Size() + oldEntry.extraSize)
+		oldSize := oldEntry.Value.Size() + oldEntry.extraSize
+		if c.currentSize >= oldSize {
+			c.currentSize -= oldSize
+		} else {
+			c.currentSize = 0
+		}
 		c.currentSize += valueSize
 		e.Value = entry{key, value, 0}
 		c.entries.MoveToFront(e)
@@ -200,8 +220,11 @@ func (c *mapCache) Insert(
 
 	var evictedValues []ValueType
 	// Evict until we're at or below maxSize.
-	for c.currentSize > c.maxSize {
+	for c.currentSize > c.maxSize && c.entries.Len() > 0 {
 		evictedValues = append(evictedValues, c.evictOne())
+	}
+	if c.entries.Len() == 0 {
+		c.currentSize = 0
 	}
 
 	return evictedValues, nil
@@ -217,10 +240,19 @@ func (c *mapCache) eraseInternal(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry)
-	c.currentSize -= (deletedEntry.Value.Size() + deletedEntry.extraSize)
+	deletedSize := deletedEntry.Value.Size() + deletedEntry.extraSize
+	if c.currentSize >= deletedSize {
+		c.currentSize -= deletedSize
+	} else {
+		c.currentSize = 0
+	}
 
 	delete(c.index, key)
 	c.entries.Remove(e)
+
+	if c.entries.Len() == 0 {
+		c.currentSize = 0
+	}
 
 	return deletedEntry.Value
 }
@@ -331,8 +363,11 @@ func (c *mapCache) UpdateSize(key string, sizeDelta uint64) error {
 	}
 	c.currentSize += sizeDelta
 
-	for c.currentSize > c.maxSize {
+	for c.currentSize > c.maxSize && c.entries.Len() > 0 {
 		c.evictOne()
+	}
+	if c.entries.Len() == 0 {
+		c.currentSize = 0
 	}
 
 	return nil

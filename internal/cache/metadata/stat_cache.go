@@ -16,6 +16,7 @@ package metadata
 
 import (
 	"math"
+	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -108,6 +109,7 @@ func NewStatCache(maxSize uint64, bucketName string) StatCache {
 // bucket-name to its entry keys to make them unique
 // to it.
 type statCacheBucketView struct {
+	mu          sync.Mutex
 	sharedCache lru.Cache
 	// bucketName is the unique identifier for this
 	// statCache object among all statCache objects
@@ -215,6 +217,9 @@ func cloneMinObject(m *gcs.MinObject) *gcs.MinObject {
 }
 
 func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	name := sc.key(m.Name)
 
 	// Is there already a better entry?
@@ -236,6 +241,9 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 }
 
 func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration time.Time) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	name := sc.key(objectName)
 
 	// Is there already a better entry?
@@ -272,6 +280,9 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 }
 
 func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	name := sc.key(objectName)
 
 	// Insert a negative entry.
@@ -286,6 +297,9 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 }
 
 func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expiration time.Time) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	name := sc.key(folderName)
 
 	// Insert a negative entry.
@@ -300,6 +314,9 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 }
 
 func (sc *statCacheBucketView) Erase(objectName string) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	name := sc.key(objectName)
 	sc.sharedCache.Erase(name)
 }
@@ -307,7 +324,9 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (hit bool, m gcs.MinObject) {
-	// Look up in the LRU cache.
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	hit, e := sc.sharedCacheLookup(objectName, now)
 	if hit {
 		if e.implicitDir {
@@ -325,7 +344,9 @@ func (sc *statCacheBucketView) LookUp(
 func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
 	now time.Time) (hit bool, f gcs.Folder) {
-	// Look up in the LRU cache.
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	hit, e := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
@@ -348,7 +369,8 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 
 	// Has this entry expired?
 	if e.expiration.Before(now) {
-		sc.Erase(key)
+		name := sc.key(key)
+		sc.sharedCache.Erase(name)
 		return false, entry{}
 	}
 
@@ -356,6 +378,9 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	name := sc.key(f.Name)
 
 	e := entry{
@@ -370,6 +395,9 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 
 // Invalidate cache for all the entries with given prefix.
 func (sc *statCacheBucketView) EraseEntriesWithGivenPrefix(prefix string) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	prefix = sc.key(prefix)
 	sc.sharedCache.EraseEntriesWithGivenPrefix(prefix)
 }

@@ -24,12 +24,12 @@ import (
 // radixNode represents a node in the custom radix tree.
 // It uses a Left-Child Right-Sibling (LCRS) representation to avoid slice allocations.
 type radixNode struct {
-	prefix  string
-	value   ValueType
-	size    uint64
-	parent  *radixNode
-	child   *radixNode
-	sibling *radixNode
+	prefix    string
+	value     ValueType
+	extraSize uint64
+	parent    *radixNode
+	child     *radixNode
+	sibling   *radixNode
 	// LRU Linked List pointers
 	prev *radixNode
 	next *radixNode
@@ -203,18 +203,21 @@ func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueT
 	for {
 		if len(search) == 0 {
 			oldValue := node.value
-			oldSize := node.size
+			var oldTotalSize uint64
+			if oldValue != nil {
+				oldTotalSize = oldValue.Size() + node.extraSize
+			}
 			node.value = value
-			node.size = value.Size()
-			return node, oldValue, oldSize
+			node.extraSize = 0
+			return node, oldValue, oldTotalSize
 		}
 
 		child := node.getChild(search[0])
 		if child == nil {
 			newLeaf := &radixNode{
-				prefix: Intern(search),
-				value:  value,
-				size:   value.Size(),
+				prefix:    Intern(search),
+				value:     value,
+				extraSize: 0,
 			}
 			node.addChild(newLeaf)
 			return newLeaf, nil, 0
@@ -241,16 +244,19 @@ func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueT
 
 		if lcp == len(search) {
 			oldValue := splitNode.value
-			oldSize := splitNode.size
+			var oldTotalSize uint64
+			if oldValue != nil {
+				oldTotalSize = oldValue.Size() + splitNode.extraSize
+			}
 			splitNode.value = value
-			splitNode.size = value.Size()
-			return splitNode, oldValue, oldSize
+			splitNode.extraSize = 0
+			return splitNode, oldValue, oldTotalSize
 		}
 
 		newLeaf := &radixNode{
-			prefix: Intern(search[lcp:]),
-			value:  value,
-			size:   value.Size(),
+			prefix:    Intern(search[lcp:]),
+			value:     value,
+			extraSize: 0,
 		}
 		splitNode.addChild(newLeaf)
 		return newLeaf, nil, 0
@@ -292,7 +298,7 @@ func (c *radixCache) deleteNode(node *radixNode) {
 	}
 
 	node.value = nil
-	node.size = 0
+	node.extraSize = 0
 	c.compressPathUpwards(node)
 }
 
@@ -407,8 +413,13 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if node, oldValue, oldSize := c.insertNode(key, value); oldValue != nil {
-		c.currentSize = uint64(int64(c.currentSize) + int64(valueSize) - int64(oldSize))
+	if node, oldValue, oldTotalSize := c.insertNode(key, value); oldValue != nil {
+		if c.currentSize >= oldTotalSize {
+			c.currentSize -= oldTotalSize
+		} else {
+			c.currentSize = 0
+		}
+		c.currentSize += valueSize
 		c.moveToFront(node)
 	} else {
 		c.pushFront(node)
@@ -420,6 +431,9 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 	for c.currentSize > c.maxSize && c.tail != nil {
 		evictedValues = append(evictedValues, c.evictOne())
 	}
+	if c.tail == nil {
+		c.currentSize = 0
+	}
 
 	return evictedValues, nil
 }
@@ -429,10 +443,20 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 // LOCKS_REQUIRED(c.mu)
 func (c *radixCache) eraseInternal(node *radixNode) (value ValueType) {
 	deletedEntry := node.value
-	c.currentSize -= node.size
+	deletedSize := deletedEntry.Size() + node.extraSize
+	if c.currentSize >= deletedSize {
+		c.currentSize -= deletedSize
+	} else {
+		c.currentSize = 0
+	}
+	node.extraSize = 0
 
 	c.remove(node)
 	c.deleteNode(node)
+
+	if c.tail == nil {
+		c.currentSize = 0
+	}
 
 	return deletedEntry
 }
@@ -500,12 +524,11 @@ func (c *radixCache) UpdateWithoutChangingOrder(key string, value ValueType) err
 		return ErrEntryNotExist
 	}
 
-	if value.Size() != node.size {
+	if value.Size() != node.value.Size() {
 		return ErrInvalidUpdateEntrySize
 	}
 
 	node.value = value
-	node.size = value.Size()
 	return nil
 }
 
@@ -522,7 +545,7 @@ func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
 	}
 
 	// Update currentSize accounting
-	node.size += sizeDelta
+	node.extraSize += sizeDelta
 	c.currentSize += sizeDelta
 
 	// Evict until we're at or below maxSize to maintain invariants
@@ -589,10 +612,15 @@ func (c *radixCache) sweepAndUnlink(node *radixNode) {
 	for curr != nil {
 
 		if curr.value != nil {
-			c.currentSize -= curr.size
+			deletedSize := curr.value.Size() + curr.extraSize
+			if c.currentSize >= deletedSize {
+				c.currentSize -= deletedSize
+			} else {
+				c.currentSize = 0
+			}
 			c.remove(curr)
 			curr.value = nil
-			curr.size = 0
+			curr.extraSize = 0
 		}
 		// Advance to next node in pre-order traversal
 		if curr.child != nil {
