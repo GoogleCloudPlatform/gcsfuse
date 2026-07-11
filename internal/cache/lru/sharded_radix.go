@@ -23,71 +23,52 @@ import (
 	"unsafe"
 )
 
-// valueWrapper holds interface values for safe use with atomic.Pointer.
-type valueWrapper struct {
-	val ValueType
+// compactRadixNode represents a unified cache-aligned node struct in the RCU LCRS radix tree with SIEVE eviction.
+type compactRadixNode struct {
+	prefix    string                           // 16 bytes
+	child     atomic.Pointer[compactRadixNode] //  8 bytes
+	sibling   atomic.Pointer[compactRadixNode] //  8 bytes
+	parent    *compactRadixNode                //  8 bytes
+	sievePrev *compactRadixNode                //  8 bytes
+	sieveNext *compactRadixNode                //  8 bytes
+	value     unsafe.Pointer                   //  8 bytes (atomic pointer to *ValueType)
+	extraSize atomic.Uint64                    //  8 bytes
+	accessed  atomic.Bool                      //  4 bytes
 }
 
-// radixHubNode represents a uniform 48-byte routing hub struct in the RCU LCRS radix tree.
-type radixHubNode struct {
-	prefix  string                       // 16 bytes
-	child   atomic.Pointer[radixHubNode] //  8 bytes
-	sibling atomic.Pointer[radixHubNode] //  8 bytes
-	parent  *radixHubNode                //  8 bytes
-	payload atomic.Pointer[sievePayload] //  8 bytes
+// Compile-time assertion to guarantee node struct size (80 bytes).
+var _ = [1]struct{}{}[80-unsafe.Sizeof(compactRadixNode{})]
+
+func (n *compactRadixNode) isPayload() bool {
+	return n != nil && n.getValue() != nil
 }
 
-// sievePayload represents an out-of-line 48-byte SIEVE payload data node (value 8B + accessed 1B + padding 7B + extraSize 8B + sievePrev 8B + sieveNext 8B + hub pointer 8B = 48B).
-type sievePayload struct {
-	value     atomic.Pointer[valueWrapper] // 8 bytes
-	accessed  atomic.Bool                  // 4 bytes
-	extraSize atomic.Uint64                // 8 bytes
-	sievePrev *sievePayload                // 8 bytes
-	sieveNext *sievePayload                // 8 bytes
-	hub       *radixHubNode                // 8 bytes
-}
-
-// Compile-time assertions to guarantee exact struct layout sizes.
-var _ = [1]struct{}{}[48-unsafe.Sizeof(radixHubNode{})]
-var _ = [1]struct{}{}[48-unsafe.Sizeof(sievePayload{})]
-
-
-func (n *radixHubNode) isPayload() bool {
-	return n != nil && n.payload.Load() != nil
-}
-
-func (n *radixHubNode) getValue() ValueType {
+func (n *compactRadixNode) getValue() ValueType {
 	if n == nil {
 		return nil
 	}
-	p := n.payload.Load()
-	if p == nil {
+	ptr := atomic.LoadPointer(&n.value)
+	if ptr == nil {
 		return nil
 	}
-	return p.getValue()
+	return *(*ValueType)(ptr)
 }
 
-func (p *sievePayload) getValue() ValueType {
-	if p == nil {
-		return nil
+func (n *compactRadixNode) setValue(val ValueType) {
+	if n == nil {
+		return
 	}
-	w := p.value.Load()
-	if w == nil {
-		return nil
-	}
-	return w.val
-}
-
-func (p *sievePayload) setValue(val ValueType) {
 	if val == nil {
-		p.value.Store(nil)
-	} else {
-		p.value.Store(&valueWrapper{val: val})
+		atomic.StorePointer(&n.value, nil)
+		return
 	}
+	box := new(ValueType)
+	*box = val
+	atomic.StorePointer(&n.value, unsafe.Pointer(box))
 }
 
 // getChild finds a child node whose prefix starts with the given byte (RCU read without lock).
-func (n *radixHubNode) getChild(b byte) *radixHubNode {
+func (n *compactRadixNode) getChild(b byte) *compactRadixNode {
 	for curr := n.child.Load(); curr != nil; curr = curr.sibling.Load() {
 		if len(curr.prefix) > 0 && curr.prefix[0] == b {
 			return curr
@@ -101,8 +82,31 @@ func (n *radixHubNode) getChild(b byte) *radixHubNode {
 }
 
 type detachedSubtree struct {
-	root *radixHubNode
-	curr *radixHubNode
+	nodes []*compactRadixNode
+}
+
+func newDetachedSubtree(root *compactRadixNode) detachedSubtree {
+	if root == nil {
+		return detachedSubtree{}
+	}
+	var nodes []*compactRadixNode
+	stack := []*compactRadixNode{root}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		nodes = append(nodes, n)
+
+		// Do not push root's sibling as root was detached from its parent.
+		if n != root {
+			if sib := n.sibling.Load(); sib != nil {
+				stack = append(stack, sib)
+			}
+		}
+		if ch := n.child.Load(); ch != nil {
+			stack = append(stack, ch)
+		}
+	}
+	return detachedSubtree{nodes: nodes}
 }
 
 // cacheShard represents a single shard padded to exactly 128 bytes to eliminate false sharing.
@@ -112,12 +116,12 @@ type cacheShard struct {
 	currentSize uint64
 	len         int
 
-	root atomic.Pointer[radixHubNode]
+	root atomic.Pointer[compactRadixNode]
 
 	// SIEVE clock eviction pointers
-	sieveHead *sievePayload
-	sieveTail *sievePayload
-	sieveHand *sievePayload
+	sieveHead *compactRadixNode
+	sieveTail *compactRadixNode
+	sieveHand *compactRadixNode
 
 	// Background sweep queue for detached subtrees
 	detachedQueue []detachedSubtree
@@ -132,9 +136,9 @@ type cacheShard struct {
 // Compile-time assertion to guarantee exact 128-byte shard padding.
 var _ = [1]struct{}{}[128-unsafe.Sizeof(cacheShard{})]
 
-// ShardedRadixCache implements lru.Cache with 256-way sharding, RCU lookups, and SIEVE eviction.
+// ShardedRadixCache implements lru.Cache with 32-way sharding, RCU lookups, and SIEVE eviction.
 type ShardedRadixCache struct {
-	shards        [256]cacheShard
+	shards        [32]cacheShard
 	maxSize       uint64
 	currentSize   atomic.Int64
 	evictShardIdx atomic.Uint32
@@ -159,22 +163,26 @@ func NewShardedRadixCache(maxSize uint64) Cache {
 		sweepNotifyCh: make(chan struct{}, 1),
 	}
 
-	baseShardSize := maxSize / 256
-	remainder := maxSize % 256
+	baseShardSize := maxSize / 32
+	remainder := maxSize % 32
 
-	for i := 0; i < 256; i++ {
+	for i := 0; i < 32; i++ {
 		shardSize := baseShardSize
 		if uint64(i) < remainder {
 			shardSize++
 		}
 		c.shards[i].maxSize = shardSize
-		c.shards[i].root.Store(&radixHubNode{})
+		c.shards[i].root.Store(&compactRadixNode{})
 	}
 
 	c.wg.Add(1)
 	go c.backgroundWorker()
 
 	return c
+}
+
+func (c *ShardedRadixCache) GetCurrentSize() uint64 {
+	return uint64(c.currentSize.Load())
 }
 
 // GetShardSize returns the size of cacheShard struct in bytes for verification.
@@ -215,7 +223,7 @@ func (c *ShardedRadixCache) getShardWithIdx(key string) (*cacheShard, int) {
 		hash ^= uint32(shardKey[i])
 		hash *= 16777619
 	}
-	idx := int(hash & 0xFF)
+	idx := int(hash & 0x1F)
 	return &c.shards[idx], idx
 }
 
@@ -246,13 +254,13 @@ func (c *ShardedRadixCache) backgroundWorker() {
 }
 
 func (c *ShardedRadixCache) sweepAllBatches(maxNodes int) {
-	for i := 0; i < 256; i++ {
+	for i := 0; i < 32; i++ {
 		c.shards[i].processDetachedSubtreesBatch(maxNodes, c)
 	}
 }
 
 func (c *ShardedRadixCache) drainAll() {
-	for i := 0; i < 256; i++ {
+	for i := 0; i < 32; i++ {
 		c.shards[i].processDetachedSubtreesBatch(math.MaxInt, c)
 		c.shards[i].pruneAllEmptyLeaves()
 	}
@@ -267,14 +275,14 @@ func (c *ShardedRadixCache) Close() error {
 
 // PruneAllEmptyLeaves prunes empty routing leaf nodes across all shards.
 func (c *ShardedRadixCache) PruneAllEmptyLeaves() {
-	for i := 0; i < 256; i++ {
+	for i := 0; i < 32; i++ {
 		c.shards[i].pruneAllEmptyLeaves()
 	}
 }
 
 // --- Tree mutation helpers (must be called with shard.mu held) ---
 
-func (s *cacheShard) addChildAtomic(parent, newChild *radixHubNode) {
+func (s *cacheShard) addChildAtomic(parent, newChild *compactRadixNode) {
 	newChild.parent = parent
 	pcurr := &parent.child
 	for pcurr.Load() != nil && pcurr.Load().prefix[0] < newChild.prefix[0] {
@@ -284,7 +292,7 @@ func (s *cacheShard) addChildAtomic(parent, newChild *radixHubNode) {
 	pcurr.Store(newChild)
 }
 
-func (s *cacheShard) removeChildAtomic(parent, childToRemove *radixHubNode) {
+func (s *cacheShard) removeChildAtomic(parent, childToRemove *compactRadixNode) {
 	for pcurr := &parent.child; pcurr.Load() != nil; pcurr = &pcurr.Load().sibling {
 		if pcurr.Load() == childToRemove {
 			pcurr.Store(childToRemove.sibling.Load())
@@ -293,7 +301,7 @@ func (s *cacheShard) removeChildAtomic(parent, childToRemove *radixHubNode) {
 	}
 }
 
-func (s *cacheShard) replaceChildAtomic(parent, oldChild, newChild *radixHubNode) {
+func (s *cacheShard) replaceChildAtomic(parent, oldChild, newChild *compactRadixNode) {
 	for pcurr := &parent.child; pcurr.Load() != nil; pcurr = &pcurr.Load().sibling {
 		if pcurr.Load() == oldChild {
 			newChild.sibling.Store(oldChild.sibling.Load())
@@ -305,35 +313,35 @@ func (s *cacheShard) replaceChildAtomic(parent, oldChild, newChild *radixHubNode
 
 // --- SIEVE List helpers (must be called with shard.mu held) ---
 
-func (s *cacheShard) sievePushHead(payload *sievePayload) {
-	payload.sievePrev = nil
-	payload.sieveNext = s.sieveHead
+func (s *cacheShard) sievePushHead(node *compactRadixNode) {
+	node.sievePrev = nil
+	node.sieveNext = s.sieveHead
 	if s.sieveHead != nil {
-		s.sieveHead.sievePrev = payload
+		s.sieveHead.sievePrev = node
 	}
-	s.sieveHead = payload
+	s.sieveHead = node
 	if s.sieveTail == nil {
-		s.sieveTail = payload
+		s.sieveTail = node
 	}
 	s.len++
 }
 
-func (s *cacheShard) sieveRemove(payload *sievePayload) {
-	if s.sieveHand == payload {
-		s.sieveHand = payload.sievePrev
+func (s *cacheShard) sieveRemove(node *compactRadixNode) {
+	if s.sieveHand == node {
+		s.sieveHand = node.sievePrev
 	}
-	if payload.sievePrev != nil {
-		payload.sievePrev.sieveNext = payload.sieveNext
+	if node.sievePrev != nil {
+		node.sievePrev.sieveNext = node.sieveNext
 	} else {
-		s.sieveHead = payload.sieveNext
+		s.sieveHead = node.sieveNext
 	}
-	if payload.sieveNext != nil {
-		payload.sieveNext.sievePrev = payload.sievePrev
+	if node.sieveNext != nil {
+		node.sieveNext.sievePrev = node.sievePrev
 	} else {
-		s.sieveTail = payload.sievePrev
+		s.sieveTail = node.sievePrev
 	}
-	payload.sievePrev = nil
-	payload.sieveNext = nil
+	node.sievePrev = nil
+	node.sieveNext = nil
 	s.len--
 }
 
@@ -341,16 +349,16 @@ func (s *cacheShard) sieveRemove(payload *sievePayload) {
 
 func (s *cacheShard) evictOneLocked(c *ShardedRadixCache) ValueType {
 	for s.sieveTail != nil {
-		payload := s.sieveHand
-		if payload == nil {
-			payload = s.sieveTail
+		node := s.sieveHand
+		if node == nil {
+			node = s.sieveTail
 		}
-		s.sieveHand = payload.sievePrev
+		s.sieveHand = node.sievePrev
 
-		if payload.accessed.Load() {
-			payload.accessed.Store(false)
+		if node.accessed.Load() {
+			node.accessed.Store(false)
 		} else {
-			return s.eraseNodeInternal(payload.hub, c)
+			return s.eraseNodeInternal(node, c)
 		}
 	}
 	return nil
@@ -365,7 +373,7 @@ func (s *cacheShard) evictOne(c *ShardedRadixCache) ValueType {
 func (c *ShardedRadixCache) evictGlobal(evictedValues *[]ValueType, protectedShardIdx int) {
 	// First pass: try evicting from all shards except protectedShardIdx
 	for uint64(c.currentSize.Load()) > c.maxSize {
-		idx := int(c.evictShardIdx.Add(1) % 256)
+		idx := int(c.evictShardIdx.Add(1) % 32)
 		if idx == protectedShardIdx {
 			continue
 		}
@@ -375,7 +383,7 @@ func (c *ShardedRadixCache) evictGlobal(evictedValues *[]ValueType, protectedSha
 			}
 		} else {
 			var totalLen int
-			for i := 0; i < 256; i++ {
+			for i := 0; i < 32; i++ {
 				if i == protectedShardIdx {
 					continue
 				}
@@ -401,30 +409,25 @@ func (c *ShardedRadixCache) evictGlobal(evictedValues *[]ValueType, protectedSha
 	}
 }
 
-func (s *cacheShard) eraseNodeInternal(node *radixHubNode, c *ShardedRadixCache) ValueType {
+func (s *cacheShard) eraseNodeInternal(node *compactRadixNode, c *ShardedRadixCache) ValueType {
 	if node == nil {
 		return nil
 	}
-	p := node.payload.Load()
-	if p == nil {
-		return nil
-	}
-	val := p.getValue()
+	val := node.getValue()
 	if val == nil {
 		return nil
 	}
-	sz := val.Size() + p.extraSize.Load()
+	sz := val.Size() + node.extraSize.Load()
 	s.currentSize -= sz
 	c.currentSize.Add(-int64(sz))
-	p.extraSize.Store(0)
-	s.sieveRemove(p)
-	p.value.Store(nil)
-	node.payload.Store(nil)
+	node.extraSize.Store(0)
+	s.sieveRemove(node)
+	node.setValue(nil)
 	s.compressPathUpwards(node)
 	return val
 }
 
-func (s *cacheShard) compressPathUpwards(curr *radixHubNode) {
+func (s *cacheShard) compressPathUpwards(curr *compactRadixNode) {
 	for curr != nil && curr != s.root.Load() {
 		if curr.isPayload() && curr.getValue() != nil {
 			break
@@ -447,14 +450,32 @@ func (s *cacheShard) compressPathUpwards(curr *radixHubNode) {
 				break
 			}
 			mergedPrefix := Intern(curr.prefix + child.prefix)
-			mergedNode := &radixHubNode{
-				prefix: mergedPrefix,
-				parent: parent,
+			mergedNode := &compactRadixNode{
+				prefix:    mergedPrefix,
+				parent:    parent,
+				value:     child.value,
+				extraSize: child.extraSize,
 			}
 			mergedNode.child.Store(child.child.Load())
-			if p := child.payload.Load(); p != nil {
-				p.hub = mergedNode
-				mergedNode.payload.Store(p)
+			if child.getValue() != nil {
+				mergedNode.accessed.Store(child.accessed.Load())
+				if s.sieveHead == child {
+					s.sieveHead = mergedNode
+				}
+				if s.sieveTail == child {
+					s.sieveTail = mergedNode
+				}
+				if s.sieveHand == child {
+					s.sieveHand = mergedNode
+				}
+				if child.sievePrev != nil {
+					child.sievePrev.sieveNext = mergedNode
+				}
+				if child.sieveNext != nil {
+					child.sieveNext.sievePrev = mergedNode
+				}
+				mergedNode.sievePrev = child.sievePrev
+				mergedNode.sieveNext = child.sieveNext
 			}
 
 			for ch := mergedNode.child.Load(); ch != nil; ch = ch.sibling.Load() {
@@ -469,48 +490,40 @@ func (s *cacheShard) compressPathUpwards(curr *radixHubNode) {
 }
 
 func (s *cacheShard) processDetachedSubtreesBatchLocked(maxNodes int, c *ShardedRadixCache) {
-	if len(s.detachedQueue) == 0 {
-		return
-	}
-
-	nodesProcessed := 0
-	for len(s.detachedQueue) > 0 && nodesProcessed < maxNodes {
+	for len(s.detachedQueue) > 0 && maxNodes > 0 {
 		item := &s.detachedQueue[0]
-		subRoot := item.root
-		curr := item.curr
-		for curr != nil && nodesProcessed < maxNodes {
-			if curr.isPayload() {
-				p := curr.payload.Load()
-				if val := curr.getValue(); val != nil && p != nil {
-					sz := val.Size() + p.extraSize.Load()
-					s.currentSize -= sz
-					c.currentSize.Add(-int64(sz))
-					s.sieveRemove(p)
-					p.value.Store(nil)
-					p.extraSize.Store(0)
-					curr.payload.Store(nil)
+		n := len(item.nodes)
+		if n <= maxNodes {
+			for _, curr := range item.nodes {
+				if curr.isPayload() {
+					if val := curr.getValue(); val != nil {
+						sz := val.Size() + curr.extraSize.Load()
+						s.currentSize -= sz
+						c.currentSize.Add(-int64(sz))
+						s.sieveRemove(curr)
+						curr.setValue(nil)
+						curr.extraSize.Store(0)
+					}
 				}
 			}
-			nodesProcessed++
-
-			if child := curr.child.Load(); child != nil {
-				curr = child
-				continue
-			}
-			for curr != subRoot && curr.sibling.Load() == nil {
-				curr = curr.parent
-			}
-			if curr == subRoot {
-				curr = nil
-				break
-			}
-			curr = curr.sibling.Load()
-		}
-		if curr == nil {
+			maxNodes -= n
 			s.detachedQueue = s.detachedQueue[1:]
 		} else {
-			item.curr = curr
-			break
+			batch := item.nodes[:maxNodes]
+			for _, curr := range batch {
+				if curr.isPayload() {
+					if val := curr.getValue(); val != nil {
+						sz := val.Size() + curr.extraSize.Load()
+						s.currentSize -= sz
+						c.currentSize.Add(-int64(sz))
+						s.sieveRemove(curr)
+						curr.setValue(nil)
+						curr.extraSize.Store(0)
+					}
+				}
+			}
+			item.nodes = item.nodes[maxNodes:]
+			maxNodes = 0
 		}
 	}
 }
@@ -549,14 +562,32 @@ func (s *cacheShard) pruneAllEmptyLeaves() {
 				} else if curr.child.Load().sibling.Load() == nil {
 					onlyChild := curr.child.Load()
 					mergedPrefix := Intern(curr.prefix + onlyChild.prefix)
-					mergedNode := &radixHubNode{
-						prefix: mergedPrefix,
-						parent: parent,
+					mergedNode := &compactRadixNode{
+						prefix:    mergedPrefix,
+						parent:    parent,
+						value:     onlyChild.value,
+						extraSize: onlyChild.extraSize,
 					}
 					mergedNode.child.Store(onlyChild.child.Load())
-					if p := onlyChild.payload.Load(); p != nil {
-						p.hub = mergedNode
-						mergedNode.payload.Store(p)
+					if onlyChild.getValue() != nil {
+						mergedNode.accessed.Store(onlyChild.accessed.Load())
+						if s.sieveHead == onlyChild {
+							s.sieveHead = mergedNode
+						}
+						if s.sieveTail == onlyChild {
+							s.sieveTail = mergedNode
+						}
+						if s.sieveHand == onlyChild {
+							s.sieveHand = mergedNode
+						}
+						if onlyChild.sievePrev != nil {
+							onlyChild.sievePrev.sieveNext = mergedNode
+						}
+						if onlyChild.sieveNext != nil {
+							onlyChild.sieveNext.sievePrev = mergedNode
+						}
+						mergedNode.sievePrev = onlyChild.sievePrev
+						mergedNode.sieveNext = onlyChild.sieveNext
 					}
 
 					for ch := mergedNode.child.Load(); ch != nil; ch = ch.sibling.Load() {
@@ -583,14 +614,12 @@ func (s *cacheShard) lookUp(key string, markAccessed bool) ValueType {
 
 	for node != nil {
 		if len(search) == 0 {
-			if p := node.payload.Load(); p != nil {
-				val := p.getValue()
-				if val != nil {
-					if markAccessed {
-						p.accessed.Store(true)
-					}
-					return val
+			val := node.getValue()
+			if val != nil {
+				if markAccessed {
+					node.accessed.Store(true)
 				}
+				return val
 			}
 			return nil
 		}
@@ -610,7 +639,7 @@ func (s *cacheShard) lookUp(key string, markAccessed bool) ValueType {
 	return nil
 }
 
-func (s *cacheShard) getNode(key string) (*radixHubNode, bool) {
+func (s *cacheShard) getNode(key string) (*compactRadixNode, bool) {
 	node := s.root.Load()
 	search := key
 
@@ -636,35 +665,23 @@ func (s *cacheShard) getNode(key string) (*radixHubNode, bool) {
 	}
 }
 
-func (s *cacheShard) insertNode(key string, value ValueType) (*radixHubNode, ValueType) {
+func (s *cacheShard) insertNode(key string, value ValueType) (*compactRadixNode, ValueType) {
 	node := s.root.Load()
 	search := key
 
 	for {
 		if len(search) == 0 {
-			if p := node.payload.Load(); p != nil {
-				oldVal := p.getValue()
-				p.setValue(value)
-				return node, oldVal
-			}
-			p := &sievePayload{
-				hub: node,
-			}
-			p.setValue(value)
-			node.payload.Store(p)
-			return node, nil
+			oldVal := node.getValue()
+			node.setValue(value)
+			return node, oldVal
 		}
 
 		child := node.getChild(search[0])
 		if child == nil {
-			newLeaf := &radixHubNode{
+			newLeaf := &compactRadixNode{
 				prefix: Intern(search),
 			}
-			p := &sievePayload{
-				hub: newLeaf,
-			}
-			p.setValue(value)
-			newLeaf.payload.Store(p)
+			newLeaf.setValue(value)
 			s.addChildAtomic(node, newLeaf)
 			return newLeaf, nil
 		}
@@ -676,48 +693,58 @@ func (s *cacheShard) insertNode(key string, value ValueType) (*radixHubNode, Val
 			continue
 		}
 
-		ncHub := &radixHubNode{
-			prefix: Intern(child.prefix[lcp:]),
+		ncHub := &compactRadixNode{
+			prefix:    Intern(child.prefix[lcp:]),
+			value:     child.value,
+			extraSize: child.extraSize,
 		}
 		ncHub.child.Store(child.child.Load())
-		if p := child.payload.Load(); p != nil {
-			p.hub = ncHub
-			ncHub.payload.Store(p)
+		if child.getValue() != nil {
+			ncHub.accessed.Store(child.accessed.Load())
+			if s.sieveHead == child {
+				s.sieveHead = ncHub
+			}
+			if s.sieveTail == child {
+				s.sieveTail = ncHub
+			}
+			if s.sieveHand == child {
+				s.sieveHand = ncHub
+			}
+			if child.sievePrev != nil {
+				child.sievePrev.sieveNext = ncHub
+			}
+			if child.sieveNext != nil {
+				child.sieveNext.sievePrev = ncHub
+			}
+			ncHub.sievePrev = child.sievePrev
+			ncHub.sieveNext = child.sieveNext
 		}
 		for ch := ncHub.child.Load(); ch != nil; ch = ch.sibling.Load() {
 			ch.parent = ncHub
 		}
 
-		splitNode := &radixHubNode{
+		splitNode := &compactRadixNode{
 			prefix: Intern(child.prefix[:lcp]),
 			parent: node,
 		}
 
-		var targetHubNode *radixHubNode
+		var targetNode *compactRadixNode
 		if lcp == len(search) {
-			spPayload := &sievePayload{
-				hub: splitNode,
-			}
-			spPayload.setValue(value)
-			splitNode.payload.Store(spPayload)
-			targetHubNode = splitNode
+			splitNode.setValue(value)
+			targetNode = splitNode
 		}
 
 		s.addChildAtomic(splitNode, ncHub)
 		s.replaceChildAtomic(node, child, splitNode)
 
 		if lcp == len(search) {
-			return targetHubNode, nil
+			return targetNode, nil
 		}
 
-		newLeaf := &radixHubNode{
+		newLeaf := &compactRadixNode{
 			prefix: Intern(search[lcp:]),
 		}
-		p := &sievePayload{
-			hub: newLeaf,
-		}
-		p.setValue(value)
-		newLeaf.payload.Store(p)
+		newLeaf.setValue(value)
 		s.addChildAtomic(splitNode, newLeaf)
 		return newLeaf, nil
 	}
@@ -739,29 +766,21 @@ func (c *ShardedRadixCache) Insert(key string, value ValueType) ([]ValueType, er
 
 	s.processDetachedSubtreesBatchLocked(64, c)
 
-	hubNode, oldVal := s.insertNode(key, value)
-	p := hubNode.payload.Load()
+	node, oldVal := s.insertNode(key, value)
 	if oldVal != nil {
-		if p != nil {
-			p.accessed.Store(true)
-		}
-		var oldExtra uint64
-		if p != nil {
-			oldExtra = p.extraSize.Swap(0)
-		}
+		node.accessed.Store(true)
+		oldExtra := node.extraSize.Swap(0)
 		diff := int64(valueSize) - int64(oldVal.Size()+oldExtra)
 		s.currentSize = uint64(int64(s.currentSize) + diff)
 		c.currentSize.Add(diff)
 	} else {
-		if p != nil {
-			s.sievePushHead(p)
-		}
+		s.sievePushHead(node)
 		s.currentSize += valueSize
 		c.currentSize.Add(int64(valueSize))
 	}
 
 	var evictedValues []ValueType
-	for s.maxSize >= 1024 && s.currentSize > s.maxSize && s.sieveTail != nil && s.sieveTail != p {
+	for s.maxSize >= 1024 && s.currentSize > s.maxSize && s.sieveTail != nil && s.sieveTail != node {
 		if evicted := s.evictOneLocked(c); evicted != nil {
 			evictedValues = append(evictedValues, evicted)
 		}
@@ -805,21 +824,17 @@ func (c *ShardedRadixCache) UpdateWithoutChangingOrder(key string, value ValueTy
 	defer s.mu.Unlock()
 
 	node, ok := s.getNode(key)
-	if !ok {
+	if !ok || node.getValue() == nil {
 		return ErrEntryNotExist
 	}
-	p := node.payload.Load()
-	if p == nil {
-		return ErrEntryNotExist
-	}
-	val := p.getValue()
+	val := node.getValue()
 	if val == nil {
 		return ErrEntryNotExist
 	}
 	if val.Size() != value.Size() {
 		return ErrInvalidUpdateEntrySize
 	}
-	p.setValue(value)
+	node.setValue(value)
 	return nil
 }
 
@@ -833,14 +848,10 @@ func (c *ShardedRadixCache) UpdateSize(key string, sizeDelta uint64) error {
 		return ErrEntryNotExist
 	}
 
-	p := node.payload.Load()
-	if p != nil {
-		p.extraSize.Add(sizeDelta)
-	}
-
+	node.extraSize.Add(sizeDelta)
 	s.currentSize += sizeDelta
 	c.currentSize.Add(int64(sizeDelta))
-	for s.maxSize >= 1024 && s.currentSize > s.maxSize && s.sieveTail != nil && s.sieveTail != p {
+	for s.maxSize >= 1024 && s.currentSize > s.maxSize && s.sieveTail != nil && s.sieveTail != node {
 		s.evictOneLocked(c)
 	}
 	s.mu.Unlock()
@@ -851,14 +862,14 @@ func (c *ShardedRadixCache) UpdateSize(key string, sizeDelta uint64) error {
 
 func (c *ShardedRadixCache) EraseEntriesWithGivenPrefix(prefix string) {
 	if prefix == "" {
-		for i := 0; i < 256; i++ {
+		for i := 0; i < 32; i++ {
 			s := &c.shards[i]
 			s.mu.Lock()
 			oldSize := s.currentSize
 			if oldSize > 0 {
 				c.currentSize.Add(-int64(oldSize))
 			}
-			s.root.Store(&radixHubNode{})
+			s.root.Store(&compactRadixNode{})
 			s.sieveHead = nil
 			s.sieveTail = nil
 			s.sieveHand = nil
@@ -871,29 +882,40 @@ func (c *ShardedRadixCache) EraseEntriesWithGivenPrefix(prefix string) {
 		return
 	}
 
-	for i := 0; i < 256; i++ {
+	for i := 0; i < 32; i++ {
 		s := &c.shards[i]
 		s.mu.Lock()
 		node := s.root.Load()
 		search := prefix
-		for len(search) > 0 {
-			child := node.getChild(search[0])
-			if child == nil {
+		for len(search) > 0 && node != nil {
+			var fullMatches []*compactRadixNode
+			var partialMatch *compactRadixNode
+
+			for curr := node.child.Load(); curr != nil; curr = curr.sibling.Load() {
+				lcp := longestCommonPrefix(search, curr.prefix)
+				if lcp == len(search) {
+					fullMatches = append(fullMatches, curr)
+				} else if lcp == len(curr.prefix) && partialMatch == nil {
+					partialMatch = curr
+				}
+			}
+
+			if len(fullMatches) > 0 {
+				for _, child := range fullMatches {
+					s.removeChildAtomic(node, child)
+					child.parent = nil
+					s.detachedQueue = append(s.detachedQueue, newDetachedSubtree(child))
+					s.processDetachedSubtreesBatchLocked(math.MaxInt, c)
+				}
 				break
 			}
-			lcp := longestCommonPrefix(search, child.prefix)
-			if lcp == len(search) {
-				s.removeChildAtomic(node, child)
-				child.parent = nil
-				s.detachedQueue = append(s.detachedQueue, detachedSubtree{root: child, curr: child})
-				s.processDetachedSubtreesBatchLocked(math.MaxInt, c)
-				break
-			}
-			if lcp == len(child.prefix) {
-				search = search[len(child.prefix):]
-				node = child
+
+			if partialMatch != nil {
+				search = search[len(partialMatch.prefix):]
+				node = partialMatch
 				continue
 			}
+
 			break
 		}
 		s.mu.Unlock()

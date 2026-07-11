@@ -130,9 +130,9 @@ func TestShardedRadixCache_Adv_100PercentCapacity(t *testing.T) {
 
 // TestShardedRadixCache_Adv_HybridEvictionAccounting tests shard local vs global eviction accounting when shard maxSize >= 1024.
 func TestShardedRadixCache_Adv_HybridEvictionAccounting(t *testing.T) {
-	// With maxSize = 256 * 1024 = 262144, each shard has maxSize = 1024.
+	// With maxSize = 32 * 1024 = 32768, each shard has maxSize = 1024.
 	// This activates the condition `s.maxSize >= 1024 && s.currentSize > s.maxSize`.
-	cache := lru.NewShardedRadixCache(262144)
+	cache := lru.NewShardedRadixCache(32768)
 	defer cache.Close()
 
 	// Find two keys that hash to the SAME shard
@@ -150,7 +150,7 @@ func TestShardedRadixCache_Adv_HybridEvictionAccounting(t *testing.T) {
 			hash ^= uint32(shardKey[j])
 			hash *= 16777619
 		}
-		idx := int(hash & 0xFF)
+		idx := int(hash & 0x1F)
 		keysInShard[idx] = append(keysInShard[idx], key)
 		if len(keysInShard[idx]) >= 2 {
 			k1 = keysInShard[idx][0]

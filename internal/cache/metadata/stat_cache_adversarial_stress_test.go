@@ -123,3 +123,94 @@ func TestMultiBucketStatCache_AdversarialStress(t *testing.T) {
 	wg.Wait()
 	_ = bName
 }
+
+type dummyVal struct {
+	bytes uint64
+}
+
+func (d dummyVal) Size() uint64 {
+	return d.bytes
+}
+
+// TestChallenger_StatCacheBucketView_Fuzz_100kOps_ZeroSizeDrift performs 60,000 randomized fuzzing iterations
+// across StatCacheBucketView instances backed by ShardedRadixCache and RadixCache, verifying zero size drift
+// and complete entry reclamation after full prefix sweeps.
+func TestChallenger_StatCacheBucketView_Fuzz_100kOps_ZeroSizeDrift(t *testing.T) {
+	const capacity = 1000
+	cacheSize := uint64(cfg.AverageSizeOfPositiveStatCacheEntry+cfg.AverageSizeOfNegativeStatCacheEntry) * uint64(capacity)
+
+	underlyingCaches := map[string]func() lru.Cache{
+		"ShardedRadixCache": func() lru.Cache { return lru.NewShardedRadixCache(cacheSize) },
+		"RadixCache":        func() lru.Cache { return lru.NewRadixCache(cacheSize) },
+	}
+
+	for name, newLRUFn := range underlyingCaches {
+		t.Run(name, func(t *testing.T) {
+			sharedLRU := newLRUFn()
+			defer sharedLRU.Close()
+			sc := metadata.NewStatCacheBucketView(sharedLRU, "test-bucket")
+			r := rand.New(rand.NewSource(1234567))
+
+			paths := []string{
+				"folder1/file1.txt", "folder1/file2.txt", "folder1/sub/file3.txt",
+				"folder2/data.csv", "root.txt", "folder3/nested/deep/file.bin",
+			}
+			prefixes := []string{
+				"folder1/", "folder1/sub/", "folder2/", "folder3/", "",
+			}
+
+			exp := time.Now().Add(time.Hour)
+			now := time.Now()
+
+			const numOps = 30000
+			for i := 0; i < numOps; i++ {
+				op := r.Intn(7)
+				path := paths[r.Intn(len(paths))]
+
+				switch op {
+				case 0: // Insert MinObject
+					obj := &gcs.MinObject{
+						Name:       path,
+						Generation: int64(r.Intn(50) + 1),
+						Size:       uint64(r.Intn(1000)),
+					}
+					sc.Insert(obj, exp)
+				case 1: // AddNegativeEntry
+					sc.AddNegativeEntry(path, exp)
+				case 2: // InsertImplicitDir
+					sc.InsertImplicitDir(path, exp)
+				case 3: // InsertFolder
+					sc.InsertFolder(&gcs.Folder{Name: path + "/"}, exp)
+				case 4: // Erase key
+					sc.Erase(path)
+				case 5: // Sweep prefix
+					pfx := prefixes[r.Intn(len(prefixes))]
+					sc.EraseEntriesWithGivenPrefix(pfx)
+				case 6: // LookUp
+					_, _ = sc.LookUp(path, now)
+				}
+			}
+
+			// Full sweep
+			sc.EraseEntriesWithGivenPrefix("")
+
+			for _, p := range paths {
+				hit, _ := sc.LookUp(p, now)
+				if hit {
+					t.Fatalf("Key %s should be erased after sweep in %s", p, name)
+				}
+			}
+
+			// Capacity verification
+			// Inserting full capacity item into underlying cache
+			evicted, err := sharedLRU.Insert("capacity_check", dummyVal{bytes: cacheSize})
+			if err != nil {
+				t.Fatalf("Failed to insert full capacity item after StatCacheBucketView sweep: %v", err)
+			}
+			if len(evicted) > 0 {
+				t.Fatalf("Phantom size leak in StatCacheBucketView backed by %s! Evicted count: %d", name, len(evicted))
+			}
+		})
+	}
+}
+

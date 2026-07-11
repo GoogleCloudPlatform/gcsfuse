@@ -76,7 +76,8 @@ func (p *PathSegmentInterner) Intern(s string) string {
 
 var globalInterner = NewPathSegmentInterner()
 
-// Intern returns the canonical interned string using the global default interner pool.
+// Intern returns the canonical interned instance of string s via the global interner pool.
 func Intern(s string) string {
 	return globalInterner.Intern(s)
 }
+

@@ -188,11 +188,8 @@ func shouldReplace(m *gcs.MinObject, existing entry) bool {
 }
 
 func (sc *statCacheBucketView) key(objectName string) string {
-	// path.Join(sc.bucketName, objectName) does not work
-	// because that normalizes the trailing "/"
-	// which breaks functionality by removing
-	// differentiation between files and directories.
 	if sc.bucketName != "" {
+		objectName = lru.StripBucketPrefix(objectName, sc.bucketName)
 		return sc.bucketName + "/" + objectName
 	}
 	return objectName
