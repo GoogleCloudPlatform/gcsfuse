@@ -168,6 +168,7 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 
 		ent := (*fusekernel.FuseUringEntInOut)(unsafe.Pointer(&slot.header[256]))
 		payloadSz := int(ent.PayloadSz)
+		commitID := ent.CommitID // Save the kernel-provided transaction CommitID!
 
 		// Copy InHeader (first 40 bytes)
 		copy(inMsg.Storage()[0:inHdrLen], slot.header[0:inHdrLen])
@@ -194,7 +195,8 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 		s.opsInFlight.Done()
 
 		// 6. Atomic Commit & Fetch: Submit reply & fetch NEXT request in ONE io_uring cmd!
-		err = queue.pushCommand(fusekernel.FuseIoUringCmdCommitAndFetch, qid, inMsg.Header().Unique, c.DevFd(), slotIdx, outMsg.Bytes())
+		// Pass the kernel-provided CommitID back instead of inMsg.Header.Unique!
+		err = queue.pushCommand(fusekernel.FuseIoUringCmdCommitAndFetch, qid, commitID, c.DevFd(), slotIdx, outMsg.Bytes())
 		if err != nil {
 			log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to submit commit and fetch for slot %d: %v\n", qid, slotIdx, err)
 			break
