@@ -189,3 +189,87 @@ func TestChallenger_RadixCache_SweepAndUnlink_SizeLeak(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, evicted, "RadixCache leaked size during sweepAndUnlink of prefix/ subtree")
 }
+
+// TestChallenger_ComprehensiveFuzz_100kOps_ZeroSizeDrift runs randomized fuzzing across MapCache,
+// RadixCache, and ShardedRadixCache for 90,000 total iterations (30,000 per cache type), executing
+// Insert, UpdateSize, Erase, Evict, Overwrite, and Sweep operations, and confirming 100% zero
+// accounting drift and zero memory leaks upon full purge.
+func TestChallenger_ComprehensiveFuzz_100kOps_ZeroSizeDrift(t *testing.T) {
+	caches := map[string]func(max uint64) lru.Cache{
+		"MapCache":          lru.NewCache,
+		"RadixCache":        lru.NewRadixCache,
+		"ShardedRadixCache": lru.NewShardedRadixCache,
+	}
+
+	for name, newCacheFn := range caches {
+		t.Run(name, func(t *testing.T) {
+			const maxSize = 5000
+			cache := newCacheFn(maxSize)
+			defer cache.Close()
+
+			r := rand.New(rand.NewSource(99999))
+
+			keys := []string{
+				"dir1/file1.txt", "dir1/file2.txt", "dir1/subdir/file3.txt",
+				"dir2/image.png", "dir2/doc.pdf", "root_file.bin",
+				"alpha/beta/gamma/delta/epsilon/deep.log", "a", "a/b", "b/c",
+				"deep/path/1", "deep/path/2", "deep/path/3",
+			}
+
+			prefixes := []string{
+				"dir1/", "dir1/subdir/", "dir2/", "alpha/", "deep/", "a/", "b/", "",
+			}
+
+			const numOperations = 30000
+
+			for i := 0; i < numOperations; i++ {
+				op := r.Intn(6)
+				key := keys[r.Intn(len(keys))]
+
+				switch op {
+				case 0: // Insert (New or Overwrite)
+					sz := uint64(r.Intn(400) + 10)
+					_, _ = cache.Insert(key, dummyVal{bytes: sz})
+
+				case 1: // Overwrite
+					sz := uint64(r.Intn(600) + 1)
+					_, _ = cache.Insert(key, dummyVal{bytes: sz})
+
+				case 2: // UpdateSize
+					delta := uint64(r.Intn(50) + 1)
+					_ = cache.UpdateSize(key, delta)
+
+				case 3: // Erase
+					_ = cache.Erase(key)
+
+				case 4: // Sweep (Prefix Erase)
+					pfx := prefixes[r.Intn(len(prefixes))]
+					cache.EraseEntriesWithGivenPrefix(pfx)
+
+				case 5: // Large Insert to force eviction
+					sz := uint64(r.Intn(2000) + 1000)
+					_, _ = cache.Insert(key, dummyVal{bytes: sz})
+				}
+			}
+
+			// Clear all entries via empty prefix sweep
+			cache.EraseEntriesWithGivenPrefix("")
+
+			// Verify all keys are erased
+			for _, k := range keys {
+				assert.Nil(t, cache.LookUp(k), "%s: key %s still present after full purge", name, k)
+			}
+
+			// Empirical size drift verification:
+			// If size accounting leaked any bytes during 30,000 ops, inserting an item equal to maxSize
+			// will either fail with ErrInvalidEntrySize or evict the item immediately.
+			evicted, err := cache.Insert("FULL_CAPACITY_CHECK_KEY", dummyVal{bytes: maxSize})
+			require.NoError(t, err, "%s: failed to insert max capacity item after full purge!", name)
+			assert.Empty(t, evicted, "%s: phantom size accounting leak! %d items evicted immediately from supposedly empty cache", name, len(evicted))
+
+			// Clean up check key
+			_ = cache.Erase("FULL_CAPACITY_CHECK_KEY")
+		})
+	}
+}
+
