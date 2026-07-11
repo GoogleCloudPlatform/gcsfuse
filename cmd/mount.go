@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -167,10 +169,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		mount.ParseOptions(parsedOptions, o)
 	}
 
-	numWorkers := runtime.GOMAXPROCS(0)
-	if numWorkers > 16 {
-		numWorkers = 2
-	}
+	numWorkers := numPossibleCPUs()
 
 	mountCfg := &fuse.MountConfig{
 		FSName:     fsName,
@@ -220,4 +219,29 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", fsName)
 	}
 	return mountCfg
+}
+
+func numPossibleCPUs() int {
+	b, err := os.ReadFile("/sys/devices/system/cpu/possible")
+	if err != nil {
+		return runtime.NumCPU()
+	}
+	s := strings.TrimSpace(string(b))
+	total := 0
+	for _, part := range strings.Split(s, ",") {
+		lo, hi, ok := strings.Cut(part, "-")
+		if !ok {
+			hi = lo
+		}
+		l, err := strconv.Atoi(lo)
+		if err != nil {
+			return runtime.NumCPU()
+		}
+		h, err := strconv.Atoi(hi)
+		if err != nil {
+			return runtime.NumCPU()
+		}
+		total += h - l + 1
+	}
+	return total
 }

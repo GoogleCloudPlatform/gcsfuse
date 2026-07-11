@@ -19,8 +19,22 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func raiseMemlockLimit() error {
+	limit := unix.Rlimit{
+		Cur: unix.RLIM_INFINITY,
+		Max: unix.RLIM_INFINITY,
+	}
+	return unix.Setrlimit(unix.RLIMIT_MEMLOCK, &limit)
+}
+
 // serveOpsOverIoUring is called from ServeOps when c.UsingIoUring() == true on Linux.
 func (s *fileSystemServer) serveOpsOverIoUring(c *fuse.Connection, _ int, numQueues int) {
+	if err := raiseMemlockLimit(); err != nil {
+		log.Printf("[FUSE_OVER_IO_URING Warning] Failed to raise RLIMIT_MEMLOCK to infinity: %v. Running as non-root may restrict setup memory.", err)
+	} else {
+		log.Printf("[FUSE_OVER_IO_URING] Successfully raised RLIMIT_MEMLOCK to infinity.")
+	}
+
 	log.Printf("[FUSE_OVER_IO_URING] Starting %d independent io_uring worker queues for DevFd=%d\n", numQueues, c.DevFd())
 	defer func() {
 		log.Printf("[FUSE_OVER_IO_URING] All worker queues stopped. Destroying filesystem and unmounting.\n")
