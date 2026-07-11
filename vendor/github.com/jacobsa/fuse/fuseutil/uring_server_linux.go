@@ -393,8 +393,12 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	q.cqes = cqesPtr[:int(params.CqEntries)*16]
 
 	const queueDepth = 2
-	const slotSize = 288 + 1048576 + 32 // 32 bytes for [2]unix.Iovec!
-	bufSize := queueDepth * slotSize
+	const pageSize = 4096
+	const payloadSize = 1048576
+	const slotSize = pageSize + payloadSize // 1052672 (page-aligned!)
+	
+	// Allocate slot memory + 32 bytes per slot for the iovec arrays at the end
+	bufSize := queueDepth*slotSize + queueDepth*32
 	mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE)
 	if err != nil {
 		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mmap mmapBuf failed: %v", err)
@@ -403,23 +407,30 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	}
 	q.mmapBuf = mmapBuf
 
-	// Carve mmapBuf into slots and setup the 2-segment iovecs inside the mmap buffer!
+	// Carve mmapBuf into page-aligned slots and setup iovecs at the end of the mmap block
 	q.slots = make([]uringSlot, queueDepth)
+	iovOffsetStart := queueDepth * slotSize
+
 	for i := 0; i < int(queueDepth); i++ {
 		slot := &q.slots[i]
-		slot.header = mmapBuf[i*slotSize : i*slotSize+288]
-		slot.payload = mmapBuf[i*slotSize+288 : i*slotSize+288+1048576]
+		slotStart := i * slotSize
+		
+		// The FUSE header structure is 288 bytes, but starts at page boundary (offset 0 of slot)
+		slot.header = mmapBuf[slotStart : slotStart+288]
+		// The payload starts at next page boundary (offset 4096 of slot)
+		slot.payload = mmapBuf[slotStart+pageSize : slotStart+pageSize+payloadSize]
 
-		iovAddr := &mmapBuf[i*slotSize+288+1048576]
+		// The iovec array is stored at the end of mmapBuf
+		iovAddr := &mmapBuf[iovOffsetStart + i*32]
 		slot.iov = (*[2]unix.Iovec)(unsafe.Pointer(iovAddr))
 
 		slot.iov[0] = unix.Iovec{
-			Base: &slot.header[0],
+			Base: &slot.header[0], // Page-aligned!
 			Len:  288,
 		}
 		slot.iov[1] = unix.Iovec{
-			Base: &slot.payload[0],
-			Len:  1048576,
+			Base: &slot.payload[0], // Page-aligned!
+			Len:  payloadSize,
 		}
 	}
 
