@@ -98,6 +98,7 @@ type uringQueue struct {
 	cqMask      *uint32
 	cqes        []byte
 	mmapBuf     []byte
+	iov         unix.Iovec
 }
 
 const (
@@ -267,10 +268,11 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
 
 	if len(payload) > 0 {
-		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&payload[0]))))
-		binary.LittleEndian.PutUint32(sqe[24:28], uint32(len(payload)))
-		binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0
-		binary.LittleEndian.PutUint32(sqe[28:32], 0) // uring_cmd_flags = 0 (Direct Userspace Buffer)
+		q.iov.Base = &payload[0]
+		q.iov.Len = uint64(len(payload))
+		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&q.iov))))
+		binary.LittleEndian.PutUint32(sqe[24:28], 1) // 1 segment/iovec
+		binary.LittleEndian.PutUint32(sqe[28:32], 0) // uring_cmd_flags = 0
 	} else {
 		binary.LittleEndian.PutUint32(sqe[24:28], 0)
 		binary.LittleEndian.PutUint32(sqe[28:32], 0)
@@ -289,8 +291,7 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	atomic.StoreUint32(q.sqTail, tail+1)
 
 	if len(payload) > 0 {
-		log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d base=0x%x len=%d (Direct Buffer)\n",
-			cmdOp, qid, uintptr(unsafe.Pointer(&payload[0])), len(payload))
+		log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d iovAddr=0x%x iovVal={0x%x, %d} (Non-Fixed Vectored)\n", cmdOp, qid, uintptr(unsafe.Pointer(&q.iov)), uintptr(unsafe.Pointer(q.iov.Base)), q.iov.Len)
 	}
 
 	// Enter syscall to push SQE and wake kernel worker
