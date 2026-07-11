@@ -1036,10 +1036,12 @@ func (c *Connection) kernelResponseForOp(
 		out.TimeGran = 1
 		out.MaxPages = o.MaxPages
 		if o.NumQueues > 0 {
-			out.MaxStackDepth = uint32(o.NumQueues)
-			out.Unused[0] = o.NumQueues
-			out.Unused[1] = o.NumQueues
-			out.Unused[2] = o.NumQueues
+			// Shotgun approach: fill all potential fields/offsets from byte 36 to 61 with NumQueues
+			out.MaxStackDepth = uint32(o.NumQueues) | (uint32(o.NumQueues) << 16) // offsets 36-39
+			out.RequestTimeout = o.NumQueues                                      // offsets 40-41
+			for i := range out.Unused {
+				out.Unused[i] = o.NumQueues                                   // offsets 42-61
+			}
 		}
 
 	default:
