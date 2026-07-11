@@ -768,7 +768,7 @@ type InitOut struct {
 	Flags2              uint32 // NEW: Bits 32..63 to kernel
 	MaxStackDepth       uint32
 	RequestTimeout      uint16
-	Unused              [10]uint16
+	Unused              [11]uint16
 }
 
 type InterruptIn struct {
