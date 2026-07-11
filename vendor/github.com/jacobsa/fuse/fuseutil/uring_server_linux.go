@@ -153,6 +153,13 @@ func setupIoUring(entries uint32, params *ioUringParams) (int, error) {
 }
 
 func newUringQueue(entries uint32) (*uringQueue, error) {
+	var rlimit unix.Rlimit
+	if err := unix.Getrlimit(unix.RLIMIT_MEMLOCK, &rlimit); err == nil {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: RLIMIT_MEMLOCK: cur=%d, max=%d", rlimit.Cur, rlimit.Max)
+	} else {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Getrlimit failed: %v", err)
+	}
+
 	const IORING_SETUP_SQE128 uint32 = 1 << 10
 	params := &ioUringParams{
 		Flags: IORING_SETUP_SQE128,
