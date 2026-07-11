@@ -62,3 +62,40 @@ func TestPathSegmentInterner_ConcurrencyStress(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestPathSegmentInterner_CrossShardMemorySharing(t *testing.T) {
+	interner := lru.NewPathSegmentInterner()
+
+	segments := []string{
+		"datasets/",
+		"imagenet/",
+		"train/",
+		"val/",
+		"001.jpg",
+		"002.jpg",
+	}
+
+	for _, seg := range segments {
+		// Create dynamic distinct backing byte slices for the same string value
+		s1 := string([]byte(seg))
+		s2 := fmt.Sprintf("%s", seg)
+
+		i1 := interner.Intern(s1)
+		i2 := interner.Intern(s2)
+
+		assert.Equal(t, seg, i1)
+		assert.Equal(t, seg, i2)
+		assert.Same(t, unsafe.StringData(i1), unsafe.StringData(i2))
+	}
+}
+
+func TestGlobalInterner_MemorySharing(t *testing.T) {
+	s1 := string([]byte("datasets/imagenet/"))
+	s2 := fmt.Sprintf("%s%s", "datasets/", "imagenet/")
+
+	i1 := lru.Intern(s1)
+	i2 := lru.Intern(s2)
+
+	assert.Equal(t, s1, i1)
+	assert.Same(t, unsafe.StringData(i1), unsafe.StringData(i2))
+}

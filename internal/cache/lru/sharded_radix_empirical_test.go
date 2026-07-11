@@ -28,10 +28,10 @@ func TestEmpiricalStructSizes(t *testing.T) {
 	sievePayloadSize := unsafe.Sizeof(sievePayload{})
 
 	t.Logf("unsafe.Sizeof(radixHubNode{}) = %d (expected 48)", radixHubNodeSize)
-	t.Logf("unsafe.Sizeof(sievePayload{}) = %d (claimed/expected 40)", sievePayloadSize)
+	t.Logf("unsafe.Sizeof(sievePayload{}) = %d (expected 48)", sievePayloadSize)
 
 	assert.Equal(t, uintptr(48), radixHubNodeSize, "radixHubNode size should be 48 bytes")
-	assert.Equal(t, uintptr(40), sievePayloadSize, "sievePayload size assertion: 40 bytes")
+	assert.Equal(t, uintptr(48), sievePayloadSize, "sievePayload size assertion: 48 bytes")
 }
 
 func TestParentDirectoryLocality(t *testing.T) {

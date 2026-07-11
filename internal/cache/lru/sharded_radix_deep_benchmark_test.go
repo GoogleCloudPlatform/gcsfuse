@@ -132,7 +132,7 @@ func TestComparativeRSS_DeepHierarchy(t *testing.T) {
 		name string
 		ctor func(uint64) lru.Cache
 	}{
-		{"MapCache", lru.NewCache},
+		{"MapCache", lru.NewCacheWithoutInvariants},
 		{"ShardedRadixCache", lru.NewShardedRadixCache},
 	}
 
@@ -217,7 +217,7 @@ func BenchmarkDeepHierarchy(b *testing.B) {
 		name string
 		ctor func(uint64) lru.Cache
 	}{
-		{"MapCache", lru.NewCache},
+		{"MapCache", lru.NewCacheWithoutInvariants},
 		{"ShardedRadixCache", lru.NewShardedRadixCache},
 	}
 

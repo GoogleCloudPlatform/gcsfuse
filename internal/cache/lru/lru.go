@@ -83,8 +83,9 @@ type ValueType interface {
 }
 
 type entry struct {
-	Key   string
-	Value ValueType
+	Key       string
+	Value     ValueType
+	extraSize uint64
 }
 
 // NewCache returns the reference of cache object by initialising the cache with
@@ -97,6 +98,16 @@ func NewCache(maxSize uint64) Cache {
 
 	// Set up invariant checking.
 	c.mu = locker.NewRW("LRUCache", c.checkInvariants)
+	return c
+}
+
+// NewCacheWithoutInvariants returns an initialized map-based LRU cache without invariant checks.
+func NewCacheWithoutInvariants(maxSize uint64) Cache {
+	c := &mapCache{
+		maxSize: maxSize,
+		index:   make(map[string]*list.Element),
+	}
+	c.mu = locker.NewRW("LRUCache", func() {})
 	return c
 }
 
@@ -141,13 +152,13 @@ func (c *mapCache) evictOne() ValueType {
 	e := c.entries.Back()
 	key := e.Value.(entry).Key
 
-	evictedEntry := e.Value.(entry).Value
-	c.currentSize -= evictedEntry.Size()
+	evictedEntry := e.Value.(entry)
+	c.currentSize -= (evictedEntry.Value.Size() + evictedEntry.extraSize)
 
 	c.entries.Remove(e)
 	delete(c.index, key)
 
-	return evictedEntry
+	return evictedEntry.Value
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -175,13 +186,14 @@ func (c *mapCache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.currentSize -= e.Value.(entry).Value.Size()
+		oldEntry := e.Value.(entry)
+		c.currentSize -= (oldEntry.Value.Size() + oldEntry.extraSize)
 		c.currentSize += valueSize
-		e.Value = entry{key, value}
+		e.Value = entry{key, value, 0}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
-		e := c.entries.PushFront(entry{key, value})
+		e := c.entries.PushFront(entry{key, value, 0})
 		c.index[key] = e
 		c.currentSize += valueSize
 	}
@@ -204,13 +216,13 @@ func (c *mapCache) eraseInternal(key string) (value ValueType) {
 		return
 	}
 
-	deletedEntry := e.Value.(entry).Value
-	c.currentSize -= deletedEntry.Size()
+	deletedEntry := e.Value.(entry)
+	c.currentSize -= (deletedEntry.Value.Size() + deletedEntry.extraSize)
 
 	delete(c.index, key)
 	c.entries.Remove(e)
 
-	return deletedEntry
+	return deletedEntry.Value
 }
 
 // eraseKeys removes a list of keys from the cache.
@@ -288,11 +300,12 @@ func (c *mapCache) UpdateWithoutChangingOrder(
 		return ErrEntryNotExist
 	}
 
-	if value.Size() != e.Value.(entry).Value.Size() {
+	oldEntry := e.Value.(entry)
+	if value.Size() != oldEntry.Value.Size() {
 		return ErrInvalidUpdateEntrySize
 	}
 
-	e.Value = entry{key, value}
+	e.Value = entry{key, value, oldEntry.extraSize}
 	c.index[key] = e
 
 	return nil
@@ -300,21 +313,27 @@ func (c *mapCache) UpdateWithoutChangingOrder(
 
 // UpdateSize updates the currentSize accounting when an entry's size has changed.
 // This is needed for entries whose size grows incrementally (e.g., sparse files).
-// Eviction is deferred until the next Insert() call.
 // The entry's order in the LRU is not changed.
 func (c *mapCache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.index[key]
+	e, ok := c.index[key]
 	if !ok {
 		return ErrEntryNotExist
 	}
 
-	// Update currentSize accounting
-	// Note: This may temporarily violate currentSize <= maxSize invariant
-	// Eviction will happen on the next Insert() call
+	oldEntry := e.Value.(entry)
+	e.Value = entry{
+		Key:       key,
+		Value:     oldEntry.Value,
+		extraSize: oldEntry.extraSize + sizeDelta,
+	}
 	c.currentSize += sizeDelta
+
+	for c.currentSize > c.maxSize {
+		c.evictOne()
+	}
 
 	return nil
 }

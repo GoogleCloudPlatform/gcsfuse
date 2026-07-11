@@ -83,6 +83,9 @@ type StatCache interface {
 	EraseEntriesWithGivenPrefix(prefix string)
 }
 
+// Compile-time compliance check for ShardedRadixCache.
+var _ lru.Cache = (*lru.ShardedRadixCache)(nil)
+
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
@@ -91,6 +94,11 @@ func NewStatCacheBucketView(sc lru.Cache, bn string) StatCache {
 		sharedCache: sc,
 		bucketName:  bn,
 	}
+}
+
+// NewStatCache creates a StatCache backed by ShardedRadixCache for the given maxSize and bucketName.
+func NewStatCache(maxSize uint64, bucketName string) StatCache {
+	return NewStatCacheBucketView(lru.NewShardedRadixCache(maxSize), bucketName)
 }
 
 // statCacheBucketView is a special type of StatCache which

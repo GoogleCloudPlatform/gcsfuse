@@ -37,11 +37,11 @@ type radixHubNode struct {
 	payload atomic.Pointer[sievePayload] //  8 bytes
 }
 
-// sievePayload represents an out-of-line 40-byte SIEVE payload data node (value 8B + accessed 4B + padding 4B + sievePrev 8B + sieveNext 8B + hub pointer 8B = 40B).
+// sievePayload represents an out-of-line 48-byte SIEVE payload data node (value 8B + accessed 1B + padding 7B + extraSize 8B + sievePrev 8B + sieveNext 8B + hub pointer 8B = 48B).
 type sievePayload struct {
 	value     atomic.Pointer[valueWrapper] // 8 bytes
 	accessed  atomic.Bool                  // 4 bytes
-	extraSize uint32                       // 4 bytes padding / incremental size accounting
+	extraSize atomic.Uint64                // 8 bytes
 	sievePrev *sievePayload                // 8 bytes
 	sieveNext *sievePayload                // 8 bytes
 	hub       *radixHubNode                // 8 bytes
@@ -49,7 +49,7 @@ type sievePayload struct {
 
 // Compile-time assertions to guarantee exact struct layout sizes.
 var _ = [1]struct{}{}[48-unsafe.Sizeof(radixHubNode{})]
-var _ = [1]struct{}{}[40-unsafe.Sizeof(sievePayload{})]
+var _ = [1]struct{}{}[48-unsafe.Sizeof(sievePayload{})]
 
 
 func (n *radixHubNode) isPayload() bool {
@@ -186,6 +186,19 @@ func ParentDirectoryPrefix(key string) string {
 	idx := strings.LastIndex(key, "/")
 	if idx >= 0 {
 		return key[:idx+1]
+	}
+	return key
+}
+
+// StripBucketPrefix slices "bucketName/" from key if key starts with "bucketName/".
+// It performs zero allocations and strictly preserves trailing slashes without path cleaning.
+func StripBucketPrefix(key string, bucketName string) string {
+	if bucketName == "" {
+		return key
+	}
+	prefixLen := len(bucketName) + 1
+	if len(key) >= prefixLen && key[len(bucketName)] == '/' && strings.HasPrefix(key, bucketName) {
+		return key[prefixLen:]
 	}
 	return key
 }
@@ -400,10 +413,10 @@ func (s *cacheShard) eraseNodeInternal(node *radixHubNode, c *ShardedRadixCache)
 	if val == nil {
 		return nil
 	}
-	sz := val.Size() + uint64(p.extraSize)
+	sz := val.Size() + p.extraSize.Load()
 	s.currentSize -= sz
 	c.currentSize.Add(-int64(sz))
-	p.extraSize = 0
+	p.extraSize.Store(0)
 	s.sieveRemove(p)
 	p.value.Store(nil)
 	node.payload.Store(nil)
@@ -469,12 +482,12 @@ func (s *cacheShard) processDetachedSubtreesBatchLocked(maxNodes int, c *Sharded
 			if curr.isPayload() {
 				p := curr.payload.Load()
 				if val := curr.getValue(); val != nil && p != nil {
-					sz := val.Size() + uint64(p.extraSize)
+					sz := val.Size() + p.extraSize.Load()
 					s.currentSize -= sz
 					c.currentSize.Add(-int64(sz))
 					s.sieveRemove(p)
 					p.value.Store(nil)
-					p.extraSize = 0
+					p.extraSize.Store(0)
 					curr.payload.Store(nil)
 				}
 			}
@@ -732,7 +745,11 @@ func (c *ShardedRadixCache) Insert(key string, value ValueType) ([]ValueType, er
 		if p != nil {
 			p.accessed.Store(true)
 		}
-		diff := int64(valueSize) - int64(oldVal.Size())
+		var oldExtra uint64
+		if p != nil {
+			oldExtra = p.extraSize.Swap(0)
+		}
+		diff := int64(valueSize) - int64(oldVal.Size()+oldExtra)
 		s.currentSize = uint64(int64(s.currentSize) + diff)
 		c.currentSize.Add(diff)
 	} else {
@@ -818,7 +835,7 @@ func (c *ShardedRadixCache) UpdateSize(key string, sizeDelta uint64) error {
 
 	p := node.payload.Load()
 	if p != nil {
-		p.extraSize += uint32(sizeDelta)
+		p.extraSize.Add(sizeDelta)
 	}
 
 	s.currentSize += sizeDelta
@@ -869,7 +886,7 @@ func (c *ShardedRadixCache) EraseEntriesWithGivenPrefix(prefix string) {
 				s.removeChildAtomic(node, child)
 				child.parent = nil
 				s.detachedQueue = append(s.detachedQueue, detachedSubtree{root: child, curr: child})
-				s.processDetachedSubtreesBatchLocked(64, c)
+				s.processDetachedSubtreesBatchLocked(math.MaxInt, c)
 				break
 			}
 			if lcp == len(child.prefix) {

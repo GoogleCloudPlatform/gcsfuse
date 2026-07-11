@@ -391,3 +391,30 @@ func Test_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
 
 	wg.Wait()
 }
+
+func Test_UpdateSize_AccountingSafety(t *testing.T) {
+	c := lru.NewCache(100)
+
+	// Insert entry of size 30
+	_, err := c.Insert("file1", testData{Value: 1, DataSize: 30})
+	assert.NoError(t, err)
+
+	// Update size by 20 (total accounting size = 50)
+	err = c.UpdateSize("file1", 20)
+	assert.NoError(t, err)
+
+	// Erase file1. Size accounting must subtract 50 (30 base + 20 delta), leaving 0.
+	val := c.Erase("file1")
+	assert.NotNil(t, val)
+
+	// Inserting an entry of size 100 should now succeed completely without exceeding maxSize (100) or panicking invariants
+	evicted, err := c.Insert("file2", testData{Value: 2, DataSize: 100})
+	assert.NoError(t, err)
+	assert.Empty(t, evicted)
+
+	// Test UpdateSize triggering eviction when currentSize exceeds maxSize
+	err = c.UpdateSize("file2", 10)
+	assert.NoError(t, err)
+	assert.Nil(t, c.LookUp("file2"))
+}
+

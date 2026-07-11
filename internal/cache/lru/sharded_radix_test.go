@@ -330,3 +330,117 @@ func TestShardedRadixCache_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) 
 func TestShardedRadixCache_ShardPadding(t *testing.T) {
 	assert.Equal(t, uintptr(128), lru.GetShardSize(), "cacheShard struct must be padded to exactly 128 bytes to eliminate false sharing")
 }
+
+func TestStripBucketPrefix_EdgeCases(t *testing.T) {
+	testCases := []struct {
+		name       string
+		key        string
+		bucketName string
+		expected   string
+	}{
+		{
+			name:       "standard file key",
+			key:        "my-bucket/dir/file.txt",
+			bucketName: "my-bucket",
+			expected:   "dir/file.txt",
+		},
+		{
+			name:       "directory with trailing slash preserved",
+			key:        "my-bucket/datasets/imagenet/train/",
+			bucketName: "my-bucket",
+			expected:   "datasets/imagenet/train/",
+		},
+		{
+			name:       "bucket root with trailing slash",
+			key:        "my-bucket/",
+			bucketName: "my-bucket",
+			expected:   "",
+		},
+		{
+			name:       "bucket name without trailing slash",
+			key:        "my-bucket",
+			bucketName: "my-bucket",
+			expected:   "my-bucket",
+		},
+		{
+			name:       "similar prefix without slash boundary",
+			key:        "my-bucket-other/file.txt",
+			bucketName: "my-bucket",
+			expected:   "my-bucket-other/file.txt",
+		},
+		{
+			name:       "empty bucket name",
+			key:        "my-bucket/dir/file.txt",
+			bucketName: "",
+			expected:   "my-bucket/dir/file.txt",
+		},
+		{
+			name:       "empty key",
+			key:        "",
+			bucketName: "my-bucket",
+			expected:   "",
+		},
+		{
+			name:       "unrelated bucket key",
+			key:        "other-bucket/foo/bar",
+			bucketName: "my-bucket",
+			expected:   "other-bucket/foo/bar",
+		},
+		{
+			name:       "dotdot and double slash path without cleaning",
+			key:        "my-bucket/dir/../file//txt/",
+			bucketName: "my-bucket",
+			expected:   "dir/../file//txt/",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := lru.StripBucketPrefix(tc.key, tc.bucketName)
+			assert.Equal(t, tc.expected, res)
+		})
+	}
+}
+
+func TestStripBucketPrefix_ZeroAllocation(t *testing.T) {
+	key := "my-bucket/datasets/imagenet/train/0001.jpg"
+	bucket := "my-bucket"
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		_ = lru.StripBucketPrefix(key, bucket)
+	})
+
+	assert.Equal(t, float64(0), allocs, "StripBucketPrefix must not allocate any heap memory")
+}
+
+func TestShardedRadixCache_UpdateSize_AccountingSafety(t *testing.T) {
+	c := lru.NewShardedRadixCache(256)
+	defer c.(interface{ Close() error }).Close()
+
+	// Insert entry of size 30
+	_, err := c.Insert("dir/file1", testData{Value: 1, DataSize: 30})
+	assert.NoError(t, err)
+
+	// Update size by 20 (total accounting size = 50)
+	err = c.UpdateSize("dir/file1", 20)
+	assert.NoError(t, err)
+
+	// Erase dir/file1. Size accounting must subtract 50 (30 base + 20 delta).
+	val := c.Erase("dir/file1")
+	assert.NotNil(t, val)
+
+	// Overwrite test: insert entry of size 40, update size by 20 (total 60), then Insert new value of size 40
+	_, err = c.Insert("dir/file2", testData{Value: 2, DataSize: 40})
+	assert.NoError(t, err)
+
+	err = c.UpdateSize("dir/file2", 20)
+	assert.NoError(t, err)
+
+	// Overwrite dir/file2 with size 40. The extraSize (20) must be properly swapped and accounted for.
+	_, err = c.Insert("dir/file2", testData{Value: 22, DataSize: 40})
+	assert.NoError(t, err)
+
+	val2 := c.Erase("dir/file2")
+	assert.NotNil(t, val2)
+}
+

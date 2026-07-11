@@ -212,7 +212,7 @@ func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueT
 		child := node.getChild(search[0])
 		if child == nil {
 			newLeaf := &radixNode{
-				prefix: strings.Clone(search),
+				prefix: Intern(search),
 				value:  value,
 				size:   value.Size(),
 			}
@@ -229,13 +229,13 @@ func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueT
 		}
 
 		splitNode := &radixNode{
-			prefix: child.prefix[:lcp],
+			prefix: Intern(child.prefix[:lcp]),
 			parent: node,
 		}
 
 		node.replaceChild(child, splitNode)
 
-		child.prefix = child.prefix[lcp:]
+		child.prefix = Intern(child.prefix[lcp:])
 		child.sibling = nil
 		splitNode.addChild(child)
 
@@ -248,7 +248,7 @@ func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueT
 		}
 
 		newLeaf := &radixNode{
-			prefix: strings.Clone(search[lcp:]),
+			prefix: Intern(search[lcp:]),
 			value:  value,
 			size:   value.Size(),
 		}
@@ -312,7 +312,7 @@ func (c *radixCache) compressPathUpwards(curr *radixNode) {
 
 		if curr.child.sibling == nil {
 			onlyChild := curr.child
-			onlyChild.prefix = curr.prefix + onlyChild.prefix
+			onlyChild.prefix = Intern(curr.prefix + onlyChild.prefix)
 			onlyChild.parent = curr.parent
 
 			curr.parent.replaceChild(curr, onlyChild)
@@ -408,7 +408,7 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 	defer c.mu.Unlock()
 
 	if node, oldValue, oldSize := c.insertNode(key, value); oldValue != nil {
-		c.currentSize += valueSize - oldSize
+		c.currentSize = uint64(int64(c.currentSize) + int64(valueSize) - int64(oldSize))
 		c.moveToFront(node)
 	} else {
 		c.pushFront(node)
@@ -528,6 +528,9 @@ func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
 	// Evict until we're at or below maxSize to maintain invariants
 	for c.currentSize > c.maxSize && c.tail != nil {
 		c.evictOne()
+	}
+	if c.tail == nil {
+		c.currentSize = 0
 	}
 
 	return nil

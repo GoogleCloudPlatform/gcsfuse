@@ -15,8 +15,11 @@
 package lru
 
 import (
+	"strings"
 	"sync"
 )
+
+const maxCapacityPerShard = 8192
 
 type internerShard struct {
 	mu sync.RWMutex
@@ -62,9 +65,13 @@ func (p *PathSegmentInterner) Intern(s string) string {
 		shard.mu.Unlock()
 		return existing
 	}
-	shard.m[s] = s
+	if len(shard.m) >= maxCapacityPerShard {
+		shard.m = make(map[string]string, maxCapacityPerShard)
+	}
+	canonical := strings.Clone(s)
+	shard.m[canonical] = canonical
 	shard.mu.Unlock()
-	return s
+	return canonical
 }
 
 var globalInterner = NewPathSegmentInterner()
