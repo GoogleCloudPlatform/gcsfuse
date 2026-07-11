@@ -170,9 +170,6 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	}
 
 	numWorkers := numPossibleCPUs()
-	if numWorkers > 16 {
-		numWorkers = 16
-	}
 
 	mountCfg := &fuse.MountConfig{
 		FSName:     fsName,
