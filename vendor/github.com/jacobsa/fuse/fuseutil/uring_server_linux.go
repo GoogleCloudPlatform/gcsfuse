@@ -160,11 +160,13 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 
 	fd, err := setupIoUring(entries, params)
 	if err != nil {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: setupIoUring failed: %v", err)
 		return nil, err
 	}
 
 	sqes, err := unix.Mmap(fd, int64(ioRING_OFF_SQES), int(params.SqEntries)*128, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED|unix.MAP_POPULATE)
 	if err != nil {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mmap sqes failed: %v", err)
 		_ = unix.Close(fd)
 		return nil, err
 	}
@@ -172,6 +174,7 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	sqRingSize := params.SqOff.Array + params.SqEntries*4
 	sqRing, err := unix.Mmap(fd, int64(ioRING_OFF_SQ_RING), int(sqRingSize), unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED|unix.MAP_POPULATE)
 	if err != nil {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mmap sqRing failed: %v", err)
 		_ = unix.Munmap(sqes)
 		_ = unix.Close(fd)
 		return nil, err
@@ -180,6 +183,7 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	cqRingSize := params.CqOff.Cqes + params.CqEntries*16
 	cqRing, err := unix.Mmap(fd, int64(ioRING_OFF_CQ_RING), int(cqRingSize), unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED|unix.MAP_POPULATE)
 	if err != nil {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mmap cqRing failed: %v", err)
 		_ = unix.Munmap(sqRing)
 		_ = unix.Munmap(sqes)
 		_ = unix.Close(fd)
@@ -209,6 +213,7 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	bufSize := queueDepth * (4096 + 1048576) // pageSize + MaxWriteSize
 	mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE)
 	if err != nil {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mmap mmapBuf failed: %v", err)
 		q.Close()
 		return nil, err
 	}
@@ -220,6 +225,7 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	}
 	_, _, errno := syscall.Syscall6(427, uintptr(fd), 0, uintptr(unsafe.Pointer(&iov)), 1, 0, 0)
 	if errno != 0 {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: sys_IO_URING_REGISTER (427) failed: errno=%d (%s)", errno, errno.Error())
 		q.Close()
 		return nil, errno
 	}
