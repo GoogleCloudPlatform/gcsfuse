@@ -105,54 +105,84 @@ func (s *fileSystemServer) serveOpsOverIoUring(c *fuse.Connection, _ int, numQue
 		log.Printf("[FUSE_OVER_IO_URING] Successfully raised RLIMIT_MEMLOCK to infinity.")
 	}
 
-	log.Printf("[FUSE_OVER_IO_URING] Starting %d independent io_uring worker queues for DevFd=%d\n", numQueues, c.DevFd())
+	log.Printf("[FUSE_OVER_IO_URING] Setting up %d independent io_uring queues for DevFd=%d\n", numQueues, c.DevFd())
+
+	const queueDepth = 2
+	queues := make([]*uringQueue, numQueues)
+
+	// 1. SEQUENTIAL creation and registration of queues to prevent kernel lock contention
+	for qid := 0; qid < numQueues; qid++ {
+		queue, err := newUringQueue(queueDepth)
+		if err != nil {
+			log.Printf("[FUSE_OVER_IO_URING Error] Failed to setup io_uring for QID=%d: %v\n", qid, err)
+			// Cleanup previously setup queues
+			for idx := 0; idx < qid; idx++ {
+				queues[idx].Close()
+			}
+			return
+		}
+		queues[qid] = queue
+
+		// Push initial REGISTER commands for all slots
+		for i := 0; i < queueDepth; i++ {
+			err := queue.pushCommand(fusekernel.FuseIoUringCmdRegister, uint16(qid), 0, c.DevFd(), i, nil)
+			if err != nil {
+				log.Printf("[FUSE_OVER_IO_URING Error] QID=%d Failed to push initial register for slot %d: %v\n", qid, i, err)
+				for idx := 0; idx <= qid; idx++ {
+					queues[idx].Close()
+				}
+				return
+			}
+		}
+
+		// Wait for completions of all REGISTER commands for this queue
+		for i := 0; i < queueDepth; i++ {
+			slotIdx, cqeRes, err := queue.waitEvent()
+			if err != nil || cqeRes < 0 {
+				log.Printf("[FUSE_OVER_IO_URING Error] QID=%d waitCQE registration returned slotIdx=%d cqeRes=%d err=%v\n", qid, slotIdx, cqeRes, err)
+				for idx := 0; idx <= qid; idx++ {
+					queues[idx].Close()
+				}
+				return
+			}
+			log.Printf("[FUSE_OVER_IO_URING Debug] QID=%d Slot=%d registered successfully with kernel.", qid, slotIdx)
+		}
+	}
+
+	log.Printf("[FUSE_OVER_IO_URING] All %d queues registered successfully with kernel! Starting workers...\n", numQueues)
+
 	defer func() {
-		log.Printf("[FUSE_OVER_IO_URING] All worker queues stopped. Destroying filesystem and unmounting.\n")
+		log.Printf("[FUSE_OVER_IO_URING] All worker queues stopping. Destroying filesystem and unmounting.\n")
 		s.opsInFlight.Wait()
 		s.fs.Destroy()
+		for _, q := range queues {
+			q.Close()
+		}
 	}()
 
+	// 2. Start worker threads (they can now go straight to the event loop)
 	var wg sync.WaitGroup
 	for qid := 0; qid < numQueues; qid++ {
 		wg.Add(1)
-		go func(queueID uint16) {
+		go func(queueID uint16, q *uringQueue) {
 			defer wg.Done()
-			// Lock this persistent worker to an OS thread/core for max L1/L2 cache locality
 			runtime.LockOSThread()
 			defer runtime.UnlockOSThread()
 
-			s.runUringWorkerLoop(c, queueID)
-		}(uint16(qid))
+			s.runUringWorkerLoopWithQueue(c, queueID, q)
+		}(uint16(qid), queues[qid])
 	}
 	wg.Wait()
 }
 
-func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
-	// 1. Create a dedicated io_uring instance for this queue with 128-byte SQEs
-	const queueDepth = 2
-	queue, err := newUringQueue(queueDepth)
-	if err != nil {
-		log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to setup io_uring: %v\n", qid, err)
-		return
-	}
-	defer queue.Close()
-
+func (s *fileSystemServer) runUringWorkerLoopWithQueue(c *fuse.Connection, qid uint16, queue *uringQueue) {
 	inMsg := buffer.NewInMessage()
 	outMsg := new(buffer.OutMessage)
-
-	// 2. Initial Registration: Submit REGISTER commands for all slots in the pool
-	for i := 0; i < queueDepth; i++ {
-		err := queue.pushCommand(fusekernel.FuseIoUringCmdRegister, qid, 0, c.DevFd(), i, nil)
-		if err != nil {
-			log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to submit initial register for slot %d: %v\n", qid, i, err)
-			return
-		}
-	}
 
 	for {
 		outMsg.Reset()
 
-		// 3. Wait for CQE
+		// Wait for CQE (next request)
 		slotIdx, cqeRes, err := queue.waitEvent()
 		if err != nil || cqeRes < 0 {
 			log.Printf("[FUSE_OVER_IO_URING Worker Exiting] QID=%d waitCQE returned slotIdx=%d cqeRes=%d err=%v\n", qid, slotIdx, cqeRes, err)
@@ -161,7 +191,7 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 
 		slot := &queue.slots[slotIdx]
 
-		// 4. Extract headers and payload from the completed slot and construct a contiguous InMessage without gaps
+		// Extract headers and payload from the completed slot and construct a contiguous InMessage without gaps
 		inHdrLen := 40
 		opcode := binary.LittleEndian.Uint32(slot.header[4:8])
 		structSize := inputStructSize(opcode)
@@ -188,7 +218,7 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 		log.Printf("[FUSE_OVER_IO_URING Trace] QID=%d Slot=%d CQERes=%d Opcode=%d StructSize=%d PayloadSz=%d CommitID=%d Unique=%d Nodeid=%d\n",
 			qid, slotIdx, cqeRes, opcode, structSize, payloadSz, commitID, inMsg.Header().Unique, inMsg.Header().Nodeid)
 
-		// 5. Parse and dispatch the operation
+		// Parse and dispatch the operation
 		s.opsInFlight.Add(1)
 		op, parseErr := c.ParseInMessage(inMsg, outMsg)
 		if parseErr != nil {
@@ -212,7 +242,7 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 		log.Printf("[FUSE_OVER_IO_URING Trace] QID=%d Slot=%d Unique=%d OutStatus=%d OutLen=%d\n",
 			qid, slotIdx, inMsg.Header().Unique, respStatus, respLen)
 
-		// 6. Atomic Commit & Fetch: Submit reply & fetch NEXT request in ONE io_uring cmd!
+		// Atomic Commit & Fetch: Submit reply & fetch NEXT request in ONE io_uring cmd!
 		err = queue.pushCommand(fusekernel.FuseIoUringCmdCommitAndFetch, qid, commitID, c.DevFd(), slotIdx, outMsg.Bytes())
 		if err != nil {
 			log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to submit commit and fetch for slot %d: %v\n", qid, slotIdx, err)
