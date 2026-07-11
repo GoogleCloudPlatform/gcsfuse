@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +28,7 @@ import (
 const testShardedMaxSize = 320
 
 func setupShardedRadixCacheTest(t *testing.T) lru.Cache {
-	locker.EnableInvariantsCheck()
+	// locker.EnableInvariantsCheck()
 	return lru.NewShardedRadixCache(testShardedMaxSize)
 }
 

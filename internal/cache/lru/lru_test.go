@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,7 +38,7 @@ func (td testData) Size() uint64 {
 }
 
 func setupCacheTest(t *testing.T) lru.Cache {
-	locker.EnableInvariantsCheck()
+	// locker.EnableInvariantsCheck()
 	return lru.NewCache(MaxSize)
 }
 

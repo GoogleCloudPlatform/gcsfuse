@@ -25,8 +25,8 @@ import (
 
 func TestEmpiricalStructSizes(t *testing.T) {
 	compactNodeSize := unsafe.Sizeof(compactRadixNode{})
-	t.Logf("unsafe.Sizeof(compactRadixNode{}) = %d (expected 80)", compactNodeSize)
-	assert.Equal(t, uintptr(80), compactNodeSize, "compactRadixNode size should be 80 bytes")
+	t.Logf("unsafe.Sizeof(compactRadixNode{}) = %d (expected 64)", compactNodeSize)
+	assert.Equal(t, uintptr(64), compactNodeSize, "compactRadixNode size should be 64 bytes")
 }
 
 func TestParentDirectoryLocality(t *testing.T) {

@@ -74,7 +74,7 @@ func (d dummyValue) Size() uint64 {
 	return 10
 }
 
-func TestMapCacheWorkloads(t *testing.T) {
+func TestCacheWorkloadsMemory(t *testing.T) {
 	count := 1000000 // 1 Million files
 	capacity := uint64(count * 1000)
 	workloads := []string{"flat", "nested", "deeply_nested"}
@@ -93,8 +93,34 @@ func TestMapCacheWorkloads(t *testing.T) {
 		alloc := getMemStats()
 		pureMem := alloc - baseMem
 		runtime.KeepAlive(pureCache)
+		pureCache = nil
+
+		// 2. RadixTreeCache
+		baseMem2 := getMemStats()
+		radixCache := lru.NewRadixCache(capacity)
+		for _, p := range paths {
+			_, _ = radixCache.Insert(p, dummyValue{})
+		}
+		alloc2 := getMemStats()
+		radixMem := alloc2 - baseMem2
+		runtime.KeepAlive(radixCache)
+		radixCache = nil
+
+		// 3. ShardedRadixCache
+		baseMem3 := getMemStats()
+		shardedRadixCache := lru.NewShardedRadixCache(capacity)
+		for _, p := range paths {
+			_, _ = shardedRadixCache.Insert(p, dummyValue{})
+		}
+		alloc3 := getMemStats()
+		shardedRadixMem := alloc3 - baseMem3
+		runtime.KeepAlive(shardedRadixCache)
+		shardedRadixCache = nil
+		
 		runtime.KeepAlive(paths)
 
 		t.Logf("%-20s Heap Used: %10.2f MB\n", "MapLRU", float64(pureMem)/(1024*1024))
+		t.Logf("%-20s Heap Used: %10.2f MB\n", "RadixTree", float64(radixMem)/(1024*1024))
+		t.Logf("%-20s Heap Used: %10.2f MB\n", "ShardedRadix", float64(shardedRadixMem)/(1024*1024))
 	}
 }

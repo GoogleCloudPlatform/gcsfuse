@@ -25,19 +25,87 @@ import (
 
 // compactRadixNode represents a unified cache-aligned node struct in the RCU LCRS radix tree with SIEVE eviction.
 type compactRadixNode struct {
-	prefix    string                           // 16 bytes
+	prefixPtr *byte                            //  8 bytes
 	child     atomic.Pointer[compactRadixNode] //  8 bytes
 	sibling   atomic.Pointer[compactRadixNode] //  8 bytes
 	parent    *compactRadixNode                //  8 bytes
 	sievePrev *compactRadixNode                //  8 bytes
 	sieveNext *compactRadixNode                //  8 bytes
 	value     unsafe.Pointer                   //  8 bytes (atomic pointer to *ValueType)
-	extraSize atomic.Uint64                    //  8 bytes
-	accessed  atomic.Bool                      //  4 bytes
+	packed    atomic.Uint64                    //  8 bytes
 }
 
-// Compile-time assertion to guarantee node struct size (80 bytes).
-var _ = [1]struct{}{}[80-unsafe.Sizeof(compactRadixNode{})]
+// Compile-time assertion to guarantee node struct size (64 bytes).
+var _ = [1]struct{}{}[64-unsafe.Sizeof(compactRadixNode{})]
+
+func newCompactRadixNode(prefix string) *compactRadixNode {
+	n := &compactRadixNode{}
+	if len(prefix) > 0 {
+		n.prefixPtr = unsafe.StringData(prefix)
+		n.packed.Store(uint64(len(prefix)) << 47)
+	}
+	return n
+}
+
+func (n *compactRadixNode) getPrefix() string {
+	packed := n.packed.Load()
+	prefixLen := int((packed >> 47) & 0xFFFF)
+	if prefixLen == 0 {
+		return ""
+	}
+	return unsafe.String(n.prefixPtr, prefixLen)
+}
+
+func (n *compactRadixNode) getExtraSize() uint64 {
+	return n.packed.Load() & 0x7FFFFFFFFFFF
+}
+
+func (n *compactRadixNode) setExtraSize(size uint64) {
+	for {
+		old := n.packed.Load()
+		if size > 0x7FFFFFFFFFFF {
+			panic("extraSize overflow")
+		}
+		newPacked := (old &^ 0x7FFFFFFFFFFF) | size
+		if n.packed.CompareAndSwap(old, newPacked) {
+			break
+		}
+	}
+}
+
+func (n *compactRadixNode) addExtraSize(delta uint64) {
+	for {
+		old := n.packed.Load()
+		oldSize := old & 0x7FFFFFFFFFFF
+		newSize := oldSize + delta
+		if newSize > 0x7FFFFFFFFFFF {
+			panic("extraSize overflow")
+		}
+		newPacked := (old &^ 0x7FFFFFFFFFFF) | newSize
+		if n.packed.CompareAndSwap(old, newPacked) {
+			break
+		}
+	}
+}
+
+func (n *compactRadixNode) getAccessed() bool {
+	return (n.packed.Load() & (1 << 63)) != 0
+}
+
+func (n *compactRadixNode) setAccessed(v bool) {
+	for {
+		old := n.packed.Load()
+		var newPacked uint64
+		if v {
+			newPacked = old | (1 << 63)
+		} else {
+			newPacked = old &^ (1 << 63)
+		}
+		if old == newPacked || n.packed.CompareAndSwap(old, newPacked) {
+			break
+		}
+	}
+}
 
 func (n *compactRadixNode) isPayload() bool {
 	return n != nil && n.getValue() != nil
@@ -70,11 +138,12 @@ func (n *compactRadixNode) setValue(val ValueType) {
 // getChild finds a child node whose prefix starts with the given byte (RCU read without lock).
 func (n *compactRadixNode) getChild(b byte) *compactRadixNode {
 	for curr := n.child.Load(); curr != nil; curr = curr.sibling.Load() {
-		if len(curr.prefix) > 0 && curr.prefix[0] == b {
+		pref := curr.getPrefix()
+		if len(pref) > 0 && pref[0] == b {
 			return curr
 		}
 		// Sibling chains are lexicographically sorted by prefix[0], allowing early exit.
-		if len(curr.prefix) > 0 && curr.prefix[0] > b {
+		if len(pref) > 0 && pref[0] > b {
 			return nil
 		}
 	}
@@ -82,31 +151,18 @@ func (n *compactRadixNode) getChild(b byte) *compactRadixNode {
 }
 
 type detachedSubtree struct {
-	nodes []*compactRadixNode
+	root  *compactRadixNode
+	stack []*compactRadixNode
 }
 
 func newDetachedSubtree(root *compactRadixNode) detachedSubtree {
 	if root == nil {
 		return detachedSubtree{}
 	}
-	var nodes []*compactRadixNode
-	stack := []*compactRadixNode{root}
-	for len(stack) > 0 {
-		n := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		nodes = append(nodes, n)
-
-		// Do not push root's sibling as root was detached from its parent.
-		if n != root {
-			if sib := n.sibling.Load(); sib != nil {
-				stack = append(stack, sib)
-			}
-		}
-		if ch := n.child.Load(); ch != nil {
-			stack = append(stack, ch)
-		}
+	return detachedSubtree{
+		root:  root,
+		stack: []*compactRadixNode{root},
 	}
-	return detachedSubtree{nodes: nodes}
 }
 
 // cacheShard represents a single shard padded to exactly 128 bytes to eliminate false sharing.
@@ -285,7 +341,8 @@ func (c *ShardedRadixCache) PruneAllEmptyLeaves() {
 func (s *cacheShard) addChildAtomic(parent, newChild *compactRadixNode) {
 	newChild.parent = parent
 	pcurr := &parent.child
-	for pcurr.Load() != nil && pcurr.Load().prefix[0] < newChild.prefix[0] {
+	newPref := newChild.getPrefix()
+	for pcurr.Load() != nil && pcurr.Load().getPrefix()[0] < newPref[0] {
 		pcurr = &pcurr.Load().sibling
 	}
 	newChild.sibling.Store(pcurr.Load())
@@ -355,8 +412,8 @@ func (s *cacheShard) evictOneLocked(c *ShardedRadixCache) ValueType {
 		}
 		s.sieveHand = node.sievePrev
 
-		if node.accessed.Load() {
-			node.accessed.Store(false)
+		if node.getAccessed() {
+			node.setAccessed(false)
 		} else {
 			return s.eraseNodeInternal(node, c)
 		}
@@ -417,10 +474,10 @@ func (s *cacheShard) eraseNodeInternal(node *compactRadixNode, c *ShardedRadixCa
 	if val == nil {
 		return nil
 	}
-	sz := val.Size() + node.extraSize.Load()
+	sz := val.Size() + node.getExtraSize()
 	s.currentSize -= sz
 	c.currentSize.Add(-int64(sz))
-	node.extraSize.Store(0)
+	node.setExtraSize(0)
 	s.sieveRemove(node)
 	node.setValue(nil)
 	s.compressPathUpwards(node)
@@ -449,16 +506,14 @@ func (s *cacheShard) compressPathUpwards(curr *compactRadixNode) {
 			if parent == nil {
 				break
 			}
-			mergedPrefix := Intern(curr.prefix + child.prefix)
-			mergedNode := &compactRadixNode{
-				prefix:    mergedPrefix,
-				parent:    parent,
-				value:     child.value,
-				extraSize: child.extraSize,
-			}
+			mergedPrefix := Intern(curr.getPrefix() + child.getPrefix())
+			mergedNode := newCompactRadixNode(mergedPrefix)
+			mergedNode.parent = parent
+			mergedNode.value = child.value
+			mergedNode.setExtraSize(child.getExtraSize())
 			mergedNode.child.Store(child.child.Load())
 			if child.getValue() != nil {
-				mergedNode.accessed.Store(child.accessed.Load())
+				mergedNode.setAccessed(child.getAccessed())
 				if s.sieveHead == child {
 					s.sieveHead = mergedNode
 				}
@@ -492,38 +547,35 @@ func (s *cacheShard) compressPathUpwards(curr *compactRadixNode) {
 func (s *cacheShard) processDetachedSubtreesBatchLocked(maxNodes int, c *ShardedRadixCache) {
 	for len(s.detachedQueue) > 0 && maxNodes > 0 {
 		item := &s.detachedQueue[0]
-		n := len(item.nodes)
-		if n <= maxNodes {
-			for _, curr := range item.nodes {
-				if curr.isPayload() {
-					if val := curr.getValue(); val != nil {
-						sz := val.Size() + curr.extraSize.Load()
-						s.currentSize -= sz
-						c.currentSize.Add(-int64(sz))
-						s.sieveRemove(curr)
-						curr.setValue(nil)
-						curr.extraSize.Store(0)
-					}
+		
+		for len(item.stack) > 0 && maxNodes > 0 {
+			curr := item.stack[len(item.stack)-1]
+			item.stack = item.stack[:len(item.stack)-1]
+
+			if curr.isPayload() {
+				if val := curr.getValue(); val != nil {
+					sz := val.Size() + curr.getExtraSize()
+					s.currentSize -= sz
+					c.currentSize.Add(-int64(sz))
+					s.sieveRemove(curr)
+					curr.setValue(nil)
+					curr.setExtraSize(0)
 				}
 			}
-			maxNodes -= n
+			maxNodes--
+
+			if ch := curr.child.Load(); ch != nil {
+				item.stack = append(item.stack, ch)
+			}
+			if curr != item.root {
+				if sib := curr.sibling.Load(); sib != nil {
+					item.stack = append(item.stack, sib)
+				}
+			}
+		}
+
+		if len(item.stack) == 0 {
 			s.detachedQueue = s.detachedQueue[1:]
-		} else {
-			batch := item.nodes[:maxNodes]
-			for _, curr := range batch {
-				if curr.isPayload() {
-					if val := curr.getValue(); val != nil {
-						sz := val.Size() + curr.extraSize.Load()
-						s.currentSize -= sz
-						c.currentSize.Add(-int64(sz))
-						s.sieveRemove(curr)
-						curr.setValue(nil)
-						curr.extraSize.Store(0)
-					}
-				}
-			}
-			item.nodes = item.nodes[maxNodes:]
-			maxNodes = 0
 		}
 	}
 }
@@ -561,16 +613,14 @@ func (s *cacheShard) pruneAllEmptyLeaves() {
 					s.removeChildAtomic(parent, curr)
 				} else if curr.child.Load().sibling.Load() == nil {
 					onlyChild := curr.child.Load()
-					mergedPrefix := Intern(curr.prefix + onlyChild.prefix)
-					mergedNode := &compactRadixNode{
-						prefix:    mergedPrefix,
-						parent:    parent,
-						value:     onlyChild.value,
-						extraSize: onlyChild.extraSize,
-					}
+					mergedPrefix := Intern(curr.getPrefix() + onlyChild.getPrefix())
+					mergedNode := newCompactRadixNode(mergedPrefix)
+					mergedNode.parent = parent
+					mergedNode.value = onlyChild.value
+					mergedNode.setExtraSize(onlyChild.getExtraSize())
 					mergedNode.child.Store(onlyChild.child.Load())
 					if onlyChild.getValue() != nil {
-						mergedNode.accessed.Store(onlyChild.accessed.Load())
+						mergedNode.setAccessed(onlyChild.getAccessed())
 						if s.sieveHead == onlyChild {
 							s.sieveHead = mergedNode
 						}
@@ -617,7 +667,7 @@ func (s *cacheShard) lookUp(key string, markAccessed bool) ValueType {
 			val := node.getValue()
 			if val != nil {
 				if markAccessed {
-					node.accessed.Store(true)
+					node.setAccessed(true)
 				}
 				return val
 			}
@@ -629,8 +679,9 @@ func (s *cacheShard) lookUp(key string, markAccessed bool) ValueType {
 			return nil
 		}
 
-		if strings.HasPrefix(search, child.prefix) {
-			search = search[len(child.prefix):]
+		childPref := child.getPrefix()
+		if strings.HasPrefix(search, childPref) {
+			search = search[len(childPref):]
 			node = child
 			continue
 		}
@@ -656,8 +707,9 @@ func (s *cacheShard) getNode(key string) (*compactRadixNode, bool) {
 			return nil, false
 		}
 
-		if strings.HasPrefix(search, child.prefix) {
-			search = search[len(child.prefix):]
+		childPref := child.getPrefix()
+		if strings.HasPrefix(search, childPref) {
+			search = search[len(childPref):]
 			node = child
 			continue
 		}
@@ -678,29 +730,26 @@ func (s *cacheShard) insertNode(key string, value ValueType) (*compactRadixNode,
 
 		child := node.getChild(search[0])
 		if child == nil {
-			newLeaf := &compactRadixNode{
-				prefix: Intern(search),
-			}
+			newLeaf := newCompactRadixNode(Intern(search))
 			newLeaf.setValue(value)
 			s.addChildAtomic(node, newLeaf)
 			return newLeaf, nil
 		}
 
-		lcp := longestCommonPrefix(search, child.prefix)
-		if lcp == len(child.prefix) {
+		childPref := child.getPrefix()
+		lcp := longestCommonPrefix(search, childPref)
+		if lcp == len(childPref) {
 			search = search[lcp:]
 			node = child
 			continue
 		}
 
-		ncHub := &compactRadixNode{
-			prefix:    Intern(child.prefix[lcp:]),
-			value:     child.value,
-			extraSize: child.extraSize,
-		}
+		ncHub := newCompactRadixNode(Intern(childPref[lcp:]))
+		ncHub.value = child.value
+		ncHub.setExtraSize(child.getExtraSize())
 		ncHub.child.Store(child.child.Load())
 		if child.getValue() != nil {
-			ncHub.accessed.Store(child.accessed.Load())
+			ncHub.setAccessed(child.getAccessed())
 			if s.sieveHead == child {
 				s.sieveHead = ncHub
 			}
@@ -723,10 +772,8 @@ func (s *cacheShard) insertNode(key string, value ValueType) (*compactRadixNode,
 			ch.parent = ncHub
 		}
 
-		splitNode := &compactRadixNode{
-			prefix: Intern(child.prefix[:lcp]),
-			parent: node,
-		}
+		splitNode := newCompactRadixNode(Intern(childPref[:lcp]))
+		splitNode.parent = node
 
 		var targetNode *compactRadixNode
 		if lcp == len(search) {
@@ -741,9 +788,7 @@ func (s *cacheShard) insertNode(key string, value ValueType) (*compactRadixNode,
 			return targetNode, nil
 		}
 
-		newLeaf := &compactRadixNode{
-			prefix: Intern(search[lcp:]),
-		}
+		newLeaf := newCompactRadixNode(Intern(search[lcp:]))
 		newLeaf.setValue(value)
 		s.addChildAtomic(splitNode, newLeaf)
 		return newLeaf, nil
@@ -768,8 +813,9 @@ func (c *ShardedRadixCache) Insert(key string, value ValueType) ([]ValueType, er
 
 	node, oldVal := s.insertNode(key, value)
 	if oldVal != nil {
-		node.accessed.Store(true)
-		oldExtra := node.extraSize.Swap(0)
+		node.setAccessed(true)
+		oldExtra := node.getExtraSize()
+		node.setExtraSize(0)
 		diff := int64(valueSize) - int64(oldVal.Size()+oldExtra)
 		s.currentSize = uint64(int64(s.currentSize) + diff)
 		c.currentSize.Add(diff)
@@ -848,7 +894,7 @@ func (c *ShardedRadixCache) UpdateSize(key string, sizeDelta uint64) error {
 		return ErrEntryNotExist
 	}
 
-	node.extraSize.Add(sizeDelta)
+	node.addExtraSize(sizeDelta)
 	s.currentSize += sizeDelta
 	c.currentSize.Add(int64(sizeDelta))
 	for s.maxSize >= 1024 && s.currentSize > s.maxSize && s.sieveTail != nil && s.sieveTail != node {
@@ -892,10 +938,11 @@ func (c *ShardedRadixCache) EraseEntriesWithGivenPrefix(prefix string) {
 			var partialMatch *compactRadixNode
 
 			for curr := node.child.Load(); curr != nil; curr = curr.sibling.Load() {
-				lcp := longestCommonPrefix(search, curr.prefix)
+				currPref := curr.getPrefix()
+				lcp := longestCommonPrefix(search, currPref)
 				if lcp == len(search) {
 					fullMatches = append(fullMatches, curr)
-				} else if lcp == len(curr.prefix) && partialMatch == nil {
+				} else if lcp == len(currPref) && partialMatch == nil {
 					partialMatch = curr
 				}
 			}
@@ -911,7 +958,7 @@ func (c *ShardedRadixCache) EraseEntriesWithGivenPrefix(prefix string) {
 			}
 
 			if partialMatch != nil {
-				search = search[len(partialMatch.prefix):]
+				search = search[len(partialMatch.getPrefix()):]
 				node = partialMatch
 				continue
 			}

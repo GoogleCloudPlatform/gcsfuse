@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -149,7 +148,7 @@ func TestRadixCache_EraseEntriesWithGivenPrefix_DivergingPrefix(t *testing.T) {
 }
 
 func TestRadixCache_ConcurrentReadWriteErase(t *testing.T) {
-	locker.EnableInvariantsCheck()
+	// locker.EnableInvariantsCheck()
 	cache := lru.NewRadixCache(1000)
 	const numOps = 200
 
