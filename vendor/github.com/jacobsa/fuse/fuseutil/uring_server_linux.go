@@ -185,14 +185,29 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 		// Re-initialize InMessage state to point to the copied buffer
 		inMsg.InitFromUring(totalRead, 40)
 
+		log.Printf("[FUSE_OVER_IO_URING Trace] QID=%d Slot=%d CQERes=%d Opcode=%d StructSize=%d PayloadSz=%d CommitID=%d Unique=%d Nodeid=%d\n",
+			qid, slotIdx, cqeRes, opcode, structSize, payloadSz, commitID, inMsg.Header().Unique, inMsg.Header().Nodeid)
+
 		// 5. Parse and dispatch the operation
 		s.opsInFlight.Add(1)
-		op, _ := c.ParseInMessage(inMsg, outMsg)
+		op, parseErr := c.ParseInMessage(inMsg, outMsg)
+		if parseErr != nil {
+			log.Printf("[FUSE_OVER_IO_URING Error] QID=%d ParseInMessage failed: %v\n", qid, parseErr)
+		}
 		ctx := c.BeginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
 
 		outMsg.Reset()
-		_ = s.handleOpSync(c, ctx, op, outMsg)
+		handleErr := s.handleOpSync(c, ctx, op, outMsg)
+		if handleErr != nil {
+			log.Printf("[FUSE_OVER_IO_URING Error] QID=%d handleOpSync returned err: %v\n", qid, handleErr)
+		}
 		s.opsInFlight.Done()
+
+		// Print response status and size
+		respStatus := outMsg.OutHeader().Error
+		respLen := outMsg.Len()
+		log.Printf("[FUSE_OVER_IO_URING Trace] QID=%d Slot=%d Unique=%d OutStatus=%d OutLen=%d\n",
+			qid, slotIdx, inMsg.Header().Unique, respStatus, respLen)
 
 		// 6. Atomic Commit & Fetch: Submit reply & fetch NEXT request in ONE io_uring cmd!
 		// Pass the kernel-provided CommitID back instead of inMsg.Header.Unique!
