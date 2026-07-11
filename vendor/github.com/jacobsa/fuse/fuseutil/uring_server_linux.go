@@ -5,6 +5,7 @@ package fuseutil
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 	"runtime"
 	"sync"
@@ -53,21 +54,49 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 	defer queue.Close()
 
 	inMsg := buffer.NewInMessage()
-	inMsg.SetStorage(queue.mmapBuf)
 	outMsg := new(buffer.OutMessage)
-	outMsg.Reset()
 
-	// 2. Initial Registration: Tell kernel to register this buffer and fetch first request
-	queue.pushCommand(fusekernel.FuseIoUringCmdRegister, qid, 0, c.DevFd(), inMsg.Storage())
+	// 2. Initial Registration: Submit REGISTER commands for all slots in the pool
+	for i := 0; i < queueDepth; i++ {
+		err := queue.pushCommand(fusekernel.FuseIoUringCmdRegister, qid, 0, c.DevFd(), i, nil)
+		if err != nil {
+			log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to submit initial register for slot %d: %v\n", qid, i, err)
+			return
+		}
+	}
 
 	for {
-		// 3. Wait for CQE (FUSE request deposited directly into inMsg.Storage() by kernel)
-		cqeRes, err := queue.waitEvent()
+		outMsg.Reset()
+
+		// 3. Wait for CQE
+		slotIdx, cqeRes, err := queue.waitEvent()
 		if err != nil || cqeRes < 0 {
-			log.Printf("[FUSE_OVER_IO_URING Worker Exiting] QID=%d waitCQE returned cqeRes=%d err=%v\n", qid, cqeRes, err)
+			log.Printf("[FUSE_OVER_IO_URING Worker Exiting] QID=%d waitCQE returned slotIdx=%d cqeRes=%d err=%v\n", qid, slotIdx, cqeRes, err)
 			break // Ring closed, connection terminated, or unmounted
 		}
 
+		slot := &queue.slots[slotIdx]
+
+		// 4. Extract headers and payload from the completed slot and construct a contiguous InMessage
+		inHdrLen := 40
+		opInLen := 128
+		ent := (*fusekernel.FuseUringEntInOut)(unsafe.Pointer(&slot.header[256]))
+		payloadSz := int(ent.PayloadSz)
+
+		// Copy InHeader (first 40 bytes)
+		copy(inMsg.Storage()[0:inHdrLen], slot.header[0:inHdrLen])
+		// Copy OpIn (next 128 bytes)
+		copy(inMsg.Storage()[inHdrLen:inHdrLen+opInLen], slot.header[128:128+opInLen])
+		// Copy extra payload
+		if payloadSz > 0 {
+			copy(inMsg.Storage()[inHdrLen+opInLen:inHdrLen+opInLen+payloadSz], slot.payload[0:payloadSz])
+		}
+
+		totalRead := inHdrLen + opInLen + payloadSz
+		// Re-initialize InMessage state to point to the copied buffer
+		inMsg.InitFromUring(totalRead, 40)
+
+		// 5. Parse and dispatch the operation
 		s.opsInFlight.Add(1)
 		op, _ := c.ParseInMessage(inMsg, outMsg)
 		ctx := c.BeginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
@@ -76,28 +105,38 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 		_ = s.handleOpSync(c, ctx, op, outMsg)
 		s.opsInFlight.Done()
 
-		// 4. Atomic Commit & Fetch: Submit reply & fetch NEXT request in ONE io_uring cmd!
-		queue.pushCommand(fusekernel.FuseIoUringCmdCommitAndFetch, qid, inMsg.Header().Unique, c.DevFd(), outMsg.Bytes())
+		// 6. Atomic Commit & Fetch: Submit reply & fetch NEXT request in ONE io_uring cmd!
+		err = queue.pushCommand(fusekernel.FuseIoUringCmdCommitAndFetch, qid, inMsg.Header().Unique, c.DevFd(), slotIdx, outMsg.Bytes())
+		if err != nil {
+			log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to submit commit and fetch for slot %d: %v\n", qid, slotIdx, err)
+			break
+		}
 	}
 }
 
-
+// uringSlot represents one request slot buffer set.
+type uringSlot struct {
+	header  []byte // 288 bytes (fuse_uring_req_header)
+	payload []byte // 1,048,576 bytes (max_write)
+	iov     [2]unix.Iovec
+}
 
 // uringQueue manages a single io_uring submission/completion ring with 128-byte SQEs.
 type uringQueue struct {
-	fd          int
-	sqes        []byte
-	sqRing      []byte
-	cqRing      []byte
-	sqHead      *uint32
-	sqTail      *uint32
-	sqMask      *uint32
-	sqArray     []uint32
-	cqHead      *uint32
-	cqTail      *uint32
-	cqMask      *uint32
-	cqes        []byte
-	mmapBuf     []byte
+	fd      int
+	sqes    []byte
+	sqRing  []byte
+	cqRing  []byte
+	sqHead  *uint32
+	sqTail  *uint32
+	sqMask  *uint32
+	sqArray []uint32
+	cqHead  *uint32
+	cqTail  *uint32
+	cqMask  *uint32
+	cqes    []byte
+	mmapBuf []byte
+	slots   []uringSlot
 }
 
 const (
@@ -227,17 +266,24 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	}
 	q.mmapBuf = mmapBuf
 
-	iov := unix.Iovec{
-		Base: &mmapBuf[0],
-		Len:  uint64(len(mmapBuf)),
-	}
-	_, _, errno := syscall.Syscall6(427, uintptr(fd), 0, uintptr(unsafe.Pointer(&iov)), 1, 0, 0)
-	if errno != 0 {
-		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: sys_IO_URING_REGISTER (427) failed: errno=%d (%s)", errno, errno.Error())
-		q.Close()
-		return nil, errno
+	// Carve mmapBuf into slots and setup the 2-segment iovecs
+	q.slots = make([]uringSlot, queueDepth)
+	for i := 0; i < int(queueDepth); i++ {
+		slot := &q.slots[i]
+		slot.header = mmapBuf[i*slotSize : i*slotSize+288]
+		slot.payload = mmapBuf[i*slotSize+288 : (i+1)*slotSize]
+
+		slot.iov[0] = unix.Iovec{
+			Base: &slot.header[0],
+			Len:  288,
+		}
+		slot.iov[1] = unix.Iovec{
+			Base: &slot.payload[0],
+			Len:  1048576,
+		}
 	}
 
+	log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Slots populated successfully. Bypassed fixed buffer registration.\n")
 	return q, nil
 }
 
@@ -260,8 +306,13 @@ func (q *uringQueue) Close() {
 }
 
 // pushCommand formats a 128-byte SQE with IORING_OP_URING_CMD and pushes it to the kernel.
-func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devFd int, payload []byte) {
+func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devFd int, slotIdx int, payload []byte) error {
 	tail := atomic.LoadUint32(q.sqTail)
+	head := atomic.LoadUint32(q.sqHead)
+	if tail-head >= uint32(len(q.sqArray)) {
+		return fmt.Errorf("SQ Ring is full")
+	}
+
 	idx := tail & *q.sqMask
 	sqeOff := int(idx) * 128
 	sqe := q.sqes[sqeOff : sqeOff+128]
@@ -269,25 +320,37 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 		sqe[i] = 0
 	}
 
+	slot := &q.slots[slotIdx]
+
+	// Handle response write-back for COMMIT_AND_FETCH
+	if cmdOp == fusekernel.FuseIoUringCmdCommitAndFetch && len(payload) > 0 {
+		// Copy OutHeader (first 16 bytes of reply)
+		copy(slot.header[0:16], payload[0:16])
+		// Copy response payload (remaining bytes)
+		payloadSz := len(payload) - 16
+		if payloadSz > 0 {
+			copy(slot.payload[0:payloadSz], payload[16:])
+		}
+		// Write payload size back to slot header metadata area
+		ent := (*fusekernel.FuseUringEntInOut)(unsafe.Pointer(&slot.header[256]))
+		ent.PayloadSz = uint32(payloadSz)
+	}
+
 	const IORING_OP_URING_CMD uint8 = 46
 	sqe[0] = IORING_OP_URING_CMD                          // Opcode (offset 0)
 	binary.LittleEndian.PutUint32(sqe[4:8], uint32(devFd)) // Fd (offset 4..7)
 	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
 
-	if len(payload) > 0 {
-		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&payload[0]))))
-		binary.LittleEndian.PutUint32(sqe[24:28], uint32(len(payload)))
-		binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0
-		binary.LittleEndian.PutUint32(sqe[28:32], 1) // uring_cmd_flags = IORING_URING_CMD_FIXED (1)
-	} else {
-		binary.LittleEndian.PutUint32(sqe[24:28], 0)
-		binary.LittleEndian.PutUint32(sqe[28:32], 0)
-	}
+	// Set addr to the address of the 2-element iovec array for this slot
+	binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&slot.iov[0]))))
+	binary.LittleEndian.PutUint32(sqe[24:28], 2) // 2 segments!
+	binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0
+	binary.LittleEndian.PutUint32(sqe[28:32], 0) // uring_cmd_flags = 0 (non-fixed)
 
-	binary.LittleEndian.PutUint64(sqe[32:40], uint64(qid)) // user_data (offset 32..39)
+	// Set user_data in SQE to the slot index
+	binary.LittleEndian.PutUint64(sqe[32:40], uint64(slotIdx))
 
 	// Write struct fuse_uring_cmd_req { uint64 flags; uint64 commit_id; uint16 qid; uint8 padding[6]; }
-	// into the 80-byte SQE command payload area right at offset 48:
 	cmdArea := sqe[48 : 48+24]
 	binary.LittleEndian.PutUint64(cmdArea[0:8], 0)         // flags
 	binary.LittleEndian.PutUint64(cmdArea[8:16], commitID) // commit_id
@@ -296,17 +359,16 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	q.sqArray[idx] = idx
 	atomic.StoreUint32(q.sqTail, tail+1)
 
-	if len(payload) > 0 {
-		log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d base=0x%x len=%d (Fixed Buffer Registered)\n",
-			cmdOp, qid, uintptr(unsafe.Pointer(&payload[0])), len(payload))
-	}
+	log.Printf("[FUSE_OVER_IO_URING Debug] pushCommand: cmdOp=%d qid=%d slotIdx=%d commitID=%d devFd=%d\n",
+		cmdOp, qid, slotIdx, commitID, devFd)
 
 	// Enter syscall to push SQE and wake kernel worker
 	_, _, _ = syscall.Syscall6(unix.SYS_IO_URING_ENTER, uintptr(q.fd), 1, 0, 0, 0, 0)
+	return nil
 }
 
 // waitEvent checks the Completion Queue and blocks if necessary for 1 CQE.
-func (q *uringQueue) waitEvent() (int32, error) {
+func (q *uringQueue) waitEvent() (slotIdx int, cqeRes int32, err error) {
 	for {
 		head := atomic.LoadUint32(q.cqHead)
 		tail := atomic.LoadUint32(q.cqTail)
@@ -314,14 +376,15 @@ func (q *uringQueue) waitEvent() (int32, error) {
 			idx := head & *q.cqMask
 			cqeOff := int(idx) * 16
 			cqe := q.cqes[cqeOff : cqeOff+16]
-			res := int32(binary.LittleEndian.Uint32(cqe[8:12]))
+			slotIdx = int(binary.LittleEndian.Uint64(cqe[0:8]))   // user_data is offset 0..7
+			cqeRes = int32(binary.LittleEndian.Uint32(cqe[8:12])) // res is offset 8..11
 			atomic.StoreUint32(q.cqHead, head+1)
-			return res, nil
+			return slotIdx, cqeRes, nil
 		}
 		// Enter syscall with IORING_ENTER_GETEVENTS (bit 0) to wait for at least 1 CQE
 		_, _, errno := syscall.Syscall6(unix.SYS_IO_URING_ENTER, uintptr(q.fd), 0, 1, 1, 0, 0)
 		if errno != 0 && errno != syscall.EINTR {
-			return -1, errno
+			return -1, -1, errno
 		}
 	}
 }

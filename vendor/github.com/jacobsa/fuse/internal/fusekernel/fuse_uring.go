@@ -23,4 +23,5 @@ type FuseUringEntInOut struct {
 	CommitID  uint64
 	PayloadSz uint32
 	Padding   uint32
+	Reserved  uint64
 }

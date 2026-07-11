@@ -168,3 +168,11 @@ func (m *InMessage) Storage() []byte {
 func (m *InMessage) SetStorage(b []byte) {
 	m.storage = b
 }
+
+
+// InitFromUring initializes the InMessage from pre-populated storage bytes
+// (used in FUSE io_uring split-buffer merging).
+func (m *InMessage) InitFromUring(size int, headerSize int) {
+	m.size = size
+	m.remaining = m.storage[headerSize:size]
+}
