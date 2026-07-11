@@ -194,13 +194,16 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 		if parseErr != nil {
 			log.Printf("[FUSE_OVER_IO_URING Error] QID=%d ParseInMessage failed: %v\n", qid, parseErr)
 		}
-		ctx := c.BeginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
+		
+		// Use BeginUringOp to create context with stuffed opState!
+		ctx := c.BeginUringOp(inMsg, outMsg, op)
 
 		outMsg.Reset()
 		handleErr := s.handleOpSync(c, ctx, op, outMsg)
-		if handleErr != nil {
-			log.Printf("[FUSE_OVER_IO_URING Error] QID=%d handleOpSync returned err: %v\n", qid, handleErr)
-		}
+		
+		// Call Connection.Reply to serialize response!
+		_ = c.Reply(ctx, handleErr)
+		
 		s.opsInFlight.Done()
 
 		// Print response status and size
@@ -210,7 +213,6 @@ func (s *fileSystemServer) runUringWorkerLoop(c *fuse.Connection, qid uint16) {
 			qid, slotIdx, inMsg.Header().Unique, respStatus, respLen)
 
 		// 6. Atomic Commit & Fetch: Submit reply & fetch NEXT request in ONE io_uring cmd!
-		// Pass the kernel-provided CommitID back instead of inMsg.Header.Unique!
 		err = queue.pushCommand(fusekernel.FuseIoUringCmdCommitAndFetch, qid, commitID, c.DevFd(), slotIdx, outMsg.Bytes())
 		if err != nil {
 			log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to submit commit and fetch for slot %d: %v\n", qid, slotIdx, err)

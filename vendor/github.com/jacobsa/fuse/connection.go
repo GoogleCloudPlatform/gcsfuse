@@ -571,9 +571,11 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 			callback()
 		}
 
-		// Make sure we destroy the messages when we're done.
-		c.putInMessage(inMsg)
-		c.putOutMessage(outMsg)
+		if !c.UsingIoUring() {
+			// Make sure we destroy the messages when we're done.
+			c.putInMessage(inMsg)
+			c.putOutMessage(outMsg)
+		}
 	}()
 
 	// Clean up state for this op.
@@ -600,7 +602,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	// Send the reply to the kernel, if one is required.
 	noResponse := c.kernelResponse(outMsg, inMsg.Header().Unique, op, opErr)
 
-	if !noResponse {
+	if !noResponse && !c.UsingIoUring() {
 		err := c.writeOutMessage(outMsg)
 		if err != nil {
 			writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
@@ -662,6 +664,15 @@ func (c *Connection) NumQueues() int {
 
 func (c *Connection) BeginOp(opCode uint32, fuseID uint64) context.Context {
 	return c.beginOp(opCode, fuseID)
+}
+
+func (c *Connection) BeginUringOp(inMsg *buffer.InMessage, outMsg *buffer.OutMessage, op interface{}) context.Context {
+	ctx := c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
+	var wlog *WireLogRecord
+	if c.wireLogger != nil {
+		wlog = NewWireLogRecord()
+	}
+	return context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op, wlog})
 }
 
 func (c *Connection) ParseInMessage(inMsg *buffer.InMessage, outMsg *buffer.OutMessage) (interface{}, error) {
