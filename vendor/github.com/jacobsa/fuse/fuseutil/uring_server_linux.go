@@ -215,7 +215,6 @@ func (s *fileSystemServer) runUringWorkerLoopWithQueue(c *fuse.Connection, qid u
 		// Use BeginUringOp to create context with stuffed opState!
 		ctx := c.BeginUringOp(inMsg, outMsg, op)
 
-		outMsg.Reset()
 		handleErr := s.handleOpSync(c, ctx, op, outMsg)
 		
 		// Call Connection.Reply to serialize response!
