@@ -220,7 +220,7 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	const queueDepth = 1
 	const slotSize = 288 + 1048576
 	bufSize := queueDepth * slotSize
-	mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_PRIVATE|unix.MAP_POPULATE)
+	mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE)
 	if err != nil {
 		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mmap mmapBuf failed: %v", err)
 		q.Close()
