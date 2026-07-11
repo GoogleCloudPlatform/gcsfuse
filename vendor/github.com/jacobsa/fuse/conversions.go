@@ -1036,6 +1036,7 @@ func (c *Connection) kernelResponseForOp(
 		out.TimeGran = 1
 		out.MaxPages = o.MaxPages
 		if o.NumQueues > 0 {
+			out.MaxStackDepth = uint32(o.NumQueues)
 			out.Unused[0] = o.NumQueues
 			out.Unused[1] = o.NumQueues
 			out.Unused[2] = o.NumQueues
