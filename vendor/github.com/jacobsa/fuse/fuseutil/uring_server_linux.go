@@ -110,7 +110,7 @@ func (s *fileSystemServer) serveOpsOverIoUring(c *fuse.Connection, _ int, numQue
 	const queueDepth = 2
 	queues := make([]*uringQueue, numQueues)
 
-	// 1. SEQUENTIAL creation and registration of queues to prevent kernel lock contention
+	// 1. SEQUENTIAL creation and asynchronous registration of queues
 	for qid := 0; qid < numQueues; qid++ {
 		queue, err := newUringQueue(queueDepth)
 		if err != nil {
@@ -123,7 +123,7 @@ func (s *fileSystemServer) serveOpsOverIoUring(c *fuse.Connection, _ int, numQue
 		}
 		queues[qid] = queue
 
-		// Push initial REGISTER commands for all slots
+		// Push initial REGISTER commands for all slots (completed asynchronously when requests arrive)
 		for i := 0; i < queueDepth; i++ {
 			err := queue.pushCommand(fusekernel.FuseIoUringCmdRegister, uint16(qid), 0, c.DevFd(), i, nil)
 			if err != nil {
@@ -134,22 +134,9 @@ func (s *fileSystemServer) serveOpsOverIoUring(c *fuse.Connection, _ int, numQue
 				return
 			}
 		}
-
-		// Wait for completions of all REGISTER commands for this queue
-		for i := 0; i < queueDepth; i++ {
-			slotIdx, cqeRes, err := queue.waitEvent()
-			if err != nil || cqeRes < 0 {
-				log.Printf("[FUSE_OVER_IO_URING Error] QID=%d waitCQE registration returned slotIdx=%d cqeRes=%d err=%v\n", qid, slotIdx, cqeRes, err)
-				for idx := 0; idx <= qid; idx++ {
-					queues[idx].Close()
-				}
-				return
-			}
-			log.Printf("[FUSE_OVER_IO_URING Debug] QID=%d Slot=%d registered successfully with kernel.", qid, slotIdx)
-		}
 	}
 
-	log.Printf("[FUSE_OVER_IO_URING] All %d queues registered successfully with kernel! Starting workers...\n", numQueues)
+	log.Printf("[FUSE_OVER_IO_URING] All %d queues initialized. Starting workers...\n", numQueues)
 
 	defer func() {
 		log.Printf("[FUSE_OVER_IO_URING] All worker queues stopping. Destroying filesystem and unmounting.\n")
@@ -160,7 +147,7 @@ func (s *fileSystemServer) serveOpsOverIoUring(c *fuse.Connection, _ int, numQue
 		}
 	}()
 
-	// 2. Start worker threads (they can now go straight to the event loop)
+	// 2. Start worker threads (they will wait for the async registration to complete/receive requests)
 	var wg sync.WaitGroup
 	for qid := 0; qid < numQueues; qid++ {
 		wg.Add(1)
@@ -182,11 +169,11 @@ func (s *fileSystemServer) runUringWorkerLoopWithQueue(c *fuse.Connection, qid u
 	for {
 		outMsg.Reset()
 
-		// Wait for CQE (next request)
+		// Wait for CQE (next request / registration result)
 		slotIdx, cqeRes, err := queue.waitEvent()
 		if err != nil || cqeRes < 0 {
 			log.Printf("[FUSE_OVER_IO_URING Worker Exiting] QID=%d waitCQE returned slotIdx=%d cqeRes=%d err=%v\n", qid, slotIdx, cqeRes, err)
-			break // Ring closed, connection terminated, or unmounted
+			break // Ring closed, connection terminated, or registration failed
 		}
 
 		slot := &queue.slots[slotIdx]
