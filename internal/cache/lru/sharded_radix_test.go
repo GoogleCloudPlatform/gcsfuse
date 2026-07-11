@@ -26,9 +26,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testShardedMaxSize = 320
+
 func setupShardedRadixCacheTest(t *testing.T) lru.Cache {
 	locker.EnableInvariantsCheck()
-	return lru.NewShardedRadixCache(testMaxSize)
+	return lru.NewShardedRadixCache(testShardedMaxSize)
 }
 
 func TestShardedRadixCache_LookUpInEmptyCache(t *testing.T) {
@@ -63,9 +65,9 @@ func TestShardedRadixCache_LookUpUnknownKey(t *testing.T) {
 
 func TestShardedRadixCache_FillUpToCapacity(t *testing.T) {
 	cache := setupShardedRadixCacheTest(t)
-	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 25}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 130}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 165}, []int64{}, nil)
 	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
 	assert.Equal(t, int64(26), cache.LookUp("taco").(testData).Value)
 	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
@@ -74,13 +76,13 @@ func TestShardedRadixCache_FillUpToCapacity(t *testing.T) {
 
 func TestShardedRadixCache_ExpiresLeastRecentlyUsed(t *testing.T) {
 	cache := setupShardedRadixCacheTest(t)
-	insertAndAssert(t, cache, "menu/burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	insertAndAssert(t, cache, "menu/taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-	insertAndAssert(t, cache, "menu/enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
+	insertAndAssert(t, cache, "menu/burrito", testData{Value: 23, DataSize: 25}, []int64{}, nil)
+	insertAndAssert(t, cache, "menu/taco", testData{Value: 26, DataSize: 130}, []int64{}, nil)
+	insertAndAssert(t, cache, "menu/enchilada", testData{Value: 28, DataSize: 165}, []int64{}, nil)
 
 	assert.Equal(t, int64(23), cache.LookUp("menu/burrito").(testData).Value)
 
-	insertAndAssert(t, cache, "menu/queso", testData{Value: 34, DataSize: 5}, []int64{26}, nil)
+	insertAndAssert(t, cache, "menu/queso", testData{Value: 34, DataSize: 32}, []int64{26}, nil)
 	assert.Nil(t, cache.LookUp("menu/taco"))
 	assert.Equal(t, int64(23), cache.LookUp("menu/burrito").(testData).Value)
 	assert.Equal(t, int64(28), cache.LookUp("menu/enchilada").(testData).Value)
@@ -90,11 +92,11 @@ func TestShardedRadixCache_ExpiresLeastRecentlyUsed(t *testing.T) {
 
 func TestShardedRadixCache_Overwrite(t *testing.T) {
 	cache := setupShardedRadixCacheTest(t)
-	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
-	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 6}, []int64{}, nil)
-	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 12}, []int64{26}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 25}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 130}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 130}, []int64{}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 40}, []int64{}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 80}, []int64{26}, nil)
 	assert.Nil(t, cache.LookUp("taco"))
 	assert.Equal(t, int64(33), cache.LookUp("burrito").(testData).Value)
 	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
@@ -103,11 +105,11 @@ func TestShardedRadixCache_Overwrite(t *testing.T) {
 
 func TestShardedRadixCache_MultipleEviction(t *testing.T) {
 	cache := setupShardedRadixCacheTest(t)
-	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 25}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 130}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 130}, []int64{}, nil)
 
-	ret, err := cache.Insert("large_data", testData{Value: 33, DataSize: 45})
+	ret, err := cache.Insert("large_data", testData{Value: 33, DataSize: 290})
 	require.NoError(t, err)
 	var evictedVals []int64
 	for _, v := range ret {
@@ -124,8 +126,8 @@ func TestShardedRadixCache_MultipleEviction(t *testing.T) {
 
 func TestShardedRadixCache_WhenEntrySizeMoreThanCacheMaxSize(t *testing.T) {
 	cache := setupShardedRadixCacheTest(t)
-	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: testMaxSize + 1}, []int64{}, lru.ErrInvalidEntrySize)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 25}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: testShardedMaxSize + 1}, []int64{}, lru.ErrInvalidEntrySize)
 	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
 	assert.Nil(t, cache.LookUp("taco"))
 	require.NoError(t, cache.Close())
@@ -186,9 +188,9 @@ func TestShardedRadixCache_UpdateSize(t *testing.T) {
 	err := cache.UpdateSize("key", 10)
 	assert.Equal(t, lru.ErrEntryNotExist, err)
 
-	insertAndAssert(t, cache, "key1", testData{Value: 1, DataSize: 10}, []int64{}, nil)
-	insertAndAssert(t, cache, "key2", testData{Value: 2, DataSize: 30}, []int64{}, nil)
-	err = cache.UpdateSize("key1", 20)
+	insertAndAssert(t, cache, "key1", testData{Value: 1, DataSize: 100}, []int64{}, nil)
+	insertAndAssert(t, cache, "key2", testData{Value: 2, DataSize: 200}, []int64{}, nil)
+	err = cache.UpdateSize("key1", 50)
 	require.NoError(t, err)
 	assert.Nil(t, cache.LookUp("key2"))
 	assert.NotNil(t, cache.LookUp("key1"))
@@ -443,4 +445,3 @@ func TestShardedRadixCache_UpdateSize_AccountingSafety(t *testing.T) {
 	val2 := c.Erase("dir/file2")
 	assert.NotNil(t, val2)
 }
-

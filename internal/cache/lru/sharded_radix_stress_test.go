@@ -93,8 +93,10 @@ func TestShardedRadixCache_Bug2_DetachedSubtreeSiblingSkipping(t *testing.T) {
 	// Erase prefix "dir/"
 	cache.EraseEntriesWithGivenPrefix("dir/")
 
-	// Wait enough time for background worker to sweep all batches across all shards
-	time.Sleep(2 * time.Second)
+	// Wait for background worker to sweep all batches across all shards
+	require.Eventually(t, func() bool {
+		return cache.(*lru.ShardedRadixCache).GetCurrentSize() == 0
+	}, 10*time.Second, 50*time.Millisecond)
 	t.Logf("Remaining currentSize after EraseEntriesWithGivenPrefix(\"dir/\"): %d", cache.(*lru.ShardedRadixCache).GetCurrentSize())
 
 	// Check that no keys remain accessible
