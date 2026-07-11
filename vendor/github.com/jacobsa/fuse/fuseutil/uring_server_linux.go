@@ -491,8 +491,10 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 
 	// Set addr to the userspace virtual address of the slot's header
 	binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&slot.header[0]))))
-	// We don't use iovecs with fixed buffers, so nr_segs = 0
-	binary.LittleEndian.PutUint32(sqe[24:28], 0)
+	
+	// Pass the total slot size (1052672) in len!
+	binary.LittleEndian.PutUint32(sqe[24:28], 1052672)
+	
 	binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0 (the index of the registered mmapBuf!)
 	binary.LittleEndian.PutUint32(sqe[28:32], 1) // uring_cmd_flags = IORING_URING_CMD_FIXED (1)
 
