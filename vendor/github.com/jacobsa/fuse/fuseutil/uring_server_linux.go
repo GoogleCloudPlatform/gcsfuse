@@ -243,7 +243,6 @@ func (s *fileSystemServer) runUringWorkerLoopWithQueue(c *fuse.Connection, qid u
 			qid, slotIdx, inMsg.Header().Unique, respStatus, respLen)
 
 		// Atomic Commit & Fetch: Submit reply & fetch NEXT request in ONE io_uring cmd!
-		// Pass the pre-registered fixed buffer offset
 		err = queue.pushCommand(fusekernel.FuseIoUringCmdCommitAndFetch, qid, commitID, c.DevFd(), slotIdx, outMsg.Bytes())
 		if err != nil {
 			log.Printf("[FUSE_OVER_IO_URING] QID=%d Failed to submit commit and fetch for slot %d: %v\n", qid, slotIdx, err)
@@ -254,8 +253,9 @@ func (s *fileSystemServer) runUringWorkerLoopWithQueue(c *fuse.Connection, qid u
 
 // uringSlot represents one request slot buffer set.
 type uringSlot struct {
-	header  []byte // 288 bytes (fuse_uring_req_header)
-	payload []byte // 1,048,576 bytes (max_write)
+	header  []byte         // 288 bytes (fuse_uring_req_header)
+	payload []byte         // 1,048,576 bytes (max_write)
+	iov     *[2]unix.Iovec // Pointer to the 2-element iovec array inside mmapBuf
 }
 
 // uringQueue manages a single io_uring submission/completion ring with 128-byte SQEs.
@@ -396,8 +396,9 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	const pageSize = 4096
 	const payloadSize = 1048576
 	const slotSize = pageSize + payloadSize // 1052672 (page-aligned!)
-	bufSize := queueDepth * slotSize
-
+	
+	// Allocate slot memory + 32 bytes per slot for the iovec arrays at the end
+	bufSize := queueDepth*slotSize + queueDepth*32
 	mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE)
 	if err != nil {
 		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mmap mmapBuf failed: %v", err)
@@ -406,21 +407,19 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	}
 	q.mmapBuf = mmapBuf
 
-	// REGISTER the entire mmap block as a flat Fixed Buffer in this ring!
-	iov := unix.Iovec{
-		Base: &mmapBuf[0],
-		Len:  uint64(len(mmapBuf)),
-	}
-	_, _, errno := syscall.Syscall6(427, uintptr(fd), 0, uintptr(unsafe.Pointer(&iov)), 1, 0, 0)
-	if errno != 0 {
-		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: sys_IO_URING_REGISTER (427) failed: errno=%d (%s)", errno, errno.Error())
-		_ = unix.Munmap(mmapBuf)
-		q.Close()
-		return nil, errno
+	// Lock mmapBuf pages in RAM to prevent dynamic page fault EAGAINs!
+	err = unix.Mlock(mmapBuf)
+	if err != nil {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mlock failed: %v.", err)
+	} else {
+		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Mlocked %d bytes in physical memory successfully from %p to %p.",
+			len(mmapBuf), &mmapBuf[0], &mmapBuf[len(mmapBuf)-1])
 	}
 
-	// Carve mmapBuf into page-aligned slots
+	// Carve mmapBuf into page-aligned slots and setup iovecs at the end of the mmap block
 	q.slots = make([]uringSlot, queueDepth)
+	iovOffsetStart := queueDepth * slotSize
+
 	for i := 0; i < int(queueDepth); i++ {
 		slot := &q.slots[i]
 		slotStart := i * slotSize
@@ -429,14 +428,31 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 		slot.header = mmapBuf[slotStart : slotStart+288]
 		// The payload starts at next page boundary (offset 4096 of slot)
 		slot.payload = mmapBuf[slotStart+pageSize : slotStart+pageSize+payloadSize]
+
+		// The iovec array is stored at the end of mmapBuf
+		iovAddr := &mmapBuf[iovOffsetStart + i*32]
+		slot.iov = (*[2]unix.Iovec)(unsafe.Pointer(iovAddr))
+
+		slot.iov[0] = unix.Iovec{
+			Base: &slot.header[0], // Page-aligned!
+			Len:  288,
+		}
+		slot.iov[1] = unix.Iovec{
+			Base: &slot.payload[0], // Page-aligned!
+			Len:  payloadSize,
+		}
+
+		log.Printf("[FUSE_OVER_IO_URING Debug] Slot %d Configured: headerAddr=%p (len=%d), payloadAddr=%p (len=%d), iovAddr=%p, iov[0]={Base=%p, Len=%d}, iov[1]={Base=%p, Len=%d}",
+			i, &slot.header[0], len(slot.header), &slot.payload[0], len(slot.payload), iovAddr, slot.iov[0].Base, slot.iov[0].Len, slot.iov[1].Base, slot.iov[1].Len)
 	}
 
-	log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Slots populated and fixed buffer registered successfully.\n")
+	log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Slots populated successfully.\n")
 	return q, nil
 }
 
 func (q *uringQueue) Close() {
 	if q.mmapBuf != nil {
+		_ = unix.Munlock(q.mmapBuf)
 		_ = unix.Munmap(q.mmapBuf)
 	}
 	if q.cqRing != nil {
@@ -489,14 +505,11 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	binary.LittleEndian.PutUint32(sqe[4:8], uint32(devFd)) // Fd (offset 4..7)
 	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
 
-	// Set addr to the userspace virtual address of the slot's header
-	binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&slot.header[0]))))
-	
-	// Pass the total slot size (1052672) in len!
-	binary.LittleEndian.PutUint32(sqe[24:28], 1052672)
-	
-	binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0 (the index of the registered mmapBuf!)
-	binary.LittleEndian.PutUint32(sqe[28:32], 1) // uring_cmd_flags = IORING_URING_CMD_FIXED (1)
+	// Set addr to the address of the 2-element iovec array inside the mmap buffer
+	binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&slot.iov[0]))))
+	binary.LittleEndian.PutUint32(sqe[24:28], 2) // 2 segments!
+	binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0
+	binary.LittleEndian.PutUint32(sqe[28:32], 0) // uring_cmd_flags = 0 (non-fixed, dynamic page pinning)
 
 	// Set user_data in SQE to the slot index
 	binary.LittleEndian.PutUint64(sqe[32:40], uint64(slotIdx))
@@ -512,6 +525,9 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 
 	log.Printf("[FUSE_OVER_IO_URING Debug] pushCommand: cmdOp=%d qid=%d slotIdx=%d commitID=%d devFd=%d\n",
 		cmdOp, qid, slotIdx, commitID, devFd)
+	log.Printf("[FUSE_OVER_IO_URING Debug] pushCommand Details: iovAddr=%p, iov[0]={Base=%p, Len=%d}, iov[1]={Base=%p, Len=%d}",
+		&slot.iov[0], slot.iov[0].Base, slot.iov[0].Len, slot.iov[1].Base, slot.iov[1].Len)
+	log.Printf("[FUSE_OVER_IO_URING Debug] Raw SQE Hex: %x", sqe)
 
 	// Enter syscall to push SQE and wake kernel worker
 	_, _, _ = syscall.Syscall6(unix.SYS_IO_URING_ENTER, uintptr(q.fd), 1, 0, 0, 0, 0)
