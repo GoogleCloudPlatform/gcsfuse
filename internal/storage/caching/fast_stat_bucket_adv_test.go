@@ -87,7 +87,7 @@ func (t *FastStatBucketAdvTest) TestAdv_GetFolder_ContextCancelledDoesNotUpdateC
 	req := &gcs.GetFolderRequest{Name: name}
 	folder := &gcs.Folder{Name: name}
 
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).WillOnce(Return(false, nil))
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).WillOnce(Return(false, gcs.Folder{}))
 	ExpectCall(t.wrapped, "GetFolder")(ctx, req).WillOnce(Return(folder, nil))
 	// In an adversarial test for context cancellation consistency, if ctx is cancelled,
 	// GetFolder should NOT insert into cache, consistent with StatObject and ListObjects.
@@ -266,7 +266,7 @@ func (t *FastStatBucketAdvTest) TestAdv_GetFolder_NotFoundErrorAddsNegativeEntry
 	const name = "missing/"
 	req := &gcs.GetFolderRequest{Name: name}
 
-	ExpectCall(t.cache, "LookUpFolder")(name, Any()).WillOnce(Return(false, nil))
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).WillOnce(Return(false, gcs.Folder{}))
 	ExpectCall(t.wrapped, "GetFolder")(Any(), req).WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("not found")}))
 	ExpectCall(t.cache, "AddNegativeEntryForFolder")(name, timeutil.TimeEq(t.clock.Now().Add(time.Second*5))).Times(1)
 

@@ -63,7 +63,7 @@ func (c *testHelperCache) Erase(name string) {
 
 func (c *testHelperCache) LookUp(
 	name string,
-	now time.Time) (hit bool, m *gcs.MinObject) {
+	now time.Time) (hit bool, m gcs.MinObject) {
 	hit, m = c.wrapped.LookUp(name, now)
 	return
 }
@@ -71,8 +71,11 @@ func (c *testHelperCache) LookUp(
 func (c *testHelperCache) LookUpOrNil(
 	name string,
 	now time.Time) (m *gcs.MinObject) {
-	_, m = c.LookUp(name, now)
-	return
+	hit, res := c.LookUp(name, now)
+	if !hit || (res.Name == "" && res.Generation == 0) {
+		return nil
+	}
+	return &res
 }
 
 func (c *testHelperCache) Hit(
@@ -86,7 +89,7 @@ func (c *testHelperCache) NegativeEntry(
 	name string,
 	now time.Time) (negative bool) {
 	hit, o := c.LookUp(name, now)
-	negative = hit && o == nil
+	negative = hit && (o.Name == "" && o.Generation == 0)
 	return
 }
 
@@ -484,7 +487,7 @@ func (t *StatCacheTest) Test_LookupReturnFalseIfExpirationIsPassed() {
 	hit, result := t.statCache.LookUpFolder(name, expiration.Add(time.Second))
 
 	assert.False(t.T(), hit)
-	assert.Nil(t.T(), result)
+	assert.Equal(t.T(), gcs.Folder{}, result)
 }
 
 func (t *StatCacheTest) Test_LookupReturnFalseWhenIsNotPresent() {
@@ -493,7 +496,7 @@ func (t *StatCacheTest) Test_LookupReturnFalseWhenIsNotPresent() {
 	hit, result := t.statCache.LookUpFolder(name, expiration.Add(time.Second))
 
 	assert.False(t.T(), hit)
-	assert.Nil(t.T(), result)
+	assert.Equal(t.T(), gcs.Folder{}, result)
 }
 
 func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationIsOld() {
@@ -524,7 +527,7 @@ func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForF
 
 	hit, entry := t.statCache.LookUpFolder(name, someTime)
 	assert.True(t.T(), hit)
-	assert.Nil(t.T(), entry)
+	assert.Equal(t.T(), gcs.Folder{}, entry)
 }
 
 func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() {
@@ -539,7 +542,7 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 
 	// If "key1" object exist then corresponding folder entry will be nil, but hit will be true as key have entry in the cache for object.
 	assert.True(t.T(), hit)
-	assert.Nil(t.T(), entry)
+	assert.Equal(t.T(), gcs.Folder{}, entry)
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
@@ -568,7 +571,7 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 	hit3, entry3 := t.statCache.LookUpFolder("3/", someTime)
 
 	assert.False(t.T(), hit1)
-	assert.Nil(t.T(), entry1)
+	assert.Equal(t.T(), gcs.MinObject{}, entry1)
 	assert.True(t.T(), hit2)
 	assert.Equal(t.T(), "2", entry2.Name)
 	assert.True(t.T(), hit3)
@@ -601,16 +604,16 @@ func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 
 	hit1, entry1 := t.statCache.LookUpFolder("a", someTime)
 	assert.False(t.T(), hit1)
-	assert.Nil(t.T(), entry1)
+	assert.Equal(t.T(), gcs.Folder{}, entry1)
 	hit2, entry2 := t.statCache.LookUpFolder("a/b", someTime)
 	assert.False(t.T(), hit2)
-	assert.Nil(t.T(), entry2)
+	assert.Equal(t.T(), gcs.Folder{}, entry2)
 	hit3, entry3 := t.statCache.LookUp("a/b/c", someTime)
 	assert.False(t.T(), hit3)
-	assert.Nil(t.T(), entry3)
+	assert.Equal(t.T(), gcs.MinObject{}, entry3)
 	hit4, entry4 := t.statCache.LookUpFolder("a/d", someTime)
 	assert.False(t.T(), hit4)
-	assert.Nil(t.T(), entry4)
+	assert.Equal(t.T(), gcs.Folder{}, entry4)
 	hit5, entry5 := t.statCache.LookUpFolder("b", someTime)
 	assert.True(t.T(), hit5)
 	assert.Equal(t.T(), "b", entry5.Name)
@@ -658,7 +661,7 @@ func (t *StatCacheTest) Test_InsertImplicitDir_DoesNotOverwriteExplicit() {
 
 	hit, result := t.statCache.LookUp(name, someTime)
 	assert.True(t.T(), hit)
-	assert.Equal(t.T(), m, result)
+	assert.Equal(t.T(), *m, result)
 }
 
 func (t *StatCacheTest) Test_Insert_OverwritesImplicitDir() {
@@ -670,5 +673,5 @@ func (t *StatCacheTest) Test_Insert_OverwritesImplicitDir() {
 
 	hit, result := t.statCache.LookUp(name, someTime)
 	assert.True(t.T(), hit)
-	assert.Equal(t.T(), m, result)
+	assert.Equal(t.T(), *m, result)
 }

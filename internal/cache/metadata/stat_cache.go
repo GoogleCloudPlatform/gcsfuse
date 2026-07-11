@@ -48,10 +48,10 @@ type StatCache interface {
 	// Erase the entry for the given object name, if any.
 	Erase(name string)
 
-	// Return the current object entry for the given name, or nil if there is a negative
+	// Return the current object entry for the given name, or zero-value if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
-	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
+	LookUp(name string, now time.Time) (hit bool, m gcs.MinObject)
 
 	// Insert an entry for the given folder resource.
 	//
@@ -62,10 +62,10 @@ type StatCache interface {
 	// The entry will expire after the supplied time.
 	InsertFolder(f *gcs.Folder, expiration time.Time)
 
-	// Return the current folder entry for the given name, or nil if there is a negative
+	// Return the current folder entry for the given name, or zero-value if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
-	LookUpFolder(folderName string, now time.Time) (bool, *gcs.Folder)
+	LookUpFolder(folderName string, now time.Time) (hit bool, f gcs.Folder)
 
 	// Set up a negative entry for the given folder name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -280,30 +280,36 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 
 func (sc *statCacheBucketView) LookUp(
 	objectName string,
-	now time.Time) (bool, *gcs.MinObject) {
+	now time.Time) (hit bool, m gcs.MinObject) {
 	// Look up in the LRU cache.
 	hit, e := sc.sharedCacheLookup(objectName, now)
 	if hit {
 		if e.implicitDir {
-			return true, &gcs.MinObject{Name: objectName}
+			return true, gcs.MinObject{Name: objectName}
 		}
-		return hit, e.m
+		if e.m != nil {
+			return hit, *e.m
+		}
+		return true, gcs.MinObject{}
 	}
 
-	return false, nil
+	return false, gcs.MinObject{}
 }
 
 func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
-	now time.Time) (bool, *gcs.Folder) {
+	now time.Time) (hit bool, f gcs.Folder) {
 	// Look up in the LRU cache.
 	hit, e := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
-		return hit, e.f
+		if e.f != nil {
+			return hit, *e.f
+		}
+		return true, gcs.Folder{}
 	}
 
-	return false, nil
+	return false, gcs.Folder{}
 }
 
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, entry) {

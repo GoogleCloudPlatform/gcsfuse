@@ -231,12 +231,12 @@ func (b *fastStatBucket) invalidate(name string) {
 	b.cache.Erase(name)
 }
 
-func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
+func (b *fastStatBucket) lookUp(name string) (hit bool, m gcs.MinObject) {
 	hit, m = b.cache.LookUp(name, b.clock.Now())
 	return
 }
 
-func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
+func (b *fastStatBucket) lookUpFolder(name string) (bool, gcs.Folder) {
 	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
 	return hit, f
 }
@@ -376,7 +376,7 @@ func (b *fastStatBucket) StatObject(
 	// Do we have an entry in the cache?
 	if hit, entry := b.lookUp(req.Name); hit {
 		// Negative entries result in NotFoundError.
-		if entry == nil {
+		if entry.Name == "" && entry.Generation == 0 {
 			err = &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for %v", req.Name),
 			}
@@ -385,7 +385,7 @@ func (b *fastStatBucket) StatObject(
 		}
 
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
-		m = entry
+		m = &entry
 		return
 	}
 
@@ -514,7 +514,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 	// Cache Lookup
 	if hit, entry := b.lookUpFolder(req.Name); hit {
 		// Negative entries result in NotFoundError.
-		if entry == nil {
+		if entry == (gcs.Folder{}) {
 			err := &gcs.NotFoundError{
 				Err: fmt.Errorf("negative cache entry for folder %q", req.Name),
 			}
@@ -522,7 +522,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 			return nil, err
 		}
 
-		return entry, nil
+		return &entry, nil
 	}
 
 	if req.FetchOnlyFromCache {

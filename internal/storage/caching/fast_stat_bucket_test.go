@@ -596,7 +596,7 @@ func (t *StatObjectTest) CallsCache() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
-		WillOnce(Return(true, &gcs.MinObject{}))
+		WillOnce(Return(true, gcs.MinObject{}))
 
 	// Call
 	req := &gcs.StatObjectRequest{
@@ -615,7 +615,7 @@ func (t *StatObjectTest) CacheHit_Positive() {
 	}
 
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(true, minObj))
+		WillOnce(Return(true, *minObj))
 
 	// Call
 	req := &gcs.StatObjectRequest{
@@ -634,7 +634,7 @@ func (t *StatObjectTest) CacheHit_Negative() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(true, nil))
+		WillOnce(Return(true, gcs.MinObject{}))
 
 	// Call
 	req := &gcs.StatObjectRequest{
@@ -738,7 +738,7 @@ func (t *StatObjectTest) CallsWrapped() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.MinObject{}))
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), req).
@@ -753,7 +753,7 @@ func (t *StatObjectTest) WrappedFails() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.MinObject{}))
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
@@ -773,7 +773,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.MinObject{}))
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
@@ -799,7 +799,7 @@ func (t *StatObjectTest) WrappedSucceeds() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.MinObject{}))
 
 	// Wrapped
 	minObj := &gcs.MinObject{
@@ -1335,7 +1335,7 @@ func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
 		Name: name,
 	}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(true, folder))
+		WillOnce(Return(true, *folder))
 
 	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
@@ -1347,7 +1347,7 @@ func (t *StatObjectTest) TestShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
 	const name = "some-name"
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(true, nil))
+		WillOnce(Return(true, gcs.Folder{}))
 
 	result, err := t.bucket.GetFolder(context.TODO(), &gcs.GetFolderRequest{Name: name})
 
@@ -1363,7 +1363,7 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 	getFolderReq := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.Folder{}))
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
 		WillOnce(Return())
 	ExpectCall(t.wrapped, "GetFolder")(Any(), getFolderReq).
@@ -1381,7 +1381,7 @@ func (t *StatObjectTest) TestShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
 	getFolderReq := &gcs.GetFolderRequest{Name: name}
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.Folder{}))
 	ExpectCall(t.wrapped, "GetFolder")(Any(), getFolderReq).
 		WillOnce(Return(nil, error))
 
@@ -1416,7 +1416,7 @@ func (t *StatObjectTest) FetchOnlyFromCacheFalse() {
 	}
 	// We expect a call to GCS, so we mock the wrapped bucket.
 	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.MinObject{}))
 
 	minObj := &gcs.MinObject{Name: name}
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
@@ -1437,12 +1437,12 @@ func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
 	}
 	minObj := &gcs.MinObject{Name: name}
 	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(true, minObj))
+		WillOnce(Return(true, *minObj))
 
 	m, _, err := t.bucket.StatObject(context.TODO(), req)
 
 	AssertEq(nil, err)
-	ExpectEq(minObj, m)
+	ExpectThat(m, Pointee(DeepEquals(*minObj)))
 }
 
 func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
@@ -1452,7 +1452,7 @@ func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
 		FetchOnlyFromCache: true,
 	}
 	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(true, nil))
+		WillOnce(Return(true, gcs.MinObject{}))
 
 	_, _, err := t.bucket.StatObject(context.TODO(), req)
 
@@ -1466,7 +1466,7 @@ func (t *StatObjectTest) FetchOnlyFromCacheTrue_CacheMiss() {
 		FetchOnlyFromCache: true,
 	}
 	ExpectCall(t.cache, "LookUp")(name, Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.MinObject{}))
 
 	_, _, err := t.bucket.StatObject(context.TODO(), req)
 
@@ -1689,7 +1689,7 @@ func (t *GetFolderTest) FetchOnlyFromCacheFalse() {
 	}
 	folder := &gcs.Folder{Name: name}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.Folder{}))
 	ExpectCall(t.wrapped, "GetFolder")(Any(), Any()).
 		WillOnce(Return(folder, nil))
 	ExpectCall(t.cache, "InsertFolder")(Any(), Any())
@@ -1708,12 +1708,12 @@ func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitPositive() {
 	}
 	folder := &gcs.Folder{Name: name}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(true, folder))
+		WillOnce(Return(true, *folder))
 
 	f, err := t.bucket.GetFolder(context.TODO(), req)
 
 	AssertEq(nil, err)
-	ExpectEq(folder, f)
+	ExpectThat(f, Pointee(DeepEquals(*folder)))
 }
 
 func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
@@ -1723,7 +1723,7 @@ func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheHitNegative() {
 		FetchOnlyFromCache: true,
 	}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(true, nil))
+		WillOnce(Return(true, gcs.Folder{}))
 
 	_, err := t.bucket.GetFolder(context.TODO(), req)
 
@@ -1737,7 +1737,7 @@ func (t *GetFolderTest) FetchOnlyFromCacheTrue_CacheMiss() {
 		FetchOnlyFromCache: true,
 	}
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
-		WillOnce(Return(false, nil))
+		WillOnce(Return(false, gcs.Folder{}))
 
 	_, err := t.bucket.GetFolder(context.TODO(), req)
 

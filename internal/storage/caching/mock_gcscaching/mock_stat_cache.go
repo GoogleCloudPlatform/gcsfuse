@@ -112,7 +112,7 @@ func (m *mockStatCache) Insert(p0 *gcs.MinObject, p1 time.Time) {
 	}
 }
 
-func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObject) {
+func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 gcs.MinObject) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -133,9 +133,9 @@ func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObj
 		o0 = retVals[0].(bool)
 	}
 
-	// o1 *gcs.MinObject
+	// o1 gcs.MinObject
 	if retVals[1] != nil {
-		o1 = retVals[1].(*gcs.MinObject)
+		o1 = retVals[1].(gcs.MinObject)
 	}
 
 	return
@@ -158,7 +158,7 @@ func (m *mockStatCache) InsertFolder(p0 *gcs.Folder, p1 time.Time) {
 	}
 }
 
-func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 *gcs.Folder) {
+func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 gcs.Folder) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -179,9 +179,9 @@ func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 *gcs.
 		o0 = retVals[0].(bool)
 	}
 
-	// o1 *gcs.Folder
+	// o1 gcs.Folder
 	if retVals[1] != nil {
-		o1 = retVals[1].(*gcs.Folder)
+		o1 = retVals[1].(gcs.Folder)
 	}
 
 	return
