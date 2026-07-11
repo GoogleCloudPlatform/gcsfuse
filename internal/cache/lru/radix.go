@@ -226,13 +226,13 @@ func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueT
 		}
 
 		splitNode := &radixNode{
-			prefix: strings.Clone(child.prefix[:lcp]),
+			prefix: child.prefix[:lcp],
 			parent: node,
 		}
 
 		node.replaceChild(child, splitNode)
 
-		child.prefix = strings.Clone(child.prefix[lcp:])
+		child.prefix = child.prefix[lcp:]
 		child.sibling = nil
 		splitNode.addChild(child)
 
@@ -596,4 +596,8 @@ func (c *radixCache) sweepAndUnlink(node *radixNode) {
 		}
 		curr = curr.sibling
 	}
+}
+
+func (c *radixCache) Close() error {
+	return nil
 }

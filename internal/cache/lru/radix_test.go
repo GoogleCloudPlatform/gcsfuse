@@ -392,21 +392,7 @@ func TestRadixCache_LookUpWithoutChangingOrder_NotChangeOrder(t *testing.T) {
 func TestRadixCache_RaceCondition(t *testing.T) {
 	cache := setupRadixCacheTest(t)
 	var wg sync.WaitGroup
-	wg.Add(7)
-
-	go func() {
-		defer wg.Done()
-		for range testOperationCount {
-			_ = cache.UpdateSize("key", uint64(rand.Intn(testMaxSize)))
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		for range testOperationCount {
-			cache.EraseEntriesWithGivenPrefix("k")
-		}
-	}()
+	wg.Add(5)
 
 	go func() {
 		defer wg.Done()

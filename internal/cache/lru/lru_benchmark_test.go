@@ -137,3 +137,98 @@ func BenchmarkEraseEntriesWithGivenPrefix_1Million(b *testing.B) {
 		cache.EraseEntriesWithGivenPrefix("prefix/")
 	}
 }
+
+func BenchmarkRadixInsert(b *testing.B) {
+	cache := lru.NewRadixCache(10000000) // 10MB
+	data := testData{Value: 1, DataSize: 10}
+
+	b.ResetTimer()
+	for i := range b.N {
+		key := fmt.Sprintf("key-%d", i)
+		_, _ = cache.Insert(key, data)
+	}
+}
+
+func BenchmarkRadixLookUp(b *testing.B) {
+	cache := lru.NewRadixCache(10000000) // 10MB
+	data := testData{Value: 1, DataSize: 10}
+
+	// Pre-populate
+	for i := range 10000 {
+		key := fmt.Sprintf("key-%d", i)
+		_, _ = cache.Insert(key, data)
+	}
+
+	b.ResetTimer()
+	for i := range b.N {
+		key := fmt.Sprintf("key-%d", i%10000)
+		_ = cache.LookUp(key)
+	}
+}
+
+func BenchmarkRadixErase(b *testing.B) {
+	cache := lru.NewRadixCache(10000000) // 10MB
+	data := testData{Value: 1, DataSize: 10}
+
+	b.ResetTimer()
+	for i := range b.N {
+		b.StopTimer()
+		key := fmt.Sprintf("key-%d", i)
+		_, _ = cache.Insert(key, data)
+		b.StartTimer()
+
+		_ = cache.Erase(key)
+	}
+}
+
+func BenchmarkRadixConcurrency(b *testing.B) {
+	cache := lru.NewRadixCache(50000000) // 50MB
+	data := testData{Value: 1, DataSize: 10}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		for pb.Next() {
+			op := r.Intn(100)
+			key := fmt.Sprintf("key-%d", r.Intn(10000))
+			if op < 30 {
+				// 30% inserts
+				_, _ = cache.Insert(key, data)
+			} else if op < 90 {
+				// 60% lookups
+				_ = cache.LookUp(key)
+			} else {
+				// 10% erases
+				_ = cache.Erase(key)
+			}
+		}
+	})
+}
+
+func BenchmarkRadixInsert_PrefixSplit(b *testing.B) {
+	cache := lru.NewRadixCache(50000000) // 50MB
+	data := testData{Value: 1, DataSize: 10}
+
+	b.ResetTimer()
+	for i := range b.N {
+		// Generating overlapping prefixes that force node splitting
+		key := fmt.Sprintf("dir/%d/subdir/%d/file-%d", i%100, i%10, i)
+		_, _ = cache.Insert(key, data)
+	}
+}
+
+func BenchmarkRadixSplitOnly(b *testing.B) {
+	data := testData{Value: 1, DataSize: 10}
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		cache := lru.NewRadixCache(5000000)
+		// Insert a long prefix
+		_, _ = cache.Insert("a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p", data)
+		b.StartTimer()
+		// Splitting at various levels
+		_, _ = cache.Insert("a/b/c/d/e/f/g/h/X", data)
+		_, _ = cache.Insert("a/b/c/d/X", data)
+		_, _ = cache.Insert("a/b/X", data)
+	}
+}
+

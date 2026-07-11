@@ -41,6 +41,7 @@ type Cache interface {
 	UpdateWithoutChangingOrder(key string, value ValueType) error
 	UpdateSize(key string, sizeDelta uint64) error
 	EraseEntriesWithGivenPrefix(prefix string)
+	Close() error
 }
 
 // mapCache is a map-based LRU cache for any lru.ValueType indexed by string keys.
@@ -331,4 +332,8 @@ func (c *mapCache) EraseEntriesWithGivenPrefix(prefix string) {
 	if len(keysToDelete) > 0 {
 		c.eraseKeys(keysToDelete)
 	}
+}
+
+func (c *mapCache) Close() error {
+	return nil
 }

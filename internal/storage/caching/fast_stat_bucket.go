@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
@@ -67,13 +66,10 @@ func NewFastStatBucket(
 }
 
 type fastStatBucket struct {
-	mu sync.Mutex
-
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
 
-	// GUARDED_BY(mu)
 	cache metadata.StatCache
 
 	clock   timeutil.Clock
@@ -98,11 +94,7 @@ type fastStatBucket struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 	for _, o := range objs {
 		m := storageutil.ConvertObjToMinObject(o)
@@ -110,15 +102,11 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	}
 }
 
-// LOCKS_EXCLUDED(b.mu)
 // insertListing caches all objects and sub-directories discovered during a GCS listing.
 // It explicitly handles the "implicit directory" edge case where a directory exists
 // only as a prefix to other objects.
 func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing, dirName string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// Critical check after acquiring lock: If the operation context was cancelled,
+	// Critical check: If the operation context was cancelled,
 	// we must not update the cache with this stale data.
 	if ctx != nil && ctx.Err() != nil {
 		return
@@ -162,12 +150,8 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	}
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insertMultipleMinObjects(ctx context.Context, minObjs []*gcs.MinObject) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// Critical check after acquiring lock: If the operation context was cancelled,
+	// Critical check: If the operation context was cancelled,
 	// we must not update the cache with this stale data.
 	if ctx != nil && ctx.Err() != nil {
 		return
@@ -179,11 +163,7 @@ func (b *fastStatBucket) insertMultipleMinObjects(ctx context.Context, minObjs [
 	}
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) eraseEntriesWithGivenPrefix(folderName string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	b.cache.EraseEntriesWithGivenPrefix(folderName)
 }
 
@@ -191,10 +171,7 @@ func (b *fastStatBucket) eraseEntriesWithGivenPrefix(folderName string) {
 // by iterating objects present in listing and saves prefixes as folders (all prefixes are folders in hns) by
 // iterating collapsedRuns of listing.
 func (b *fastStatBucket) insertHierarchicalListing(ctx context.Context, listing *gcs.Listing) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// Critical check after acquiring lock: If the operation context was cancelled,
+	// Critical check: If the operation context was cancelled,
 	// we must not update the cache with this stale data.
 	if ctx != nil && ctx.Err() != nil {
 		return
@@ -222,8 +199,10 @@ func (b *fastStatBucket) insertHierarchicalListing(ctx context.Context, listing 
 
 }
 
-// LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insert(o *gcs.Object) {
+func (b *fastStatBucket) insert(ctx context.Context, o *gcs.Object) {
+	if ctx != nil && ctx.Err() != nil {
+		return
+	}
 	b.insertMultiple([]*gcs.Object{o})
 }
 
@@ -231,53 +210,33 @@ func (b *fastStatBucket) insertMinObject(ctx context.Context, o *gcs.MinObject) 
 	b.insertMultipleMinObjects(ctx, []*gcs.MinObject{o})
 }
 
-// LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
+func (b *fastStatBucket) insertFolder(ctx context.Context, f *gcs.Folder) {
+	if ctx != nil && ctx.Err() != nil {
+		return
+	}
 	b.cache.InsertFolder(f, b.clock.Now().Add(b.primaryCacheTTL))
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) addNegativeEntry(name string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntry(name, expiration)
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntryForFolder(name, expiration)
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) invalidate(name string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	b.cache.Erase(name)
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	hit, m = b.cache.LookUp(name, b.clock.Now())
 	return
 }
 
 func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
 	return hit, f
 }
@@ -306,7 +265,6 @@ func (b *fastStatBucket) NewReaderWithReadHandle(
 	return
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CreateObject(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
@@ -319,7 +277,7 @@ func (b *fastStatBucket) CreateObject(
 	}
 
 	// Record the new object.
-	b.insert(o)
+	b.insert(ctx, o)
 
 	return
 }
@@ -367,7 +325,6 @@ func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writ
 	return o, err
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
@@ -379,12 +336,11 @@ func (b *fastStatBucket) CopyObject(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	b.insert(ctx, o)
 
 	return
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
@@ -396,12 +352,11 @@ func (b *fastStatBucket) ComposeObjects(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	b.insert(ctx, o)
 
 	return
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) StatObject(
 	ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
@@ -445,7 +400,6 @@ func (b *fastStatBucket) StatObject(
 	return b.StatObjectFromGcs(ctx, req)
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
@@ -469,7 +423,6 @@ func (b *fastStatBucket) ListObjects(
 	return
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) UpdateObject(
 	ctx context.Context,
 	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
@@ -481,12 +434,11 @@ func (b *fastStatBucket) UpdateObject(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	b.insert(ctx, o)
 
 	return
 }
 
-// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
@@ -522,7 +474,7 @@ func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequ
 	}
 
 	// Record the new version.
-	b.insert(o)
+	b.insert(ctx, o)
 
 	return o, nil
 }
@@ -587,7 +539,7 @@ func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, req *gcs.GetFolde
 	f, err := b.wrapped.GetFolder(ctx, req)
 
 	if err == nil {
-		b.insertFolder(f)
+		b.insertFolder(ctx, f)
 		return f, nil
 	}
 
@@ -607,7 +559,7 @@ func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f
 	}
 
 	// Record the new folder.
-	b.insertFolder(f)
+	b.insertFolder(ctx, f)
 
 	return
 }
@@ -621,7 +573,7 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 	// Invalidate cache for old directory.
 	b.eraseEntriesWithGivenPrefix(folderName)
 	// Insert destination folder.
-	b.insertFolder(f)
+	b.insertFolder(ctx, f)
 
 	return f, err
 }
