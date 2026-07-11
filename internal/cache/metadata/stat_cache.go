@@ -188,6 +188,24 @@ func (sc *statCacheBucketView) key(objectName string) string {
 	return objectName
 }
 
+func cloneMinObject(m *gcs.MinObject) *gcs.MinObject {
+	if m == nil {
+		return nil
+	}
+	cp := *m
+	if m.CRC32C != nil {
+		val := *m.CRC32C
+		cp.CRC32C = &val
+	}
+	if m.Metadata != nil {
+		cp.Metadata = make(map[string]string, len(m.Metadata))
+		for k, v := range m.Metadata {
+			cp.Metadata[k] = v
+		}
+	}
+	return &cp
+}
+
 func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	name := sc.key(m.Name)
 
@@ -200,7 +218,7 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 
 	// Insert an entry.
 	e := entry{
-		m:          m,
+		m:          cloneMinObject(m),
 		expiration: expiration,
 	}
 
@@ -288,7 +306,7 @@ func (sc *statCacheBucketView) LookUp(
 			return true, gcs.MinObject{Name: objectName}
 		}
 		if e.m != nil {
-			return hit, *e.m
+			return hit, *cloneMinObject(e.m)
 		}
 		return true, gcs.MinObject{}
 	}

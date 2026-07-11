@@ -16,6 +16,7 @@ package lru_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -140,9 +141,13 @@ func TestShardedRadixCache_Adv_HybridEvictionAccounting(t *testing.T) {
 	keysInShard := make(map[int][]string)
 	for i := 0; i < 1000; i++ {
 		key := fmt.Sprintf("collision-%d", i)
+		shardKey := key
+		if idxSlash := strings.LastIndex(key, "/"); idxSlash >= 0 {
+			shardKey = key[:idxSlash+1]
+		}
 		hash := uint32(2166136261)
-		for j := 0; j < len(key); j++ {
-			hash ^= uint32(key[j])
+		for j := 0; j < len(shardKey); j++ {
+			hash ^= uint32(shardKey[j])
 			hash *= 16777619
 		}
 		idx := int(hash & 0xFF)
@@ -247,9 +252,13 @@ func TestShardedRadixCache_Adv_SmallShardNoLocalEviction(t *testing.T) {
 	keysInShard := make(map[int][]string)
 	for i := 0; i < 1000; i++ {
 		key := fmt.Sprintf("small-coll-%d", i)
+		shardKey := key
+		if idxSlash := strings.LastIndex(key, "/"); idxSlash >= 0 {
+			shardKey = key[:idxSlash+1]
+		}
 		hash := uint32(2166136261)
-		for j := 0; j < len(key); j++ {
-			hash ^= uint32(key[j])
+		for j := 0; j < len(shardKey); j++ {
+			hash ^= uint32(shardKey[j])
 			hash *= 16777619
 		}
 		idx := int(hash & 0xFF)

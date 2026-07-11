@@ -26,6 +26,7 @@ import (
 type radixNode struct {
 	prefix  string
 	value   ValueType
+	size    uint64
 	parent  *radixNode
 	child   *radixNode
 	sibling *radixNode
@@ -190,10 +191,10 @@ func (n *radixNode) replaceChild(oldChild, newChild *radixNode) {
 	}
 }
 
-// insertNode inserts a new key into the radix tree and returns the leaf node.
-func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueType) {
+// insertNode inserts a new key into the radix tree and returns the leaf node, its previous value, and previous size.
+func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueType, uint64) {
 	if value == nil {
-		return nil, nil
+		return nil, nil, 0
 	}
 
 	node := c.root
@@ -202,19 +203,21 @@ func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueT
 	for {
 		if len(search) == 0 {
 			oldValue := node.value
+			oldSize := node.size
 			node.value = value
-			return node, oldValue
+			node.size = value.Size()
+			return node, oldValue, oldSize
 		}
 
 		child := node.getChild(search[0])
 		if child == nil {
-			// clone the substring to prevent memory leaks otherwise, the slice pins the entire original string in memory
 			newLeaf := &radixNode{
 				prefix: strings.Clone(search),
 				value:  value,
+				size:   value.Size(),
 			}
 			node.addChild(newLeaf)
-			return newLeaf, nil
+			return newLeaf, nil, 0
 		}
 
 		lcp := longestCommonPrefix(search, child.prefix)
@@ -238,16 +241,19 @@ func (c *radixCache) insertNode(key string, value ValueType) (*radixNode, ValueT
 
 		if lcp == len(search) {
 			oldValue := splitNode.value
+			oldSize := splitNode.size
 			splitNode.value = value
-			return splitNode, oldValue
+			splitNode.size = value.Size()
+			return splitNode, oldValue, oldSize
 		}
 
 		newLeaf := &radixNode{
 			prefix: strings.Clone(search[lcp:]),
 			value:  value,
+			size:   value.Size(),
 		}
 		splitNode.addChild(newLeaf)
-		return newLeaf, nil
+		return newLeaf, nil, 0
 	}
 }
 
@@ -286,6 +292,7 @@ func (c *radixCache) deleteNode(node *radixNode) {
 	}
 
 	node.value = nil
+	node.size = 0
 	c.compressPathUpwards(node)
 }
 
@@ -400,8 +407,8 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if node, oldValue := c.insertNode(key, value); oldValue != nil {
-		c.currentSize += valueSize - oldValue.Size()
+	if node, oldValue, oldSize := c.insertNode(key, value); oldValue != nil {
+		c.currentSize += valueSize - oldSize
 		c.moveToFront(node)
 	} else {
 		c.pushFront(node)
@@ -422,7 +429,7 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 // LOCKS_REQUIRED(c.mu)
 func (c *radixCache) eraseInternal(node *radixNode) (value ValueType) {
 	deletedEntry := node.value
-	c.currentSize -= deletedEntry.Size()
+	c.currentSize -= node.size
 
 	c.remove(node)
 	c.deleteNode(node)
@@ -493,11 +500,12 @@ func (c *radixCache) UpdateWithoutChangingOrder(key string, value ValueType) err
 		return ErrEntryNotExist
 	}
 
-	if value.Size() != node.value.Size() {
+	if value.Size() != node.size {
 		return ErrInvalidUpdateEntrySize
 	}
 
 	node.value = value
+	node.size = value.Size()
 	return nil
 }
 
@@ -508,12 +516,13 @@ func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.getNode(key)
+	node, ok := c.getNode(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
 
 	// Update currentSize accounting
+	node.size += sizeDelta
 	c.currentSize += sizeDelta
 
 	// Evict until we're at or below maxSize to maintain invariants
@@ -577,9 +586,10 @@ func (c *radixCache) sweepAndUnlink(node *radixNode) {
 	for curr != nil {
 
 		if curr.value != nil {
-			c.currentSize -= curr.value.Size()
+			c.currentSize -= curr.size
 			c.remove(curr)
 			curr.value = nil
+			curr.size = 0
 		}
 		// Advance to next node in pre-order traversal
 		if curr.child != nil {
