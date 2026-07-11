@@ -227,16 +227,8 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	}
 	q.mmapBuf = mmapBuf
 
-	iov := unix.Iovec{
-		Base: &mmapBuf[0],
-		Len:  uint64(len(mmapBuf)),
-	}
-	_, _, errno := syscall.Syscall6(427, uintptr(fd), 0, uintptr(unsafe.Pointer(&iov)), 1, 0, 0)
-	if errno != 0 {
-		log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: sys_IO_URING_REGISTER (427) failed: errno=%d (%s)", errno, errno.Error())
-		q.Close()
-		return nil, errno
-	}
+	// Bypassing sys_IO_URING_REGISTER and using direct userspace buffers
+	log.Printf("[FUSE_OVER_IO_URING Debug] newUringQueue: Bypassing fixed buffer registration.")
 
 	return q, nil
 }
@@ -278,7 +270,7 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 		binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&payload[0]))))
 		binary.LittleEndian.PutUint32(sqe[24:28], uint32(len(payload)))
 		binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0
-		binary.LittleEndian.PutUint32(sqe[28:32], 1) // uring_cmd_flags = IORING_URING_CMD_FIXED (1)
+		binary.LittleEndian.PutUint32(sqe[28:32], 0) // uring_cmd_flags = 0 (Direct Userspace Buffer)
 	} else {
 		binary.LittleEndian.PutUint32(sqe[24:28], 0)
 		binary.LittleEndian.PutUint32(sqe[28:32], 0)
@@ -297,7 +289,7 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	atomic.StoreUint32(q.sqTail, tail+1)
 
 	if len(payload) > 0 {
-		log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d base=0x%x len=%d (Fixed Buffer Registered)\n",
+		log.Printf("[FUSE_OVER_IO_URING Debug] cmdOp=%d qid=%d base=0x%x len=%d (Direct Buffer)\n",
 			cmdOp, qid, uintptr(unsafe.Pointer(&payload[0])), len(payload))
 	}
 
