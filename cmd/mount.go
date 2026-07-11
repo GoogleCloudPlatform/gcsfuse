@@ -169,7 +169,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 
 	numWorkers := runtime.GOMAXPROCS(0)
 	if numWorkers > 16 {
-		numWorkers = 16
+		numWorkers = 4
 	}
 
 	mountCfg := &fuse.MountConfig{
