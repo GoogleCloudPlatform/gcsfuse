@@ -253,9 +253,9 @@ func (s *fileSystemServer) runUringWorkerLoopWithQueue(c *fuse.Connection, qid u
 
 // uringSlot represents one request slot buffer set.
 type uringSlot struct {
-	header  []byte // 288 bytes (fuse_uring_req_header)
-	payload []byte // 1,048,576 bytes (max_write)
-	iov     [2]unix.Iovec
+	header  []byte         // 288 bytes (fuse_uring_req_header)
+	payload []byte         // 1,048,576 bytes (max_write)
+	iov     *[2]unix.Iovec // Pointer to the 2-element iovec array inside mmapBuf
 }
 
 // uringQueue manages a single io_uring submission/completion ring with 128-byte SQEs.
@@ -393,7 +393,7 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	q.cqes = cqesPtr[:int(params.CqEntries)*16]
 
 	const queueDepth = 2
-	const slotSize = 288 + 1048576
+	const slotSize = 288 + 1048576 + 32 // 32 bytes for [2]unix.Iovec!
 	bufSize := queueDepth * slotSize
 	mmapBuf, err := unix.Mmap(-1, 0, bufSize, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_ANON|unix.MAP_SHARED|unix.MAP_POPULATE)
 	if err != nil {
@@ -403,12 +403,15 @@ func newUringQueue(entries uint32) (*uringQueue, error) {
 	}
 	q.mmapBuf = mmapBuf
 
-	// Carve mmapBuf into slots and setup the 2-segment iovecs
+	// Carve mmapBuf into slots and setup the 2-segment iovecs inside the mmap buffer!
 	q.slots = make([]uringSlot, queueDepth)
 	for i := 0; i < int(queueDepth); i++ {
 		slot := &q.slots[i]
 		slot.header = mmapBuf[i*slotSize : i*slotSize+288]
-		slot.payload = mmapBuf[i*slotSize+288 : (i+1)*slotSize]
+		slot.payload = mmapBuf[i*slotSize+288 : i*slotSize+288+1048576]
+
+		iovAddr := &mmapBuf[i*slotSize+288+1048576]
+		slot.iov = (*[2]unix.Iovec)(unsafe.Pointer(iovAddr))
 
 		slot.iov[0] = unix.Iovec{
 			Base: &slot.header[0],
@@ -478,7 +481,7 @@ func (q *uringQueue) pushCommand(cmdOp uint32, qid uint16, commitID uint64, devF
 	binary.LittleEndian.PutUint32(sqe[4:8], uint32(devFd)) // Fd (offset 4..7)
 	binary.LittleEndian.PutUint32(sqe[8:12], cmdOp)        // cmd_op (offset 8..11)
 
-	// Set addr to the address of the 2-element iovec array for this slot
+	// Set addr to the address of the 2-element iovec array inside the mmap buffer
 	binary.LittleEndian.PutUint64(sqe[16:24], uint64(uintptr(unsafe.Pointer(&slot.iov[0]))))
 	binary.LittleEndian.PutUint32(sqe[24:28], 2) // 2 segments!
 	binary.LittleEndian.PutUint16(sqe[40:42], 0) // buf_index = 0
