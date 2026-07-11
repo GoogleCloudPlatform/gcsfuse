@@ -571,7 +571,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 			callback()
 		}
 
-		if !c.UsingIoUring() {
+		if !c.UsingIoUring() || inMsg.Header().Opcode == fusekernel.OpInit {
 			// Make sure we destroy the messages when we're done.
 			c.putInMessage(inMsg)
 			c.putOutMessage(outMsg)
@@ -602,7 +602,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	// Send the reply to the kernel, if one is required.
 	noResponse := c.kernelResponse(outMsg, inMsg.Header().Unique, op, opErr)
 
-	if !noResponse && !c.UsingIoUring() {
+	if !noResponse && (!c.UsingIoUring() || inMsg.Header().Opcode == fusekernel.OpInit) {
 		err := c.writeOutMessage(outMsg)
 		if err != nil {
 			writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
