@@ -478,3 +478,24 @@ func TestRadixCache_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestRadixCache_UpdateSize_UnderflowAndEvictionAccounting(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+
+	// Step 1: Insert key with baseline size 30 (maxSize is 50)
+	insertAndAssert(t, cache, "key1", testData{Value: 10, DataSize: 30}, []int64{}, nil)
+
+	// Step 2: Update size by 32 bytes (total size 62 > maxSize 50)
+	// This forces eviction of key1 (size 30). With sizeDelta 32 untracked on value,
+	// eviction leaves c.currentSize at 32 on empty cache.
+	// The fix must zero out c.currentSize when tail is nil to prevent panic in checkInvariants.
+	err := cache.UpdateSize("key1", 32)
+	assert.NoError(t, err)
+
+	// Verify cache is now empty and lookup returns nil
+	assert.Nil(t, cache.LookUp("key1"))
+
+	// Verify inserting a new item succeeds without invariant panic
+	insertAndAssert(t, cache, "key2", testData{Value: 20, DataSize: 40}, []int64{}, nil)
+	assert.Equal(t, int64(20), cache.LookUp("key2").(testData).Value)
+}
