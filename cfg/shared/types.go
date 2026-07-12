@@ -27,13 +27,14 @@ type BucketTypeList []string
 
 func (b *BucketTypeList) UnmarshalYAML(value *yaml.Node) error {
 	var rawStrings []string
-	if value.Kind == yaml.ScalarNode {
+	switch value.Kind {
+	case yaml.ScalarNode:
 		rawStrings = []string{value.Value}
-	} else if value.Kind == yaml.SequenceNode {
+	case yaml.SequenceNode:
 		if err := value.Decode(&rawStrings); err != nil {
 			return err
 		}
-	} else {
+	default:
 		return fmt.Errorf("bucket-type must be a string or list of strings, got %v", value.Kind)
 	}
 
