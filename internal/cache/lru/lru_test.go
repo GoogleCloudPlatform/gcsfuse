@@ -391,3 +391,43 @@ func Test_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestMapCache_UpdateSize_EvictionAccounting(t *testing.T) {
+	cache := setupCacheTest(t)
+
+	// Step 1: Insert key with baseline size 30 (maxSize is 50)
+	insertAndAssert(t, cache, "key1", testData{Value: 10, DataSize: 30}, []int64{}, nil)
+
+	// Step 2: Update size by 32 bytes (total size 62 > maxSize 50)
+	err := cache.UpdateSize("key1", 32)
+	assert.NoError(t, err)
+
+	// Step 3: Insert a new item "key2" with size 40 bytes.
+	insertAndAssert(t, cache, "key2", testData{Value: 20, DataSize: 40}, []int64{}, nil)
+
+	// Verify key1 is evicted and key2 is present
+	assert.Nil(t, cache.LookUp("key1"))
+	assert.Equal(t, int64(20), cache.LookUp("key2").(testData).Value)
+}
+
+
+func TestMapCache_Insert_OverwriteWithSmallerSize_Underflow(t *testing.T) {
+	cache := setupCacheTest(t)
+
+	// Step 1: Insert large initial entry (40 bytes)
+	insertAndAssert(t, cache, "key1", testData{Value: 100, DataSize: 40}, []int64{}, nil)
+
+	// Step 2: Overwrite key1 with a smaller size entry (10 bytes)
+	insertAndAssert(t, cache, "key1", testData{Value: 200, DataSize: 10}, []int64{}, nil)
+
+	assert.Equal(t, int64(200), cache.LookUp("key1").(testData).Value)
+
+	// Step 3: Insert another item (35 bytes).
+	// Total size = 10 + 35 = 45 <= 50 (maxSize), so NO eviction should happen.
+	insertAndAssert(t, cache, "key2", testData{Value: 300, DataSize: 35}, []int64{}, nil)
+
+	// Verify both items remain in cache
+	assert.Equal(t, int64(200), cache.LookUp("key1").(testData).Value)
+	assert.Equal(t, int64(300), cache.LookUp("key2").(testData).Value)
+}
+

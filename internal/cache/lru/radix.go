@@ -520,9 +520,13 @@ func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
 	for c.currentSize > c.maxSize && c.tail != nil {
 		c.evictOne()
 	}
+	if c.tail == nil {
+		c.currentSize = 0
+	}
 
 	return nil
 }
+
 
 func (c *radixCache) EraseEntriesWithGivenPrefix(prefix string) {
 	c.mu.Lock()
