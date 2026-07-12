@@ -122,8 +122,8 @@ func ObjectAttrsToMinObject(attrs *storage.ObjectAttrs) *gcs.MinObject {
 		Metadata:        attrs.Metadata,
 		Generation:      attrs.Generation,
 		MetaGeneration:  attrs.Metageneration,
-		Updated:         attrs.Updated,
-		Finalized:       attrs.Finalized,
+		Updated:         gcs.TimeToNS(attrs.Updated),
+		Finalized:       gcs.TimeToNS(attrs.Finalized),
 	}
 }
 
@@ -170,11 +170,11 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 		Size:            o.Size,
 		Generation:      o.Generation,
 		MetaGeneration:  o.MetaGeneration,
-		Updated:         o.Updated,
+		Updated:         gcs.TimeToNS(o.Updated),
 		Metadata:        o.Metadata,
 		ContentEncoding: o.ContentEncoding,
 		CRC32C:          o.CRC32C,
-		Finalized:       o.Finalized,
+		Finalized:       gcs.TimeToNS(o.Finalized),
 	}
 }
 
@@ -211,8 +211,8 @@ func ConvertMinObjectAndExtendedObjectAttributesToObject(m *gcs.MinObject,
 		Size:               m.Size,
 		Generation:         m.Generation,
 		MetaGeneration:     m.MetaGeneration,
-		Updated:            m.Updated,
-		Finalized:          m.Finalized,
+		Updated:            gcs.NSToTime(m.Updated),
+		Finalized:          gcs.NSToTime(m.Finalized),
 		Metadata:           m.Metadata,
 		ContentEncoding:    m.ContentEncoding,
 		ContentType:        e.ContentType,
@@ -242,10 +242,10 @@ func ConvertMinObjectToObject(m *gcs.MinObject) *gcs.Object {
 		Size:            m.Size,
 		Generation:      m.Generation,
 		MetaGeneration:  m.MetaGeneration,
-		Updated:         m.Updated,
+		Updated:         gcs.NSToTime(m.Updated),
 		Metadata:        m.Metadata,
 		ContentEncoding: m.ContentEncoding,
 		CRC32C:          m.CRC32C,
-		Finalized:       m.Finalized,
+		Finalized:       gcs.NSToTime(m.Finalized),
 	}
 }

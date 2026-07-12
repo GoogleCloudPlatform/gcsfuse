@@ -139,7 +139,7 @@ func createFileInode(
 		Size:           uint64(len(content)),
 		Generation:     1,
 		MetaGeneration: 1,
-		Updated:        clock.Now(),
+		Updated:        gcs.TimeToNS(clock.Now()),
 	}
 
 	// Create object in the fake bucket to simulate existing GCS object
@@ -1277,7 +1277,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 func (t *fileTest) Test_ShouldSkipSizeChecks() {
 	const objectSize = 100
 	unfinalizedObject := &gcs.MinObject{Name: "unfinalized", Size: objectSize}
-	finalizedObject := &gcs.MinObject{Name: "finalized", Size: objectSize, Finalized: time.Now()}
+	finalizedObject := &gcs.MinObject{Name: "finalized", Size: objectSize, Finalized: gcs.TimeToNS(time.Now())}
 	directIOReadMode := util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
 	readOnlyMode := util.NewOpenMode(util.ReadOnly, 0)
 

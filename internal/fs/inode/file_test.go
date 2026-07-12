@@ -403,9 +403,9 @@ func (t *FileTest) TestInitialAttributes() {
 	assert.Equal(t.T(), uint32(uid), attrs.Uid)
 	assert.Equal(t.T(), uint32(gid), attrs.Gid)
 	assert.Equal(t.T(), fileMode, attrs.Mode)
-	assert.Equal(t.T(), attrs.Atime, t.backingObj.Updated)
-	assert.Equal(t.T(), attrs.Ctime, t.backingObj.Updated)
-	assert.Equal(t.T(), attrs.Mtime, t.backingObj.Updated)
+	assert.Equal(t.T(), attrs.Atime, gcs.NSToTime(t.backingObj.Updated))
+	assert.Equal(t.T(), attrs.Ctime, gcs.NSToTime(t.backingObj.Updated))
+	assert.Equal(t.T(), attrs.Mtime, gcs.NSToTime(t.backingObj.Updated))
 }
 
 func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {
