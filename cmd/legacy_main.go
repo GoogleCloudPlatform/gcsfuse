@@ -154,6 +154,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		UserAgent:                               userAgent,
 		CustomEndpoint:                          newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                                 string(newConfig.GcsAuth.KeyFile),
+		ExperimentalAuthTokenFile:               string(newConfig.GcsAuth.ExperimentalAuthTokenFile),
 		AnonymousAccess:                         newConfig.GcsAuth.AnonymousAccess,
 		TokenUrl:                                newConfig.GcsAuth.TokenUrl,
 		ReuseTokenFromUrl:                       newConfig.GcsAuth.ReuseTokenFromUrl,

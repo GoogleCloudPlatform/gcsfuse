@@ -583,6 +583,16 @@ params:
     usage: "This flag disables authentication."
     default: false
 
+  - config-path: "gcs-auth.experimental-auth-token-file"
+    flag-name: "experimental-auth-token-file"
+    type: "resolvedPath"
+    usage: >-
+      Experimental: Absolute path to a file containing an OAuth2 token response
+      in JSON format ({"access_token": "...", "expires_in": 3600, "token_type":
+      "Bearer"}), to be used directly as the GCS credential. Mounting fails if
+      the token is expired. The file is re-read when the token expires, so an
+      external process may refresh the credential by rewriting the file.
+
   - config-path: "gcs-auth.key-file"
     flag-name: "key-file"
     type: "resolvedPath"

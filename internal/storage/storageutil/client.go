@@ -15,6 +15,7 @@
 package storageutil
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -30,7 +31,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
@@ -56,6 +56,7 @@ type StorageClientConfig struct {
 	UserAgent                               string
 	CustomEndpoint                          string
 	KeyFile                                 string
+	ExperimentalAuthTokenFile               string
 	TokenUrl                                string
 	ReuseTokenFromUrl                       bool
 	ExperimentalNonrapidFolderApiStallRetry bool
@@ -181,7 +182,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.ExperimentalAuthTokenFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }
 
 // StripScheme strips the scheme part of given url.

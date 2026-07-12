@@ -88,6 +88,7 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 func GetTokenSource(
 	ctx context.Context,
 	keyFile string,
+	tokenFile string,
 	tokenUrl string,
 	reuseTokenFromUrl bool,
 ) (tokenSrc oauth2.TokenSource, err error) {
@@ -95,7 +96,10 @@ func GetTokenSource(
 	const scope = storagev1.DevstorageFullControlScope
 	var method string
 
-	if keyFile != "" {
+	if tokenFile != "" {
+		tokenSrc, err = NewTokenSourceFromTokenFile(tokenFile)
+		method = "NewTokenSourceFromTokenFile"
+	} else if keyFile != "" {
 		tokenSrc, err = newTokenSourceFromPath(ctx, keyFile, scope)
 		method = "newTokenSourceFromPath"
 	} else if tokenUrl != "" {

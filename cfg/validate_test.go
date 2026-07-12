@@ -89,6 +89,29 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			},
 		},
 		{
+			name: "Valid Config with experimental-auth-token-file set.",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsAuth: GcsAuthConfig{
+					ExperimentalAuthTokenFile: "/token.json",
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
+			},
+		},
+		{
 			name: "Valid Config where input and expected custom endpoint differ.",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
@@ -446,6 +469,40 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				FileCache: validFileCacheConfig(t),
 				GcsAuth: GcsAuthConfig{
 					TokenUrl: "a_b://abc",
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
+		{
+			name: "Invalid Config due to experimental-auth-token-file set together with key-file",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsAuth: GcsAuthConfig{
+					ExperimentalAuthTokenFile: "/token.json",
+					KeyFile:                   "/key.json",
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
+		{
+			name: "Invalid Config due to experimental-auth-token-file set together with token-url",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsAuth: GcsAuthConfig{
+					ExperimentalAuthTokenFile: "/token.json",
+					TokenUrl:                  "https://www.abc.com",
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
