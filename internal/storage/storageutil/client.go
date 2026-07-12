@@ -53,16 +53,17 @@ type StorageClientConfig struct {
 	/** Common client parameters. */
 
 	// ClientProtocol decides the go-sdk client to create.
-	ClientProtocol     cfg.Protocol
-	UserAgent          string
-	CustomEndpoint     string
-	KeyFile            string
-	TokenUrl           string
-	ReuseTokenFromUrl  bool
-	MaxRetrySleep      time.Duration
-	RetryMultiplier    float64
-	EnableMountRetries bool
-	LocalSocketAddress string
+	ClientProtocol            cfg.Protocol
+	UserAgent                 string
+	CustomEndpoint            string
+	KeyFile                   string
+	ExperimentalAuthTokenFile string
+	TokenUrl                  string
+	ReuseTokenFromUrl         bool
+	MaxRetrySleep             time.Duration
+	RetryMultiplier           float64
+	EnableMountRetries        bool
+	LocalSocketAddress        string
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
@@ -185,7 +186,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.ExperimentalAuthTokenFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }
 
 // StripScheme strips the scheme part of given url.
