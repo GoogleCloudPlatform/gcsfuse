@@ -431,3 +431,28 @@ func TestMapCache_Insert_OverwriteWithSmallerSize_Underflow(t *testing.T) {
 	assert.Equal(t, int64(300), cache.LookUp("key2").(testData).Value)
 }
 
+func TestMapCache_Insert_OverwriteUnderflowRepro(t *testing.T) {
+	cache := setupCacheTest(t)
+
+	// Step 1: Insert key1 with size 40 (c.currentSize = 40)
+	insertAndAssert(t, cache, "key1", testData{Value: 100, DataSize: 40}, []int64{}, nil)
+
+	// Step 2: UpdateSize on key1 reducing c.currentSize by 20 bytes (e.g. file truncated)
+	// c.currentSize becomes 20, but key1's stored value.Size() remains 40
+	_ = cache.UpdateSize("key1", ^uint64(19)) // Subtract 20 bytes
+
+	// Step 3: Overwrite key1 with a new value of size 10
+	// In mapCache: c.currentSize (20) -= 40 underflows uint64 to 18,446,744,073,709,551,606!
+	// Then adding 10 results in 18,446,744,073,709,551,616!
+	insertAndAssert(t, cache, "key1", testData{Value: 200, DataSize: 10}, []int64{}, nil)
+
+	// Step 4: Insert another item (35 bytes).
+	// With underflow, c.currentSize is 18 quintillion > 50, forcing key1 to be evicted.
+	insertAndAssert(t, cache, "key2", testData{Value: 300, DataSize: 35}, []int64{}, nil)
+
+	// Both key1 and key2 should remain in cache (10 + 35 = 45 <= 50 maxSize)
+	assert.NotNil(t, cache.LookUp("key1"))
+	assert.NotNil(t, cache.LookUp("key2"))
+}
+
+

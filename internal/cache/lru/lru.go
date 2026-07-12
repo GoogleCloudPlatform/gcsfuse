@@ -141,17 +141,10 @@ func (c *mapCache) evictOne() ValueType {
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry).Value
-	if c.currentSize >= evictedEntry.Size() {
-		c.currentSize -= evictedEntry.Size()
-	} else {
-		c.currentSize = 0
-	}
+	c.currentSize -= evictedEntry.Size()
 
 	c.entries.Remove(e)
 	delete(c.index, key)
-	if c.entries.Len() == 0 {
-		c.currentSize = 0
-	}
 
 	return evictedEntry
 }
@@ -181,14 +174,8 @@ func (c *mapCache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		oldSize := e.Value.(entry).Value.Size()
-		if valueSize >= oldSize {
-			c.currentSize += valueSize - oldSize
-		} else if c.currentSize >= oldSize-valueSize {
-			c.currentSize -= oldSize - valueSize
-		} else {
-			c.currentSize = 0
-		}
+		c.currentSize -= e.Value.(entry).Value.Size()
+		c.currentSize += valueSize
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
@@ -200,7 +187,7 @@ func (c *mapCache) Insert(
 
 	var evictedValues []ValueType
 	// Evict until we're at or below maxSize.
-	for c.currentSize > c.maxSize && c.entries.Len() > 0 {
+	for c.currentSize > c.maxSize {
 		evictedValues = append(evictedValues, c.evictOne())
 	}
 
@@ -217,21 +204,13 @@ func (c *mapCache) eraseInternal(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry).Value
-	if c.currentSize >= deletedEntry.Size() {
-		c.currentSize -= deletedEntry.Size()
-	} else {
-		c.currentSize = 0
-	}
+	c.currentSize -= deletedEntry.Size()
 
 	delete(c.index, key)
 	c.entries.Remove(e)
-	if c.entries.Len() == 0 {
-		c.currentSize = 0
-	}
 
 	return deletedEntry
 }
-
 
 // eraseKeys removes a list of keys from the cache.
 func (c *mapCache) eraseKeys(keys []string) {
@@ -331,20 +310,13 @@ func (c *mapCache) UpdateSize(key string, sizeDelta uint64) error {
 		return ErrEntryNotExist
 	}
 
+	// Update currentSize accounting
+	// Note: This may temporarily violate currentSize <= maxSize invariant
+	// Eviction will happen on the next Insert() call
 	c.currentSize += sizeDelta
-
-	// Evict until we're at or below maxSize to maintain invariants
-	for c.currentSize > c.maxSize && c.entries.Len() > 0 {
-		c.evictOne()
-	}
-	if c.entries.Len() == 0 {
-		c.currentSize = 0
-	}
 
 	return nil
 }
-
-
 
 func (c *mapCache) EraseEntriesWithGivenPrefix(prefix string) {
 	c.mu.RLock()

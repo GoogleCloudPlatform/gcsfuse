@@ -499,3 +499,50 @@ func TestRadixCache_UpdateSize_UnderflowAndEvictionAccounting(t *testing.T) {
 	insertAndAssert(t, cache, "key2", testData{Value: 20, DataSize: 40}, []int64{}, nil)
 	assert.Equal(t, int64(20), cache.LookUp("key2").(testData).Value)
 }
+
+func TestRadixCache_Insert_OverwriteWithSmallerSize_Underflow(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+
+	// Step 1: Insert large initial entry (40 bytes)
+	insertAndAssert(t, cache, "key1", testData{Value: 100, DataSize: 40}, []int64{}, nil)
+
+	// Step 2: Overwrite key1 with a smaller size entry (10 bytes)
+	// Without underflow protection (valueSize < oldValue.Size()), 10 - 40 wraps uint64 to ~18 quintillion.
+	insertAndAssert(t, cache, "key1", testData{Value: 200, DataSize: 10}, []int64{}, nil)
+
+	assert.Equal(t, int64(200), cache.LookUp("key1").(testData).Value)
+
+	// Step 3: Insert another item (35 bytes).
+	// Total size = 10 + 35 = 45 <= 50 (maxSize), so NO eviction should happen.
+	insertAndAssert(t, cache, "key2", testData{Value: 300, DataSize: 35}, []int64{}, nil)
+
+	// Verify both items remain in cache
+	assert.Equal(t, int64(200), cache.LookUp("key1").(testData).Value)
+	assert.Equal(t, int64(300), cache.LookUp("key2").(testData).Value)
+}
+
+func TestRadixCache_Insert_OverwriteUnderflowRepro(t *testing.T) {
+	cache := setupRadixCacheTest(t)
+
+	// Step 1: Insert key1 with size 40 (currentSize = 40)
+	insertAndAssert(t, cache, "key1", testData{Value: 100, DataSize: 40}, []int64{}, nil)
+
+	// Step 2: UpdateSize on key1 reducing currentSize by 20 bytes (e.g. file truncated)
+	// c.currentSize becomes 20, but key1's stored value.Size() remains 40
+	_ = cache.UpdateSize("key1", ^uint64(19)) // Subtract 20 bytes
+
+	// Step 3: Overwrite key1 with a new value of size 10
+	// Line 404 in radix.go: c.currentSize += 10 - 40
+	// Since c.currentSize (20) < 30 (40 - 10), 20 + (10 - 40) underflows uint64 to ~18 quintillion!
+	insertAndAssert(t, cache, "key1", testData{Value: 200, DataSize: 10}, []int64{}, nil)
+
+	// Step 4: Insert another item (35 bytes).
+	// With underflow, currentSize is 18 quintillion > 50, forcing key1 to be evicted.
+	insertAndAssert(t, cache, "key2", testData{Value: 300, DataSize: 35}, []int64{}, nil)
+
+	// Both key1 and key2 should remain in cache (10 + 35 = 45 <= 50 maxSize)
+	assert.NotNil(t, cache.LookUp("key1"))
+	assert.NotNil(t, cache.LookUp("key2"))
+}
+
+
