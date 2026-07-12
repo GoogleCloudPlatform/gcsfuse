@@ -44,8 +44,8 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 		BucketTypeOptimization: []shared.BucketTypeOptimization{
 			{{- range .Optimizations.BucketTypeOptimization }}
 			{
-				BucketType: shared.BucketTypeList{
-					{{- range .BucketType }}
+				BucketTypes: shared.BucketTypeList{
+					{{- range .BucketTypes }}
 					"{{ . }}",
 					{{- end }}
 				},

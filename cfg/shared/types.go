@@ -16,28 +16,38 @@ package shared
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// BucketTypeList represents a list of bucket types, supporting both scalar string (e.g. "zonal")
-// and YAML sequence (e.g. ["zonal", "pirlo"]) in params.yaml.
+// BucketTypeList represents a list of bucket types, supporting scalar strings (e.g. "zonal" or "zonal, pirlo")
+// and YAML sequences (e.g. ["zonal", "pirlo"]) in params.yaml.
 type BucketTypeList []string
 
 func (b *BucketTypeList) UnmarshalYAML(value *yaml.Node) error {
+	var rawStrings []string
 	if value.Kind == yaml.ScalarNode {
-		*b = []string{value.Value}
-		return nil
-	}
-	if value.Kind == yaml.SequenceNode {
-		var slice []string
-		if err := value.Decode(&slice); err != nil {
+		rawStrings = []string{value.Value}
+	} else if value.Kind == yaml.SequenceNode {
+		if err := value.Decode(&rawStrings); err != nil {
 			return err
 		}
-		*b = slice
-		return nil
+	} else {
+		return fmt.Errorf("bucket-type must be a string or list of strings, got %v", value.Kind)
 	}
-	return fmt.Errorf("bucket-type must be a string or list of strings, got %v", value.Kind)
+
+	var parsed []string
+	for _, raw := range rawStrings {
+		for _, part := range strings.Split(raw, ",") {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				parsed = append(parsed, trimmed)
+			}
+		}
+	}
+	*b = parsed
+	return nil
 }
 
 // ProfileOptimization holds the rules for a single performance profile.
@@ -54,8 +64,8 @@ type MachineBasedOptimization struct {
 
 // BucketTypeOptimization defines a bucket-type-based optimization.
 type BucketTypeOptimization struct {
-	BucketType BucketTypeList `yaml:"bucket-type"`
-	Value      any            `yaml:"value"`
+	BucketTypes BucketTypeList `yaml:"bucket-type"`
+	Value       any            `yaml:"value"`
 }
 
 // OptimizationRules holds all defined optimizations for a single flag.

@@ -130,10 +130,10 @@ func validateParam(param Param) error {
 		validBucketTypes := []string{"zonal", "hierarchical", "flat", "pirlo"}
 		seenBucketTypes := make(map[string]bool)
 		for _, bto := range param.Optimizations.BucketTypeOptimization {
-			if len(bto.BucketType) == 0 {
+			if len(bto.BucketTypes) == 0 {
 				return fmt.Errorf("bucket-type list is empty for flag %s", param.FlagName)
 			}
-			for _, bt := range bto.BucketType {
+			for _, bt := range bto.BucketTypes {
 				if !slices.Contains(validBucketTypes, bt) {
 					return fmt.Errorf("invalid bucket-type %q for flag %s; must be one of: %v",
 						bt, param.FlagName, validBucketTypes)

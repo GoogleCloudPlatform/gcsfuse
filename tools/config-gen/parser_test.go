@@ -258,8 +258,8 @@ params:
 		require.NotNil(t, param.Optimizations)
 		expected := &shared.OptimizationRules{
 			BucketTypeOptimization: []shared.BucketTypeOptimization{
-				{BucketType: shared.BucketTypeList{"zonal", "flat", "pirlo"}, Value: true},
-				{BucketType: shared.BucketTypeList{"hierarchical"}, Value: false},
+				{BucketTypes: shared.BucketTypeList{"zonal", "flat", "pirlo"}, Value: true},
+				{BucketTypes: shared.BucketTypeList{"hierarchical"}, Value: false},
 			},
 		}
 		assert.Equal(t, "file-system.enable-kernel-reader", param.ConfigPath)
@@ -273,8 +273,8 @@ params:
 		require.NotNil(t, param.Optimizations)
 		expected := &shared.OptimizationRules{
 			BucketTypeOptimization: []shared.BucketTypeOptimization{
-				{BucketType: shared.BucketTypeList{"zonal"}, Value: 1024},
-				{BucketType: shared.BucketTypeList{"hierarchical", "flat", "pirlo"}, Value: 2048},
+				{BucketTypes: shared.BucketTypeList{"zonal"}, Value: 1024},
+				{BucketTypes: shared.BucketTypeList{"hierarchical", "flat", "pirlo"}, Value: 2048},
 			},
 			MachineBasedOptimization: []shared.MachineBasedOptimization{
 				{Group: "high-performance", Value: 2048},

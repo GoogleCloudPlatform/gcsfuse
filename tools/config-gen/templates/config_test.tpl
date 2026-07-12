@@ -62,7 +62,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				{{- if .Optimizations.BucketTypeOptimization }}
 				{{- $bto := index .Optimizations.BucketTypeOptimization 0 }}
-				{{- $bt := index $bto.BucketType 0 }}
+				{{- $bt := index $bto.BucketTypes 0 }}
 				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				{{- else }}
 				input:           nil,
@@ -112,7 +112,7 @@ func TestApplyOptimizations(t *testing.T) {
 		{{- end }}
 		{{- range .Optimizations.BucketTypeOptimization }}
 			{{- $bto := . }}
-			{{- range $bto.BucketType }}
+			{{- range $bto.BucketTypes }}
 			{{- $bt := . }}
 			{
 				name:   "bucket_type_{{$bt}}",
@@ -142,7 +142,7 @@ func TestApplyOptimizations(t *testing.T) {
 		{{- if and .Optimizations.Profiles .Optimizations.BucketTypeOptimization }}
 			{{- $profile := index .Optimizations.Profiles 0 -}}
 			{{- $bto := index .Optimizations.BucketTypeOptimization 0 -}}
-			{{- $bt := index $bto.BucketType 0 }}
+			{{- $bt := index $bto.BucketTypes 0 }}
 			{
 				name:   "profile_overrides_bucket_type",
 				config: Config{Profile: "{{$profile.Name}}"},
@@ -156,7 +156,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
 			{{- $bto := index .Optimizations.BucketTypeOptimization 0 -}}
 			{{- $machineType := index $.MachineTypeGroups $mbo.Group 0 }}
-			{{- $bt := index $bto.BucketType 0 }}
+			{{- $bt := index $bto.BucketTypes 0 }}
 			{
 				name:   "machine_type_overrides_bucket_type",
 				config: Config{Profile: ""},

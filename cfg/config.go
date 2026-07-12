@@ -28,7 +28,7 @@ import (
 var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: shared.BucketTypeList{
+			BucketTypes: shared.BucketTypeList{
 				"zonal",
 				"pirlo",
 			},
@@ -38,7 +38,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: shared.BucketTypeList{
+			BucketTypes: shared.BucketTypeList{
 				"zonal",
 				"pirlo",
 			},
@@ -59,13 +59,13 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "write.finalize-file-for-rapid": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: shared.BucketTypeList{
+			BucketTypes: shared.BucketTypeList{
 				"zonal",
 			},
 			Value: bool(false),
 		},
 		{
-			BucketType: shared.BucketTypeList{
+			BucketTypes: shared.BucketTypeList{
 				"pirlo",
 			},
 			Value: bool(true),
@@ -102,7 +102,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "file-system.max-background": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: shared.BucketTypeList{
+			BucketTypes: shared.BucketTypeList{
 				"zonal",
 				"pirlo",
 			},
@@ -112,7 +112,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "file-system.max-read-ahead-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: shared.BucketTypeList{
+			BucketTypes: shared.BucketTypeList{
 				"zonal",
 				"pirlo",
 			},
