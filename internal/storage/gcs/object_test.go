@@ -15,6 +15,7 @@
 package gcs
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -61,4 +62,49 @@ func TestObjectIsNotFinalized(t *testing.T) {
 	o := Object{}
 
 	assert.True(t, o.IsUnfinalized())
+}
+func TestTimeToNS_Zero(t *testing.T) {
+	assert.Equal(t, int64(0), TimeToNS(time.Time{}))
+}
+
+func TestTimeToNS_NonZero(t *testing.T) {
+	ti := time.Date(2026, time.July, 12, 10, 0, 0, 0, time.UTC)
+
+	assert.Equal(t, ti.UnixNano(), TimeToNS(ti))
+}
+
+func TestNSToTime_Zero(t *testing.T) {
+	assert.True(t, NSToTime(0).IsZero())
+}
+
+func TestNSToTime_NonZero(t *testing.T) {
+	ti := time.Date(2026, time.July, 12, 10, 0, 0, 0, time.UTC)
+
+	assert.Equal(t, ti, NSToTime(ti.UnixNano()))
+}
+
+func TestMinObject_UpdatedTime(t *testing.T) {
+	ti := time.Date(2026, time.July, 12, 10, 0, 0, 0, time.UTC)
+	mo := MinObject{Updated: ti.UnixNano()}
+
+	assert.Equal(t, ti, mo.UpdatedTime())
+}
+
+func TestMinObject_FinalizedTime(t *testing.T) {
+	ti := time.Date(2026, time.July, 12, 10, 0, 0, 0, time.UTC)
+	mo := MinObject{Finalized: ti.UnixNano()}
+
+	assert.Equal(t, ti, mo.FinalizedTime())
+}
+
+func TestTimeToNS_Epoch(t *testing.T) {
+	// time.Unix(0,0) should return math.MinInt64 to avoid colliding with time.Time{} mapping to 0
+	ti := time.Unix(0, 0).UTC()
+	assert.Equal(t, int64(math.MinInt64), TimeToNS(ti))
+}
+
+func TestNSToTime_Epoch(t *testing.T) {
+	// math.MinInt64 should be correctly decoded as 1970 epoch
+	ti := time.Unix(0, 0).UTC()
+	assert.Equal(t, ti, NSToTime(math.MinInt64))
 }

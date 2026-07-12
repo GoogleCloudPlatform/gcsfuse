@@ -345,7 +345,7 @@ func (t *FileMockBucketTest) TestAttributes_NoChangeInAttributes() {
 	t.bucket.AssertExpectations(t.T())
 	// Attributes should NOT be updated because the size hasn't increased.
 	assert.Equal(t.T(), initialSize, attrs.Size)
-	assert.Equal(t.T(), gcs.NSToTime(gcs.TimeToNS(initialTime)), attrs.Mtime)
+	assert.Equal(t.T(), initialTime.UTC().Round(0), attrs.Mtime)
 	assert.Equal(t.T(), initialSize, f.Source().Size)
 	assert.Equal(t.T(), gcs.TimeToNS(initialTime), f.Source().Updated)
 }

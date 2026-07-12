@@ -1376,9 +1376,10 @@ func (t *copyTest) DestinationDoesntExist() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	dst.Updated = gcs.NSToTime(gcs.TimeToNS(dst.Updated))
-	dst.Finalized = gcs.NSToTime(gcs.TimeToNS(dst.Finalized))
-	dst.Deleted = gcs.NSToTime(gcs.TimeToNS(dst.Deleted))
+	// Strip monotonic clocks from dst timestamps so they can pass DeepEquals against statObj,
+	// which lost its monotonic clocks when its timestamps were compressed into MinObject.
+	dst.Updated = dst.Updated.UTC().Round(0)
+	dst.Finalized = dst.Finalized.UTC().Round(0)
 	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
 }
 
@@ -1470,9 +1471,10 @@ func (t *copyTest) DestinationExists() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	dst.Updated = gcs.NSToTime(gcs.TimeToNS(dst.Updated))
-	dst.Finalized = gcs.NSToTime(gcs.TimeToNS(dst.Finalized))
-	dst.Deleted = gcs.NSToTime(gcs.TimeToNS(dst.Deleted))
+	// Strip monotonic clocks from dst timestamps so they can pass DeepEquals against statObj,
+	// which lost its monotonic clocks when its timestamps were compressed into MinObject.
+	dst.Updated = dst.Updated.UTC().Round(0)
+	dst.Finalized = dst.Finalized.UTC().Round(0)
 	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
 }
 
@@ -1547,9 +1549,10 @@ func (t *copyTest) DestinationIsSameName() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	dst.Updated = gcs.NSToTime(gcs.TimeToNS(dst.Updated))
-	dst.Finalized = gcs.NSToTime(gcs.TimeToNS(dst.Finalized))
-	dst.Deleted = gcs.NSToTime(gcs.TimeToNS(dst.Deleted))
+	// Strip monotonic clocks from dst timestamps so they can pass DeepEquals against statObj,
+	// which lost its monotonic clocks when its timestamps were compressed into MinObject.
+	dst.Updated = dst.Updated.UTC().Round(0)
+	dst.Finalized = dst.Finalized.UTC().Round(0)
 	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
 }
 
