@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"math"
 	"runtime"
 	"testing"
 	"time"
@@ -282,6 +283,27 @@ func TestGetBucketType(t *testing.T) {
 				t.Errorf("GetBucketType(%v, %v, %v) = %v; want %v",
 					tt.hierarchical, tt.zonal, tt.pirlo, result, tt.expected)
 			}
+		})
+	}
+}
+
+func Test_MaxPagesForRequestSizeKb(t *testing.T) {
+	tests := []struct {
+		name          string
+		requestSizeKb int64
+		expected      int
+	}{
+		{"negative", -10, 0},
+		{"zero", 0, 0},
+		{"1_KiB", 1, 1},
+		{"exact_multiple_16_KiB", 16, int((16*1024 + int64(kernelPageSize) - 1) / int64(kernelPageSize))},
+		{"non_exact_multiple", 5, int((5*1024 + int64(kernelPageSize) - 1) / int64(kernelPageSize))},
+		{"capped_at_max_uint16", 1000000000, math.MaxUint16},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, MaxPagesForRequestSizeKb(tt.requestSizeKb))
 		})
 	}
 }

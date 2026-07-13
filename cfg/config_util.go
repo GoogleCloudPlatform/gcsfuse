@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"runtime"
 	"strings"
@@ -57,11 +58,18 @@ func (bt BucketType) DefaultFuseMaxRequestSizeKb() int {
 }
 
 // MaxPagesForRequestSizeKb converts a request size in KiB to the number of kernel pages.
+// The FUSE kernel setting fuse_max_max_pages is capped at 65535 (math.MaxUint16).
 func MaxPagesForRequestSizeKb(requestSizeKb int64) int {
 	if requestSizeKb <= 0 {
 		return 0
 	}
-	return int((requestSizeKb * 1024) / int64(kernelPageSize))
+	bytes := requestSizeKb * 1024
+	pageSize := int64(kernelPageSize)
+	pages := (bytes + pageSize - 1) / pageSize
+	if pages > math.MaxUint16 {
+		return math.MaxUint16
+	}
+	return int(pages)
 }
 
 func (bt BucketType) DefaultMaxBackground() int {
