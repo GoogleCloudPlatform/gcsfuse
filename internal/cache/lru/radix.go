@@ -173,6 +173,10 @@ func (n *radixNode) removeChild(childToRemove *radixNode) {
 	for pcurr := &n.child; *pcurr != nil; pcurr = &(*pcurr).sibling {
 		if *pcurr == childToRemove {
 			*pcurr = childToRemove.sibling
+
+			childToRemove.sibling = nil
+			childToRemove.parent = nil
+
 			return
 		}
 	}
@@ -185,6 +189,10 @@ func (n *radixNode) replaceChild(oldChild, newChild *radixNode) {
 		if *pcurr == oldChild {
 			newChild.sibling = oldChild.sibling
 			*pcurr = newChild
+
+			oldChild.sibling = nil
+			oldChild.parent = nil
+
 			return
 		}
 	}
