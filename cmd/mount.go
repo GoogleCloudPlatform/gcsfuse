@@ -201,7 +201,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
-	if newConfig.FileSystem.FuseMaxRequestSizeKb != 0 {
+	if newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
 		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
 	}
 

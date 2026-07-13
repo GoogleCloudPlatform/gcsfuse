@@ -36,6 +36,7 @@ const (
 	ProfileAIMLTraining                       = "aiml-training"
 	ProfileAIMLServing                        = "aiml-serving"
 	ProfileAIMLCheckpointing                  = "aiml-checkpointing"
+	FuseMaxPagesLimit                         = 65535 // (2^16 - 1) : Maximum page limit allowed by linux kernel
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -118,12 +119,9 @@ func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
 	if requestSizeKb <= 0 {
 		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; should be > 0", requestSizeKb)
 	}
-	if requestSizeKb > int64(math.MaxInt-kernelPageSize+1)/1024 {
-		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; value is too large and causes overflow", requestSizeKb)
-	}
-	pages := MaxPagesForRequestSizeKb(int(requestSizeKb))
-	if pages > fuseMaxPagesLimit {
-		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; resulting page count %d exceeds maximum allowed value of %d", requestSizeKb, pages, fuseMaxPagesLimit)
+	pageSizeKb := int64(kernelPageSize) / 1024
+	if requestSizeKb > FuseMaxPagesLimit*pageSizeKb {
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; exceeds maximum allowed limit of %d", requestSizeKb, FuseMaxPagesLimit*pageSizeKb)
 	}
 	return nil
 }
@@ -360,7 +358,7 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 		return fmt.Errorf("error parsing gcs-connection config: %w", err)
 	}
 
-	if v.IsSet("file-system.fuse-max-request-size-kb") || config.FileSystem.FuseMaxRequestSizeKb != 0 {
+	if v.IsSet("file-system.fuse-max-request-size-kb") {
 		if err = isValidFuseMaxRequestSizeKb(config.FileSystem.FuseMaxRequestSizeKb); err != nil {
 			return fmt.Errorf("error parsing fuse-max-request-size-kb config: %w", err)
 		}
