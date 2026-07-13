@@ -683,30 +683,37 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 		// 1. Try Directory FIRST (since it's the preferred return type)
 		var dirResult *Core
-		var err error
+		var dirErr error
 		if d.Bucket().BucketType().Hierarchical {
-			dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+			dirResult, dirErr = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		} else {
-			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+			dirResult, dirErr = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
+		}
+
+		// If we hit a real error (not a cache miss), exit early.
+		if dirErr != nil && !errors.As(dirErr, &cacheMissErr) {
+			return nil, dirErr
 		}
 
 		// If we found a directory, we're done. Return it now.
 		if dirResult != nil {
 			return dirResult, nil
 		}
-		// If we hit a real error (not a cache miss), exit early.
-		if err != nil && !errors.As(err, &cacheMissErr) {
-			return nil, err
-		}
 
 		// 2. Try File ONLY if directory wasn't found
-		fileResult, err := findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
-		if err != nil && !errors.As(err, &cacheMissErr) {
-			return nil, err
+		fileResult, fileErr := findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
+		if fileErr != nil && !errors.As(fileErr, &cacheMissErr) {
+			return nil, fileErr
 		}
 
 		if fileResult != nil {
 			return fileResult, nil
+		}
+
+		// 3. Both lookups resulted in cache hits (no cacheMiss errors) with no results found,
+		// indicating a negative cache entry. Return nil to indicate the entry doesn't exist from cache.
+		if dirErr == nil && fileErr == nil {
+			return nil, nil
 		}
 	}
 

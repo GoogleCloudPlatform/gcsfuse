@@ -58,6 +58,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestDeps {
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
 		isImplicitDir,
+		isEnableEmptyManagedFolders,
 	)
 
 	return &integrationTestDeps{
