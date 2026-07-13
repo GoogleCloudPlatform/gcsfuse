@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -570,7 +571,7 @@ func (t *FileTest) TestReadWithBufferPool() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			// Arrange
-			pool := &fake.FakeBufferPool{
+			pool := &buffer.FakeBufferPool{
 				Buffers:           [][]byte{make([]byte, 2), make([]byte, 2)},
 				DefaultBufferSize: 2,
 			}

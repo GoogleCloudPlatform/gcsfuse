@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fake
+package buffer
 
-// FakeBufferPool is a generic fake implementation of buffer.Pool used for testing across packages.
+// FakeBufferPool is a generic fake implementation of Pool used for testing across packages.
 type FakeBufferPool struct {
 	Buffers               [][]byte
 	Idx                   int

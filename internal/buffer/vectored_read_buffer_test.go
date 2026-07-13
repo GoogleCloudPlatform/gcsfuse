@@ -20,7 +20,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -104,7 +103,7 @@ func TestVectoredReadBuffer_Write(t *testing.T) {
 			}
 			var pool Pool
 			if len(tc.buffers) > 0 {
-				pool = &fake.FakeBufferPool{Buffers: tc.buffers}
+				pool = &FakeBufferPool{Buffers: tc.buffers}
 			}
 			w := NewVectoredReadBuffer(pool, maxSize)
 
@@ -217,7 +216,7 @@ func TestVectoredReadBuffer_ReadFrom(t *testing.T) {
 			}
 			var pool Pool
 			if len(tc.buffers) > 0 {
-				pool = &fake.FakeBufferPool{Buffers: tc.buffers}
+				pool = &FakeBufferPool{Buffers: tc.buffers}
 			}
 			w := NewVectoredReadBuffer(pool, maxSize)
 
@@ -305,7 +304,7 @@ func TestVectoredReadBuffer_ReadFromAt(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			pool := &fake.FakeBufferPool{Buffers: tc.buffers}
+			pool := &FakeBufferPool{Buffers: tc.buffers}
 			w := NewVectoredReadBuffer(pool, tc.maxSize)
 
 			// Act
@@ -322,7 +321,7 @@ func TestVectoredReadBuffer_ReadFromAt(t *testing.T) {
 func TestVectoredReadBuffer_Release(t *testing.T) {
 	tests := []struct {
 		name             string
-		pool             *fake.FakeBufferPool
+		pool             *FakeBufferPool
 		maxSize          int64
 		writeInput       []byte
 		releaseCount     int
@@ -330,7 +329,7 @@ func TestVectoredReadBuffer_Release(t *testing.T) {
 	}{
 		{
 			name: "release allocated buffers to pool and clear state",
-			pool: &fake.FakeBufferPool{
+			pool: &FakeBufferPool{
 				Buffers: [][]byte{
 					make([]byte, 10),
 					make([]byte, 10),
@@ -352,7 +351,7 @@ func TestVectoredReadBuffer_Release(t *testing.T) {
 		},
 		{
 			name: "release with no allocated buffers is safe",
-			pool: &fake.FakeBufferPool{
+			pool: &FakeBufferPool{
 				Buffers: [][]byte{
 					make([]byte, 10),
 				},
@@ -364,7 +363,7 @@ func TestVectoredReadBuffer_Release(t *testing.T) {
 		},
 		{
 			name: "release multiple times is safe and idempotent",
-			pool: &fake.FakeBufferPool{
+			pool: &FakeBufferPool{
 				Buffers: [][]byte{
 					make([]byte, 10),
 				},
@@ -404,7 +403,7 @@ func TestVectoredReadBuffer_Release(t *testing.T) {
 
 func TestVectoredReadBuffer_OversizedBufferTruncation(t *testing.T) {
 	// Arrange
-	pool := &fake.FakeBufferPool{
+	pool := &FakeBufferPool{
 		Buffers: [][]byte{
 			make([]byte, 100),
 		},
@@ -445,7 +444,7 @@ func TestVectoredReadBuffer_PoolExhaustion(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			pool := &fake.FakeBufferPool{
+			pool := &FakeBufferPool{
 				ReturnNilOnExhaustion: true,
 			}
 			w := NewVectoredReadBuffer(pool, 100)
@@ -480,7 +479,7 @@ func TestVectoredReadBuffer_ZeroOrNegativeMaxSize(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			pool := &fake.FakeBufferPool{
+			pool := &FakeBufferPool{
 				Buffers: [][]byte{make([]byte, 10)},
 			}
 			w := NewVectoredReadBuffer(pool, tc.maxSize)
@@ -499,7 +498,7 @@ func TestVectoredReadBuffer_ZeroOrNegativeMaxSize(t *testing.T) {
 var globalBuffer *VectoredReadBuffer
 
 func BenchmarkNewVectoredReadBuffer(b *testing.B) {
-	pool := &fake.FakeBufferPool{
+	pool := &FakeBufferPool{
 		Buffers: [][]byte{
 			make([]byte, 100),
 			make([]byte, 100),
