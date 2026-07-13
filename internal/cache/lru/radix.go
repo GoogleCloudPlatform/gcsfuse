@@ -17,6 +17,8 @@ package lru
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
@@ -26,12 +28,15 @@ import (
 type radixNode struct {
 	prefix  string
 	value   ValueType
+	size    uint64
 	parent  *radixNode
 	child   *radixNode
 	sibling *radixNode
 	// LRU Linked List pointers
-	prev *radixNode
-	next *radixNode
+	prev       *radixNode
+	next       *radixNode
+	evicted    bool
+	accessTime atomic.Int64
 }
 
 // radixCache encapsulates the core tree structure and implements the lru.Cache interface.
@@ -59,6 +64,14 @@ type radixCache struct {
 	// len is the number of nodes currently linked in the LRU list.
 	len int
 
+	promoChan chan *radixNode
+	closed    atomic.Bool
+
+	// Pointer to dynamic global current size counter, used when sharded.
+	// For standalone radixCache, points to localGlobalSize below.
+	globalCurrentSize *atomic.Int64
+	localGlobalSize   atomic.Int64
+
 	// All public methods of this Cache uses this RW mutex based locker while
 	// accessing/updating Cache's data.
 	mu locker.RWLocker
@@ -72,10 +85,23 @@ func NewRadixCache(maxSize uint64) Cache {
 	}
 
 	c := &radixCache{
-		maxSize: maxSize,
-		root:    &radixNode{},
+		maxSize:   maxSize,
+		root:      &radixNode{},
+		promoChan: make(chan *radixNode, 1024),
 	}
+	c.globalCurrentSize = &c.localGlobalSize
 	c.mu = locker.NewRW("RadixCache", c.checkInvariants)
+	return c
+}
+
+func newShardRadixCache(maxSize uint64, globalSize *atomic.Int64) *radixCache {
+	c := &radixCache{
+		maxSize:           maxSize,
+		root:              &radixNode{},
+		promoChan:         make(chan *radixNode, 1024),
+		globalCurrentSize: globalSize,
+	}
+	c.mu = locker.NewRW("RadixCacheShard", c.checkInvariants)
 	return c
 }
 
@@ -317,8 +343,39 @@ func (c *radixCache) compressPathUpwards(curr *radixNode) {
 	}
 }
 
+func (c *radixCache) flushPromotions() {
+	if c.promoChan == nil {
+		return
+	}
+	for {
+		select {
+		case node := <-c.promoChan:
+			if node != nil {
+				c.moveToFront(node)
+			}
+		default:
+			return
+		}
+	}
+}
+
+func (c *radixCache) Close() {
+	c.closed.Store(true)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.promoChan != nil {
+		for len(c.promoChan) > 0 {
+			<-c.promoChan
+		}
+		c.promoChan = nil
+	}
+}
+
 // --- LRU Logic ---
 func (c *radixCache) moveToFront(node *radixNode) {
+	if node == nil || node.evicted || node.value == nil {
+		return
+	}
 	if c.head == node {
 		return
 	}
@@ -354,6 +411,7 @@ func (c *radixCache) pushFront(node *radixNode) {
 
 func (c *radixCache) remove(node *radixNode) {
 	if c.head != node && node.prev == nil {
+		node.evicted = true
 		return
 	}
 	if node.prev != nil {
@@ -368,6 +426,7 @@ func (c *radixCache) remove(node *radixNode) {
 	}
 	node.prev = nil
 	node.next = nil
+	node.evicted = true
 	c.len--
 }
 
@@ -376,13 +435,42 @@ func (c *radixCache) evictOne() ValueType {
 	if node == nil {
 		return nil
 	}
-
+	node.evicted = true
 	return c.eraseInternal(node)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Cache interface
 ////////////////////////////////////////////////////////////////////////
+
+func (c *radixCache) insertNodeAndAdjust(key string, value ValueType, valueSize uint64) ([]ValueType, error) {
+	if node, oldValue := c.insertNode(key, value); oldValue != nil {
+		delta := int64(valueSize) - int64(node.size)
+		node.size = valueSize
+		c.currentSize = uint64(int64(c.currentSize) + delta)
+		if c.globalCurrentSize != nil {
+			c.globalCurrentSize.Add(delta)
+		}
+		c.moveToFront(node)
+		node.accessTime.Store(time.Now().UnixNano())
+	} else {
+		node.size = valueSize
+		c.pushFront(node)
+		c.currentSize += valueSize
+		if c.globalCurrentSize != nil {
+			c.globalCurrentSize.Add(int64(valueSize))
+		}
+		node.accessTime.Store(time.Now().UnixNano())
+	}
+
+	var evictedValues []ValueType
+	// Evict until we're at or below maxSize
+	for c.currentSize > c.maxSize && c.tail != nil {
+		evictedValues = append(evictedValues, c.evictOne())
+	}
+
+	return evictedValues, nil
+}
 
 // Insert the supplied value into the cache, overwriting any previous entry for
 // the given key. The value must be non-nil.
@@ -400,21 +488,8 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if node, oldValue := c.insertNode(key, value); oldValue != nil {
-		c.currentSize += valueSize - oldValue.Size()
-		c.moveToFront(node)
-	} else {
-		c.pushFront(node)
-		c.currentSize += valueSize
-	}
-
-	var evictedValues []ValueType
-	// Evict until we're at or below maxSize
-	for c.currentSize > c.maxSize && c.tail != nil {
-		evictedValues = append(evictedValues, c.evictOne())
-	}
-
-	return evictedValues, nil
+	c.flushPromotions()
+	return c.insertNodeAndAdjust(key, value, valueSize)
 }
 
 // eraseInternal removes any entry for the supplied key from the cache without acquiring locks.
@@ -422,8 +497,13 @@ func (c *radixCache) Insert(key string, value ValueType) ([]ValueType, error) {
 // LOCKS_REQUIRED(c.mu)
 func (c *radixCache) eraseInternal(node *radixNode) (value ValueType) {
 	deletedEntry := node.value
-	c.currentSize -= deletedEntry.Size()
+	deletedSize := node.size
+	c.currentSize -= deletedSize
+	if c.globalCurrentSize != nil {
+		c.globalCurrentSize.Add(-int64(deletedSize))
+	}
 
+	node.evicted = true
 	c.remove(node)
 	c.deleteNode(node)
 
@@ -435,6 +515,7 @@ func (c *radixCache) Erase(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.flushPromotions()
 	node, ok := c.getNode(key)
 	if !ok {
 		return nil
@@ -446,14 +527,22 @@ func (c *radixCache) Erase(key string) (value ValueType) {
 // LookUp a previously-inserted value for the given key. Return nil if no
 // value is present.
 func (c *radixCache) LookUp(key string) (value ValueType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	node, ok := c.getNode(key)
 	if !ok {
 		return nil
 	}
-	c.moveToFront(node)
+
+	node.accessTime.Store(time.Now().UnixNano())
+
+	if !c.closed.Load() && c.promoChan != nil {
+		select {
+		case c.promoChan <- node:
+		default:
+		}
+	}
 
 	return node.value
 }
@@ -488,16 +577,18 @@ func (c *radixCache) UpdateWithoutChangingOrder(key string, value ValueType) err
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.flushPromotions()
 	node, ok := c.getNode(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
 
-	if value.Size() != node.value.Size() {
+	if value.Size() != node.size {
 		return ErrInvalidUpdateEntrySize
 	}
 
 	node.value = value
+	node.size = value.Size()
 	return nil
 }
 
@@ -508,13 +599,18 @@ func (c *radixCache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.getNode(key)
+	c.flushPromotions()
+	node, ok := c.getNode(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
 
 	// Update currentSize accounting
+	node.size += sizeDelta
 	c.currentSize += sizeDelta
+	if c.globalCurrentSize != nil {
+		c.globalCurrentSize.Add(int64(sizeDelta))
+	}
 
 	// Evict until we're at or below maxSize to maintain invariants
 	for c.currentSize > c.maxSize && c.tail != nil {
@@ -528,9 +624,20 @@ func (c *radixCache) EraseEntriesWithGivenPrefix(prefix string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.flushPromotions()
+	c.eraseEntriesWithGivenPrefixInternal(prefix)
+}
+
+func (c *radixCache) eraseEntriesWithGivenPrefixInternal(prefix string) {
 	// this check was done to comply with the existing behaviour of the EraseEntriesWithGivenPrefix function
 	// the mapCache uses strings.HasPrefix which returns true for any string compared with ""
 	if prefix == "" {
+		if c.globalCurrentSize != nil && c.currentSize > 0 {
+			c.globalCurrentSize.Add(-int64(c.currentSize))
+		}
+		for curr := c.head; curr != nil; curr = curr.next {
+			curr.evicted = true
+		}
 		c.root = &radixNode{} // Reset the tree
 		c.head = nil
 		c.tail = nil
@@ -577,9 +684,14 @@ func (c *radixCache) sweepAndUnlink(node *radixNode) {
 	for curr != nil {
 
 		if curr.value != nil {
-			c.currentSize -= curr.value.Size()
+			c.currentSize -= curr.size
+			if c.globalCurrentSize != nil {
+				c.globalCurrentSize.Add(-int64(curr.size))
+			}
 			c.remove(curr)
+			curr.evicted = true
 			curr.value = nil
+			curr.size = 0
 		}
 		// Advance to next node in pre-order traversal
 		if curr.child != nil {

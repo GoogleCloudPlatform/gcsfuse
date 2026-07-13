@@ -76,6 +76,9 @@ func (d dummyValue) Size() uint64 {
 
 func TestMapCacheWorkloads(t *testing.T) {
 	count := 1000000 // 1 Million files
+	if testing.Short() {
+		count = 5000
+	}
 	capacity := uint64(count * 1000)
 	workloads := []string{"flat", "nested", "deeply_nested"}
 
