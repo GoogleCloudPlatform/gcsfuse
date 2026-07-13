@@ -21,30 +21,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// BucketTypeList represents a list of bucket types, supporting scalar strings (e.g. "zonal" or "zonal, pirlo")
-// and YAML sequences (e.g. ["zonal", "pirlo"]) in params.yaml.
+// BucketTypeList represents a list of bucket types parsed from a comma-separated string (e.g. "zonal" or "zonal, pirlo") in params.yaml.
 type BucketTypeList []string
 
 func (b *BucketTypeList) UnmarshalYAML(value *yaml.Node) error {
-	var rawStrings []string
-	switch value.Kind {
-	case yaml.ScalarNode:
-		rawStrings = []string{value.Value}
-	case yaml.SequenceNode:
-		if err := value.Decode(&rawStrings); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("bucket-type must be a string or list of strings, got %v", value.Kind)
+	if value.Kind != yaml.ScalarNode {
+		return fmt.Errorf("bucket-type must be a string (e.g. \"zonal\" or \"zonal, pirlo\"), got %v", value.Kind)
 	}
 
 	var parsed []string
-	for _, raw := range rawStrings {
-		for _, part := range strings.Split(raw, ",") {
-			trimmed := strings.TrimSpace(part)
-			if trimmed != "" {
-				parsed = append(parsed, trimmed)
-			}
+	for _, part := range strings.Split(value.Value, ",") {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			parsed = append(parsed, trimmed)
 		}
 	}
 	*b = parsed

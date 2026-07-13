@@ -195,7 +195,7 @@ params:
     "usage": "Whether to enable kernel-based reader"
     optimizations:
       bucket-type-optimization:
-        - bucket-type: ["zonal", "flat", "pirlo"]
+        - bucket-type: "zonal, flat, pirlo"
           value: true
         - bucket-type: "hierarchical"
           value: false
@@ -208,7 +208,7 @@ params:
       bucket-type-optimization:
         - bucket-type: "zonal"
           value: 1024
-        - bucket-type: ["hierarchical", "flat", "pirlo"]
+        - bucket-type: "hierarchical, flat, pirlo"
           value: 2048
       machine-based-optimization:
         - group: high-performance
@@ -401,8 +401,7 @@ params:
     usage: "Test flag for bucket type validation"
     optimizations:
       bucket-type-optimization:
-        - bucket-type:
-            - "invalid-bucket-type"
+        - bucket-type: "invalid-bucket-type"
           value: true
 `,
 			expectedErrorSubstring: "invalid bucket-type",
@@ -418,9 +417,7 @@ params:
     usage: "Test flag for duplicate bucket type validation"
     optimizations:
       bucket-type-optimization:
-        - bucket-type:
-            - "zonal"
-            - "zonal"
+        - bucket-type: "zonal, zonal"
           value: true
 `,
 			expectedErrorSubstring: "duplicate bucket-type \"zonal\"",
@@ -436,7 +433,7 @@ params:
     usage: "Test flag for empty bucket type validation"
     optimizations:
       bucket-type-optimization:
-        - bucket-type: []
+        - bucket-type: ""
           value: true
 `,
 			expectedErrorSubstring: "bucket-type list is empty",

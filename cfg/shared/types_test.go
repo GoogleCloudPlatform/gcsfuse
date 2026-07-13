@@ -43,16 +43,6 @@ func TestBucketTypeListUnmarshalYAML(t *testing.T) {
 			yaml:     `bucket-type: " zonal , pirlo , flat "`,
 			expected: BucketTypeList{"zonal", "pirlo", "flat"},
 		},
-		{
-			name:     "Sequence of strings",
-			yaml:     `bucket-type: ["zonal", "pirlo"]`,
-			expected: BucketTypeList{"zonal", "pirlo"},
-		},
-		{
-			name:     "Sequence with CSV string inside",
-			yaml:     `bucket-type: ["zonal, pirlo", "hierarchical"]`,
-			expected: BucketTypeList{"zonal", "pirlo", "hierarchical"},
-		},
 	}
 
 	for _, tc := range testCases {
@@ -61,6 +51,34 @@ func TestBucketTypeListUnmarshalYAML(t *testing.T) {
 			err := yaml.Unmarshal([]byte(tc.yaml), &bto)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, bto.BucketTypes)
+		})
+	}
+}
+
+func TestBucketTypeListUnmarshalYAMLErrors(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		yaml                   string
+		expectedErrorSubstring string
+	}{
+		{
+			name:                   "Sequence of strings not allowed",
+			yaml:                   `bucket-type: ["zonal", "pirlo"]`,
+			expectedErrorSubstring: "bucket-type must be a string",
+		},
+		{
+			name:                   "Mapping not allowed",
+			yaml:                   `bucket-type: { key: value }`,
+			expectedErrorSubstring: "bucket-type must be a string",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var bto BucketTypeOptimization
+			err := yaml.Unmarshal([]byte(tc.yaml), &bto)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.expectedErrorSubstring)
 		})
 	}
 }
