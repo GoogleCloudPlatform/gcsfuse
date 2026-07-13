@@ -65,7 +65,7 @@ opened for streaming writes.
   writes to a new file only. Modifying existing files, or doing out-of-order
   writes (whether from the same file handle or concurrent writes from multiple
   file handles) will cause GCSFuse to automatically revert to the existing write
-  path of staging writes to a temporary file on disk. An informational log
+  path of staging writes to a temporary file on disk. A trace log
   message will be emitted when this fallback occurs.
 
 - **Concurrent Writes to the Same File:** While concurrent writes to the same
