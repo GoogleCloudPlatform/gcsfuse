@@ -316,9 +316,10 @@ func (c *radixCache) compressPathUpwards(curr *radixNode) {
 			onlyChild.prefix = curr.prefix + onlyChild.prefix
 			onlyChild.parent = curr.parent
 
+			parent := curr.parent
 			curr.parent.replaceChild(curr, onlyChild)
 
-			curr = curr.parent
+			curr = parent
 			continue
 		}
 		break
