@@ -46,6 +46,9 @@ const (
 	// fuseMaxRequestSizeNonRapidKb configures the target maximum FUSE request size in KiB (16 MiB)
 	// for non-rapid buckets when calculating max_pages based on kernel page size (currently used for read requests).
 	fuseMaxRequestSizeNonRapidKb = 16 * 1024
+
+	// fuseMaxPagesLimit configures the maximum allowed FUSE kernel max_pages limit (65535).
+	fuseMaxPagesLimit = math.MaxUint16
 )
 
 var kernelPageSize int = os.Getpagesize()
@@ -58,18 +61,8 @@ func (bt BucketType) DefaultFuseMaxRequestSizeKb() int {
 }
 
 // MaxPagesForRequestSizeKb converts a request size in KiB to the number of kernel pages.
-// The FUSE kernel setting fuse_max_max_pages is capped at 65535 (math.MaxUint16).
-func MaxPagesForRequestSizeKb(requestSizeKb int64) int {
-	if requestSizeKb <= 0 {
-		return 0
-	}
-	bytes := requestSizeKb * 1024
-	pageSize := int64(kernelPageSize)
-	pages := (bytes + pageSize - 1) / pageSize
-	if pages > math.MaxUint16 {
-		return math.MaxUint16
-	}
-	return int(pages)
+func MaxPagesForRequestSizeKb(requestSizeKb int) int {
+	return ((requestSizeKb * 1024) + kernelPageSize - 1) / kernelPageSize
 }
 
 func (bt BucketType) DefaultMaxBackground() int {

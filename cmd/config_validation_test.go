@@ -186,6 +186,21 @@ func TestValidateCliFlag(t *testing.T) {
 			args:    []string{"--profile=unknown-profile"},
 			wantErr: true,
 		},
+		{
+			name:    "valid fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=1024"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid negative fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=-10"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid exceeding max pages fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=10000000"},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

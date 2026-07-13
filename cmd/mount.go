@@ -150,7 +150,7 @@ be interacting with the file system.`)
 
 	// Apply pre mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
 	if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
-		maxPages := cfg.MaxPagesForRequestSizeKb(newConfig.FileSystem.FuseMaxRequestSizeKb)
+		maxPages := cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb))
 		kernelparamsManager := kernelparams.NewKernelParamsManager()
 		if kernelparams.ShouldUpdateMaxPagesLimit(maxPages) {
 			kernelparamsManager.SetMaxPagesLimit(maxPages)
@@ -202,7 +202,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	}
 
 	if newConfig.FileSystem.FuseMaxRequestSizeKb != 0 {
-		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(newConfig.FileSystem.FuseMaxRequestSizeKb))
+		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
 	}
 
 	if newConfig.Logging.WireLog != "" {

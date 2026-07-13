@@ -114,6 +114,20 @@ func isValidSequentialReadSizeMB(size int64) error {
 	return nil
 }
 
+func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
+	if requestSizeKb <= 0 {
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; should be > 0", requestSizeKb)
+	}
+	if requestSizeKb > int64(math.MaxInt-kernelPageSize+1)/1024 {
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; value is too large and causes overflow", requestSizeKb)
+	}
+	pages := MaxPagesForRequestSizeKb(int(requestSizeKb))
+	if pages > fuseMaxPagesLimit {
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; resulting page count %d exceeds maximum allowed value of %d", requestSizeKb, pages, fuseMaxPagesLimit)
+	}
+	return nil
+}
+
 // isTTLInSecsValid return nil error if ttlInSecs is valid.
 func isTTLInSecsValid(secs int64) error {
 	if secs < -1 {
@@ -344,6 +358,12 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 
 	if err = isValidSequentialReadSizeMB(config.GcsConnection.SequentialReadSizeMb); err != nil {
 		return fmt.Errorf("error parsing gcs-connection config: %w", err)
+	}
+
+	if v.IsSet("file-system.fuse-max-request-size-kb") || config.FileSystem.FuseMaxRequestSizeKb != 0 {
+		if err = isValidFuseMaxRequestSizeKb(config.FileSystem.FuseMaxRequestSizeKb); err != nil {
+			return fmt.Errorf("error parsing fuse-max-request-size-kb config: %w", err)
+		}
 	}
 
 	if err = isValidKernelListCacheTTL(config.FileSystem.KernelListCacheTtlSecs); err != nil {

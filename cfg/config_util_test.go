@@ -15,7 +15,6 @@
 package cfg
 
 import (
-	"math"
 	"runtime"
 	"testing"
 	"time"
@@ -290,15 +289,12 @@ func TestGetBucketType(t *testing.T) {
 func Test_MaxPagesForRequestSizeKb(t *testing.T) {
 	tests := []struct {
 		name          string
-		requestSizeKb int64
+		requestSizeKb int
 		expected      int
 	}{
-		{"negative", -10, 0},
-		{"zero", 0, 0},
 		{"1_KiB", 1, 1},
-		{"exact_multiple_16_KiB", 16, int((16*1024 + int64(kernelPageSize) - 1) / int64(kernelPageSize))},
-		{"non_exact_multiple", 5, int((5*1024 + int64(kernelPageSize) - 1) / int64(kernelPageSize))},
-		{"capped_at_max_uint16", 1000000000, math.MaxUint16},
+		{"exact_multiple_16_KiB", 16, ((16 * 1024) + kernelPageSize - 1) / kernelPageSize},
+		{"non_exact_multiple", 5, ((5 * 1024) + kernelPageSize - 1) / kernelPageSize},
 	}
 
 	for _, tt := range tests {
