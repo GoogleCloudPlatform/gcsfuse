@@ -15,7 +15,7 @@
 
 set -e
 echo "Step 1: Container started. Updating apt and installing dependencies..."
-apt-get update && apt-get install -y wget git build-essential ca-certificates fuse sudo
+apt-get update && apt-get install -y wget git build-essential ca-certificates fuse3 sudo
 
 echo "Step 2: Cloning GCSFuse repo..."
 git clone -b "$GCSFUSE_BRANCH" https://github.com/GoogleCloudPlatform/gcsfuse.git
