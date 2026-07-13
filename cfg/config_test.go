@@ -61,7 +61,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
-				expectedValue:   DefaultCongestionThreshold(),
+				expectedValue:   BucketTypeZonal.DefaultCongestionThreshold(),
 			},
 			{
 				name:            "bucket_type_pirlo",
@@ -69,7 +69,23 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
-				expectedValue:   DefaultCongestionThreshold(),
+				expectedValue:   BucketTypeZonal.DefaultCongestionThreshold(),
+			},
+			{
+				name:            "bucket_type_flat",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeFlat},
+				expectOptimized: true,
+				expectedValue:   BucketTypeHierarchical.DefaultCongestionThreshold(),
+			},
+			{
+				name:            "bucket_type_hierarchical",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
+				expectOptimized: true,
+				expectedValue:   BucketTypeHierarchical.DefaultCongestionThreshold(),
 			},
 		}
 
@@ -81,7 +97,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.FileSystem.CongestionThreshold = tc.expectedValue.(int64)
 				} else {
-					c.FileSystem.CongestionThreshold = 0
+					c.FileSystem.CongestionThreshold = int64(0)
 				}
 
 				v := viper.New()
@@ -158,7 +174,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.FileSystem.EnableKernelReader = tc.expectedValue.(bool)
 				} else {
-					c.FileSystem.EnableKernelReader = false
+					c.FileSystem.EnableKernelReader = bool(false)
 				}
 
 				v := viper.New()
@@ -237,7 +253,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.FileCache.CacheFileForRangeRead = tc.expectedValue.(bool)
 				} else {
-					c.FileCache.CacheFileForRangeRead = false
+					c.FileCache.CacheFileForRangeRead = bool(false)
 				}
 
 				v := viper.New()
@@ -314,7 +330,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.Write.FinalizeFileForRapid = tc.expectedValue.(bool)
 				} else {
-					c.Write.FinalizeFileForRapid = false
+					c.Write.FinalizeFileForRapid = bool(false)
 				}
 
 				v := viper.New()
@@ -331,6 +347,83 @@ func TestApplyOptimizations(t *testing.T) {
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.Write.FinalizeFileForRapid)
+			})
+		}
+	})
+	// Tests for file-system.fuse-max-request-size-kb
+	t.Run("file-system.fuse-max-request-size-kb", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				userSetFlags: map[string]any{
+					"file-system.fuse-max-request-size-kb": 98765,
+					"machine-type":                         "a2-megagpu-16g",
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeFlat},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   BucketTypeZonal.DefaultFuseMaxRequestSizeKb(),
+			},
+			{
+				name:            "bucket_type_flat",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeFlat},
+				expectOptimized: true,
+				expectedValue:   BucketTypeHierarchical.DefaultFuseMaxRequestSizeKb(),
+			},
+			{
+				name:            "bucket_type_hierarchical",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
+				expectOptimized: true,
+				expectedValue:   BucketTypeHierarchical.DefaultFuseMaxRequestSizeKb(),
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.FuseMaxRequestSizeKb = tc.expectedValue.(int64)
+				} else {
+					c.FileSystem.FuseMaxRequestSizeKb = int64(BucketTypeZonal.DefaultFuseMaxRequestSizeKb())
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.fuse-max-request-size-kb")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.fuse-max-request-size-kb")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.FuseMaxRequestSizeKb)
 			})
 		}
 	})
@@ -430,7 +523,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.ImplicitDirs = tc.expectedValue.(bool)
 				} else {
-					c.ImplicitDirs = false
+					c.ImplicitDirs = bool(false)
 				}
 
 				v := viper.New()
@@ -501,7 +594,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.FileSystem.KernelListCacheTtlSecs = tc.expectedValue.(int64)
 				} else {
-					c.FileSystem.KernelListCacheTtlSecs = 0
+					c.FileSystem.KernelListCacheTtlSecs = int64(0)
 				}
 
 				v := viper.New()
@@ -558,7 +651,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
-				expectedValue:   DefaultMaxBackground(),
+				expectedValue:   BucketTypeZonal.DefaultMaxBackground(),
 			},
 			{
 				name:            "bucket_type_pirlo",
@@ -566,7 +659,23 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
-				expectedValue:   DefaultMaxBackground(),
+				expectedValue:   BucketTypeZonal.DefaultMaxBackground(),
+			},
+			{
+				name:            "bucket_type_flat",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeFlat},
+				expectOptimized: true,
+				expectedValue:   BucketTypeHierarchical.DefaultMaxBackground(),
+			},
+			{
+				name:            "bucket_type_hierarchical",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
+				expectOptimized: true,
+				expectedValue:   BucketTypeHierarchical.DefaultMaxBackground(),
 			},
 		}
 
@@ -578,7 +687,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.FileSystem.MaxBackground = tc.expectedValue.(int64)
 				} else {
-					c.FileSystem.MaxBackground = 0
+					c.FileSystem.MaxBackground = int64(0)
 				}
 
 				v := viper.New()
@@ -635,7 +744,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
-				expectedValue:   16384,
+				expectedValue:   BucketTypeZonal.DefaultMaxReadAheadKb(),
 			},
 			{
 				name:            "bucket_type_pirlo",
@@ -643,7 +752,23 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
-				expectedValue:   16384,
+				expectedValue:   BucketTypeZonal.DefaultMaxReadAheadKb(),
+			},
+			{
+				name:            "bucket_type_flat",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeFlat},
+				expectOptimized: true,
+				expectedValue:   BucketTypeHierarchical.DefaultMaxReadAheadKb(),
+			},
+			{
+				name:            "bucket_type_hierarchical",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
+				expectOptimized: true,
+				expectedValue:   BucketTypeHierarchical.DefaultMaxReadAheadKb(),
 			},
 		}
 
@@ -655,7 +780,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.FileSystem.MaxReadAheadKb = tc.expectedValue.(int64)
 				} else {
-					c.FileSystem.MaxReadAheadKb = 0
+					c.FileSystem.MaxReadAheadKb = int64(0)
 				}
 
 				v := viper.New()
@@ -771,7 +896,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.MetadataCache.NegativeTtlSecs = tc.expectedValue.(int64)
 				} else {
-					c.MetadataCache.NegativeTtlSecs = 5
+					c.MetadataCache.NegativeTtlSecs = int64(5)
 				}
 
 				v := viper.New()
@@ -887,7 +1012,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.MetadataCache.TtlSecs = tc.expectedValue.(int64)
 				} else {
-					c.MetadataCache.TtlSecs = 60
+					c.MetadataCache.TtlSecs = int64(60)
 				}
 
 				v := viper.New()
@@ -996,7 +1121,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.FileSystem.RenameDirLimit = tc.expectedValue.(int64)
 				} else {
-					c.FileSystem.RenameDirLimit = 0
+					c.FileSystem.RenameDirLimit = int64(0)
 				}
 
 				v := viper.New()
@@ -1112,7 +1237,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.MetadataCache.StatCacheMaxSizeMb = tc.expectedValue.(int64)
 				} else {
-					c.MetadataCache.StatCacheMaxSizeMb = 34
+					c.MetadataCache.StatCacheMaxSizeMb = int64(34)
 				}
 
 				v := viper.New()
@@ -1201,7 +1326,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.Write.GlobalMaxBlocks = tc.expectedValue.(int64)
 				} else {
-					c.Write.GlobalMaxBlocks = 4
+					c.Write.GlobalMaxBlocks = int64(4)
 				}
 
 				v := viper.New()

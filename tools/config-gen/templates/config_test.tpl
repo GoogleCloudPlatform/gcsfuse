@@ -211,7 +211,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.{{$flag.GoPath}} = tc.expectedValue.({{$flag.GoType}})
 				} else {
-					c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
+					c.{{$flag.GoPath}} = {{$flag.GoType}}({{$flag.DefaultValue}})
 				}
 				
 				v := viper.New()

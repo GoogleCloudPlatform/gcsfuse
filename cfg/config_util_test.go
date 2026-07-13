@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -22,13 +23,16 @@ import (
 )
 
 func Test_DefaultMaxBackground(t *testing.T) {
-	assert.GreaterOrEqual(t, DefaultMaxBackground(), 12)
-	assert.LessOrEqual(t, DefaultMaxBackground(), maxBackgroundLimit)
+	expectedZonal := min(max(12, 2*runtime.NumCPU()), maxBackgroundRapidLimit)
+	assert.Equal(t, expectedZonal, BucketTypeZonal.DefaultMaxBackground())
+
+	expectedHierarchical := min(max(12, 2*runtime.NumCPU()), maxBackgroundNonRapidLimit)
+	assert.Equal(t, expectedHierarchical, BucketTypeHierarchical.DefaultMaxBackground())
 }
 
 func Test_DefaultCongestionThreshold(t *testing.T) {
-	assert.GreaterOrEqual(t, DefaultCongestionThreshold(), 9)
-	assert.LessOrEqual(t, DefaultCongestionThreshold(), 144) // 75% of maxBackgroundLimit
+	assert.Equal(t, (3*BucketTypeZonal.DefaultMaxBackground())/4, BucketTypeZonal.DefaultCongestionThreshold())
+	assert.Equal(t, (3*BucketTypeHierarchical.DefaultMaxBackground())/4, BucketTypeHierarchical.DefaultCongestionThreshold())
 }
 
 func Test_DefaultMaxParallelDownloads(t *testing.T) {

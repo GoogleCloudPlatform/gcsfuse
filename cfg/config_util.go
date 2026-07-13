@@ -23,27 +23,64 @@ import (
 )
 
 const (
-	// maxBackgroundLimit configures the upper limit for max-background kernel fuse
-	// setting. This is more than sufficient to saturate the 200 Gbps network bandwidth
+	// maxBackgroundRapidLimit configures the upper limit for max-background kernel fuse
+	// setting for rapid buckets. This is more than sufficient to saturate the 200 Gbps network bandwidth
 	// on a single VM. Revise the numbers if you plan to support higher bandwidth VMs.
-	maxBackgroundLimit = 192
+	maxBackgroundRapidLimit = 192
+
+	// maxBackgroundNonRapidLimit configures the default max-background kernel fuse
+	// setting for non-rapid (regional and multi-regional) buckets.
+	maxBackgroundNonRapidLimit = 96
+
+	// maxReadAheadRapidKb configures the default max-read-ahead-kb setting for rapid buckets (16 MiB).
+	maxReadAheadRapidKb = 16 * 1024
+
+	// maxReadAheadNonRapidKb configures the default max-read-ahead-kb setting for non-rapid buckets (128 MiB).
+	maxReadAheadNonRapidKb = 128 * 1024
+
+	// fuseMaxRequestSizeRapidKb configures the target maximum FUSE request size in KiB (1 MiB)
+	// for rapid buckets when calculating max_pages based on kernel page size (currently used for read requests).
+	fuseMaxRequestSizeRapidKb = 1024
+
+	// fuseMaxRequestSizeNonRapidKb configures the target maximum FUSE request size in KiB (16 MiB)
+	// for non-rapid buckets when calculating max_pages based on kernel page size (currently used for read requests).
+	fuseMaxRequestSizeNonRapidKb = 16 * 1024
 )
 
 var kernelPageSize int = os.Getpagesize()
 
-func DefaultFuseMaxPagesLimit() int {
-	// The default limit is calculated to achieve a 1 MiB maximum request size
-	// based on the kernel page size.
-	return (1024 * 1024) / kernelPageSize
+func (bt BucketType) DefaultFuseMaxRequestSizeKb() int {
+	if !bt.IsRapid() {
+		return fuseMaxRequestSizeNonRapidKb
+	}
+	return fuseMaxRequestSizeRapidKb
 }
 
-func DefaultMaxBackground() int {
-	return min(max(12, 2*runtime.NumCPU()), maxBackgroundLimit)
+// MaxPagesForRequestSizeKb converts a request size in KiB to the number of kernel pages.
+func MaxPagesForRequestSizeKb(requestSizeKb int64) int {
+	if requestSizeKb <= 0 {
+		return 0
+	}
+	return int((requestSizeKb * 1024) / int64(kernelPageSize))
 }
 
-func DefaultCongestionThreshold() int {
-	// 75 % of DefaultMaxBackground
-	return (3 * DefaultMaxBackground()) / 4
+func (bt BucketType) DefaultMaxBackground() int {
+	limit := maxBackgroundNonRapidLimit
+	if bt.IsRapid() {
+		limit = maxBackgroundRapidLimit
+	}
+	return min(max(12, 2*runtime.NumCPU()), limit)
+}
+
+func (bt BucketType) DefaultCongestionThreshold() int {
+	return (3 * bt.DefaultMaxBackground()) / 4
+}
+
+func (bt BucketType) DefaultMaxReadAheadKb() int {
+	if !bt.IsRapid() {
+		return maxReadAheadNonRapidKb
+	}
+	return maxReadAheadRapidKb
 }
 
 func DefaultMaxParallelDownloads() int {
@@ -102,4 +139,9 @@ func GetBucketType(hierarchical, zonal, pirlo bool) BucketType {
 		return BucketTypeHierarchical
 	}
 	return BucketTypeFlat
+}
+
+// IsRapid returns true for rapid bucket types (zonal and pirlo).
+func (bt BucketType) IsRapid() bool {
+	return bt == BucketTypeZonal || bt == BucketTypePirlo
 }

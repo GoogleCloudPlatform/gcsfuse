@@ -955,7 +955,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		ExperimentalEnableDentryCache: false,
 		ExperimentalEnableReaddirplus: false,
 		FileMode:                      0644,
-		FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
+		FuseMaxRequestSizeKb:          int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 		FuseOptions:                   []string{},
 		Gid:                           -1,
 		IgnoreInterrupts:              true,
@@ -983,7 +983,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--experimental-enable-dentry-cache", "--experimental-enable-readdirplus", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:          int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                       0777,
 					DisableParallelDirops:         true,
 					ExperimentalEnableDentryCache: true,
@@ -1006,7 +1006,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:          int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1029,7 +1029,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:          int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1054,7 +1054,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:          int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1079,7 +1079,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--rename-dir-limit=15000", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:             int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:          int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1159,7 +1159,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--experimental-o-direct", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1176,7 +1176,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--experimental-enable-pirlo", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:       int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:    int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                 0755,
 					FileMode:                0644,
 					FuseOptions:             []string{},
@@ -1193,7 +1193,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--max-read-ahead-kb=1024", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1211,7 +1211,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1228,7 +1228,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--max-background=512", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1246,7 +1246,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1264,7 +1264,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--congestion-threshold=256", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1282,7 +1282,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1300,7 +1300,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--enable-kernel-reader", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1318,7 +1318,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1336,7 +1336,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--kernel-params-file=/tmp/params", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1354,7 +1354,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  kernel-params-file: /tmp/config_params"), "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:    int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb: int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
