@@ -107,4 +107,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
 
-replace github.com/jacobsa/fuse => github.com/swethv/fuse iouring
+replace github.com/jacobsa/fuse => github.com/swethv/fuse ioruing
