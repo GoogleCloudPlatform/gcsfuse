@@ -576,12 +576,33 @@ async def build_gcsfuse_image(project_id, branch, temp_dir, staging_version):
   await run_command_async([
       "git",
       "clone",
-      "--depth=1",
       "-b",
       branch,
       "https://github.com/GoogleCloudPlatform/gcsfuse.git",
       gcsfuse_dir,
   ])
+  initiator = os.environ.get("KOKORO_BUILD_INITIATOR", "")
+  if initiator == "kokoro":
+    stdout, _, _ = await run_command_async(
+        [
+            "git",
+            "log",
+            "--before=yesterday 23:59:59",
+            "--max-count=1",
+            "--pretty=%H",
+        ],
+        cwd=gcsfuse_dir,
+    )
+  else:
+    stdout, _, _ = await run_command_async(
+        ["git", "log", "-n", "1", "--pretty=%H"], cwd=gcsfuse_dir
+    )
+  commit_id = stdout.strip()
+  print(
+      f"Building GCSFuse CSI image at commit ID: {commit_id} (initiator:"
+      f" {initiator})"
+  )
+  await run_command_async(["git", "checkout", commit_id], cwd=gcsfuse_dir)
   build_cmd = [
       "make",
       "build-csi",
