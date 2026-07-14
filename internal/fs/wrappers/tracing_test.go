@@ -16,12 +16,14 @@ package wrappers
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
@@ -184,4 +186,73 @@ func TestSpanCreation(t *testing.T) {
 	require.Len(t, ss, 1)
 	assert.Equal(t, "fs.stat_fs", ss[0].Name)
 	assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+}
+
+type mockReadFileFS struct {
+	dummyFS
+	bytesToRead int
+	errToReturn error
+}
+
+func (m mockReadFileFS) ReadFile(_ context.Context, op *fuseops.ReadFileOp) error {
+	op.BytesRead = m.bytesToRead
+	return m.errToReturn
+}
+
+func TestReadFileSpanAttributes(t *testing.T) {
+	testCases := []struct {
+		name         string
+		bytesToRead  int
+		offset       int64
+		errToReturn  error
+		expectedSize int
+	}{
+		{
+			name:         "Success",
+			bytesToRead:  2048,
+			offset:       512,
+			errToReturn:  nil,
+			expectedSize: 2048,
+		},
+		{
+			name:         "Error",
+			bytesToRead:  0,
+			offset:       1024,
+			errToReturn:  errors.New("read failure"),
+			expectedSize: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newInMemoryExporter(t)
+			t.Cleanup(func() {
+				ex.Reset()
+			})
+			m := tracedFS{
+				wrapped: mockReadFileFS{
+					bytesToRead: tc.bytesToRead,
+					errToReturn: tc.errToReturn,
+				},
+				traceHandle: tracing.NewOTELTracer(),
+			}
+
+			op := &fuseops.ReadFileOp{
+				Offset: tc.offset,
+			}
+			err := m.ReadFile(context.Background(), op)
+			if tc.errToReturn != nil {
+				assert.ErrorIs(t, err, tc.errToReturn)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			ss := ex.GetSpans()
+			require.Len(t, ss, 1)
+			assert.Equal(t, tracing.ReadFile, ss[0].Name)
+			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			assert.Contains(t, ss[0].Attributes, attribute.Int(tracing.BYTES_READ, tc.expectedSize))
+			assert.Contains(t, ss[0].Attributes, attribute.Int64(tracing.READ_OFFSET, tc.offset))
+		})
+	}
 }

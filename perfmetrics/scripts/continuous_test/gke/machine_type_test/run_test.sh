@@ -15,11 +15,18 @@
 
 set -e
 echo "Step 1: Container started. Updating apt and installing dependencies..."
-apt-get update && apt-get install -y wget git build-essential ca-certificates sudo
+apt-get update && apt-get install -y wget git build-essential ca-certificates fuse3 sudo
 
 echo "Step 2: Cloning GCSFuse repo..."
 git clone -b "$GCSFUSE_BRANCH" https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
+if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
+  commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+else
+  commitId=$(git log -n 1 --pretty=%H)
+fi
+echo "Checking out commit ID: $commitId (initiator: ${KOKORO_BUILD_INITIATOR:-})"
+git checkout "$commitId"
 
 GO_VERSION=$(cat .go-version | tr -d '[:space:]')
 if [[ ! "$GO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -36,6 +43,7 @@ echo "Step 4: Running tests ..."
 # These tests are chosen to verify that machine-type is correctly passed by
 # CSI Driver to GCSFuse and GCSFuse is correctly accepting it and triggering optimization flags
 # like implicit-dirs and rename-dir-limit for high-performance machine-type as expected.
-go test -v ./tools/integration_tests/flag_optimizations/... --integrationTest --mountedDirectory=/data_mnt --testbucket="$BUCKET_NAME" -run "TestImplicitDirsEnabled|TestRenameDirLimitSet"
+export MOUNTED_DIR="/data_mnt"
+go test -v ./tools/integration_tests/flag_optimizations/... -run "TestImplicitDirsEnabled|TestRenameDirLimitSet" -args --integrationTest --config-file="$(pwd)/tools/integration_tests/test_config.yaml" --mountedDirectory="${MOUNTED_DIR}" --testbucket="$BUCKET_NAME"
 
 echo "Step 5: Test finished successfully."

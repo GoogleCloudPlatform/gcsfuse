@@ -15,8 +15,10 @@
 package test_suite
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -40,13 +42,48 @@ type TestConfig struct {
 	OnlyDir                          string       `yaml:"only_dir,omitempty"`
 }
 
+// PirloZoneConfig defines whether to run in the same or different zone for Pirlo.
+type PirloZoneConfig struct {
+	SameZone      bool `yaml:"same_zone"`
+	DifferentZone bool `yaml:"different_zone"`
+}
+
+// RunOnPirloConfig defines the Pirlo execution configurations and specific flags.
+type RunOnPirloConfig struct {
+	Flat PirloZoneConfig `yaml:"flat"`
+	Hns  PirloZoneConfig `yaml:"hns"`
+}
+
 // ConfigItem defines the variable parts of each test run.
 type ConfigItem struct {
-	Flags          []string        `yaml:"flags"`
-	SecondaryFlags []string        `yaml:"secondary_flags"`
-	Compatible     map[string]bool `yaml:"compatible"`
-	Run            string          `yaml:"run,omitempty"`
-	RunOnGKE       bool            `yaml:"run_on_gke"`
+	Flags          []string         `yaml:"flags"`
+	SecondaryFlags []string         `yaml:"secondary_flags"`
+	Compatible     map[string]bool  `yaml:"compatible"`
+	Run            string           `yaml:"run,omitempty"`
+	RunOnGKE       bool             `yaml:"run_on_gke"`
+	RunOnPirlo     RunOnPirloConfig `yaml:"run_on_pirlo"`
+	TPC            bool             `yaml:"tpc,omitempty"`
+}
+
+// UnmarshalYAML validates flags during YAML unmarshaling without needing reflection.
+func (c *ConfigItem) UnmarshalYAML(value *yaml.Node) error {
+	type alias ConfigItem
+	var item alias
+	if err := value.Decode(&item); err != nil {
+		return err
+	}
+	for _, flagString := range item.Flags {
+		if strings.Contains(flagString, " ") {
+			return fmt.Errorf("invalid flag string %q in test_config.yaml: flags must not contain spaces. Separate flags using commas without spaces", flagString)
+		}
+	}
+	for _, flagString := range item.SecondaryFlags {
+		if strings.Contains(flagString, " ") {
+			return fmt.Errorf("invalid secondary flag string %q in test_config.yaml: flags must not contain spaces. Separate flags using commas without spaces", flagString)
+		}
+	}
+	*c = ConfigItem(item)
+	return nil
 }
 
 // Config holds all test configurations parsed from the YAML file.
@@ -78,7 +115,7 @@ type Config struct {
 	ReadGCSAlgo           []TestConfig `yaml:"read_gcs_algo"`
 	Interrupt             []TestConfig `yaml:"interrupt"`
 	UnfinalizedObject     []TestConfig `yaml:"unfinalized_object"`
-	RapidAppends          []TestConfig `yaml:"rapid_appends"`
+	RapidOperations       []TestConfig `yaml:"rapid_operations"`
 	MountTimeout          []TestConfig `yaml:"mount_timeout"`
 	Monitoring            []TestConfig `yaml:"monitoring"`
 	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`

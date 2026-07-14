@@ -17,15 +17,19 @@ package kernel_readers
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"testing"
 
 	storagev2 "cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -74,6 +78,7 @@ func (t *KernelRangeReaderTest) TestReadAt_Success() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
+		Size:   5,
 	}
 	mockReader := &mockStorageReader{io.NopCloser(bytes.NewReader(data))}
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
@@ -90,6 +95,7 @@ func (t *KernelRangeReaderTest) TestReadAt_EOF() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 100, // Equal to object size
+		Size:   5,
 	}
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
@@ -104,6 +110,7 @@ func (t *KernelRangeReaderTest) TestReadAt_PartialRead() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 5,
+		Size:   10,
 	}
 	// Expected read range: [5, 10), size = 5
 	expectedData := data[5:10]
@@ -122,6 +129,7 @@ func (t *KernelRangeReaderTest) TestReadAt_NewReaderError() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
+		Size:   5,
 	}
 	expectedErr := io.ErrUnexpectedEOF
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
@@ -138,10 +146,58 @@ func (t *KernelRangeReaderTest) TestReadAt_NilObject() {
 	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
+		Size:   5,
 	}
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
 	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt Nil MinObject")
 	assert.Equal(t.T(), 0, resp.Size)
+}
+
+func (t *KernelRangeReaderTest) TestReadAt_ClobberedError() {
+	req := &gcsx.ReadRequest{
+		Buffer: make([]byte, 5),
+		Offset: 0,
+		Size:   5,
+	}
+	gcsErr := &gcs.NotFoundError{Err: errors.New("not found")}
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, gcsErr).Once()
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	assert.ErrorAs(t.T(), err, &clobberedErr)
+	assert.Equal(t.T(), "foo", clobberedErr.ObjectName)
+	assert.ErrorContains(t.T(), err, "KernelRangeReader::ReadAt Failed to create range reader")
+	assert.Equal(t.T(), 0, resp.Size)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *KernelRangeReaderTest) TestReadAt_BufferPool_Success() {
+	data := []byte("abcdefghij") // length 10
+	pool := &buffer.FakeBufferPool{
+		Buffers: [][]byte{
+			make([]byte, 3),
+			make([]byte, 2),
+			make([]byte, 4),
+		},
+	}
+	req := &gcsx.ReadRequest{
+		BufferPool: pool,
+		Offset:     0,
+		Size:       9,
+	}
+	mockReader := &mockStorageReader{io.NopCloser(bytes.NewReader(data))}
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
+
+	resp, err := t.reader.ReadAt(context.Background(), req)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 9, resp.Size) // Sum of buffers capacity is 3+2+4 = 9
+	require.Len(t.T(), resp.Data, 3)
+	assert.Equal(t.T(), "abc", string(resp.Data[0]))
+	assert.Equal(t.T(), "de", string(resp.Data[1]))
+	assert.Equal(t.T(), "fghi", string(resp.Data[2]))
+	t.bucket.AssertExpectations(t.T())
 }

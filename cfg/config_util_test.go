@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -22,13 +23,26 @@ import (
 )
 
 func Test_DefaultMaxBackground(t *testing.T) {
-	assert.GreaterOrEqual(t, DefaultMaxBackground(), 12)
-	assert.LessOrEqual(t, DefaultMaxBackground(), maxBackgroundLimit)
+	expectedRapid := min(max(12, 2*runtime.NumCPU()), rapidMaxBackground)
+	assert.Equal(t, expectedRapid, StorageClassRapid.DefaultMaxBackground())
+
+	expectedStandard := min(max(12, 2*runtime.NumCPU()), nonRapidMaxBackground)
+	assert.Equal(t, expectedStandard, StorageClassStandard.DefaultMaxBackground())
 }
 
 func Test_DefaultCongestionThreshold(t *testing.T) {
-	assert.GreaterOrEqual(t, DefaultCongestionThreshold(), 9)
-	assert.LessOrEqual(t, DefaultCongestionThreshold(), 144) // 75% of maxBackgroundLimit
+	assert.Equal(t, (3*StorageClassRapid.DefaultMaxBackground())/4, StorageClassRapid.DefaultCongestionThreshold())
+	assert.Equal(t, (3*StorageClassStandard.DefaultMaxBackground())/4, StorageClassStandard.DefaultCongestionThreshold())
+}
+
+func Test_DefaultFuseMaxRequestSizeKb(t *testing.T) {
+	assert.Equal(t, rapidMaxRequestSizeKb, StorageClassRapid.DefaultFuseMaxRequestSizeKb())
+	assert.Equal(t, nonRapidMaxRequestSizeKb, StorageClassStandard.DefaultFuseMaxRequestSizeKb())
+}
+
+func Test_DefaultMaxReadAheadKb(t *testing.T) {
+	assert.Equal(t, rapidMaxReadAheadKb, StorageClassRapid.DefaultMaxReadAheadKb())
+	assert.Equal(t, nonRapidMaxReadAheadKb, StorageClassStandard.DefaultMaxReadAheadKb())
 }
 
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
@@ -280,4 +294,29 @@ func TestGetBucketType(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_MaxPagesForRequestSizeKb(t *testing.T) {
+	tests := []struct {
+		name          string
+		requestSizeKb int
+		expected      int
+	}{
+		{"1_KiB", 1, 1},
+		{"exact_multiple_16_KiB", 16, ((16 * 1024) + kernelPageSize - 1) / kernelPageSize},
+		{"non_exact_multiple", 5, ((5 * 1024) + kernelPageSize - 1) / kernelPageSize},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, MaxPagesForRequestSizeKb(tt.requestSizeKb))
+		})
+	}
+}
+
+func Test_StorageClass(t *testing.T) {
+	assert.Equal(t, StorageClassRapid, BucketTypeZonal.StorageClass())
+	assert.Equal(t, StorageClassRapid, BucketTypePirlo.StorageClass())
+	assert.Equal(t, StorageClassStandard, BucketTypeFlat.StorageClass())
+	assert.Equal(t, StorageClassStandard, BucketTypeHierarchical.StorageClass())
 }

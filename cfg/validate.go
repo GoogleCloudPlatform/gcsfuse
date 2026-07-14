@@ -36,6 +36,7 @@ const (
 	ProfileAIMLTraining                       = "aiml-training"
 	ProfileAIMLServing                        = "aiml-serving"
 	ProfileAIMLCheckpointing                  = "aiml-checkpointing"
+	FuseMaxPagesLimit                         = 65535 // (2^16 - 1) : Maximum page limit allowed by linux kernel
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -110,6 +111,17 @@ func IsValidExperimentalMetadataPrefetchOnMount(mode string) error {
 func isValidSequentialReadSizeMB(size int64) error {
 	if size < 1 || size > maxSequentialReadSizeMB {
 		return fmt.Errorf("sequential-read-size-mb should be between 1 and %d", maxSequentialReadSizeMB)
+	}
+	return nil
+}
+
+func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
+	if requestSizeKb <= 0 {
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; should be > 0", requestSizeKb)
+	}
+	pageSizeKb := int64(kernelPageSize) / 1024
+	if requestSizeKb > FuseMaxPagesLimit*pageSizeKb {
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; exceeds maximum allowed limit of %d", requestSizeKb, FuseMaxPagesLimit*pageSizeKb)
 	}
 	return nil
 }
@@ -344,6 +356,12 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 
 	if err = isValidSequentialReadSizeMB(config.GcsConnection.SequentialReadSizeMb); err != nil {
 		return fmt.Errorf("error parsing gcs-connection config: %w", err)
+	}
+
+	if v.IsSet("file-system.fuse-max-request-size-kb") {
+		if err = isValidFuseMaxRequestSizeKb(config.FileSystem.FuseMaxRequestSizeKb); err != nil {
+			return fmt.Errorf("error parsing fuse-max-request-size-kb config: %w", err)
+		}
 	}
 
 	if err = isValidKernelListCacheTTL(config.FileSystem.KernelListCacheTtlSecs); err != nil {

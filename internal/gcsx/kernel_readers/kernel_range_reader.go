@@ -16,9 +16,12 @@ package kernel_readers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -63,12 +66,18 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 
 	if req.Offset >= int64(obj.Size) {
 		return resp, io.EOF
+	} else if req.Offset < 0 {
+		return resp, fmt.Errorf("KernelRangeReader::ReadAt: illegal offset %d for %d byte object", req.Offset, obj.Size)
 	}
 
-	endOffset := req.Offset + int64(len(req.Buffer))
-	if endOffset > int64(obj.Size) {
-		endOffset = int64(obj.Size)
+	// If the destination buffer is empty, there's nothing to read.
+	if len(req.Buffer) == 0 && req.BufferPool == nil {
+		return resp, nil
 	}
+
+	limit := int64(obj.Size) - req.Offset
+	bytesToRead := req.GetReadSize(limit)
+	endOffset := req.Offset + bytesToRead
 
 	reader, err := krr.bucket.NewReaderWithReadHandle(
 		ctx,
@@ -81,6 +90,18 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 			},
 			ReadCompressed: obj.HasContentEncodingGzip(),
 		})
+
+	// If a file handle is open locally, but the corresponding object doesn't exist
+	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
+	//  - The file was deleted in GCS while a local handle was still open.
+	//  - The file content was modified leading to different generation number.
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		return resp, &gcsfuse_errors.FileClobberedError{
+			Err:        fmt.Errorf("KernelRangeReader::ReadAt Failed to create range reader: %w", err),
+			ObjectName: obj.Name,
+		}
+	}
 	if err != nil {
 		return resp, fmt.Errorf("KernelRangeReader::ReadAt Failed to create range reader: %w", err)
 	}
@@ -90,12 +111,28 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 		}
 	}()
 
-	n, err := io.ReadFull(reader, req.Buffer[:endOffset-req.Offset])
+	var n int
+	if req.BufferPool != nil {
+		vBuf := buffer.NewVectoredReadBuffer(req.BufferPool, bytesToRead)
+		var written int64
+		written, err = io.CopyN(vBuf, reader, bytesToRead)
+		n = int(written)
+		if err == io.EOF && written > 0 {
+			err = io.ErrUnexpectedEOF
+		}
+		if n > 0 {
+			resp.Data = vBuf.Buffers()
+			resp.Callback = func() { vBuf.Release() }
+		} else {
+			vBuf.Release() // Release immediately on 0-byte read or early error
+		}
+	} else {
+		n, err = io.ReadFull(reader, req.Buffer[:bytesToRead])
+	}
 	resp.Size = n
 
 	if krr.metrics != nil {
 		metrics.CaptureGCSReadMetrics(krr.metrics, metrics.ReadTypeParallelAttr, int64(n))
-		krr.metrics.GcsReadBytesCount(int64(n))
 	}
 
 	return resp, err

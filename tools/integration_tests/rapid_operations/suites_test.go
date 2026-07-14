@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rapid_appends
+package rapid_operations
 
 import (
 	"log"
@@ -43,7 +43,7 @@ const (
 type mountPoint struct {
 	rootDir     string // Root directory of the test folder, which contains mnt and gcsfuse.log.
 	mntDir      string // Directory where the GCS bucket is mounted. This is 'mnt' inside rootDir.
-	testDirPath string // Path to the 'RapidAppendsTest' directory inside mntDir.
+	testDirPath string // Path to the 'RapidOperationsTest' directory inside mntDir.
 	logFilePath string // Path to the GCSFuse log file. This is gcsfuse.log inside rootDir.
 }
 
@@ -70,6 +70,15 @@ type SingleMountAppendsTestSuite struct{ BaseSuite }
 
 // DualMountAppendsTestSuite groups general dual-mount tests for append behavior.
 type DualMountAppendsTestSuite struct{ BaseSuite }
+
+// FinalizeRapidWritesTestSuite groups tests for verifying transition to finalized state.
+type FinalizeRapidWritesTestSuite struct {
+	BaseSuite
+	isFinalizeEnabled bool
+}
+
+// StatAndListTestSuite groups tests for checking new file discovery.
+type StatAndListTestSuite struct{ BaseSuite }
 
 ////////////////////////////////////////////////////////////////////////
 // Common Suite Logic
@@ -182,14 +191,6 @@ func (t *BaseSuite) appendToFile(file *os.File, appendContent string) {
 	}
 }
 
-func getNewEmptyCacheDir(rootDir string) string {
-	cacheDirPath, err := os.MkdirTemp(rootDir, "cache_dir_*")
-	if err != nil {
-		log.Fatalf("Failed to create temporary directory for cache dir for tests: %v", err)
-	}
-	return cacheDirPath
-}
-
 func (t *BaseSuite) isMetadataCacheEnabled() bool {
 	return t.metadataCacheEnabled
 }
@@ -197,6 +198,19 @@ func (t *BaseSuite) isMetadataCacheEnabled() bool {
 func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
+			isCompatible := false
+			switch testEnv.bucketType {
+			case setup.FlatPirloBucket:
+				isCompatible = cfg.RunOnPirlo.Flat.SameZone || cfg.RunOnPirlo.Flat.DifferentZone
+			case setup.HNSPirloBucket:
+				isCompatible = cfg.RunOnPirlo.Hns.SameZone || cfg.RunOnPirlo.Hns.DifferentZone
+			default:
+				isCompatible = cfg.Compatible[testEnv.bucketType]
+			}
+			if !isCompatible {
+				continue
+			}
+
 			for i, flagStr := range cfg.Flags {
 				flagStr = strings.ReplaceAll(flagStr, ",", " ")
 				primaryFlags := strings.Fields(flagStr)

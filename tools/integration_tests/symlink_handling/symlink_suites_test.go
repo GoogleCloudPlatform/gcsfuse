@@ -18,7 +18,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -84,18 +83,6 @@ func (s *BaseSymlinkSuite) createSymlink(linkName, target string) string {
 	err := os.Symlink(target, linkPath)
 	s.Require().NoError(err)
 	return linkPath
-}
-
-func (s *BaseSymlinkSuite) createTempFile() string {
-	targetFile, err := os.CreateTemp("", "symlink-target")
-	s.Require().NoError(err)
-	s.T().Cleanup(func() {
-		if err := os.Remove(targetFile.Name()); err != nil {
-			s.T().Logf("Error removing temporary file %s: %v", targetFile.Name(), err)
-		}
-	})
-	s.Require().NoError(targetFile.Close())
-	return targetFile.Name()
 }
 
 // validateBackingGCSObjectForSymlink validates the GCS object created for a symlink.
@@ -174,12 +161,8 @@ func TestLegacySymlinks(t *testing.T) {
 }
 
 func RunTests(t *testing.T, runName string, factory func(flags []string) suite.TestingSuite) {
-	for _, cfg := range testEnv.cfg.Configs {
-		if cfg.Run == runName {
-			for _, flagStr := range cfg.Flags {
-				flags := strings.Fields(flagStr)
-				suite.Run(t, factory(flags))
-			}
-		}
+	flagsSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, runName)
+	for _, flags := range flagsSets {
+		suite.Run(t, factory(flags))
 	}
 }

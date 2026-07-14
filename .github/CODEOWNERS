@@ -1,6 +1,6 @@
 # These owners will be the default owners for everything in
 # the repo.
 *           @GoogleCloudPlatform/gcsfuse-codeowners
-.gemini @alleaditya @thrivikram-karur-g @PranjalC100 @meet2mky @anushka567 @vipnydav @GoogleCloudPlatform/gcsfuse-codeowners
+.agents @alleaditya @thrivikram-karur-g @PranjalC100 @meet2mky @anushka567 @vipnydav @GoogleCloudPlatform/gcsfuse-codeowners
 perfmetrics/scripts/ @meet2mky @GoogleCloudPlatform/gcsfuse-codeowners
 tools/ @meet2mky @GoogleCloudPlatform/gcsfuse-codeowners

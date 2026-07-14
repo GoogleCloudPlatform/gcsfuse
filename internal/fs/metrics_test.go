@@ -109,7 +109,7 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 		TraceHandle:  tracing.NewNoopTracer(),
 		CacheClock:   &timeutil.SimulatedClock{},
 		BucketName:   bucketName,
-		BucketManager: &fakeBucketManager{
+		BucketManager: &fakeBucketManagerWithMetrics{
 			buckets: map[string]gcs.Bucket{
 				bucketName: bucket,
 			},
@@ -609,6 +609,43 @@ func TestReadFile_KernelMRDReaderMetrics(t *testing.T) {
 	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), uint64(1))
 }
 
+func TestReadFile_KernelRangeReaderMetrics(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableKernelReader = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Size:   int64(len(content)),
+		Dst:    make([]byte, len(content)),
+	}
+
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(1))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
+}
+
 func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
 	testCases := []struct {
 		name            string
@@ -652,6 +689,7 @@ func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
 			require.NoError(t, err, "ReadFile")
 			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(1))
 			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(len(content)))
+			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
 		})
 	}
 }
@@ -699,6 +737,7 @@ func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(4))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(30))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(30))
 }
 
 func TestGetInodeAttributes_Metrics(t *testing.T) {

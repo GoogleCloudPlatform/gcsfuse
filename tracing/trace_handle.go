@@ -43,6 +43,9 @@ type TraceHandle interface {
 	// This allows skipping the attribute creation entirely in case of noop tracer which is selected when tracing is disabled.
 	SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int)
 
+	// A handle interface method to set attributes for read file operations (read.size and read.offset)
+	SetReadFileAttributes(span trace.Span, bytesRead int, offset int64)
+
 	// A handle interface method to set attributes for upload
 	SetUploadAttributes(span trace.Span, bytesUploaded int64, objectName string)
 

@@ -293,7 +293,12 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 		return false
 	}
 
-	if currentOffset-fch.prevOffset.Load() > downloader.ReadChunkSize {
+	chunkSize := int64(downloader.DefaultReadChunkSize)
+	if fch.fileDownloadJob != nil {
+		chunkSize = fch.fileDownloadJob.ReadChunkSize
+	}
+
+	if currentOffset-fch.prevOffset.Load() > chunkSize {
 		return false
 	}
 

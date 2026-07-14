@@ -48,7 +48,7 @@ const (
 	Invalid     jobStatusName = "Invalid"
 )
 
-const ReadChunkSize = 8 * cacheutil.MiB
+const DefaultReadChunkSize = 8 * cacheutil.MiB
 
 // Job downloads the requested object from GCS into the specified local file
 // path with given permissions and ownership.
@@ -64,6 +64,7 @@ type Job struct {
 	fileSpec                data.FileSpec
 	fileCacheConfig         *cfg.FileCacheConfig
 	cacheDirVolumeBlockSize uint64
+	ReadChunkSize           int64
 
 	/////////////////////////
 	// Mutable state
@@ -152,6 +153,7 @@ func NewJob(
 		metricsHandle:           metricHandle,
 		traceHandle:             traceHandle,
 		cacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
+		ReadChunkSize:           DefaultReadChunkSize,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -345,7 +347,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 			metrics.CaptureGCSReadMetrics(job.metricsHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], newReaderLimit-start)
 		}
 
-		maxRead := min(ReadChunkSize, newReaderLimit-start)
+		maxRead := min(job.ReadChunkSize, newReaderLimit-start)
 
 		// Copy the contents from NewReader to cache file.
 		offsetWriter := io.NewOffsetWriter(cacheFile, start)

@@ -701,6 +701,7 @@ func (t *fileTest) Test_ReadWithKernelReader_Success() {
 			req := &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: 0,
+				Size:   int64(len(buf)),
 			}
 			// ReadWithKernelReader requires the inode lock to be held by the caller, and unlocks it internally.
 			fh.inode.Lock()
@@ -756,6 +757,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative() {
 			req := &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: 0,
+				Size:   int64(len(buf)),
 			}
 			// ReadWithKernelReader requires the inode lock to be held on entry.
 			fh.inode.Lock()
@@ -810,6 +812,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative_ReadError() {
 			req := &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: -1, // Negative offset will trigger a read error from the local temp file
+				Size:   int64(len(buf)),
 			}
 			// ReadWithKernelReader requires the inode lock to be held on entry.
 			fh.inode.Lock()
@@ -857,6 +860,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NilReader() {
 			req := &gcsx.ReadRequest{
 				Buffer: make([]byte, 4),
 				Offset: 0,
+				Size:   4,
 			}
 			// ReadWithKernelReader requires the inode lock to be held on entry.
 			fh.inode.Lock()
@@ -921,6 +925,7 @@ func (t *fileTest) Test_ReadWithKernelReader_ReadAtError() {
 			req := &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: 0,
+				Size:   int64(len(buf)),
 			}
 			// ReadWithKernelReader requires the inode lock to be held on entry.
 			fh.inode.Lock()
@@ -1440,6 +1445,10 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 				Buffer: readBuf,
 				Offset: offset,
 			}, int32(readSize))
+
+			if resp.Callback != nil {
+				defer resp.Callback()
+			}
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, resp.Size)

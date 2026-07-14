@@ -534,8 +534,6 @@ func Test_GetCacheHandle_WithEviction(t *testing.T) {
 			chTestArgs := initializeCacheHandlerTestArgs(t, &tc.fileCacheConfig, tc.cacheDir)
 			// Start the existing job
 			existingJob := getDownloadJobForTestObject(t, chTestArgs)
-			_, err := existingJob.Download(context.Background(), 1, false)
-			require.NoError(t, err)
 			// Content of size more than 20 leads to eviction of initial TestObjectName.
 			// Here, content size is 21.
 			minObject := createObject(t, chTestArgs.bucket, "object_1", []byte("content of object_1 ..."))
