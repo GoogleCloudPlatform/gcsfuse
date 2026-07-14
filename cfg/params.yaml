@@ -400,7 +400,7 @@ params:
     type: "bool"
     usage: "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache."
     default: false
-    hide-flag: true
+    hide-flag: false
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal, pirlo"
