@@ -603,7 +603,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxRequestSizeKb:   int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -624,7 +624,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/file_system_config/unset_file_system_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxRequestSizeKb:   int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -645,7 +645,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxRequestSizeKb:   int64(cfg.BucketTypeZonal.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                0777,
 					DisableParallelDirops:  true,
 					FileMode:               0666,

@@ -23,16 +23,26 @@ import (
 )
 
 func Test_DefaultMaxBackground(t *testing.T) {
-	expectedZonal := min(max(12, 2*runtime.NumCPU()), maxBackgroundRapidLimit)
-	assert.Equal(t, expectedZonal, BucketTypeZonal.DefaultMaxBackground())
+	expectedRapid := min(max(12, 2*runtime.NumCPU()), rapidMaxBackground)
+	assert.Equal(t, expectedRapid, StorageClassRapid.DefaultMaxBackground())
 
-	expectedHierarchical := min(max(12, 2*runtime.NumCPU()), maxBackgroundNonRapidLimit)
-	assert.Equal(t, expectedHierarchical, BucketTypeHierarchical.DefaultMaxBackground())
+	expectedStandard := min(max(12, 2*runtime.NumCPU()), nonRapidMaxBackground)
+	assert.Equal(t, expectedStandard, StorageClassStandard.DefaultMaxBackground())
 }
 
 func Test_DefaultCongestionThreshold(t *testing.T) {
-	assert.Equal(t, (3*BucketTypeZonal.DefaultMaxBackground())/4, BucketTypeZonal.DefaultCongestionThreshold())
-	assert.Equal(t, (3*BucketTypeHierarchical.DefaultMaxBackground())/4, BucketTypeHierarchical.DefaultCongestionThreshold())
+	assert.Equal(t, (3*StorageClassRapid.DefaultMaxBackground())/4, StorageClassRapid.DefaultCongestionThreshold())
+	assert.Equal(t, (3*StorageClassStandard.DefaultMaxBackground())/4, StorageClassStandard.DefaultCongestionThreshold())
+}
+
+func Test_DefaultFuseMaxRequestSizeKb(t *testing.T) {
+	assert.Equal(t, rapidMaxRequestSizeKb, StorageClassRapid.DefaultFuseMaxRequestSizeKb())
+	assert.Equal(t, nonRapidMaxRequestSizeKb, StorageClassStandard.DefaultFuseMaxRequestSizeKb())
+}
+
+func Test_DefaultMaxReadAheadKb(t *testing.T) {
+	assert.Equal(t, rapidMaxReadAheadKb, StorageClassRapid.DefaultMaxReadAheadKb())
+	assert.Equal(t, nonRapidMaxReadAheadKb, StorageClassStandard.DefaultMaxReadAheadKb())
 }
 
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
@@ -302,4 +312,11 @@ func Test_MaxPagesForRequestSizeKb(t *testing.T) {
 			assert.Equal(t, tt.expected, MaxPagesForRequestSizeKb(tt.requestSizeKb))
 		})
 	}
+}
+
+func Test_StorageClass(t *testing.T) {
+	assert.Equal(t, StorageClassRapid, BucketTypeZonal.StorageClass())
+	assert.Equal(t, StorageClassRapid, BucketTypePirlo.StorageClass())
+	assert.Equal(t, StorageClassStandard, BucketTypeFlat.StorageClass())
+	assert.Equal(t, StorageClassStandard, BucketTypeHierarchical.StorageClass())
 }

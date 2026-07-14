@@ -378,9 +378,9 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal, pirlo"
-          value: "BucketTypeZonal.DefaultCongestionThreshold()"
+          value: "StorageClassRapid.DefaultCongestionThreshold()"
         - bucket-type: "flat, hierarchical"
-          value: "BucketTypeHierarchical.DefaultCongestionThreshold()"
+          value: "StorageClassStandard.DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
@@ -458,12 +458,12 @@ params:
       Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver.
       If needed to be set beyond that on GKE, the user has to manually increase the value on the node before
       GCSFuse mounting begins.
-    default: "BucketTypeZonal.DefaultFuseMaxRequestSizeKb()"
+    default: "StorageClassRapid.DefaultFuseMaxRequestSizeKb()"
     hide-flag: true
     optimizations:
       bucket-type-optimization:
         - bucket-type: "flat, hierarchical"
-          value: "BucketTypeHierarchical.DefaultFuseMaxRequestSizeKb()"
+          value: "StorageClassStandard.DefaultFuseMaxRequestSizeKb()"
 
   - config-path: "file-system.fuse-options"
     flag-name: "o"
@@ -531,9 +531,9 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal, pirlo"
-          value: "BucketTypeZonal.DefaultMaxBackground()"
+          value: "StorageClassRapid.DefaultMaxBackground()"
         - bucket-type: "flat, hierarchical"
-          value: "BucketTypeHierarchical.DefaultMaxBackground()"
+          value: "StorageClassStandard.DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -547,9 +547,9 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal, pirlo"
-          value: "BucketTypeZonal.DefaultMaxReadAheadKb()"
+          value: "StorageClassRapid.DefaultMaxReadAheadKb()"
         - bucket-type: "flat, hierarchical"
-          value: "BucketTypeHierarchical.DefaultMaxReadAheadKb()"
+          value: "StorageClassStandard.DefaultMaxReadAheadKb()"
 
   - config-path: "file-system.rename-dir-limit"
     flag-name: "rename-dir-limit"

@@ -157,8 +157,8 @@ func (s *KernelReaderParamsSuite) TestKernelParamVerification() {
 	require.NoError(s.T(), err)
 
 	optimizedReadAhead := "16384"
-	optimizedMaxBackground := fmt.Sprintf("%d", cfg.BucketTypeZonal.DefaultMaxBackground())
-	optimizedCongestion := fmt.Sprintf("%d", cfg.BucketTypeZonal.DefaultCongestionThreshold())
+	optimizedMaxBackground := fmt.Sprintf("%d", cfg.StorageClassRapid.DefaultMaxBackground())
+	optimizedCongestion := fmt.Sprintf("%d", cfg.StorageClassRapid.DefaultCongestionThreshold())
 
 	s.verifyKernelParam(readAheadPath, s.expectedReadAhead, optimizedReadAhead)
 	s.verifyKernelParam(maxBackgroundPath, s.expectedMaxBackground, optimizedMaxBackground)

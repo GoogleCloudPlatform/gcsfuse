@@ -16,48 +16,33 @@ package cfg
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"runtime"
 	"strings"
 	"time"
 )
 
+// Rapid bucket defaults (zonal, pirlo)
 const (
-	// maxBackgroundRapidLimit configures the upper limit for max-background kernel fuse
-	// setting for rapid buckets. This is more than sufficient to saturate the 200 Gbps network bandwidth
-	// on a single VM. Revise the numbers if you plan to support higher bandwidth VMs.
-	maxBackgroundRapidLimit = 192
+	rapidMaxBackground    = 192
+	rapidMaxReadAheadKb   = 16 * 1024 // 16 MiB
+	rapidMaxRequestSizeKb = 1024      // 1 MiB
+)
 
-	// maxBackgroundNonRapidLimit configures the default max-background kernel fuse
-	// setting for non-rapid (regional and multi-regional) buckets.
-	maxBackgroundNonRapidLimit = 96
-
-	// maxReadAheadRapidKb configures the default max-read-ahead-kb setting for rapid buckets (16 MiB).
-	maxReadAheadRapidKb = 16 * 1024
-
-	// maxReadAheadNonRapidKb configures the default max-read-ahead-kb setting for non-rapid buckets (128 MiB).
-	maxReadAheadNonRapidKb = 128 * 1024
-
-	// fuseMaxRequestSizeRapidKb configures the target maximum FUSE request size in KiB (1 MiB)
-	// for rapid buckets when calculating max_pages based on kernel page size (currently used for read requests).
-	fuseMaxRequestSizeRapidKb = 1024
-
-	// fuseMaxRequestSizeNonRapidKb configures the target maximum FUSE request size in KiB (16 MiB)
-	// for non-rapid buckets when calculating max_pages based on kernel page size (currently used for read requests).
-	fuseMaxRequestSizeNonRapidKb = 16 * 1024
-
-	// fuseMaxPagesLimit configures the maximum allowed FUSE kernel max_pages limit (65535).
-	fuseMaxPagesLimit = math.MaxUint16
+// Non-rapid bucket defaults (flat, hierarchical)
+const (
+	nonRapidMaxBackground    = 96
+	nonRapidMaxReadAheadKb   = 128 * 1024 // 128 MiB
+	nonRapidMaxRequestSizeKb = 16 * 1024  // 16 MiB
 )
 
 var kernelPageSize int = os.Getpagesize()
 
-func (bt BucketType) DefaultFuseMaxRequestSizeKb() int {
-	if !bt.IsRapid() {
-		return fuseMaxRequestSizeNonRapidKb
+func (sc StorageClass) DefaultFuseMaxRequestSizeKb() int {
+	if sc != StorageClassRapid {
+		return nonRapidMaxRequestSizeKb
 	}
-	return fuseMaxRequestSizeRapidKb
+	return rapidMaxRequestSizeKb
 }
 
 // MaxPagesForRequestSizeKb converts a request size in KiB to the number of kernel pages.
@@ -65,23 +50,23 @@ func MaxPagesForRequestSizeKb(requestSizeKb int) int {
 	return ((requestSizeKb * 1024) + kernelPageSize - 1) / kernelPageSize
 }
 
-func (bt BucketType) DefaultMaxBackground() int {
-	limit := maxBackgroundNonRapidLimit
-	if bt.IsRapid() {
-		limit = maxBackgroundRapidLimit
+func (sc StorageClass) DefaultMaxBackground() int {
+	limit := nonRapidMaxBackground
+	if sc == StorageClassRapid {
+		limit = rapidMaxBackground
 	}
 	return min(max(12, 2*runtime.NumCPU()), limit)
 }
 
-func (bt BucketType) DefaultCongestionThreshold() int {
-	return (3 * bt.DefaultMaxBackground()) / 4
+func (sc StorageClass) DefaultCongestionThreshold() int {
+	return (3 * sc.DefaultMaxBackground()) / 4
 }
 
-func (bt BucketType) DefaultMaxReadAheadKb() int {
-	if !bt.IsRapid() {
-		return maxReadAheadNonRapidKb
+func (sc StorageClass) DefaultMaxReadAheadKb() int {
+	if sc != StorageClassRapid {
+		return nonRapidMaxReadAheadKb
 	}
-	return maxReadAheadRapidKb
+	return rapidMaxReadAheadKb
 }
 
 func DefaultMaxParallelDownloads() int {
@@ -145,4 +130,12 @@ func GetBucketType(hierarchical, zonal, pirlo bool) BucketType {
 // IsRapid returns true for rapid bucket types (zonal and pirlo).
 func (bt BucketType) IsRapid() bool {
 	return bt == BucketTypeZonal || bt == BucketTypePirlo
+}
+
+// StorageClass returns the storage performance class corresponding to the bucket type.
+func (bt BucketType) StorageClass() StorageClass {
+	if bt.IsRapid() {
+		return StorageClassRapid
+	}
+	return StorageClassStandard
 }

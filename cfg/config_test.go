@@ -61,7 +61,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
-				expectedValue:   BucketTypeZonal.DefaultCongestionThreshold(),
+				expectedValue:   StorageClassRapid.DefaultCongestionThreshold(),
 			},
 			{
 				name:            "bucket_type_pirlo",
@@ -69,7 +69,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
-				expectedValue:   BucketTypeZonal.DefaultCongestionThreshold(),
+				expectedValue:   StorageClassRapid.DefaultCongestionThreshold(),
 			},
 			{
 				name:            "bucket_type_flat",
@@ -77,7 +77,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: true,
-				expectedValue:   BucketTypeHierarchical.DefaultCongestionThreshold(),
+				expectedValue:   StorageClassStandard.DefaultCongestionThreshold(),
 			},
 			{
 				name:            "bucket_type_hierarchical",
@@ -85,7 +85,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
 				expectOptimized: true,
-				expectedValue:   BucketTypeHierarchical.DefaultCongestionThreshold(),
+				expectedValue:   StorageClassStandard.DefaultCongestionThreshold(),
 			},
 		}
 
@@ -379,7 +379,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   BucketTypeZonal.DefaultFuseMaxRequestSizeKb(),
+				expectedValue:   StorageClassRapid.DefaultFuseMaxRequestSizeKb(),
 			},
 			{
 				name:            "bucket_type_flat",
@@ -387,7 +387,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: true,
-				expectedValue:   BucketTypeHierarchical.DefaultFuseMaxRequestSizeKb(),
+				expectedValue:   StorageClassStandard.DefaultFuseMaxRequestSizeKb(),
 			},
 			{
 				name:            "bucket_type_hierarchical",
@@ -395,7 +395,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
 				expectOptimized: true,
-				expectedValue:   BucketTypeHierarchical.DefaultFuseMaxRequestSizeKb(),
+				expectedValue:   StorageClassStandard.DefaultFuseMaxRequestSizeKb(),
 			},
 		}
 
@@ -407,7 +407,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.FileSystem.FuseMaxRequestSizeKb = tc.expectedValue.(int64)
 				} else {
-					c.FileSystem.FuseMaxRequestSizeKb = int64(BucketTypeZonal.DefaultFuseMaxRequestSizeKb())
+					c.FileSystem.FuseMaxRequestSizeKb = int64(StorageClassRapid.DefaultFuseMaxRequestSizeKb())
 				}
 
 				v := viper.New()
@@ -651,7 +651,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
-				expectedValue:   BucketTypeZonal.DefaultMaxBackground(),
+				expectedValue:   StorageClassRapid.DefaultMaxBackground(),
 			},
 			{
 				name:            "bucket_type_pirlo",
@@ -659,7 +659,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
-				expectedValue:   BucketTypeZonal.DefaultMaxBackground(),
+				expectedValue:   StorageClassRapid.DefaultMaxBackground(),
 			},
 			{
 				name:            "bucket_type_flat",
@@ -667,7 +667,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: true,
-				expectedValue:   BucketTypeHierarchical.DefaultMaxBackground(),
+				expectedValue:   StorageClassStandard.DefaultMaxBackground(),
 			},
 			{
 				name:            "bucket_type_hierarchical",
@@ -675,7 +675,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
 				expectOptimized: true,
-				expectedValue:   BucketTypeHierarchical.DefaultMaxBackground(),
+				expectedValue:   StorageClassStandard.DefaultMaxBackground(),
 			},
 		}
 
@@ -744,7 +744,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
-				expectedValue:   BucketTypeZonal.DefaultMaxReadAheadKb(),
+				expectedValue:   StorageClassRapid.DefaultMaxReadAheadKb(),
 			},
 			{
 				name:            "bucket_type_pirlo",
@@ -752,7 +752,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
-				expectedValue:   BucketTypeZonal.DefaultMaxReadAheadKb(),
+				expectedValue:   StorageClassRapid.DefaultMaxReadAheadKb(),
 			},
 			{
 				name:            "bucket_type_flat",
@@ -760,7 +760,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: true,
-				expectedValue:   BucketTypeHierarchical.DefaultMaxReadAheadKb(),
+				expectedValue:   StorageClassStandard.DefaultMaxReadAheadKb(),
 			},
 			{
 				name:            "bucket_type_hierarchical",
@@ -768,7 +768,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
 				expectOptimized: true,
-				expectedValue:   BucketTypeHierarchical.DefaultMaxReadAheadKb(),
+				expectedValue:   StorageClassStandard.DefaultMaxReadAheadKb(),
 			},
 		}
 
