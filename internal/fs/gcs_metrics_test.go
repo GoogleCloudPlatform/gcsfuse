@@ -283,7 +283,6 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 		1)
 }
 
-
 // TestGCSMetrics_With_FileCache validates GCS metrics behavior when file cache is enabled.
 //
 // Expected Behavior:
