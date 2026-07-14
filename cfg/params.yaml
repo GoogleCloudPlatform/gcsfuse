@@ -378,7 +378,9 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal, pirlo"
-          value: "DefaultCongestionThreshold()"
+          value: "StorageClassRapid.DefaultCongestionThreshold()"
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
@@ -443,16 +445,25 @@ params:
     usage: "Permissions bits for files, in octal."
     default: "0644"
 
-  - config-path: "file-system.fuse-max-pages-limit"
-    flag-name: "fuse-max-pages-limit"
+  - config-path: "file-system.fuse-max-request-size-kb"
+    flag-name: "fuse-max-request-size-kb"
     type: "int"
     usage: >-
-      Sets the limit for the maximum number of pages that fuse can process in a
-      single request. This is a global, machine-level configuration that applies across all mounts.
-      To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if
-      the specified value is greater than the current system limit.
-    default: "DefaultFuseMaxPagesLimit()"
+      Sets the target maximum request size in KiB that FUSE can process in a single request
+      (currently used to control read requests only). This is translated to the kernel max_pages
+      limit based on host page size. As max_pages_limit is a global, machine-level configuration
+      across all mounts, the host's limit is only updated if the calculated pages value is greater
+      than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most
+      65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages. 
+      Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver.
+      If needed to be set beyond that on GKE, the user has to manually increase the value on the node before
+      GCSFuse mounting begins.
+    default: "StorageClassRapid.DefaultFuseMaxRequestSizeKb()"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultFuseMaxRequestSizeKb()"
 
   - config-path: "file-system.fuse-options"
     flag-name: "o"
@@ -520,7 +531,9 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal, pirlo"
-          value: "DefaultMaxBackground()"
+          value: "StorageClassRapid.DefaultMaxBackground()"
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -534,7 +547,9 @@ params:
     optimizations:
       bucket-type-optimization:
         - bucket-type: "zonal, pirlo"
-          value: 16384 # 16 MiB
+          value: "StorageClassRapid.DefaultMaxReadAheadKb()"
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultMaxReadAheadKb()"
 
   - config-path: "file-system.rename-dir-limit"
     flag-name: "rename-dir-limit"
