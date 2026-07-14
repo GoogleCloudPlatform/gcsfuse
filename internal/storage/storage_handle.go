@@ -239,7 +239,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 		RetryMultiplier:  clientConfig.RetryMultiplier,
 		MaxRetryAttempts: directPathDetectionMaxAttempts,
 	}
-	retryConfig := storageutil.NewRetryConfig(dpClientConfig, directPathDetectionTimeout, directPathDetectionMaxRetryDuration, storageutil.DefaultInitialBackoff)
+	retryConfig := storageutil.NewCustomRetryConfig(dpClientConfig, directPathDetectionTimeout, directPathDetectionMaxRetryDuration)
 
 	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
 		return bucketHandle.Object(testObject).Attrs(attemptCtx)
@@ -411,11 +411,10 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("could not add custom gax retries to StorageControl Client: %w", err)
 		}
-		// special handling for mounts created with custom billing projects.
-		controlClientWithBillingProject := withBillingProject(rawStorageControlClientWithoutGaxRetries, billingProject)
 		// Wrap the control client with retry-on-stall logic.
 		// This will retry on only on GetStorageLayout call for all buckets.
-		controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)
+		controlClient = newStorageControlClientWithRetry(rawStorageControlClientWithoutGaxRetries, &clientConfig).
+			WithBillingProject(billingProject)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
@@ -487,23 +486,21 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 		return nil
 	}
 
-	var controlClientWithoutBillingProject StorageControlClient
 	if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
 		// sh.storageControlClient already contains handling for billing project,
 		// and enhanced retries for GetStorageLayout API call. Extending it here for
 		// retries for folder APIs.
 		// For rapid buckets, wrap the control client with retry-on-all-APIs.
-		controlClientWithoutBillingProject = withRetryOnAllAPIs(sh.rawStorageControlClientWithoutGaxRetries, &sh.clientConfig)
-	} else {
-		// Apply GAX retries to the raw storage control client and returns a copy of it,
-		// as it is important to avoid overwriting it,
-		// as it is used with enhanced retries used by zonal buckets.
-		controlClientWithoutBillingProject = withRetryOnStorageLayout(sh.rawStorageControlClientWithGaxRetries, &sh.clientConfig)
+		return newStorageControlClientWithRetry(sh.rawStorageControlClientWithoutGaxRetries, &sh.clientConfig).
+			WithRetriesOnFolderAPI().
+			WithBillingProject(billingProject)
 	}
 
-	// Special handling for mounts created with custom billing projects.
-	// Wrap it with billing-project, if there is any.
-	return withBillingProject(controlClientWithoutBillingProject, billingProject)
+	// Apply GAX retries to the raw storage control client and returns a copy of it,
+	// as it is important to avoid overwriting it,
+	// as it is used with enhanced retries used by zonal buckets.
+	return newStorageControlClientWithRetry(sh.rawStorageControlClientWithGaxRetries, &sh.clientConfig).
+		WithBillingProject(billingProject)
 }
 
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {

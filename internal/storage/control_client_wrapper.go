@@ -17,7 +17,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
@@ -81,23 +80,17 @@ func (sccwbp *storageControlClientWithBillingProject) CreateFolder(ctx context.C
 	return sccwbp.raw.CreateFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
 }
 
-func withBillingProject(controlClient StorageControlClient, billingProject string) StorageControlClient {
-	if billingProject != "" {
-		controlClient = &storageControlClientWithBillingProject{raw: controlClient, billingProject: billingProject}
-	}
-	return controlClient
-}
+
 
 // storageControlClientWithRetry is a wrapper for an existing StorageControlClient object
-// which implements gcsfuse-level retry logic if any of the control-client call gets stalled or returns a retryable error.
-// It makes time-bound attempts to call the underlying StorageControlClient methods,
-// retrying on errors that should be retried according to gcsfuse's retry logic.
+// that implements time-bound, exponential backoff retries for Storage Control API calls.
+// By default, only GetStorageLayout requests are retried. Retry logic for folder-related
+// API calls can be selectively enabled using the WithFolderAPIRetries builder.
+// It also provides a WithBillingProject builder to optionally inject billing project headers.
 type storageControlClientWithRetry struct {
 	raw         StorageControlClient
 	retryConfig *storageutil.RetryConfig
 
-	// Whether or not to enable retries for GetStorageLayout call.
-	enableRetriesOnStorageLayoutAPI bool
 	// Whether or not to enable retries for folder APIs.
 	enableRetriesOnFolderAPIs bool
 }
@@ -105,10 +98,6 @@ type storageControlClientWithRetry struct {
 func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Context,
 	req *controlpb.GetStorageLayoutRequest,
 	opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
-	if !sccwros.enableRetriesOnStorageLayoutAPI {
-		return sccwros.raw.GetStorageLayout(ctx, req, opts...)
-	}
-
 	apiCall := func(attemptCtx context.Context) (*controlpb.StorageLayout, error) {
 		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
@@ -176,37 +165,51 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "CreateFolder", reqDescription, req.RequestId, apiCall)
 }
 
-// newRetryWrapper creates a new StorageControlClient with retry capabilities.
-// It accepts various parameters to configure the retry behavior.
-// The returned control client retries storage-layout.
-// It also retries folder-related APIs if `retryFolderAPIs` is true.
-func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageutil.StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration, retryFolderAPIs bool) StorageControlClient {
+// newStorageControlClientWithRetry creates a new storageControlClientWithRetry builder.
+// It wraps the provided StorageControlClient raw client with retry capabilities.
+// It also checks if the raw client is already a storageControlClientWithRetry, and if so,
+// unwraps the inner client to prevent nested retry wrapping.
+func newStorageControlClientWithRetry(raw StorageControlClient, clientConfig *storageutil.StorageClientConfig) *storageControlClientWithRetry {
 	// Avoid creating a nested wrapper.
-	raw := controlClient
-	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {
-		raw = sccwros.raw
+	rawClient := raw
+	var existingConfig *storageutil.RetryConfig
+	if sccwros, ok := raw.(*storageControlClientWithRetry); ok {
+		rawClient = sccwros.raw
+		existingConfig = sccwros.retryConfig
 	}
-
-	retryConfig := storageutil.NewRetryConfig(clientConfig, retryDeadline, totalRetryBudget, initialBackoff)
+	retryConfig := existingConfig
+	if retryConfig == nil && clientConfig != nil {
+		retryConfig = storageutil.NewRetryConfig(clientConfig)
+	}
 	return &storageControlClientWithRetry{
-		raw:                             raw,
-		retryConfig:                     retryConfig,
-		enableRetriesOnStorageLayoutAPI: true,
-		enableRetriesOnFolderAPIs:       retryFolderAPIs,
+		raw:         rawClient,
+		retryConfig: retryConfig,
 	}
 }
 
-// withRetryOnAllAPIs wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
-func withRetryOnAllAPIs(controlClient StorageControlClient,
-	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
-	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, true)
+// WithRetriesOnFolderAPI returns a new client with folder API retries enabled.
+// Calling this method makes folder operations (CreateFolder, DeleteFolder, RenameFolder, GetFolder)
+// use the configured retry policies.
+func (scc *storageControlClientWithRetry) WithRetriesOnFolderAPI() *storageControlClientWithRetry {
+	if scc == nil {
+		return nil
+	}
+	newClient := *scc
+	newClient.enableRetriesOnFolderAPIs = true
+	return &newClient
 }
 
-// withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
-func withRetryOnStorageLayout(controlClient StorageControlClient,
-	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
-	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, false)
-
+// WithBillingProject returns a StorageControlClient that wraps the current client
+// to inject the billing project ID header ("x-goog-user-project") into outgoing gRPC requests.
+// If the billing project is empty, it returns the current client directly without wrapping.
+func (scc *storageControlClientWithRetry) WithBillingProject(billingProject string) StorageControlClient {
+	if scc == nil {
+		return nil
+	}
+	if billingProject != "" {
+		return &storageControlClientWithBillingProject{raw: scc, billingProject: billingProject}
+	}
+	return scc
 }
 
 func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
