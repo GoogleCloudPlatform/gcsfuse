@@ -80,8 +80,6 @@ func (sccwbp *storageControlClientWithBillingProject) CreateFolder(ctx context.C
 	return sccwbp.raw.CreateFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
 }
 
-
-
 // storageControlClientWithRetry is a wrapper for an existing StorageControlClient object
 // that implements time-bound, exponential backoff retries for Storage Control API calls.
 // By default, only GetStorageLayout requests are retried. Retry logic for folder-related
