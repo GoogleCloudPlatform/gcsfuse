@@ -272,6 +272,9 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count",
 		attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))),
 		int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count",
+		attribute.NewSet(),
+		int64(len(content)))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/reader_count",
 		attribute.NewSet(attribute.String("io_method", "opened")),
 		1)
@@ -279,6 +282,7 @@ func TestGCSMetrics_DownloadBytesCount_Explicit(t *testing.T) {
 		attribute.NewSet(attribute.String("io_method", "closed")),
 		1)
 }
+
 
 // TestGCSMetrics_With_FileCache validates GCS metrics behavior when file cache is enabled.
 //
