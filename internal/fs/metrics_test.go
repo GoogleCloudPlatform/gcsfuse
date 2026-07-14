@@ -641,7 +641,6 @@ func TestReadFile_KernelRangeReaderMetrics(t *testing.T) {
 	require.NoError(t, err, "ReadFile")
 	waitForMetricsProcessing()
 
-	require.NoError(t, err, "ReadFile")
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(1))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(len(content)))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
