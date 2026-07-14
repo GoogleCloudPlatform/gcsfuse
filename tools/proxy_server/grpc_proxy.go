@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -57,6 +58,8 @@ func init() {
 	encoding.RegisterCodec(rawCodec{})
 }
 
+const storageServicePrefix = "/google.storage.v2.Storage/"
+
 // validateGRPCMetadata validates gRPC metadata based on configured header validations
 func validateGRPCMetadata(md metadata.MD, validations []HeaderValidation) error {
 	for _, validation := range validations {
@@ -92,6 +95,98 @@ func validateGRPCMetadata(md metadata.MD, validations []HeaderValidation) error 
 	return nil
 }
 
+func shouldValidateMetadata(fullMethodName string) bool {
+	return strings.HasPrefix(fullMethodName, storageServicePrefix)
+}
+
+func methodNameFromFullMethod(fullMethodName string) string {
+	idx := strings.LastIndex(fullMethodName, "/")
+	if idx < 0 || idx == len(fullMethodName)-1 {
+		return fullMethodName
+	}
+	return fullMethodName[idx+1:]
+}
+
+func buildForwardContext(ctx context.Context, fullMethodName string, validations []HeaderValidation) (context.Context, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		md = metadata.New(nil)
+		if len(validations) > 0 && shouldValidateMetadata(fullMethodName) {
+			log.Println("Warning: No metadata found in request")
+		}
+	}
+
+	if shouldValidateMetadata(fullMethodName) {
+		if err := validateGRPCMetadata(md, validations); err != nil {
+			log.Printf("Metadata validation failed: %v", err)
+			return nil, err
+		}
+	}
+
+	plantOp := gOpManager.retrieveOperation(RequestType(methodNameFromFullMethod(fullMethodName)))
+	if plantOp != "" {
+		if *fDebug {
+			log.Printf("Planting operation: %s for method: %s", plantOp, fullMethodName)
+		}
+		md = metadata.Join(md, metadata.Pairs("x-goog-emulator-instructions", plantOp))
+	}
+
+	return metadata.NewOutgoingContext(ctx, md), nil
+}
+
+func proxyClientToTarget(stream grpc.ServerStream, clientStream grpc.ClientStream) error {
+	for {
+		req := new([]byte)
+		if err := stream.RecvMsg(req); err != nil {
+			if err == io.EOF {
+				return clientStream.CloseSend()
+			}
+			return fmt.Errorf("receiving from client: %w", err)
+		}
+		if err := clientStream.SendMsg(req); err != nil {
+			return fmt.Errorf("sending to server: %w", err)
+		}
+	}
+}
+
+func proxyTargetToClient(clientStream grpc.ClientStream, stream grpc.ServerStream) error {
+	for {
+		resp := new([]byte)
+		if err := clientStream.RecvMsg(resp); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("receiving from server: %w", err)
+		}
+		if err := stream.SendMsg(resp); err != nil {
+			return fmt.Errorf("sending to client: %w", err)
+		}
+	}
+}
+
+func waitForProxyCompletion(clientToServer, serverToClient <-chan error) error {
+	var err1, err2 error
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-clientToServer:
+			if err != nil {
+				log.Printf("Client to server error: %v", err)
+				err1 = err
+			}
+		case err := <-serverToClient:
+			if err != nil {
+				log.Printf("Server to client error: %v", err)
+				err2 = err
+			}
+		}
+	}
+
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
+
 // startGRPCProxy creates a transparent gRPC proxy that validates metadata and forwards all requests to the target
 func startGRPCProxy(listener net.Listener, targetHost string, validations []HeaderValidation) error {
 	// Create connection to target for forwarding with raw codec to avoid unmarshaling
@@ -114,37 +209,10 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 		// Log the gRPC call
 		log.Printf("=== Proxying Call: %s ===", fullMethodName)
 
-		// Extract and validate metadata
-		md, ok := metadata.FromIncomingContext(stream.Context())
-		if ok {
-			// Only validate headers for the main Storage API, not Control API
-			if strings.HasPrefix(fullMethodName, "/google.storage.v2.Storage/") {
-				if err := validateGRPCMetadata(md, validations); err != nil {
-					log.Printf("Metadata validation failed: %v", err)
-					return err
-				}
-			}
-		} else {
-			md = metadata.New(nil)
-			if len(validations) > 0 && strings.HasPrefix(fullMethodName, "/google.storage.v2.Storage/") {
-				log.Println("Warning: No metadata found in request")
-			}
+		forwardCtx, err := buildForwardContext(stream.Context(), fullMethodName, validations)
+		if err != nil {
+			return err
 		}
-
-		// Inject testbench instructions via gOpManager
-		parts := strings.Split(fullMethodName, "/")
-		methodName := parts[len(parts)-1]
-		plantOp := gOpManager.retrieveOperation(RequestType(methodName))
-		if plantOp != "" {
-			if *fDebug {
-				log.Printf("Planting operation: %s for method: %s", plantOp, fullMethodName)
-			}
-			// Inject direct instruction for testbench
-			md = metadata.Join(md, metadata.Pairs("x-goog-emulator-instructions", plantOp))
-		}
-
-		// Forward metadata to target
-		forwardCtx := metadata.NewOutgoingContext(stream.Context(), md)
 
 		// Invoke the method on the target
 		clientStream, err := targetConn.NewStream(forwardCtx, &grpc.StreamDesc{
@@ -161,68 +229,15 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 		clientToServer := make(chan error, 1)
 		serverToClient := make(chan error, 1)
 
-		// Receive from client, send to target
 		go func() {
-			for {
-				req := new([]byte)
-				if err := stream.RecvMsg(req); err != nil {
-					if err == io.EOF {
-						err = clientStream.CloseSend()
-						clientToServer <- err
-						return
-					}
-					clientToServer <- fmt.Errorf("receiving from client: %w", err)
-					return
-				}
-				if err := clientStream.SendMsg(req); err != nil {
-					clientToServer <- fmt.Errorf("sending to server: %w", err)
-					return
-				}
-			}
+			clientToServer <- proxyClientToTarget(stream, clientStream)
 		}()
 
-		// Receive from target, send to client
 		go func() {
-			for {
-				resp := new([]byte)
-				if err := clientStream.RecvMsg(resp); err != nil {
-					if err == io.EOF {
-						serverToClient <- nil
-						return
-					}
-					serverToClient <- fmt.Errorf("receiving from server: %w", err)
-					return
-				}
-				if err := stream.SendMsg(resp); err != nil {
-					serverToClient <- fmt.Errorf("sending to client: %w", err)
-					return
-				}
-			}
+			serverToClient <- proxyTargetToClient(clientStream, stream)
 		}()
 
-		// Wait for BOTH directions to complete
-		// This is important for both unary and streaming RPCs
-		var err1, err2 error
-		for i := 0; i < 2; i++ {
-			select {
-			case err := <-clientToServer:
-				if err != nil {
-					log.Printf("Client to server error: %v", err)
-					err1 = err
-				}
-			case err := <-serverToClient:
-				if err != nil {
-					log.Printf("Server to client error: %v", err)
-					err2 = err
-				}
-			}
-		}
-
-		// Return first error encountered, or nil if both succeeded
-		if err1 != nil {
-			return err1
-		}
-		return err2
+		return waitForProxyCompletion(clientToServer, serverToClient)
 	}
 
 	// Create gRPC server with unknown service handler and raw codec

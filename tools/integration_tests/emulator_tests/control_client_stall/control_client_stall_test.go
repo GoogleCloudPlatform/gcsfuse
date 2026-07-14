@@ -16,7 +16,6 @@ package control_client_stall
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"testing"
@@ -42,6 +41,8 @@ type controlClientStallBase struct {
 	suite.Suite
 }
 
+const maxOperationDuration = 32 * time.Second
+
 func (c *controlClientStallBase) SetupTest() {
 	c.testDirPath = setup.SetupTestDirectory(c.T().Name())
 	c.proxyServerLogFile = setup.CreateProxyServerLogFile(c.T())
@@ -65,9 +66,29 @@ func (c *controlClientStallBase) SetupTest() {
 
 func (c *controlClientStallBase) TearDownTest() {
 	setup.UnmountGCSFuse(setup.MntDir())
-	assert.NoError(c.T(), emulator_tests.KillProxyServerProcess(c.proxyProcessId))
+	if c.proxyProcessId > 0 {
+		assert.NoError(c.T(), emulator_tests.KillProxyServerProcess(c.proxyProcessId))
+	}
 	setup.SaveGCSFuseLogFileInCaseOfFailure(c.T())
 	setup.SaveProxyServerLogFileInCaseOfFailure(c.proxyServerLogFile, c.T())
+}
+
+func (c *controlClientStallBase) assertCompletedWithinThreshold(elapsedTime time.Duration) {
+	assert.True(c.T(), elapsedTime < maxOperationDuration, "Elapsed time %v should be less than %v", elapsedTime, maxOperationDuration)
+}
+
+func (c *controlClientStallBase) assertDirectoryExists(folderPath string) {
+	info, err := os.Stat(folderPath)
+	assert.NoError(c.T(), err)
+	assert.True(c.T(), info.IsDir())
+}
+
+func newControlClientStallBase(flags []string, configFileName string, maxMountDurationSecs int) controlClientStallBase {
+	return controlClientStallBase{
+		flags:                flags,
+		configFileName:       configFileName,
+		maxMountDurationSecs: maxMountDurationSecs,
+	}
 }
 
 // --- Test Suites ---
@@ -85,12 +106,9 @@ func (c *createFolderStallSuite) TestCreateFolderStallInducedShouldComplete() {
 	elapsedTime := time.Since(startTime)
 
 	assert.NoError(c.T(), err)
-	// Ensure the CreateFolder operation took less than 32 seconds (30 seconds first stalled-call timeout + 2 second wiggle-room) because of the internal abortion and retry.
-	assert.True(c.T(), elapsedTime < 32*time.Second, "Elapsed time %v should be less than 32s", elapsedTime)
-	// Validate the directory actually exists
-	info, err := os.Stat(folderPath)
-	assert.NoError(c.T(), err)
-	assert.True(c.T(), info.IsDir())
+	// Ensure the operation completes under 32s (30s timeout + 2s wiggle-room) because of internal abort+retry.
+	c.assertCompletedWithinThreshold(elapsedTime)
+	c.assertDirectoryExists(folderPath)
 }
 
 type getFolderStallSuite struct{ controlClientStallBase }
@@ -108,8 +126,8 @@ func (c *getFolderStallSuite) TestGetFolderStallInducedShouldComplete() {
 	elapsedTime := time.Since(startTime)
 
 	assert.NoError(c.T(), err)
-	// Ensure the GetFolder operation took less than 32 seconds (30 seconds first stalled-call timeout + 2 second wiggle-room) because of the internal abortion and retry.
-	assert.True(c.T(), elapsedTime < 32*time.Second, "Elapsed time %v should be less than 32s", elapsedTime)
+	// Ensure the operation completes under 32s (30s timeout + 2s wiggle-room) because of internal abort+retry.
+	c.assertCompletedWithinThreshold(elapsedTime)
 }
 
 type deleteFolderStallSuite struct{ controlClientStallBase }
@@ -127,8 +145,8 @@ func (c *deleteFolderStallSuite) TestDeleteFolderStallInducedShouldComplete() {
 	elapsedTime := time.Since(startTime)
 
 	assert.NoError(c.T(), err)
-	// Ensure the DeleteFolder operation took less than 32 seconds (30 seconds first stalled-call timeout + 2 second wiggle-room) because of the internal abortion and retry.
-	assert.True(c.T(), elapsedTime < 32*time.Second, "Elapsed time %v should be less than 32s", elapsedTime)
+	// Ensure the operation completes under 32s (30s timeout + 2s wiggle-room) because of internal abort+retry.
+	c.assertCompletedWithinThreshold(elapsedTime)
 	// Validate the directory actually deleted
 	_, err = os.Stat(folderPath)
 	assert.True(c.T(), os.IsNotExist(err))
@@ -150,11 +168,9 @@ func (c *renameFolderStallSuite) TestRenameFolderStallInducedShouldComplete() {
 	elapsedTime := time.Since(startTime)
 
 	assert.NoError(c.T(), err)
-	// Ensure the RenameFolder operation took less than 32 seconds (30 seconds first stalled-call timeout + 2 second wiggle-room) because of the internal abortion and retry.
-	assert.True(c.T(), elapsedTime < 32*time.Second, "Elapsed time %v should be less than 32s", elapsedTime)
-	// Validate the directory actually renamed
-	_, err = os.Stat(destPath)
-	assert.NoError(c.T(), err)
+	// Ensure the operation completes under 32s (30s timeout + 2s wiggle-room) because of internal abort+retry.
+	c.assertCompletedWithinThreshold(elapsedTime)
+	c.assertDirectoryExists(destPath)
 }
 
 type getStorageLayoutStallSuite struct{ controlClientStallBase }
@@ -174,75 +190,66 @@ func (c *getStorageLayoutStallSuite) TestGetStorageLayoutStallInducedShouldCompl
 	folderPath := path.Join(c.testDirPath, "stalled_folder_for_layout")
 	err := os.MkdirAll(folderPath, 0755)
 	assert.NoError(c.T(), err)
-	// Validate the directory actually exists
-	info, err := os.Stat(folderPath)
-	assert.NoError(c.T(), err)
-	assert.True(c.T(), info.IsDir())
+	c.assertDirectoryExists(folderPath)
 }
 
 func TestControlClientStall(t *testing.T) {
-	// Test matrix
-	flagsSet := [][]string{
-		{
-			"--client-protocol=grpc",
-			"--rename-dir-limit=0",                                // Force use of Control API for folders instead of legacy workarounds
-			"--experimental-nonrapid-folder-api-stall-retry=true", // Enable the new flag we are testing!
-			"--metadata-cache-ttl-secs=0",                         // Disable cache so calls definitely hit the backend
+	flags := []string{
+		"--client-protocol=grpc",
+		"--rename-dir-limit=0",                                // Force use of Control API for folders instead of legacy workarounds
+		"--experimental-nonrapid-folder-api-stall-retry=true", // Enable the new flag we are testing!
+		"--metadata-cache-ttl-secs=0",                         // Disable cache so calls definitely hit the backend
+	}
+
+	suites := []suite.TestingSuite{
+		&createFolderStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first CreateFolder call by 40 seconds.
+				"../configs/control_client_stall_create_40s.yaml",
+				// No check on how long mount takes.
+				-1,
+			),
+		},
+		&getFolderStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first GetFolder call by 40 seconds.
+				"../configs/control_client_stall_get_40s.yaml",
+				// No check on how long mount takes.
+				-1,
+			),
+		},
+		&deleteFolderStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first DeleteFolder call by 40 seconds.
+				"../configs/control_client_stall_delete_40s.yaml",
+				// No check on how long mount takes.
+				-1,
+			),
+		},
+		&renameFolderStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first RenameFolder call by 40 seconds.
+				"../configs/control_client_stall_rename_40s.yaml",
+				// No check on how long mount takes.
+				-1,
+			),
+		},
+		&getStorageLayoutStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first GetStorageLayout call by 60 seconds.
+				"../configs/control_client_stall_layout_60s.yaml",
+				// Ensure that the whole mount operation including a stalled GetStorageLayout call took less than 40 seconds (30 seconds first stalled-call GetStorageLayout timeout + 10 second wiggle-room for 2nd attempt and other steps for mount to go through) because of the internal abortion and retry.
+				40,
+			),
 		},
 	}
 
-	for _, flags := range flagsSet {
-		suites := []suite.TestingSuite{
-			&createFolderStallSuite{
-				controlClientStallBase: controlClientStallBase{
-					flags: flags,
-					// Artificially stall the very first CreateFolder call by 40 seconds.
-					configFileName: "../configs/control_client_stall_create_40s.yaml",
-					// No check on how long mount takes.
-					maxMountDurationSecs: -1,
-				},
-			},
-			&getFolderStallSuite{
-				controlClientStallBase: controlClientStallBase{
-					flags: flags,
-					// Artificially stall the very first GetFolder call by 40 seconds.
-					configFileName: "../configs/control_client_stall_get_40s.yaml",
-					// No check on how long mount takes.
-					maxMountDurationSecs: -1,
-				},
-			},
-			&deleteFolderStallSuite{
-				controlClientStallBase: controlClientStallBase{
-					flags: flags,
-					// Artificially stall the very first DeleteFolder call by 40 seconds.
-					configFileName: "../configs/control_client_stall_delete_40s.yaml",
-					// No check on how long mount takes.
-					maxMountDurationSecs: -1,
-				},
-			},
-			&renameFolderStallSuite{
-				controlClientStallBase: controlClientStallBase{
-					flags: flags,
-					// Artificially stall the very first RenameFolder call by 40 seconds.
-					configFileName: "../configs/control_client_stall_rename_40s.yaml",
-					// No check on how long mount takes.
-					maxMountDurationSecs: -1,
-				},
-			},
-			&getStorageLayoutStallSuite{
-				controlClientStallBase: controlClientStallBase{
-					flags: flags,
-					// Artificially stall the very first GetStorageLayout call by 60 seconds.
-					configFileName: "../configs/control_client_stall_layout_60s.yaml",
-					// Ensure that the whole mount operation including a stalled GetStorageLayout call took less than 40 seconds (30 seconds first stalled-call GetStorageLayout timeout + 10 second wiggle-room for 2nd attempt and other steps for mount to go through) because of the internal abortion and retry.
-					maxMountDurationSecs: 40,
-				},
-			},
-		}
-
-		for _, s := range suites {
-			log.Printf("Running Control Client Stall test suite %T with flags: %s", s, flags)
-			suite.Run(t, s)
-		}
+	for _, s := range suites {
+		suite.Run(t, s)
 	}
 }

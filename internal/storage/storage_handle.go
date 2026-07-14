@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"time"
 
@@ -394,8 +393,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
-	// GetStorageLayout API is not supported for storage-testbench, which are identified by custom-endpoint containing localhost.
-	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "localhost") {
+	if clientConfig.EnableHNS {
 		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
 		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
 		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
