@@ -917,9 +917,9 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 }
 
 func Test_GetCacheHandle_PathTraversal(t *testing.T) {
+	// Arrange
 	cacheDir := t.TempDir()
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
-
 	// Object name designed to escape the cache directory
 	object := &gcs.MinObject{
 		Name:       "../../../../etc/cron.d/pwn",
@@ -927,8 +927,10 @@ func Test_GetCacheHandle_PathTraversal(t *testing.T) {
 		Size:       10,
 	}
 
+	// Act
 	_, err := chTestArgs.cacheHandler.GetCacheHandle(object, chTestArgs.bucket, true, 0)
 
+	// Assert
 	// We expect the cache handler to catch this and return a containment error
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "outside cache directory")

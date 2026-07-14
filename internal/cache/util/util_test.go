@@ -204,8 +204,8 @@ func (ut *utilTest) Test_CreateFile_RelativePath() {
 func (ut *utilTest) Test_getObjectPath() {
 	inputs := [][]string{{"", ""}, {"a", "b"}, {"a/b/", "/c/d"}, {"", "a"}, {"a", ""}}
 	expectedOutPuts := [5]string{"", "a/b", "a/b/c/d", "a", "a"}
-
 	results := [5]string{}
+
 	for i := range 5 {
 		results[i] = GetObjectPath(inputs[i][0], inputs[i][1])
 	}
@@ -214,28 +214,38 @@ func (ut *utilTest) Test_getObjectPath() {
 }
 
 func (ut *utilTest) Test_getDownloadPath() {
+	// Arrange
 	inputs := []string{"a/b", "a/b/c/d", "/a", "a/"}
 	cacheDir := "/test/dir"
-	expectedOutputs := [4]string{cacheDir + "/a/b",
-		cacheDir + "/a/b/c/d", cacheDir + "/a", cacheDir + "/a"}
-
+	expectedOutputs := [4]string{
+		cacheDir + "/a/b",
+		cacheDir + "/a/b/c/d",
+		cacheDir + "/a",
+		cacheDir + "/a",
+	}
 	results := [4]string{}
+
+	// Act
 	for i := range 4 {
 		path, err := GetDownloadPath(cacheDir, inputs[i])
 		ExpectEq(nil, err)
 		results[i] = path
 	}
 
+	// Assert
 	ExpectTrue(reflect.DeepEqual(expectedOutputs, results))
 }
 
 func (ut *utilTest) Test_getDownloadPath_EscapingPath() {
+	// Arrange
 	cacheDir := "/test/dir"
 	badInputs := []string{"/", "../etc", "a/../../etc", "../../etc/cron.d/pwn"}
 
 	for _, input := range badInputs {
+		// Act
 		_, err := GetDownloadPath(cacheDir, input)
 
+		// Assert
 		ExpectNe(nil, err)
 		ExpectTrue(strings.Contains(err.Error(), "is outside cache directory"))
 	}
