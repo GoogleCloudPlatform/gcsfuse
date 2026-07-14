@@ -133,7 +133,6 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 
 	if krr.metrics != nil {
 		metrics.CaptureGCSReadMetrics(krr.metrics, metrics.ReadTypeParallelAttr, int64(n))
-		krr.metrics.GcsReadBytesCount(int64(n))
 	}
 
 	return resp, err
