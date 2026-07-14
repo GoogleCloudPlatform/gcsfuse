@@ -78,8 +78,12 @@ type storageClient struct {
 	grpcClientWithBidiConfig *storage.Client
 	clientConfig             storageutil.StorageClientConfig
 	// rawStorageControlClientWithoutGaxRetries is without any retries.
+	// WARNING: Do not mutate this client or its CallOptions in-place after initialization,
+	// as it is a shared template client used to derive bucket-specific control clients.
 	rawStorageControlClientWithoutGaxRetries *control.StorageControlClient
 	// rawStorageControlClientWithGaxRetries is with retry for Folder APIs.
+	// WARNING: Do not mutate this client or its CallOptions in-place after initialization,
+	// as it is a shared template client used to derive bucket-specific control clients.
 	rawStorageControlClientWithGaxRetries *control.StorageControlClient
 	// storageControlClient is with retry for GetStorageLayout and with handling for billing project.
 	storageControlClient StorageControlClient
@@ -487,18 +491,15 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 	}
 
 	if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
-		// sh.storageControlClient already contains handling for billing project,
-		// and enhanced retries for GetStorageLayout API call. Extending it here for
-		// retries for folder APIs.
-		// For rapid buckets, wrap the control client with retry-on-all-APIs.
+		// For rapid buckets or when non-rapid folder API stall retries are enabled, use the raw
+		// control client without gax retries, and wrap it with storageControlClientWithRetry with retries on folder API and wrap with billing project.
 		return newStorageControlClientWithRetry(sh.rawStorageControlClientWithoutGaxRetries, &sh.clientConfig).
 			WithRetriesOnFolderAPI().
 			WithBillingProject(billingProject)
 	}
 
-	// Apply GAX retries to the raw storage control client and returns a copy of it,
-	// as it is important to avoid overwriting it,
-	// as it is used with enhanced retries used by zonal buckets.
+	// For non-rapid buckets, use the raw client that already has GAX retries applied.
+	// Wrap it with storageControlClientWithRetry to add stall retries for GetStorageLayout and wrap with billing project.
 	return newStorageControlClientWithRetry(sh.rawStorageControlClientWithGaxRetries, &sh.clientConfig).
 		WithBillingProject(billingProject)
 }
