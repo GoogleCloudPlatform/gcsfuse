@@ -1,0 +1,611 @@
+// Copyright 2026 Google LLC
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package lru
+
+import (
+	"fmt"
+	"math/rand"
+	"sync"
+	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type testData struct {
+	Value    int64
+	DataSize uint64
+}
+
+func (td testData) Size() uint64 {
+	return td.DataSize
+}
+
+func insertAndAssert(t *testing.T, cache Cache, key string, val ValueType, evictedValues []int64, expectedError error) {
+	ret, err := cache.Insert(key, val)
+
+	require.ErrorIs(t, err, expectedError)
+	require.Equal(t, len(evictedValues), len(ret))
+	for index, value := range ret {
+		assert.Equal(t, evictedValues[index], value.(testData).Value)
+	}
+}
+
+func setupArenaRadix() *arenaRadix {
+	c := &arenaRadix{
+		freeHead: nilNode,
+	}
+	c.root = c.allocateNode()
+	return c
+}
+
+func TestArenaRadix_AllocateAndFree(t *testing.T) {
+	c := setupArenaRadix()
+
+	// Initial root node is allocated
+	assert.Equal(t, 1, len(c.nodes))
+	assert.Equal(t, nilNode, c.freeHead)
+
+	// Allocate a new node
+	id1 := c.allocateNode()
+	assert.Equal(t, uint32(1), id1)
+	assert.Equal(t, 2, len(c.nodes))
+
+	// Free the node
+	c.freeNode(id1)
+	assert.Equal(t, id1, c.freeHead)
+
+	// Allocate again, should reuse
+	id2 := c.allocateNode()
+	assert.Equal(t, id1, id2)
+	assert.Equal(t, nilNode, c.freeHead)
+}
+
+func TestArenaRadix_ChildOperations(t *testing.T) {
+	c := setupArenaRadix()
+
+	// Create nodes
+	idA := c.allocateNode()
+	c.nodes[idA].prefix = "apple"
+
+	idB := c.allocateNode()
+	c.nodes[idB].prefix = "banana"
+
+	idC := c.allocateNode()
+	c.nodes[idC].prefix = "cherry"
+
+	// Add children out of order, they should be sorted by prefix[0]
+	c.addChild(c.root, idC)
+	c.addChild(c.root, idA)
+	c.addChild(c.root, idB)
+
+	// Verify order: apple (A) -> banana (B) -> cherry (C)
+	child1 := c.nodes[c.root].child
+	assert.Equal(t, idA, child1)
+
+	child2 := c.nodes[child1].sibling
+	assert.Equal(t, idB, child2)
+
+	child3 := c.nodes[child2].sibling
+	assert.Equal(t, idC, child3)
+
+	assert.Equal(t, nilNode, c.nodes[child3].sibling)
+
+	// Verify getChild
+	assert.Equal(t, idA, c.getChild(c.root, 'a'))
+	assert.Equal(t, idB, c.getChild(c.root, 'b'))
+	assert.Equal(t, idC, c.getChild(c.root, 'c'))
+	assert.Equal(t, nilNode, c.getChild(c.root, 'z'))
+
+	// Replace B with new node D ("berry")
+	idD := c.allocateNode()
+	c.nodes[idD].prefix = "berry"
+	c.replaceChild(c.root, idB, idD)
+
+	// verify old node is detached
+	assert.Equal(t, nilNode, c.nodes[idB].sibling)
+	assert.Equal(t, nilNode, c.nodes[idB].parent)
+
+	// verify new node is linked correctly
+	assert.Equal(t, idD, c.nodes[idA].sibling)
+	assert.Equal(t, idC, c.nodes[idD].sibling)
+
+	// Remove A
+	c.removeChild(c.root, idA)
+	assert.Equal(t, nilNode, c.nodes[idA].sibling)
+	assert.Equal(t, nilNode, c.nodes[idA].parent)
+
+	assert.Equal(t, idD, c.nodes[c.root].child)
+}
+
+func TestArenaRadix_HashString(t *testing.T) {
+	hash1 := hashString("hello")
+	hash2 := hashString("hello")
+	assert.Equal(t, hash1, hash2)
+
+	hash3 := hashString("world")
+	assert.NotEqual(t, hash1, hash3)
+
+	hashEmpty := hashString("")
+	assert.NotEqual(t, uint64(0), hashEmpty)
+}
+
+func TestArenaRadix_GetFullKey(t *testing.T) {
+	c := setupArenaRadix()
+
+	id1 := c.allocateNode()
+	c.nodes[id1].prefix = "a/"
+	c.nodes[id1].parent = c.root
+
+	id2 := c.allocateNode()
+	c.nodes[id2].prefix = "b/"
+	c.nodes[id2].parent = id1
+
+	id3 := c.allocateNode()
+	c.nodes[id3].prefix = "c.txt"
+	c.nodes[id3].parent = id2
+
+	assert.Equal(t, "a/b/c.txt", c.getFullKey(id3))
+	assert.Equal(t, "a/", c.getFullKey(id1))
+	assert.Equal(t, "", c.getFullKey(c.root))
+}
+
+const testMaxSize = 50
+const testOperationCount = 100
+
+func setupArenaRadixCacheTest(t *testing.T) Cache {
+	locker.EnableInvariantsCheck()
+	return NewArenaRadixCache(testMaxSize)
+}
+
+func TestArenaRadixCache_LookUpInEmptyCache(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	assert.Nil(t, cache.LookUp(""))
+	assert.Nil(t, cache.LookUp("taco"))
+}
+
+func TestArenaRadixCache_InsertNilValue(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "taco", nil, []int64{}, ErrInvalidEntry)
+}
+
+func TestArenaRadixCache_InsertEmptyKey(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+
+	insertAndAssert(t, cache, "", testData{Value: 42, DataSize: 10}, []int64{}, nil)
+
+	assert.Equal(t, int64(42), cache.LookUp("").(testData).Value)
+	assert.Nil(t, cache.LookUp("taco"))
+}
+
+func TestArenaRadixCache_LookUpUnknownKey(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 23, DataSize: 8}, []int64{}, nil)
+
+	assert.Nil(t, cache.LookUp(""))
+	assert.Nil(t, cache.LookUp("enchilada"))
+}
+
+func TestArenaRadixCache_FillUpToCapacity(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
+
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(26), cache.LookUp("taco").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
+}
+
+func TestArenaRadixCache_ExpiresLeastRecentlyUsed(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	// Least recent.
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+
+	// Second most recent.
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 26}, []int64{}, nil)
+
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value) // Most recent
+
+	// Insert another.
+	insertAndAssert(t, cache, "queso", testData{Value: 34, DataSize: 5}, []int64{26}, nil)
+
+	// See what's left.
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
+	assert.Equal(t, int64(34), cache.LookUp("queso").(testData).Value)
+}
+
+func TestArenaRadixCache_Overwrite(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 6}, []int64{}, nil)
+
+	// Increase the DataSize while modifying, so eviction should happen
+	insertAndAssert(t, cache, "burrito", testData{Value: 33, DataSize: 12}, []int64{26}, nil)
+
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Equal(t, int64(33), cache.LookUp("burrito").(testData).Value)
+	assert.Equal(t, int64(28), cache.LookUp("enchilada").(testData).Value)
+}
+
+func TestArenaRadixCache_MultipleEviction(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
+
+	// Increase the DataSize while modifying, so eviction should happen
+	insertAndAssert(t, cache, "large_data", testData{Value: 33, DataSize: 45}, []int64{23, 26, 28}, nil)
+
+	assert.Nil(t, cache.LookUp("taco"))
+	assert.Nil(t, cache.LookUp("burrito"))
+	assert.Nil(t, cache.LookUp("enchilada"))
+	assert.Equal(t, int64(33), cache.LookUp("large_data").(testData).Value)
+}
+
+func TestArenaRadixCache_WhenEntrySizeMoreThanCacheMaxSize(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	// Insert entry with size greater than maxSize of cache.
+	insertAndAssert(t, cache, "taco", testData{Value: 26, DataSize: testMaxSize + 1}, []int64{}, ErrInvalidEntrySize)
+
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+}
+
+func TestArenaRadixCache_EraseWhenKeyPresent(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	deletedEntry := cache.Erase("burrito")
+
+	assert.Equal(t, int64(23), deletedEntry.(testData).Value)
+	assert.Nil(t, cache.LookUp("burrito"))
+}
+
+func TestArenaRadixCache_EraseCacheWithGivenPrefix(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b/d", testData{Value: 22, DataSize: 6}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/c", testData{Value: 20, DataSize: 6}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+
+	cache.EraseEntriesWithGivenPrefix("a")
+
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("a/b/d"))
+	assert.Nil(t, cache.LookUp("a/c"))
+	assert.Equal(t, uint64(2), cache.LookUp("b").Size())
+}
+
+func TestArenaRadixCache_EraseCacheWithEmptyPrefix(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+
+	cache.EraseEntriesWithGivenPrefix("")
+
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("b"))
+}
+
+func TestArenaRadixCache_EraseCacheWhereNoEntriesExistWithGivenPrefix(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+
+	cache.EraseEntriesWithGivenPrefix("c")
+
+	assert.Equal(t, uint64(4), cache.LookUp("a").Size())
+	assert.Equal(t, uint64(5), cache.LookUp("a/b").Size())
+	assert.Equal(t, uint64(2), cache.LookUp("b").Size())
+}
+
+func TestArenaRadixCache_EraseCacheWithGivenPrefixWithSomeEntriesEvictedDueToCacheSize(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "a", testData{Value: 23, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b", testData{Value: 26, DataSize: 10}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/b/d", testData{Value: 22, DataSize: 5}, []int64{}, nil)
+	insertAndAssert(t, cache, "a/c", testData{Value: 20, DataSize: 10}, []int64{}, nil)
+	insertAndAssert(t, cache, "b", testData{Value: 21, DataSize: 15}, []int64{23}, nil)
+
+	// As entry "a" was already evicted by the insertion of "b", only three entries will be removed.
+	cache.EraseEntriesWithGivenPrefix("a")
+
+	assert.Nil(t, cache.LookUp("a"))
+	assert.Nil(t, cache.LookUp("a/b"))
+	assert.Nil(t, cache.LookUp("a/b/d"))
+	assert.Nil(t, cache.LookUp("a/c"))
+	assert.Equal(t, uint64(15), cache.LookUp("b").Size())
+}
+
+func TestArenaRadixCache_EraseWhenKeyNotPresent(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	deletedEntry := cache.Erase("taco")
+
+	assert.Nil(t, deletedEntry)
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+}
+
+func TestArenaRadixCache_UpdateSize(t *testing.T) {
+	t.Run("NonExistentKey", func(t *testing.T) {
+		cache := NewArenaRadixCache(100)
+
+		err := cache.UpdateSize("key1", 20)
+
+		assert.ErrorIs(t, err, ErrEntryNotExist)
+	})
+
+	t.Run("Immediate Eviction", func(t *testing.T) {
+		cache := NewArenaRadixCache(100)
+		data1 := testData{Value: 1, DataSize: 10}
+		data2 := testData{Value: 2, DataSize: 70}
+		_, _ = cache.Insert("key1", data1)
+		_, _ = cache.Insert("key2", data2)
+
+		errUpdate := cache.UpdateSize("key1", 30)
+
+		assert.NoError(t, errUpdate)
+		assert.Nil(t, cache.LookUp("key1"))
+		assert.NotNil(t, cache.LookUp("key2"))
+	})
+}
+
+func TestArenaRadixCache_UpdateSize_ExceedsMaxSize(t *testing.T) {
+	cache := NewArenaRadixCache(100)
+	data := &testData{Value: 1, DataSize: 50}
+	_, err := cache.Insert("file.txt", data)
+	require.NoError(t, err)
+
+	data.DataSize = 150
+	err = cache.UpdateSize("file.txt", 100)
+
+	assert.NoError(t, err)
+	assert.Nil(t, cache.LookUp("file.txt"))
+}
+
+func TestArenaRadixCache_UpdateWhenKeyPresent(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	key := "burrito"
+	data := testData{Value: 23, DataSize: 4}
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
+	newData := testData{Value: 2, DataSize: 4}
+
+	err := cache.UpdateWithoutChangingOrder(key, newData)
+
+	assert.Nil(t, err)
+	assert.Equal(t, int64(2), cache.LookUp(key).(testData).Value)
+}
+
+func TestArenaRadixCache_UpdateWhenKeyNotPresent(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	key := "burrito"
+	data := testData{Value: 23, DataSize: 4}
+
+	err := cache.UpdateWithoutChangingOrder(key, data)
+
+	assert.ErrorIs(t, err, ErrEntryNotExist)
+}
+
+func TestArenaRadixCache_UpdateWhenSizeIsDifferent(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	key := "burrito"
+	data := testData{Value: 23, DataSize: 4}
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
+	newData := testData{Value: 2, DataSize: 3}
+
+	err := cache.UpdateWithoutChangingOrder(key, newData)
+
+	assert.ErrorIs(t, err, ErrInvalidUpdateEntrySize)
+}
+
+func TestArenaRadixCache_UpdateNotChangeOrder(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	key1 := "burrito1"
+	data1 := testData{Value: 23, DataSize: 10}
+	insertAndAssert(t, cache, key1, data1, []int64{}, nil)
+	key2 := "burrito2"
+	data2 := testData{Value: 2, DataSize: 40}
+	insertAndAssert(t, cache, key2, data2, []int64{}, nil)
+
+	newData := testData{Value: 7, DataSize: 10}
+	err := cache.UpdateWithoutChangingOrder(key1, newData)
+
+	assert.Nil(t, err)
+	// inserting again which should evict key1 because key1 is updated without
+	// changing order
+	key3 := "burrito3"
+	data3 := testData{Value: 3, DataSize: 5}
+	insertAndAssert(t, cache, key3, data3, []int64{7}, nil)
+}
+func TestUpdateSize_DoubleCountingDivergence(t *testing.T) {
+	const maxSize = 100
+	const initialSize = 50
+	const sizeDelta = 50 // New total size will be 50 + 50 = 100 (exactly at maxSize)
+
+	mapCache := NewCache(maxSize)
+	ArenaRadixCache := NewArenaRadixCache(maxSize)
+
+	mapVal := &testData{Value: 23, DataSize: initialSize}
+	radixVal := &testData{Value: 2, DataSize: initialSize}
+
+	// 1. Insert initial entries into both caches
+	_, err := mapCache.Insert("file.txt", mapVal)
+	assert.NoError(t, err)
+	_, err = ArenaRadixCache.Insert("file.txt", radixVal)
+	assert.NoError(t, err)
+
+	// 2. Simulate incremental file growth in memory (e.g., downloading a 50-byte chunk)
+	// Both objects now report Size() == 100.
+	mapVal.DataSize += sizeDelta
+	radixVal.DataSize += sizeDelta
+
+	// 3. Notify mapCache of the growth.
+	// mapCache simply adds sizeDelta to c.currentSize without double counting.
+	err = mapCache.UpdateSize("file.txt", sizeDelta)
+	assert.NoError(t, err, "mapCache should succeed when updated size (100) <= maxSize (100)")
+
+	// 4. Notify ArenaRadixCache of the growth.
+	// ArenaRadixCache evaluates node.value.Size() (100) + sizeDelta (50) = 150 > maxSize (100).
+	// This double-counts sizeDelta and incorrectly rejects a valid update.
+	err = ArenaRadixCache.UpdateSize("file.txt", sizeDelta)
+	assert.NoError(t, err)
+}
+
+func TestArenaRadixCache_LookUpWithoutChangingOrder_WhenKeyPresent(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	key := "burrito"
+	data := testData{Value: 23, DataSize: 4}
+	insertAndAssert(t, cache, key, data, []int64{}, nil)
+
+	value := cache.LookUpWithoutChangingOrder(key)
+
+	assert.Equal(t, int64(23), value.(testData).Value)
+}
+
+func TestArenaRadixCache_LookUpWithoutChangingOrder_WhenKeyNotPresent(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	key := "burrito"
+
+	value := cache.LookUpWithoutChangingOrder(key)
+
+	assert.Nil(t, value)
+}
+
+func TestArenaRadixCache_LookUpWithoutChangingOrder_NotChangeOrder(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	key1 := "burrito1"
+	data1 := testData{Value: 23, DataSize: 10}
+	insertAndAssert(t, cache, key1, data1, []int64{}, nil)
+	key2 := "burrito2"
+	data2 := testData{Value: 2, DataSize: 40}
+	insertAndAssert(t, cache, key2, data2, []int64{}, nil)
+
+	value := cache.LookUpWithoutChangingOrder(key1)
+
+	assert.Equal(t, int64(23), value.(testData).Value)
+	// inserting again which should evict key1 because key1 is looked up without
+	// changing order
+	key3 := "burrito3"
+	data3 := testData{Value: 3, DataSize: 5}
+	insertAndAssert(t, cache, key3, data3, []int64{23}, nil)
+}
+
+// This will detect race if we run the test with `-race` flag.
+// We get the race condition failure if we remove lock from Insert or Erase method.
+func TestArenaRadixCache_RaceCondition(t *testing.T) {
+	cache := setupArenaRadixCacheTest(t)
+	var wg sync.WaitGroup
+	wg.Add(7)
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			_ = cache.UpdateSize("key", uint64(rand.Intn(testMaxSize)))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.EraseEntriesWithGivenPrefix("k")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := range testOperationCount {
+			_, err := cache.Insert("key", testData{
+				Value:    int64(i),
+				DataSize: uint64(rand.Intn(testMaxSize)),
+			})
+			assert.NoError(t, err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.Erase("key")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.LookUp("key")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range testOperationCount {
+			cache.LookUpWithoutChangingOrder("key")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := range testOperationCount {
+			_ = cache.UpdateWithoutChangingOrder("key", testData{
+				Value:    int64(i),
+				DataSize: uint64(rand.Intn(testMaxSize)),
+			})
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestArenaRadixCache_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
+	c := NewArenaRadixCache(100000)
+
+	// Pre-fill the cache
+	for i := range 1000 {
+		_, _ = c.Insert(fmt.Sprintf("dir1/file%d", i), testData{10, 10})
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 1000; i < 2000; i++ {
+			_, _ = c.Insert(fmt.Sprintf("dir2/file%d", i), testData{10, 10})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		c.EraseEntriesWithGivenPrefix("dir1/")
+	}()
+
+	wg.Wait()
+}
