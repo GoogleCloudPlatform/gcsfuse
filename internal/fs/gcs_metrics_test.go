@@ -497,7 +497,7 @@ func TestGCSMetrics_RequestCount_NegativeCachingShortCircuit(t *testing.T) {
 	rawBucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
 	monitoringInnerBucket := monitor.NewMonitoringBucket(rawBucket, mh)
 	lruCache := lru.NewCache(1024 * 1024)
-	statCacheView := metadata.NewStatCacheBucketView(lruCache, "")
+	statCacheView := metadata.NewStatCacheBucketView(lruCache, "", metrics.NewNoopMetrics())
 	cachedOuterBucket := caching.NewFastStatBucket(
 		time.Minute,
 		statCacheView,
