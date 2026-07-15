@@ -39,6 +39,8 @@ import (
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
 const FullBucketPathHNS = "projects/_/buckets/%s"
 
+const storageClassRapid = "RAPID"
+
 type bucketHandle struct {
 	gcs.Bucket
 	bucket         *storage.BucketHandle
@@ -192,6 +194,13 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		err = gcs.GetGCSError(err)
 	}()
 
+	// By default, the storage class is nil, and the writer uses the bucket's
+	// default storage class. However, when rapid writes are enabled, the user
+	// is explicitly asking to write to the RAPID class, so we should honor that.
+	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
+		req.StorageClass = storageClassRapid
+	}
+
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
@@ -234,6 +243,13 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 }
 
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	// By default, the storage class is nil, and the writer uses the bucket's
+	// default storage class. However, when rapid writes are enabled, the user
+	// is explicitly asking to write to the RAPID class, so we should honor that.
+	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
+		req.StorageClass = storageClassRapid
+	}
+
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
@@ -259,6 +275,13 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
+	// By default, the storage class is nil, and the writer uses the bucket's
+	// default storage class. However, when rapid writes are enabled, the user
+	// is explicitly asking to write to the RAPID class, so we should honor that.
+	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
+		req.StorageClass = storageClassRapid
+	}
+
 	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
 	// To create the takeover writer, the objectHandle.Generation must be set.
 	obj = obj.Generation(*req.CreateObjectRequest.GenerationPrecondition)

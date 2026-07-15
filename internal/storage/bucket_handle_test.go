@@ -644,6 +644,75 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 	}
 }
 
+func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
+	// Define the bucket scenarios to test.
+	bucketScenarios := []struct {
+		name                 string
+		bucketType           gcs.BucketType
+		expectedStorageClass string
+	}{
+		{
+			name:                 "StandardBucket",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			expectedStorageClass: "",
+		},
+		{
+			name:                 "ZonalBucket",
+			bucketType:           gcs.BucketType{Zonal: true},
+			expectedStorageClass: "", // Zonal buckets do not use the RAPID storage class.
+		},
+		{
+			name:                 "PirloBucket_RapidEnabled",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			expectedStorageClass: storageClassRapid,
+		},
+		{
+			name:                 "PirloBucket_RapidDisabled",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			expectedStorageClass: "",
+		},
+	}
+
+	// Define the writer creation functions to be tested.
+	writerTests := map[string]func(t *testing.T, bh *bucketHandle, expectedClass string){
+		"CreateObject": func(t *testing.T, bh *bucketHandle, expectedClass string) {
+			req := &gcs.CreateObjectRequest{Name: "test_object_1", Contents: strings.NewReader("data")}
+
+			_, _ = bh.CreateObject(context.Background(), req)
+
+			assert.Equal(t, expectedClass, req.StorageClass)
+		},
+		"CreateObjectChunkWriter": func(t *testing.T, bh *bucketHandle, expectedClass string) {
+			req := &gcs.CreateObjectRequest{Name: "test_object_2"}
+
+			_, _ = bh.CreateObjectChunkWriter(context.Background(), req, 1024, nil)
+
+			assert.Equal(t, expectedClass, req.StorageClass)
+		},
+		"CreateAppendableObjectWriter": func(t *testing.T, bh *bucketHandle, expectedClass string) {
+			var gen int64 = 0
+			req := &gcs.CreateObjectChunkWriterRequest{CreateObjectRequest: gcs.CreateObjectRequest{Name: "test_object_3", GenerationPrecondition: &gen}}
+
+			_, _ = bh.CreateAppendableObjectWriter(context.Background(), req)
+
+			assert.Equal(t, expectedClass, req.StorageClass)
+		},
+	}
+
+	// Iterate through each combination of bucket scenario and writer function.
+	for _, scenario := range bucketScenarios {
+		for writerName, runTest := range writerTests {
+			testName := fmt.Sprintf("%s/%s", scenario.name, writerName)
+			testSuite.T().Run(testName, func(t *testing.T) {
+				createBucketHandle(testSuite, &controlpb.StorageLayout{})
+				testSuite.bucketHandle.bucketType = &scenario.bucketType
+
+				runTest(t, testSuite.bucketHandle, scenario.expectedStorageClass)
+			})
+		}
+	}
+}
+
 func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	var generation0 int64 = 0
