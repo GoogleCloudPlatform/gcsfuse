@@ -313,7 +313,6 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithoutBillingProject() 
 	retrierControlClient, ok := storageClient.storageControlClient.(*storageControlClientWithRetry)
 	require.True(testSuite.T(), ok, "retrierControlClient should be of type *storageControlClientWithRetry")
 	require.NotNil(testSuite.T(), retrierControlClient, "retrierControlClient should not be nil")
-	assert.True(testSuite.T(), retrierControlClient.enableRetriesOnStorageLayoutAPI, "enableRetriesOnStorageLayoutAPI should be true")
 	assert.False(testSuite.T(), retrierControlClient.enableRetriesOnFolderAPIs, "enableRetriesOnFolderAPIs should be false")
 	// Confirm that it has no underlying storageControlClientWithBillingProject in it.
 	_, ok = retrierControlClient.raw.(*storageControlClientWithBillingProject)
@@ -334,16 +333,18 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
 	storageClient, ok := handleCreated.(*storageClient)
 	assert.NotNil(testSuite.T(), storageClient)
 	assert.True(testSuite.T(), ok)
-	retrierControlClient := storageClient.storageControlClient.(*storageControlClientWithRetry)
 	// Confirm that the returned storage-handle's control-client is of type storageControlClientWithBillingProject
 	// and its billing-project is same as the one passed while
 	// creating the storage-handle.
 	// Check that storageControlClient is wrapped correctly and billing project is set.
-	billingProjectControlClient, ok := retrierControlClient.raw.(*storageControlClientWithBillingProject)
-	require.True(testSuite.T(), ok, "raw should be of type *storageControlClientWithBillingProject")
+	billingProjectControlClient, ok := storageClient.storageControlClient.(*storageControlClientWithBillingProject)
+	require.True(testSuite.T(), ok, "storageControlClient should be of type *storageControlClientWithBillingProject")
 	require.NotNil(testSuite.T(), billingProjectControlClient, "storageControlClientWithBillingProject should not be nil")
 	assert.Equal(testSuite.T(), projectID, billingProjectControlClient.billingProject, "billingProject should match the provided projectID")
-	assert.NotNil(testSuite.T(), billingProjectControlClient.raw, "raw client inside storageControlClientWithBillingProject should not be nil")
+	retrierControlClient, ok := billingProjectControlClient.raw.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok, "raw should be of type *storageControlClientWithRetry")
+	require.NotNil(testSuite.T(), retrierControlClient, "retrierControlClient should not be nil")
+	assert.NotNil(testSuite.T(), retrierControlClient.raw, "raw client inside storageControlClientWithRetry should not be nil")
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
@@ -1006,7 +1007,6 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle() {
 			}
 			retryWrapper, ok := underlyingControlClient.(*storageControlClientWithRetry)
 			require.True(testSuite.T(), ok, "Expected a retry wrapper")
-			assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should always be enabled for storage layout APIs")
 			assert.Equal(testSuite.T(), tc.expectFolderRetries, retryWrapper.enableRetriesOnFolderAPIs)
 			gaxClient, ok := retryWrapper.raw.(*control.StorageControlClient)
 			require.True(testSuite.T(), ok)
@@ -1041,7 +1041,6 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	controlClientWithAllRetriesNonZB, ok := controlClientForNonZB.(*storageControlClientWithRetry)
 	require.True(testSuite.T(), ok)
 	require.NotNil(testSuite.T(), controlClientWithAllRetriesNonZB)
-	assert.True(testSuite.T(), controlClientWithAllRetriesNonZB.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on non-zonal buckets")
 	assert.False(testSuite.T(), controlClientWithAllRetriesNonZB.enableRetriesOnFolderAPIs, "Retries should not be enabled for folder APIs on non-zonal buckets")
 	require.Same(testSuite.T(), mockRawControlClientWithRetries, controlClientWithAllRetriesNonZB.raw)
 
@@ -1057,7 +1056,6 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	require.True(testSuite.T(), ok, "Expected a control client with retry")
 	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on zonal buckets")
-	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on zonal buckets")
 	require.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
 }
 
@@ -1089,7 +1087,6 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	controlClientWithAllRetriesNonZB, ok := controlClientWithBillingProjectAndAllRetriesForNonZB.raw.(*storageControlClientWithRetry)
 	require.True(testSuite.T(), ok)
 	require.NotNil(testSuite.T(), controlClientWithAllRetriesNonZB)
-	assert.True(testSuite.T(), controlClientWithAllRetriesNonZB.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on non-zonal buckets")
 	assert.False(testSuite.T(), controlClientWithAllRetriesNonZB.enableRetriesOnFolderAPIs, "Retries should not be enabled for folder APIs on non-zonal buckets")
 	require.Same(testSuite.T(), mockRawControlClientWithRetries, controlClientWithAllRetriesNonZB.raw)
 
@@ -1109,6 +1106,5 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	require.True(testSuite.T(), ok, "Expected a control client with retry")
 	require.NotNil(testSuite.T(), controlClientWithRetry)
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on zonal buckets")
-	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on zonal buckets")
 	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
 }
