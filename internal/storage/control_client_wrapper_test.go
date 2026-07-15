@@ -296,19 +296,26 @@ func (t *ControlClientRetryWrapperTest) newHelperRetryWrapper(controlClient Stor
 		MaxRetrySleep:   maxRetrySleep,
 		RetryMultiplier: backoffMultiplier,
 	}
-	scc := newStorageControlClientWithRetry(controlClient, clientConfig)
+	var opts []ControlClientOption
 	if retryFolderAPIs {
-		scc = scc.WithRetriesOnFolderAPI()
+		opts = append(opts, WithRetriesOnFolderAPI())
 	}
+	scc := NewStorageControlClient(controlClient, clientConfig, opts...)
 
-	scc.retryConfig = storageutil.NewRetryConfigForTesting(
-		retryDeadline,
-		totalRetryBudget,
-		initialBackoff,
-		maxRetrySleep,
-		backoffMultiplier,
-		clientConfig.MaxRetryAttempts,
-	)
+	var retryClient *storageControlClientWithRetry
+	if rc, ok := scc.(*storageControlClientWithRetry); ok {
+		retryClient = rc
+	}
+	if retryClient != nil {
+		retryClient.retryConfig = storageutil.NewRetryConfigForTesting(
+			retryDeadline,
+			totalRetryBudget,
+			initialBackoff,
+			maxRetrySleep,
+			backoffMultiplier,
+			clientConfig.MaxRetryAttempts,
+		)
+	}
 	return scc
 }
 
@@ -652,65 +659,56 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_AllAttemptsTimeOut() {
 }
 
 func (testSuite *StorageLayoutRetryWrapperTest) TestWithRetry_StorageLayout_WrapsClient() {
-	// Arrange
 	mockClient := new(MockStorageControlClient)
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
-	wrappedClient := newStorageControlClientWithRetry(mockClient, &clientConfig)
+	wrappedClient := NewStorageControlClient(mockClient, &clientConfig)
 
-	// Assert
 	require.NotNil(testSuite.T(), wrappedClient)
-	retryWrapper := wrappedClient
+	retryWrapper, ok := wrappedClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok)
 	assert.Same(testSuite.T(), mockClient, retryWrapper.raw)
 	assert.False(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should not be enabled for folder APIs")
 }
 
 func (testSuite *StorageLayoutRetryWrapperTest) TestWithRetry_StorageLayout_UnwrapsNestedRetryClient() {
-	// Arrange
 	mockClient := new(MockStorageControlClient)
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	alreadyWrappedClient := newStorageControlClientWithRetry(mockClient, &clientConfig)
+	alreadyWrappedClient := NewStorageControlClient(mockClient, &clientConfig)
 
-	// Wrap it again.
-	doubleWrappedClient := newStorageControlClientWithRetry(alreadyWrappedClient, &clientConfig)
+	doubleWrappedClient := NewStorageControlClient(alreadyWrappedClient, &clientConfig)
 
-	// Assert
 	require.NotNil(testSuite.T(), doubleWrappedClient)
-	retryWrapper := doubleWrappedClient
+	retryWrapper, ok := doubleWrappedClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok)
 	assert.Same(testSuite.T(), mockClient, retryWrapper.raw, "Should unwrap the nested retry client")
 	assert.NotSame(testSuite.T(), alreadyWrappedClient, retryWrapper.raw)
 	assert.False(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should not be enabled for folder APIs")
 }
 
 func (testSuite *AllApiRetryWrapperTest) TestWithRetry_AllAPIs_WrapsClient() {
-	// Arrange
 	mockClient := new(MockStorageControlClient)
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
-	wrappedClient := newStorageControlClientWithRetry(mockClient, &clientConfig).
-		WithRetriesOnFolderAPI()
+	wrappedClient := NewStorageControlClient(mockClient, &clientConfig, WithRetriesOnFolderAPI())
 
-	// Assert
 	require.NotNil(testSuite.T(), wrappedClient)
-	retryWrapper := wrappedClient
+	retryWrapper, ok := wrappedClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok)
 	assert.Same(testSuite.T(), mockClient, retryWrapper.raw)
 	assert.True(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs")
 }
 
 func (testSuite *AllApiRetryWrapperTest) TestWithRetry_AllAPIs_UnwrapsNestedRetryClient() {
-	// Arrange
 	mockClient := new(MockStorageControlClient)
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	alreadyWrappedClient := newStorageControlClientWithRetry(mockClient, &clientConfig).
-		WithRetriesOnFolderAPI()
+	alreadyWrappedClient := NewStorageControlClient(mockClient, &clientConfig, WithRetriesOnFolderAPI())
 
-	// Wrap it again.
-	doubleWrappedClient := newStorageControlClientWithRetry(alreadyWrappedClient, &clientConfig).
-		WithRetriesOnFolderAPI()
+	doubleWrappedClient := NewStorageControlClient(alreadyWrappedClient, &clientConfig, WithRetriesOnFolderAPI())
 
-	// Assert
 	require.NotNil(testSuite.T(), doubleWrappedClient)
-	retryWrapper := doubleWrappedClient
+	retryWrapper, ok := doubleWrappedClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok)
 	assert.Same(testSuite.T(), mockClient, retryWrapper.raw, "Should unwrap the nested retry client")
 	assert.NotSame(testSuite.T(), alreadyWrappedClient, retryWrapper.raw)
 	assert.True(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs")
@@ -796,8 +794,7 @@ func (testSuite *StorageLayoutRetryWrapperTest) TestWithBillingProject_EmptyStri
 	mockClient := new(MockStorageControlClient)
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
-	scc := newStorageControlClientWithRetry(mockClient, &clientConfig).
-		WithBillingProject("")
+	scc := NewStorageControlClient(mockClient, &clientConfig, WithBillingProject(""))
 
 	require.NotNil(testSuite.T(), scc)
 	// Empty string should return the *storageControlClientWithRetry without wrapping with billing project.
@@ -809,8 +806,7 @@ func (testSuite *StorageLayoutRetryWrapperTest) TestWithBillingProject_NonEmptyS
 	mockClient := new(MockStorageControlClient)
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
-	scc := newStorageControlClientWithRetry(mockClient, &clientConfig).
-		WithBillingProject("my-project")
+	scc := NewStorageControlClient(mockClient, &clientConfig, WithBillingProject("my-project"))
 
 	require.NotNil(testSuite.T(), scc)
 	// Non-empty string should wrap the client with billing project.
@@ -822,8 +818,7 @@ func (testSuite *StorageLayoutRetryWrapperTest) TestWithBillingProject_NonEmptyS
 func (testSuite *StorageLayoutRetryWrapperTest) TestWithBillingProject_InjectsHeader() {
 	mockClient := new(MockStorageControlClient)
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	scc := newStorageControlClientWithRetry(mockClient, &clientConfig).
-		WithBillingProject("my-project")
+	scc := NewStorageControlClient(mockClient, &clientConfig, WithBillingProject("my-project"))
 	req := &controlpb.GetStorageLayoutRequest{Name: "buckets/my-bucket"}
 	// Verify that when GetStorageLayout is called, the context has outgoing metadata "x-goog-user-project: my-project"
 	mockClient.On("GetStorageLayout", mock.MatchedBy(func(ctx context.Context) bool {
@@ -844,8 +839,7 @@ func (testSuite *StorageLayoutRetryWrapperTest) TestWithBillingProject_InjectsHe
 func (testSuite *StorageLayoutRetryWrapperTest) TestWithBillingProject_RenameFolder_NoHeader() {
 	mockClient := new(MockStorageControlClient)
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-	scc := newStorageControlClientWithRetry(mockClient, &clientConfig).
-		WithBillingProject("my-project")
+	scc := NewStorageControlClient(mockClient, &clientConfig, WithBillingProject("my-project"))
 	req := &controlpb.RenameFolderRequest{Name: "buckets/my-bucket/folders/f1", DestinationFolderId: "f2"}
 	// Verify that when RenameFolder is called, the context does not have outgoing metadata "x-goog-user-project"
 	mockClient.On("RenameFolder", mock.MatchedBy(func(ctx context.Context) bool {
@@ -863,18 +857,13 @@ func (testSuite *StorageLayoutRetryWrapperTest) TestWithBillingProject_RenameFol
 	mockClient.AssertExpectations(testSuite.T())
 }
 
-func (testSuite *StorageLayoutRetryWrapperTest) TestWithRetriesOnFolderAPI_NilReceiver() {
-	var scc *storageControlClientWithRetry
+func (testSuite *StorageLayoutRetryWrapperTest) TestNewStorageControlClient_NilRawClient() {
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
-	result := scc.WithRetriesOnFolderAPI()
+	scc := NewStorageControlClient(nil, &clientConfig)
 
-	assert.Nil(testSuite.T(), result)
-}
-
-func (testSuite *StorageLayoutRetryWrapperTest) TestWithBillingProject_NilReceiver() {
-	var scc *storageControlClientWithRetry
-
-	result := scc.WithBillingProject("my-project")
-
-	assert.Nil(testSuite.T(), result)
+	require.NotNil(testSuite.T(), scc)
+	retryClient, ok := scc.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok)
+	assert.Nil(testSuite.T(), retryClient.raw)
 }
