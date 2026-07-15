@@ -134,32 +134,34 @@ func buildForwardContext(ctx context.Context, fullMethodName string, validations
 	return metadata.NewOutgoingContext(ctx, md), nil
 }
 
-func proxyClientToTarget(stream grpc.ServerStream, clientStream grpc.ClientStream) error {
+// proxyGCSFuseToEmulator forwards request messages from gcsfuse to the emulated storage server.
+func proxyGCSFuseToEmulator(gcsfuseToProxyServerStream grpc.ServerStream, proxyToEmulatorClientStream grpc.ClientStream) error {
 	for {
 		req := new([]byte)
-		if err := stream.RecvMsg(req); err != nil {
+		if err := gcsfuseToProxyServerStream.RecvMsg(req); err != nil {
 			if err == io.EOF {
-				return clientStream.CloseSend()
+				return proxyToEmulatorClientStream.CloseSend()
 			}
-			return fmt.Errorf("receiving from client: %w", err)
+			return fmt.Errorf("receiving from gcsfuse: %w", err)
 		}
-		if err := clientStream.SendMsg(req); err != nil {
-			return fmt.Errorf("sending to server: %w", err)
+		if err := proxyToEmulatorClientStream.SendMsg(req); err != nil {
+			return fmt.Errorf("sending to emulated storage server: %w", err)
 		}
 	}
 }
 
-func proxyTargetToClient(clientStream grpc.ClientStream, stream grpc.ServerStream) error {
+// proxyEmulatorToGCSFuse forwards response messages from the emulated storage server back to gcsfuse.
+func proxyEmulatorToGCSFuse(proxyToEmulatorClientStream grpc.ClientStream, gcsfuseToProxyServerStream grpc.ServerStream) error {
 	for {
 		resp := new([]byte)
-		if err := clientStream.RecvMsg(resp); err != nil {
+		if err := proxyToEmulatorClientStream.RecvMsg(resp); err != nil {
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("receiving from server: %w", err)
+			return fmt.Errorf("receiving from emulated storage server: %w", err)
 		}
-		if err := stream.SendMsg(resp); err != nil {
-			return fmt.Errorf("sending to client: %w", err)
+		if err := gcsfuseToProxyServerStream.SendMsg(resp); err != nil {
+			return fmt.Errorf("sending to gcsfuse: %w", err)
 		}
 	}
 }
@@ -170,12 +172,12 @@ func waitForProxyCompletion(clientToServer, serverToClient <-chan error) error {
 		select {
 		case err := <-clientToServer:
 			if err != nil {
-				log.Printf("Client to server error: %v", err)
+				log.Printf("client to server error: %v", err)
 				err1 = err
 			}
 		case err := <-serverToClient:
 			if err != nil {
-				log.Printf("Server to client error: %v", err)
+				log.Printf("server to client error: %v", err)
 				err2 = err
 			}
 		}
@@ -187,21 +189,21 @@ func waitForProxyCompletion(clientToServer, serverToClient <-chan error) error {
 	return err2
 }
 
-// startGRPCProxy creates a transparent gRPC proxy that validates metadata and forwards all requests to the target
-func startGRPCProxy(listener net.Listener, targetHost string, validations []HeaderValidation) error {
-	// Create connection to target for forwarding with raw codec to avoid unmarshaling
-	targetConn, err := grpc.NewClient(
-		targetHost,
+// startGRPCProxy creates a transparent gRPC proxy that validates metadata and forwards all requests to the emulated storage server.
+func startGRPCProxy(listener net.Listener, emulatedStorageHost string, validations []HeaderValidation) error {
+	// Create connection to emulated storage server for forwarding with raw codec to avoid unmarshaling.
+	emulatedStorageConn, err := grpc.NewClient(
+		emulatedStorageHost,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.ForceCodec(rawCodec{})),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to connect to target %s: %w", targetHost, err)
+		return fmt.Errorf("failed to connect to emulated storage server %s: %w", emulatedStorageHost, err)
 	}
 
 	// Create unknown service handler that validates metadata and forwards all calls
-	unknownHandler := func(srv any, stream grpc.ServerStream) error {
-		fullMethodName, ok := grpc.MethodFromServerStream(stream)
+	unknownHandler := func(srv any, gcsfuseToProxyServerStream grpc.ServerStream) error {
+		fullMethodName, ok := grpc.MethodFromServerStream(gcsfuseToProxyServerStream)
 		if !ok {
 			return status.Errorf(codes.Internal, "failed to get method name")
 		}
@@ -209,19 +211,19 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 		// Log the gRPC call
 		log.Printf("=== Proxying Call: %s ===", fullMethodName)
 
-		forwardCtx, err := buildForwardContext(stream.Context(), fullMethodName, validations)
+		forwardCtx, err := buildForwardContext(gcsfuseToProxyServerStream.Context(), fullMethodName, validations)
 		if err != nil {
 			return err
 		}
 
-		// Invoke the method on the target
-		clientStream, err := targetConn.NewStream(forwardCtx, &grpc.StreamDesc{
+		// Invoke the same method on the emulated storage server.
+		proxyToEmulatorClientStream, err := emulatedStorageConn.NewStream(forwardCtx, &grpc.StreamDesc{
 			StreamName:    fullMethodName,
 			ServerStreams: true,
 			ClientStreams: true,
 		}, fullMethodName, grpc.ForceCodec(rawCodec{}))
 		if err != nil {
-			return status.Errorf(codes.Internal, "failed to create target stream: %v", err)
+			return status.Errorf(codes.Internal, "failed to create emulated storage server stream: %v", err)
 		}
 
 		// Proxy messages bidirectionally using raw bytes
@@ -230,11 +232,11 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 		serverToClient := make(chan error, 1)
 
 		go func() {
-			clientToServer <- proxyClientToTarget(stream, clientStream)
+			clientToServer <- proxyGCSFuseToEmulator(gcsfuseToProxyServerStream, proxyToEmulatorClientStream)
 		}()
 
 		go func() {
-			serverToClient <- proxyTargetToClient(clientStream, stream)
+			serverToClient <- proxyEmulatorToGCSFuse(proxyToEmulatorClientStream, gcsfuseToProxyServerStream)
 		}()
 
 		return waitForProxyCompletion(clientToServer, serverToClient)
@@ -247,7 +249,7 @@ func startGRPCProxy(listener net.Listener, targetHost string, validations []Head
 	}
 	grpcServer := grpc.NewServer(opts...)
 
-	log.Printf("gRPC proxy server ready to accept connections, forwarding to %s", targetHost)
+	log.Printf("gRPC proxy server ready to accept connections, forwarding to emulated storage server %s", emulatedStorageHost)
 
 	return grpcServer.Serve(listener)
 }
