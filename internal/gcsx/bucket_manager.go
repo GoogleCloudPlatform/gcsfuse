@@ -231,9 +231,9 @@ func (bm *bucketManager) SetUpBucket(
 	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
 		var statCache metadata.StatCache
 		if isMultibucketMount {
-			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name)
+			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name, metricHandle)
 		} else {
-			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, "")
+			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, "", metricHandle)
 		}
 
 		b = caching.NewFastStatBucket(
