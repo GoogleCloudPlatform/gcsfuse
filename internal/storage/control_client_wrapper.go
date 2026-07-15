@@ -91,6 +91,8 @@ type storageControlClientWithRetry struct {
 
 	// Whether or not to enable retries for folder APIs.
 	enableRetriesOnFolderAPIs bool
+	// Whether or not to enable mount retries for GetStorageLayout call.
+	enableRetriesOnMount bool
 }
 
 func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Context,
@@ -100,6 +102,9 @@ func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Conte
 		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
 
+	if sccwros.enableRetriesOnMount {
+		return storageutil.ExecuteWithCustomShouldRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, storageutil.ShouldRetryOnMount, logger.LevelInfo)
+	}
 	return storageutil.ExecuteWithRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, logger.LevelInfo)
 }
 
@@ -220,11 +225,16 @@ func NewStorageControlClient(raw StorageControlClient, clientConfig *storageutil
 		raw:         rawClient,
 		retryConfig: retryConfig,
 	}
+	// 2. Enable retries on mount if configured and supported
+	if clientConfig != nil {
+		wrapped.enableRetriesOnMount = clientConfig.EnableMountRetries
+	}
+	// 3. Wrap with retries on folder APIs if configured
 	if state.folderRetries {
 		wrapped.enableRetriesOnFolderAPIs = true
 	}
 
-	// 2. Wrap with billing project if configured
+	// 4. Wrap with billing project if configured
 	if state.billingProject != "" {
 		return &storageControlClientWithBillingProject{raw: wrapped, billingProject: state.billingProject}
 	}

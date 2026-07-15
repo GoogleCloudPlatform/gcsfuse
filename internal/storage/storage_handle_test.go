@@ -700,6 +700,24 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndEna
 	assert.NotNil(testSuite.T(), sh)
 }
 
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithEnableMountRetries() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.EnableHNS = true
+	sc.EnableMountRetries = true
+
+	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
+
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), sh)
+	// Underlying storageClient controlClient should enable retries on mount when EnableMountRetries is true.
+	scClient, ok := sh.(*storageClient)
+	require.True(testSuite.T(), ok)
+	require.NotNil(testSuite.T(), scClient.storageControlClient)
+	sccwros, ok := scClient.storageControlClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok)
+	assert.True(testSuite.T(), sccwros.enableRetriesOnMount)
+}
+
 func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 

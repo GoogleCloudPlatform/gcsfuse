@@ -142,7 +142,7 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return strings.Join(parts, ":")
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:                          newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:                         int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -151,6 +151,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		MaxRetrySleep:                           newConfig.GcsRetries.MaxRetrySleep,
 		MaxRetryAttempts:                        int(newConfig.GcsRetries.MaxRetryAttempts),
 		RetryMultiplier:                         newConfig.GcsRetries.Multiplier,
+		EnableMountRetries:                      newConfig.GcsRetries.EnableMountRetries && !isDynamicMount,
 		UserAgent:                               userAgent,
 		CustomEndpoint:                          newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                                 string(newConfig.GcsAuth.KeyFile),
@@ -202,7 +203,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName)))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE)
+		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE, isDynamicMount(bucketName))
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
