@@ -1018,11 +1018,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-kernel-reader", "", false, "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache.")
-
-	if err := flagSet.MarkHidden("enable-kernel-reader"); err != nil {
-		return err
-	}
+	flagSet.BoolP("enable-kernel-reader", "", false, "Enables the kernel reader and FUSE asynchronous reads. When enabled, GCSFuse-side prefetching is disabled, and file read operations rely entirely on the Linux kernel's native read-ahead and page-cache mechanisms.")
 
 	flagSet.BoolP("enable-metadata-prefetch", "", true, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
