@@ -810,3 +810,28 @@ func (t *StatCacheTest) Test_Metrics_LookupMiss_NegativeExpired() {
 		lookupDetail: metrics.LookupDetailTtlExpiredAttr,
 	}, mockMetrics.readCounts[0])
 }
+
+func (t *StatCacheTest) Test_Metrics_InsertDoesNotIncrementReadCount() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	f := &gcs.Folder{Name: "dir/"}
+
+	// Act: Perform insertion operations
+	statCache.Insert(m, expiration)
+	statCache.InsertImplicitDir("implicit_dir/", expiration)
+	statCache.InsertFolder(f, expiration)
+	statCache.AddNegativeEntry("nonexistent", expiration)
+	statCache.AddNegativeEntryForFolder("nonexistent_folder/", expiration)
+
+	// Re-inserting existing items (which triggers lookUpInternal check inside Insert/InsertImplicitDir)
+	mUpdated := &gcs.MinObject{Name: "file.txt", Generation: 2}
+	statCache.Insert(mUpdated, expiration)
+	statCache.InsertImplicitDir("implicit_dir/", expiration)
+
+	// Assert: Insertion operations must not record read count metrics
+	assert.Equal(t.T(), 0, len(mockMetrics.readCounts))
+}
+
