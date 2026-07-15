@@ -187,37 +187,32 @@ func WithBillingProject(project string) ControlClientOption {
 
 // NewStorageControlClient creates a new StorageControlClient wrapping the provided raw client
 // with stall retry capabilities and optional billing project header injection.
-//
-// It automatically unwraps any existing wrapper instances to prevent nested wrapping.
-// By default, the wrapper only retries GetStorageLayout requests. Folder API retries
-// and billing project headers can be enabled and configured via the provided ControlClientOptions.
-func NewStorageControlClient(raw StorageControlClient, clientConfig *storageutil.StorageClientConfig, opts ...ControlClientOption) StorageControlClient {
+// It returns an error if clientConfig is nil, or if the raw client is already wrapped.
+// This design keeps the call sites hygienic by failing early on invalid configurations
+// or nested wrapping instead of silently handling them.
+func NewStorageControlClient(raw StorageControlClient, clientConfig *storageutil.StorageClientConfig, opts ...ControlClientOption) (StorageControlClient, error) {
+	if clientConfig == nil {
+		return nil, fmt.Errorf("clientConfig cannot be nil")
+	}
+	if raw == nil {
+		return nil, fmt.Errorf("raw client cannot be nil")
+	}
+	if _, ok := raw.(*storageControlClientWithBillingProject); ok {
+		return nil, fmt.Errorf("raw client is already wrapped with billing project")
+	}
+	if _, ok := raw.(*storageControlClientWithRetry); ok {
+		return nil, fmt.Errorf("raw client is already wrapped with retry capability")
+	}
+
 	var state clientConfigState
 	for _, opt := range opts {
 		opt(&state)
 	}
 
-	// Unwrap raw client to avoid nested wrappers.
-	rawClient := raw
-	var existingConfig *storageutil.RetryConfig
-	// Check if the client is wrapped with billing project header injection first, and peel it off.
-	if sccwbp, ok := rawClient.(*storageControlClientWithBillingProject); ok {
-		rawClient = sccwbp.raw
-	}
-	// Check if the client is wrapped with retry logic next, and peel it off while capturing
-	// its existing retry configuration.
-	if sccwros, ok := rawClient.(*storageControlClientWithRetry); ok {
-		rawClient = sccwros.raw
-		existingConfig = sccwros.retryConfig
-	}
-
 	// 1. Wrap with retry capability
-	retryConfig := existingConfig
-	if retryConfig == nil && clientConfig != nil {
-		retryConfig = storageutil.NewRetryConfig(clientConfig)
-	}
+	retryConfig := storageutil.NewRetryConfig(clientConfig)
 	wrapped := &storageControlClientWithRetry{
-		raw:         rawClient,
+		raw:         raw,
 		retryConfig: retryConfig,
 	}
 	if state.folderRetries {
@@ -226,9 +221,9 @@ func NewStorageControlClient(raw StorageControlClient, clientConfig *storageutil
 
 	// 2. Wrap with billing project if configured
 	if state.billingProject != "" {
-		return &storageControlClientWithBillingProject{raw: wrapped, billingProject: state.billingProject}
+		return &storageControlClientWithBillingProject{raw: wrapped, billingProject: state.billingProject}, nil
 	}
-	return wrapped
+	return wrapped, nil
 }
 
 func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {

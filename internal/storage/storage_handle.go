@@ -418,9 +418,12 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		// Create a default storage control client with billing project.
 		// This client is used during mount initialization and subsequent bucket type lookups
 		// for GetStorageLayout operations only, and has stall retries enabled by default on GetStorageLayout calls.
-		controlClient = NewStorageControlClient(rawStorageControlClientWithoutGaxRetries, &clientConfig,
+		controlClient, err = NewStorageControlClient(rawStorageControlClientWithoutGaxRetries, &clientConfig,
 			WithBillingProject(billingProject),
 		)
+		if err != nil {
+			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
+		}
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
@@ -487,9 +490,9 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 
 // controlClientForBucketHandle returns a bucket-specific StorageControlClient which is used after the mount is complete.
 // Depending on the bucket type, it calls NewStorageControlClient with appropriate options.
-func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType, billingProject string) StorageControlClient {
+func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType, billingProject string) (StorageControlClient, error) {
 	if sh.rawStorageControlClientWithGaxRetries == nil || sh.rawStorageControlClientWithoutGaxRetries == nil {
-		return nil
+		return nil, nil
 	}
 
 	if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
@@ -524,7 +527,11 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	if billingProject != "" {
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
-	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
+	var controlClient StorageControlClient
+	controlClient, err = sh.controlClientForBucketHandle(bucketType, billingProject)
+	if err != nil {
+		return nil, fmt.Errorf("could not create storage control client: %w", err)
+	}
 
 	bh = &bucketHandle{
 		bucket:         storageBucketHandle,
