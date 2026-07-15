@@ -1722,6 +1722,7 @@ func (bm *fakeBucketManagerForStatCache) SetUpBucket(
 		1*time.Minute,
 		true,  // IsTypeCacheDeprecated
 		false, // isImplicitDir
+		true,  // enableEmptyManagedFolders
 	)
 
 	sb = gcsx.NewSyncerBucket(
