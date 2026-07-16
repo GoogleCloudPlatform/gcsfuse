@@ -194,9 +194,9 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		err = gcs.GetGCSError(err)
 	}()
 
-	// By default, the storage class is nil, and the writer uses the bucket's
-	// default storage class. However, when rapid writes are enabled, the user
-	// is explicitly asking to write to the RAPID class, so we should honor that.
+	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
+	// created with the RAPID storage class in the zonal cache rather than
+	// defaulting to the bucket's default storage class
 	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
 		req.StorageClass = storageClassRapid
 	}
@@ -243,9 +243,9 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 }
 
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	// By default, the storage class is nil, and the writer uses the bucket's
-	// default storage class. However, when rapid writes are enabled, the user
-	// is explicitly asking to write to the RAPID class, so we should honor that.
+	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
+	// created with the RAPID storage class in the zonal cache rather than
+	// defaulting to the bucket's default storage class.
 	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
 		req.StorageClass = storageClassRapid
 	}
@@ -275,12 +275,6 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	// By default, the storage class is nil, and the writer uses the bucket's
-	// default storage class. However, when rapid writes are enabled, the user
-	// is explicitly asking to write to the RAPID class, so we should honor that.
-	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
-		req.StorageClass = storageClassRapid
-	}
 
 	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
 	// To create the takeover writer, the objectHandle.Generation must be set.
