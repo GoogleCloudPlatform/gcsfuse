@@ -37,6 +37,11 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+const (
+	KiB = 1024
+	MiB = 1024 * KiB
+)
+
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
 func mountWithStorageHandle(
@@ -203,6 +208,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 
 	if newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
 		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
+		mountCfg.MaxWrite = uint32(1 * MiB)
 	}
 
 	if newConfig.Logging.WireLog != "" {
