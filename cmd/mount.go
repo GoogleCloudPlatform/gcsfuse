@@ -204,7 +204,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 
 	if newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
 		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
-		mountCfg.MaxWrite = uint32(1 * util.MiB)
+		mountCfg.MaxWrite = uint32(util.MiB)
 	}
 
 	if newConfig.Logging.WireLog != "" {
