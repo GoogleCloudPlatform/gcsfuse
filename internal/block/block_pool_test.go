@@ -770,3 +770,31 @@ func (t *BlockPoolTest) TestGetReleasePermitOnAllocationFailureConcurrent() {
 	// Verify that the global semaphore permit was not leaked after the allocation failure
 	assert.True(t.T(), acquired, "global semaphore permit was leaked after concurrent Get allocation failure")
 }
+
+func (t *BlockPoolTest) TestConcurrentGetRaceCondition() {
+	globalSem := semaphore.NewWeighted(100)
+	bp, err := NewGenBlockPool(1024, 20, 5, globalSem, createBlock)
+	require.NoError(t.T(), err)
+
+	var wg sync.WaitGroup
+	const goroutines = 50
+	const iterations = 200
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < iterations; j++ {
+				blk, err := bp.Get()
+				if err == nil {
+					bp.Release(blk)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	err = bp.ClearFreeBlockChannel(true)
+	require.NoError(t.T(), err)
+}
+
