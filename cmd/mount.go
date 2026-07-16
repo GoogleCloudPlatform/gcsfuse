@@ -32,14 +32,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
-)
-
-const (
-	KiB = 1024
-	MiB = 1024 * KiB
 )
 
 // Mount the file system based on the supplied arguments, returning a
@@ -208,7 +204,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 
 	if newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
 		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
-		mountCfg.MaxWrite = uint32(1 * MiB)
+		mountCfg.MaxWrite = uint32(1 * util.MiB)
 	}
 
 	if newConfig.Logging.WireLog != "" {
