@@ -17,8 +17,6 @@ import (
 	"math"
 	"strings"
 	"sync"
-
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
 
 const nilNode uint32 = math.MaxUint32
@@ -37,7 +35,6 @@ type arenaRadixNode struct {
 
 // arenaRadix encapsulates the core tree structure and implements the lru.Cache interface.
 type arenaRadix struct {
-	maxSize     uint64
 	currentSize uint64
 
 	nodes    []arenaRadixNode
@@ -51,8 +48,6 @@ type arenaRadix struct {
 	tail uint32
 
 	len int
-
-	mu locker.RWLocker
 }
 
 // FNV-1a 64-bit constants
