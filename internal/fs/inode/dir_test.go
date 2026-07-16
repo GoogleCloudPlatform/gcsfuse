@@ -27,6 +27,7 @@ import (
 	"context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
@@ -268,7 +269,7 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		&t.clock,
 		true, //localFile
 		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64),
+		block.NewBlockSemaphore(math.MaxInt64),
 		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics()) // mrdCache

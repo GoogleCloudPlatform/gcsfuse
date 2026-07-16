@@ -29,6 +29,7 @@ import (
 
 	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -162,7 +163,7 @@ func createFileInode(
 		clock,
 		false,
 		config,
-		semaphore.NewWeighted(100),
+		block.NewBlockSemaphore(100),
 		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics(),
@@ -1261,7 +1262,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU(20)
 	require.NoError(t.T(), err)
 	defer workerPool.Stop()
-	globalSemaphore := semaphore.NewWeighted(20) // Sufficient blocks for the test
+	globalSemaphore := block.NewBlockSemaphore(20) // Sufficient blocks for the test
 	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "read_obj", expectedData, false)
 	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, workerPool, globalSemaphore, 0)
@@ -1423,7 +1424,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU(20)
 	require.NoError(t.T(), err)
 	defer workerPool.Stop()
-	globalSemaphore := semaphore.NewWeighted(20)
+	globalSemaphore := block.NewBlockSemaphore(20)
 	// Create mock inode and file handle.
 	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "read_obj", expectedData, false)

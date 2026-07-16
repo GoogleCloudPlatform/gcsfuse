@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
@@ -39,7 +40,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/semaphore"
 )
 
 const localFile = "local"
@@ -153,7 +153,7 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		&t.clock,
 		isLocal,
 		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64),
+		block.NewBlockSemaphore(math.MaxInt64),
 		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics())

@@ -36,7 +36,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -54,7 +53,7 @@ type BufferedReaderTest struct {
 	ctx                context.Context
 	object             *gcs.MinObject
 	bucket             *storage.TestifyMockBucket
-	globalMaxBlocksSem *semaphore.Weighted
+	globalMaxBlocksSem *block.BlockSemaphore
 	config             *BufferedReadConfig
 	workerPool         workerpool.WorkerPool
 	metricHandle       metrics.MetricHandle
@@ -128,7 +127,7 @@ func (t *BufferedReaderTest) SetupTest() {
 		Generation: 1234567890,
 	}
 	t.bucket = new(storage.TestifyMockBucket)
-	t.globalMaxBlocksSem = semaphore.NewWeighted(testGlobalMaxBlocks)
+	t.globalMaxBlocksSem = block.NewBlockSemaphore(testGlobalMaxBlocks)
 	t.config = &BufferedReadConfig{
 		MaxPrefetchBlockCnt:     testMaxPrefetchBlockCnt,
 		PrefetchBlockSizeBytes:  testPrefetchBlockSizeBytes,
@@ -261,7 +260,7 @@ func (t *BufferedReaderTest) TestNewBufferedReaderReservesRequiredBlocks() {
 		t.Run(tc.name, func() {
 			t.object.Size = tc.objectSize
 			t.config.MinBlocksPerHandle = tc.minBlocksPerHandle
-			t.globalMaxBlocksSem = semaphore.NewWeighted(testGlobalMaxBlocks)
+			t.globalMaxBlocksSem = block.NewBlockSemaphore(testGlobalMaxBlocks)
 
 			reader, err := NewBufferedReader(&BufferedReaderOptions{
 				Object:             t.object,
@@ -282,7 +281,7 @@ func (t *BufferedReaderTest) TestNewBufferedReaderReservesRequiredBlocks() {
 }
 
 func (t *BufferedReaderTest) TestNewBufferedReaderFailsWhenPoolAllocationFails() {
-	t.globalMaxBlocksSem = semaphore.NewWeighted(1)
+	t.globalMaxBlocksSem = block.NewBlockSemaphore(1)
 
 	_, err := NewBufferedReader(&BufferedReaderOptions{
 		Object:             t.object,
@@ -299,7 +298,7 @@ func (t *BufferedReaderTest) TestNewBufferedReaderFailsWhenPoolAllocationFails()
 
 func (t *BufferedReaderTest) TestNewBufferedReaderWithMinimumBlockNotAvailableInPool() {
 	// Simulate no blocks available globally.
-	t.globalMaxBlocksSem = semaphore.NewWeighted(1)
+	t.globalMaxBlocksSem = block.NewBlockSemaphore(1)
 
 	reader, err := NewBufferedReader(&BufferedReaderOptions{
 		Object:             t.object,
@@ -1009,7 +1008,7 @@ func (t *BufferedReaderTest) TestPrefetchStopsWhenPoolIsExhausted() {
 	t.config.MaxPrefetchBlockCnt = 4
 	t.config.InitialPrefetchBlockCnt = 2
 	// The global semaphore only has enough permits for the reserved blocks.
-	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
+	t.globalMaxBlocksSem = block.NewBlockSemaphore(2)
 	reader, err := NewBufferedReader(&BufferedReaderOptions{
 		Object:             t.object,
 		Bucket:             t.bucket,
@@ -1731,7 +1730,7 @@ func (t *BufferedReaderTest) TestReadAtFallbackOnSecondBlockDownloadFailure() {
 func (t *BufferedReaderTest) TestReadAtFallbackOnFreshStartFailure() {
 	t.config.MaxPrefetchBlockCnt = 2
 	t.config.InitialPrefetchBlockCnt = 2
-	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
+	t.globalMaxBlocksSem = block.NewBlockSemaphore(2)
 	reader, err := NewBufferedReader(&BufferedReaderOptions{
 		Object:             t.object,
 		Bucket:             t.bucket,
@@ -1817,7 +1816,7 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsDueToG
 	// background prefetch fails due to an exhausted global semaphore.
 	t.config.MaxPrefetchBlockCnt = 3
 	t.config.InitialPrefetchBlockCnt = 1
-	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
+	t.globalMaxBlocksSem = block.NewBlockSemaphore(2)
 	reader, err := NewBufferedReader(&BufferedReaderOptions{
 		Object:             t.object,
 		Bucket:             t.bucket,
@@ -1851,7 +1850,7 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsDueToG
 func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsOnGCSError() {
 	t.config.MaxPrefetchBlockCnt = 2
 	t.config.InitialPrefetchBlockCnt = 2
-	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
+	t.globalMaxBlocksSem = block.NewBlockSemaphore(2)
 	reader, err := NewBufferedReader(&BufferedReaderOptions{
 		Object:             t.object,
 		Bucket:             t.bucket,

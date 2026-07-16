@@ -34,7 +34,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -62,7 +61,7 @@ func (dts *DownloadTaskTestSuite) SetupTest() {
 	}
 	dts.mockBucket = new(storage.TestifyMockBucket)
 	var err error
-	dts.blockPool, err = block.NewPrefetchBlockPool(testBlockSize, 10, 1, semaphore.NewWeighted(100))
+	dts.blockPool, err = block.NewPrefetchBlockPool(testBlockSize, 10, 1, block.NewBlockSemaphore(100))
 	dts.metricHandle = metrics.NewNoopMetrics()
 	require.NoError(dts.T(), err, "Failed to create block pool")
 }

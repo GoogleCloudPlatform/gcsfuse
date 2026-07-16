@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -56,7 +55,7 @@ func TestUploadHandlerTestSuite(t *testing.T) {
 func (t *UploadHandlerTest) SetupTest() {
 	t.mockBucket = new(storagemock.TestifyMockBucket)
 	var err error
-	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, 1, semaphore.NewWeighted(maxBlocks))
+	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, 1, block.NewBlockSemaphore(maxBlocks))
 	require.NoError(t.T(), err)
 	t.uh = newUploadHandler(&CreateUploadHandlerRequest{
 		Object:                   nil,

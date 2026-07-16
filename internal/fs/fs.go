@@ -42,6 +42,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -223,8 +224,8 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		traceHandle:                serverCfg.TraceHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		isTracingEnabled:           cfg.IsTracingEnabled(serverCfg.NewConfig),
-		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
-		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
+		globalMaxWriteBlocksSem:    block.NewBlockSemaphore(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+		globalMaxReadBlocksSem:     block.NewBlockSemaphore(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
 		readBufferPool:             buffer.NewFixedSizePool(),
 	}
@@ -656,7 +657,7 @@ type fileSystem struct {
 
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
-	globalMaxWriteBlocksSem *semaphore.Weighted
+	globalMaxWriteBlocksSem *block.BlockSemaphore
 
 	// notifier allows sending invalidation messages to the FUSE kernel module.
 	// It is used to invalidate the kernel's dentry cache,
@@ -670,7 +671,7 @@ type fileSystem struct {
 	// globalMaxReadBlocksSem is a semaphore that limits the total number of blocks
 	// that can be allocated for buffered read across all file-handles in the file system.
 	// This helps control the overall memory usage for buffered reads.
-	globalMaxReadBlocksSem *semaphore.Weighted
+	globalMaxReadBlocksSem *block.BlockSemaphore
 
 	// Limits the max number of metadata prefetch background workers across file system when
 	// metadata prefetching is enabled.

@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
-	"golang.org/x/sync/semaphore"
 )
 
 // Note: All the write operations take inode lock in fs.go, hence we don't need any locks here
@@ -97,7 +96,7 @@ type CreateBWHandlerRequest struct {
 	Bucket                   gcs.Bucket
 	BlockSize                int64
 	MaxBlocksPerFile         int64
-	GlobalMaxBlocksSem       *semaphore.Weighted
+	GlobalMaxBlocksSem       *block.BlockSemaphore
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TraceHandle              tracing.TraceHandle

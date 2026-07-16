@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -38,7 +39,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/semaphore"
 )
 
 type FileMockBucketTest struct {
@@ -118,7 +118,7 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 		&t.clock,
 		isLocal,
 		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64),
+		block.NewBlockSemaphore(math.MaxInt64),
 		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics())
@@ -156,7 +156,7 @@ func (t *FileMockBucketTest) createGCSBackedFileInode(backingObj *gcs.MinObject)
 		&t.clock,
 		false, // localFile
 		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64),
+		block.NewBlockSemaphore(math.MaxInt64),
 		nil,
 		tracing.NewNoopTracer(),
 		metrics.NewNoopMetrics())

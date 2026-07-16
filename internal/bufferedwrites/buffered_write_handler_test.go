@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
@@ -32,7 +33,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -44,7 +44,7 @@ var errUploadFailure = errors.New("error while uploading object to GCS")
 
 type BufferedWriteTest struct {
 	bwh             BufferedWriteHandler
-	globalSemaphore *semaphore.Weighted
+	globalSemaphore *block.BlockSemaphore
 	suite.Suite
 }
 
@@ -59,7 +59,7 @@ func (testSuite *BufferedWriteTest) SetupTest() {
 
 func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType) {
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
-	testSuite.globalSemaphore = semaphore.NewWeighted(10)
+	testSuite.globalSemaphore = block.NewBlockSemaphore(10)
 	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
 		Object:                   nil,
 		ObjectName:               "testObject",
