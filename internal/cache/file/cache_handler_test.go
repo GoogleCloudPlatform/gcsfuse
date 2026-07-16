@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -101,14 +102,16 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName, cacheDirVolumeBlockSize)
-	downloadPath := util.GetDownloadPath(cacheHandler.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
+	downloadPath, err := util.GetDownloadPath(cacheHandler.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
+	require.NoError(t, err)
 	_, err = util.CreateFile(data.FileSpec{Path: downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
 	t.Cleanup(func() {
 		operations.RemoveDir(cacheDir)
 	})
 	require.NoError(t, err)
 
-	job := jobManager.CreateJobIfNotExists(object, bucket)
+	job, err := jobManager.CreateJobIfNotExists(object, bucket)
+	require.NoError(t, err)
 	require.NotNil(t, job)
 
 	return &cacheHandlerTestArgs{
@@ -158,7 +161,8 @@ func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.Min
 
 func getDownloadJobForTestObject(t *testing.T, chTestArgs *cacheHandlerTestArgs) *downloader.Job {
 	t.Helper()
-	job := chTestArgs.jobManager.CreateJobIfNotExists(chTestArgs.object, chTestArgs.bucket)
+	job, err := chTestArgs.jobManager.CreateJobIfNotExists(chTestArgs.object, chTestArgs.bucket)
+	require.NoError(t, err)
 	require.NotNil(t, job)
 	return job
 }
@@ -324,6 +328,28 @@ func Test_addFileInfoEntryAndCreateDownloadJob_IfNotAlready(t *testing.T) {
 	minObjectJob := chTestArgs.jobManager.GetJob(minObject.Name, chTestArgs.bucket.Name())
 	assert.NotNil(t, minObjectJob)
 	assert.Equal(t, downloader.NotStarted, minObjectJob.GetStatus().Name)
+}
+
+func Test_addFileInfoEntryAndCreateDownloadJob_PathValidationFailure(t *testing.T) {
+	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
+	oldJob := getDownloadJobForTestObject(t, chTestArgs)
+	// Content of size more than 20 would lead to eviction of initial TestObjectName if inserted.
+	minObject := createObject(t, chTestArgs.bucket, "../../etc/passwd", []byte("content of object_1 ..."))
+	existingJob := chTestArgs.jobManager.GetJob(minObject.Name, chTestArgs.bucket.Name())
+	require.Nil(t, existingJob)
+
+	// Insertion should fail at path validation before modifying cache or evicting.
+	err := chTestArgs.cacheHandler.addFileInfoEntryAndCreateDownloadJob(minObject, chTestArgs.bucket)
+
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "is outside cache directory"))
+	// Ensure no entry was added to fileInfoCache.
+	assert.False(t, isEntryInFileInfoCache(t, chTestArgs.cache, minObject.Name, chTestArgs.bucket.Name()))
+	// Ensure existing valid cache entries (and jobs) were not evicted or invalidated.
+	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
+	assert.NotEqual(t, downloader.Invalid, oldJob.GetStatus().Name)
+	assert.Nil(t, chTestArgs.jobManager.GetJob(minObject.Name, chTestArgs.bucket.Name()))
 }
 
 func Test_addFileInfoEntryAndCreateDownloadJob_IfLocalFileGetsDeleted(t *testing.T) {
@@ -714,8 +740,10 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 			actualJob := chTestArgs.jobManager.GetJob(testObjectName, chTestArgs.bucket.Name())
 			jobStatus := actualJob.GetStatus()
 			assert.Equal(t, downloader.NotStarted, jobStatus.Name)
-			assert.True(t, doesFileExist(t, util.GetDownloadPath(chTestArgs.cacheDir,
-				util.GetObjectPath(chTestArgs.bucket.Name(), testObjectName))))
+			downloadPath, err := util.GetDownloadPath(chTestArgs.cacheDir,
+				util.GetObjectPath(chTestArgs.bucket.Name(), testObjectName))
+			require.NoError(t, err)
+			assert.True(t, doesFileExist(t, downloadPath))
 		})
 	}
 }
@@ -842,7 +870,8 @@ func Test_InvalidateCache_Truncates(t *testing.T) {
 			require.Nil(t, cacheHandle.Close())
 			// Open cache file before invalidation
 			objectPath := util.GetObjectPath(chTestArgs.bucket.Name(), minObject.Name)
-			downloadPath := util.GetDownloadPath(chTestArgs.cacheDir, objectPath)
+			downloadPath, err := util.GetDownloadPath(chTestArgs.cacheDir, objectPath)
+			require.NoError(t, err)
 			file, err := os.OpenFile(downloadPath, os.O_RDONLY, 0600)
 			require.NoError(t, err)
 			defer func() {
