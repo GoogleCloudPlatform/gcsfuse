@@ -853,3 +853,30 @@ func (t *BlockPoolTest) TestGetInConcurrentStateAcquiresGlobalPermit() {
 	// Verify all permits were returned to globalSem
 	require.True(t.T(), globalSem.TryAcquire(2))
 }
+
+func (t *BlockPoolTest) TestConcurrentGetRaceCondition() {
+	globalSem := NewBlockSemaphore(100)
+	bp, err := NewGenBlockPool(1024, 20, 5, globalSem, createBlock)
+	require.NoError(t.T(), err)
+
+	var wg sync.WaitGroup
+	const goroutines = 50
+	const iterations = 200
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < iterations; j++ {
+				blk, err := bp.Get()
+				if err == nil {
+					bp.Release(blk)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	err = bp.ClearFreeBlockChannel(true)
+	require.NoError(t.T(), err)
+}
