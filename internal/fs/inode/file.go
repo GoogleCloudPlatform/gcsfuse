@@ -550,7 +550,7 @@ func (f *FileInode) Attributes(
 	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 	// Obtain default information from the source object.
-	attrs.Mtime = f.src.Updated
+	attrs.Mtime = f.src.UpdatedTime()
 	attrs.Size = f.src.Size
 
 	// If the source object has an mtime metadata key, use that instead of its

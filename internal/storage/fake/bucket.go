@@ -536,8 +536,8 @@ func copyMinObject(o *gcs.Object) *gcs.MinObject {
 	copy.Size = o.Size
 	copy.Generation = o.Generation
 	copy.MetaGeneration = o.MetaGeneration
-	copy.Updated = o.Updated
-	copy.Finalized = o.Finalized
+	copy.Updated = gcs.TimeToNS(o.Updated)
+	copy.Finalized = gcs.TimeToNS(o.Finalized)
 	copy.Metadata = copyMetadata(o.Metadata)
 	copy.ContentEncoding = o.ContentEncoding
 	copy.CRC32C = o.CRC32C

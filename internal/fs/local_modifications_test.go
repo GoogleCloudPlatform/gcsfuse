@@ -1547,7 +1547,7 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	ExpectEq(0, minObject1.Size)
 	ExpectEq(FileContentsSize, minObject2.Size)
 	ExpectNe(minObject1.Generation, minObject2.Generation)
-	ExpectTrue(minObject1.Updated.Before(minObject2.Updated))
+	ExpectLt(minObject1.Updated, minObject2.Updated)
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcs.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcs.MtimeMetadataKey])
 	ExpectTrue(attr1MTime.Before(attr2MTime))
