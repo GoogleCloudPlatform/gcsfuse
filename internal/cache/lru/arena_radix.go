@@ -14,7 +14,6 @@
 package lru
 
 import (
-	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -199,6 +198,7 @@ func (c *arenaRadix) replaceChild(nID uint32, oldChildID uint32, newChildID uint
 		c.nodes[oldChildID].parent = nilNode
 		return
 	}
+	panic("replaceChild: requested child not found in sibling list")
 }
 
 // insertNode inserts a new key into the radix tree and returns the leaf node ID.
@@ -331,81 +331,6 @@ func (c *arenaRadix) compressPathUpwards(currID uint32) {
 	}
 }
 
-// NewArenaRadixCache returns the reference of cache object by initialising the cache with
-// the supplied maxSize, which must be greater than zero.
-func NewArenaRadixCache(maxSize uint64) Cache {
-	if maxSize == 0 {
-		panic("Invalid maxSize")
-	}
-
-	c := &arenaRadix{
-		maxSize:  maxSize,
-		freeHead: nilNode,
-		head:     nilNode,
-		tail:     nilNode,
-		nodeMap:  make(map[uint64]uint32),
-	}
-
-	c.root = c.allocateNode()
-	c.mu = locker.NewRW("ArenaRadixCache", c.checkInvariants)
-	return c
-}
-
-func (c *arenaRadix) checkInvariants() {
-	// INVARIANT: currentSize <= maxSize
-	if c.currentSize > c.maxSize {
-		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
-	}
-
-	// INVARIANT: Each element in the LRU list must have a valid value
-	lruCount := 0
-	for currID := c.head; currID != nilNode; currID = c.nodes[currID].next {
-		lruCount++
-		if c.nodes[currID].value == nil {
-			panic(fmt.Sprintf("Unexpected empty value in LRU list for prefix: %v", c.nodes[currID].prefix))
-		}
-	}
-
-	if lruCount != c.len {
-		panic(fmt.Sprintf("LRU list actual count %v does not match c.len %v", lruCount, c.len))
-	}
-
-	// INVARIANT: Every value-bearing node in the tree must exist in the LRU list exactly once
-	treeCount := 0
-
-	// Iterative pre-order traversal using parent/sibling pointers (O(1) space) to prevent stack overflows
-	currID := c.root
-	for currID != nilNode {
-		if c.nodes[currID].value != nil {
-			treeCount++
-			// A node is verifiably in the LRU list if it is the head, or if it has a predecessor
-			inLRU := c.head == currID || c.nodes[currID].prev != nilNode
-			if !inLRU {
-				panic(fmt.Sprintf("Mismatch: Node with prefix '%v' has a value but is missing from LRU list", c.nodes[currID].prefix))
-			}
-		}
-
-		// Advance to next node
-		if c.nodes[currID].child != nilNode {
-			currID = c.nodes[currID].child
-			continue
-		}
-
-		// Backtrack up parent chain
-		for currID != c.root && c.nodes[currID].sibling == nilNode {
-			currID = c.nodes[currID].parent
-		}
-		if currID == c.root {
-			break
-		}
-		currID = c.nodes[currID].sibling
-	}
-
-	if treeCount != c.len {
-		panic(fmt.Sprintf("Tree actual value count %v does not match LRU length %v", treeCount, c.len))
-	}
-}
-
 // --- LRU Logic ---
 func (c *arenaRadix) moveToFront(nodeID uint32) {
 	if c.head == nodeID {
@@ -479,200 +404,18 @@ func (c *arenaRadix) evictOne() ValueType {
 // Cache interface
 ////////////////////////////////////////////////////////////////////////
 
-func (c *arenaRadix) Insert(key string, value ValueType) ([]ValueType, error) {
-	if value == nil {
-		return nil, ErrInvalidEntry
-	}
-
-	valueSize := value.Size()
-	if valueSize > c.maxSize {
-		return nil, ErrInvalidEntrySize
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if nodeID, oldValue := c.insertNode(key, value); oldValue != nil {
-		c.currentSize += valueSize - oldValue.Size()
-		c.nodeMap[hashString(key)] = nodeID
-		c.moveToFront(nodeID)
-	} else {
-		c.pushFront(nodeID)
-		c.currentSize += valueSize
-		c.nodeMap[hashString(key)] = nodeID
-	}
-
-	var evictedValues []ValueType
-	for c.currentSize > c.maxSize && c.tail != nilNode {
-		evictedValues = append(evictedValues, c.evictOne())
-	}
-
-	return evictedValues, nil
-}
-
 func (c *arenaRadix) eraseInternal(nodeID uint32) (value ValueType) {
 	deletedEntry := c.nodes[nodeID].value
 	c.currentSize -= deletedEntry.Size()
-	delete(c.nodeMap, hashString(c.getFullKey(nodeID)))
+
+	// Prevent hash collision cross-deletions
+	hash := hashString(c.getFullKey(nodeID))
+	if c.nodeMap[hash] == nodeID {
+		delete(c.nodeMap, hash)
+	}
 
 	c.remove(nodeID)
 	c.deleteNode(nodeID)
 
 	return deletedEntry
-}
-
-func (c *arenaRadix) Erase(key string) (value ValueType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	nodeID, ok := c.getNodeKey(key)
-	if !ok {
-		return nil
-	}
-
-	return c.eraseInternal(nodeID)
-}
-
-func (c *arenaRadix) LookUp(key string) (value ValueType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	nodeID, ok := c.getNodeKey(key)
-	if !ok {
-		return nil
-	}
-	c.moveToFront(nodeID)
-
-	return c.nodes[nodeID].value
-}
-
-func (c *arenaRadix) LookUpWithoutChangingOrder(key string) (value ValueType) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	nodeID, ok := c.getNodeKey(key)
-	if !ok {
-		return nil
-	}
-
-	return c.nodes[nodeID].value
-}
-
-func (c *arenaRadix) UpdateWithoutChangingOrder(key string, value ValueType) error {
-	if value == nil {
-		return ErrInvalidEntry
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	nodeID, ok := c.getNodeKey(key)
-	if !ok {
-		return ErrEntryNotExist
-	}
-
-	if value.Size() != c.nodes[nodeID].value.Size() {
-		return ErrInvalidUpdateEntrySize
-	}
-
-	c.nodes[nodeID].value = value
-	return nil
-}
-
-func (c *arenaRadix) UpdateSize(key string, sizeDelta uint64) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	_, ok := c.getNodeKey(key)
-	if !ok {
-		return ErrEntryNotExist
-	}
-
-	c.currentSize += sizeDelta
-
-	for c.currentSize > c.maxSize && c.tail != nilNode {
-		c.evictOne()
-	}
-
-	return nil
-}
-
-func (c *arenaRadix) EraseEntriesWithGivenPrefix(prefix string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if prefix == "" {
-		c.nodes = nil
-		c.freeHead = nilNode
-
-		c.root = c.allocateNode()
-		c.head = nilNode
-		c.tail = nilNode
-		c.currentSize = 0
-		c.len = 0
-		clear(c.nodeMap)
-		return
-	}
-
-	nodeID := c.root
-	search := prefix
-
-	for len(search) > 0 {
-		childID := c.getChild(nodeID, search[0])
-		if childID == nilNode {
-			return
-		}
-
-		lcp := longestCommonPrefix(search, c.nodes[childID].prefix)
-
-		if lcp == len(search) {
-			c.removeChild(nodeID, childID)
-			c.freeSubtree(childID)
-			c.compressPathUpwards(nodeID)
-			return
-		}
-
-		if lcp == len(c.nodes[childID].prefix) {
-			search = search[len(c.nodes[childID].prefix):]
-			nodeID = childID
-			continue
-		}
-
-		return
-	}
-}
-
-func (c *arenaRadix) freeSubtree(nodeID uint32) {
-	if nodeID == nilNode {
-		return
-	}
-	currID := nodeID
-	for currID != nilNode {
-		if c.nodes[currID].value != nil {
-			c.currentSize -= c.nodes[currID].value.Size()
-			c.remove(currID)
-			delete(c.nodeMap, hashString(c.getFullKey(currID)))
-			c.nodes[currID].value = nil
-		}
-
-		if c.nodes[currID].child != nilNode {
-			currID = c.nodes[currID].child
-			continue
-		}
-
-		for currID != nodeID && c.nodes[currID].sibling == nilNode {
-			parentID := c.nodes[currID].parent
-			c.freeNode(currID)
-			currID = parentID
-		}
-
-		if currID == nodeID {
-			c.freeNode(currID)
-			return
-		}
-
-		siblingID := c.nodes[currID].sibling
-		c.freeNode(currID)
-		currID = siblingID
-	}
 }
