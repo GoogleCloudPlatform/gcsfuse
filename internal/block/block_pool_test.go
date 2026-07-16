@@ -853,8 +853,3 @@ func (t *BlockPoolTest) TestGetInConcurrentStateAcquiresGlobalPermit() {
 	// Verify all permits were returned to globalSem
 	require.True(t.T(), globalSem.TryAcquire(2))
 }
-
-
-
-
-

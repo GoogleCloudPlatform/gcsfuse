@@ -390,4 +390,3 @@ func NewBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, global
 func NewPrefetchBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *BlockSemaphore) (bp *GenBlockPool[PrefetchBlock], err error) {
 	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createPrefetchBlock)
 }
-

@@ -22,6 +22,7 @@ import (
 	"context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -35,7 +36,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 )
 
 type FileHandle struct {
