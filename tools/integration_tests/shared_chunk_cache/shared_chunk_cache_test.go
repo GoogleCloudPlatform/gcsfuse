@@ -107,7 +107,7 @@ func (t *BaseSuite) TearDownTest() {
 
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		// GKE Mode: Just cleanup files
-		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	} else {
 		// GCE Mode: Unmount and clean up
 		t.unmountAndCleanupMount(t.primaryMount, "primary")
@@ -144,7 +144,7 @@ func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []strin
 func (t *BaseSuite) unmountAndCleanupMount(m mountPoint, name string) {
 	setup.UnmountGCSFuse(m.mntDir)
 	// Cleaning up the intermediate generated test files.
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 }
 
 func (t *BaseSuite) createTestFile(fileName string, fileSize int) {
@@ -350,10 +350,10 @@ func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondary
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
 			for i, flagStr := range cfg.Flags {
-				primaryFlags := strings.Fields(flagStr)
+				primaryFlags := strings.Split(flagStr, ",")
 				var secondaryFlags []string
 				if len(cfg.SecondaryFlags) > i {
-					secondaryFlags = strings.Fields(cfg.SecondaryFlags[i])
+					secondaryFlags = strings.Split(cfg.SecondaryFlags[i], ",")
 				}
 				suite.Run(t, factory(primaryFlags, secondaryFlags))
 			}
