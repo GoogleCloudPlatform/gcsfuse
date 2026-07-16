@@ -571,6 +571,10 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 }
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	if req.ForceFetchFromGcs {
+		return b.getFolderFromGCS(ctx, req)
+	}
+
 	// Cache Lookup
 	if hit, entry := b.lookUpFolder(req.Name); hit {
 		// Negative entries result in NotFoundError.
