@@ -109,9 +109,6 @@ func NewSymlinkInode(
 		metadata: m.Metadata,
 	}
 
-	// Set up lookup counting.
-	s.lc.Init(id)
-
 	s.target, err = s.resolveSymlinkTarget(ctx)
 	if err != nil {
 		return nil, err
@@ -222,18 +219,18 @@ func (s *SymlinkInode) UpdateSize(size uint64) {
 
 // LOCKS_REQUIRED(s.mu)
 func (s *SymlinkInode) IncrementLookupCount() {
-	s.lc.Inc()
+	s.lc.Inc(s.id)
 }
 
 // LOCKS_REQUIRED(s.mu)
 func (s *SymlinkInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = s.lc.Dec(n)
+	destroy = s.lc.Dec(s.id, n)
 	return
 }
 
 // LOCKS_REQUIRED(s.mu)
 func (s *SymlinkInode) Destroy() (err error) {
-	// Nothing to do.
+	s.lc.Destroy()
 	return
 }
 
