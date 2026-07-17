@@ -48,7 +48,7 @@ func TestWriteMaxRequestSize16MiB(t *testing.T) {
 	err = os.Truncate(setup.LogFile(), 0)
 	require.NoError(t, err, "Failed to truncate log file")
 
-	// Generate 16 MiB of random data.
+	// Generate 16 MiB of random data (memory-aligned to os.Getpagesize() for O_DIRECT write).
 	data, err := operations.GenerateRandomData(sixteenMiB)
 	require.NoError(t, err, "Failed to generate random data")
 

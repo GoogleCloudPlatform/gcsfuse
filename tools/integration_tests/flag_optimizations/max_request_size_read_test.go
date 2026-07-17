@@ -15,7 +15,6 @@
 package flag_optimizations
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -28,7 +27,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sys/unix"
+)
+
+const (
+	sixteenMiB        = 16 * operations.MiB
+	sixteenMiBInBytes = "16777216"
 )
 
 type MaxRequestSizeReadSuite struct {
@@ -45,39 +48,32 @@ func (s *MaxRequestSizeReadSuite) TearDownSuite() {
 }
 
 func (s *MaxRequestSizeReadSuite) TestKernelReaderLargeRead16MiB() {
-	// 1. Check if the host kernel / FUSE connection supports max_pages >= 4096 (16 MiB / 4 KiB per page = 4096 pages).
-	if data, err := os.ReadFile("/proc/sys/fs/fuse/max_pages_limit"); err == nil {
-		if limit, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil && limit < 4096 {
-			s.T().Skipf("Skipping TestKernelReaderLargeRead16MiB: /proc/sys/fs/fuse/max_pages_limit (%d) is less than 4096 pages (16 MiB)", limit)
-		}
+	// 1. Check if the host kernel supports elevating max_pages limit to what is needed for a 16 MiB read.
+	requiredPages := sixteenMiB / os.Getpagesize()
+	data, err := os.ReadFile("/proc/sys/fs/fuse/max_pages_limit")
+	if err != nil {
+		s.T().Skipf("Skipping TestKernelReaderLargeRead16MiB: kernel does not support elevating max_pages limit (/proc/sys/fs/fuse/max_pages_limit: %v)", err)
 	}
-	var stat unix.Stat_t
-	if err := unix.Stat(setup.MntDir(), &stat); err == nil {
-		devMinor := unix.Minor(stat.Dev)
-		maxPagesPath := fmt.Sprintf("/sys/fs/fuse/connections/%d/max_pages", devMinor)
-		if data, err := os.ReadFile(maxPagesPath); err == nil {
-			if limit, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil && limit < 4096 {
-				s.T().Skipf("Skipping TestKernelReaderLargeRead16MiB: connection max_pages (%d) is less than 4096 pages (16 MiB)", limit)
-			}
-		}
+	if limit, err := strconv.Atoi(strings.TrimSpace(string(data))); err != nil || limit < requiredPages {
+		s.T().Skipf("Skipping TestKernelReaderLargeRead16MiB: /proc/sys/fs/fuse/max_pages_limit (%s, err: %v) is less than required %d pages for 16 MiB read (page size %d bytes)", strings.TrimSpace(string(data)), err, requiredPages, os.Getpagesize())
 	}
 
 	// 2. Create 16 MiB test file in GCS.
 	testName := strings.ReplaceAll(s.T().Name(), "/", "_")
 	fileName := path.Join(testEnv.testDirPath, testName+"_16MiB.txt")
-	operations.CreateFileOfSize(16*1024*1024, fileName, s.T())
+	operations.CreateFileOfSize(sixteenMiB, fileName, s.T())
 	s.T().Cleanup(func() {
 		_ = os.Remove(fileName)
 	})
 
 	// 3. Truncate log file to record only the read operation.
-	err := os.Truncate(setup.LogFile(), 0)
+	err = os.Truncate(setup.LogFile(), 0)
 	require.NoError(s.T(), err, "Failed to truncate log file")
 
 	// 4. Perform a 16 MiB read.
 	content, err := os.ReadFile(fileName)
 	require.NoError(s.T(), err, "Failed to read 16 MiB file")
-	require.Len(s.T(), content, 16*1024*1024)
+	require.Len(s.T(), content, sixteenMiB)
 
 	// 5. Verify in gcsfuse trace log that exactly 1 read request of 16 MiB (16777216 bytes) occurred.
 	logContent, err := os.ReadFile(setup.LogFile())
@@ -86,9 +82,9 @@ func (s *MaxRequestSizeReadSuite) TestKernelReaderLargeRead16MiB() {
 	lines := strings.Split(string(logContent), "\n")
 	var readRequestCount int
 	for _, line := range lines {
-		if strings.Contains(line, "<- ReadFile") {
+		if strings.Contains(line, readFileStartMsg) {
 			readRequestCount++
-			assert.Contains(s.T(), line, "16777216", "Expected read request to be 16 MiB (16777216 bytes), but got line: %s", line)
+			assert.Contains(s.T(), line, sixteenMiBInBytes, "Expected read request to be 16 MiB (%s bytes), but got line: %s", sixteenMiBInBytes, line)
 		}
 	}
 	assert.Equal(s.T(), 1, readRequestCount, "Expected exactly 1 read request of 16 MiB when kernel reader and fuse max pages support are enabled, got %d", readRequestCount)
