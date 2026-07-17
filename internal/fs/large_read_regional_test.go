@@ -28,6 +28,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -138,15 +139,17 @@ func TestNewFileSystem_FuseMaxRequestSizeKbNotSupportedForRapid(t *testing.T) {
 	ctx := context.Background()
 	bucketName := "zonal-bucket"
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Zonal: true, Hierarchical: false})
-	// Create a server config with fuse-max-request-size-kb set explicitly above default.
+	v := viper.New()
+	v.Set("file-system.fuse-max-request-size-kb", 16384)
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{
 			FileSystem: cfg.FileSystemConfig{
 				FuseMaxRequestSizeKb: 16384,
 			},
 		},
-		CacheClock: &timeutil.SimulatedClock{},
-		BucketName: bucketName,
+		ViperConfig: v,
+		CacheClock:  &timeutil.SimulatedClock{},
+		BucketName:  bucketName,
 		BucketManager: &fakeBucketManager{
 			buckets: map[string]gcs.Bucket{
 				bucketName: bucket,
@@ -164,20 +167,20 @@ func TestNewFileSystem_FuseMaxRequestSizeKbNotSupportedForRapid(t *testing.T) {
 	assert.ErrorContains(t, err, "fuse-max-request-size-kb flag is not supported for rapid buckets")
 }
 
-func TestNewFileSystem_DefaultFuseMaxRequestSizeKbAllowedForRapid(t *testing.T) {
+func TestNewFileSystem_FuseMaxRequestSizeKbNotSetAllowedForRapid(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	bucketName := "zonal-bucket"
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Zonal: true, Hierarchical: false})
-	// Create a server config with default fuse-max-request-size-kb (1024).
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{
 			FileSystem: cfg.FileSystemConfig{
 				FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 			},
 		},
-		CacheClock: &timeutil.SimulatedClock{},
-		BucketName: bucketName,
+		ViperConfig: viper.New(),
+		CacheClock:  &timeutil.SimulatedClock{},
+		BucketName:  bucketName,
 		BucketManager: &fakeBucketManager{
 			buckets: map[string]gcs.Bucket{
 				bucketName: bucket,
