@@ -28,6 +28,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -131,4 +132,68 @@ func TestLargeReadRegional_NotSupportedWhenKernelReaderDisabled(t *testing.T) {
 
 	// Assert
 	assert.ErrorIs(t, err, syscall.ENOTSUP)
+}
+
+func TestNewFileSystem_FuseMaxRequestSizeKbNotSupportedForRapid(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	bucketName := "zonal-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Zonal: true, Hierarchical: false})
+	v := viper.New()
+	v.Set("file-system.fuse-max-request-size-kb", 16384)
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			FileSystem: cfg.FileSystemConfig{
+				FuseMaxRequestSizeKb: 16384,
+			},
+		},
+		ViperConfig: v,
+		CacheClock:  &timeutil.SimulatedClock{},
+		BucketName:  bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
+		},
+		SequentialReadSizeMb: 200,
+		TraceHandle:          tracing.NewOTELTracer(),
+		MetricHandle:         metrics.NewNoopMetrics(),
+	}
+
+	// Act
+	_, err := fs.NewFileSystem(ctx, serverCfg)
+
+	// Assert
+	assert.ErrorContains(t, err, "fuse-max-request-size-kb flag is not supported for rapid buckets")
+}
+
+func TestNewFileSystem_FuseMaxRequestSizeKbNotSetAllowedForRapid(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	bucketName := "zonal-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Zonal: true, Hierarchical: false})
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			FileSystem: cfg.FileSystemConfig{
+				FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+			},
+		},
+		ViperConfig: viper.New(),
+		CacheClock:  &timeutil.SimulatedClock{},
+		BucketName:  bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
+		},
+		SequentialReadSizeMb: 200,
+		TraceHandle:          tracing.NewOTELTracer(),
+		MetricHandle:         metrics.NewNoopMetrics(),
+	}
+
+	// Act
+	_, err := fs.NewFileSystem(ctx, serverCfg)
+
+	// Assert
+	assert.NoError(t, err)
 }

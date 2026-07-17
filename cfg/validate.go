@@ -116,8 +116,9 @@ func isValidSequentialReadSizeMB(size int64) error {
 }
 
 func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
-	if requestSizeKb <= 0 {
-		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; should be > 0", requestSizeKb)
+	// 1 MiB: Required minimum because FUSE MaxWrite is 1 MiB.
+	if requestSizeKb < 1024 {
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; should be at least 1024 (1 MiB) because max write size is 1 MiB", requestSizeKb)
 	}
 	pageSizeKb := int64(kernelPageSize) / 1024
 	if requestSizeKb > FuseMaxPagesLimit*pageSizeKb {
