@@ -195,14 +195,10 @@ params:
     "usage": "Whether to enable kernel-based reader"
     optimizations:
       bucket-type-optimization:
-        - bucket-type: zonal
+        - bucket-type: "zonal, flat, pirlo"
           value: true
-        - bucket-type: hierarchical
+        - bucket-type: "hierarchical"
           value: false
-        - bucket-type: flat
-          value: true
-        - bucket-type: pirlo
-          value: true
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
     type: "int"
@@ -210,13 +206,9 @@ params:
     "usage": "Maximum read ahead in KB"
     optimizations:
       bucket-type-optimization:
-        - bucket-type: zonal
+        - bucket-type: "zonal"
           value: 1024
-        - bucket-type: hierarchical
-          value: 2048
-        - bucket-type: flat
-          value: 2048
-        - bucket-type: pirlo
+        - bucket-type: "hierarchical, flat, pirlo"
           value: 2048
       machine-based-optimization:
         - group: high-performance
@@ -266,10 +258,8 @@ params:
 		require.NotNil(t, param.Optimizations)
 		expected := &shared.OptimizationRules{
 			BucketTypeOptimization: []shared.BucketTypeOptimization{
-				{BucketType: "zonal", Value: true},
-				{BucketType: "hierarchical", Value: false},
-				{BucketType: "flat", Value: true},
-				{BucketType: "pirlo", Value: true},
+				{BucketTypes: shared.BucketTypeList{"zonal", "flat", "pirlo"}, Value: true},
+				{BucketTypes: shared.BucketTypeList{"hierarchical"}, Value: false},
 			},
 		}
 		assert.Equal(t, "file-system.enable-kernel-reader", param.ConfigPath)
@@ -283,10 +273,8 @@ params:
 		require.NotNil(t, param.Optimizations)
 		expected := &shared.OptimizationRules{
 			BucketTypeOptimization: []shared.BucketTypeOptimization{
-				{BucketType: "zonal", Value: 1024},
-				{BucketType: "hierarchical", Value: 2048},
-				{BucketType: "flat", Value: 2048},
-				{BucketType: "pirlo", Value: 2048},
+				{BucketTypes: shared.BucketTypeList{"zonal"}, Value: 1024},
+				{BucketTypes: shared.BucketTypeList{"hierarchical", "flat", "pirlo"}, Value: 2048},
 			},
 			MachineBasedOptimization: []shared.MachineBasedOptimization{
 				{Group: "high-performance", Value: 2048},
@@ -417,6 +405,38 @@ params:
           value: true
 `,
 			expectedErrorSubstring: "invalid bucket-type",
+		},
+		{
+			name: "DuplicateBucketType",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag for duplicate bucket type validation"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal, zonal"
+          value: true
+`,
+			expectedErrorSubstring: "duplicate bucket-type \"zonal\"",
+		},
+		{
+			name: "EmptyBucketTypeList",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag for empty bucket type validation"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: ""
+          value: true
+`,
+			expectedErrorSubstring: "bucket-type list is empty",
 		},
 	}
 

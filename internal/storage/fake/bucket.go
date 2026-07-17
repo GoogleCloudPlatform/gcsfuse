@@ -30,6 +30,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -900,6 +901,9 @@ func (b *bucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) StatObject(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	if req.FetchOnlyFromCache {
+		return nil, nil, &caching.CacheMissError{Err: errors.New("fake bucket has no cache")}
+	}
 	// If ExtendedObjectAttributes are requested without fetching from gcs enabled, panic.
 	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
 		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true")
@@ -1143,6 +1147,9 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 }
 
 func (b *bucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	if req.FetchOnlyFromCache {
+		return nil, &caching.CacheMissError{Err: errors.New("fake bucket has no cache")}
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

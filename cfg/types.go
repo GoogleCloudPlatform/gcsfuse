@@ -167,3 +167,14 @@ const (
 func (bt BucketType) IsValid() bool {
 	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeHierarchical || bt == BucketTypeFlat
 }
+
+// StorageClass represents the storage/performance classification of a GCS bucket.
+type StorageClass string
+
+const (
+	// StorageClassRapid represents rapid storage (e.g. zonal and pirlo buckets).
+	StorageClassRapid StorageClass = "rapid"
+
+	// StorageClassStandard represents standard storage (e.g. regional/multi-regional flat and hierarchical buckets).
+	StorageClassStandard StorageClass = "standard"
+)

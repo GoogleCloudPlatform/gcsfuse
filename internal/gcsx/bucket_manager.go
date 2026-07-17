@@ -78,6 +78,8 @@ type BucketConfig struct {
 	IsTypeCacheDeprecated bool
 
 	ImplicitDir bool
+
+	EnableEmptyManagedFolders bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -241,7 +243,8 @@ func (bm *bucketManager) SetUpBucket(
 			b,
 			bm.config.NegativeStatCacheTTL,
 			bm.config.IsTypeCacheDeprecated,
-			bm.config.ImplicitDir)
+			bm.config.ImplicitDir,
+			bm.config.EnableEmptyManagedFolders)
 	}
 
 	// Enable content type awareness

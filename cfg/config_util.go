@@ -22,28 +22,51 @@ import (
 	"time"
 )
 
+// Rapid bucket defaults (zonal, pirlo)
 const (
-	// maxBackgroundLimit configures the upper limit for max-background kernel fuse
-	// setting. This is more than sufficient to saturate the 200 Gbps network bandwidth
-	// on a single VM. Revise the numbers if you plan to support higher bandwidth VMs.
-	maxBackgroundLimit = 192
+	rapidMaxBackground    = 192
+	rapidMaxReadAheadKb   = 16 * 1024 // 16 MiB
+	rapidMaxRequestSizeKb = 1024      // 1 MiB
+)
+
+// Non-rapid bucket defaults (flat, hierarchical)
+const (
+	nonRapidMaxBackground    = 96
+	nonRapidMaxReadAheadKb   = 128 * 1024 // 128 MiB
+	nonRapidMaxRequestSizeKb = 16 * 1024  // 16 MiB
 )
 
 var kernelPageSize int = os.Getpagesize()
 
-func DefaultFuseMaxPagesLimit() int {
-	// The default limit is calculated to achieve a 1 MiB maximum request size
-	// based on the kernel page size.
-	return (1024 * 1024) / kernelPageSize
+func (sc StorageClass) DefaultFuseMaxRequestSizeKb() int {
+	if sc != StorageClassRapid {
+		return nonRapidMaxRequestSizeKb
+	}
+	return rapidMaxRequestSizeKb
 }
 
-func DefaultMaxBackground() int {
-	return min(max(12, 2*runtime.NumCPU()), maxBackgroundLimit)
+// MaxPagesForRequestSizeKb converts a request size in KiB to the number of kernel pages.
+func MaxPagesForRequestSizeKb(requestSizeKb int) int {
+	return ((requestSizeKb * 1024) + kernelPageSize - 1) / kernelPageSize
 }
 
-func DefaultCongestionThreshold() int {
-	// 75 % of DefaultMaxBackground
-	return (3 * DefaultMaxBackground()) / 4
+func (sc StorageClass) DefaultMaxBackground() int {
+	limit := nonRapidMaxBackground
+	if sc == StorageClassRapid {
+		limit = rapidMaxBackground
+	}
+	return min(max(12, 2*runtime.NumCPU()), limit)
+}
+
+func (sc StorageClass) DefaultCongestionThreshold() int {
+	return (3 * sc.DefaultMaxBackground()) / 4
+}
+
+func (sc StorageClass) DefaultMaxReadAheadKb() int {
+	if sc != StorageClassRapid {
+		return nonRapidMaxReadAheadKb
+	}
+	return rapidMaxReadAheadKb
 }
 
 func DefaultMaxParallelDownloads() int {
@@ -102,4 +125,17 @@ func GetBucketType(hierarchical, zonal, pirlo bool) BucketType {
 		return BucketTypeHierarchical
 	}
 	return BucketTypeFlat
+}
+
+// IsRapid returns true for rapid bucket types (zonal and pirlo).
+func (bt BucketType) IsRapid() bool {
+	return bt == BucketTypeZonal || bt == BucketTypePirlo
+}
+
+// StorageClass returns the storage performance class corresponding to the bucket type.
+func (bt BucketType) StorageClass() StorageClass {
+	if bt.IsRapid() {
+		return StorageClassRapid
+	}
+	return StorageClassStandard
 }
