@@ -29,7 +29,7 @@ import (
 
 const (
 	writeFileStartMsg = "<- WriteFile"
-	sixteenMiB        = 16 * 1024 * 1024
+	sixteenMiB        = 16 * operations.MiB
 	oneMiBInBytes     = "1048576"
 )
 
