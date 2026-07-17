@@ -161,7 +161,7 @@ func TestNewFileSystem_FuseMaxRequestSizeKbNotSupportedForRapid(t *testing.T) {
 	_, err := fs.NewFileSystem(ctx, serverCfg)
 
 	// Assert
-	assert.ErrorContains(t, err, "fuse-max-request-size-kb is not supported for rapid buckets")
+	assert.ErrorContains(t, err, "fuse-max-request-size-kb flag is not supported for rapid buckets")
 }
 
 func TestNewFileSystem_DefaultFuseMaxRequestSizeKbAllowedForRapid(t *testing.T) {
