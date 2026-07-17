@@ -88,23 +88,17 @@ func benchmarkErasePrefix(b *testing.B, cache lru.Cache, prefixMap map[string][]
 	}
 
 	i := 0
-	b.ResetTimer()
 	for b.Loop() {
-		b.StopTimer() // Timer must be running when b.Loop() evaluates, stop it for setup
 		prefix := prefixes[i%len(prefixes)]
-
-		b.StartTimer()
 		cache.EraseEntriesWithGivenPrefix(prefix)
-		b.StopTimer() // Stop timer for cleanup
 
-		//restore the map
-		keysToRestore := prefixMap[prefix]
-		for _, key := range keysToRestore {
+		// UNTIMED: Pause clock, restore erased keys, and restart timer for next iteration
+		b.StopTimer()
+		for _, key := range prefixMap[prefix] {
 			_, _ = cache.Insert(key, data)
 		}
-
 		i++
-		b.StartTimer() // Restart timer before b.Loop() evaluates
+		b.StartTimer() // Timer MUST be running when b.Loop() evaluates next!
 	}
 }
 
