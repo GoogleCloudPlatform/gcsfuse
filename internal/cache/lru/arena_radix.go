@@ -16,7 +16,8 @@ package lru
 import (
 	"math"
 	"strings"
-	"sync"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
 
 const nilNode uint32 = math.MaxUint32
@@ -35,7 +36,9 @@ type arenaRadixNode struct {
 
 // arenaRadix encapsulates the core tree structure and implements the lru.Cache interface.
 type arenaRadix struct {
+	maxSize     uint64
 	currentSize uint64
+	mu          locker.RWLocker
 
 	nodes    []arenaRadixNode
 	freeHead uint32
@@ -68,36 +71,14 @@ func hashString(s string) uint64 {
 	return h
 }
 
-var fullKeyPartsPool = sync.Pool{
-	New: func() any {
-		parts := make([]string, 0, 32)
-		return &parts
-	},
-}
-
 func (c *arenaRadix) getFullKey(nodeID uint32) string {
-	ptr := fullKeyPartsPool.Get().(*[]string)
-	parts := (*ptr)[:0]
-	defer func() {
-		*ptr = parts
-		fullKeyPartsPool.Put(ptr)
-	}()
-
+	key := ""
 	curr := nodeID
-	totalLen := 0
 	for curr != c.root && curr != nilNode {
-		prefix := c.nodes[curr].prefix
-		parts = append(parts, prefix)
-		totalLen += len(prefix)
+		key = c.nodes[curr].prefix + key
 		curr = c.nodes[curr].parent
 	}
-
-	var sb strings.Builder
-	sb.Grow(totalLen)
-	for i := len(parts) - 1; i >= 0; i-- {
-		sb.WriteString(parts[i])
-	}
-	return sb.String()
+	return key
 }
 
 func (c *arenaRadix) allocateNode() uint32 {

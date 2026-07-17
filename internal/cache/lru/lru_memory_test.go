@@ -74,13 +74,13 @@ func (d dummyValue) Size() uint64 {
 	return 10
 }
 
-func TestMapCacheWorkloads(t *testing.T) {
+func BenchmarkMapCacheWorkloads(b *testing.B) {
 	count := 1000000 // 1 Million files
 	capacity := uint64(count * 1000)
 	workloads := []string{"flat", "nested", "deeply_nested"}
 
 	for _, w := range workloads {
-		t.Logf("=== WORKLOAD: %s (%d files) ===", w, count)
+		b.Logf("=== WORKLOAD: %s (%d files) ===", w, count)
 
 		// 1. Pure MapLRU
 		paths := generatePaths(w, count)
@@ -95,6 +95,6 @@ func TestMapCacheWorkloads(t *testing.T) {
 		runtime.KeepAlive(pureCache)
 		runtime.KeepAlive(paths)
 
-		t.Logf("%-20s Heap Used: %10.2f MB\n", "MapLRU", float64(pureMem)/(1024*1024))
+		b.Logf("%-20s Heap Used: %10.2f MB\n", "MapLRU", float64(pureMem)/(1024*1024))
 	}
 }
