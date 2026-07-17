@@ -154,7 +154,8 @@ func TestParallelDownloads(t *testing.T) {
 			}
 			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
 			t.Cleanup(func() { jm.Destroy() })
-			job := jm.CreateJobIfNotExists(&minObj, bucket)
+			job, err := jm.CreateJobIfNotExists(&minObj, bucket)
+			require.NoError(t, err)
 			subscriberC := job.subscribe(tc.subscribedOffset)
 
 			_, err = job.Download(context.Background(), 10, false)
@@ -165,8 +166,10 @@ func TestParallelDownloads(t *testing.T) {
 				case jobStatus := <-subscriberC:
 					if assert.Nil(t, err) {
 						require.GreaterOrEqual(t, tc.objectSize, jobStatus.Offset)
+						downloadPath, err := util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt")
+						require.NoError(t, err)
 						verifyFileTillOffset(t,
-							data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, jobStatus.Offset,
+							data.FileSpec{Path: downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, jobStatus.Offset,
 							content)
 					}
 					return
@@ -198,8 +201,10 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	}
 	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
 	t.Cleanup(func() { jm.Destroy() })
-	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
-	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
+	job1, err := jm.CreateJobIfNotExists(&minObj1, bucket)
+	assert.Nil(t, err)
+	job2, err := jm.CreateJobIfNotExists(&minObj2, bucket)
+	assert.Nil(t, err)
 	s1 := job1.subscribe(10 * util.MiB)
 	s2 := job2.subscribe(5 * util.MiB)
 
@@ -219,11 +224,15 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 			return
 		}
 		if assert.Nil(t, err1) && assert.Nil(t, err2) && notif1 && notif2 {
+			downloadPath1, err := util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt")
+			assert.Nil(t, err)
 			verifyFileTillOffset(t,
-				data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm},
+				data.FileSpec{Path: downloadPath1, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm},
 				10*util.MiB, content1)
+			downloadPath2, err := util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/bar.txt")
+			assert.Nil(t, err)
 			verifyFileTillOffset(t,
-				data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/bar.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm},
+				data.FileSpec{Path: downloadPath2, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm},
 				5*util.MiB, content2)
 			return
 		}

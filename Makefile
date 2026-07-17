@@ -47,7 +47,7 @@ imports: generate
 	goimports -w .
 
 fmt: imports
-	go mod tidy && go fmt ./...
+	go mod tidy && gofmt -s -w .
 
 vet: fmt
 	go vet ./...

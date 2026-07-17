@@ -506,8 +506,8 @@ func (t *bucketTest) assertOnObjectAttributes(expectedMinObj *gcs.MinObject, exp
 	ExpectThat(expectedMinObj.Size, Equals(o.Size))
 	ExpectThat(expectedMinObj.Generation, Equals(o.Generation))
 	ExpectThat(expectedMinObj.MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(expectedMinObj.Updated, DeepEquals(o.Updated))
-	ExpectThat(expectedMinObj.Finalized, DeepEquals(o.Finalized))
+	ExpectThat(expectedMinObj.Updated, Equals(gcs.TimeToNS(o.Updated)))
+	ExpectThat(expectedMinObj.Finalized, Equals(gcs.TimeToNS(o.Finalized)))
 	ExpectThat(expectedMinObj.Metadata, DeepEquals(o.Metadata))
 	ExpectThat(expectedMinObj.ContentEncoding, Equals(o.ContentEncoding))
 	ExpectThat(expectedMinObj.CRC32C, Equals(o.CRC32C))
@@ -1376,6 +1376,10 @@ func (t *copyTest) DestinationDoesntExist() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
+	// Strip monotonic clocks from dst timestamps so they can pass DeepEquals against statObj,
+	// which lost its monotonic clocks when its timestamps were compressed into MinObject.
+	dst.Updated = dst.Updated.UTC().Round(0)
+	dst.Finalized = dst.Finalized.UTC().Round(0)
 	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
 }
 
@@ -1467,6 +1471,10 @@ func (t *copyTest) DestinationExists() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
+	// Strip monotonic clocks from dst timestamps so they can pass DeepEquals against statObj,
+	// which lost its monotonic clocks when its timestamps were compressed into MinObject.
+	dst.Updated = dst.Updated.UTC().Round(0)
+	dst.Finalized = dst.Finalized.UTC().Round(0)
 	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
 }
 
@@ -1541,6 +1549,10 @@ func (t *copyTest) DestinationIsSameName() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
+	// Strip monotonic clocks from dst timestamps so they can pass DeepEquals against statObj,
+	// which lost its monotonic clocks when its timestamps were compressed into MinObject.
+	dst.Updated = dst.Updated.UTC().Round(0)
+	dst.Finalized = dst.Finalized.UTC().Round(0)
 	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
 }
 
@@ -1817,7 +1829,7 @@ func (t *composeTest) OneSimpleSource() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "foo",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 			},
@@ -1872,11 +1884,11 @@ func (t *composeTest) TwoSimpleSources() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "foo",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -1993,19 +2005,19 @@ func (t *composeTest) RepeatedSources() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "foo",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2059,11 +2071,11 @@ func (t *composeTest) CompositeSources() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "2",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2080,15 +2092,15 @@ func (t *composeTest) CompositeSources() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "foo",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[2].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[2].Name,
 				},
 			},
@@ -2141,11 +2153,11 @@ func (t *composeTest) Metadata() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "foo",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2184,11 +2196,11 @@ func (t *composeTest) DestinationNameMatchesSource() {
 		&gcs.ComposeObjectsRequest{
 			DstName: sources[0].Name,
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2225,15 +2237,15 @@ func (t *composeTest) OneSourceDoesntExist() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "foo",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: "blah",
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2264,12 +2276,12 @@ func (t *composeTest) ExplicitGenerations_Exist() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "foo",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name:       sources[0].Name,
 					Generation: sources[0].Generation,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name:       sources[1].Name,
 					Generation: sources[1].Generation,
 				},
@@ -2299,17 +2311,17 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 		&gcs.ComposeObjectsRequest{
 			DstName: "foo",
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name:       sources[0].Name,
 					Generation: sources[0].Generation,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name:       sources[1].Name,
 					Generation: sources[1].Generation + 1,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name:       sources[2].Name,
 					Generation: sources[2].Generation,
 				},
@@ -2341,11 +2353,11 @@ func (t *composeTest) DestinationExists_NoPreconditions() {
 		&gcs.ComposeObjectsRequest{
 			DstName: sources[0].Name,
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2385,11 +2397,11 @@ func (t *composeTest) DestinationExists_GenerationPreconditionNotSatisfied() {
 			DstGenerationPrecondition: &precond,
 
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2425,11 +2437,11 @@ func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied()
 			DstMetaGenerationPrecondition: &precond,
 
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2466,11 +2478,11 @@ func (t *composeTest) DestinationExists_PreconditionsSatisfied() {
 			DstMetaGenerationPrecondition: &sources[0].MetaGeneration,
 
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2510,11 +2522,11 @@ func (t *composeTest) DestinationDoesntExist_PreconditionNotSatisfied() {
 			DstGenerationPrecondition: &precond,
 
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2548,11 +2560,11 @@ func (t *composeTest) DestinationDoesntExist_PreconditionSatisfied() {
 			DstGenerationPrecondition: &precond,
 
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name: sources[1].Name,
 				},
 			},
@@ -2661,8 +2673,8 @@ func (t *composeTest) ComponentCountLimits() {
 	req = &gcs.ComposeObjectsRequest{
 		DstName: "foo",
 		Sources: []gcs.ComposeSource{
-			gcs.ComposeSource{Name: large.Name},
-			gcs.ComposeSource{Name: small.Name},
+			{Name: large.Name},
+			{Name: small.Name},
 		},
 	}
 
@@ -2689,8 +2701,8 @@ func (t *composeTest) InterestingNames() {
 				&gcs.ComposeObjectsRequest{
 					DstName: name,
 					Sources: []gcs.ComposeSource{
-						gcs.ComposeSource{Name: srcName},
-						gcs.ComposeSource{Name: srcName},
+						{Name: srcName},
+						{Name: srcName},
 					},
 				})
 
@@ -2723,8 +2735,8 @@ func (t *composeTest) IllegalNames() {
 				&gcs.ComposeObjectsRequest{
 					DstName: name,
 					Sources: []gcs.ComposeSource{
-						gcs.ComposeSource{Name: srcName},
-						gcs.ComposeSource{Name: srcName},
+						{Name: srcName},
+						{Name: srcName},
 					},
 				})
 
@@ -3490,8 +3502,8 @@ func (t *statTest) StatAfterCreating() {
 	ExpectEq(orig.Generation, m.Generation)
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(orig.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.Updated, Equals(gcs.TimeToNS(orig.Updated)))
+	ExpectThat(m.Finalized, Equals(gcs.TimeToNS(orig.Finalized)))
 }
 
 func (t *statTest) StatAfterOverwriting() {
@@ -3527,8 +3539,8 @@ func (t *statTest) StatAfterOverwriting() {
 	ExpectEq(o2.Generation, m.Generation)
 	ExpectEq(len("burrito"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.Updated, Equals(gcs.TimeToNS(o2.Updated)))
+	ExpectThat(m.Finalized, Equals(gcs.TimeToNS(time.Time{})))
 }
 
 func (t *statTest) StatAfterUpdating() {
@@ -3581,8 +3593,8 @@ func (t *statTest) StatAfterUpdating() {
 	ExpectEq(o2.MetaGeneration, m.MetaGeneration)
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.Updated, Equals(gcs.TimeToNS(o2.Updated)))
+	ExpectThat(m.Finalized, Equals(gcs.TimeToNS(time.Time{})))
 }
 
 ////////////////////////////////////////////////////////////////////////

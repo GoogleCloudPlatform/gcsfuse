@@ -101,16 +101,37 @@ type RetryConfig struct {
 	BackoffConfig exponentialBackoffConfig
 }
 
-// NewRetryConfig creates a new RetryConfig.
-func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration) *RetryConfig {
+// NewCustomRetryConfig creates a new RetryConfig with custom retry timeout parameters.
+func NewCustomRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetryBudget time.Duration) *RetryConfig {
 	return &RetryConfig{
 		RetryDeadline:    retryDeadline,
 		TotalRetryBudget: totalRetryBudget,
 		MaxAttempts:      clientConfig.MaxRetryAttempts,
 		BackoffConfig: exponentialBackoffConfig{
-			initial:    initialBackoff,
+			initial:    DefaultInitialBackoff,
 			max:        clientConfig.MaxRetrySleep,
 			multiplier: clientConfig.RetryMultiplier,
+		},
+	}
+}
+
+// NewRetryConfig creates a new RetryConfig using the standard defaults for
+// deadline and total budget, combined with the user-provided clientConfig.
+func NewRetryConfig(clientConfig *StorageClientConfig) *RetryConfig {
+	return NewCustomRetryConfig(clientConfig, DefaultRetryDeadline, DefaultTotalRetryBudget)
+}
+
+// NewRetryConfigForTesting creates a RetryConfig with custom parameters for testing.
+// It is intended for use in tests of other packages (like package storage) to avoid slow tests.
+func NewRetryConfigForTesting(retryDeadline, totalRetryBudget, initialBackoff, maxRetrySleep time.Duration, retryMultiplier float64, maxAttempts int) *RetryConfig {
+	return &RetryConfig{
+		RetryDeadline:    retryDeadline,
+		TotalRetryBudget: totalRetryBudget,
+		MaxAttempts:      maxAttempts,
+		BackoffConfig: exponentialBackoffConfig{
+			initial:    initialBackoff,
+			max:        maxRetrySleep,
+			multiplier: retryMultiplier,
 		},
 	}
 }

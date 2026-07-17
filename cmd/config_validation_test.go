@@ -186,6 +186,21 @@ func TestValidateCliFlag(t *testing.T) {
 			args:    []string{"--profile=unknown-profile"},
 			wantErr: true,
 		},
+		{
+			name:    "valid fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=1024"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid negative fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=-10"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid exceeding max pages fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=10000000"},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -588,7 +603,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:      int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -609,7 +624,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/file_system_config/unset_file_system_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:      int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -630,7 +645,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxPagesLimit:      int64(cfg.DefaultFuseMaxPagesLimit()),
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					DirMode:                0777,
 					DisableParallelDirops:  true,
 					FileMode:               0666,

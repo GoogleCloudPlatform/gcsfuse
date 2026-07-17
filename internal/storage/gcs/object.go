@@ -16,6 +16,7 @@ package gcs
 
 import (
 	"crypto/md5"
+	"math"
 	"time"
 
 	storagev1 "google.golang.org/api/storage/v1"
@@ -86,11 +87,35 @@ type MinObject struct {
 	Size            uint64
 	Generation      int64
 	MetaGeneration  int64
-	Updated         time.Time
-	Finalized       time.Time
+	Updated         int64
+	Finalized       int64
 	Metadata        map[string]string
 	ContentEncoding string
 	CRC32C          *uint32 // Missing for CMEK buckets
+}
+
+func (m *MinObject) UpdatedTime() time.Time   { return NSToTime(m.Updated) }
+func (m *MinObject) FinalizedTime() time.Time { return NSToTime(m.Finalized) }
+
+func TimeToNS(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	ns := t.UnixNano()
+	if ns == 0 {
+		return math.MinInt64
+	}
+	return ns
+}
+
+func NSToTime(ns int64) time.Time {
+	if ns == 0 {
+		return time.Time{}
+	}
+	if ns == math.MinInt64 {
+		return time.Unix(0, 0).UTC()
+	}
+	return time.Unix(0, ns).UTC()
 }
 
 // ExtendedObjectAttributes contains the missing attributes of Object which are not present in MinObject.
@@ -119,5 +144,5 @@ func (mo MinObject) HasContentEncodingGzip() bool {
 }
 
 func (mo MinObject) IsUnfinalized() bool {
-	return mo.Finalized.IsZero()
+	return mo.Finalized == 0
 }

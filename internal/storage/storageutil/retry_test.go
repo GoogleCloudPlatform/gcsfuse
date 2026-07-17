@@ -219,7 +219,7 @@ type RetryConfigTestSuite struct {
 	suite.Suite
 }
 
-func (t *RetryConfigTestSuite) TestNewRetryConfig() {
+func (t *RetryConfigTestSuite) TestNewCustomRetryConfig() {
 	// Arrange
 	clientConfig := &StorageClientConfig{
 		MaxRetrySleep:   10 * time.Second,
@@ -227,16 +227,34 @@ func (t *RetryConfigTestSuite) TestNewRetryConfig() {
 	}
 	retryDeadline := 5 * time.Second
 	totalRetryBudget := 30 * time.Second
-	initialBackoff := 500 * time.Millisecond
 
 	// Act
-	retryConfig := NewRetryConfig(clientConfig, retryDeadline, totalRetryBudget, initialBackoff)
+	retryConfig := NewCustomRetryConfig(clientConfig, retryDeadline, totalRetryBudget)
 
 	// Assert
 	assert.NotNil(t.T(), retryConfig)
 	assert.Equal(t.T(), retryDeadline, retryConfig.RetryDeadline)
 	assert.Equal(t.T(), totalRetryBudget, retryConfig.TotalRetryBudget)
-	assert.Equal(t.T(), initialBackoff, retryConfig.BackoffConfig.initial)
+	assert.Equal(t.T(), DefaultInitialBackoff, retryConfig.BackoffConfig.initial)
+	assert.Equal(t.T(), clientConfig.MaxRetrySleep, retryConfig.BackoffConfig.max)
+	assert.Equal(t.T(), clientConfig.RetryMultiplier, retryConfig.BackoffConfig.multiplier)
+}
+
+func (t *RetryConfigTestSuite) TestNewRetryConfig() {
+	// Arrange
+	clientConfig := &StorageClientConfig{
+		MaxRetrySleep:   10 * time.Second,
+		RetryMultiplier: 2.5,
+	}
+
+	// Act
+	retryConfig := NewRetryConfig(clientConfig)
+
+	// Assert
+	assert.NotNil(t.T(), retryConfig)
+	assert.Equal(t.T(), DefaultRetryDeadline, retryConfig.RetryDeadline)
+	assert.Equal(t.T(), DefaultTotalRetryBudget, retryConfig.TotalRetryBudget)
+	assert.Equal(t.T(), DefaultInitialBackoff, retryConfig.BackoffConfig.initial)
 	assert.Equal(t.T(), clientConfig.MaxRetrySleep, retryConfig.BackoffConfig.max)
 	assert.Equal(t.T(), clientConfig.RetryMultiplier, retryConfig.BackoffConfig.multiplier)
 }

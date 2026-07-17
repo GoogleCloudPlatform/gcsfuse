@@ -435,6 +435,10 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 	// Insert another.
 	saffron := &gcs.MinObject{Name: "saffron"}
 	spices.Insert(saffron, expiration) // size = 1424 bytes (cumulative = 5688 bytes)
+
+	saffron2 := &gcs.MinObject{Name: "saffron2"}
+	spices.Insert(saffron2, expiration)
+
 	// This will evict the least recent entry, i.e. orange.
 
 	// See what's left.
@@ -543,7 +547,7 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := lru.NewCache(uint64(2800))
+	localCache := lru.NewCache(uint64(2600))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}

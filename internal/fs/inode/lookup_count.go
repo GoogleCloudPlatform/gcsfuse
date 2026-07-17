@@ -24,40 +24,36 @@ import (
 // paranoid panics. External synchronization is required.
 //
 // May be embedded within a larger struct. Use Init to initialize.
-type lookupCount struct {
-	id        fuseops.InodeID
-	count     uint64
-	destroyed bool
-}
+type lookupCount int64
 
-func (lc *lookupCount) Init(id fuseops.InodeID) {
-	lc.id = id
-}
-
-func (lc *lookupCount) Inc() {
-	if lc.destroyed {
-		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
+func (lc *lookupCount) Inc(id fuseops.InodeID) {
+	if *lc == -1 {
+		panic(fmt.Sprintf("Inode %v has already been destroyed", id))
 	}
 
-	lc.count++
+	(*lc)++
 }
 
-func (lc *lookupCount) Dec(n uint64) (destroy bool) {
-	if lc.destroyed {
-		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
+func (lc *lookupCount) Dec(id fuseops.InodeID, n uint64) (destroy bool) {
+	if *lc == -1 {
+		panic(fmt.Sprintf("Inode %v has already been destroyed", id))
 	}
 
 	// Make sure n is in range.
-	if n > lc.count {
+	if n > uint64(*lc) {
 		panic(fmt.Sprintf(
 			"n is greater than lookup count: %v vs. %v",
 			n,
-			lc.count))
+			*lc))
 	}
 
 	// Decrement.
-	lc.count -= n
+	*lc -= lookupCount(n)
 
-	destroy = lc.count == 0
+	destroy = *lc == 0
 	return
+}
+
+func (lc *lookupCount) Destroy() {
+	*lc = -1
 }

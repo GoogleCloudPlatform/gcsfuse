@@ -29,7 +29,15 @@ log() {
 run_script_on_vm() {
   log "Running benchmark script on VM with clean setup..."
 
+  BRANCH_NAME="${KOKORO_GITHUB_PULL_REQUEST_TARGET_BRANCH:-master}"
+  if git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1 > /dev/null 2>&1; then
+    BRANCH_NAME=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1)
+  fi
+  KOKORO_BUILD_INITIATOR="${KOKORO_BUILD_INITIATOR:-}"
+
   sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
+    BRANCH_NAME=\"$BRANCH_NAME\"
+    KOKORO_BUILD_INITIATOR=\"$KOKORO_BUILD_INITIATOR\"
     set -euxo pipefail
 
     MOUNTED_DIR=\"$MOUNTED_DIR\"
@@ -50,9 +58,14 @@ run_script_on_vm() {
 
     # Clone fresh repo
     mkdir -p ~/github
-    git clone \"\$GCSFUSE_REPO\" ~/github/gcsfuse
+    git clone -b \"\$BRANCH_NAME\" \"\$GCSFUSE_REPO\" ~/github/gcsfuse
     cd ~/github/gcsfuse
-    commitId=\$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+    if [[ \"\$KOKORO_BUILD_INITIATOR\" == \"kokoro\" ]]; then
+      commitId=\$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+    else
+      commitId=\$(git log -n 1 --pretty=%H)
+    fi
+    echo \"Running microbenchmark on branch: \$BRANCH_NAME at commit ID: \$commitId\"
     git checkout \$commitId
 
     # Run benchmark

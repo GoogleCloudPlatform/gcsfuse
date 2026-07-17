@@ -61,6 +61,7 @@ type StorageClientConfig struct {
 	ExperimentalNonrapidFolderApiStallRetry bool
 	MaxRetrySleep                           time.Duration
 	RetryMultiplier                         float64
+	EnableMountRetries                      bool
 	LocalSocketAddress                      string
 
 	/** HTTP client parameters. */
