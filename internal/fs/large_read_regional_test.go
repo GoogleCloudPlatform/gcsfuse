@@ -132,3 +132,65 @@ func TestLargeReadRegional_NotSupportedWhenKernelReaderDisabled(t *testing.T) {
 	// Assert
 	assert.ErrorIs(t, err, syscall.ENOTSUP)
 }
+
+func TestNewFileSystem_FuseMaxRequestSizeKbNotSupportedForRapid(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	bucketName := "zonal-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Zonal: true, Hierarchical: false})
+	// Create a server config with fuse-max-request-size-kb set explicitly above default.
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			FileSystem: cfg.FileSystemConfig{
+				FuseMaxRequestSizeKb: 16384,
+			},
+		},
+		CacheClock: &timeutil.SimulatedClock{},
+		BucketName: bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
+		},
+		SequentialReadSizeMb: 200,
+		TraceHandle:          tracing.NewOTELTracer(),
+		MetricHandle:         metrics.NewNoopMetrics(),
+	}
+
+	// Act
+	_, err := fs.NewFileSystem(ctx, serverCfg)
+
+	// Assert
+	assert.ErrorContains(t, err, "fuse-max-request-size-kb is not supported for rapid buckets")
+}
+
+func TestNewFileSystem_DefaultFuseMaxRequestSizeKbAllowedForRapid(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	bucketName := "zonal-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Zonal: true, Hierarchical: false})
+	// Create a server config with default fuse-max-request-size-kb (1024).
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			FileSystem: cfg.FileSystemConfig{
+				FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+			},
+		},
+		CacheClock: &timeutil.SimulatedClock{},
+		BucketName: bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
+		},
+		SequentialReadSizeMb: 200,
+		TraceHandle:          tracing.NewOTELTracer(),
+		MetricHandle:         metrics.NewNoopMetrics(),
+	}
+
+	// Act
+	_, err := fs.NewFileSystem(ctx, serverCfg)
+
+	// Assert
+	assert.NoError(t, err)
+}
