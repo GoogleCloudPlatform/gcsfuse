@@ -260,6 +260,9 @@ func (c *arenaRadix) EraseEntriesWithGivenPrefix(prefix string) {
 			// Sever it entirely from the tree structure
 			c.removeChild(nodeID, childID)
 
+			// temporarily restore upward parent pointer
+			c.nodes[childID].parent = nodeID
+
 			// Now sweep the detached subtree to fix LRU and currentSize
 			c.freeSubtree(childID)
 			c.compressPathUpwards(nodeID)

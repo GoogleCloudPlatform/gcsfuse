@@ -252,7 +252,7 @@ func (c *arenaRadix) verifyKey(nodeID uint32, key string) bool {
 		curr = c.nodes[curr].parent
 	}
 
-	return end == 0
+	return end == 0 && curr == c.root
 }
 
 // getNodeKey finds a leaf node ID by key.
@@ -263,6 +263,32 @@ func (c *arenaRadix) getNodeKey(key string) (uint32, bool) {
 			return nodeID, true
 		}
 	}
+
+	curr := c.root
+	search := key
+
+	for curr != nilNode {
+		if len(search) == 0 {
+			if c.nodes[curr].value != nil {
+				return curr, true
+			}
+			return nilNode, false
+		}
+
+		childID := c.getChild(curr, search[0])
+		if childID == nilNode {
+			return nilNode, false
+		}
+
+		prefix := c.nodes[childID].prefix
+		if !strings.HasPrefix(search, prefix) {
+			return nilNode, false
+		}
+
+		search = search[len(prefix):]
+		curr = childID
+	}
+
 	return nilNode, false
 }
 
