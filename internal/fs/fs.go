@@ -269,7 +269,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		bucketType := syncerBucket.BucketType()
 		if bucketType.IsRapid() && serverCfg.NewConfig.FileSystem.FuseMaxRequestSizeKb != int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()) {
-			return nil, fmt.Errorf("Non default value of --fuse-max-request-size-kb is not supported for rapid buckets")
+			return nil, fmt.Errorf("non-default value of --fuse-max-request-size-kb is not supported for rapid buckets")
 		}
 		if serverCfg.ViperConfig != nil {
 			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
