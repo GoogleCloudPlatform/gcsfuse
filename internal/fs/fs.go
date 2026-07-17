@@ -268,6 +268,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// IMPACT: Flags are used after this. Optimization/rationalization functions are called twice
 		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		bucketType := syncerBucket.BucketType()
+		if bucketType.IsRapid() && serverCfg.NewConfig.FileSystem.FuseMaxRequestSizeKb != int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()) {
+			return nil, fmt.Errorf("Non default value of --fuse-max-request-size-kb is not supported for rapid buckets")
+		}
 		if serverCfg.ViperConfig != nil {
 			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
