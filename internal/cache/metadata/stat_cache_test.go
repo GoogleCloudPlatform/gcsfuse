@@ -27,8 +27,18 @@ import (
 )
 
 func TestStatCache(testSuite *testing.T) {
-	suite.Run(testSuite, new(StatCacheTest))
-	suite.Run(testSuite, new(MultiBucketStatCacheTest))
+	factories := map[string]func(uint64) lru.Cache{
+		"MapCache":        lru.NewCache,
+		"RadixCache":      lru.NewRadixCache,
+		"ArenaRadixCache": lru.NewArenaRadixCache,
+	}
+
+	for name, factory := range factories {
+		testSuite.Run(name, func(t *testing.T) {
+			suite.Run(t, &StatCacheTest{cacheFactory: factory})
+			suite.Run(t, &MultiBucketStatCacheTest{cacheFactory: factory})
+		})
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -114,16 +124,21 @@ type StatCacheTest struct {
 	//added stat cache to test metadata.StatCache directly, removing unnecessary wrappers for accurate unit testing.
 	//Changing every test will increase the scope and actual hns work will be affected, so taking cautious call to just add new test in refactored way in first go,
 	//we can update rest of tests slowly later.
-	statCache metadata.StatCache
+	statCache    metadata.StatCache
+	cacheFactory func(uint64) lru.Cache
 }
 
 type MultiBucketStatCacheTest struct {
 	suite.Suite
 	multiBucketCache testMultiBucketCacheHelper
+	cacheFactory     func(uint64) lru.Cache
 }
 
 func (t *StatCacheTest) SetupTest() {
-	cache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
+	if t.cacheFactory == nil {
+		t.cacheFactory = lru.NewCache
+	}
+	cache := t.cacheFactory(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
 	t.statCache = metadata.NewStatCacheBucketView(cache, "")     // this demonstrates
 	// that if you are using a cache for a single bucket, then
@@ -131,7 +146,10 @@ func (t *StatCacheTest) SetupTest() {
 }
 
 func (t *MultiBucketStatCacheTest) SetupTest() {
-	sharedCache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
+	if t.cacheFactory == nil {
+		t.cacheFactory = lru.NewCache
+	}
+	sharedCache := t.cacheFactory(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
 	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
 }
@@ -435,9 +453,9 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 	// Insert another.
 	saffron := &gcs.MinObject{Name: "saffron"}
 	spices.Insert(saffron, expiration) // size = 1424 bytes (cumulative = 5688 bytes)
-	
+
 	saffron2 := &gcs.MinObject{Name: "saffron2"}
-	spices.Insert(saffron2, expiration) 
+	spices.Insert(saffron2, expiration)
 
 	// This will evict the least recent entry, i.e. orange.
 
@@ -547,7 +565,7 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := lru.NewCache(uint64(2600))
+	localCache := t.cacheFactory(uint64(2600))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
@@ -580,7 +598,7 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 }
 
 func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
-	localCache := lru.NewCache(uint64(10000))
+	localCache := t.cacheFactory(uint64(10000))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	folderEntry1 := &gcs.Folder{
 		Name: "a",

@@ -165,11 +165,11 @@ func (c *arenaRadix) LookUp(key string) (value ValueType) {
 // without changing the order of entries in the cache. Return nil if no value
 // is present.
 //
-// Note: Because this look up doesn't change the order, it only acquires and
-// releases read lock.
+// Note: Even though this lookup doesn't change the MRU order, we must acquire a
+// write lock because getNodeKey can lazily mutate the internal nodeMap cache.
 func (c *arenaRadix) LookUpWithoutChangingOrder(key string) (value ValueType) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	nodeID, ok := c.getNodeKey(key)
 	if !ok {
@@ -289,7 +289,10 @@ func (c *arenaRadix) freeSubtree(nodeID uint32) {
 		if c.nodes[currID].value != nil {
 			c.currentSize -= c.nodes[currID].value.Size()
 			c.remove(currID)
-			delete(c.nodeMap, hashString(c.getFullKey(currID)))
+			hash := c.hashNodeKey(currID)
+			if c.nodeMap[hash] == currID {
+				delete(c.nodeMap, hash)
+			}
 			c.nodes[currID].value = nil
 		}
 
