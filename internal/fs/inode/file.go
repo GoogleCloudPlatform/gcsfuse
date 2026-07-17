@@ -1153,6 +1153,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) truncateUsingTempFile(ctx context.Context, size int64) error {
 	// Make sure f.content != nil.
+	// Only ensureContent is the size is non-zero, No point in downloaidng file is truncated to zero.
 	err := f.ensureContent(ctx)
 	if err != nil {
 		return fmt.Errorf("ensureContent: %w", err)
@@ -1168,6 +1169,7 @@ func (f *FileInode) truncateUsingTempFile(ctx context.Context, size int64) error
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (bool, error) {
+	// if size is 0, just overwrite with 0-szie object request.
 	if f.IsUsingBWH() {
 		return f.truncateUsingBufferedWriteHandler(ctx, size)
 	}
@@ -1204,13 +1206,13 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns
 // initialized as true when the new instance of buffered writer handler is created.
-func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode) (bool, error) {
+func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode, offset int64) (bool, error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
 		return false, nil
 	}
 
-	tempFileInUse := f.content != nil
+	tempFileInUse := f.content != nil // say here if the direty threshold is zero and page state is dirty then we can destroy content cache and then also remove it
 	if !f.config.Write.EnableStreamingWrites || tempFileInUse {
 		// bwh should not be initialized under these conditions.
 		return false, nil
@@ -1236,8 +1238,14 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		}
 	}
 
-	if !f.areBufferedWritesSupported(openMode, latestGcsObj) {
+	supported, requireUpwardTruncation := f.areBufferedWritesSupportedAndRequireUpwardTruncation(openMode, latestGcsObj, offset)
+	if !supported {
 		return false, nil
+	}
+
+	var truncatedSize int64 = -1
+	if requireUpwardTruncation {
+		truncatedSize = offset
 	}
 
 	if f.bwh == nil {
@@ -1251,6 +1259,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			ChunkRetryDeadlineSecs:   f.config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
 			TraceHandle:              f.traceHandle,
+			TruncatedSize:            truncatedSize,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Tracef("File %s will use legacy staged writes because concurrent streaming write "+
@@ -1270,15 +1279,25 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	return false, nil
 }
 
-func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object) bool {
+func (f *FileInode) areBufferedWritesSupportedAndRequireUpwardTruncation(openMode util.OpenMode, obj *gcs.Object, offset int64) (bool, bool) {
 	// For new files and existing files of size 0, buffered writes are always supported.
 	if f.local || obj.Size == 0 {
-		return true
+		return true, false
 	}
 	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
-		return true
+		return true, false
 	}
+
+	if f.config.Write.EnableRapidAppends && openMode.AccessMode() == util.ReadWrite && obj.Finalized.IsZero() {
+		if offset == int64(obj.Size) {
+			return true, false
+		}
+		if offset > int64(obj.Size) {
+			return true, true
+		}
+	}
+
 	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
 	recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
-	return false
+	return false, false
 }

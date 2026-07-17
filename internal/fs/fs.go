@@ -1481,7 +1481,7 @@ func (fs *fileSystem) syncFile(
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
 func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
+	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode, 0)
 	if err != nil {
 		return err
 	}
@@ -1496,8 +1496,8 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode)
+func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode, offset int64) error {
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode, offset)
 	if err != nil {
 		return err
 	}
@@ -1994,7 +1994,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Truncate files.
 	if isFile && op.Size != nil {
 		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0))
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0), int64(*op.Size))
 		if err != nil {
 			return
 		}
@@ -3213,7 +3213,7 @@ func (fs *fileSystem) WriteFile(
 	var gcsSynced bool
 	in.Lock()
 	defer in.Unlock()
-	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode(), op.Offset); err != nil {
 		// A FileClobberedError on write indicates the file was modified in GCS,
 		// making the kernel's dentry stale. By invalidating the cache
 		// entry, we ensure the filesystem corrects the inconsistency caused by this

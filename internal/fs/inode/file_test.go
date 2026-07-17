@@ -179,7 +179,7 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 
 func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool, openMode util.OpenMode) {
 	// Initialize BWH for local inode created above.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, openMode)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, openMode, 0)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), shouldInitialize, initialized)
 	if shouldInitialize {
@@ -232,6 +232,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		bucketType gcs.BucketType
 		finalized  time.Time
 		supported  bool
+		offset     int64
 	}{
 		{
 			name:       "AppendToFinalizedObjOnZB",
@@ -306,7 +307,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		t.createInode()
 		t.in.config.Write.EnableRapidAppends = true
 
-		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object)
+		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object, tc.offset)
 
 		assert.Equal(t.T(), tc.supported, isSupported)
 	}
@@ -1795,7 +1796,7 @@ func (t *FileTest) TestInitBufferedWriteHandlerIfEligibleShouldNotCreateBWHNonEm
 	// Enabling buffered writes.
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, 0)
 
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
@@ -1900,7 +1901,7 @@ func (t *FileTest) TestInitBufferedWriteHandlerWithInvalidConfigWhenStreamingWri
 	t.createInodeWithLocalParam("test", true)
 	t.in.config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, 0)
 
 	assert.True(t.T(), strings.Contains(err.Error(), "invalid configuration"))
 	assert.False(t.T(), initialized)

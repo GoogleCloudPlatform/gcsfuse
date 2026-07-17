@@ -364,7 +364,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 
 	// Call Method
 	// We do NOT expect StatObject to be called.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND))
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND), 0)
 
 	// Assertions
 	require.NoError(t.T(), err)
@@ -389,7 +389,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
 
 	// Call Method
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0))
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), 0)
 
 	// Assertions
 	require.NoError(t.T(), err)
@@ -413,7 +413,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_RegionalBuck
 		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
 
 	// Call Method
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0))
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), 0)
 
 	// Assertions
 	require.NoError(t.T(), err)
