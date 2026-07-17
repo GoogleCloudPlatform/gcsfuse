@@ -58,7 +58,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		logger.Infof("Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup")
 		domain = auth2.UniverseDomainDefault
 	} else {
-		retryConfig := NewRetryConfig(config, DefaultRetryDeadline, DefaultTotalRetryBudget, DefaultInitialBackoff)
+		retryConfig := NewRetryConfig(config)
 
 		apiCall := func(attemptCtx context.Context) (string, error) {
 			d, err := cred.UniverseDomain(attemptCtx)

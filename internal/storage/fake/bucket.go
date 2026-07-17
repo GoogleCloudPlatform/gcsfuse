@@ -30,6 +30,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -271,7 +272,7 @@ func (b *bucket) mintObject(
 func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 	f = gcs.Folder{
 		Name:       folderName,
-		UpdateTime: b.clock.Now(),
+		UpdateTime: b.clock.Now().UnixNano(),
 	}
 
 	return
@@ -536,8 +537,8 @@ func copyMinObject(o *gcs.Object) *gcs.MinObject {
 	copy.Size = o.Size
 	copy.Generation = o.Generation
 	copy.MetaGeneration = o.MetaGeneration
-	copy.Updated = o.Updated
-	copy.Finalized = o.Finalized
+	copy.Updated = gcs.TimeToNS(o.Updated)
+	copy.Finalized = gcs.TimeToNS(o.Finalized)
 	copy.Metadata = copyMetadata(o.Metadata)
 	copy.ContentEncoding = o.ContentEncoding
 	copy.CRC32C = o.CRC32C
@@ -900,6 +901,9 @@ func (b *bucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) StatObject(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	if req.FetchOnlyFromCache {
+		return nil, nil, &caching.CacheMissError{Err: errors.New("fake bucket has no cache")}
+	}
 	// If ExtendedObjectAttributes are requested without fetching from gcs enabled, panic.
 	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
 		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true")
@@ -1143,6 +1147,9 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 }
 
 func (b *bucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	if req.FetchOnlyFromCache {
+		return nil, &caching.CacheMissError{Err: errors.New("fake bucket has no cache")}
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -1205,6 +1212,9 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Fold
 }
 
 func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	// Check that the destination name is legal.
 	err := checkName(destinationFolderId)
 	if err != nil {
@@ -1224,7 +1234,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	for i := range b.folders {
 		if strings.HasPrefix(b.folders[i].Name, folderName) {
 			b.folders[i].Name = strings.Replace(b.folders[i].Name, folderName, destinationFolderId, 1)
-			b.folders[i].UpdateTime = time.Now()
+			b.folders[i].UpdateTime = b.clock.Now().UnixNano()
 		}
 	}
 
@@ -1245,7 +1255,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	// Return the updated folder.
 	folder := &gcs.Folder{
 		Name:       destinationFolderId,
-		UpdateTime: time.Now(),
+		UpdateTime: b.clock.Now().UnixNano(),
 	}
 
 	return folder, nil

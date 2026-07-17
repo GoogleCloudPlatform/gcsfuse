@@ -28,23 +28,28 @@ import (
 var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultCongestionThreshold()),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(StorageClassRapid.DefaultCongestionThreshold()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultCongestionThreshold()),
+			BucketTypes: shared.BucketTypeList{
+				"flat",
+				"hierarchical",
+			},
+			Value: int64(StorageClassStandard.DefaultCongestionThreshold()),
 		},
 	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      bool(true),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      bool(true),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: bool(true),
 		},
 	},
 }, "file-cache.cache-file-for-range-read": {
@@ -61,12 +66,26 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "write.finalize-file-for-rapid": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      bool(false),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+			},
+			Value: bool(false),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      bool(true),
+			BucketTypes: shared.BucketTypeList{
+				"pirlo",
+			},
+			Value: bool(true),
+		},
+	},
+}, "file-system.fuse-max-request-size-kb": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketTypes: shared.BucketTypeList{
+				"flat",
+				"hierarchical",
+			},
+			Value: int64(StorageClassStandard.DefaultFuseMaxRequestSizeKb()),
 		},
 	},
 }, "implicit-dirs": {
@@ -100,23 +119,35 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "file-system.max-background": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultMaxBackground()),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(StorageClassRapid.DefaultMaxBackground()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultMaxBackground()),
+			BucketTypes: shared.BucketTypeList{
+				"flat",
+				"hierarchical",
+			},
+			Value: int64(StorageClassStandard.DefaultMaxBackground()),
 		},
 	},
 }, "file-system.max-read-ahead-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(16384),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(StorageClassRapid.DefaultMaxReadAheadKb()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(16384),
+			BucketTypes: shared.BucketTypeList{
+				"flat",
+				"hierarchical",
+			},
+			Value: int64(StorageClassStandard.DefaultMaxReadAheadKb()),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
@@ -296,6 +327,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.Write.FinalizeFileForRapid != val {
 					c.Write.FinalizeFileForRapid = val
 					optimizedFlags["write.finalize-file-for-rapid"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("file-system.fuse-max-request-size-kb") {
+		rules := AllFlagOptimizationRules["file-system.fuse-max-request-size-kb"]
+		result := getOptimizedValue(&rules, c.FileSystem.FuseMaxRequestSizeKb, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.FuseMaxRequestSizeKb != val {
+					c.FileSystem.FuseMaxRequestSizeKb = val
+					optimizedFlags["file-system.fuse-max-request-size-kb"] = result
 				}
 			}
 		}
@@ -566,7 +609,7 @@ type FileSystemConfig struct {
 
 	FileMode Octal `yaml:"file-mode"`
 
-	FuseMaxPagesLimit int64 `yaml:"fuse-max-pages-limit"`
+	FuseMaxRequestSizeKb int64 `yaml:"fuse-max-request-size-kb"`
 
 	FuseOptions []string `yaml:"fuse-options"`
 
@@ -975,11 +1018,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-kernel-reader", "", false, "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache.")
-
-	if err := flagSet.MarkHidden("enable-kernel-reader"); err != nil {
-		return err
-	}
+	flagSet.BoolP("enable-kernel-reader", "", false, "Enables the kernel reader and FUSE asynchronous reads. When enabled, GCSFuse-side prefetching is disabled, and file read operations rely entirely on the Linux kernel's native read-ahead and page-cache mechanisms.")
 
 	flagSet.BoolP("enable-metadata-prefetch", "", true, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
@@ -1157,9 +1196,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
-	flagSet.IntP("fuse-max-pages-limit", "", DefaultFuseMaxPagesLimit(), "Sets the limit for the maximum number of pages that fuse can process in a single request. This is a global, machine-level configuration that applies across all mounts. To prevent lowering the limits of other FUSE filesystems, the host's limit is only updated if the specified value is greater than the current system limit.")
+	flagSet.IntP("fuse-max-request-size-kb", "", StorageClassRapid.DefaultFuseMaxRequestSizeKb(), "Sets the target maximum request size in KiB that FUSE can process in a single request (currently used to control read requests only). This is translated to the kernel max_pages limit based on host page size. As max_pages_limit is a global, machine-level configuration across all mounts, the host's limit is only updated if the calculated pages value is greater than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most 65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages.  Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver. If needed to be set beyond that on GKE, the user has to manually increase the value on the node before GCSFuse mounting begins.")
 
-	if err := flagSet.MarkHidden("fuse-max-pages-limit"); err != nil {
+	if err := flagSet.MarkHidden("fuse-max-request-size-kb"); err != nil {
 		return err
 	}
 
@@ -1756,7 +1795,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-system.fuse-max-pages-limit", flagSet.Lookup("fuse-max-pages-limit")); err != nil {
+	if err := v.BindPFlag("file-system.fuse-max-request-size-kb", flagSet.Lookup("fuse-max-request-size-kb")); err != nil {
 		return err
 	}
 

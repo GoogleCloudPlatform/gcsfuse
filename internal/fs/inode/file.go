@@ -26,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
@@ -194,8 +195,6 @@ func NewFileInode(
 	} else {
 		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
-
-	f.lc.Init(id)
 
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
@@ -481,12 +480,12 @@ func (f *FileInode) SourceGeneration() (g Generation) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IncrementLookupCount() {
-	f.lc.Inc()
+	f.lc.Inc(f.id)
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = f.lc.Dec(n)
+	destroy = f.lc.Dec(f.id, n)
 	return
 }
 
@@ -533,6 +532,7 @@ func (f *FileInode) UpdateSize(size uint64) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
+	f.lc.Destroy()
 	if f.localFileCache {
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		f.contentCache.Remove(cacheObjectKey)
@@ -550,7 +550,7 @@ func (f *FileInode) Attributes(
 	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 	// Obtain default information from the source object.
-	attrs.Mtime = f.src.Updated
+	attrs.Mtime = f.src.UpdatedTime()
 	attrs.Size = f.src.Size
 
 	// If the source object has an mtime metadata key, use that instead of its
@@ -638,7 +638,7 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 	return f.bucket
 }
 
-// Serve a read for this file with semantics matching io.ReaderAt.
+// Serve a read for this file with semantics matching gcsx.Reader.ReadAt.
 //
 // The caller may be better off reading directly from GCS when
 // f.SourceGenerationIsAuthoritative() is true.
@@ -646,8 +646,7 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
 	ctx context.Context,
-	dst []byte,
-	offset int64) (n int, err error) {
+	req *gcsx.ReadRequest) (res gcsx.ReadResponse, err error) {
 	if f.bwh != nil {
 		err = fmt.Errorf("unexpected read call for %q when streaming write is in progress for it", f.Name().LocalName())
 		return
@@ -660,18 +659,34 @@ func (f *FileInode) Read(
 		return
 	}
 
-	// Read from the local content, propagating io.EOF.
-	n, err = f.content.ReadAt(dst, offset)
-	switch {
-	case err == io.EOF:
-		return
+	var n int
+	var data [][]byte
+	var callback func()
 
-	case err != nil:
-		err = fmt.Errorf("content.ReadAt: %w", err)
-		return
+	if req.BufferPool != nil {
+		vBuf := buffer.NewVectoredReadBuffer(req.BufferPool, req.Size)
+		var written int64
+		written, err = vBuf.ReadFromAt(f.content, req.Offset)
+		n = int(written)
+		if n > 0 {
+			data = vBuf.Buffers()
+			callback = func() { vBuf.Release() }
+		} else {
+			vBuf.Release()
+		}
+	} else {
+		n, err = f.content.ReadAt(req.Buffer, req.Offset)
 	}
 
-	return
+	if err != nil && err != io.EOF {
+		err = fmt.Errorf("content.ReadAt: %w", err)
+	}
+
+	return gcsx.ReadResponse{
+		Size:     n,
+		Data:     data,
+		Callback: callback,
+	}, err
 }
 
 func getMetricOpenMode(openMode util.OpenMode) metrics.OpenMode {
@@ -755,7 +770,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
+		logger.Tracef("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
@@ -1116,7 +1131,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	err := f.bwh.Truncate(size)
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
+		logger.Tracef("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler(ctx)
 		if err != nil {
@@ -1237,7 +1252,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			TraceHandle:              f.traceHandle,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
-			logger.Warnf("File %s will use legacy staged writes because concurrent streaming write "+
+			logger.Tracef("File %s will use legacy staged writes because concurrent streaming write "+
 				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
 				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
 				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
@@ -1262,7 +1277,7 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
 		return true
 	}
-	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
+	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
 	recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
 	return false
 }

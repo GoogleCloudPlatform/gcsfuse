@@ -139,7 +139,7 @@ func createFileInode(
 		Size:           uint64(len(content)),
 		Generation:     1,
 		MetaGeneration: 1,
-		Updated:        clock.Now(),
+		Updated:        gcs.TimeToNS(clock.Now()),
 	}
 
 	// Create object in the fake bucket to simulate existing GCS object
@@ -701,6 +701,7 @@ func (t *fileTest) Test_ReadWithKernelReader_Success() {
 			req := &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: 0,
+				Size:   int64(len(buf)),
 			}
 			// ReadWithKernelReader requires the inode lock to be held by the caller, and unlocks it internally.
 			fh.inode.Lock()
@@ -756,6 +757,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative() {
 			req := &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: 0,
+				Size:   int64(len(buf)),
 			}
 			// ReadWithKernelReader requires the inode lock to be held on entry.
 			fh.inode.Lock()
@@ -810,6 +812,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative_ReadError() {
 			req := &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: -1, // Negative offset will trigger a read error from the local temp file
+				Size:   int64(len(buf)),
 			}
 			// ReadWithKernelReader requires the inode lock to be held on entry.
 			fh.inode.Lock()
@@ -857,6 +860,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NilReader() {
 			req := &gcsx.ReadRequest{
 				Buffer: make([]byte, 4),
 				Offset: 0,
+				Size:   4,
 			}
 			// ReadWithKernelReader requires the inode lock to be held on entry.
 			fh.inode.Lock()
@@ -921,6 +925,7 @@ func (t *fileTest) Test_ReadWithKernelReader_ReadAtError() {
 			req := &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: 0,
+				Size:   int64(len(buf)),
 			}
 			// ReadWithKernelReader requires the inode lock to be held on entry.
 			fh.inode.Lock()
@@ -1277,7 +1282,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 func (t *fileTest) Test_ShouldSkipSizeChecks() {
 	const objectSize = 100
 	unfinalizedObject := &gcs.MinObject{Name: "unfinalized", Size: objectSize}
-	finalizedObject := &gcs.MinObject{Name: "finalized", Size: objectSize, Finalized: time.Now()}
+	finalizedObject := &gcs.MinObject{Name: "finalized", Size: objectSize, Finalized: gcs.TimeToNS(time.Now())}
 	directIOReadMode := util.NewOpenMode(util.ReadOnly, util.O_DIRECT)
 	readOnlyMode := util.NewOpenMode(util.ReadOnly, 0)
 

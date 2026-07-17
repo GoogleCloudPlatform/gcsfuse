@@ -42,6 +42,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -225,6 +226,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
+		readBufferPool:             buffer.NewFixedSizePool(),
 	}
 
 	// Initialize MRD cache if enabled
@@ -281,10 +283,10 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
-		// Write post mount kernel settings for rapid buckets when kernel reader is enabled in GKE environments for
+		// Write post mount kernel settings when kernel reader is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
 		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
-		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.IsRapid() && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && serverCfg.NewConfig.FileSystem.EnableKernelReader {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
@@ -676,6 +678,9 @@ type fileSystem struct {
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache lru.Cache
+
+	// readBufferPool is a pool of readPoolBufferSize (1 MiB) buffers.
+	readBufferPool buffer.Pool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -3118,23 +3123,36 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
+	req := gcsx.ReadRequest{
+		Offset: op.Offset,
+		Size:   op.Size,
+	}
+
+	useReadBufferPool := op.Size > 0 && op.Dst == nil
+	if useReadBufferPool {
+		if !fs.newConfig.FileSystem.EnableKernelReader || fh.Inode().Bucket().BucketType().IsRapid() {
+			logger.Errorf("ReadFile: buffer pool allocation is only supported for regional buckets with"+
+				" kernel reader enabled (EnableKernelReader: %v, IsRapid: %v)",
+				fs.newConfig.FileSystem.EnableKernelReader,
+				fh.Inode().Bucket().BucketType().IsRapid())
+			fh.Inode().Unlock()
+			return syscall.ENOTSUP
+		}
+
+		req.BufferPool = fs.readBufferPool
+	} else {
+		req.Buffer = op.Dst
+	}
+
 	if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
-		resp, err = fh.ReadWithKernelReader(ctx, req)
+		resp, err = fh.ReadWithKernelReader(ctx, &req)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
-		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
+		resp, err = fh.ReadWithReadManager(ctx, &req, fs.sequentialReadSizeMb)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback

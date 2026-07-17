@@ -102,15 +102,12 @@ func NewSymlinkInode(
 			Uid:   attrs.Uid,
 			Gid:   attrs.Gid,
 			Mode:  attrs.Mode,
-			Atime: m.Updated,
-			Ctime: m.Updated,
-			Mtime: m.Updated,
+			Atime: m.UpdatedTime(),
+			Ctime: m.UpdatedTime(),
+			Mtime: m.UpdatedTime(),
 		},
 		metadata: m.Metadata,
 	}
-
-	// Set up lookup counting.
-	s.lc.Init(id)
 
 	s.target, err = s.resolveSymlinkTarget(ctx)
 	if err != nil {
@@ -222,18 +219,18 @@ func (s *SymlinkInode) UpdateSize(size uint64) {
 
 // LOCKS_REQUIRED(s.mu)
 func (s *SymlinkInode) IncrementLookupCount() {
-	s.lc.Inc()
+	s.lc.Inc(s.id)
 }
 
 // LOCKS_REQUIRED(s.mu)
 func (s *SymlinkInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = s.lc.Dec(n)
+	destroy = s.lc.Dec(s.id, n)
 	return
 }
 
 // LOCKS_REQUIRED(s.mu)
 func (s *SymlinkInode) Destroy() (err error) {
-	// Nothing to do.
+	s.lc.Destroy()
 	return
 }
 
@@ -265,6 +262,6 @@ func (s *SymlinkInode) Source() *gcs.MinObject {
 		MetaGeneration: s.sourceGeneration.Metadata,
 		Size:           s.sourceGeneration.Size,
 		Metadata:       s.metadata,
-		Updated:        s.attrs.Mtime,
+		Updated:        gcs.TimeToNS(s.attrs.Mtime),
 	}
 }

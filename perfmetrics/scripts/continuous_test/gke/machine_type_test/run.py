@@ -179,6 +179,7 @@ async def execute_test_workload(
       staging_version=staging_version,
       gcsfuse_branch=gcsfuse_branch,
       machine_type=machine_type,
+      kokoro_build_initiator=os.environ.get("KOKORO_BUILD_INITIATOR", ""),
   )
   # Update the pod name in the manifest content dynamically
   manifest = manifest.replace(
