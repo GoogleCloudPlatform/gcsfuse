@@ -174,5 +174,5 @@ func TestSource(t *testing.T) {
 	assert.Equal(t, m.MetaGeneration, source.MetaGeneration)
 	assert.Equal(t, m.Size, source.Size)
 	assert.Equal(t, m.Metadata, source.Metadata)
-	assert.Equal(t, 0, m.Updated.Compare(source.Updated))
+	assert.Equal(t, m.Updated, source.Updated)
 }
