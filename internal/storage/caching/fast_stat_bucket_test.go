@@ -775,7 +775,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(false, nil))
+		WillRepeatedly(Return(false, nil))
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).

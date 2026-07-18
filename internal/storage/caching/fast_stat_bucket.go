@@ -270,6 +270,34 @@ func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) handleNotFoundOnStat(name string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if hit, entry := b.cache.LookUp(name, b.clock.Now()); hit && entry != nil {
+		b.cache.Erase(name)
+		return
+	}
+
+	expiration := b.clock.Now().Add(b.negativeCacheTTL)
+	b.cache.AddNegativeEntry(name, expiration)
+}
+
+// LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) handleNotFoundOnGetFolder(name string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if hit, entry := b.cache.LookUpFolder(name, b.clock.Now()); hit && entry != nil {
+		b.cache.Erase(name)
+		return
+	}
+
+	expiration := b.clock.Now().Add(b.negativeCacheTTL)
+	b.cache.AddNegativeEntryForFolder(name, expiration)
+}
+
+// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) invalidate(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -556,9 +584,9 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	m, e, err = b.wrapped.StatObject(ctx, req)
 	if err != nil {
-		// Special case: NotFoundError -> negative entry.
+		// Special case: NotFoundError -> negative entry or erase.
 		if _, ok := err.(*gcs.NotFoundError); ok {
-			b.addNegativeEntry(req.Name)
+			b.handleNotFoundOnStat(req.Name)
 		}
 
 		return
@@ -603,9 +631,9 @@ func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, req *gcs.GetFolde
 		return f, nil
 	}
 
-	// Special case: NotFoundError -> negative entry.
+	// Special case: NotFoundError -> negative entry or erase.
 	if _, ok := err.(*gcs.NotFoundError); ok {
-		b.addNegativeEntryForFolder(req.Name)
+		b.handleNotFoundOnGetFolder(req.Name)
 	}
 	return nil, err
 }
