@@ -190,7 +190,6 @@ write end-to-end tests for GCSFuse.
 
 ## Performance Testing
 
-
 ### Dummy I/O Mode
 
 Dummy I/O mode simulates read operations without transferring data from Cloud Storage, allowing you to isolate and measure GCSFuse overhead independent of network latency.
