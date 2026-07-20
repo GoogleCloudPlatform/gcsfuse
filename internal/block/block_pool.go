@@ -18,11 +18,107 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"golang.org/x/sync/semaphore"
+	"sync"
 )
 
 var CantAllocateAnyBlockError error = errors.New("cant allocate any block as global max blocks limit is reached")
+
+// BlockSemaphore is a channel-backed counting semaphore.
+type BlockSemaphore struct {
+	tokens chan struct{}
+	mu     sync.Mutex
+}
+
+const MaxBlockSemaphoreCapacity int64 = 1000000
+
+// NewBlockSemaphore creates a new BlockSemaphore with the given capacity.
+func NewBlockSemaphore(capacity int64) *BlockSemaphore {
+	if capacity < 0 {
+		capacity = 0
+	}
+	if capacity > MaxBlockSemaphoreCapacity {
+		capacity = MaxBlockSemaphoreCapacity
+	}
+	ch := make(chan struct{}, capacity)
+	for i := int64(0); i < capacity; i++ {
+		ch <- struct{}{}
+	}
+	return &BlockSemaphore{
+		tokens: ch,
+	}
+}
+
+// TokenChan returns the read-only channel of token permits.
+func (s *BlockSemaphore) TokenChan() <-chan struct{} {
+	return s.tokens
+}
+
+// TryAcquire attempts to acquire n permits without blocking.
+func (s *BlockSemaphore) TryAcquire(n int64) bool {
+	if n <= 0 {
+		return true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var acquired int64
+	for acquired < n {
+		select {
+		case <-s.tokens:
+			acquired++
+		default:
+			s.releaseLocked(acquired)
+			return false
+		}
+	}
+	return true
+}
+
+// Acquire acquires n permits, blocking until available or ctx is done.
+func (s *BlockSemaphore) Acquire(ctx context.Context, n int64) error {
+	if n <= 0 {
+		return nil
+	}
+	if n == 1 {
+		select {
+		case <-s.tokens:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var acquired int64
+	for acquired < n {
+		select {
+		case <-s.tokens:
+			acquired++
+		case <-ctx.Done():
+			s.releaseLocked(acquired)
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+// Release releases n permits back to the semaphore.
+func (s *BlockSemaphore) Release(n int64) {
+	if n <= 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.releaseLocked(n)
+}
+
+func (s *BlockSemaphore) releaseLocked(n int64) {
+	for i := int64(0); i < n; i++ {
+		s.tokens <- struct{}{}
+	}
+}
 
 type GenBlock interface {
 	// Reuse resets the block for reuse.
@@ -34,7 +130,6 @@ type GenBlock interface {
 
 // GenBlockPool is a generic block pool for managing blocks that implement the GenBlock interface.
 // It offers methods to get blocks, return blocks to the free pool, and clear the free pool.
-// This implementation is NOT thread-safe - concurrent access from multiple goroutines requires external synchronization.
 //
 // Block allocation is controlled by maxBlocks (per-pool limit) and a global semaphore (cross-pool limit).
 // When the global limit is reached, Get() will block until blocks become available, while TryGet()
@@ -52,22 +147,29 @@ type GenBlockPool[T GenBlock] struct {
 	// Max number of blocks this blockPool can create.
 	maxBlocks int64
 
+	mu sync.Mutex
+
 	// Total number of blocks created so far.
 	totalBlocks int64
 
 	// Number of blocks reserved at the time of block pool creation.
 	reservedBlocks int64
 
-	// Semaphore used to limit the total number of blocks created across
-	// different files.
-	globalMaxBlocksSem *semaphore.Weighted
+	// Semaphore used to limit the total number of blocks created across different files.
+	globalMaxBlocksSem *BlockSemaphore
 
 	// createBlockFunc is a function that creates a new block of type T
 	createBlockFunc func(blockSize int64) (T, error)
 }
 
 // NewGenBlockPool creates the blockPool based on the user configuration.
-func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted, createBlockFunc func(blockSize int64) (T, error)) (bp *GenBlockPool[T], err error) {
+func NewGenBlockPool[T GenBlock](
+	blockSize int64,
+	maxBlocks int64,
+	reservedBlocks int64,
+	globalMaxBlocksSem *BlockSemaphore,
+	createBlockFunc func(blockSize int64) (T, error),
+) (bp *GenBlockPool[T], err error) {
 	if blockSize <= 0 || maxBlocks <= 0 {
 		err = fmt.Errorf("invalid configuration provided for blockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
 		return
@@ -96,8 +198,6 @@ func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, reservedBlock
 
 // Get returns a block. It returns an existing block if it's ready for reuse or
 // creates a new one if required.
-// Not thread-safe, calling from multiple goroutines may lead to memory leaks because
-// of race conditions.
 func (bp *GenBlockPool[T]) Get() (T, error) {
 	// Try to get a block immediately (non-blocking).
 	b, err := bp.TryGet()
@@ -108,17 +208,14 @@ func (bp *GenBlockPool[T]) Get() (T, error) {
 		return b, err
 	}
 
+	total := bp.getTotalBlocks()
+
 	// 1. At local pool limit: wait exclusively for a local block to be released.
-	if bp.totalBlocks >= bp.maxBlocks {
+	if total >= bp.maxBlocks {
 		return bp.waitAndGetFromLocalPool()
 	}
 
-	// 2. At 0 blocks: wait exclusively for a global permit to allocate our first block.
-	if bp.totalBlocks == 0 {
-		return bp.waitAndGetFirstBlock()
-	}
-
-	// 3. Between 0 and local limit: wait for EITHER local release OR global permit.
+	// 2. Below local limit: wait for EITHER local release OR global permit.
 	return bp.waitAndGetConcurrent()
 }
 
@@ -128,41 +225,13 @@ func (bp *GenBlockPool[T]) waitAndGetFromLocalPool() (T, error) {
 	return b, nil
 }
 
-func (bp *GenBlockPool[T]) waitAndGetFirstBlock() (T, error) {
-	if err := bp.globalMaxBlocksSem.Acquire(context.Background(), 1); err != nil {
-		var zero T
-		return zero, err
-	}
-	return bp.allocateNewBlock(true)
-}
-
 func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	acquiredCh := make(chan struct{}) // Unbuffered channel
-
-	go func() {
-		err := bp.globalMaxBlocksSem.Acquire(ctx, 1)
-		if err == nil {
-			select {
-			case acquiredCh <- struct{}{}:
-				// Main thread successfully read the permit signal!
-			case <-ctx.Done():
-				// Main thread took the local block and returned.
-				// We must release the acquired global permit!
-				bp.globalMaxBlocksSem.Release(1)
-			}
-		}
-	}()
-
 	select {
 	case b := <-bp.freeBlocksCh:
 		b.Reuse()
 		return b, nil
 
-	case <-acquiredCh:
-		// Non-blocking check: can we reuse a local block instead of allocating?
+	case <-bp.globalMaxBlocksSem.TokenChan():
 		select {
 		case b := <-bp.freeBlocksCh:
 			bp.globalMaxBlocksSem.Release(1)
@@ -176,44 +245,73 @@ func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
 
 // TryGet returns a block if available, or an error if no blocks can be allocated.
 // It returns an existing block if it's ready for reuse or creates a new one if required.
-// Not thread-safe, calling from multiple goroutines may lead to memory leaks because
-// of race conditions.
 func (bp *GenBlockPool[T]) TryGet() (T, error) {
 	select {
 	case b := <-bp.freeBlocksCh:
-		// Reset the block for reuse.
 		b.Reuse()
 		return b, nil
-
 	default:
-		if bp.canAllocateBlock() {
-			return bp.allocateNewBlock(bp.totalBlocks >= bp.reservedBlocks)
-		}
+	}
+
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+
+	if bp.totalBlocks >= bp.maxBlocks {
 		var zero T
 		return zero, CantAllocateAnyBlockError
 	}
+
+	wasPermitAcquired := false
+	if bp.totalBlocks >= bp.reservedBlocks {
+		if !bp.globalMaxBlocksSem.TryAcquire(1) {
+			var zero T
+			return zero, CantAllocateAnyBlockError
+		}
+		wasPermitAcquired = true
+	}
+
+	b, err := bp.createBlockFunc(bp.blockSize)
+	if err != nil {
+		if wasPermitAcquired {
+			bp.globalMaxBlocksSem.Release(1)
+		}
+		var zero T
+		return zero, err
+	}
+	bp.totalBlocks++
+	return b, nil
 }
 
 // canAllocateBlock checks if a new block can be allocated.
 func (bp *GenBlockPool[T]) canAllocateBlock() bool {
-	// If max blocks limit is reached, then no more blocks can be allocated.
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+
 	if bp.totalBlocks >= bp.maxBlocks {
 		return false
 	}
 
-	// Always allow allocation upto reserved number of blocks.
 	if bp.totalBlocks < bp.reservedBlocks {
 		return true
 	}
 
-	// Otherwise, check if we can acquire a semaphore.
-	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
-	return semAcquired
+	return bp.globalMaxBlocksSem.TryAcquire(1)
 }
 
 // allocateNewBlock handles the physical allocation of a new block, tracking totalBlocks and returning any system error.
-// If wasPermitAcquired is true, it releases the global semaphore permit on allocation failure.
+// If wasPermitAcquired is true, it releases the global semaphore permit on allocation failure or if maxBlocks limit was reached.
 func (bp *GenBlockPool[T]) allocateNewBlock(wasPermitAcquired bool) (T, error) {
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+
+	if bp.totalBlocks >= bp.maxBlocks {
+		if wasPermitAcquired {
+			bp.globalMaxBlocksSem.Release(1)
+		}
+		var zero T
+		return zero, CantAllocateAnyBlockError
+	}
+
 	b, err := bp.createBlockFunc(bp.blockSize)
 	if err != nil {
 		if wasPermitAcquired {
@@ -249,20 +347,32 @@ func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseReservedBlocks bool) err
 				// if we get here, there is likely memory corruption.
 				return fmt.Errorf("munmap error: %v", err)
 			}
-			// Release semaphore for all but the reserved blocks.
+			bp.mu.Lock()
 			if bp.totalBlocks > bp.reservedBlocks {
 				bp.globalMaxBlocksSem.Release(1)
 			}
 			bp.totalBlocks--
+			bp.mu.Unlock()
 		default:
 			// We are here, it means there are no more blocks in the free blocks channel.
 			// Release semaphore for the released blocks iff releaseReservedBlocks is true.
 			if releaseReservedBlocks {
-				bp.globalMaxBlocksSem.Release(bp.reservedBlocks)
+				bp.mu.Lock()
+				if bp.reservedBlocks > 0 {
+					bp.globalMaxBlocksSem.Release(bp.reservedBlocks)
+					bp.reservedBlocks = 0
+				}
+				bp.mu.Unlock()
 			}
 			return nil
 		}
 	}
+}
+
+func (bp *GenBlockPool[T]) getTotalBlocks() int64 {
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+	return bp.totalBlocks
 }
 
 // TotalFreeBlocks returns the total number of free blocks available in the pool.
@@ -272,11 +382,11 @@ func (bp *GenBlockPool[T]) TotalFreeBlocks() int {
 }
 
 // NewBlockPool creates GenBlockPool for block.Block interface.
-func NewBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[Block], err error) {
+func NewBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *BlockSemaphore) (bp *GenBlockPool[Block], err error) {
 	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createBlock)
 }
 
 // NewPrefetchBlockPool creates GenBlockPool for block.PrefetchBlock interface.
-func NewPrefetchBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[PrefetchBlock], err error) {
+func NewPrefetchBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *BlockSemaphore) (bp *GenBlockPool[PrefetchBlock], err error) {
 	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createPrefetchBlock)
 }

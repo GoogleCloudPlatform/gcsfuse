@@ -22,6 +22,7 @@ import (
 	"context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -35,7 +36,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
-	"golang.org/x/sync/semaphore"
 )
 
 type FileHandle struct {
@@ -85,7 +85,7 @@ type FileHandle struct {
 
 	// globalMaxReadBlocksSem is a semaphore that limits the total number of blocks
 	// that can be allocated for buffered read across all files in the file system.
-	globalMaxReadBlocksSem *semaphore.Weighted
+	globalMaxReadBlocksSem *block.BlockSemaphore
 
 	// HandleID is an opaque 64-bit number used to create this File Handle, used for logging.
 	handleID fuseops.HandleID
@@ -102,7 +102,7 @@ func NewFileHandle(
 	openMode util.OpenMode,
 	c *cfg.Config,
 	bufferedReadWorkerPool workerpool.WorkerPool,
-	globalMaxReadBlocksSem *semaphore.Weighted,
+	globalMaxReadBlocksSem *block.BlockSemaphore,
 	handleID fuseops.HandleID,
 ) (fh *FileHandle) {
 	fh = &FileHandle{

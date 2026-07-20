@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fuseops"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
@@ -32,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
-	"golang.org/x/sync/semaphore"
 )
 
 type ReadManager struct {
@@ -61,7 +61,7 @@ type ReadManagerConfig struct {
 	TraceHandle             tracing.TraceHandle
 	MrdWrapper              *gcsx.MultiRangeDownloaderWrapper
 	Config                  *cfg.Config
-	GlobalMaxBlocksSem      *semaphore.Weighted
+	GlobalMaxBlocksSem      *block.BlockSemaphore
 	WorkerPool              workerpool.WorkerPool
 	HandleID                fuseops.HandleID
 	InitialOffset           int64

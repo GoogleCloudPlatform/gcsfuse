@@ -26,6 +26,7 @@ import (
 	"testing/iotest"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -45,7 +46,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -74,7 +74,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 				MinBlocksPerHandle:   2,
 			},
 		},
-		GlobalMaxBlocksSem: semaphore.NewWeighted(20),
+		GlobalMaxBlocksSem: block.NewBlockSemaphore(20),
 		InitialOffset:      0,
 	}
 	if bufferedReadEnable {
@@ -217,7 +217,7 @@ func (t *readManagerTest) Test_NewReadManager_WithFileCacheAndBufferedRead() {
 func (t *readManagerTest) Test_NewReadManager_BufferedReaderCreationFails() {
 	config := t.readManagerConfig(false, true)
 	// Exhaust the semaphore
-	config.GlobalMaxBlocksSem = semaphore.NewWeighted(0)
+	config.GlobalMaxBlocksSem = block.NewBlockSemaphore(0)
 
 	rm := NewReadManager(t.object, t.mockBucket, config)
 

@@ -42,7 +42,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/sync/semaphore"
 )
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
@@ -105,7 +104,7 @@ type FileInode struct {
 
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
-	globalMaxWriteBlocksSem *semaphore.Weighted
+	globalMaxWriteBlocksSem *block.BlockSemaphore
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance               *gcsx.MrdInstance
@@ -159,7 +158,7 @@ func NewFileInode(
 	mtimeClock timeutil.Clock,
 	localFile bool,
 	cfg *cfg.Config,
-	globalMaxBlocksSem *semaphore.Weighted,
+	globalMaxBlocksSem *block.BlockSemaphore,
 	mrdCache *lru.Cache,
 	traceHandle tracing.TraceHandle,
 	metricHandle metrics.MetricHandle) (f *FileInode) {

@@ -33,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/sync/semaphore"
 )
 
 // ErrPrefetchBlockNotAvailable is returned when a block cannot be
@@ -123,7 +122,7 @@ type BufferedReaderOptions struct {
 	Object             *gcs.MinObject
 	Bucket             gcs.Bucket
 	Config             *BufferedReadConfig
-	GlobalMaxBlocksSem *semaphore.Weighted
+	GlobalMaxBlocksSem *block.BlockSemaphore
 	WorkerPool         workerpool.WorkerPool
 	MetricHandle       metrics.MetricHandle
 	TraceHandle        tracing.TraceHandle
