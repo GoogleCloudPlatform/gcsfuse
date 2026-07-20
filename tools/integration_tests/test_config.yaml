@@ -1703,8 +1703,6 @@ monitoring:
           zonal: false
         run: "TestPromBufferedReadSuite"
         run_on_gke: false
-        run: "TestPromBufferedReadSuite"
-        run_on_gke: false
       - flags:
           - "--prometheus-port=10191,--enable-buffered-read,--read-block-size-mb=4,--read-random-seek-threshold=2,--read-global-max-blocks=5,--read-min-blocks-per-handle=2,--read-start-blocks-per-handle=2,--log-file=/gcsfuse-tmp/TestPromBufferedReadSuite.log,--enable-kernel-reader=false,--client-protocol=http1"
         compatible:
@@ -1727,8 +1725,6 @@ monitoring:
           flat: true
           hns: false
           zonal: false
-        run: "TestPromGrpcMetricsSuite"
-        run_on_gke: false
         run: "TestPromGrpcMetricsSuite"
         run_on_gke: false
       - flags:
