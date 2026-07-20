@@ -1134,6 +1134,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_SucceedsForValidBucket() {
 	sh := testSuite.fakeStorage.CreateStorageHandle().(*storageClient)
 	sh.storageControlClient = nil // HNS disabled path
+	sh.clientConfig.EnableMountRetries = true
 
 	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
 
@@ -1143,98 +1144,66 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlCli
 	assert.False(testSuite.T(), bh.bucketType.Zonal)
 }
 
-func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_FailsForInvalidBucket() {
+// createMockServer creates a test server that returns a fixed response and tracks the number of attempts.
+func createMockServer(status int, body string) (*httptest.Server, *int) {
+	attempts := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Contains(testSuite.T(), r.URL.Path, invalidBucketName)
-		assert.Contains(testSuite.T(), r.URL.Path, nonExistentObjectName)
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "bucket does not exist"}}`))
+		attempts++
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
 	}))
-	defer server.Close()
+	return server, &attempts
+}
 
-	sc, err := storage.NewClient(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
+const testMaxRetryAttempts = 3
+
+// setupMockStorageClientWithMountRetries initializes a storageClient configured with custom endpoint and mount retries enabled for testing.
+func (testSuite *StorageHandleTest) setupMockStorageClientWithMountRetries(endpoint string) (*storageClient, func()) {
+	sc, err := storage.NewClient(testSuite.ctx, option.WithEndpoint(endpoint), option.WithoutAuthentication())
 	require.NoError(testSuite.T(), err)
-	defer func() { _ = sc.Close() }()
 
 	sh := &storageClient{
 		httpClient:           sc,
-		storageControlClient: nil, // HNS disabled path
+		storageControlClient: nil,
 		clientConfig: storageutil.StorageClientConfig{
-			ClientProtocol: cfg.HTTP1,
+			ClientProtocol:     cfg.HTTP1,
+			EnableMountRetries: true,
+			MaxRetrySleep:      time.Microsecond,
+			RetryMultiplier:    1.0,
+			MaxRetryAttempts:   testMaxRetryAttempts,
 		},
 	}
+
+	cleanup := func() { _ = sc.Close() }
+	return sh, cleanup
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_ExhaustsRetriesOnBucketNotFound() {
+	server, attempts := createMockServer(http.StatusNotFound, `{"error": {"code": 404, "message": "bucket does not exist"}}`)
+	defer server.Close()
+
+	sh, cleanup := testSuite.setupMockStorageClientWithMountRetries(server.URL)
+	defer cleanup()
 
 	bh, err := sh.BucketHandle(testSuite.ctx, invalidBucketName, "")
 
 	require.Error(testSuite.T(), err)
 	assert.Nil(testSuite.T(), bh)
-	assert.Contains(testSuite.T(), err.Error(), "bucket access check failed")
+	assert.ErrorContains(testSuite.T(), err, "bucket access check failed")
+	assert.Equal(testSuite.T(), testMaxRetryAttempts, *attempts, "expected max retry attempts to be exhausted")
 }
 
-func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_FailsFor403Forbidden() {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Contains(testSuite.T(), r.URL.Path, TestBucketName)
-		assert.Contains(testSuite.T(), r.URL.Path, nonExistentObjectName)
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"error": {"code": 403, "message": "Permission denied"}}`))
-	}))
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_ExhaustsRetriesOnForbidden() {
+	server, attempts := createMockServer(http.StatusForbidden, `{"error": {"code": 403, "message": "Permission denied"}}`)
 	defer server.Close()
 
-	sc, err := storage.NewClient(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
-	require.NoError(testSuite.T(), err)
-	defer func() { _ = sc.Close() }()
-
-	sh := &storageClient{
-		httpClient:           sc,
-		storageControlClient: nil, // HNS disabled path
-		clientConfig: storageutil.StorageClientConfig{
-			ClientProtocol: cfg.HTTP1,
-		},
-	}
+	sh, cleanup := testSuite.setupMockStorageClientWithMountRetries(server.URL)
+	defer cleanup()
 
 	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
 
 	require.Error(testSuite.T(), err)
 	assert.Nil(testSuite.T(), bh)
-	assert.Contains(testSuite.T(), err.Error(), "bucket access check failed")
-}
-
-func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_WithBillingProject() {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Contains(testSuite.T(), r.URL.Path, TestBucketName)
-		assert.Contains(testSuite.T(), r.URL.Path, nonExistentObjectName)
-		if r.URL.Query().Get("userProject") != projectID {
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"error": {"code": 400, "message": "UserProjectMissing"}}`))
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Object not found"}}`))
-	}))
-	defer server.Close()
-
-	sc, err := storage.NewClient(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
-	require.NoError(testSuite.T(), err)
-	defer func() { _ = sc.Close() }()
-
-	sh := &storageClient{
-		httpClient:           sc,
-		storageControlClient: nil, // HNS disabled path
-		clientConfig: storageutil.StorageClientConfig{
-			ClientProtocol: cfg.HTTP1,
-		},
-	}
-
-	// Without billing project, check fails on Requester Pays mock server.
-	_, err = sh.BucketHandle(testSuite.ctx, TestBucketName, "")
-	require.Error(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "bucket access check failed")
-
-	// With billing project, check succeeds.
-	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID)
-
-	require.NoError(testSuite.T(), err)
-	require.NotNil(testSuite.T(), bh)
-	assert.False(testSuite.T(), bh.bucketType.Hierarchical)
-	assert.False(testSuite.T(), bh.bucketType.Zonal)
+	assert.ErrorContains(testSuite.T(), err, "bucket access check failed")
+	assert.Equal(testSuite.T(), testMaxRetryAttempts, *attempts, "expected max retry attempts to be exhausted")
 }

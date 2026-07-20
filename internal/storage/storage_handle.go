@@ -62,7 +62,7 @@ const (
 	directPathDetectionMaxBackoff       = 5 * time.Second
 	directPathDetectionMaxRetryDuration = 1 * time.Minute
 
-	// nonExistentObjectName is the object name used for bucket access checks when HNS is disabled or when using Regional Endpoints.
+	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
 	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
 )
 
@@ -365,7 +365,7 @@ func (sh *storageClient) verifyNonHNSBucketAccess(ctx context.Context, bucketHan
 
 	// An Object NotFound error indicates that the bucket exists and access is authorized.
 	var notFoundError *gcs.NotFoundError
-	if errors.As(gcs.GetGCSError(err), &notFoundError) && !strings.Contains(strings.ToLower(err.Error()), "bucket does not exist") {
+	if errors.As(gcs.GetGCSError(err), &notFoundError) && !strings.Contains(strings.ToLower(err.Error()), storageutil.ErrStrBucketNotExist) {
 		return nil
 	}
 
@@ -560,7 +560,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
-	if sh.storageControlClient == nil {
+	if sh.storageControlClient == nil && sh.clientConfig.EnableMountRetries {
 		err = sh.verifyNonHNSBucketAccess(ctx, storageBucketHandle, bucketName)
 		if err != nil {
 			return nil, fmt.Errorf("bucket access check failed for %q: %s", bucketName, err)
