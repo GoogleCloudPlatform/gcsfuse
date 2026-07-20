@@ -205,7 +205,7 @@ func (t *SingleMountAppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcu
 	assert.Equal(t.T(), t.fileContent, string(contentBeforeClose))
 
 	// Close handle and validate final content (with null byte for the gap).
-	_ = readHandle.Close()
+	require.NoError(t.T(), readHandle.Close())
 	expectedContent := t.fileContent + "\x00" + data
 	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
@@ -234,7 +234,7 @@ func (t *SingleMountAppendsTestSuite) TestFallbackHappensWhenNonAppendHandleDoes
 	assert.Equal(t.T(), t.fileContent, string(contentBeforeClose))
 
 	// Close handle and validate final content.
-	_ = readHandle.Close()
+	require.NoError(t.T(), readHandle.Close())
 	expectedContent := t.fileContent + data
 	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
@@ -253,7 +253,7 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Va
 	n, err := appendFileHandle.Write([]byte(initialContent))
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(initialContent), n)
-	_ = appendFileHandle.Close()
+	require.NoError(t.T(), appendFileHandle.Close())
 
 	// Since we don't wait for the cache to expire, the stat should reflect the new size immediately.
 	expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
@@ -274,7 +274,7 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Ex
 	n, err := appendFileHandle.Write([]byte(initialContent))
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(initialContent), n)
-	_ = appendFileHandle.Close()
+	require.NoError(t.T(), appendFileHandle.Close())
 
 	// Expire stat cache. By default, stat cache ttl is 60 seconds.
 	time.Sleep(defaultMetadataCacheTTL)

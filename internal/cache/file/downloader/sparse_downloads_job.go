@@ -232,8 +232,10 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 		return fmt.Errorf("downloadSparseRange: error opening cache file: %w", err)
 	}
 	defer func() {
-		if closeErr := cacheFile.Close(); closeErr != nil {
-			logger.Warnf("downloadSparseRange: error while closing cache file: %v", closeErr)
+		if cacheFile != nil {
+			if closeErr := cacheFile.Close(); closeErr != nil {
+				logger.Warnf("downloadSparseRange: error while closing cache file: %v", closeErr)
+			}
 		}
 	}()
 
@@ -243,6 +245,13 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	if err != nil {
 		return fmt.Errorf("downloadSparseRange: error copying data: %w", err)
 	}
+
+	// Close implies Sync() on NFS. A close error here means the write may not
+	// be durable, so surface it instead of silently returning success.
+	if err := cacheFile.Close(); err != nil {
+		return fmt.Errorf("downloadSparseRange: error closing cache file: %w", err)
+	}
+	cacheFile = nil // Avoid deferred close since file is already closed.
 
 	// Update FileInfo with downloaded range
 	job.mu.Lock()

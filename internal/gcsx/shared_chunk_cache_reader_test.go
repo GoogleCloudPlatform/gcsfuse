@@ -641,7 +641,7 @@ func TestSharedChunkCacheReader_ReadAtWithCorruptedCache(t *testing.T) {
 	// Write only 512 bytes instead of full chunk
 	_, err = chunkFile.Write(objectData[:512])
 	require.NoError(t, err)
-	_ = chunkFile.Close()
+	require.NoError(t, chunkFile.Close())
 
 	// Act - Try to read from corrupted cache (should fallback to GCS)
 	buffer2 := make([]byte, 1024)

@@ -42,7 +42,7 @@ retryConfig:
 
 		_, err = tempFile.Write([]byte(validContent))
 		assert.NoError(t, err)
-		_ = tempFile.Close()
+		assert.NoError(t, tempFile.Close())
 
 		// Parse the file
 		config, err := parseConfigFile(tempFile.Name())
@@ -68,7 +68,7 @@ retryConfig:
 		tempFile, err := os.CreateTemp("", "empty-config-*.yaml")
 		assert.NoError(t, err)
 		defer func() { _ = os.Remove(tempFile.Name()) }()
-		_ = tempFile.Close()
+		assert.NoError(t, tempFile.Close())
 
 		// Parse the file
 		config, err := parseConfigFile(tempFile.Name())
@@ -90,7 +90,7 @@ another_invalid_key:
 
 		_, err = tempFile.Write([]byte(invalidContent))
 		assert.NoError(t, err)
-		_ = tempFile.Close()
+		assert.NoError(t, tempFile.Close())
 
 		// Parse the file
 		config, err := parseConfigFile(tempFile.Name())
