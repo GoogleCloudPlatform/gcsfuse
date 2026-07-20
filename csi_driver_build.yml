@@ -96,7 +96,7 @@ steps:
   - |
     set -e
     # --- Install gcloud ---
-    apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
+    apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl jq
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee /etc/apt/sources.list.d/google-cloud-sdk.list
     apt-get update && apt-get install -y google-cloud-cli kubectl
@@ -114,7 +114,7 @@ steps:
     fi
     REGISTRY="gcr.io/${PROJECT_ID}/${_USER}-gcsfuse-csi"
 
-    make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION} BUILD_ARM=${_BUILD_ARM}
+    make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION} BUILD_ARM=${_BUILD_ARM} DOCKER_BUILDX_ARGS="--push --builder multiarch-multiplatform-builder --build-arg STAGINGVERSION=$${STAGINGVERSION} --provenance=false --quiet"
 
 # This step cleans up the GCS bucket.
 - name: 'gcr.io/cloud-builders/gcloud'
