@@ -62,7 +62,7 @@ func executeTestsForOnlyDirMounting(config *test_suite.TestConfig, flags [][]str
 		log.Fatalf("Error creating storage client: %v\n", err)
 	}
 
-	defer storageClient.Close()
+	defer func() { _ = storageClient.Close() }()
 
 	// Set onlyDirMounted value to the directory being mounted.
 	setup.SetOnlyDirMounted(dirName)

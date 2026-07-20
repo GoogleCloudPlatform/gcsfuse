@@ -56,7 +56,7 @@ func mountWithStorageHandle(
 		logger.Infof("Creating a temporary directory at %q\n", newConfig.FileSystem.TempDir)
 		var f *os.File
 		f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir))
-		f.Close()
+		_ = f.Close() // f is only used to sanity-check that TempDir is writable; nothing to do with a close error here.
 
 		if err != nil {
 			err = fmt.Errorf(
@@ -77,7 +77,8 @@ func mountWithStorageHandle(
 	}
 
 	if uid == 0 && newConfig.FileSystem.Uid < 0 {
-		fmt.Fprintln(os.Stdout, `
+		// Best-effort warning; a write failure to stdout isn't actionable here.
+		_, _ = fmt.Fprintln(os.Stdout, `
 WARNING: gcsfuse invoked as root. This will cause all files to be owned by
 root. If this is not what you intended, invoke gcsfuse as the user that will
 be interacting with the file system.`)

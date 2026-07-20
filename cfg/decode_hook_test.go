@@ -197,8 +197,8 @@ func TestParsingSuccess(t *testing.T) {
 		{
 			name: "ResolvedPath - with gcsfuse-parent-process-dir env set",
 			setupFn: func() {
-				os.Setenv("gcsfuse-parent-process-dir", "/a")
-				t.Cleanup(func() { os.Unsetenv("gcsfuse-parent-process-dir") })
+				_ = os.Setenv("gcsfuse-parent-process-dir", "/a")
+				t.Cleanup(func() { _ = os.Unsetenv("gcsfuse-parent-process-dir") })
 			},
 			args: []string{"--pathParam=./test.txt"},
 			testFn: func(t *testing.T, c TestConfig) {

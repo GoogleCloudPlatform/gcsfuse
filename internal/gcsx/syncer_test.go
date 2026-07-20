@@ -87,7 +87,7 @@ func (t *FullObjectCreatorTest) CallsCreateObject() {
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertNe(nil, req)
 	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
@@ -148,7 +148,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertNe(nil, req)
 	ExpectEq(t.srcObject.Name, req.Name)
@@ -478,7 +478,7 @@ func (t *SyncerTest) SmallerThanSource() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -493,7 +493,7 @@ func (t *SyncerTest) SameSizeAsSource() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -514,7 +514,7 @@ func (t *SyncerTest) LargerThanSource_ThresholdInSource() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -536,7 +536,7 @@ func (t *SyncerTest) SourceTooShortForAppend() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -553,7 +553,7 @@ func (t *SyncerTest) SourceComponentCountTooHigh() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -567,7 +567,7 @@ func (t *SyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 	AssertEq(nil, err)
 
 	// The append creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectFalse(t.fullCreator.called)
 	ExpectTrue(t.appendCreator.called)
@@ -585,7 +585,7 @@ func (t *SyncerTest) CallsFullCreator() {
 	t.content.SetMtime(mtime)
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertTrue(t.fullCreator.called)
 	ExpectEq(t.srcObject, t.fullCreator.srcObject)
@@ -651,7 +651,7 @@ func (t *SyncerTest) CallsAppendCreator() {
 	t.content.SetMtime(mtime)
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertTrue(t.appendCreator.called)
 	ExpectEq(t.srcObject, t.appendCreator.srcObject)

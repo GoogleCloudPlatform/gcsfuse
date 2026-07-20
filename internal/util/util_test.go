@@ -95,8 +95,8 @@ func (ts *UtilTest) ResolveEmptyFilePath() {
 // Below all tests when GCSFUSE_PARENT_PROCESS_DIR env variable is set.
 // By setting this environment variable, resolve will work for child process.
 func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithTilda() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
+	_ = os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
+	defer func() { _ = os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR) }()
 
 	resolvedPath, err := GetResolvedPath("~/test.txt")
 
@@ -107,8 +107,8 @@ func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithTilda() {
 }
 
 func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDot() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
+	_ = os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
+	defer func() { _ = os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR) }()
 
 	resolvedPath, err := GetResolvedPath("./test.txt")
 
@@ -117,8 +117,8 @@ func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDot() {
 }
 
 func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDoubleDot() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
+	_ = os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
+	defer func() { _ = os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR) }()
 
 	resolvedPath, err := GetResolvedPath("../test.txt")
 
@@ -127,8 +127,8 @@ func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDoubleDot
 }
 
 func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndRelativePath() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
+	_ = os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
+	defer func() { _ = os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR) }()
 
 	resolvedPath, err := GetResolvedPath("test.txt")
 
@@ -137,8 +137,8 @@ func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndRelativePath() {
 }
 
 func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
+	_ = os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
+	defer func() { _ = os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR) }()
 
 	resolvedPath, err := GetResolvedPath("/var/dir/test.txt")
 

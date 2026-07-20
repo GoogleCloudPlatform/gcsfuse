@@ -115,7 +115,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithComplete
 		})
 
 	assert.Nil(testSuite.T(), err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)
@@ -137,7 +137,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithRangeRea
 		})
 
 	assert.Nil(testSuite.T(), err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	buf := make([]byte, limit-start)
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)
@@ -153,7 +153,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithNilRange
 		})
 
 	assert.Nil(testSuite.T(), err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)
@@ -191,7 +191,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithValidGen
 		})
 
 	assert.Nil(testSuite.T(), err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)
@@ -230,7 +230,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithCompress
 		})
 
 	assert.Nil(testSuite.T(), err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	buf := make([]byte, len(ContentInTestGzipObjectCompressed))
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)
@@ -250,7 +250,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithCompress
 		})
 
 	assert.Nil(testSuite.T(), err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	buf := make([]byte, len(ContentInTestGzipObjectDecompressed))
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)
@@ -271,7 +271,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithoutReadH
 		})
 
 	assert.Nil(testSuite.T(), err)
-	defer rd.Close()
+	defer func() { _ = rd.Close() }()
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rd.Read(buf)
 	assert.Nil(testSuite.T(), err)
@@ -293,7 +293,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithReadHand
 		})
 
 	assert.Nil(testSuite.T(), err)
-	defer rd.Close()
+	defer func() { _ = rd.Close() }()
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rd.Read(buf)
 	assert.Nil(testSuite.T(), err)
@@ -1075,7 +1075,7 @@ func (testSuite *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 func (testSuite *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
 	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(ctx, req)
 	assert.Nil(testSuite.T(), err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	buf := make([]byte, req.Range.Limit-req.Range.Start)
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)

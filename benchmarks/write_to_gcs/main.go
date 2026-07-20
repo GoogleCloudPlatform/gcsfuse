@@ -57,7 +57,7 @@ func run() (err error) {
 	// Make sure we clean it up later.
 	defer func() {
 		log.Printf("Deleting %s.", path)
-		os.Remove(path)
+		_ = os.Remove(path)
 	}()
 
 	// Write the configured number of zeroes to the file, measuring the time

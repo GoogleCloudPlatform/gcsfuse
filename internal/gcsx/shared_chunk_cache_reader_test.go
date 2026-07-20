@@ -105,7 +105,7 @@ func (t *sharedChunkCacheReaderTest) SetupTest() {
 
 func (t *sharedChunkCacheReaderTest) TearDownTest() {
 	if t.cacheDir != "" {
-		os.RemoveAll(t.cacheDir)
+		_ = os.RemoveAll(t.cacheDir)
 	}
 }
 
@@ -514,7 +514,7 @@ func TestSharedChunkCacheReader_DownloadChunkWithDeletedDirectory(t *testing.T) 
 	// Pre-delete the cache directory structure to simulate LRU eviction
 	// The download should handle this and recreate necessary directories
 	objDir := manager.GetObjectDir(testBucketName, object.Name, object.Generation)
-	os.RemoveAll(objDir)
+	_ = os.RemoveAll(objDir)
 
 	// Act - Trigger download with missing directory structure
 	buffer := make([]byte, 1024)
@@ -641,7 +641,7 @@ func TestSharedChunkCacheReader_ReadAtWithCorruptedCache(t *testing.T) {
 	// Write only 512 bytes instead of full chunk
 	_, err = chunkFile.Write(objectData[:512])
 	require.NoError(t, err)
-	chunkFile.Close()
+	_ = chunkFile.Close()
 
 	// Act - Try to read from corrupted cache (should fallback to GCS)
 	buffer2 := make([]byte, 1024)

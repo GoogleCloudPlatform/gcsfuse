@@ -144,7 +144,7 @@ func downloadGzipGcsObjectAsCompressed(t *testing.T, objPathInBucket string) (te
 	if err != nil || client == nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	bktName := setup.TestBucket()
 	bkt := client.Bucket(bktName)
@@ -166,7 +166,7 @@ func downloadGzipGcsObjectAsCompressed(t *testing.T, objPathInBucket string) (te
 	if r == nil || err != nil {
 		return "", fmt.Errorf("failed to read object %s from bucket %s: %w", objPathInBucket, bktName, err)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	gcsObjectData, err := io.ReadAll(r)
 	if len(gcsObjectData) < int(gcsObjectSize) || err != nil {

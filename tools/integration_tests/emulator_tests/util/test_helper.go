@@ -116,7 +116,7 @@ func WriteFileAndSync(filePath string, fileSize int) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Generate random data
 	data := make([]byte, fileSize)
@@ -148,7 +148,7 @@ func ReadFirstByte(t *testing.T, filePath string) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	buffer := make([]byte, 1)
 

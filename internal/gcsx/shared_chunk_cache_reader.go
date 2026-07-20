@@ -163,7 +163,11 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 			// Cache hit - chunk was already cached
 			cacheHit = true
 		}
-		defer chunkFile.Close()
+		defer func() {
+			if closeErr := chunkFile.Close(); closeErr != nil {
+				logger.Warnf("SharedChunkCacheReader: error while closing chunk file %s: %v", chunkPath, closeErr)
+			}
+		}()
 
 		// Calculate exact bytes to read for this request within the chunk
 		bytesAvailableInChunk := chunkEnd - currentOffset
@@ -237,7 +241,9 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 
 	defer func() {
 		if tmpFile != nil {
-			tmpFile.Close()
+			if closeErr := tmpFile.Close(); closeErr != nil {
+				logger.Warnf("SharedChunkCacheReader.downloadChunk: error while closing tmp file %s: %v", tmpPath, closeErr)
+			}
 		}
 	}()
 
@@ -253,15 +259,20 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 	}
 	reader, err := r.bucket.NewReaderWithReadHandle(ctx, readReq)
 	if err != nil {
-		os.Remove(tmpPath) // Cleanup
+		// Best-effort cleanup of the temp file; we're already returning an error.
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to create GCS reader: %w", err)
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			logger.Warnf("SharedChunkCacheReader.downloadChunk: error while closing GCS reader: %v", closeErr)
+		}
+	}()
 
 	// Step 4: Copy data from GCS to temp file
 	bytesWritten, err := io.Copy(tmpFile, reader)
 	if err != nil || bytesWritten != (chunkEnd-chunkStart) {
-		os.Remove(tmpPath) // Cleanup
+		_ = os.Remove(tmpPath) // Best-effort cleanup; we're already returning an error.
 		if err != nil {
 			return fmt.Errorf("failed to copy data to temp file: %w", err)
 		}
@@ -270,7 +281,7 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 
 	// Close implies Sync() on NFS (intended use case).
 	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpPath) // Cleanup
+		_ = os.Remove(tmpPath) // Best-effort cleanup; we're already returning an error.
 		return fmt.Errorf("failed to close tmpFile: %v", err)
 	}
 	tmpFile = nil // Avoid deferred close since file is already closed
@@ -279,7 +290,7 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 	// Protects against concurrent downloads of the same chunk.
 	chunkPath := r.manager.GetChunkPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
 	if err := os.Rename(tmpPath, chunkPath); err != nil {
-		os.Remove(tmpPath) // Cleanup
+		_ = os.Remove(tmpPath) // Best-effort cleanup; we're already returning an error.
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
 

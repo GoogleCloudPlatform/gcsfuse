@@ -200,7 +200,7 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 		DirPerm:  os.FileMode(0700),
 	}, os.O_TRUNC|os.O_RDWR)
 	AssertEq(nil, err)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Set up sparse file info in cache
 	fileInfoKey := data.FileInfoKey{
@@ -286,7 +286,7 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 		DirPerm:  os.FileMode(0700),
 	}, os.O_TRUNC|os.O_RDWR)
 	AssertEq(nil, err)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Set up sparse file info with empty downloaded ranges
 	fileInfoKey := data.FileInfoKey{

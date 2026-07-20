@@ -218,7 +218,11 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	if err != nil {
 		return fmt.Errorf("downloadSparseRange: error creating reader for range [%d, %d): %w", start, end, err)
 	}
-	defer newReader.Close()
+	defer func() {
+		if closeErr := newReader.Close(); closeErr != nil {
+			logger.Warnf("downloadSparseRange: error while closing reader: %v", closeErr)
+		}
+	}()
 
 	metrics.CaptureGCSReadMetrics(job.metricsHandle, metrics.ReadTypeNames[metrics.ReadTypeRandom], int64(end-start))
 
@@ -227,7 +231,11 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	if err != nil {
 		return fmt.Errorf("downloadSparseRange: error opening cache file: %w", err)
 	}
-	defer cacheFile.Close()
+	defer func() {
+		if closeErr := cacheFile.Close(); closeErr != nil {
+			logger.Warnf("downloadSparseRange: error while closing cache file: %v", closeErr)
+		}
+	}()
 
 	// Download from GCS and write to cache file
 	offsetWriter := io.NewOffsetWriter(cacheFile, int64(start))

@@ -113,7 +113,7 @@ func parsePromFormat(t *testing.T, prometheusPort int) (map[string]*promclient.M
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	parser := expfmt.NewTextParser(model.UTF8Validation)
 	return parser.TextToMetricFamilies(resp.Body)
 }
@@ -180,7 +180,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
-	defer testEnv.storageClient.Close()
+	defer func() { _ = testEnv.storageClient.Close() }()
 
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))

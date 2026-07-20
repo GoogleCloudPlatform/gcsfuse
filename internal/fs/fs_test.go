@@ -262,8 +262,8 @@ func (t *fsTest) TearDown() {
 	// Ignoring any errors we get while deleting the mntDir contents.
 	entries, _ := fusetesting.ReadDirPicky(mntDir)
 	for _, e := range entries {
-		os.RemoveAll(path.Join(mntDir, e.Name()))
-		os.Remove(path.Join(mntDir, e.Name()))
+		_ = os.RemoveAll(path.Join(mntDir, e.Name()))
+		_ = os.Remove(path.Join(mntDir, e.Name()))
 	}
 }
 

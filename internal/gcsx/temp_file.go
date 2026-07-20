@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 )
@@ -221,7 +222,9 @@ func (tf *tempFile) CheckInvariants() {
 func (tf *tempFile) Destroy() {
 	tf.state = fileDestroyed
 	// Throw away the file (for anonymous files).
-	tf.f.Close()
+	if err := tf.f.Close(); err != nil {
+		logger.Warnf("tempFile.Destroy: error while closing anonymous file: %v", err)
+	}
 
 	tf.f = nil
 }
@@ -339,7 +342,9 @@ func (tf *tempFile) ensure(limit int64) error {
 		n := max(limit-size, minCopyLength)
 		n, err = io.CopyN(tf.f, tf.source, n)
 		if err == io.EOF {
-			tf.source.Close()
+			if closeErr := tf.source.Close(); closeErr != nil {
+				logger.Warnf("tempFile.ensure: error while closing source reader: %v", closeErr)
+			}
 			tf.dirtyThreshold = size + n
 			tf.state = fileComplete
 			err = nil

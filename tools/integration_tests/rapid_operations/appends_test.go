@@ -150,9 +150,9 @@ func (t *SingleMountAppendsTestSuite) TestAppendsVisibleInRealTimeWithConcurrent
 	primaryPath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	// Open first handle in append mode.
 	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeAppend|syscall.O_DIRECT)
-	defer appendFileHandle.Close()
+	defer func() { _ = appendFileHandle.Close() }()
 	readHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeRPlus|syscall.O_DIRECT)
-	defer readHandle.Close()
+	defer func() { _ = readHandle.Close() }()
 
 	// Write initial content with append handle to trigger buffered write workflow.
 	n, err := appendFileHandle.Write([]byte(initialContent))
@@ -185,7 +185,7 @@ func (t *SingleMountAppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcu
 
 	primaryPath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeAppend|syscall.O_DIRECT)
-	defer appendFileHandle.Close()
+	defer func() { _ = appendFileHandle.Close() }()
 	readHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeRPlus|syscall.O_DIRECT)
 
 	n, err := appendFileHandle.Write([]byte(initialContent))
@@ -205,7 +205,7 @@ func (t *SingleMountAppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcu
 	assert.Equal(t.T(), t.fileContent, string(contentBeforeClose))
 
 	// Close handle and validate final content (with null byte for the gap).
-	readHandle.Close()
+	_ = readHandle.Close()
 	expectedContent := t.fileContent + "\x00" + data
 	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
@@ -219,7 +219,7 @@ func (t *SingleMountAppendsTestSuite) TestFallbackHappensWhenNonAppendHandleDoes
 
 	primaryPath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeAppend|syscall.O_DIRECT)
-	defer appendFileHandle.Close()
+	defer func() { _ = appendFileHandle.Close() }()
 	readHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeRPlus|syscall.O_DIRECT)
 
 	// Append content using the "r+" handle first.
@@ -234,7 +234,7 @@ func (t *SingleMountAppendsTestSuite) TestFallbackHappensWhenNonAppendHandleDoes
 	assert.Equal(t.T(), t.fileContent, string(contentBeforeClose))
 
 	// Close handle and validate final content.
-	readHandle.Close()
+	_ = readHandle.Close()
 	expectedContent := t.fileContent + data
 	contentAfterClose, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
@@ -253,7 +253,7 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Va
 	n, err := appendFileHandle.Write([]byte(initialContent))
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(initialContent), n)
-	appendFileHandle.Close()
+	_ = appendFileHandle.Close()
 
 	// Since we don't wait for the cache to expire, the stat should reflect the new size immediately.
 	expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
@@ -274,7 +274,7 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Ex
 	n, err := appendFileHandle.Write([]byte(initialContent))
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(initialContent), n)
-	appendFileHandle.Close()
+	_ = appendFileHandle.Close()
 
 	// Expire stat cache. By default, stat cache ttl is 60 seconds.
 	time.Sleep(defaultMetadataCacheTTL)

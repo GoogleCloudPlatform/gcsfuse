@@ -38,7 +38,7 @@ func build(
 		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
-	defer os.RemoveAll(gocache)
+	defer func() { _ = os.RemoveAll(gocache) }()
 
 	// Create a directory to hold our outputs. Kill it if we later return in
 	// error.
@@ -50,7 +50,7 @@ func build(
 
 	defer func() {
 		if err != nil {
-			os.RemoveAll(dir)
+			_ = os.RemoveAll(dir)
 		}
 	}()
 
@@ -61,7 +61,7 @@ func build(
 		return
 	}
 
-	defer os.RemoveAll(gitDir)
+	defer func() { _ = os.RemoveAll(gitDir) }()
 
 	// Clone the git repo, checking out the correct tag.
 	{

@@ -154,9 +154,10 @@ func computeObjectHash(bucketName, objectName string, generation int64) string {
 	// the same pre-hash string. This is defensive, even though bucket names currently cannot
 	// contain '/'.
 	// Format: <bucketNameLength>:<bucketName><objectNameLength>:<objectName>:<generation>
-	fmt.Fprintf(h, "%d:%s", len(bucketName), bucketName)
-	fmt.Fprintf(h, "%d:%s", len(objectName), objectName)
-	fmt.Fprintf(h, ":%d", generation)
+	// hash.Hash.Write is guaranteed by the io.Writer contract in crypto/*Hash implementations to never return an error.
+	_, _ = fmt.Fprintf(h, "%d:%s", len(bucketName), bucketName)
+	_, _ = fmt.Fprintf(h, "%d:%s", len(objectName), objectName)
+	_, _ = fmt.Fprintf(h, ":%d", generation)
 
 	return hex.EncodeToString(h.Sum(nil))
 }

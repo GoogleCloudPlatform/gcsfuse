@@ -64,7 +64,7 @@ func (s *timeoutEnabledSuite) TestReaderCloses() {
 	// 1. Open file.
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
 	require.NoError(s.T(), err)
-	defer fileHandle.Close()
+	defer func() { _ = fileHandle.Close() }()
 
 	// 2. Read small chunk from 0 offset.
 	buff := make([]byte, kChunkSizeToRead)
@@ -95,7 +95,7 @@ func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
 	require.NoError(s.T(), err)
-	defer fileHandle.Close()
+	defer func() { _ = fileHandle.Close() }()
 
 	// 1. First read.
 	buff := make([]byte, kChunkSizeToRead)
