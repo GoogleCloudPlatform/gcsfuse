@@ -61,6 +61,9 @@ const (
 	directPathDetectionTimeout          = 15 * time.Second
 	directPathDetectionMaxBackoff       = 5 * time.Second
 	directPathDetectionMaxRetryDuration = 1 * time.Minute
+
+	// nonExistentObjectName is the object name used for bucket access checks when HNS is disabled or when using Regional Endpoints.
+	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
 )
 
 type StorageHandle interface {
@@ -337,6 +340,38 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	return
 }
 
+// verifyNonHNSBucketAccess performs an Attrs call on a non-existent object
+// to verify bucket existence and authorization when HNS is disabled.
+func (sh *storageClient) verifyNonHNSBucketAccess(ctx context.Context, bucketHandle *storage.BucketHandle, bucketName string) error {
+	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
+		return bucketHandle.Object(nonExistentObjectName).Attrs(attemptCtx)
+	}
+
+	retryConfig := storageutil.NewRetryConfig(&sh.clientConfig)
+	_, err := storageutil.ExecuteWithCustomShouldRetryAtLogLevel(
+		ctx,
+		retryConfig,
+		"Attrs",
+		fmt.Sprintf("%s/%s", bucketName, nonExistentObjectName),
+		uuid.NewString(),
+		apiCall,
+		storageutil.ShouldRetryOnMount,
+		logger.LevelInfo,
+	)
+
+	if err == nil {
+		return nil
+	}
+
+	// An Object NotFound error indicates that the bucket exists and access is authorized.
+	var notFoundError *gcs.NotFoundError
+	if errors.As(gcs.GetGCSError(err), &notFoundError) && !strings.Contains(strings.ToLower(err.Error()), "bucket does not exist") {
+		return nil
+	}
+
+	return err
+}
+
 func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
 	if sh.storageControlClient == nil {
 		return &gcs.BucketType{}, nil // Assume defaults
@@ -524,6 +559,14 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	if billingProject != "" {
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
+
+	if sh.storageControlClient == nil {
+		err = sh.verifyNonHNSBucketAccess(ctx, storageBucketHandle, bucketName)
+		if err != nil {
+			return nil, fmt.Errorf("bucket access check failed for %q: %s", bucketName, err)
+		}
+	}
+
 	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
 
 	bh = &bucketHandle{

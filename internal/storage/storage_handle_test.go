@@ -18,11 +18,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -34,6 +37,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
@@ -1125,4 +1129,112 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	require.NotNil(testSuite.T(), controlClientWithRetry)
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on zonal buckets")
 	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_SucceedsForValidBucket() {
+	sh := testSuite.fakeStorage.CreateStorageHandle().(*storageClient)
+	sh.storageControlClient = nil // HNS disabled path
+
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), bh)
+	assert.False(testSuite.T(), bh.bucketType.Hierarchical)
+	assert.False(testSuite.T(), bh.bucketType.Zonal)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_FailsForInvalidBucket() {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Contains(testSuite.T(), r.URL.Path, invalidBucketName)
+		assert.Contains(testSuite.T(), r.URL.Path, nonExistentObjectName)
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "bucket does not exist"}}`))
+	}))
+	defer server.Close()
+
+	sc, err := storage.NewClient(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
+	require.NoError(testSuite.T(), err)
+	defer func() { _ = sc.Close() }()
+
+	sh := &storageClient{
+		httpClient:           sc,
+		storageControlClient: nil, // HNS disabled path
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol: cfg.HTTP1,
+		},
+	}
+
+	bh, err := sh.BucketHandle(testSuite.ctx, invalidBucketName, "")
+
+	require.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bh)
+	assert.Contains(testSuite.T(), err.Error(), "bucket access check failed")
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_FailsFor403Forbidden() {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Contains(testSuite.T(), r.URL.Path, TestBucketName)
+		assert.Contains(testSuite.T(), r.URL.Path, nonExistentObjectName)
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error": {"code": 403, "message": "Permission denied"}}`))
+	}))
+	defer server.Close()
+
+	sc, err := storage.NewClient(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
+	require.NoError(testSuite.T(), err)
+	defer func() { _ = sc.Close() }()
+
+	sh := &storageClient{
+		httpClient:           sc,
+		storageControlClient: nil, // HNS disabled path
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol: cfg.HTTP1,
+		},
+	}
+
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+	require.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bh)
+	assert.Contains(testSuite.T(), err.Error(), "bucket access check failed")
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_WithBillingProject() {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Contains(testSuite.T(), r.URL.Path, TestBucketName)
+		assert.Contains(testSuite.T(), r.URL.Path, nonExistentObjectName)
+		if r.URL.Query().Get("userProject") != projectID {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error": {"code": 400, "message": "UserProjectMissing"}}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Object not found"}}`))
+	}))
+	defer server.Close()
+
+	sc, err := storage.NewClient(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
+	require.NoError(testSuite.T(), err)
+	defer func() { _ = sc.Close() }()
+
+	sh := &storageClient{
+		httpClient:           sc,
+		storageControlClient: nil, // HNS disabled path
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol: cfg.HTTP1,
+		},
+	}
+
+	// Without billing project, check fails on Requester Pays mock server.
+	_, err = sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+	require.Error(testSuite.T(), err)
+	assert.Contains(testSuite.T(), err.Error(), "bucket access check failed")
+
+	// With billing project, check succeeds.
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID)
+
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), bh)
+	assert.False(testSuite.T(), bh.bucketType.Hierarchical)
+	assert.False(testSuite.T(), bh.bucketType.Zonal)
 }
